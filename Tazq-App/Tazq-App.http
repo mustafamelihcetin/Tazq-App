@@ -1,0 +1,6 @@
+@Tazq_App_HostAddress = http://localhost:5062
+
+GET {{Tazq_App_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
