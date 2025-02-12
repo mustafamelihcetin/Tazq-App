@@ -16,8 +16,8 @@ namespace Tazq_App.Data
 
 			modelBuilder.Entity<User>()
 				.HasMany(u => u.Tasks)
-				.WithOne()
-				.HasForeignKey("UserId")
+				.WithOne(t => t.User)
+				.HasForeignKey(t => t.UserId)
 				.OnDelete(DeleteBehavior.Cascade);
 		}
 	}
