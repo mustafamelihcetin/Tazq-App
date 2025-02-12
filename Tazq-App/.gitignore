@@ -1,0 +1,16 @@
+﻿# Visual Studio dosyaları
+.vs/
+bin/
+obj/
+
+# Kullanıcı özel dosyaları
+*.user
+*.suo
+*.log
+*.pdb
+*.cache
+*.config
+*.csproj.user
+
+# Hassas bilgiler (Güvenlik için)
+.env
