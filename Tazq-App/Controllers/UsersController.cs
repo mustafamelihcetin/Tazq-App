@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Tazq_App.Data;
 using Tazq_App.Models;
+using Tazq_App.Services;
 
 namespace Tazq_App.Controllers
 {
@@ -30,6 +31,8 @@ namespace Tazq_App.Controllers
 			{
 				return BadRequest("Username, Email ve Password boş olamaz.");
 			}
+
+			user.PasswordHash= PasswordHasher.HashPassword(user.PasswordHash);
 
 			_context.Users.Add(user);
 			await _context.SaveChangesAsync();
