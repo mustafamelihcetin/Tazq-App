@@ -23,8 +23,10 @@ namespace Tazq_App.Controllers
 		public async Task<IActionResult> GetTasks()
 		{
 			var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (userId == null)
-				return Unauthorized();
+			if (string.IsNullOrEmpty(userId))
+			{
+				return Unauthorized("User ID not found in token.");
+			}
 
 			var tasks = await _context.Tasks
 				.Where(t => t.UserId == int.Parse(userId))
@@ -37,8 +39,10 @@ namespace Tazq_App.Controllers
 		public async Task<IActionResult> GetTaskById(int id)
 		{
 			var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (userId == null)
-				return Unauthorized();
+			if (string.IsNullOrEmpty(userId))
+			{
+				return Unauthorized("User ID not found in token.");
+			}
 
 			var task = await _context.Tasks.FindAsync(id);
 			if (task == null || task.UserId != int.Parse(userId))
@@ -50,13 +54,16 @@ namespace Tazq_App.Controllers
 		}
 
 		[HttpPost]
-		public async Task<IActionResult> CreateTask(TaskItem task)
+		public async Task<IActionResult> CreateTask([FromBody] TaskItem task)
 		{
 			var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (userId == null)
-				return Unauthorized();
+			if (string.IsNullOrEmpty(userId))
+			{
+				return Unauthorized("User ID not found in token.");
+			}
 
 			task.UserId = int.Parse(userId);
+			task.User = null; // Ensure EF Core does not try to link an existing user
 
 			_context.Tasks.Add(task);
 			await _context.SaveChangesAsync();
@@ -64,11 +71,13 @@ namespace Tazq_App.Controllers
 		}
 
 		[HttpPut("{id}")]
-		public async Task<IActionResult> UpdateTask(int id, TaskItem task)
+		public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskItem task)
 		{
 			var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (userId == null)
-				return Unauthorized();
+			if (string.IsNullOrEmpty(userId))
+			{
+				return Unauthorized("User ID not found in token.");
+			}
 
 			if (id != task.Id)
 			{
@@ -96,8 +105,10 @@ namespace Tazq_App.Controllers
 		public async Task<IActionResult> DeleteTask(int id)
 		{
 			var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (userId == null)
-				return Unauthorized();
+			if (string.IsNullOrEmpty(userId))
+			{
+				return Unauthorized("User ID not found in token.");
+			}
 
 			var task = await _context.Tasks.FindAsync(id);
 			if (task == null || task.UserId != int.Parse(userId))

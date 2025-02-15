@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Text.Json.Serialization;
 using DotNetEnv;
 using Tazq_App.Data;
 using Tazq_App.Services;
@@ -11,16 +12,26 @@ var builder = WebApplication.CreateBuilder(args);
 
 Env.Load();
 
-var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
-var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER");
-var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE");
-var jwtExpiration = Convert.ToInt32(Environment.GetEnvironmentVariable("JWT_EXPIRATION"));
+// Load environment variables
+var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") ?? builder.Configuration["JwtSettings:Key"];
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Configuration["JwtSettings:Issuer"];
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? builder.Configuration["JwtSettings:Audience"];
+var jwtExpiration = Convert.ToInt32(Environment.GetEnvironmentVariable("JWT_EXPIRATION") ?? "60");
 
-// Add services to the container
-builder.Services.AddControllers();
+// Ensure JWT Key is not null or empty
+if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
+{
+	throw new Exception("JWT_KEY is missing or too short! It must be at least 32 characters long.");
+}
+
+// Add services to the container.
+builder.Services.AddControllers()
+	.AddJsonOptions(options =>
+	{
+		options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); // Enable string enums in JSON
+	});
+
 builder.Services.AddEndpointsApiExplorer();
-
-// Swagger configuration with JWT authentication
 builder.Services.AddSwaggerGen(options =>
 {
 	options.SwaggerDoc("v1", new OpenApiInfo { Title = "Tazq-App API", Version = "v1" });
@@ -32,7 +43,7 @@ builder.Services.AddSwaggerGen(options =>
 		Scheme = "Bearer",
 		BearerFormat = "JWT",
 		In = ParameterLocation.Header,
-		Description = "Enter 'Bearer' followed by your token"
+		Description = "Enter 'Bearer' followed by your valid token."
 	});
 
 	options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -51,12 +62,11 @@ builder.Services.AddSwaggerGen(options =>
 	});
 });
 
-// Database configuration
+// SQLite Database Connection
 builder.Services.AddDbContext<AppDbContext>(options =>
 	options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// JWT Authentication setup
-var key = Encoding.UTF8.GetBytes(jwtKey);
+var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	.AddJwtBearer(options =>
 	{
@@ -68,7 +78,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 			ValidateIssuerSigningKey = true,
 			ValidIssuer = jwtIssuer,
 			ValidAudience = jwtAudience,
-			IssuerSigningKey = new SymmetricSecurityKey(key)
+			IssuerSigningKey = new SymmetricSecurityKey(keyBytes)
 		};
 	});
 
@@ -76,7 +86,6 @@ builder.Services.AddSingleton<JwtService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
 	app.UseSwagger();
@@ -90,5 +99,4 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
 app.Run();
