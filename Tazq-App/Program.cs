@@ -20,12 +20,11 @@ var jwtExpiration = Convert.ToInt32(Environment.GetEnvironmentVariable("JWT_EXPI
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Configure Swagger for JWT authentication
+// Swagger configuration with JWT authentication
 builder.Services.AddSwaggerGen(options =>
 {
 	options.SwaggerDoc("v1", new OpenApiInfo { Title = "Tazq-App API", Version = "v1" });
 
-	// Add JWT Authentication to Swagger
 	options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
 	{
 		Name = "Authorization",
@@ -36,7 +35,6 @@ builder.Services.AddSwaggerGen(options =>
 		Description = "Enter 'Bearer' followed by your token"
 	});
 
-	// Apply security requirements globally
 	options.AddSecurityRequirement(new OpenApiSecurityRequirement
 	{
 		{
@@ -53,11 +51,11 @@ builder.Services.AddSwaggerGen(options =>
 	});
 });
 
-// Configure SQLite Database
+// Database configuration
 builder.Services.AddDbContext<AppDbContext>(options =>
 	options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Configure JWT authentication
+// JWT Authentication setup
 var key = Encoding.UTF8.GetBytes(jwtKey);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	.AddJwtBearer(options =>
@@ -78,7 +76,7 @@ builder.Services.AddSingleton<JwtService>();
 
 var app = builder.Build();
 
-// Enable Swagger UI in Development Mode
+// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
 	app.UseSwagger();
@@ -87,9 +85,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Enable authentication and authorization middleware
+// Authentication & Authorization Middleware
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
 app.Run();
