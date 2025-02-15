@@ -8,6 +8,7 @@ using Tazq_App.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
 Env.Load();
 
 var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
