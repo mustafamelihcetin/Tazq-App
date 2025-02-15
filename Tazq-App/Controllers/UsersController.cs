@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Tazq_App.Data;
 using Tazq_App.Models;
@@ -8,6 +9,7 @@ namespace Tazq_App.Controllers
 {
 	[Route("api/users")]
 	[ApiController]
+	[Authorize] // Kimlik doğrulama gerektirir
 	public class UsersController : ControllerBase
 	{
 		private readonly AppDbContext _context;
@@ -24,6 +26,7 @@ namespace Tazq_App.Controllers
 			return Ok(users);
 		}
 
+		[AllowAnonymous] // Herkesin erişebilmesi için
 		[HttpPost]
 		public async Task<IActionResult> CreateUser(User user)
 		{
@@ -32,7 +35,7 @@ namespace Tazq_App.Controllers
 				return BadRequest("Username, Email ve Password boş olamaz.");
 			}
 
-			user.PasswordHash= PasswordHasher.HashPassword(user.PasswordHash);
+			user.PasswordHash = PasswordHasher.HashPassword(user.PasswordHash);
 
 			_context.Users.Add(user);
 			await _context.SaveChangesAsync();
