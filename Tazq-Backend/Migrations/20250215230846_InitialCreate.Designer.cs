@@ -8,11 +8,11 @@ using Tazq_App.Data;
 
 #nullable disable
 
-namespace Tazq_App.Migrations
+namespace Tazq_Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250214205321_SecureTaskEndpoints")]
-    partial class SecureTaskEndpoints
+    [Migration("20250215230846_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -64,6 +64,10 @@ namespace Tazq_App.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("TEXT");
 

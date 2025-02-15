@@ -1,7 +1,5 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Tazq_App.Models;
 
 namespace Tazq_App.Models
 {
@@ -20,6 +18,9 @@ namespace Tazq_App.Models
 		[Required]
 		public string PasswordHash { get; set; } = string.Empty;
 
-		public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
+		[Required]
+		public string Role { get; set; } = "User"; // Default 
+
+		public List<TaskItem> Tasks { get; set; } = new List<TaskItem>();
 	}
 }

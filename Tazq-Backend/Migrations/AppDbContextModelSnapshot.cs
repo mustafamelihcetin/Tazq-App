@@ -7,7 +7,7 @@ using Tazq_App.Data;
 
 #nullable disable
 
-namespace Tazq_App.Migrations
+namespace Tazq_Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot
@@ -61,6 +61,10 @@ namespace Tazq_App.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("TEXT");
 

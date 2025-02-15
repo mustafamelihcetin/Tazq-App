@@ -86,6 +86,13 @@ builder.Services.AddSingleton<JwtService>();
 
 var app = builder.Build();
 
+// **Run database seeding process**
+using (var scope = app.Services.CreateScope())
+{
+	var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+	DataSeeder.SeedDatabase(dbContext);
+}
+
 if (app.Environment.IsDevelopment())
 {
 	app.UseSwagger();

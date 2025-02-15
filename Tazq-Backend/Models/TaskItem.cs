@@ -12,28 +12,24 @@ namespace Tazq_App.Models
 		[Required]
 		public string Title { get; set; } = string.Empty;
 
-		public string? Description { get; set; }
+		public string Description { get; set; } = string.Empty;
 
-		[Required]
 		public DateTime DueDate { get; set; }
 
-		[Required]
-		public bool IsCompleted { get; set; }
+		public bool IsCompleted { get; set; } = false;
 
-		[Required]
-		public TaskPriority Priority { get; set; }
+		public TaskPriority Priority { get; set; } = TaskPriority.Medium;
 
-		[Required]
 		[ForeignKey("User")]
 		public int UserId { get; set; }
 
-		public User? User { get; set; } // Navigation property
+		public User? User { get; set; }
 	}
 
 	public enum TaskPriority
 	{
-		Low = 1,
-		Medium = 2,
-		High = 3
+		Low,
+		Medium,
+		High
 	}
 }
