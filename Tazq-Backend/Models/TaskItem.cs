@@ -25,9 +25,8 @@ namespace Tazq_App.Models
 
 		public User? User { get; set; }
 
-		// NEW: Track who assigned this task (Only for Admin-Assigned Tasks)
-		public int? AssignedByUserId { get; set; }
-		public User? AssignedByUser { get; set; }
+		// New field for task categorization (Tags will be stored as JSON)
+		public List<string> Tags { get; set; } = new List<string>();
 	}
 
 	public enum TaskPriority

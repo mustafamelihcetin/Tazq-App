@@ -71,6 +71,8 @@ namespace Tazq_App.Controllers
 				return Unauthorized("User ID not found in token.");
 
 			task.UserId = int.Parse(userIdClaim);
+			task.Tags = task.Tags ?? new List<string>(); // Ensure tags list is not null
+
 			_context.Tasks.Add(task);
 			await _context.SaveChangesAsync();
 			return CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, task);
@@ -108,6 +110,9 @@ namespace Tazq_App.Controllers
 
 			if (updateDto.Priority.HasValue)
 				existingTask.Priority = updateDto.Priority.Value;
+
+			if (updateDto.Tags != null)
+				existingTask.Tags = updateDto.Tags;
 
 			_context.Entry(existingTask).State = EntityState.Modified;
 			await _context.SaveChangesAsync();
@@ -170,5 +175,6 @@ namespace Tazq_App.Controllers
 		public DateTime? DueDate { get; set; }
 		public bool? IsCompleted { get; set; }
 		public TaskPriority? Priority { get; set; }
+		public List<string>? Tags { get; set; }
 	}
 }
