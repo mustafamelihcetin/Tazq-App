@@ -20,9 +20,12 @@ namespace Tazq_App.Controllers
 			_context = context;
 		}
 
-		// Retrieve tasks with optional tag filtering
+		// Retrieves tasks with optional filtering and sorting
 		[HttpGet]
-		public async Task<IActionResult> GetTasks([FromQuery] string? tag)
+		public async Task<IActionResult> GetTasks(
+			[FromQuery] string? tag,
+			[FromQuery] string? search,
+			[FromQuery] string? sortBy)
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 			if (userIdClaim == null)
@@ -39,18 +42,30 @@ namespace Tazq_App.Controllers
 			if (!isAdmin)
 				query = query.Where(t => t.UserId == userId);
 
-			// Fetch data first, then filter in-memory (LINQ to Objects)
-			var tasks = await query.ToListAsync();
-
-			// Apply tag filtering after fetching the data
+			// Filter tasks by tag
 			if (!string.IsNullOrEmpty(tag))
 			{
-				tasks = tasks.Where(t => t.Tags.Contains(tag)).ToList();
+				query = query.Where(t => t.TagsJson.Contains($"\"{tag}\"")); // JSON filtering fix
 			}
 
+			// Search tasks by title or description
+			if (!string.IsNullOrEmpty(search))
+			{
+				query = query.Where(t => t.Title.Contains(search) || t.Description.Contains(search));
+			}
+
+			// Sorting feature
+			query = sortBy?.ToLower() switch
+			{
+				"duedate" => query.OrderBy(t => t.DueDate),
+				"priority" => query.OrderByDescending(t => t.Priority),
+				"title" => query.OrderBy(t => t.Title),
+				_ => query
+			};
+
+			var tasks = await query.ToListAsync();
 			return Ok(tasks);
 		}
-
 
 		// Retrieves a specific task by ID
 		[HttpGet("{id}")]
