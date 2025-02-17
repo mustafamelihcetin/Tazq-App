@@ -29,6 +29,7 @@ builder.Services.AddControllers()
 	.AddJsonOptions(options =>
 	{
 		options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); // Enable string enums in JSON
+		options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve; // Prevent circular references
 	});
 
 builder.Services.AddEndpointsApiExplorer();

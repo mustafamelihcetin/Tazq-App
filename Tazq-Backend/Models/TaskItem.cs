@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace Tazq_App.Models
 {
@@ -23,6 +24,7 @@ namespace Tazq_App.Models
 		[ForeignKey("User")]
 		public int UserId { get; set; }
 
+		[JsonIgnore] // Prevent circular reference issue
 		public User? User { get; set; }
 	}
 

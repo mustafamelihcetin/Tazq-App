@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace Tazq_App.Models
 {
@@ -19,8 +20,9 @@ namespace Tazq_App.Models
 		public string PasswordHash { get; set; } = string.Empty;
 
 		[Required]
-		public string Role { get; set; } = "User"; // Default 
+		public string Role { get; set; } = "User"; // Default role
 
+		[JsonIgnore] // Prevent infinite loop when serializing
 		public List<TaskItem> Tasks { get; set; } = new List<TaskItem>();
 	}
 }

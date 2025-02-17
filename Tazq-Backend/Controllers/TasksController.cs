@@ -30,7 +30,9 @@ namespace Tazq_App.Controllers
 			int userId = int.Parse(userIdClaim);
 			bool isAdmin = User.IsInRole("Admin");
 
+			// Include User data
 			var tasks = await _context.Tasks
+				.Include(t => t.User) // Ensure User details are included
 				.Where(t => isAdmin || t.UserId == userId)
 				.ToListAsync();
 
@@ -48,7 +50,11 @@ namespace Tazq_App.Controllers
 			int userId = int.Parse(userIdClaim);
 			bool isAdmin = User.IsInRole("Admin");
 
-			var task = await _context.Tasks.FindAsync(id);
+			// Include User data
+			var task = await _context.Tasks
+				.Include(t => t.User) // Ensure User details are included
+				.FirstOrDefaultAsync(t => t.Id == id);
+
 			if (task == null)
 				return NotFound();
 
