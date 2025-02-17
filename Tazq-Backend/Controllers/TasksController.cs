@@ -19,7 +19,7 @@ namespace Tazq_App.Controllers
 			_context = context;
 		}
 
-		// Retrieve tasks based on user role
+		// Retrieve only the tasks of the authenticated user
 		[HttpGet]
 		public async Task<IActionResult> GetTasks()
 		{
@@ -28,18 +28,17 @@ namespace Tazq_App.Controllers
 				return Unauthorized("User ID not found in token.");
 
 			int userId = int.Parse(userIdClaim);
-			bool isAdmin = User.IsInRole("Admin");
 
 			var tasks = await _context.Tasks
 				.Include(t => t.User)
 				.Include(t => t.AssignedByUser)
-				.Where(t => isAdmin || t.UserId == userId)
+				.Where(t => t.UserId == userId)
 				.ToListAsync();
 
 			return Ok(tasks);
 		}
 
-		// Retrieve a specific task by ID
+		// Retrieve a specific task owned by the authenticated user
 		[HttpGet("{id}")]
 		public async Task<IActionResult> GetTaskById(int id)
 		{
@@ -48,83 +47,61 @@ namespace Tazq_App.Controllers
 				return Unauthorized("User ID not found in token.");
 
 			int userId = int.Parse(userIdClaim);
-			bool isAdmin = User.IsInRole("Admin");
 
 			var task = await _context.Tasks
 				.Include(t => t.User)
 				.Include(t => t.AssignedByUser)
-				.FirstOrDefaultAsync(t => t.Id == id);
+				.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
 
 			if (task == null)
-				return NotFound();
-
-			if (!isAdmin && task.UserId != userId)
-				return Forbid("You are not allowed to access this task.");
+				return NotFound("Task not found or you do not have permission to view it.");
 
 			return Ok(task);
 		}
 
-		// Create a new task
+		// Create a new task only for the authenticated user
 		[HttpPost]
-		public async Task<IActionResult> CreateTask(TaskItem task)
+		public async Task<IActionResult> CreateTask([FromBody] TaskItem task)
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
 
-			int loggedInUserId = int.Parse(userIdClaim);
-			bool isAdmin = User.IsInRole("Admin");
-
-			if (isAdmin && task.UserId != loggedInUserId)
-			{
-				var targetUser = await _context.Users.FindAsync(task.UserId);
-				if (targetUser == null)
-					return BadRequest("The specified user does not exist.");
-
-				task.AssignedByUserId = loggedInUserId;
-			}
-			else
-			{
-				task.UserId = loggedInUserId;
-			}
+			task.UserId = int.Parse(userIdClaim); // Always assign task to the authenticated user
 
 			_context.Tasks.Add(task);
 			await _context.SaveChangesAsync();
-
 			return CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, task);
 		}
 
-
-		// Update an existing task
+		// Update only tasks that belong to the authenticated user
 		[HttpPut("{id}")]
-		public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskItem task)
+		public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskItem updatedTask)
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
 
 			int userId = int.Parse(userIdClaim);
-			bool isAdmin = User.IsInRole("Admin");
 
-			var existingTask = await _context.Tasks.FindAsync(id);
+			var existingTask = await _context.Tasks
+				.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+
 			if (existingTask == null)
-				return NotFound();
+				return NotFound("Task not found or you do not have permission to modify it.");
 
-			if (!isAdmin && existingTask.UserId != userId)
-				return Forbid("You are not allowed to modify this task.");
-
-			existingTask.Title = task.Title;
-			existingTask.Description = task.Description;
-			existingTask.DueDate = task.DueDate;
-			existingTask.IsCompleted = task.IsCompleted;
-			existingTask.Priority = task.Priority;
+			existingTask.Title = updatedTask.Title;
+			existingTask.Description = updatedTask.Description;
+			existingTask.DueDate = updatedTask.DueDate;
+			existingTask.IsCompleted = updatedTask.IsCompleted;
+			existingTask.Priority = updatedTask.Priority;
 
 			_context.Entry(existingTask).State = EntityState.Modified;
 			await _context.SaveChangesAsync();
 			return NoContent();
 		}
 
-		// Delete a task
+		// Delete only tasks that belong to the authenticated user
 		[HttpDelete("{id}")]
 		public async Task<IActionResult> DeleteTask(int id)
 		{
@@ -133,14 +110,12 @@ namespace Tazq_App.Controllers
 				return Unauthorized("User ID not found in token.");
 
 			int userId = int.Parse(userIdClaim);
-			bool isAdmin = User.IsInRole("Admin");
 
-			var task = await _context.Tasks.FindAsync(id);
+			var task = await _context.Tasks
+				.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+
 			if (task == null)
-				return NotFound();
-
-			if (!isAdmin && task.UserId != userId)
-				return Forbid("You are not allowed to delete this task.");
+				return NotFound("Task not found or you do not have permission to delete it.");
 
 			_context.Tasks.Remove(task);
 			await _context.SaveChangesAsync();
