@@ -1,4 +1,4 @@
 # Tazq-App
 
-![Project Logo](Tazq-App/wwwroot/images/logo.png)
+![Project Logo](Tazq-Backend/wwwroot/images/logo.png)
 
