@@ -19,76 +19,76 @@ namespace Tazq_App.Controllers
 			_context = context;
 		}
 
+		// Retrieve tasks based on user role
 		[HttpGet]
 		public async Task<IActionResult> GetTasks()
 		{
-			var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (string.IsNullOrEmpty(userId))
-			{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
-			}
+
+			int userId = int.Parse(userIdClaim);
+			bool isAdmin = User.IsInRole("Admin");
 
 			var tasks = await _context.Tasks
-				.Where(t => t.UserId == int.Parse(userId))
+				.Where(t => isAdmin || t.UserId == userId)
 				.ToListAsync();
 
 			return Ok(tasks);
 		}
 
+		// Retrieve a specific task by ID
 		[HttpGet("{id}")]
 		public async Task<IActionResult> GetTaskById(int id)
 		{
-			var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (string.IsNullOrEmpty(userId))
-			{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
-			}
+
+			int userId = int.Parse(userIdClaim);
+			bool isAdmin = User.IsInRole("Admin");
 
 			var task = await _context.Tasks.FindAsync(id);
-			if (task == null || task.UserId != int.Parse(userId))
-			{
+			if (task == null)
 				return NotFound();
-			}
+
+			if (!isAdmin && task.UserId != userId)
+				return Forbid("You are not allowed to access this task.");
 
 			return Ok(task);
 		}
 
+		// Create a new task
 		[HttpPost]
-		public async Task<IActionResult> CreateTask([FromBody] TaskItem task)
+		public async Task<IActionResult> CreateTask(TaskItem task)
 		{
-			var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (string.IsNullOrEmpty(userId))
-			{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
-			}
 
-			task.UserId = int.Parse(userId);
-			task.User = null; // Ensure EF Core does not try to link an existing user
-
+			task.UserId = int.Parse(userIdClaim);
 			_context.Tasks.Add(task);
 			await _context.SaveChangesAsync();
 			return CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, task);
 		}
 
+		// Update an existing task
 		[HttpPut("{id}")]
-		public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskItem task)
+		public async Task<IActionResult> UpdateTask(int id, TaskItem task)
 		{
-			var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (string.IsNullOrEmpty(userId))
-			{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
-			}
 
-			if (id != task.Id)
-			{
-				return BadRequest();
-			}
+			int userId = int.Parse(userIdClaim);
+			bool isAdmin = User.IsInRole("Admin");
 
 			var existingTask = await _context.Tasks.FindAsync(id);
-			if (existingTask == null || existingTask.UserId != int.Parse(userId))
-			{
+			if (existingTask == null)
 				return NotFound();
-			}
+
+			if (!isAdmin && existingTask.UserId != userId)
+				return Forbid("You are not allowed to modify this task.");
 
 			existingTask.Title = task.Title;
 			existingTask.Description = task.Description;
@@ -101,20 +101,23 @@ namespace Tazq_App.Controllers
 			return NoContent();
 		}
 
+		// Delete a task
 		[HttpDelete("{id}")]
 		public async Task<IActionResult> DeleteTask(int id)
 		{
-			var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (string.IsNullOrEmpty(userId))
-			{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
-			}
+
+			int userId = int.Parse(userIdClaim);
+			bool isAdmin = User.IsInRole("Admin");
 
 			var task = await _context.Tasks.FindAsync(id);
-			if (task == null || task.UserId != int.Parse(userId))
-			{
+			if (task == null)
 				return NotFound();
-			}
+
+			if (!isAdmin && task.UserId != userId)
+				return Forbid("You are not allowed to delete this task.");
 
 			_context.Tasks.Remove(task);
 			await _context.SaveChangesAsync();

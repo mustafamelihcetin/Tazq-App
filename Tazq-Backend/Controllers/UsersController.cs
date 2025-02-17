@@ -14,7 +14,6 @@ namespace Tazq_App.Controllers
 {
 	[Route("api/users")]
 	[ApiController]
-	[ApiExplorerSettings(IgnoreApi = false)] // Ensure Swagger does not ignore this controller
 	public class UsersController : ControllerBase
 	{
 		private readonly AppDbContext _context;
@@ -65,7 +64,8 @@ namespace Tazq_App.Controllers
 			{
 				Username = model.Username,
 				Email = model.Email,
-				PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password)
+				PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password),
+				Role = "User" // Default role
 			};
 
 			_context.Users.Add(newUser);
@@ -93,6 +93,7 @@ namespace Tazq_App.Controllers
 				return Unauthorized("Invalid username or password");
 			}
 
+			// Generate JWT Token with Role Claim
 			var tokenHandler = new JwtSecurityTokenHandler();
 			var key = Encoding.UTF8.GetBytes(jwtKey);
 			var tokenDescriptor = new SecurityTokenDescriptor
@@ -101,8 +102,8 @@ namespace Tazq_App.Controllers
 				{
 					new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
 					new Claim(ClaimTypes.Name, user.Username),
-					new Claim(ClaimTypes.Role, "User") // Default role
-                }),
+					new Claim(ClaimTypes.Role, user.Role) // Add Role claim
+				}),
 				Expires = DateTime.UtcNow.AddMinutes(60),
 				SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
 				Issuer = jwtIssuer,
@@ -112,52 +113,5 @@ namespace Tazq_App.Controllers
 			var token = tokenHandler.CreateToken(tokenDescriptor);
 			return Ok(new { token = tokenHandler.WriteToken(token) });
 		}
-
-		// Change user password
-		[HttpPost("change-password")]
-		[Authorize]
-		public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto model)
-		{
-			var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (userId == null)
-				return Unauthorized("User not authenticated.");
-
-			var user = await _context.Users.FindAsync(int.Parse(userId));
-			if (user == null)
-				return NotFound("User not found.");
-
-			if (!BCrypt.Net.BCrypt.Verify(model.OldPassword, user.PasswordHash))
-			{
-				return BadRequest("Old password is incorrect.");
-			}
-
-			user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
-			_context.Users.Update(user);
-			await _context.SaveChangesAsync();
-
-			return Ok("Password updated successfully.");
-		}
-	}
-
-	// DTO for user registration
-	public class UserRegisterDto
-	{
-		public string Username { get; set; }
-		public string Email { get; set; }
-		public string Password { get; set; }
-	}
-
-	// DTO for user login
-	public class UserLoginDto
-	{
-		public string Username { get; set; }
-		public string Password { get; set; }
-	}
-
-	// DTO for changing password
-	public class ChangePasswordDto
-	{
-		public string OldPassword { get; set; }
-		public string NewPassword { get; set; }
 	}
 }
