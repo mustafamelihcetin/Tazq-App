@@ -19,9 +19,14 @@ namespace Tazq_App.Controllers
 			_context = context;
 		}
 
-		// Retrieves tasks with optional tag filtering
+		// Retrieves tasks with optional filtering and sorting
 		[HttpGet]
-		public async Task<IActionResult> GetTasks([FromQuery] string? tag)
+		public async Task<IActionResult> GetTasks(
+			[FromQuery] string? tag,
+			[FromQuery] bool? completed,
+			[FromQuery] TaskPriority? priority,
+			[FromQuery] DateTime? dueBefore,
+			[FromQuery] string? sortBy)
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 			if (userIdClaim == null)
@@ -30,21 +35,43 @@ namespace Tazq_App.Controllers
 			int userId = int.Parse(userIdClaim);
 			bool isAdmin = User.IsInRole("Admin");
 
-			// Fetch tasks based on user role
 			var query = _context.Tasks
 				.Include(t => t.User)
 				.AsQueryable();
 
+			// Apply role-based filtering
 			if (!isAdmin)
 				query = query.Where(t => t.UserId == userId);
 
+			// Apply additional filters
 			if (!string.IsNullOrEmpty(tag))
+			{
 				query = query.Where(t => t.Tags.Contains(tag));
+			}
+			if (completed.HasValue)
+			{
+				query = query.Where(t => t.IsCompleted == completed.Value);
+			}
+			if (priority.HasValue)
+			{
+				query = query.Where(t => t.Priority == priority.Value);
+			}
+			if (dueBefore.HasValue)
+			{
+				query = query.Where(t => t.DueDate < dueBefore.Value);
+			}
+
+			// Sorting mechanism
+			query = sortBy switch
+			{
+				"priority" => query.OrderByDescending(t => t.Priority),
+				"dateCreated" => query.OrderBy(t => t.Id),
+				_ => query.OrderBy(t => t.DueDate) // Default sorting by DueDate
+			};
 
 			var tasks = await query.ToListAsync();
 			return Ok(tasks);
 		}
-
 
 		// Retrieves a specific task by ID
 		[HttpGet("{id}")]
