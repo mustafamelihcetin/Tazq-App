@@ -30,9 +30,9 @@ namespace Tazq_App.Controllers
 			int userId = int.Parse(userIdClaim);
 			bool isAdmin = User.IsInRole("Admin");
 
-			// Include User data
 			var tasks = await _context.Tasks
-				.Include(t => t.User) // Ensure User details are included
+				.Include(t => t.User)
+				.Include(t => t.AssignedByUser)
 				.Where(t => isAdmin || t.UserId == userId)
 				.ToListAsync();
 
@@ -50,9 +50,9 @@ namespace Tazq_App.Controllers
 			int userId = int.Parse(userIdClaim);
 			bool isAdmin = User.IsInRole("Admin");
 
-			// Include User data
 			var task = await _context.Tasks
-				.Include(t => t.User) // Ensure User details are included
+				.Include(t => t.User)
+				.Include(t => t.AssignedByUser)
 				.FirstOrDefaultAsync(t => t.Id == id);
 
 			if (task == null)
@@ -72,15 +72,32 @@ namespace Tazq_App.Controllers
 			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
 
-			task.UserId = int.Parse(userIdClaim);
+			int loggedInUserId = int.Parse(userIdClaim);
+			bool isAdmin = User.IsInRole("Admin");
+
+			if (isAdmin && task.UserId != loggedInUserId)
+			{
+				var targetUser = await _context.Users.FindAsync(task.UserId);
+				if (targetUser == null)
+					return BadRequest("The specified user does not exist.");
+
+				task.AssignedByUserId = loggedInUserId;
+			}
+			else
+			{
+				task.UserId = loggedInUserId;
+			}
+
 			_context.Tasks.Add(task);
 			await _context.SaveChangesAsync();
+
 			return CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, task);
 		}
 
+
 		// Update an existing task
 		[HttpPut("{id}")]
-		public async Task<IActionResult> UpdateTask(int id, TaskItem task)
+		public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskItem task)
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 			if (userIdClaim == null)

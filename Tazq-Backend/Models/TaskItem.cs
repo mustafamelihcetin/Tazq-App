@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Serialization;
 
 namespace Tazq_App.Models
 {
@@ -24,8 +23,11 @@ namespace Tazq_App.Models
 		[ForeignKey("User")]
 		public int UserId { get; set; }
 
-		[JsonIgnore] // Prevent circular reference issue
 		public User? User { get; set; }
+
+		// NEW: Track who assigned this task (Only for Admin-Assigned Tasks)
+		public int? AssignedByUserId { get; set; }
+		public User? AssignedByUser { get; set; }
 	}
 
 	public enum TaskPriority
