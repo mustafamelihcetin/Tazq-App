@@ -1,5 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Tazq_App.Models
 {
@@ -23,10 +25,21 @@ namespace Tazq_App.Models
 		[ForeignKey("User")]
 		public int UserId { get; set; }
 
+		[JsonIgnore] // Prevents infinite recursion
 		public User? User { get; set; }
 
-		// New field for task categorization (Tags will be stored as JSON)
-		public List<string> Tags { get; set; } = new List<string>();
+		// Store tags as a JSON array in the database
+		[Column(TypeName = "TEXT")]
+		public string TagsJson { get; set; } = "[]";
+
+		[NotMapped]
+		[JsonPropertyName("tags")] // Ensures proper serialization
+		[JsonConverter(typeof(JsonStringListConverter))] // Custom JSON Converter
+		public List<string> Tags
+		{
+			get => string.IsNullOrEmpty(TagsJson) ? new List<string>() : JsonSerializer.Deserialize<List<string>>(TagsJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<string>();
+			set => TagsJson = JsonSerializer.Serialize(value, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+		}
 	}
 
 	public enum TaskPriority
@@ -34,5 +47,24 @@ namespace Tazq_App.Models
 		Low,
 		Medium,
 		High
+	}
+
+	// Custom JSON Converter for Tags List
+	public class JsonStringListConverter : JsonConverter<List<string>>
+	{
+		public override List<string> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			return JsonSerializer.Deserialize<List<string>>(ref reader, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<string>();
+		}
+
+		public override void Write(Utf8JsonWriter writer, List<string> value, JsonSerializerOptions options)
+		{
+			writer.WriteStartArray();
+			foreach (var item in value)
+			{
+				writer.WriteStringValue(item);
+			}
+			writer.WriteEndArray();
+		}
 	}
 }

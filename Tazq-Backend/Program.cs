@@ -29,8 +29,10 @@ builder.Services.AddControllers()
 	.AddJsonOptions(options =>
 	{
 		options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); // Enable string enums in JSON
-		options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve; // Prevent circular references
+		options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles; // Prevent cyclic references
+		options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull; // Ignore null values
 	});
+
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

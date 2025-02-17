@@ -19,9 +19,9 @@ namespace Tazq_App.Controllers
 			_context = context;
 		}
 
-		// Retrieves tasks based on user role
+		// Retrieves tasks with optional tag filtering
 		[HttpGet]
-		public async Task<IActionResult> GetTasks()
+		public async Task<IActionResult> GetTasks([FromQuery] string? tag)
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 			if (userIdClaim == null)
@@ -30,13 +30,21 @@ namespace Tazq_App.Controllers
 			int userId = int.Parse(userIdClaim);
 			bool isAdmin = User.IsInRole("Admin");
 
-			var tasks = await _context.Tasks
+			// Fetch tasks based on user role
+			var query = _context.Tasks
 				.Include(t => t.User)
-				.Where(t => isAdmin || t.UserId == userId)
-				.ToListAsync();
+				.AsQueryable();
 
+			if (!isAdmin)
+				query = query.Where(t => t.UserId == userId);
+
+			if (!string.IsNullOrEmpty(tag))
+				query = query.Where(t => t.Tags.Contains(tag));
+
+			var tasks = await query.ToListAsync();
 			return Ok(tasks);
 		}
+
 
 		// Retrieves a specific task by ID
 		[HttpGet("{id}")]
