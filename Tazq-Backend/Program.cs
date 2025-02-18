@@ -5,6 +5,7 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using System.Text.Json.Serialization;
 using DotNetEnv;
+using AspNetCoreRateLimit;
 using Tazq_App.Data;
 using Tazq_App.Services;
 
@@ -32,7 +33,6 @@ builder.Services.AddControllers()
 		options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles; // Prevent cyclic references
 		options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull; // Ignore null values
 	});
-
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -69,6 +69,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
 	options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Configure Authentication (JWT)
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	.AddJwtBearer(options =>
@@ -87,6 +88,38 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddSingleton<JwtService>();
 
+// Enable API Rate Limiting
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(options =>
+{
+	options.GeneralRules = new List<RateLimitRule>
+	{
+		new RateLimitRule
+		{
+			Endpoint = "*",
+			Limit = 5,   // Max 5 requests
+			Period = "1s" // per second
+		}
+	};
+});
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddInMemoryRateLimiting();
+builder.Services.AddHttpContextAccessor();
+
+// Enable CORS
+builder.Services.AddCors(options =>
+{
+	options.AddPolicy("AllowAllOrigins",
+		builder =>
+		{
+			builder.AllowAnyOrigin()
+				   .AllowAnyMethod()
+				   .AllowAnyHeader();
+		});
+});
+
 var app = builder.Build();
 
 // **Run database seeding process**
@@ -103,6 +136,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Enable CORS
+app.UseCors("AllowAllOrigins");
+
+// Enable API Rate Limiting
+app.UseIpRateLimiting();
+
+// Enable Global Exception Handling Middleware
+app.UseMiddleware<ErrorHandlingMiddleware>();
 
 // Authentication & Authorization Middleware
 app.UseAuthentication();
