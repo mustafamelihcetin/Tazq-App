@@ -42,19 +42,19 @@ namespace Tazq_App.Controllers
 			if (!isAdmin)
 				query = query.Where(t => t.UserId == userId);
 
-			// Filter tasks by tag
+			// Apply tag filtering
 			if (!string.IsNullOrEmpty(tag))
 			{
 				query = query.Where(t => t.TagsJson.Contains($"\"{tag}\"")); // JSON filtering fix
 			}
 
-			// Search tasks by title or description
+			// Apply search filter
 			if (!string.IsNullOrEmpty(search))
 			{
 				query = query.Where(t => t.Title.Contains(search) || t.Description.Contains(search));
 			}
 
-			// Sorting feature
+			// Apply sorting
 			query = sortBy?.ToLower() switch
 			{
 				"duedate" => query.OrderBy(t => t.DueDate),
@@ -105,6 +105,28 @@ namespace Tazq_App.Controllers
 			_context.Tasks.Add(task);
 			await _context.SaveChangesAsync();
 			return CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, task);
+		}
+
+		// Bulk create tasks
+		[HttpPost("bulk")]
+		public async Task<IActionResult> CreateTasks([FromBody] List<TaskItem> tasks)
+		{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			if (userIdClaim == null)
+				return Unauthorized("User ID not found in token.");
+
+			int userId = int.Parse(userIdClaim);
+
+			foreach (var task in tasks)
+			{
+				task.UserId = userId;
+				task.Tags = task.Tags ?? new List<string>(); // Ensure tags are not null
+			}
+
+			_context.Tasks.AddRange(tasks);
+			await _context.SaveChangesAsync();
+
+			return Ok(new { message = $"{tasks.Count} tasks created successfully." });
 		}
 
 		// Updates specific fields of an existing task
