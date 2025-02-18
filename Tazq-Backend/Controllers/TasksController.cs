@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using System.Text.Json;
 using Tazq_App.Data;
 using Tazq_App.Models;
 
@@ -25,7 +24,10 @@ namespace Tazq_App.Controllers
 		public async Task<IActionResult> GetTasks(
 			[FromQuery] string? tag,
 			[FromQuery] string? search,
-			[FromQuery] string? sortBy)
+			[FromQuery] string? sortBy,
+			[FromQuery] bool? isCompleted,
+			[FromQuery] DateTime? startDate,
+			[FromQuery] DateTime? endDate)
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 			if (userIdClaim == null)
@@ -34,7 +36,6 @@ namespace Tazq_App.Controllers
 			int userId = int.Parse(userIdClaim);
 			bool isAdmin = User.IsInRole("Admin");
 
-			// Fetch tasks based on user role
 			var query = _context.Tasks
 				.Include(t => t.User)
 				.AsQueryable();
@@ -45,13 +46,30 @@ namespace Tazq_App.Controllers
 			// Apply tag filtering
 			if (!string.IsNullOrEmpty(tag))
 			{
-				query = query.Where(t => t.TagsJson.Contains($"\"{tag}\"")); // JSON filtering fix
+				query = query.Where(t => t.TagsJson.Contains($"\"{tag}\""));
 			}
 
 			// Apply search filter
 			if (!string.IsNullOrEmpty(search))
 			{
 				query = query.Where(t => t.Title.Contains(search) || t.Description.Contains(search));
+			}
+
+			// Filter by completion status
+			if (isCompleted.HasValue)
+			{
+				query = query.Where(t => t.IsCompleted == isCompleted.Value);
+			}
+
+			// Filter by date range
+			if (startDate.HasValue)
+			{
+				query = query.Where(t => t.DueDate >= startDate.Value);
+			}
+
+			if (endDate.HasValue)
+			{
+				query = query.Where(t => t.DueDate <= endDate.Value);
 			}
 
 			// Apply sorting
@@ -90,6 +108,37 @@ namespace Tazq_App.Controllers
 
 			return Ok(task);
 		}
+
+		// Retrieves statistics about user tasks
+		[HttpGet("stats")]
+		public async Task<IActionResult> GetTaskStats()
+		{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			if (userIdClaim == null)
+				return Unauthorized("User ID not found in token.");
+
+			int userId = int.Parse(userIdClaim);
+			bool isAdmin = User.IsInRole("Admin");
+
+			var query = _context.Tasks.AsQueryable();
+
+			if (!isAdmin)
+			{
+				query = query.Where(t => t.UserId == userId);
+			}
+
+			var totalTasks = await query.CountAsync();
+			var completedTasks = await query.CountAsync(t => t.IsCompleted);
+			var pendingTasks = totalTasks - completedTasks;
+
+			return Ok(new
+			{
+				TotalTasks = totalTasks,
+				CompletedTasks = completedTasks,
+				PendingTasks = pendingTasks
+			});
+		}
+
 
 		// Creates a new task
 		[HttpPost]
