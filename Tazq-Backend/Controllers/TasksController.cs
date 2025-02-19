@@ -31,7 +31,8 @@ namespace Tazq_App.Controllers
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 			if (userIdClaim == null)
-				return Unauthorized("User ID not found in token.");
+				return Unauthorized(new { status = 401, message = "User authentication failed. Please provide a valid token." });
+
 
 			int userId = int.Parse(userIdClaim);
 			bool isAdmin = User.IsInRole("Admin");
