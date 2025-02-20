@@ -17,12 +17,15 @@ namespace Tazq_App.Models
 		public string Email { get; set; } = string.Empty;
 
 		[Required]
-		public string PasswordHash { get; set; } = string.Empty;
+		public byte[] PasswordHash { get; set; } = new byte[0];
+
+		[Required]
+		public byte[] PasswordSalt { get; set; } = new byte[0];
 
 		[Required]
 		public string Role { get; set; } = "User"; // Default role
 
-		[JsonIgnore] // Prevent infinite loop when serializing
+		[JsonIgnore]
 		public List<TaskItem> Tasks { get; set; } = new List<TaskItem>();
 	}
 }

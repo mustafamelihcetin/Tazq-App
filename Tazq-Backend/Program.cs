@@ -8,18 +8,20 @@ using DotNetEnv;
 using AspNetCoreRateLimit;
 using Tazq_App.Data;
 using Tazq_App.Services;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load environment variables from .env file
 Env.Load();
 
-// Load environment variables
-var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") ?? builder.Configuration["JwtSettings:Key"];
+var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
+			 ?? throw new Exception("JWT_KEY is missing! Set it in environment variables.");
 var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Configuration["JwtSettings:Issuer"];
 var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? builder.Configuration["JwtSettings:Audience"];
-var jwtExpiration = Convert.ToInt32(Environment.GetEnvironmentVariable("JWT_EXPIRATION") ?? "60");
+var jwtExpiration = Convert.ToInt32(Environment.GetEnvironmentVariable("JWT_EXPIRATION") ?? builder.Configuration["JwtSettings:ExpirationInMinutes"] ?? "60");
 
-// Ensure JWT Key is not null or empty
+// Validate JWT Key
 if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
 {
 	throw new Exception("JWT_KEY is missing or too short! It must be at least 32 characters long.");
@@ -29,9 +31,9 @@ if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
 builder.Services.AddControllers()
 	.AddJsonOptions(options =>
 	{
-		options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); // Enable string enums in JSON
-		options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles; // Prevent cyclic references
-		options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull; // Ignore null values
+		options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+		options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+		options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 	});
 
 builder.Services.AddEndpointsApiExplorer();
@@ -69,7 +71,6 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
 	options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Configure Authentication (JWT)
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	.AddJwtBearer(options =>
@@ -87,42 +88,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	});
 
 builder.Services.AddSingleton<JwtService>();
-
-// Enable API Rate Limiting
-builder.Services.AddMemoryCache();
-builder.Services.Configure<IpRateLimitOptions>(options =>
-{
-	options.GeneralRules = new List<RateLimitRule>
-	{
-		new RateLimitRule
-		{
-			Endpoint = "*",
-			Limit = 5,   // Max 5 requests
-			Period = "1s" // per second
-		}
-	};
-});
-builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
-builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
-builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
-builder.Services.AddInMemoryRateLimiting();
-builder.Services.AddHttpContextAccessor();
-
-// Enable CORS
-builder.Services.AddCors(options =>
-{
-	options.AddPolicy("AllowAllOrigins",
-		builder =>
-		{
-			builder.AllowAnyOrigin()
-				   .AllowAnyMethod()
-				   .AllowAnyHeader();
-		});
-});
+builder.Services.AddTransient<ICustomEmailService, CustomEmailService>();
 
 var app = builder.Build();
 
-// **Run database seeding process**
+// Run database seeding process
 using (var scope = app.Services.CreateScope())
 {
 	var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -136,19 +106,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-// Enable CORS
-app.UseCors("AllowAllOrigins");
-
-// Enable API Rate Limiting
-app.UseIpRateLimiting();
-
-// Enable Global Exception Handling Middleware
-app.UseMiddleware<ErrorHandlingMiddleware>();
-
-// Authentication & Authorization Middleware
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 app.Run();

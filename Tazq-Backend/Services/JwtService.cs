@@ -15,16 +15,28 @@ namespace Tazq_App.Services
 			_configuration = configuration;
 		}
 
-		public string GenerateToken(string username)
+		public string GenerateToken(string userId, string role)
 		{
-			var key = Encoding.UTF8.GetBytes(_configuration["JwtSettings:Key"]);
+			if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
+			{
+				throw new ArgumentException("User ID or Role cannot be null or empty.");
+			}
+
+			var keyString = Environment.GetEnvironmentVariable("JWT_KEY");
+			if (string.IsNullOrEmpty(keyString))
+			{
+				throw new Exception("JWT_KEY is missing! Make sure to set it as an environment variable.");
+			}
+
+			var key = Encoding.UTF8.GetBytes(keyString);
 			var issuer = _configuration["JwtSettings:Issuer"];
 			var audience = _configuration["JwtSettings:Audience"];
-			var expiration = Convert.ToInt32(_configuration["JwtSettings:ExpirationInMinutes"]);
+			var expiration = Convert.ToInt32(_configuration["JwtSettings:ExpirationInMinutes"] ?? "60");
 
 			var claims = new[]
 			{
-				new Claim(JwtRegisteredClaimNames.Sub, username),
+				new Claim(JwtRegisteredClaimNames.Sub, userId),
+				new Claim(ClaimTypes.Role, role),
 				new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
 			};
 

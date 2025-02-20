@@ -11,8 +11,8 @@ using Tazq_App.Data;
 namespace Tazq_Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250217163449_FixTagsSerializationV2")]
-    partial class FixTagsSerializationV2
+    [Migration("20250220001550_UpdateUserPasswordStorage")]
+    partial class UpdateUserPasswordStorage
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -67,9 +67,13 @@ namespace Tazq_Backend.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("PasswordHash")
+                    b.Property<byte[]>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("BLOB");
+
+                    b.Property<byte[]>("PasswordSalt")
+                        .IsRequired()
+                        .HasColumnType("BLOB");
 
                     b.Property<string>("Role")
                         .IsRequired()
