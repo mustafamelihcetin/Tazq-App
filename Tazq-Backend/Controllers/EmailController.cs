@@ -1,12 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
 using Tazq_App.Services;
 using Tazq_App.Data;
-using Tazq_App.Models; // EmailRequestDto burada tanımlandı
-using Microsoft.EntityFrameworkCore;
-using System.Text;
+using Tazq_App.Models;
 
 [Route("api/email")]
 [ApiController]
@@ -26,102 +26,71 @@ public class EmailController : ControllerBase
 	public async Task<IActionResult> SendEmail([FromBody] EmailRequestDto request)
 	{
 		var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-		if (userIdClaim == null)
+		if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
 			return Unauthorized("User ID not found in token.");
 
-		if (!int.TryParse(userIdClaim, out int userId))
-			return Unauthorized("Invalid user ID in token.");
-
-		var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+		var user = await _context.Users.FindAsync(userId);
 		if (user == null)
 			return NotFound("User not found.");
 
-		string subject = "";
-		string body = "";
-
-		switch (request.EmailType.ToLower())
+		return request.EmailType.ToLower() switch
 		{
-			case "reminder":
-				if (request.TaskIds == null || !request.TaskIds.Any())
-					return BadRequest("Task IDs are required for reminders.");
-
-				var tasks = await _context.Tasks
-					.Where(t => request.TaskIds.Contains(t.Id) && t.UserId == userId)
-					.ToListAsync();
-
-				if (!tasks.Any())
-					return BadRequest("No valid tasks found for this reminder.");
-
-				subject = "Task Reminder";
-				var taskList = new StringBuilder();
-				taskList.AppendLine("You have upcoming tasks to complete:");
-				foreach (var task in tasks)
-				{
-					string dueDateString = task.DueDate != null ? task.DueDate.ToString("yyyy-MM-dd") : "No due date";
-					taskList.AppendLine($"- {task.Title} (Due: {dueDateString})");
-				}
-				body = taskList.ToString();
-				break;
-
-			case "weekly-summary":
-				var pendingTasks = await _context.Tasks
-					.Where(t => t.UserId == userId && !t.IsCompleted)
-					.ToListAsync();
-
-				subject = "Weekly Summary - Your Pending Tasks";
-				if (pendingTasks.Any())
-				{
-					var summary = new StringBuilder();
-					summary.AppendLine("Here are the tasks you have not completed yet:");
-					foreach (var task in pendingTasks)
-					{
-						string dueDateString = task.DueDate != null ? task.DueDate.ToString("yyyy-MM-dd") : "No due date";
-						summary.AppendLine($"- {task.Title} (Due: {dueDateString})");
-					}
-					body = summary.ToString();
-				}
-				else
-				{
-					body = "You have completed all your tasks for this week.";
-				}
-				break;
-
-			case "export":
-				var allTasks = await _context.Tasks
-					.Where(t => t.UserId == userId)
-					.ToListAsync();
-
-				subject = "Exported Task List";
-				if (allTasks.Any())
-				{
-					var exportData = new StringBuilder();
-					exportData.AppendLine("Your complete task list:");
-					foreach (var task in allTasks)
-					{
-						string dueDateString = task.DueDate != null ? task.DueDate.ToString("yyyy-MM-dd") : "No due date";
-						exportData.AppendLine($"- {task.Title} (Due: {dueDateString}) - {(task.IsCompleted ? "Completed" : "Pending")}");
-					}
-					body = exportData.ToString();
-				}
-				else
-				{
-					body = "You have no tasks in your list.";
-				}
-				break;
-
-			default:
-				return BadRequest("Invalid email type. Allowed types: reminder, weekly-summary, export.");
-		}
-
-		try
-		{
-			await _emailService.SendEmailAsync(user.Email, subject, body);
-			return Ok(new { message = $"Email successfully sent to {user.Email}." });
-		}
-		catch (Exception ex)
-		{
-			return StatusCode(500, new { error = "Failed to send email.", details = ex.Message });
-		}
+			"reminder" => await SendReminderEmail(userId, user.Email, request.TaskIds),
+			"weekly-summary" => await SendWeeklySummaryEmail(userId, user.Email),
+			"export" => await SendExportEmail(userId, user.Email),
+			_ => BadRequest("Invalid email type. Allowed types: reminder, weekly-summary, export.")
+		};
 	}
 
+	private async Task<IActionResult> SendReminderEmail(int userId, string email, List<int>? taskIds)
+	{
+		if (taskIds == null || !taskIds.Any())
+			return BadRequest("Task IDs are required for reminders.");
+
+		var tasks = await _context.Tasks.Where(t => taskIds.Contains(t.Id) && t.UserId == userId).ToListAsync();
+		if (!tasks.Any())
+			return BadRequest("No valid tasks found for this reminder.");
+
+		string subject = "Task Reminder";
+		string body = FormatTaskList("You have upcoming tasks to complete:", tasks);
+
+		return await SendEmailInternal(email, subject, body);
+	}
+
+	private async Task<IActionResult> SendWeeklySummaryEmail(int userId, string email)
+	{
+		var pendingTasks = await _context.Tasks.Where(t => t.UserId == userId && !t.IsCompleted).ToListAsync();
+		string subject = "Weekly Summary - Your Pending Tasks";
+		string body = pendingTasks.Any()
+			? FormatTaskList("Here are your pending tasks:", pendingTasks)
+			: "You have completed all your tasks for this week.";
+
+		return await SendEmailInternal(email, subject, body);
+	}
+
+	private async Task<IActionResult> SendExportEmail(int userId, string email)
+	{
+		var allTasks = await _context.Tasks.Where(t => t.UserId == userId).ToListAsync();
+		string subject = "Exported Task List";
+		string body = allTasks.Any()
+			? FormatTaskList("Your complete task list:", allTasks)
+			: "You have no tasks in your list.";
+
+		return await SendEmailInternal(email, subject, body);
+	}
+
+	private static string FormatTaskList(string title, List<TaskItem> tasks)
+	{
+		StringBuilder sb = new();
+		sb.AppendLine(title);
+		foreach (var task in tasks)
+			sb.AppendLine($"- {task.Title} (Due: {task.DueDate:yyyy-MM-dd}) - {(task.IsCompleted ? "Completed" : "Pending")}");
+		return sb.ToString();
+	}
+
+	private async Task<IActionResult> SendEmailInternal(string email, string subject, string body)
+	{
+		await _emailService.SendEmailAsync(email, subject, body);
+		return Ok(new { message = $"Email successfully sent to {email}." });
+	}
 }

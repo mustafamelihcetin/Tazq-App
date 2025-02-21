@@ -5,9 +5,9 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using System.Text.Json.Serialization;
 using DotNetEnv;
-using AspNetCoreRateLimit;
 using Tazq_App.Data;
 using Tazq_App.Services;
+using Tazq_App.Models;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Load environment variables from .env file
 Env.Load();
 
+// Load JWT settings
 var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
 			 ?? throw new Exception("JWT_KEY is missing! Set it in environment variables.");
 var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Configuration["JwtSettings:Issuer"];
@@ -27,7 +28,6 @@ if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
 	throw new Exception("JWT_KEY is missing or too short! It must be at least 32 characters long.");
 }
 
-// Add services to the container.
 builder.Services.AddControllers()
 	.AddJsonOptions(options =>
 	{
@@ -37,6 +37,8 @@ builder.Services.AddControllers()
 	});
 
 builder.Services.AddEndpointsApiExplorer();
+
+// ✅ **Swagger JWT Authentication Integration**
 builder.Services.AddSwaggerGen(options =>
 {
 	options.SwaggerDoc("v1", new OpenApiInfo { Title = "Tazq-App API", Version = "v1" });
@@ -67,10 +69,10 @@ builder.Services.AddSwaggerGen(options =>
 	});
 });
 
-// SQLite Database Connection
 builder.Services.AddDbContext<AppDbContext>(options =>
 	options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// JWT Authentication
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	.AddJwtBearer(options =>
@@ -87,17 +89,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 		};
 	});
 
+// Register Services
 builder.Services.AddSingleton<JwtService>();
-builder.Services.AddTransient<ICustomEmailService, CustomEmailService>();
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
+builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
 var app = builder.Build();
-
-// Run database seeding process
-using (var scope = app.Services.CreateScope())
-{
-	var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-	DataSeeder.SeedDatabase(dbContext);
-}
 
 if (app.Environment.IsDevelopment())
 {

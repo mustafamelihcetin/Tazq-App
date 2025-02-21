@@ -6,7 +6,6 @@ using Tazq_App.Data;
 using Tazq_App.Models;
 using System.Text.Json;
 
-
 namespace Tazq_App.Controllers
 {
 	[Route("api/tasks")]
@@ -148,6 +147,62 @@ namespace Tazq_App.Controllers
 			await _context.SaveChangesAsync();
 
 			return Ok(new { message = $"{taskItems.Count} tasks created successfully." });
+		}
+
+		// Update a task
+		[HttpPut("{id}")]
+		public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskDto taskDto)
+		{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			if (userIdClaim == null)
+				return Unauthorized("User ID not found in token.");
+
+			int userId = int.Parse(userIdClaim);
+			bool isAdmin = User.IsInRole("Admin");
+
+			var task = await _context.Tasks.FindAsync(id);
+			if (task == null)
+				return NotFound("Task not found.");
+
+			if (!isAdmin && task.UserId != userId)
+				return Forbid("You are not allowed to update this task.");
+
+			// Update task fields
+			task.Title = taskDto.Title;
+			task.Description = taskDto.Description;
+			task.DueDate = taskDto.DueDate;
+			task.IsCompleted = taskDto.IsCompleted;
+			task.Priority = taskDto.Priority;
+			task.Tags = taskDto.Tags;
+
+			_context.Tasks.Update(task);
+			await _context.SaveChangesAsync();
+
+			return Ok(new { message = "Task updated successfully.", task });
+		}
+
+		// Delete a task
+		[HttpDelete("{id}")]
+		public async Task<IActionResult> DeleteTask(int id)
+		{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			if (userIdClaim == null)
+				return Unauthorized("User ID not found in token.");
+
+			int userId = int.Parse(userIdClaim);
+			bool isAdmin = User.IsInRole("Admin");
+
+			var task = await _context.Tasks.FindAsync(id);
+			if (task == null)
+				return NotFound("Task not found.");
+
+			if (!isAdmin && task.UserId != userId)
+				return Forbid("You are not allowed to delete this task.");
+
+			_context.Tasks.Remove(task);
+			await _context.SaveChangesAsync();
+
+			return NoContent();
 		}
 	}
 }

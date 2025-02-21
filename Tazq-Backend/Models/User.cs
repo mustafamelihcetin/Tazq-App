@@ -10,20 +10,24 @@ namespace Tazq_App.Models
 		[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
 		public int Id { get; set; }
 
-		[Required]
-		public string Username { get; set; } = string.Empty;
-
 		[Required, EmailAddress]
 		public string Email { get; set; } = string.Empty;
 
 		[Required]
-		public byte[] PasswordHash { get; set; } = new byte[0];
+		public string Name { get; set; } = string.Empty; // Full name (first + last name)
+
+		public string? PasswordHash { get; set; } // Base64 encoded SHA-512 hash
+
+		public string? PasswordSalt { get; set; } // Base64 encoded Salt
 
 		[Required]
-		public byte[] PasswordSalt { get; set; } = new byte[0];
+		public string Role { get; set; } = "User"; // Default user role
 
-		[Required]
-		public string Role { get; set; } = "User"; // Default role
+		public string? PhoneNumber { get; set; } // Optional phone number
+
+		public bool IsPhoneVerified { get; set; } = false; // Phone verification status
+
+		public string? ProfilePicture { get; set; } // Optional profile picture URL
 
 		[JsonIgnore]
 		public List<TaskItem> Tasks { get; set; } = new List<TaskItem>();

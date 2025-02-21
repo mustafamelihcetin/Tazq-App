@@ -1,7 +1,9 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Net.Mail;
 using Microsoft.Extensions.Options;
-using System;
+using System.Threading.Tasks;
+using Tazq_App.Models;
 
 namespace Tazq_App.Services
 {
@@ -16,55 +18,46 @@ namespace Tazq_App.Services
 
 		public async Task SendEmailAsync(string toEmail, string subject, string body)
 		{
-			if (string.IsNullOrWhiteSpace(toEmail))
+			string smtpHost = Environment.GetEnvironmentVariable("SMTP_SERVER") ?? _smtpSettings.Host;
+			string smtpUser = Environment.GetEnvironmentVariable("SMTP_USERNAME") ?? _smtpSettings.Username;
+			string smtpPass = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? _smtpSettings.Password;
+			string smtpFrom = Environment.GetEnvironmentVariable("SMTP_FROM_EMAIL") ?? _smtpSettings.From;
+
+			if (!int.TryParse(Environment.GetEnvironmentVariable("SMTP_PORT"), out int smtpPort))
 			{
-				throw new ArgumentException("Recipient email cannot be empty.", nameof(toEmail));
+				smtpPort = _smtpSettings.Port;
 			}
 
-			if (!toEmail.Contains("@"))
+			if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(smtpUser) ||
+				string.IsNullOrWhiteSpace(smtpPass) || string.IsNullOrWhiteSpace(smtpFrom))
 			{
-				throw new ArgumentException("Invalid email format.", nameof(toEmail));
+				throw new Exception("SMTP configuration is missing or invalid. Check your environment variables or appsettings.json.");
 			}
 
-			if (string.IsNullOrWhiteSpace(subject))
+			try
 			{
-				throw new ArgumentException("Email subject cannot be empty.", nameof(subject));
+				using var client = new SmtpClient(smtpHost)
+				{
+					Port = smtpPort,
+					Credentials = new NetworkCredential(smtpUser, smtpPass),
+					EnableSsl = true
+				};
+
+				var mailMessage = new MailMessage
+				{
+					From = new MailAddress(smtpFrom),
+					Subject = subject,
+					Body = body,
+					IsBodyHtml = true
+				};
+
+				mailMessage.To.Add(toEmail);
+				await client.SendMailAsync(mailMessage);
 			}
-
-			if (string.IsNullOrWhiteSpace(body))
+			catch (Exception ex)
 			{
-				throw new ArgumentException("Email body cannot be empty.", nameof(body));
+				throw new Exception($"Failed to send email: {ex.Message}");
 			}
-
-			if (_smtpSettings.Port <= 0)
-			{
-				throw new ArgumentOutOfRangeException(nameof(_smtpSettings.Port), "SMTP Port must be a positive non-zero value.");
-			}
-
-			using var smtpClient = new SmtpClient
-			{
-				Host = _smtpSettings.Server ?? throw new InvalidOperationException("SMTP server is not configured."),
-				Port = _smtpSettings.Port,
-				Credentials = new NetworkCredential(
-					_smtpSettings.Username ?? throw new InvalidOperationException("SMTP username is not configured."),
-					_smtpSettings.Password ?? throw new InvalidOperationException("SMTP password is not configured.")
-				),
-				EnableSsl = true
-			};
-
-			var fromEmail = _smtpSettings.FromEmail ?? throw new InvalidOperationException("SMTP_FROM_EMAIL is not set in configuration.");
-
-			var mailMessage = new MailMessage
-			{
-				From = new MailAddress(fromEmail),
-				Subject = subject,
-				Body = body,
-				IsBodyHtml = true
-			};
-
-			mailMessage.To.Add(toEmail);
-
-			await smtpClient.SendMailAsync(mailMessage);
 		}
 	}
 }
