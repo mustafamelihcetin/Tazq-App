@@ -9,6 +9,8 @@ namespace Tazq_App.Data
 
 		public DbSet<TaskItem> Tasks { get; set; }
 		public DbSet<User> Users { get; set; }
+		public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
+
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{

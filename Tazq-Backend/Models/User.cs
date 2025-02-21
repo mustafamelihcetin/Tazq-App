@@ -26,6 +26,9 @@ namespace Tazq_App.Models
 		public string? PhoneNumber { get; set; } // Optional phone number
 
 		public bool IsPhoneVerified { get; set; } = false; // Phone verification status
+														   // Notification preferences for the user
+		public UserNotificationPreferences? NotificationPreferences { get; set; }
+
 
 		public string? ProfilePicture { get; set; } // Optional profile picture URL
 

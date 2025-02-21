@@ -94,6 +94,9 @@ builder.Services.AddSingleton<JwtService>();
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
+builder.Services.AddHostedService<ScheduledEmailService>();
+
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

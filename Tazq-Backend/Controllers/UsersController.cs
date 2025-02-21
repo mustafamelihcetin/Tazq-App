@@ -89,32 +89,7 @@ public class UsersController : ControllerBase
 		return Ok(new { token });
 	}
 
-	// Retrieves the current user details
-	[HttpGet("me")]
-	[Authorize]
-	public async Task<IActionResult> GetCurrentUser()
-	{
-		var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-		if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
-			return Unauthorized("User ID not found in token.");
-
-		var user = await _context.Users.FindAsync(userId);
-		if (user == null)
-			return NotFound("User not found.");
-
-		return Ok(new
-		{
-			user.Id,
-			user.Name,
-			user.Email,
-			user.Role,
-			user.PhoneNumber,
-			user.IsPhoneVerified,
-			user.ProfilePicture
-		});
-	}
-
-	// Adds a phone number to the user's profile
+		// Adds a phone number to the user's profile
 	[HttpPost("add-phone")]
 	[Authorize]
 	public async Task<IActionResult> AddPhoneNumber([FromBody] PhoneNumberDto phoneDto)
@@ -159,5 +134,95 @@ public class UsersController : ControllerBase
 		await _context.SaveChangesAsync();
 
 		return Ok(new { message = "Phone number updated successfully, but not verified yet." });
+	}
+	[HttpPatch("update-notification-preferences")]
+	[Authorize]
+	public async Task<IActionResult> UpdateNotificationPreferences([FromBody] UserNotificationPreferences preferencesDto)
+	{
+		var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+		if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+			return Unauthorized("User ID not found in token.");
+
+		var user = await _context.Users.Include(u => u.NotificationPreferences).FirstOrDefaultAsync(u => u.Id == userId);
+		if (user == null)
+			return NotFound("User not found.");
+
+		if (user.NotificationPreferences == null)
+		{
+			user.NotificationPreferences = new UserNotificationPreferences
+			{
+				UserId = userId,
+				ReceiveWeeklySummary = preferencesDto.ReceiveWeeklySummary,
+				ReminderDaysBeforeDue = preferencesDto.ReminderDaysBeforeDue,
+				WeeklySummaryDay = preferencesDto.WeeklySummaryDay
+			};
+			_context.UserNotificationPreferences.Add(user.NotificationPreferences);
+		}
+		else
+		{
+			user.NotificationPreferences.ReceiveWeeklySummary = preferencesDto.ReceiveWeeklySummary;
+			user.NotificationPreferences.ReminderDaysBeforeDue = preferencesDto.ReminderDaysBeforeDue;
+			user.NotificationPreferences.WeeklySummaryDay = preferencesDto.WeeklySummaryDay;
+		}
+
+		await _context.SaveChangesAsync();
+		return Ok(new { message = "Notification preferences updated successfully." });
+	}
+	[HttpPost("upload-profile-picture")]
+	[Authorize]
+	public async Task<IActionResult> UploadProfilePicture([FromForm] IFormFile file)
+	{
+		var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+		if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+			return Unauthorized("User ID not found in token.");
+
+		var user = await _context.Users.FindAsync(userId);
+		if (user == null)
+			return NotFound("User not found.");
+
+		if (file == null || file.Length == 0)
+			return BadRequest("Invalid file.");
+
+		var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "profile_pictures");
+		if (!Directory.Exists(uploadsFolder))
+			Directory.CreateDirectory(uploadsFolder);
+
+		var fileName = $"{userId}_{Path.GetFileName(file.FileName)}";
+		var filePath = Path.Combine(uploadsFolder, fileName);
+
+		using (var stream = new FileStream(filePath, FileMode.Create))
+		{
+			await file.CopyToAsync(stream);
+		}
+
+		user.ProfilePicture = $"/profile_pictures/{fileName}";
+		_context.Users.Update(user);
+		await _context.SaveChangesAsync();
+
+		return Ok(new { message = "Profile picture uploaded successfully.", url = user.ProfilePicture });
+	}
+	// Retrieves the current user details
+	[HttpGet("me")]
+	[Authorize]
+	public async Task<IActionResult> GetCurrentUser()
+	{
+		var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+		if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+			return Unauthorized("User ID not found in token.");
+
+		var user = await _context.Users.FindAsync(userId);
+		if (user == null)
+			return NotFound("User not found.");
+
+		return Ok(new
+		{
+			user.Id,
+			user.Name,
+			user.Email,
+			user.Role,
+			user.PhoneNumber,
+			user.IsPhoneVerified,
+			ProfilePicture = user.ProfilePicture ?? "/default-profile.png"
+		});
 	}
 }
