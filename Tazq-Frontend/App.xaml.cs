@@ -14,8 +14,6 @@ public partial class App : Microsoft.Maui.Controls.Application
 	public App()
 	{
 		InitializeComponent();
-
-		// Ana sayfayı burada ayarlıyoruz
 		MainPage = new Views.LoginPage();
 	}
 
