@@ -3,15 +3,19 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
              x:Class="Tazq_Frontend.Views.LoginPage"
-             Title=""
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
              BackgroundColor="#121212">
 
-    <!-- Background Gradient -->
+    <!-- Background Gradient (More Professional) -->
     <ContentPage.Background>
         <LinearGradientBrush>
-            <GradientStop Color="#4B0082" Offset="0.1" />
-            <GradientStop Color="#3A0CA3" Offset="0.6" />
-            <GradientStop Color="#4361EE" Offset="1.0" />
+            <GradientStop Color="#1E2A47" Offset="0.0" />
+            <!-- Dark Navy Blue -->
+            <GradientStop Color="#3A506B" Offset="0.5" />
+            <!-- Muted Steel Blue -->
+            <GradientStop Color="#6C91C2" Offset="1.0" />
+            <!-- Soft Blue-Grey -->
         </LinearGradientBrush>
     </ContentPage.Background>
 
@@ -26,57 +30,59 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Logo and Title -->
+        <!-- LOGO (Revised) -->
         <VerticalStackLayout Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Center">
-            <Image Source="Tazq_logo.png" WidthRequest="160" HeightRequest="60" />
-            <!--<Label Text="Tazq App" FontSize="30" FontAttributes="Bold" TextColor="White" HorizontalTextAlignment="Center"/>-->
-            <Label Text="Yapılacaklarını Yönet" FontSize="16" TextColor="LightGray" HorizontalTextAlignment="Center"/>
+            <Image Source="tazq_logo.png" WidthRequest="140" HeightRequest="50"/>
+            <Label Text="Yapılacaklarını Yönet" FontSize="14" TextColor="#A0A0A0" HorizontalTextAlignment="Center"/>
         </VerticalStackLayout>
 
         <!-- Input Fields -->
-        <VerticalStackLayout Grid.Row="1" Spacing="14" HorizontalOptions="Fill" VerticalOptions="Center">
-            <Frame Padding="14" CornerRadius="12" BackgroundColor="White" HasShadow="True">
-                <Entry Placeholder="E-posta" Text="{Binding Email}" Keyboard="Email" TextColor="Black" PlaceholderColor="DarkGray"/>
+        <VerticalStackLayout Grid.Row="1" Spacing="12" HorizontalOptions="Center">
+            <Frame Padding="12" CornerRadius="10" BackgroundColor="White" HasShadow="False"
+                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=450}">
+                <Entry Placeholder="E-posta" Text="{Binding Email}" Keyboard="Email" TextColor="Black" PlaceholderColor="#A0A0A0"/>
             </Frame>
 
-            <Frame Padding="14" CornerRadius="12" BackgroundColor="White" HasShadow="True">
-                <Entry Placeholder="Şifre" Text="{Binding Password}" IsPassword="True" TextColor="Black" PlaceholderColor="DarkGray"/>
+            <Frame Padding="12" CornerRadius="10" BackgroundColor="White" HasShadow="False"
+                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=450}">
+                <Entry Placeholder="Şifre" Text="{Binding Password}" IsPassword="True" TextColor="Black" PlaceholderColor="#A0A0A0"/>
             </Frame>
 
             <Button Text="Giriş Yap"
                     Command="{Binding LoginCommand}"
-                    BackgroundColor="#FF6F61"
+                    BackgroundColor="#407BFF"
                     TextColor="White"
                     FontAttributes="Bold"
-                    Padding="14"
-                    CornerRadius="12"
-                    HeightRequest="55"/>
+                    Padding="12"
+                    CornerRadius="10"
+                    HeightRequest="45"
+                    WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=450}"/>
         </VerticalStackLayout>
 
         <!-- Social Login -->
-        <VerticalStackLayout Grid.Row="2" Spacing="12" Padding="12">
-            <Label Text="veya" FontSize="14" TextColor="LightGray" HorizontalTextAlignment="Center"/>
+        <VerticalStackLayout Grid.Row="2" Spacing="10" Padding="10" HorizontalOptions="Center">
+            <Label Text="veya" FontSize="12" TextColor="#A0A0A0" HorizontalTextAlignment="Center"/>
 
             <!-- Google Login -->
             <Frame BackgroundColor="White"
-                   Padding="12"
-                   CornerRadius="12"
-                   HasShadow="True"
-                   GestureRecognizers="{TapGestureRecognizer Tapped='OnGoogleLoginClicked'}">
-                <HorizontalStackLayout HorizontalOptions="Center" Spacing="12">
-                    <Image Source="google_logo.png" WidthRequest="26" HeightRequest="26"/>
+                   Padding="10"
+                   CornerRadius="10"
+                   HasShadow="False"
+                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=450}">
+                <HorizontalStackLayout HorizontalOptions="Center" Spacing="10">
+                    <Image Source="google_logo.png" WidthRequest="24" HeightRequest="24"/>
                     <Label Text="Google ile Giriş Yap" TextColor="Black" FontAttributes="Bold"/>
                 </HorizontalStackLayout>
             </Frame>
 
             <!-- Apple Login -->
             <Frame BackgroundColor="Black"
-                   Padding="12"
-                   CornerRadius="12"
-                   HasShadow="True"
-                   GestureRecognizers="{TapGestureRecognizer Tapped='OnAppleLoginClicked'}">
-                <HorizontalStackLayout HorizontalOptions="Center" Spacing="12">
-                    <Image Source="apple_logo.png" WidthRequest="26" HeightRequest="26"/>
+                   Padding="10"
+                   CornerRadius="10"
+                   HasShadow="False"
+                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=450}">
+                <HorizontalStackLayout HorizontalOptions="Center" Spacing="10">
+                    <Image Source="apple_logo.png" WidthRequest="24" HeightRequest="24"/>
                     <Label Text="Apple ile Giriş Yap" TextColor="White" FontAttributes="Bold"/>
                 </HorizontalStackLayout>
             </Frame>
