@@ -5,17 +5,15 @@
              x:Class="Tazq_Frontend.Views.LoginPage"
              Shell.NavBarIsVisible="False"
              NavigationPage.HasNavigationBar="False"
-             BackgroundColor="#121212">
+             BackgroundColor="#1F2D3D"
+             MinimumWidthRequest="1024"
+             MinimumHeightRequest="768">
 
-    <!-- Background Gradient (More Professional) -->
+    <!-- Background Gradient -->
     <ContentPage.Background>
         <LinearGradientBrush>
-            <GradientStop Color="#1E2A47" Offset="0.0" />
-            <!-- Dark Navy Blue -->
-            <GradientStop Color="#3A506B" Offset="0.5" />
-            <!-- Muted Steel Blue -->
-            <GradientStop Color="#6C91C2" Offset="1.0" />
-            <!-- Soft Blue-Grey -->
+            <GradientStop Color="#1F2D3D" Offset="0.0" />
+            <GradientStop Color="#6A85B6" Offset="1.0" />
         </LinearGradientBrush>
     </ContentPage.Background>
 
@@ -30,60 +28,70 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- LOGO (Revised) -->
+        <!-- Logo -->
         <VerticalStackLayout Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Center">
-            <Image Source="tazq_logo.png" WidthRequest="140" HeightRequest="50"/>
-            <Label Text="Yapılacaklarını Yönet" FontSize="14" TextColor="#A0A0A0" HorizontalTextAlignment="Center"/>
+            <Image Source="tazq_logo.png" WidthRequest="130" HeightRequest="45"/>
+            <Label Text="Yapılacaklarını Yönet" FontSize="14" TextColor="#B0B0B0" HorizontalTextAlignment="Center"/>
         </VerticalStackLayout>
 
         <!-- Input Fields -->
         <VerticalStackLayout Grid.Row="1" Spacing="12" HorizontalOptions="Center">
-            <Frame Padding="12" CornerRadius="10" BackgroundColor="White" HasShadow="False"
-                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=450}">
-                <Entry Placeholder="E-posta" Text="{Binding Email}" Keyboard="Email" TextColor="Black" PlaceholderColor="#A0A0A0"/>
+            <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="True"
+                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=400}">
+                <Entry Placeholder="E-posta" Text="{Binding Email}" Keyboard="Email" TextColor="Black" PlaceholderColor="#A5A5A5"/>
             </Frame>
 
-            <Frame Padding="12" CornerRadius="10" BackgroundColor="White" HasShadow="False"
-                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=450}">
-                <Entry Placeholder="Şifre" Text="{Binding Password}" IsPassword="True" TextColor="Black" PlaceholderColor="#A0A0A0"/>
+            <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="True"
+                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=400}">
+                <Entry Placeholder="Şifre" Text="{Binding Password}" IsPassword="True" TextColor="Black" PlaceholderColor="#A5A5A5"/>
             </Frame>
 
-            <Button Text="Giriş Yap"
-                    Command="{Binding LoginCommand}"
-                    BackgroundColor="#407BFF"
-                    TextColor="White"
-                    FontAttributes="Bold"
-                    Padding="12"
-                    CornerRadius="10"
-                    HeightRequest="45"
-                    WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=450}"/>
+            <!-- Login Button with Soft 3D Effect -->
+            <Frame BackgroundColor="Transparent"
+                   Padding="0"
+                   CornerRadius="10"
+                   HasShadow="True"
+                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=400}">
+                <Button Text="Giriş Yap"
+                        Command="{Binding LoginCommand}"
+                        BackgroundColor="#4C8BF5"
+                        TextColor="White"
+                        FontAttributes="Bold"
+                        Padding="10"
+                        CornerRadius="10"
+                        HeightRequest="45"/>
+            </Frame>
         </VerticalStackLayout>
 
-        <!-- Social Login -->
-        <VerticalStackLayout Grid.Row="2" Spacing="10" Padding="10" HorizontalOptions="Center">
-            <Label Text="veya" FontSize="12" TextColor="#A0A0A0" HorizontalTextAlignment="Center"/>
+        <!-- Social Login (Fixed Apple Button Positioning) -->
+        <VerticalStackLayout Grid.Row="2" Spacing="12" Padding="10" HorizontalOptions="Center" VerticalOptions="End">
+
+            <!-- Separator -->
+            <Label Text="veya" FontSize="14" TextColor="#B0B0B0" HorizontalTextAlignment="Center" Margin="0,10,0,10"/>
 
             <!-- Google Login -->
             <Frame BackgroundColor="White"
-                   Padding="10"
-                   CornerRadius="10"
-                   HasShadow="False"
-                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=450}">
-                <HorizontalStackLayout HorizontalOptions="Center" Spacing="10">
-                    <Image Source="google_logo.png" WidthRequest="24" HeightRequest="24"/>
-                    <Label Text="Google ile Giriş Yap" TextColor="Black" FontAttributes="Bold"/>
+                   Padding="0"
+                   CornerRadius="8"
+                   HasShadow="True"
+                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=400}">
+                <HorizontalStackLayout HorizontalOptions="Center" Spacing="12" Padding="10">
+                    <Image Source="google_logo.png" WidthRequest="22" HeightRequest="22"/>
+                    <Label Text="Google ile Giriş Yap" TextColor="Black" FontAttributes="Bold" VerticalOptions="Center"/>
                 </HorizontalStackLayout>
             </Frame>
 
-            <!-- Apple Login -->
+            <!-- Apple Login (Fixed Positioning) -->
             <Frame BackgroundColor="Black"
-                   Padding="10"
-                   CornerRadius="10"
-                   HasShadow="False"
-                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=450}">
-                <HorizontalStackLayout HorizontalOptions="Center" Spacing="10">
-                    <Image Source="apple_logo.png" WidthRequest="24" HeightRequest="24"/>
-                    <Label Text="Apple ile Giriş Yap" TextColor="White" FontAttributes="Bold"/>
+                   Padding="0"
+                   CornerRadius="8"
+                   HasShadow="True"
+                   WidthRequest="{OnIdiom Phone=320, Tablet=400, Desktop=400}"
+                   Margin="0,0,0,20">
+                <!-- Extra Margin to Avoid Sticking to Bottom -->
+                <HorizontalStackLayout HorizontalOptions="Center" Spacing="12" Padding="10">
+                    <Image Source="apple_logo.png" WidthRequest="22" HeightRequest="22"/>
+                    <Label Text="Apple ile Giriş Yap" TextColor="White" FontAttributes="Bold" VerticalOptions="Center"/>
                 </HorizontalStackLayout>
             </Frame>
         </VerticalStackLayout>

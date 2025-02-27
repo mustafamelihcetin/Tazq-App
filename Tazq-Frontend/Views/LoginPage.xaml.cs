@@ -1,6 +1,7 @@
 using Microsoft.Maui.Platform;
 using Tazq_Frontend.ViewModels;
 using Microsoft.Maui.Controls;
+using System.Runtime.InteropServices;
 #if WINDOWS
 using Microsoft.UI.Windowing;
 using Microsoft.UI;
@@ -19,13 +20,22 @@ namespace Tazq_Frontend.Views
 			_viewModel = new AuthViewModel();
 			BindingContext = _viewModel;
 
-			SetWindowSize(); // Windows için minimum pencere boyutunu ayarla
+#if WINDOWS
+            SetWindowSize(); // Yalnýzca Windows platformunda çalýþýr
+#endif
 		}
 
-		// Windows için minimum pencere boyutunu belirleme
-		private void SetWindowSize()
-		{
 #if WINDOWS
+        // Windows API: Pencere konumu ve boyutunu yönetmek için kullanýlacak
+        [DllImport("user32.dll")]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+        private const uint SWP_NOSIZE = 0x0001;
+        private const uint SWP_NOZORDER = 0x0004;
+        private const uint SWP_SHOWWINDOW = 0x0040;
+
+        private void SetWindowSize()
+        {
             var window = this.GetParentWindow();
             if (window?.Handler?.PlatformView is Microsoft.UI.Xaml.Window nativeWindow)
             {
@@ -38,21 +48,12 @@ namespace Tazq_Frontend.Views
                     // Baþlangýç boyutunu belirle
                     appWindow.Resize(new SizeInt32(1024, 768));
 
-                    // Minimum pencere boyutunu belirle (Küçültmeyi engelle)
-                    var presenter = appWindow.Presenter as OverlappedPresenter;
-                    if (presenter != null)
-                    {
-                        presenter.SetBorderAndTitleBar(true, true);
-                        presenter.IsResizable = true; // Kullanýcý yine boyutlandýrabilir ama min sýnýrý olur
-                        presenter.Maximize(); // Pencereyi baþlarken maksimum boyutta aç
-                    }
-
-                    // Minimum boyutu doðrudan ayarla
-                    appWindow.Resize(new SizeInt32(Math.Max(appWindow.Size.Width, 800), Math.Max(appWindow.Size.Height, 600)));
+                    // Minimum boyutun altýna küçültmeyi önlemek için Windows API kullan
+                    SetWindowPos(hWnd, IntPtr.Zero, 0, 0, 1024, 768, SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
                 }
             }
+        }
 #endif
-		}
 
 		// Google Sign-In Click Event
 		private async void OnGoogleLoginClicked(object sender, EventArgs e)
