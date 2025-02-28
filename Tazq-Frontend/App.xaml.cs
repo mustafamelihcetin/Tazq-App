@@ -1,32 +1,14 @@
-﻿using Microsoft.Maui;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Controls.PlatformConfiguration.WindowsSpecific;
-using Microsoft.Maui.Platform;
-#if WINDOWS
-using Microsoft.UI.Windowing;
-using Windows.Graphics;
-#endif
+﻿using Microsoft.Maui.Controls;
 
-namespace Tazq_Frontend;
-
-public partial class App : Microsoft.Maui.Controls.Application
+namespace Tazq_Frontend
 {
-	public App()
+	public partial class App : Application
 	{
-		InitializeComponent();
-		MainPage = new Views.LoginPage();
-	}
+		public App()
+		{
+			InitializeComponent();
 
-	protected override Window CreateWindow(IActivationState activationState)
-	{
-		var window = base.CreateWindow(activationState);
-
-#if WINDOWS
-        // Windows için minimum pencere boyutunu belirle
-        window.MinimumWidth = 1024;
-        window.MinimumHeight = 768;
-#endif
-
-		return window;
+			MainPage = new AppShell();
+		}
 	}
 }

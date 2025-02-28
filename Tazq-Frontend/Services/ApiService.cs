@@ -3,17 +3,20 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Maui.Storage;
 using Tazq_Frontend.Models;
+using Tazq_Frontend.Services;
 
 namespace Tazq_Frontend.Services
 {
 	public class ApiService
 	{
 		private readonly HttpClient _httpClient;
-		private const string BaseUrl = "https://localhost:7031/api"; // Backend URL
 
 		public ApiService()
 		{
-			_httpClient = new HttpClient();
+			_httpClient = new HttpClient
+			{
+				BaseAddress = new Uri(ApiConstants.BaseUrl)
+			};
 		}
 
 		// Store JWT Token
@@ -47,8 +50,22 @@ namespace Tazq_Frontend.Services
 			var request = new { email, name, password };
 			var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
 
-			var response = await _httpClient.PostAsync($"{BaseUrl}/users/register", content);
-			return response.IsSuccessStatusCode;
+			try
+			{
+				HttpResponseMessage response = await _httpClient.PostAsync("users/register", content);
+
+				Console.WriteLine($"Register API Request: users/register");
+				Console.WriteLine($"Request Body: {JsonSerializer.Serialize(request)}");
+				Console.WriteLine($"Response Status: {response.StatusCode}");
+				Console.WriteLine($"Response Content: {await response.Content.ReadAsStringAsync()}");
+
+				return response.IsSuccessStatusCode;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"HATA - Register: {ex.Message}");
+				return false;
+			}
 		}
 
 		// User Login
@@ -57,17 +74,35 @@ namespace Tazq_Frontend.Services
 			var request = new { email, password };
 			var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
 
-			var response = await _httpClient.PostAsync($"{BaseUrl}/users/login", content);
-			if (!response.IsSuccessStatusCode) return false;
-
-			var responseData = await response.Content.ReadAsStringAsync();
-			var json = JsonDocument.Parse(responseData);
-			var token = json.RootElement.GetProperty("token").GetString();
-
-			if (token != null)
+			try
 			{
-				await SaveToken(token);
-				return true;
+				HttpResponseMessage response = await _httpClient.PostAsync("users/login", content);
+
+				Console.WriteLine($"Login API Request: users/login");
+				Console.WriteLine($"Request Body: {JsonSerializer.Serialize(request)}");
+				Console.WriteLine($"Response Status: {response.StatusCode}");
+				Console.WriteLine($"Response Content: {await response.Content.ReadAsStringAsync()}");
+
+				if (!response.IsSuccessStatusCode)
+				{
+					Console.WriteLine("HATA - API Login başarısız.");
+					return false;
+				}
+
+				var responseData = await response.Content.ReadAsStringAsync();
+				var json = JsonDocument.Parse(responseData);
+				var token = json.RootElement.GetProperty("token").GetString();
+
+				if (token != null)
+				{
+					await SaveToken(token);
+					Console.WriteLine("Login başarılı, token kaydedildi.");
+					return true;
+				}
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"❌ HATA - Login: {ex.Message}");
 			}
 
 			return false;
@@ -77,11 +112,28 @@ namespace Tazq_Frontend.Services
 		public async Task<List<TaskModel>> GetTasks()
 		{
 			await SetAuthHeader();
-			var response = await _httpClient.GetAsync($"{BaseUrl}/tasks");
-			if (!response.IsSuccessStatusCode) return new List<TaskModel>();
+			try
+			{
+				HttpResponseMessage response = await _httpClient.GetAsync("tasks");
 
-			var json = await response.Content.ReadAsStringAsync();
-			return JsonSerializer.Deserialize<List<TaskModel>>(json) ?? new List<TaskModel>();
+				Console.WriteLine($"🔍 GetTasks API Request: tasks");
+				Console.WriteLine($"📡 Response Status: {response.StatusCode}");
+				Console.WriteLine($"📡 Response Content: {await response.Content.ReadAsStringAsync()}");
+
+				if (!response.IsSuccessStatusCode)
+				{
+					Console.WriteLine("❌ HATA - GetTasks başarısız.");
+					return new List<TaskModel>();
+				}
+
+				var json = await response.Content.ReadAsStringAsync();
+				return JsonSerializer.Deserialize<List<TaskModel>>(json) ?? new List<TaskModel>();
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"❌ HATA - GetTasks: {ex.Message}");
+				return new List<TaskModel>();
+			}
 		}
 	}
 }

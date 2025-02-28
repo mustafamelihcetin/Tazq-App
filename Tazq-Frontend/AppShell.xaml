@@ -4,6 +4,7 @@
        xmlns:views="clr-namespace:Tazq_Frontend.Views"
        x:Class="Tazq_Frontend.AppShell">
 
-    <ShellContent Title="Login" ContentTemplate="{DataTemplate views:LoginPage}" />
+    <ShellContent Title="Login" Route="LoginPage" ContentTemplate="{DataTemplate views:LoginPage}" />
+    <ShellContent Title="Register" Route="RegisterPage" ContentTemplate="{DataTemplate views:RegisterPage}" />
 
 </Shell>
