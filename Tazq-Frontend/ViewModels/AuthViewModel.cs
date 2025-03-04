@@ -60,20 +60,14 @@ namespace Tazq_Frontend.ViewModels
 		{
 			try
 			{
-				if (Application.Current?.MainPage == null)
-				{
-					Application.Current.MainPage = new NavigationPage(new Views.LoginPage());
-				}
 				if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
 				{
-					await Application.Current?.MainPage?.DisplayAlert("Hata", "E-posta ve şifre alanları boş olamaz!", "Tamam");
+					await Application.Current?.MainPage?.DisplayAlert("Hata", "E-posta ve şifre boş olamaz!", "Tamam");
 					return;
 				}
 
-				// Debugging: Show Alert to Check If This Code is Running
-				await Application.Current?.MainPage?.DisplayAlert("Debug", "LoginCommand çalıştı!", "Tamam");
+				Console.WriteLine("Giriş denemesi yapılıyor...");
 
-				// Simulate login process
 				bool loginSuccess = await _apiService.Login(Email, Password);
 
 				if (loginSuccess)
@@ -82,12 +76,12 @@ namespace Tazq_Frontend.ViewModels
 				}
 				else
 				{
-					await Application.Current?.MainPage?.DisplayAlert("Hata", "Geçersiz giriş bilgileri!", "Tamam");
+					await Application.Current?.MainPage?.DisplayAlert("Hata", "Geçersiz giriş bilgileri! Lütfen tekrar deneyin.", "Tamam");
 				}
 			}
 			catch (Exception ex)
 			{
-				await Application.Current?.MainPage?.DisplayAlert("Hata", $"Android'de LoginCommand hatası: {ex.Message}", "Tamam");
+				await Application.Current?.MainPage?.DisplayAlert("Hata", $"Login hatası: {ex.Message}", "Tamam");
 			}
 		});
 

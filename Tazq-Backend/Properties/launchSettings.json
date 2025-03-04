@@ -9,22 +9,12 @@
     }
   },
   "profiles": {
-    "http": {
+    "Tazq-Backend": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
       "launchUrl": "swagger",
-      "applicationUrl": "http://0.0.0.0:7031;http://localhost:7031",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "https": {
-      "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
-      "launchUrl": "swagger",
-      "applicationUrl": "https://0.0.0.0:7031;https://localhost:7031",
+      "applicationUrl": "http://0.0.0.0:7031;https://0.0.0.0:7032;http://localhost:7031;https://localhost:7032",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }

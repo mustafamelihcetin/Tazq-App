@@ -76,36 +76,41 @@ namespace Tazq_Frontend.Services
 
 			try
 			{
-				HttpResponseMessage response = await _httpClient.PostAsync("users/login", content);
-
-				Console.WriteLine($"Login API Request: users/login");
+				Console.WriteLine($"API'ye giriş isteği gönderiliyor: {ApiConstants.BaseUrl}/users/login");
 				Console.WriteLine($"Request Body: {JsonSerializer.Serialize(request)}");
+
+				HttpResponseMessage response = await _httpClient.PostAsync("users/login", content);
+				string responseData = await response.Content.ReadAsStringAsync();
+
 				Console.WriteLine($"Response Status: {response.StatusCode}");
-				Console.WriteLine($"Response Content: {await response.Content.ReadAsStringAsync()}");
+				Console.WriteLine($"Response Content: {responseData}");
 
 				if (!response.IsSuccessStatusCode)
 				{
-					Console.WriteLine("HATA - API Login başarısız.");
+					Console.WriteLine("HATA - API Login başarısız!");
 					return false;
 				}
 
-				var responseData = await response.Content.ReadAsStringAsync();
+				// API Yanıtını Çözümle
 				var json = JsonDocument.Parse(responseData);
-				var token = json.RootElement.GetProperty("token").GetString();
 
-				if (token != null)
+				if (!json.RootElement.TryGetProperty("token", out var tokenElement) || tokenElement.GetString() == null)
 				{
-					await SaveToken(token);
-					Console.WriteLine("Login başarılı, token kaydedildi.");
-					return true;
+					Console.WriteLine("HATA - API token göndermedi veya boş döndü.");
+					return false;
 				}
+
+				var token = tokenElement.GetString();
+				await SaveToken(token);
+
+				Console.WriteLine("Login başarılı, token kaydedildi.");
+				return true;
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine($"❌ HATA - Login: {ex.Message}");
+				Console.WriteLine($"HATA - Login Exception: {ex.Message}");
+				return false;
 			}
-
-			return false;
 		}
 
 		// Get User Tasks
@@ -116,13 +121,13 @@ namespace Tazq_Frontend.Services
 			{
 				HttpResponseMessage response = await _httpClient.GetAsync("tasks");
 
-				Console.WriteLine($"🔍 GetTasks API Request: tasks");
-				Console.WriteLine($"📡 Response Status: {response.StatusCode}");
-				Console.WriteLine($"📡 Response Content: {await response.Content.ReadAsStringAsync()}");
+				Console.WriteLine($"GetTasks API Request: tasks");
+				Console.WriteLine($"Response Status: {response.StatusCode}");
+				Console.WriteLine($"Response Content: {await response.Content.ReadAsStringAsync()}");
 
 				if (!response.IsSuccessStatusCode)
 				{
-					Console.WriteLine("❌ HATA - GetTasks başarısız.");
+					Console.WriteLine("HATA - GetTasks başarısız.");
 					return new List<TaskModel>();
 				}
 
@@ -131,7 +136,7 @@ namespace Tazq_Frontend.Services
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine($"❌ HATA - GetTasks: {ex.Message}");
+				Console.WriteLine($"HATA - GetTasks: {ex.Message}");
 				return new List<TaskModel>();
 			}
 		}

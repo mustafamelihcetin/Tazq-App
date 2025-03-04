@@ -89,7 +89,7 @@ public class UsersController : ControllerBase
 		return Ok(new { token });
 	}
 
-		// Adds a phone number to the user's profile
+	// Adds a phone number to the user's profile
 	[HttpPost("add-phone")]
 	[Authorize]
 	public async Task<IActionResult> AddPhoneNumber([FromBody] PhoneNumberDto phoneDto)

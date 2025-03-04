@@ -38,7 +38,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 
-// **Swagger JWT Authentication Integration**
+// Swagger JWT Authentication Integration
 builder.Services.AddSwaggerGen(options =>
 {
 	options.SwaggerDoc("v1", new OpenApiInfo { Title = "Tazq-App API", Version = "v1" });
@@ -96,6 +96,12 @@ builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
 builder.Services.AddHostedService<ScheduledEmailService>();
 
+// Set application URLs (HTTP: 7031, HTTPS: 7032)
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+	serverOptions.ListenAnyIP(7031); // HTTP
+	serverOptions.ListenAnyIP(7032, listenOptions => listenOptions.UseHttps()); // HTTPS
+});
 
 var app = builder.Build();
 

@@ -4,7 +4,7 @@
 	{
 		public static string BaseUrl =>
 			DeviceInfo.Platform == DevicePlatform.Android
-				? "http://10.0.2.2:7031/api" // Android
-				: "http://localhost:7031/api"; // Windows & iOS
+				? "http://10.0.2.2:5062/api" // Android
+				: "http://localhost:5062/api"; // Windows & iOS
 	}
 }
