@@ -362,3 +362,4 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /Tazq-Backend/.env
+/Tazq-Backend/appsettings.json
