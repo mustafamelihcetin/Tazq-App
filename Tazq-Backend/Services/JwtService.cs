@@ -1,4 +1,5 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
@@ -22,7 +23,7 @@ namespace Tazq_App.Services
 				throw new ArgumentException("User ID or Role cannot be null or empty.");
 			}
 
-			var keyString = Environment.GetEnvironmentVariable("JWT_KEY");
+			var keyString = Environment.GetEnvironmentVariable("JWT_KEY") ?? _configuration["JwtSettings:SecretKey"];
 			if (string.IsNullOrEmpty(keyString))
 			{
 				throw new Exception("JWT_KEY is missing! Make sure to set it as an environment variable.");
@@ -36,6 +37,7 @@ namespace Tazq_App.Services
 			var claims = new[]
 			{
 				new Claim(JwtRegisteredClaimNames.Sub, userId),
+				new Claim(ClaimTypes.NameIdentifier, userId), // Kullanıcı ID kesin olarak eklendi
 				new Claim(ClaimTypes.Role, role),
 				new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
 			};

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -37,6 +38,15 @@ builder.Services.AddControllers()
 	});
 
 builder.Services.AddEndpointsApiExplorer();
+
+// CORS Configuration
+builder.Services.AddCors(options =>
+{
+	options.AddPolicy("AllowAllOrigins",
+		builder => builder.AllowAnyOrigin()
+			.AllowAnyMethod()
+			.AllowAnyHeader());
+});
 
 // Swagger JWT Authentication Integration
 builder.Services.AddSwaggerGen(options =>
@@ -96,13 +106,6 @@ builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
 builder.Services.AddHostedService<ScheduledEmailService>();
 
-// Set application URLs (HTTP: 7031, HTTPS: 7032)
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-	serverOptions.ListenAnyIP(7031); // HTTP
-	serverOptions.ListenAnyIP(7032, listenOptions => listenOptions.UseHttps()); // HTTPS
-});
-
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -111,8 +114,13 @@ if (app.Environment.IsDevelopment())
 	app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Enable CORS
+app.UseCors("AllowAllOrigins");
+
+
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();

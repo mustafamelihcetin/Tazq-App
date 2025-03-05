@@ -31,10 +31,11 @@ namespace Tazq_App.Controllers
 			[FromQuery] DateTime? endDate)
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-			if (userIdClaim == null)
-				return Unauthorized(new { status = 401, message = "User authentication failed. Please provide a valid token." });
 
-			int userId = int.Parse(userIdClaim);
+			// Kullanıcı ID token'dan alınamazsa hata döndür
+			if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+				return Unauthorized(new { status = 401, message = "Invalid or missing user ID in token." });
+
 			bool isAdmin = User.IsInRole("Admin");
 
 			var query = _context.Tasks.AsQueryable();
@@ -69,6 +70,7 @@ namespace Tazq_App.Controllers
 			return Ok(tasks);
 		}
 
+
 		// Get a specific task by ID
 		[HttpGet("{id}")]
 		public async Task<IActionResult> GetTaskById(int id)
@@ -77,7 +79,8 @@ namespace Tazq_App.Controllers
 			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
 
-			int userId = int.Parse(userIdClaim);
+			if (!int.TryParse(userIdClaim, out int userId))
+				return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
 			bool isAdmin = User.IsInRole("Admin");
 
 			var task = await _context.Tasks.FindAsync(id);
@@ -99,7 +102,8 @@ namespace Tazq_App.Controllers
 			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
 
-			int userId = int.Parse(userIdClaim);
+			if (!int.TryParse(userIdClaim, out int userId))
+				return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
 
 			var task = new TaskItem
 			{
@@ -130,7 +134,8 @@ namespace Tazq_App.Controllers
 			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
 
-			int userId = int.Parse(userIdClaim);
+			if (!int.TryParse(userIdClaim, out int userId))
+				return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
 
 			var taskItems = taskRequest.Tasks.Select(t => new TaskItem
 			{
@@ -157,7 +162,8 @@ namespace Tazq_App.Controllers
 			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
 
-			int userId = int.Parse(userIdClaim);
+			if (!int.TryParse(userIdClaim, out int userId))
+				return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
 			bool isAdmin = User.IsInRole("Admin");
 
 			var task = await _context.Tasks.FindAsync(id);
@@ -189,7 +195,8 @@ namespace Tazq_App.Controllers
 			if (userIdClaim == null)
 				return Unauthorized("User ID not found in token.");
 
-			int userId = int.Parse(userIdClaim);
+			if (!int.TryParse(userIdClaim, out int userId))
+				return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
 			bool isAdmin = User.IsInRole("Admin");
 
 			var task = await _context.Tasks.FindAsync(id);

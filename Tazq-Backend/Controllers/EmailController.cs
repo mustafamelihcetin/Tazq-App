@@ -26,21 +26,28 @@ public class EmailController : ControllerBase
 	public async Task<IActionResult> SendEmail([FromBody] EmailRequestDto request)
 	{
 		var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-		if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
-			return Unauthorized("User ID not found in token.");
+
+		int userId = 0;
+		if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out userId))
+		{
+			return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
+		}
 
 		var user = await _context.Users.FindAsync(userId);
 		if (user == null)
-			return NotFound("User not found.");
+		{
+			return NotFound(new { status = 404, message = "User not found." });
+		}
 
 		return request.EmailType.ToLower() switch
 		{
 			"reminder" => await SendReminderEmail(userId, user.Email, request.TaskIds),
 			"weekly-summary" => await SendWeeklySummaryEmail(userId, user.Email),
 			"export" => await SendExportEmail(userId, user.Email),
-			_ => BadRequest("Invalid email type. Allowed types: reminder, weekly-summary, export.")
+			_ => BadRequest(new { status = 400, message = "Invalid email type." })
 		};
 	}
+
 
 	private async Task<IActionResult> SendReminderEmail(int userId, string email, List<int>? taskIds)
 	{

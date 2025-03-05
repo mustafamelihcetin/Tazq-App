@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Org.BouncyCastle.Crypto.Macs;
+using System;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -23,71 +25,79 @@ public class UsersController : ControllerBase
 		_jwtService = jwtService;
 	}
 
-	// Registers a new user
+	// Register a new user
 	[HttpPost("register")]
 	public async Task<IActionResult> Register([FromBody] UserRegisterDto userDto)
 	{
 		if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
-			return BadRequest("Email already in use.");
+			return BadRequest("E-posta adresi zaten kullanımda.");
 
-		using var hmac = new HMACSHA512();
-		var passwordHash = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(userDto.Password)));
-		var passwordSalt = Convert.ToBase64String(hmac.Key);
+		using var rng = RandomNumberGenerator.Create();
+		byte[] salt = new byte[16];
+		rng.GetBytes(salt);
+
+		using var pbkdf2 = new Rfc2898DeriveBytes(userDto.Password, salt, 100000, HashAlgorithmName.SHA256);
+		byte[] passwordHash = pbkdf2.GetBytes(32);
+
+		string passwordHashString = Convert.ToBase64String(passwordHash);
+		string saltString = Convert.ToBase64String(salt);
 
 		var user = new User
 		{
 			Name = userDto.Name,
 			Email = userDto.Email,
-			PasswordHash = passwordHash,
-			PasswordSalt = passwordSalt
+			PasswordHash = passwordHashString,
+			PasswordSalt = saltString,
+			Role = "User"
 		};
 
 		_context.Users.Add(user);
+		int result = await _context.SaveChangesAsync();
 
-		try
+		if (result == 0)
 		{
-			await _context.SaveChangesAsync();
-		}
-		catch (Exception ex)
-		{
-			return StatusCode(500, new { message = "Database error", error = ex.Message });
+			Console.WriteLine("HATA - Kullanıcı veritabanına kaydedilemedi.");
+			return StatusCode(500, "Veritabanına kayıt sırasında bir hata oluştu.");
 		}
 
-		string subject = "Welcome to Tazq-App!";
-		string body = $"Hello {user.Name},\n\nWelcome to Tazq-App! We are excited to have you with us.";
-
-		try
-		{
-			await _emailService.SendEmailAsync(user.Email, subject, body);
-		}
-		catch (Exception ex)
-		{
-			return StatusCode(500, new { message = "Email sending failed", error = ex.Message });
-		}
-
-		return Ok(new { message = "User registered successfully and welcome email sent!" });
+		return Ok("Kullanıcı başarıyla kaydedildi.");
 	}
 
-	// Logs in a user
+
+	// User Login
 	[HttpPost("login")]
 	public async Task<IActionResult> Login([FromBody] UserLoginDto userDto)
 	{
 		var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userDto.Email);
 		if (user == null)
-			return Unauthorized("Invalid email or password.");
+		{
+			Console.WriteLine("HATA - Kullanıcı bulunamadı.");
+			return Unauthorized("Geçersiz e-posta veya şifre.");
+		}
 
 		if (string.IsNullOrEmpty(user.PasswordSalt) || string.IsNullOrEmpty(user.PasswordHash))
-			return Unauthorized("Invalid login method. Use Google or Apple login.");
+		{
+			Console.WriteLine("HATA - Kullanıcının şifre hash veya salt değeri eksik.");
+			return Unauthorized("Geçersiz giriş yöntemi. Google veya Apple ile giriş yapmalısınız.");
+		}
 
-		using var hmac = new HMACSHA512(Convert.FromBase64String(user.PasswordSalt));
-		var computedHash = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(userDto.Password)));
+		using var pbkdf2 = new Rfc2898DeriveBytes(userDto.Password, Convert.FromBase64String(user.PasswordSalt), 100000, HashAlgorithmName.SHA256);
+		var computedHash = Convert.ToBase64String(pbkdf2.GetBytes(32));
+
+		Console.WriteLine($"Beklenen Hash: {user.PasswordHash}");
+		Console.WriteLine($"Hesaplanan Hash: {computedHash}");
 
 		if (computedHash != user.PasswordHash)
-			return Unauthorized("Invalid email or password.");
+		{
+			Console.WriteLine("HATA - Şifre yanlış girildi.");
+			return Unauthorized("Geçersiz e-posta veya şifre.");
+		}
 
-		var token = _jwtService.GenerateToken(user.Id.ToString(), user.Role);
+		var token = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
+		Console.WriteLine($"Kullanıcı giriş yaptı: {user.Email}");
 		return Ok(new { token });
 	}
+
 
 	// Adds a phone number to the user's profile
 	[HttpPost("add-phone")]
