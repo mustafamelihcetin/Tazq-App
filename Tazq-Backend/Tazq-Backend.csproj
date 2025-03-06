@@ -7,7 +7,7 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<RootNamespace>Tazq_Backend</RootNamespace>
-		<EnableWindowsTargeting>false</EnableWindowsTargeting>
+		<EnableWindowsTargeting>true</EnableWindowsTargeting>
 	</PropertyGroup>
 
 	<!-- Enable Windows Targeting Only in Windows Environment -->
