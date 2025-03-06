@@ -134,6 +134,16 @@ else
 
 var app = builder.Build();
 
+// Explicitly tell Swashbuckle which assembly to use
+var assembly = typeof(Program).Assembly;
+
+// If running from CLI (Swagger CLI)
+if (args.Contains("swagger"))
+{
+	Console.WriteLine("[INFO] Running in Swagger CLI mode...");
+	return;
+}
+
 if (app.Environment.IsDevelopment())
 {
 	app.UseSwagger();
@@ -159,5 +169,3 @@ app.Run();
 
 // Required for Swashbuckle CLI tools
 public partial class Program { }
-
-
