@@ -2,9 +2,16 @@
 
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
+		<TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+		<TargetPlatformVersion>10.0.19041.0</TargetPlatformVersion>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<RootNamespace>Tazq_Backend</RootNamespace>
+	</PropertyGroup>
+
+	<!-- Enable Windows Targeting Only in Windows Environment -->
+	<PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+		<EnableWindowsTargeting>true</EnableWindowsTargeting>
 	</PropertyGroup>
 
 	<ItemGroup>

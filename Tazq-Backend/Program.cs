@@ -11,6 +11,7 @@ using Tazq_App.Data;
 using Tazq_App.Models;
 using Tazq_App.Services;
 
+
 // Ignore SSL Certificate Errors in Development
 ServicePointManager.ServerCertificateValidationCallback += (sender, certificate, chain, sslPolicyErrors) => true;
 
