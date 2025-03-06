@@ -1,15 +1,20 @@
-﻿
+﻿using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
-using DotNetEnv;
+using System.Text;
 using Tazq_App.Data;
-using Tazq_App.Services;
 using Tazq_App.Models;
-using Microsoft.Extensions.Options;
+using Tazq_App.Services;
+
+// Ignore SSL Certificate Errors in Development
+ServicePointManager.ServerCertificateValidationCallback += (sender, certificate, chain, sslPolicyErrors) => true;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,9 +48,12 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddCors(options =>
 {
 	options.AddPolicy("AllowAllOrigins",
-		builder => builder.AllowAnyOrigin()
-			.AllowAnyMethod()
-			.AllowAnyHeader());
+		policy =>
+		{
+			policy.AllowAnyOrigin()
+				  .AllowAnyMethod()
+				  .AllowAnyHeader();
+		});
 });
 
 // Swagger JWT Authentication Integration
@@ -106,21 +114,50 @@ builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
 builder.Services.AddHostedService<ScheduledEmailService>();
 
+var certPath = builder.Configuration["Kestrel:Endpoints:Https:Certificate:Path"];
+var certPassword = builder.Configuration["Kestrel:Endpoints:Https:Certificate:Password"];
+
+if (!File.Exists(certPath))
+{
+	Console.WriteLine($"[ERROR] Certificate file not found: {certPath}");
+	throw new Exception("HTTPS certificate is missing. Ensure it is correctly set up.");
+}
+else
+{
+	var certificate = new X509Certificate2(certPath, certPassword);
+	builder.WebHost.ConfigureKestrel(serverOptions =>
+	{
+		serverOptions.ListenAnyIP(5063, listenOptions =>
+		{
+			listenOptions.UseHttps(certificate);
+		});
+	});
+}
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
 	app.UseSwagger();
-	app.UseSwaggerUI();
+	app.UseSwaggerUI(c =>
+	{
+		c.SwaggerEndpoint("/swagger/v1/swagger.json", "Tazq API v1");
+		c.RoutePrefix = "swagger";
+	});
 }
 
 // Enable CORS
 app.UseCors("AllowAllOrigins");
 
+// Enable HTTPS Only
+//app.UseHttpsRedirection();
 
+// Enable Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseHttpsRedirection();
+// Map Controllers
 app.MapControllers();
+
+// Run the app
 app.Run();

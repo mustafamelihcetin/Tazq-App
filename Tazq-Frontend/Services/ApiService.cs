@@ -44,26 +44,27 @@ namespace Tazq_Frontend.Services
 			}
 		}
 
-		// User Register
-		public async Task<bool> Register(string email, string name, string password)
+		// Register User
+		public async Task<bool> Register(string fullName, string email, string password)
 		{
-			var request = new { email, name, password };
+			var request = new { FullName = fullName, Email = email, Password = password };
 			var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
 
 			try
 			{
-				HttpResponseMessage response = await _httpClient.PostAsync("users/register", content);
+				Console.WriteLine($"Register request: {JsonSerializer.Serialize(request)}");
 
-				Console.WriteLine($"Register API Request: users/register");
-				Console.WriteLine($"Request Body: {JsonSerializer.Serialize(request)}");
-				Console.WriteLine($"Response Status: {response.StatusCode}");
-				Console.WriteLine($"Response Content: {await response.Content.ReadAsStringAsync()}");
+				HttpResponseMessage response = await _httpClient.PostAsync($"{ApiConstants.BaseUrl}/users/register", content);
+				string responseData = await response.Content.ReadAsStringAsync();
+
+				Console.WriteLine($"Register Response Status: {response.StatusCode}");
+				Console.WriteLine($"Register Response Content: {responseData}");
 
 				return response.IsSuccessStatusCode;
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine($"HATA - Register: {ex.Message}");
+				Console.WriteLine($"ERROR - Register: {ex.Message}");
 				return false;
 			}
 		}
@@ -74,41 +75,22 @@ namespace Tazq_Frontend.Services
 			var request = new { email, password };
 			var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
 
+			Console.WriteLine($"Login request being sent to: {ApiConstants.BaseUrl}/users/login");
+			Console.WriteLine($"Request Body: {JsonSerializer.Serialize(request)}");
+
 			try
 			{
-				Console.WriteLine($"API'ye giriş isteği gönderiliyor: {ApiConstants.BaseUrl}/users/login");
-				Console.WriteLine($"Request Body: {JsonSerializer.Serialize(request)}");
-
-				HttpResponseMessage response = await _httpClient.PostAsync("users/login", content);
+				HttpResponseMessage response = await _httpClient.PostAsync($"{ApiConstants.BaseUrl}/users/login", content);
 				string responseData = await response.Content.ReadAsStringAsync();
 
-				Console.WriteLine($"Response Status: {response.StatusCode}");
-				Console.WriteLine($"Response Content: {responseData}");
+				Console.WriteLine($"Login Response Status: {response.StatusCode}");
+				Console.WriteLine($"Login Response Content: {responseData}");
 
-				if (!response.IsSuccessStatusCode)
-				{
-					Console.WriteLine("HATA - API Login başarısız!");
-					return false;
-				}
-
-				// API Yanıtını Çözümle
-				var json = JsonDocument.Parse(responseData);
-
-				if (!json.RootElement.TryGetProperty("token", out var tokenElement) || tokenElement.GetString() == null)
-				{
-					Console.WriteLine("HATA - API token göndermedi veya boş döndü.");
-					return false;
-				}
-
-				var token = tokenElement.GetString();
-				await SaveToken(token);
-
-				Console.WriteLine("Login başarılı, token kaydedildi.");
-				return true;
+				return response.IsSuccessStatusCode;
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine($"HATA - Login Exception: {ex.Message}");
+				Console.WriteLine($"ERROR - Login: {ex.Message}");
 				return false;
 			}
 		}

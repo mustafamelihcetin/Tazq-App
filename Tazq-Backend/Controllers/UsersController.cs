@@ -25,42 +25,50 @@ public class UsersController : ControllerBase
 		_jwtService = jwtService;
 	}
 
-	// Register a new user
 	[HttpPost("register")]
 	public async Task<IActionResult> Register([FromBody] UserRegisterDto userDto)
 	{
-		if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
-			return BadRequest("E-posta adresi zaten kullanımda.");
-
-		using var rng = RandomNumberGenerator.Create();
-		byte[] salt = new byte[16];
-		rng.GetBytes(salt);
-
-		using var pbkdf2 = new Rfc2898DeriveBytes(userDto.Password, salt, 100000, HashAlgorithmName.SHA256);
-		byte[] passwordHash = pbkdf2.GetBytes(32);
-
-		string passwordHashString = Convert.ToBase64String(passwordHash);
-		string saltString = Convert.ToBase64String(salt);
-
-		var user = new User
+		try
 		{
-			Name = userDto.Name,
-			Email = userDto.Email,
-			PasswordHash = passwordHashString,
-			PasswordSalt = saltString,
-			Role = "User"
-		};
+			if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
+				return BadRequest("E-posta adresi zaten kullanımda.");
 
-		_context.Users.Add(user);
-		int result = await _context.SaveChangesAsync();
+			using var rng = RandomNumberGenerator.Create();
+			byte[] salt = new byte[16];
+			rng.GetBytes(salt);
 
-		if (result == 0)
-		{
-			Console.WriteLine("HATA - Kullanıcı veritabanına kaydedilemedi.");
-			return StatusCode(500, "Veritabanına kayıt sırasında bir hata oluştu.");
+			using var pbkdf2 = new Rfc2898DeriveBytes(userDto.Password, salt, 100000, HashAlgorithmName.SHA256);
+			byte[] passwordHash = pbkdf2.GetBytes(32);
+
+			string passwordHashString = Convert.ToBase64String(passwordHash);
+			string saltString = Convert.ToBase64String(salt);
+
+			var user = new User
+			{
+				Name = userDto.FullName,  // **BURADA "FullName" KULLANILDI**
+				Email = userDto.Email,
+				PasswordHash = passwordHashString,
+				PasswordSalt = saltString,
+				Role = "User"
+			};
+
+			_context.Users.Add(user);
+			int result = await _context.SaveChangesAsync();
+
+			if (result == 0)
+			{
+				Console.WriteLine("HATA - Kullanıcı veritabanına kaydedilemedi.");
+				return StatusCode(500, "Veritabanına kayıt sırasında bir hata oluştu.");
+			}
+
+			Console.WriteLine($"Yeni kullanıcı başarıyla eklendi: {user.Email}");
+			return Ok(new { message = "Kullanıcı başarıyla kaydedildi.", userId = user.Id });
 		}
-
-		return Ok("Kullanıcı başarıyla kaydedildi.");
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Register işlemi sırasında hata oluştu: {ex.Message}");
+			return StatusCode(500, "Kayıt sırasında beklenmeyen bir hata oluştu.");
+		}
 	}
 
 

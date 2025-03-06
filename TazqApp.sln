@@ -6,6 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tazq-Backend", "Tazq-Backend\Tazq-Backend.csproj", "{24FC7F5A-0591-4D0C-97A1-64A4439315EE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tazq-Frontend", "Tazq-Frontend\Tazq-Frontend.csproj", "{C5D12FE8-5551-446C-A81B-5E20986896C3}"
+	ProjectSection(ProjectDependencies) = postProject
+		{24FC7F5A-0591-4D0C-97A1-64A4439315EE} = {24FC7F5A-0591-4D0C-97A1-64A4439315EE}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

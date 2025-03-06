@@ -1,29 +1,22 @@
-﻿using Microsoft.Extensions.Logging;
-using Tazq_Frontend.Services;
-using Tazq_Frontend.ViewModels;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui.Controls.Hosting;
+using Microsoft.Maui.Hosting;
 
-namespace Tazq_Frontend;
-
-public static class MauiProgram
+namespace Tazq_Frontend
 {
-	public static MauiApp CreateMauiApp()
+	public static class MauiProgram
 	{
-		var builder = MauiApp.CreateBuilder();
-		builder
-			.UseMauiApp<App>()
-			.ConfigureFonts(fonts =>
-			{
-				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-			});
+		public static MauiApp CreateMauiApp()
+		{
+			var builder = MauiApp.CreateBuilder();
+			builder
+				.UseMauiApp<App>()
+				.ConfigureFonts(fonts =>
+				{
+					fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+				});
 
-		builder.Services.AddSingleton<ApiService>();
-		builder.Services.AddSingleton<AuthViewModel>();
-
-#if DEBUG
-		builder.Logging.AddDebug();
-#endif
-
-		return builder.Build();
+			return builder.Build();
+		}
 	}
 }

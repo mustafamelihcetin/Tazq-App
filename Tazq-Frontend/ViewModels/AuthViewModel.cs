@@ -15,6 +15,14 @@ namespace Tazq_Frontend.ViewModels
 			_apiService = new ApiService();
 		}
 
+		// Full Name Property (Previously "Name" caused conflicts)
+		private string _fullName = string.Empty;
+		public string FullName
+		{
+			get => _fullName;
+			set => SetProperty(ref _fullName, value);
+		}
+
 		// Email Property
 		private string _email = string.Empty;
 		public string Email
@@ -85,20 +93,27 @@ namespace Tazq_Frontend.ViewModels
 			}
 		});
 
-
-		// Command for Register Action
+		// Register Command
 		public ICommand RegisterCommand => new AsyncRelayCommand(async () =>
 		{
-			// Simulate registration process (replace this with API call if needed)
-			await Application.Current?.MainPage?.DisplayAlert("Başarılı", "Kayıt işlemi tamamlandı!", "Tamam");
-
-			if (Shell.Current != null)
+			if (string.IsNullOrWhiteSpace(FullName) || string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
 			{
+				await Application.Current?.MainPage?.DisplayAlert("Hata", "Lütfen tüm alanları doldurun!", "Tamam");
+				return;
+			}
+
+			Console.WriteLine($"Register Attempt: {FullName} - {Email}");
+
+			bool registerSuccess = await _apiService.Register(FullName, Email, Password);
+
+			if (registerSuccess)
+			{
+				await Application.Current?.MainPage?.DisplayAlert("Başarılı", "Kayıt işlemi tamamlandı!", "Tamam");
 				await Shell.Current.GoToAsync("//LoginPage");
 			}
 			else
 			{
-				await Application.Current?.MainPage?.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
+				await Application.Current?.MainPage?.DisplayAlert("Hata", "Kayıt işlemi başarısız oldu!", "Tamam");
 			}
 		});
 
