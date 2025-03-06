@@ -11,11 +11,8 @@ using Tazq_App.Data;
 using Tazq_App.Models;
 using Tazq_App.Services;
 
-
 // Ignore SSL Certificate Errors in Development
 ServicePointManager.ServerCertificateValidationCallback += (sender, certificate, chain, sslPolicyErrors) => true;
-
-
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -150,10 +147,6 @@ if (app.Environment.IsDevelopment())
 // Enable CORS
 app.UseCors("AllowAllOrigins");
 
-
-// Enable HTTPS Only
-//app.UseHttpsRedirection();
-
 // Enable Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
@@ -163,3 +156,8 @@ app.MapControllers();
 
 // Run the app
 app.Run();
+
+// Required for Swashbuckle CLI tools
+public partial class Program { }
+
+
