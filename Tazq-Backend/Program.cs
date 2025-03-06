@@ -149,6 +149,7 @@ if (app.Environment.IsDevelopment())
 // Enable CORS
 app.UseCors("AllowAllOrigins");
 
+
 // Enable HTTPS Only
 //app.UseHttpsRedirection();
 
