@@ -69,11 +69,9 @@ jobs:
           echo "DLL file exists: ${{ env.API_IMPORT_DLL }}"
 
       - name: Generate Open API Specification Document
-        env:
-          JWT_KEY: ${{ secrets.JWT_KEY }}
         run: |
           echo "Generating Open API Specification Document..."
-          $HOME/.dotnet/tools/swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "${{ env.API_IMPORT_DLL }}" "${{ env.API_IMPORT_VERSION }}"
+          swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "${{ env.API_IMPORT_DLL }}" "${{ env.API_IMPORT_VERSION }}"
           echo "Generated Open API Specification Document at ${{ env.API_IMPORT_SPECIFICATION_PATH }}"
 
       - name: Upload artifact for deployment

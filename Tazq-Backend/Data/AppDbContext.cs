@@ -10,7 +10,7 @@ namespace Tazq_App.Data
 			try
 			{
 				Console.WriteLine("Veritabanı başlatılıyor...");
-				Database.EnsureCreated(); // Ensure database is created
+				Database.Migrate();
 				Console.WriteLine("Veritabanı kontrolü tamamlandı.");
 			}
 			catch (Exception ex)
@@ -18,6 +18,7 @@ namespace Tazq_App.Data
 				Console.WriteLine($"Veritabanı başlatılamadı: {ex.Message}");
 			}
 		}
+
 
 		public DbSet<TaskItem> Tasks { get; set; }
 		public DbSet<User> Users { get; set; }
