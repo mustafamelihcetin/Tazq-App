@@ -3,13 +3,16 @@ name: Deploy Backend to Azure Web App
 on:
   push:
     branches:
-      - master  # Master branch'a push yapıldığında çalışacak
+      - master
 
 env:
   AZURE_WEBAPP_NAME: tazq-backend-api
   AZURE_WEBAPP_PACKAGE_PATH: Tazq-Backend/publish
   DOTNET_VERSION: 8.0.x
   WORKING_DIRECTORY: Tazq-Backend
+  API_IMPORT_SPECIFICATION_PATH: Tazq-Backend/publish/swagger.json
+  API_IMPORT_DLL: Tazq-Backend/bin/Release/net8.0/Tazq-Backend.dll
+  API_IMPORT_VERSION: v1
 
 jobs:
   build:
@@ -32,8 +35,35 @@ jobs:
       - name: Test
         run: dotnet test ${{ env.WORKING_DIRECTORY }} --no-build --configuration Release
 
+      - name: Ensure Publish Directory Exists
+        run: |
+          echo "Checking if publish directory exists..."
+          mkdir -p ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+          echo "Publish directory is set up."
+
       - name: Publish Backend
         run: dotnet publish ${{ env.WORKING_DIRECTORY }} --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      - name: Debug - List Published Files
+        run: ls -la ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      - name: Install Swashbuckle CLI
+        run: dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.4.0
+
+      - name: Verify DLL Existence
+        run: |
+          echo "Checking if DLL exists..."
+          if [ ! -f "${{ env.API_IMPORT_DLL }}" ]; then
+            echo "ERROR: Compiled DLL file not found -> ${{ env.API_IMPORT_DLL }}"
+            exit 1
+          fi
+          echo "DLL file exists: ${{ env.API_IMPORT_DLL }}"
+
+      - name: Generate Open API Specification Document
+        run: |
+          echo "Generating Open API Specification Document..."
+          swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "${{ env.API_IMPORT_DLL }}" "${{ env.API_IMPORT_VERSION }}"
+          echo "Generated Open API Specification Document at ${{ env.API_IMPORT_SPECIFICATION_PATH }}"
 
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
