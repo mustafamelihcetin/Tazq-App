@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
 
 env:
   AZURE_WEBAPP_NAME: tazq-backend-api
@@ -36,10 +37,7 @@ jobs:
         run: dotnet test ${{ env.WORKING_DIRECTORY }} --no-build --configuration Release
 
       - name: Ensure Publish Directory Exists
-        run: |
-          echo "Checking if publish directory exists..."
-          mkdir -p ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-          echo "Publish directory is set up."
+        run: mkdir -p ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
       - name: Publish Backend
         run: dotnet publish ${{ env.WORKING_DIRECTORY }} --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
