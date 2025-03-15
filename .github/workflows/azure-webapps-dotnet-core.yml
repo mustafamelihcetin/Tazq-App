@@ -55,6 +55,8 @@ jobs:
           echo "Installing Swashbuckle CLI..."
           dotnet tool update --global Swashbuckle.AspNetCore.Cli --version 6.4.0 || \
           dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.4.0
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+          export PATH="$HOME/.dotnet/tools:$PATH"
           echo "Swashbuckle CLI installed successfully"
 
       - name: Verify DLL Existence
@@ -69,7 +71,7 @@ jobs:
       - name: Generate Open API Specification Document
         run: |
           echo "Generating Open API Specification Document..."
-          dotnet swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "${{ env.API_IMPORT_DLL }}" "${{ env.API_IMPORT_VERSION }}"
+          $HOME/.dotnet/tools/swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "${{ env.API_IMPORT_DLL }}" "${{ env.API_IMPORT_VERSION }}"
           echo "Generated Open API Specification Document at ${{ env.API_IMPORT_SPECIFICATION_PATH }}"
 
       - name: Upload artifact for deployment
