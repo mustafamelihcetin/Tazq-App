@@ -99,6 +99,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 		};
 	});
 
+
 // Register Services
 builder.Services.AddSingleton<JwtService>();
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
