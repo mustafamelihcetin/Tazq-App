@@ -26,12 +26,14 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
-            6.0.x
             8.0.x
-
+            7.0.x
+            6.0.x
 
       - name: Restore Dependencies
-        run: dotnet restore ${{ env.WORKING_DIRECTORY }}
+        run: |
+          dotnet nuget locals all --clear
+          dotnet restore ${{ env.WORKING_DIRECTORY }}
 
       - name: Build
         run: dotnet build ${{ env.WORKING_DIRECTORY }} --configuration Release --no-restore
@@ -49,9 +51,11 @@ jobs:
         run: ls -la ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
       - name: Install Swashbuckle CLI
-        run: dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.4.0
-             export PATH="$PATH:/home/runner/.dotnet/tools"
-             echo "Swashbuckle CLI installed successfully"
+        run: |
+          echo "Installing Swashbuckle CLI..."
+          dotnet tool update --global Swashbuckle.AspNetCore.Cli --version 6.4.0 || \
+          dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.4.0
+          echo "Swashbuckle CLI installed successfully"
 
       - name: Verify DLL Existence
         run: |
@@ -65,7 +69,7 @@ jobs:
       - name: Generate Open API Specification Document
         run: |
           echo "Generating Open API Specification Document..."
-          swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "${{ env.API_IMPORT_DLL }}" "${{ env.API_IMPORT_VERSION }}"
+          dotnet swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "${{ env.API_IMPORT_DLL }}" "${{ env.API_IMPORT_VERSION }}"
           echo "Generated Open API Specification Document at ${{ env.API_IMPORT_SPECIFICATION_PATH }}"
 
       - name: Upload artifact for deployment
@@ -87,7 +91,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          creds: ${{ secrets.TAZQ_BACKEND_APIM_SPN }}
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
