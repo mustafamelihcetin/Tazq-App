@@ -11,7 +11,7 @@ using Tazq_App.Data;
 namespace Tazq_Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250315235113_InitialCreate")]
+    [Migration("20250316000534_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />

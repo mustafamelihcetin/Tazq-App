@@ -31,6 +31,14 @@ jobs:
             7.0.x
             6.0.x
 
+      - name: Check JWT_KEY
+        run: |
+          if [ -z "${{ env.JWT_KEY }}" ]; then
+            echo "ERROR: JWT_KEY is missing! Set it in GitHub Secrets."
+            exit 1
+          fi
+          echo "JWT_KEY is set."
+
       - name: Restore Dependencies
         run: |
           dotnet nuget locals all --clear
@@ -38,6 +46,12 @@ jobs:
 
       - name: Build
         run: dotnet build ${{ env.WORKING_DIRECTORY }} --configuration Release --no-restore
+
+      - name: Run Migrations
+        run: |
+          echo "Applying database migrations..."
+          dotnet ef database update --project ${{ env.WORKING_DIRECTORY }} --context AppDbContext
+          echo "Migrations applied successfully."
 
       - name: Test
         run: dotnet test ${{ env.WORKING_DIRECTORY }} --no-build --configuration Release
