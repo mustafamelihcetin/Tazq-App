@@ -74,15 +74,15 @@ jobs:
 
       - name: Start API for OpenAPI Generation
         run: |
-          echo "Starting API..."
+          echo "Starting API in the background..."
           dotnet run --project ${{ env.WORKING_DIRECTORY }} --no-build &
-          sleep 10
+          sleep 15
           echo "API started successfully."
 
       - name: Generate Open API Specification Document
         run: |
           echo "Generating Open API Specification Document..."
-          swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "${{ env.API_IMPORT_DLL }}" "${{ env.API_IMPORT_VERSION }}"
+          swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "http://localhost:5000/swagger/v1/swagger.json" "${{ env.API_IMPORT_VERSION }}"
           echo "Generated Open API Specification Document at ${{ env.API_IMPORT_SPECIFICATION_PATH }}"
 
       - name: Upload artifact for deployment
