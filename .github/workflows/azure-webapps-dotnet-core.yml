@@ -37,7 +37,7 @@ jobs:
       - name: Restore Dependencies
         run: |
           dotnet nuget locals all --clear
-          dotnet restore ${{ env.WORKING_DIRECTORY }}
+          dotnet restore ${{ env.WORKING_DIRECTORY }} --force
 
       - name: Build
         run: dotnet build ${{ env.WORKING_DIRECTORY }} --configuration Release --no-restore

@@ -10,6 +10,7 @@ using Tazq_App.Data;
 using Tazq_App.Services;
 using Tazq_App.Models;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
