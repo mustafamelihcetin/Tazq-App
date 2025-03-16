@@ -31,6 +31,12 @@ jobs:
             7.0.x
             6.0.x
 
+      - name: Install Entity Framework CLI
+        run: dotnet tool install --global dotnet-ef
+
+      - name: Add dotnet tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
       - name: Check JWT_KEY
         run: |
           if [ -z "${{ env.JWT_KEY }}" ]; then
