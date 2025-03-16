@@ -34,13 +34,16 @@ jobs:
       - name: Add dotnet tools to PATH
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Restore Dependencies
+      - name: Restore Dependencies (Only Backend)
         run: |
+          echo "Restoring dependencies for backend only..."
           dotnet nuget locals all --clear
-          dotnet restore ${{ env.WORKING_DIRECTORY }} --force --ignore-failed-sources
+          dotnet restore ${{ env.WORKING_DIRECTORY }} --force
 
-      - name: Build
-        run: dotnet build ${{ env.WORKING_DIRECTORY }} --configuration Release --no-restore
+      - name: Build Backend Only
+        run: |
+          echo "Building backend only..."
+          dotnet build ${{ env.WORKING_DIRECTORY }} --configuration Release --no-restore
 
       - name: Apply Database Migrations
         run: |
@@ -50,14 +53,14 @@ jobs:
           sqlite3 ${{ env.WORKING_DIRECTORY }}/app.db ".tables"
           echo "Migrations applied successfully."
 
-      - name: Test
+      - name: Test Backend Only
         run: dotnet test ${{ env.WORKING_DIRECTORY }} --no-build --configuration Release
 
       - name: Ensure Publish Directory Exists
         run: mkdir -p "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
 
       - name: Publish Backend
-        run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+        run: dotnet publish ${{ env.WORKING_DIRECTORY }} --configuration Release --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
 
       - name: Debug - List Published Files
         run: ls -la "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
