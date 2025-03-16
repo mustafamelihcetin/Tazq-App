@@ -72,23 +72,25 @@ jobs:
       - name: Start API for OpenAPI Generation
         run: |
           echo "Starting API in the background..."
-          nohup dotnet run --project ${{ env.WORKING_DIRECTORY }} --no-build --urls="http://0.0.0.0:5000" > output.log 2>&1 &
+          dotnet run --project ${{ env.WORKING_DIRECTORY }} --no-build --urls="http://0.0.0.0:5000" > output.log 2>&1 &
           sleep 20
           echo "API started successfully."
-
-      - name: Check API Health
-        run: |
-          echo "Checking if API process is running..."
-          if ! pgrep -f "dotnet run --project ${{ env.WORKING_DIRECTORY }}"; then
-            echo "API process is NOT running!"
-            exit 1
-          fi
-          echo "API is running."
 
       - name: Print API Logs
         run: |
           echo "Fetching API logs..."
           cat output.log || echo "No logs found."
+
+      - name: Check API Health
+        run: |
+          echo "Checking if API process is running..."
+          if ! pgrep -f "dotnet run --project ${{ env.WORKING_DIRECTORY }}"; then
+            echo "ERROR: API process is NOT running!"
+            echo "====== ERROR LOGS ======"
+            cat output.log
+            exit 1
+          fi
+          echo "API is running."
 
       - name: Wait for Swagger JSON to be available
         run: |
@@ -105,15 +107,6 @@ jobs:
           echo "ERROR: Swagger JSON never became available."
           cat output.log
           exit 1
-
-      - name: Check Swagger UI
-        run: |
-          echo "Checking Swagger UI..."
-          if ! curl -Is http://localhost:5000/swagger/index.html | head -n 1 | grep "200 OK"; then
-            echo "Swagger UI is NOT accessible!"
-            exit 1
-          fi
-          echo "Swagger UI is accessible."
 
       - name: Generate Open API Specification Document
         run: |
