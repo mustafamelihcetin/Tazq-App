@@ -23,16 +23,25 @@ jobs:
         with:
           dotnet-version: '8.x'
 
-      - name: Build with dotnet
-        run: dotnet build --configuration Release
+      - name: Restore dependencies (Only Backend)
+        run: |
+          echo "Restoring only backend dependencies..."
+          dotnet restore Tazq-Backend/Tazq-Backend.csproj --force --ignore-failed-sources
 
-      - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+      - name: Build Backend Only
+        run: |
+          echo "Building only backend project..."
+          dotnet build Tazq-Backend/Tazq-Backend.csproj --configuration Release --no-restore
+
+      - name: dotnet publish (Only Backend)
+        run: |
+          echo "Publishing only backend..."
+          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: .net-app
+          name: .net-backend
           path: ${{env.DOTNET_ROOT}}/myapp
 
   deploy:
@@ -49,7 +58,7 @@ jobs:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: .net-app
+          name: .net-backend
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -65,4 +74,3 @@ jobs:
           app-name: 'tazq-backend-api'
           slot-name: 'Production'
           package: .
-          
