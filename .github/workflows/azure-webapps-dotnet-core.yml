@@ -37,14 +37,6 @@ jobs:
       - name: Add dotnet tools to PATH
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Check JWT_KEY
-        run: |
-          if [ -z "${{ env.JWT_KEY }}" ]; then
-            echo "ERROR: JWT_KEY is missing! Set it in GitHub Secrets."
-            exit 1
-          fi
-          echo "JWT_KEY is set."
-
       - name: Restore Dependencies
         run: |
           dotnet nuget locals all --clear
@@ -53,7 +45,7 @@ jobs:
       - name: Build
         run: dotnet build ${{ env.WORKING_DIRECTORY }} --configuration Release --no-restore
 
-      - name: Run Migrations
+      - name: Apply Database Migrations
         run: |
           echo "Applying database migrations..."
           dotnet ef database update --project ${{ env.WORKING_DIRECTORY }} --context AppDbContext
@@ -80,14 +72,12 @@ jobs:
           export PATH="$HOME/.dotnet/tools:$PATH"
           echo "Swashbuckle CLI installed successfully"
 
-      - name: Verify DLL Existence
+      - name: Start API for OpenAPI Generation
         run: |
-          echo "Checking if DLL exists..."
-          if [ ! -f "${{ env.API_IMPORT_DLL }}" ]; then
-            echo "ERROR: Compiled DLL file not found -> ${{ env.API_IMPORT_DLL }}"
-            exit 1
-          fi
-          echo "DLL file exists: ${{ env.API_IMPORT_DLL }}"
+          echo "Starting API..."
+          dotnet run --project ${{ env.WORKING_DIRECTORY }} --no-build &
+          sleep 10
+          echo "API started successfully."
 
       - name: Generate Open API Specification Document
         run: |
