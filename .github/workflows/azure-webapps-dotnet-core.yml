@@ -19,6 +19,10 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIRECTORY }} # Sadece Backend'i hedef al
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -31,33 +35,28 @@ jobs:
       - name: Install Entity Framework CLI
         run: dotnet tool install --global dotnet-ef
 
-      - name: Add dotnet tools to PATH
-        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-
       - name: Restore Dependencies (Only Backend)
         run: |
           echo "Restoring dependencies for backend only..."
           dotnet nuget locals all --clear
-          dotnet restore ${{ env.WORKING_DIRECTORY }} --force
+          dotnet restore --force
 
       - name: Build Backend Only
         run: |
           echo "Building backend only..."
-          cd ${{ env.WORKING_DIRECTORY }}
           dotnet build --configuration Release --no-restore
 
       - name: Apply Database Migrations
         run: |
           echo "Applying database migrations..."
-          dotnet ef database update --project ${{ env.WORKING_DIRECTORY }} --context AppDbContext
+          dotnet ef database update --context AppDbContext
           echo "Checking tables in SQLite..."
-          sqlite3 ${{ env.WORKING_DIRECTORY }}/app.db ".tables"
+          sqlite3 app.db ".tables"
           echo "Migrations applied successfully."
 
       - name: Test Backend Only
         run: |
           echo "Running tests for backend..."
-          cd ${{ env.WORKING_DIRECTORY }}
           dotnet test --no-build --configuration Release
 
       - name: Ensure Publish Directory Exists
@@ -66,7 +65,6 @@ jobs:
       - name: Publish Backend
         run: |
           echo "Publishing backend..."
-          cd ${{ env.WORKING_DIRECTORY }}
           dotnet publish --configuration Release --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
 
       - name: Debug - List Published Files
@@ -84,7 +82,6 @@ jobs:
       - name: Start API for OpenAPI Generation
         run: |
           echo "Starting API in the background..."
-          cd ${{ env.WORKING_DIRECTORY }}
           dotnet run --no-build --urls="http://0.0.0.0:7031" > output.log 2>&1 &
           sleep 20
           echo "API started successfully."
@@ -97,7 +94,7 @@ jobs:
       - name: Check API Health
         run: |
           echo "Checking if API process is running..."
-          if ! pgrep -f "dotnet run --project ${{ env.WORKING_DIRECTORY }}"; then
+          if ! pgrep -f "dotnet run"; then
             echo "ERROR: API process is NOT running!"
             echo "====== ERROR LOGS ======"
             cat output.log
