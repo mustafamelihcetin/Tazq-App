@@ -74,7 +74,7 @@ jobs:
       - name: Start API for OpenAPI Generation
         run: |
           echo "Starting API in the background..."
-          dotnet run --project ${{ env.WORKING_DIRECTORY }} --no-build --urls="http://0.0.0.0:5000" > output.log 2>&1 &
+          dotnet run --project ${{ env.WORKING_DIRECTORY }} --no-build --urls="http://0.0.0.0:7031" > output.log 2>&1 &
           sleep 20
           echo "API started successfully."
 
@@ -98,7 +98,7 @@ jobs:
         run: |
           echo "Waiting for Swagger JSON to be accessible..."
           for i in {1..12}; do
-            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/swagger/v1/swagger.json)
+            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7031/swagger/v1/swagger.json)
             if [ "$STATUS_CODE" -eq 200 ]; then
               echo "Swagger JSON is now available."
               exit 0
@@ -113,7 +113,7 @@ jobs:
       - name: Generate Open API Specification Document
         run: |
           echo "Generating Open API Specification Document..."
-          curl -s http://localhost:5000/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
+          curl -s http://localhost:7031/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
           echo "Generated Open API Specification Document at ${{ env.API_IMPORT_SPECIFICATION_PATH }}"
 
       - name: Upload artifact for deployment
