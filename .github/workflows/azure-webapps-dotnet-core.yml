@@ -14,7 +14,7 @@ env:
   API_IMPORT_SPECIFICATION_PATH: Tazq-Backend/publish/swagger.json
   API_IMPORT_DLL: Tazq-Backend/bin/Release/net8.0/Tazq-Backend.dll
   API_IMPORT_VERSION: v1
-  JWT_KEY: "${{ secrets.JWT_KEY }}"
+  JWT_KEY: ${{ secrets.JWT_KEY }}
 
 jobs:
   build:
@@ -72,23 +72,29 @@ jobs:
       - name: Start API for OpenAPI Generation
         run: |
           echo "Starting API in the background..."
-          nohup dotnet run --project ${{ env.WORKING_DIRECTORY }} --no-build --urls="http://localhost:5000" > output.log 2>&1 &
-          sleep 15
+          nohup dotnet run --project ${{ env.WORKING_DIRECTORY }} --no-build --urls="http://0.0.0.0:5000" > output.log 2>&1 &
+          sleep 20
           echo "API started successfully."
 
-      - name: Print API Logs (Eðer Baþlamadýysa Sebebini Göster)
+      - name: Check API Health
+        run: |
+          echo "Checking if API process is running..."
+          if ! pgrep -f "dotnet run --project ${{ env.WORKING_DIRECTORY }}"; then
+            echo "API process is NOT running!"
+            exit 1
+          fi
+          echo "API is running."
+
+      - name: Print API Logs
         run: |
           echo "Fetching API logs..."
           cat output.log || echo "No logs found."
-          echo "Checking if API process is running..."
-          ps aux | grep dotnet || echo "API process not found."
 
       - name: Wait for Swagger JSON to be available
         run: |
           echo "Waiting for Swagger JSON to be accessible..."
           for i in {1..12}; do
-            curl -s -o swagger-check.json -w "%{http_code}" http://localhost:5000/swagger/v1/swagger.json > status_code.txt
-            STATUS_CODE=$(cat status_code.txt)
+            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/swagger/v1/swagger.json)
             if [ "$STATUS_CODE" -eq 200 ]; then
               echo "Swagger JSON is now available."
               exit 0
@@ -97,9 +103,17 @@ jobs:
             sleep 5
           done
           echo "ERROR: Swagger JSON never became available."
-          echo "Fetching latest API logs to understand the issue..."
           cat output.log
           exit 1
+
+      - name: Check Swagger UI
+        run: |
+          echo "Checking Swagger UI..."
+          if ! curl -Is http://localhost:5000/swagger/index.html | head -n 1 | grep "200 OK"; then
+            echo "Swagger UI is NOT accessible!"
+            exit 1
+          fi
+          echo "Swagger UI is accessible."
 
       - name: Generate Open API Specification Document
         run: |
