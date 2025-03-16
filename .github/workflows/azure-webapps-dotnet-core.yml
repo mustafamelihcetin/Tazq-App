@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ${{ env.WORKING_DIRECTORY }} # Sadece Backend'i hedef al
+        working-directory: ${{ env.WORKING_DIRECTORY }}
 
     steps:
       - name: Checkout Repository
@@ -35,16 +35,16 @@ jobs:
       - name: Install Entity Framework CLI
         run: dotnet tool install --global dotnet-ef
 
-      - name: Restore Dependencies (Only Backend)
+      - name: Add dotnet tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Restore Dependencies for Backend
         run: |
-          echo "Restoring dependencies for backend only..."
           dotnet nuget locals all --clear
-          dotnet restore --force
+          dotnet restore Tazq-Backend.csproj --force --ignore-failed-sources
 
       - name: Build Backend Only
-        run: |
-          echo "Building backend only..."
-          dotnet build --configuration Release --no-restore
+        run: dotnet build Tazq-Backend.csproj --configuration Release --no-restore
 
       - name: Apply Database Migrations
         run: |
@@ -54,18 +54,14 @@ jobs:
           sqlite3 app.db ".tables"
           echo "Migrations applied successfully."
 
-      - name: Test Backend Only
-        run: |
-          echo "Running tests for backend..."
-          dotnet test --no-build --configuration Release
+      - name: Test Backend
+        run: dotnet test Tazq-Backend.csproj --no-build --configuration Release
 
       - name: Ensure Publish Directory Exists
         run: mkdir -p "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
 
       - name: Publish Backend
-        run: |
-          echo "Publishing backend..."
-          dotnet publish --configuration Release --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+        run: dotnet publish Tazq-Backend.csproj --configuration Release --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
 
       - name: Debug - List Published Files
         run: ls -la "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
