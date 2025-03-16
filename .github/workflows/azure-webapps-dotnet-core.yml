@@ -26,10 +26,7 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            8.0.x
-            7.0.x
-            6.0.x
+          dotnet-version: 8.0.x
 
       - name: Install Entity Framework CLI
         run: dotnet tool install --global dotnet-ef
@@ -75,14 +72,14 @@ jobs:
       - name: Start API for OpenAPI Generation
         run: |
           echo "Starting API in the background..."
-          dotnet run --project ${{ env.WORKING_DIRECTORY }} --no-build &
+          nohup dotnet run --project ${{ env.WORKING_DIRECTORY }} --no-build --urls="http://localhost:5000" > output.log 2>&1 &
           sleep 15
           echo "API started successfully."
 
       - name: Generate Open API Specification Document
         run: |
-          echo "Generating Open API Specification Document..."
-          swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "http://localhost:5000/swagger/v1/swagger.json" "${{ env.API_IMPORT_VERSION }}"
+          echo "Checking if Swagger JSON is accessible..."
+          curl --retry 5 --retry-delay 5 --retry-connrefused -s http://localhost:5000/swagger/v1/swagger.json > ${{ env.API_IMPORT_SPECIFICATION_PATH }}
           echo "Generated Open API Specification Document at ${{ env.API_IMPORT_SPECIFICATION_PATH }}"
 
       - name: Upload artifact for deployment
