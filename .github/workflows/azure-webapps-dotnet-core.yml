@@ -73,16 +73,27 @@ jobs:
         run: |
           echo "Starting API in the background..."
           nohup dotnet run --project ${{ env.WORKING_DIRECTORY }} --no-build --urls="http://localhost:5000" > output.log 2>&1 &
-          sleep 20
+          sleep 10
           echo "API started successfully."
+
+      - name: Print API Logs
+        run: |
+          echo "Fetching API logs..."
+          cat output.log || echo "No logs found."
 
       - name: Wait for Swagger JSON to be available
         run: |
           echo "Waiting for Swagger JSON to be accessible..."
-          for i in {1..10}; do
-            curl --silent --fail http://localhost:5000/swagger/v1/swagger.json && break || sleep 5
+          for i in {1..12}; do
+            if curl --silent --fail http://localhost:5000/swagger/v1/swagger.json; then
+              echo "Swagger JSON is now available."
+              exit 0
+            fi
+            echo "Swagger JSON not ready, retrying in 5 seconds..."
+            sleep 5
           done
-          echo "Swagger JSON is now available."
+          echo "ERROR: Swagger JSON never became available."
+          exit 1
 
       - name: Generate Open API Specification Document
         run: |
