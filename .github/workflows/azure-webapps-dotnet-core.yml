@@ -14,6 +14,7 @@ env:
   API_IMPORT_SPECIFICATION_PATH: Tazq-Backend/publish/swagger.json
   API_IMPORT_DLL: Tazq-Backend/bin/Release/net8.0/Tazq-Backend.dll
   API_IMPORT_VERSION: v1
+  JWT_KEY: ${{ secrets.JWT_KEY }}
 
 jobs:
   build:
