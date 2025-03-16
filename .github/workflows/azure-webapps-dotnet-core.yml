@@ -76,10 +76,12 @@ jobs:
           sleep 15
           echo "API started successfully."
 
-      - name: Print API Logs
+      - name: Print API Logs (Eðer Baþlamadýysa Sebebini Göster)
         run: |
           echo "Fetching API logs..."
           cat output.log || echo "No logs found."
+          echo "Checking if API process is running..."
+          ps aux | grep dotnet || echo "API process not found."
 
       - name: Wait for Swagger JSON to be available
         run: |
@@ -95,6 +97,8 @@ jobs:
             sleep 5
           done
           echo "ERROR: Swagger JSON never became available."
+          echo "Fetching latest API logs to understand the issue..."
+          cat output.log
           exit 1
 
       - name: Generate Open API Specification Document
@@ -107,28 +111,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: backend
-          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.TAZQ_BACKEND_APIM_SPN }}
-
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-
-      - name: Logout from Azure
-        run: az logout
+          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH
