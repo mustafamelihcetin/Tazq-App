@@ -46,6 +46,8 @@ jobs:
         run: |
           echo "Applying database migrations..."
           dotnet ef database update --project ${{ env.WORKING_DIRECTORY }} --context AppDbContext
+          echo "Checking tables in SQLite..."
+          sqlite3 ${{ env.WORKING_DIRECTORY }}/app.db ".tables"
           echo "Migrations applied successfully."
 
       - name: Test
