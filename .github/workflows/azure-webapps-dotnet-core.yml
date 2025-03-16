@@ -14,7 +14,7 @@ env:
   API_IMPORT_SPECIFICATION_PATH: Tazq-Backend/publish/swagger.json
   API_IMPORT_DLL: Tazq-Backend/bin/Release/net8.0/Tazq-Backend.dll
   API_IMPORT_VERSION: v1
-  JWT_KEY: ${{ secrets.JWT_KEY }}
+  JWT_KEY: "${{ secrets.JWT_KEY }}"
 
 jobs:
   build:
@@ -52,13 +52,13 @@ jobs:
         run: dotnet test ${{ env.WORKING_DIRECTORY }} --no-build --configuration Release
 
       - name: Ensure Publish Directory Exists
-        run: mkdir -p ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: mkdir -p "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
 
       - name: Publish Backend
-        run: dotnet publish ${{ env.WORKING_DIRECTORY }} --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: dotnet publish ${{ env.WORKING_DIRECTORY }} --configuration Release --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
 
       - name: Debug - List Published Files
-        run: ls -la ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: ls -la "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
 
       - name: Install Swashbuckle CLI
         run: |
@@ -104,11 +104,11 @@ jobs:
       - name: Generate Open API Specification Document
         run: |
           echo "Generating Open API Specification Document..."
-          curl -s http://localhost:5000/swagger/v1/swagger.json > ${{ env.API_IMPORT_SPECIFICATION_PATH }}
+          curl -s http://localhost:5000/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
           echo "Generated Open API Specification Document at ${{ env.API_IMPORT_SPECIFICATION_PATH }}"
 
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH
+          path: "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
