@@ -36,7 +36,7 @@ jobs:
       - name: dotnet publish (Only Backend)
         run: |
           echo "Publishing only backend..."
-          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
+          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o Tazq-Backend/publish
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
