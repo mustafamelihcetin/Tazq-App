@@ -38,11 +38,14 @@ jobs:
           echo "Publishing only backend..."
           dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o Tazq-Backend/publish
 
+      - name: Debug - List Published Files
+        run: ls -la Tazq-Backend/publish
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-backend
-          path: ${{env.DOTNET_ROOT}}/myapp
+          path: Tazq-Backend/publish
 
   deploy:
     runs-on: ubuntu-latest
@@ -72,4 +75,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'tazq-backend-api'
-          package: .
+          package: Tazq-Backend/publish
