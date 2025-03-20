@@ -51,11 +51,16 @@ jobs:
           echo "Compressing published files..."
           cd Tazq-Backend/publish
           zip -r ../../backend.zip ./*
+          cd ../..
           echo "Compression completed."
 
       - name: Verify ZIP File
         run: |
-          echo "Checking if ZIP file exists..."
+          if [ ! -f backend.zip ]; then
+            echo "ERROR: backend.zip does not exist!"
+            exit 1
+          fi
+          echo "ZIP file exists."
           ls -la backend.zip
 
       - name: Upload artifact for deployment job
