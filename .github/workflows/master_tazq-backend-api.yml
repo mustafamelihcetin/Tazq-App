@@ -1,6 +1,4 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
+# Azure Web Apps Deploy Pipeline
 name: Build and deploy ASP.Net Core app to Azure Web App - tazq-backend-api
 
 on:
@@ -13,10 +11,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read # This is required for actions/checkout
+      contents: read 
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
@@ -25,12 +24,10 @@ jobs:
 
       - name: Restore dependencies (Only Backend)
         run: |
-          echo "Restoring only backend dependencies..."
           dotnet restore Tazq-Backend/Tazq-Backend.csproj --force --ignore-failed-sources
 
       - name: Build Backend Only
         run: |
-          echo "Building only backend project..."
           dotnet build Tazq-Backend/Tazq-Backend.csproj --configuration Release --no-restore
 
       - name: Ensure Publish Directory Exists
@@ -38,21 +35,18 @@ jobs:
 
       - name: dotnet publish (Only Backend)
         run: |
-          echo "Publishing only backend..."
-          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o Tazq-Backend/publish
+          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release --no-build -o Tazq-Backend/publish
 
       - name: Debug - Verify Published Files
         run: |
           echo "Checking contents of publish directory..."
           ls -la Tazq-Backend/publish
 
-      - name: Compress Published Files (Fix for ENOTDIR Error)
+      - name: Compress Published Files
         run: |
-          echo "Compressing published files..."
           cd Tazq-Backend/publish
-          zip -r ../../backend.zip ./*
+          zip -r ../../backend.zip .
           cd ../..
-          echo "Compression completed."
 
       - name: Verify ZIP File
         run: |
@@ -60,7 +54,6 @@ jobs:
             echo "ERROR: backend.zip does not exist!"
             exit 1
           fi
-          echo "ZIP file exists."
           ls -la backend.zip
 
       - name: Upload artifact for deployment job
@@ -76,8 +69,8 @@ jobs:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
-      id-token: write # This is required for requesting the JWT
-      contents: read # This is required for actions/checkout
+      id-token: write
+      contents: read
 
     steps:
       - name: Download artifact from build job
@@ -87,15 +80,14 @@ jobs:
 
       - name: Verify Downloaded Files
         run: |
-          echo "Checking if backend.zip exists after download..."
           ls -la backend.zip
 
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_0AC6730E782346CAA2CF0CB7206393B7 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_E78C97CF44324BF2BFBC240BA4115362 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_976281A093CD4ACF979EF3E6D83AB79F }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID }}
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
