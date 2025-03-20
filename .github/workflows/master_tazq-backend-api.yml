@@ -60,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: ./publish/**
+          path: backend.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -77,6 +77,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend
+          path: .
 
       - name: Verify Downloaded Files
         run: |
