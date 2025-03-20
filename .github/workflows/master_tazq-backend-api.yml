@@ -33,6 +33,9 @@ jobs:
           echo "Building only backend project..."
           dotnet build Tazq-Backend/Tazq-Backend.csproj --configuration Release --no-restore
 
+      - name: Ensure Publish Directory Exists
+        run: mkdir -p Tazq-Backend/publish
+
       - name: dotnet publish (Only Backend)
         run: |
           echo "Publishing only backend..."
@@ -50,10 +53,15 @@ jobs:
           zip -r ../../backend.zip ./*
           echo "Compression completed."
 
+      - name: Verify ZIP File
+        run: |
+          echo "Checking if ZIP file exists..."
+          ls -la backend.zip
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: .net-backend
+          name: backend
           path: backend.zip
 
   deploy:
@@ -70,8 +78,13 @@ jobs:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: .net-backend
-      
+          name: backend
+
+      - name: Verify Downloaded Files
+        run: |
+          echo "Checking if backend.zip exists after download..."
+          ls -la backend.zip
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
