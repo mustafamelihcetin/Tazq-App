@@ -32,21 +32,21 @@ jobs:
 
       - name: Ensure Publish Directory Exists
         run: |
-          rm -rf Tazq-Backend/publish
-          mkdir -p Tazq-Backend/publish
+          rm -rf publish
+          mkdir -p publish
 
       - name: dotnet publish (Only Backend)
         run: |
-          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o Tazq-Backend/publish
+          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o ./publish
 
       - name: Debug - Verify Published Files
         run: |
           echo "Checking contents of publish directory..."
-          ls -la Tazq-Backend/publish
+          ls -la ./publish || echo "ERROR: Publish directory not found!"
 
       - name: Compress Published Files
         run: |
-          zip -r backend.zip Tazq-Backend/publish
+          zip -r backend.zip ./publish
 
       - name: Verify ZIP File
         run: |
@@ -60,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: backend.zip
+          path: ./publish/**
 
   deploy:
     runs-on: ubuntu-latest
