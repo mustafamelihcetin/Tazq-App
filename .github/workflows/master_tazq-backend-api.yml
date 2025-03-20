@@ -46,9 +46,7 @@ jobs:
 
       - name: Compress Published Files
         run: |
-          cd publish
-          zip -r ../backend.zip .
-          cd ..
+          zip -r backend.zip ./publish
 
       - name: Verify ZIP File
         run: |
