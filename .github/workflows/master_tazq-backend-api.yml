@@ -13,7 +13,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read # This is required for actions/checkout
 
     steps:
       - uses: actions/checkout@v4
@@ -38,14 +38,16 @@ jobs:
           echo "Publishing only backend..."
           dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o Tazq-Backend/publish
 
-      - name: Debug - List Published Files
-        run: ls -la Tazq-Backend/publish
+      - name: Debug - Verify Published Files
+        run: |
+          echo "Checking contents of publish directory..."
+          ls -la Tazq-Backend/publish
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-backend
-          path: Tazq-Backend/publish
+          path: Tazq-Backend/publish/
 
   deploy:
     runs-on: ubuntu-latest
@@ -54,8 +56,8 @@ jobs:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write # This is required for requesting the JWT
+      contents: read # This is required for actions/checkout
 
     steps:
       - name: Download artifact from build job
