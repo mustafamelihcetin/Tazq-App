@@ -41,11 +41,12 @@ jobs:
       - name: Debug - Verify Published Files
         run: |
           echo "Checking contents of publish directory..."
-          ls -la Tazq-Backend/publish || echo "ERROR: Publish directory not found!"
+          ls -la Tazq-Backend/publish || (echo "ERROR: Publish directory not found!" && exit 1)
 
       - name: Compress Published Files
         run: |
           zip -r backend.zip Tazq-Backend/publish
+          ls -la backend.zip  # Check if ZIP exists
 
       - name: Verify ZIP File
         run: |
@@ -53,7 +54,6 @@ jobs:
             echo "ERROR: backend.zip does not exist!"
             exit 1
           fi
-          ls -la backend.zip
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -86,6 +86,11 @@ jobs:
           fi
           ls -la backend.zip
 
+      - name: Unzip Artifact
+        run: |
+          unzip backend.zip -d Tazq-Backend/publish
+          ls -la Tazq-Backend/publish  # Debugging extracted files
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -97,4 +102,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'tazq-backend-api'
-          package: backend.zip
+          package: Tazq-Backend/publish
