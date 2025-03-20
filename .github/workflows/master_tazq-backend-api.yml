@@ -32,21 +32,20 @@ jobs:
 
       - name: Ensure Publish Directory Exists
         run: |
-          rm -rf publish
-          mkdir -p publish
+          mkdir -p Tazq-Backend/publish
 
       - name: dotnet publish (Only Backend)
         run: |
-          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o ./publish
+          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o Tazq-Backend/publish
 
       - name: Debug - Verify Published Files
         run: |
           echo "Checking contents of publish directory..."
-          ls -la ./publish || echo "ERROR: Publish directory not found!"
+          ls -la Tazq-Backend/publish || echo "ERROR: Publish directory not found!"
 
       - name: Compress Published Files
         run: |
-          zip -r backend.zip ./publish
+          zip -r backend.zip Tazq-Backend/publish
 
       - name: Verify ZIP File
         run: |
