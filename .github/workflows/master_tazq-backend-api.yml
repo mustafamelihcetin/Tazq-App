@@ -37,7 +37,7 @@ jobs:
 
       - name: dotnet publish (Only Backend)
         run: |
-          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release --no-build -o Tazq-Backend/publish
+          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o Tazq-Backend/publish
 
       - name: Debug - Verify Published Files
         run: |
@@ -46,9 +46,7 @@ jobs:
 
       - name: Compress Published Files
         run: |
-          cd Tazq-Backend/publish
-          zip -r ../../backend.zip .
-          cd ../..
+          zip -r backend.zip Tazq-Backend/publish
 
       - name: Verify ZIP File
         run: |
@@ -82,6 +80,10 @@ jobs:
 
       - name: Verify Downloaded Files
         run: |
+          if [ ! -f backend.zip ]; then
+            echo "ERROR: backend.zip is missing!"
+            exit 1
+          fi
           ls -la backend.zip
 
       - name: Login to Azure
