@@ -31,7 +31,9 @@ jobs:
           dotnet build Tazq-Backend/Tazq-Backend.csproj --configuration Release --no-restore
 
       - name: Ensure Publish Directory Exists
-        run: mkdir -p Tazq-Backend/publish
+        run: |
+          rm -rf Tazq-Backend/publish
+          mkdir -p Tazq-Backend/publish
 
       - name: dotnet publish (Only Backend)
         run: |
@@ -86,8 +88,7 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-          enable-AzPSSession: true
-          allow-no-subscriptions: true
+          allow-no-subscriptions: false
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
