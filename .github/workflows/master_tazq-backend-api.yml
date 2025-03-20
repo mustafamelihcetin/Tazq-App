@@ -43,11 +43,18 @@ jobs:
           echo "Checking contents of publish directory..."
           ls -la Tazq-Backend/publish
 
+      - name: Compress Published Files (Fix for ENOTDIR Error)
+        run: |
+          echo "Compressing published files..."
+          cd Tazq-Backend/publish
+          zip -r ../../backend.zip ./*
+          echo "Compression completed."
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-backend
-          path: Tazq-Backend/publish/
+          path: backend.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -77,4 +84,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'tazq-backend-api'
-          package: Tazq-Backend/publish
+          package: backend.zip
