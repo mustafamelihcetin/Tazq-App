@@ -1,5 +1,7 @@
-# Azure Web Apps Deploy Pipeline
-name: Build and deploy ASP.Net Core app to Azure Web App - tazq-backend-api
+# GitHub Actions pipeline for backend deployment to Azure Web App
+# CI build + CD deployment with EF migration + Swagger generation
+
+name: Backend CI/CD Pipeline
 
 on:
   push:
@@ -7,88 +9,103 @@ on:
       - master
   workflow_dispatch:
 
+env:
+  WORKING_DIRECTORY: Tazq-Backend
+  DOTNET_VERSION: 8.0.x
+  AZURE_WEBAPP_NAME: tazq-backend-api
+  AZURE_WEBAPP_PACKAGE_PATH: Tazq-Backend/publish
+  API_IMPORT_SPECIFICATION_PATH: Tazq-Backend/publish/swagger.json
+  API_IMPORT_DLL: Tazq-Backend/bin/Release/net8.0/Tazq-Backend.dll
+  API_IMPORT_VERSION: v1
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read 
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up .NET Core
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore dependencies (Only Backend)
-        run: dotnet restore Tazq-Backend/Tazq-Backend.csproj --force --ignore-failed-sources
-
-      - name: Build Backend Only
-        run: dotnet build Tazq-Backend/Tazq-Backend.csproj --configuration Release --no-restore
-
-      - name: Ensure Publish Directory Exists
-        run: mkdir -p Tazq-Backend/publish
-
-      - name: dotnet publish (Only Backend)
+      - name: Install Swashbuckle CLI
         run: |
-          dotnet publish Tazq-Backend/Tazq-Backend.csproj -c Release -o Tazq-Backend/publish
-          ls -la Tazq-Backend/publish  # Debug için listele
+          dotnet tool update --global Swashbuckle.AspNetCore.Cli --version 6.4.0 || dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.4.0
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+          export PATH="$HOME/.dotnet/tools:$PATH"
 
-      - name: Compress Published Files
+      - name: Restore packages
+        run: dotnet restore ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --force --ignore-failed-sources
+
+      - name: Build app
+        run: dotnet build ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-restore
+
+      - name: Run EF migrations
         run: |
-          zip -r backend.zip Tazq-Backend/publish
-          ls -la backend.zip  # Debug için kontrol et
+          dotnet ef database update --context AppDbContext
+          echo "Migrations applied successfully."
 
-      - name: Verify ZIP File
+      - name: Run tests
+        run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release
+
+      - name: Publish build
+        run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      - name: Start API for Swagger
         run: |
-          if [ ! -f backend.zip ]; then
-            echo "ERROR: backend.zip does not exist!"
-            exit 1
-          fi
+          dotnet run --no-build --urls="http://0.0.0.0:7031" > output.log 2>&1 &
+          sleep 20
+          echo "API started."
 
-      - name: Upload artifact for deployment job
+      - name: Confirm Swagger availability
+        run: |
+          for i in {1..12}; do
+            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7031/swagger/v1/swagger.json)
+            if [ "$STATUS_CODE" -eq 200 ]; then
+              echo "Swagger JSON is now available."
+              exit 0
+            fi
+            echo "Swagger JSON not ready (HTTP $STATUS_CODE), retrying..."
+            sleep 5
+          done
+          echo "Swagger JSON unavailable."
+          cat output.log
+          exit 1
+
+      - name: Export Swagger JSON
+        run: |
+          curl -s http://localhost:7031/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
+          echo "Swagger JSON exported."
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: backend.zip
-          if-no-files-found: error
+          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-    permissions:
-      id-token: write
-      contents: read
+      name: Production
 
     steps:
-      - name: Download artifact from build job
+      - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: backend
           path: .
 
-      - name: Verify Downloaded Files
-        run: |
-          if [ ! -f backend.zip ]; then
-            echo "ERROR: backend.zip is missing!"
-            exit 1
-          fi
-          ls -la backend.zip  # Debug için kontrol et
-
-      - name: Login to Azure
+      - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-          allow-no-subscriptions: false
 
       - name: Deploy to Azure Web App
-        id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'tazq-backend-api'
-          package: backend.zip
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
