@@ -1,4 +1,6 @@
-name: Deploy Backend to Azure Web App
+# This workflow builds and deploys an ASP.NET Core application to Azure Web Apps
+
+name: Build and Deploy .NET Core to Azure Web App
 
 on:
   push:
@@ -11,117 +13,79 @@ env:
   AZURE_WEBAPP_PACKAGE_PATH: Tazq-Backend/publish
   DOTNET_VERSION: 8.0.x
   WORKING_DIRECTORY: Tazq-Backend
-  API_IMPORT_SPECIFICATION_PATH: Tazq-Backend/publish/swagger.json
-  API_IMPORT_DLL: Tazq-Backend/bin/Release/net8.0/Tazq-Backend.dll
-  API_IMPORT_VERSION: v1
-  JWT_KEY: ${{ secrets.JWT_KEY }}
 
 jobs:
   build:
+    name: Build and Test
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ${{ env.WORKING_DIRECTORY }}
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup .NET SDK
+      - name: Setup .NET Core SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Install Entity Framework CLI
+      - name: Install EF Core CLI
         run: dotnet tool install --global dotnet-ef
 
-      - name: Add dotnet tools to PATH
+      - name: Add EF tools to PATH
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Restore Dependencies for Backend
-        run: |
-          dotnet nuget locals all --clear
-          dotnet restore Tazq-Backend.csproj --force --ignore-failed-sources
+      - name: Restore NuGet packages
+        run: dotnet restore ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --force --ignore-failed-sources
 
-      - name: Build Backend Only
-        run: dotnet build Tazq-Backend.csproj --configuration Release --no-restore
+      - name: Build the project
+        run: dotnet build ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-restore
 
-      - name: Apply Database Migrations
+      - name: Apply EF migrations
         run: |
-          echo "Applying database migrations..."
           dotnet ef database update --context AppDbContext
           echo "Checking tables in SQLite..."
           sqlite3 app.db ".tables"
           echo "Migrations applied successfully."
 
-      - name: Test Backend
-        run: dotnet test Tazq-Backend.csproj --no-build --configuration Release
+      - name: Run tests
+        run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release
 
-      - name: Ensure Publish Directory Exists
-        run: mkdir -p "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+      - name: Create publish folder
+        run: mkdir -p ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
-      - name: Publish Backend
-        run: dotnet publish Tazq-Backend.csproj --configuration Release --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+      - name: Publish app
+        run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
-      - name: Debug - List Published Files
-        run: ls -la "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+      - name: List publish output
+        run: ls -la ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
-      - name: Install Swashbuckle CLI
-        run: |
-          echo "Installing Swashbuckle CLI..."
-          dotnet tool update --global Swashbuckle.AspNetCore.Cli --version 6.4.0 || \
-          dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.4.0
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-          export PATH="$HOME/.dotnet/tools:$PATH"
-          echo "Swashbuckle CLI installed successfully"
-
-      - name: Start API for OpenAPI Generation
-        run: |
-          echo "Starting API in the background..."
-          dotnet run --no-build --urls="http://0.0.0.0:7031" > output.log 2>&1 &
-          sleep 20
-          echo "API started successfully."
-
-      - name: Print API Logs
-        run: |
-          echo "Fetching API logs..."
-          cat output.log || echo "No logs found."
-
-      - name: Check API Health
-        run: |
-          echo "Checking if API process is running..."
-          if ! pgrep -f "dotnet run"; then
-            echo "ERROR: API process is NOT running!"
-            echo "====== ERROR LOGS ======"
-            cat output.log
-            exit 1
-          fi
-          echo "API is running."
-
-      - name: Wait for Swagger JSON to be available
-        run: |
-          echo "Waiting for Swagger JSON to be accessible..."
-          for i in {1..12}; do
-            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7031/swagger/v1/swagger.json)
-            if [ "$STATUS_CODE" -eq 200 ]; then
-              echo "Swagger JSON is now available."
-              exit 0
-            fi
-            echo "Swagger JSON not ready (HTTP $STATUS_CODE), retrying in 5 seconds..."
-            sleep 5
-          done
-          echo "ERROR: Swagger JSON never became available."
-          cat output.log
-          exit 1
-
-      - name: Generate Open API Specification Document
-        run: |
-          echo "Generating Open API Specification Document..."
-          curl -s http://localhost:7031/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
-          echo "Generated Open API Specification Document at ${{ env.API_IMPORT_SPECIFICATION_PATH }}"
-
-      - name: Upload artifact for deployment
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: Production
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend
+          path: .
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
