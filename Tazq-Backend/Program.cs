@@ -108,16 +108,17 @@ builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
 var app = builder.Build();
 
-// Swagger configuration for all environments
+
+var port = Environment.GetEnvironmentVariable("PORT") ?? "80";
+app.Urls.Add($"http://+:{port}");
+
+// Swagger
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// Enable CORS
 app.UseCors("AllowAllOrigins");
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();
