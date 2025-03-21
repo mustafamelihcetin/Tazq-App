@@ -108,9 +108,6 @@ builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
 var app = builder.Build();
 
-// Set the correct listening URL for Azure
-app.Urls.Add("http://+:80");
-
 // Swagger configuration for all environments
 app.UseSwagger();
 app.UseSwaggerUI();
