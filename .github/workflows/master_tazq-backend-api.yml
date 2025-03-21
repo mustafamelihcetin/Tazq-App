@@ -1,5 +1,5 @@
-# GitHub Actions CI/CD pipeline for deploying .NET backend to Azure App Service
-# Includes EF migrations, tests, Swagger JSON generation, and artifact upload
+# GitHub Actions pipeline for .NET backend CI/CD to Azure App Service
+# Includes EF migration, Swagger generation, and Azure deployment
 
 name: Backend CI/CD Pipeline
 
@@ -24,78 +24,77 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout project repo
+      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Setup .NET SDK
+      # Setup .NET
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      # Install EF Core & Swashbuckle CLI
-      - name: Install tools
+      # Install EF and Swagger tools
+      - name: Install EF Core and Swashbuckle CLI
         run: |
           dotnet tool install --global dotnet-ef
           dotnet tool update --global Swashbuckle.AspNetCore.Cli --version 6.4.0 || dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.4.0
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      # Restore NuGet packages
-      - name: Restore packages
+      # Restore packages
+      - name: Restore NuGet packages
         run: dotnet restore ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --force --ignore-failed-sources
 
       # Build project
-      - name: Build app
+      - name: Build backend
         run: dotnet build ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-restore
 
-      # Apply EF Core migrations
-      - name: Apply EF migrations
-        run: |
-          dotnet ef database update --project ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --context AppDbContext
-          echo "Migrations applied."
+      # Apply EF migrations
+      - name: Apply EF Core migrations
+        run: dotnet ef database update --project ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --context AppDbContext
 
-      # Run test suite
+      # Run tests
       - name: Run tests
         run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release
 
-      # Publish the application
-      - name: Publish app
+      # Publish backend
+      - name: Publish backend project
         run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
-      # Start backend for Swagger export
-      - name: Start backend locally
+      # Start app for Swagger check
+      - name: Start backend API in background
         run: |
           dotnet run --no-build --urls="http://0.0.0.0:7031" --project ${{ env.WORKING_DIRECTORY }} > output.log 2>&1 &
           sleep 20
 
-      # Check Swagger JSON availability
-      - name: Check Swagger readiness
+      # Wait for Swagger JSON to be available
+      - name: Wait for Swagger JSON
         run: |
           for i in {1..12}; do
             STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7031/swagger/v1/swagger.json)
             if [ "$STATUS_CODE" -eq 200 ]; then
-              echo "Swagger JSON is available."
+              echo "Swagger JSON is ready."
               exit 0
             fi
-            echo "Retrying Swagger check (HTTP $STATUS_CODE)..."
+            echo "Retrying Swagger (HTTP $STATUS_CODE)..."
             sleep 5
           done
-          echo "Swagger JSON unavailable." && cat output.log && exit 1
+          echo "Swagger JSON failed to appear." && cat output.log && exit 1
 
-      # Export Swagger JSON
+      # Export Swagger
       - name: Export Swagger JSON
-        run: curl -s http://localhost:7031/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
+        run: |
+          curl -s http://localhost:7031/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
 
       # Upload artifact
-      - name: Upload publish artifact
+      - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend
           path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
   deploy:
-    name: Deploy Backend to Azure
+    name: Deploy to Azure App Service
     runs-on: ubuntu-latest
     needs: build
     environment:
@@ -103,7 +102,7 @@ jobs:
 
     steps:
       # Download artifact
-      - name: Download artifact
+      - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: backend
@@ -115,8 +114,8 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Deploy to Azure App Service
-      - name: Deploy to Azure Web App
+      # Deploy to Azure Web App
+      - name: Azure Web App Deploy
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
