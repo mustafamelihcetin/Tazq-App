@@ -12,7 +12,7 @@ env:
   WORKING_DIRECTORY: Tazq-Backend
   DOTNET_VERSION: 8.0.x
   AZURE_WEBAPP_NAME: tazq-backend-api
-  AZURE_WEBAPP_PACKAGE_PATH: Tazq-Backend/publish
+  ZIP_PACKAGE_NAME: backend.zip
 
 jobs:
   build:
@@ -20,17 +20,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repository
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Setup .NET SDK
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      # Install CLI tools (dotnet-ef, swagger)
       - name: Install CLI Tools
         run: |
           dotnet tool install --global dotnet-ef
@@ -39,34 +36,34 @@ jobs:
         env:
           DOTNET_ROOT: /usr/share/dotnet
 
-      # Restore packages
       - name: Restore Dependencies
         run: dotnet restore ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --force --ignore-failed-sources
 
-      # Build the application
       - name: Build Project
         run: dotnet build ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-restore
 
-      # Run EF Core migrations
       - name: Apply EF Migrations
         run: dotnet ef database update --project ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --context AppDbContext
         env:
           JWT_KEY: ${{ secrets.JWT_KEY }}
 
-      # Run tests
       - name: Run Unit Tests
         run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release
 
-      # Publish the build output
       - name: Publish Application
-        run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output publish
 
-      # Upload artifact for deployment
+      - name: Create ZIP Artifact
+        run: |
+          cd publish
+          zip -r ../${{ env.ZIP_PACKAGE_NAME }} .
+          cd ..
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+          path: ${{ env.ZIP_PACKAGE_NAME }}
 
   deploy:
     name: Deploy to Azure Web App
@@ -76,22 +73,19 @@ jobs:
       name: Production
 
     steps:
-      # Download artifact from build
       - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: backend
           path: .
 
-      # Login to Azure
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Deploy to Azure Web App
       - name: Deploy Web App Package
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+          package: backend.zip
