@@ -23,7 +23,6 @@ var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Conf
 var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? builder.Configuration["JwtSettings:Audience"];
 var jwtExpiration = Convert.ToInt32(Environment.GetEnvironmentVariable("JWT_EXPIRATION") ?? builder.Configuration["JwtSettings:ExpirationInMinutes"] ?? "60");
 
-
 // Validate JWT Key
 if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
 {
@@ -100,7 +99,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 		};
 	});
 
-
 // Register Services
 builder.Services.AddSingleton<JwtService>();
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
@@ -108,8 +106,7 @@ builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
 var app = builder.Build();
 
-
-var port = Environment.GetEnvironmentVariable("PORT") ?? "80";
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5001";
 app.Urls.Add($"http://+:{port}");
 
 // Swagger
