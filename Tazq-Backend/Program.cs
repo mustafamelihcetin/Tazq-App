@@ -1,5 +1,4 @@
-﻿
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -107,19 +106,14 @@ builder.Services.AddSingleton<JwtService>();
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
-//builder.Services.AddHostedService<ScheduledEmailService>();
-
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-	app.UseSwagger();
-	app.UseSwaggerUI();
-}
+// Swagger configuration for all environments
+app.UseSwagger();
+app.UseSwaggerUI();
 
 // Enable CORS
 app.UseCors("AllowAllOrigins");
-
 
 app.UseAuthentication();
 app.UseAuthorization();
