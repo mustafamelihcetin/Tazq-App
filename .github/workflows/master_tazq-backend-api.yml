@@ -65,7 +65,7 @@ jobs:
       - name: Wait for Swagger JSON
         run: |
           for i in {1..12}; do
-            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7031/swagger/v1/swagger.json)
+            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:80/swagger/v1/swagger.json)
             if [ "$STATUS_CODE" -eq 200 ]; then
               echo "Swagger available"
               break
