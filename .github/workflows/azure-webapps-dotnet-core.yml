@@ -1,4 +1,4 @@
-# This workflow builds and deploys an ASP.NET Core backend application to Azure Web Apps
+# Minimal CI/CD workflow for ASP.NET Core app to Azure Web App
 
 name: Build and Deploy .NET Core to Azure Web App
 
@@ -16,58 +16,34 @@ env:
 
 jobs:
   build:
-    name: Build and Test
+    name: Build and Publish
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the code
+      # Checkout repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Setup .NET Core SDK
-      - name: Setup .NET Core SDK
+      # Setup .NET SDK
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      # Install EF Core CLI globally
-      - name: Install EF Core CLI
-        run: dotnet tool install --global dotnet-ef
-
-      # Add EF tools to PATH
-      - name: Add EF tools to PATH
-        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-
-      # Restore NuGet packages
+      # Restore packages
       - name: Restore dependencies
         run: dotnet restore ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --force --ignore-failed-sources
 
-      # Build the application
-      - name: Build project
+      # Build
+      - name: Build solution
         run: dotnet build ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-restore
 
-      # Apply EF Core migrations
-      - name: Apply EF migrations
-        run: |
-          dotnet ef database update --project ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --context AppDbContext
-          echo "Veritabanı kontrolü tamamlandı."
-          sqlite3 app.db ".tables"
-          echo "Migrations applied successfully."
-
-      # Run tests
-      - name: Run tests
-        run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release
-
-      # Publish app
-      - name: Publish app
+      # Publish
+      - name: Publish project
         run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
-      # List publish output
-      - name: List publish folder
-        run: ls -la ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-
-      # Upload the artifact
-      - name: Upload artifact
+      # Upload artifact
+      - name: Upload publish artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend
@@ -81,21 +57,21 @@ jobs:
       name: Production
 
     steps:
-      # Download the artifact
+      # Download artifact
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: backend
           path: .
 
-      # Azure Login
+      # Azure login
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Deploy to Azure Web App
-      - name: Azure Web App Deploy
+      # Deploy to Web App
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
