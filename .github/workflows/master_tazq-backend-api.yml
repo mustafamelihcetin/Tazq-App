@@ -57,7 +57,7 @@ jobs:
 
       - name: Start API for Swagger
         run: |
-          dotnet run --no-build --urls="http://0.0.0.0:7031" --project ${{ env.WORKING_DIRECTORY }} > output.log 2>&1 &
+          dotnet run --no-build --urls="http://+:80" --project ${{ env.WORKING_DIRECTORY }} > output.log 2>&1 &
           sleep 20
         env:
           JWT_KEY: ${{ secrets.JWT_KEY }}
