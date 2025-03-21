@@ -1,4 +1,4 @@
-# CI/CD Pipeline to build, test, apply EF migrations, and deploy ASP.NET Core backend to Azure Web App
+# Backend CI/CD pipeline with environment variable fix
 
 name: Backend CI/CD Pipeline
 
@@ -9,11 +9,14 @@ on:
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: 8.0.x
   WORKING_DIRECTORY: Tazq-Backend
+  DOTNET_VERSION: 8.0.x
   AZURE_WEBAPP_NAME: tazq-backend-api
-  PUBLISH_DIR: Tazq-Backend/publish
-  API_SPEC_PATH: Tazq-Backend/publish/swagger.json
+  AZURE_WEBAPP_PACKAGE_PATH: Tazq-Backend/publish
+  API_IMPORT_SPECIFICATION_PATH: Tazq-Backend/publish/swagger.json
+  API_IMPORT_DLL: Tazq-Backend/bin/Release/net8.0/Tazq-Backend.dll
+  API_IMPORT_VERSION: v1
+  JWT_KEY: ${{ secrets.JWT_KEY }}
 
 jobs:
   build:
@@ -21,75 +24,85 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout source code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Setup .NET SDK
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      # Install EF Core CLI and Swashbuckle CLI
-      - name: Install tools
+      - name: Install EF Core & Swagger CLI
         run: |
           dotnet tool install --global dotnet-ef
           dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.4.0
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      # Restore NuGet packages
       - name: Restore dependencies
         run: dotnet restore ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --force --ignore-failed-sources
 
-      # Build project
-      - name: Build project
+      - name: Build backend project
         run: dotnet build ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-restore
 
-      # Apply EF Core Migrations
       - name: Apply database migrations
-        run: |
-          if [ -z "${{ secrets.JWT_KEY }}" ]; then
-            echo "JWT_KEY is missing!"
-            exit 1
-          fi
-          dotnet ef database update --project ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --context AppDbContext
+        run: dotnet ef database update --project ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --context AppDbContext
+        env:
+          JWT_KEY: ${{ secrets.JWT_KEY }}
 
-      # Run tests
       - name: Run tests
         run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release
 
-      # Publish application
-      - name: Publish application
-        run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output ${{ env.PUBLISH_DIR }}
+      - name: Publish the backend
+        run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
-      # Start app and wait for Swagger
-      - name: Start API locally
+      - name: Launch API for Swagger
         run: |
           dotnet run --no-build --urls="http://0.0.0.0:7031" --project ${{ env.WORKING_DIRECTORY }} > output.log 2>&1 &
           sleep 20
+        env:
+          JWT_KEY: ${{ secrets.JWT_KEY }}
 
       - name: Wait for Swagger JSON
         run: |
           for i in {1..12}; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7031/swagger/v1/swagger.json)
-            if [ "$STATUS" == "200" ]; then
-              echo "Swagger is ready"
-              exit 0
+            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7031/swagger/v1/swagger.json)
+            if [ "$STATUS_CODE" -eq 200 ]; then
+              echo "Swagger available"
+              break
             fi
-            echo "Waiting for Swagger ($STATUS)..."
             sleep 5
           done
-          echo "Swagger endpoint failed."
-          cat output.log
-          exit 1
 
       - name: Export Swagger JSON
-        run: curl -s http://localhost:7031/swagger/v1/swagger.json > "${{ env.API_SPEC_PATH }}"
+        run: curl -s http://localhost:7031/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
 
-      # Upload artifact for deploy
-      - name: Upload backend artifact
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: ${{ env.PUBLISH_DIR }}
+          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+  deploy:
+    name: Deploy to Azure Web App
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: Production
+
+    steps:
+      - name: Download backend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend
+          path: .
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy backend to Azure
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
