@@ -1,78 +1,44 @@
-# Minimal CI/CD workflow for ASP.NET Core app to Azure Web App
+# GitHub Actions deployment pipeline for Azure Web App (Backend only)
 
-name: Build and Deploy .NET Core to Azure Web App
+name: Deploy Backend to Azure
 
 on:
-  push:
-    branches:
-      - master
-  workflow_dispatch:
-
-env:
-  AZURE_WEBAPP_NAME: tazq-backend-api
-  AZURE_WEBAPP_PACKAGE_PATH: Tazq-Backend/publish
-  DOTNET_VERSION: 8.0.x
-  WORKING_DIRECTORY: Tazq-Backend
+  workflow_run:
+    workflows: ["Backend CI/CD Pipeline"]
+    types:
+      - completed
 
 jobs:
-  build:
-    name: Build and Publish
-    runs-on: ubuntu-latest
-
-    steps:
-      # Checkout repository
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Setup .NET SDK
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      # Restore packages
-      - name: Restore dependencies
-        run: dotnet restore ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --force --ignore-failed-sources
-
-      # Build
-      - name: Build solution
-        run: dotnet build ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-restore
-
-      # Publish
-      - name: Publish project
-        run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-
-      # Upload artifact
-      - name: Upload publish artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend
-          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-
   deploy:
     name: Deploy to Azure Web App
     runs-on: ubuntu-latest
-    needs: build
-    environment:
-      name: Production
 
     steps:
-      # Download artifact
+      # Download backend artifact (zipped)
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: backend
           path: .
 
-      # Azure login
+      # Verify downloaded file
+      - name: Check downloaded file
+        run: |
+          if [ ! -f backend.zip ]; then
+            echo "ERROR: backend.zip is missing!"
+            exit 1
+          fi
+          unzip -l backend.zip
+
+      # Login to Azure
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Deploy to Web App
+      # Deploy to Azure App Service using zipped artifact
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+          app-name: tazq-backend-api
+          package: backend.zip
