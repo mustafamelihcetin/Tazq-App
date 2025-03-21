@@ -1,4 +1,4 @@
-# This workflow builds and deploys an ASP.NET Core application to Azure Web Apps
+# This workflow builds and deploys an ASP.NET Core backend application to Azure Web Apps
 
 name: Build and Deploy .NET Core to Azure Web App
 
@@ -20,45 +20,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the code
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Setup .NET Core SDK
       - name: Setup .NET Core SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      # Install EF Core CLI globally
       - name: Install EF Core CLI
         run: dotnet tool install --global dotnet-ef
 
+      # Add EF tools to PATH
       - name: Add EF tools to PATH
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Restore NuGet packages
+      # Restore NuGet packages
+      - name: Restore dependencies
         run: dotnet restore ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --force --ignore-failed-sources
 
-      - name: Build the project
+      # Build the application
+      - name: Build project
         run: dotnet build ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-restore
 
+      # Apply EF Core migrations
       - name: Apply EF migrations
         run: |
-          dotnet ef database update --context AppDbContext
-          echo "Checking tables in SQLite..."
+          dotnet ef database update --project ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --context AppDbContext
+          echo "Veritabanı kontrolü tamamlandı."
           sqlite3 app.db ".tables"
           echo "Migrations applied successfully."
 
+      # Run tests
       - name: Run tests
         run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release
 
-      - name: Create publish folder
-        run: mkdir -p ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
-
+      # Publish app
       - name: Publish app
         run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
-      - name: List publish output
+      # List publish output
+      - name: List publish folder
         run: ls -la ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
+      # Upload the artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -66,25 +74,28 @@ jobs:
           path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 
   deploy:
-    name: Deploy to Azure
+    name: Deploy to Azure Web App
     runs-on: ubuntu-latest
     needs: build
     environment:
       name: Production
 
     steps:
+      # Download the artifact
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: backend
           path: .
 
-      - name: Login to Azure
+      # Azure Login
+      - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy to Azure Web App
+      # Deploy to Azure Web App
+      - name: Azure Web App Deploy
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
