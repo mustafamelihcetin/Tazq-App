@@ -1,6 +1,6 @@
-# GitHub Actions deployment pipeline for Azure Web App (Backend only)
+# Deployment pipeline for deploying backend artifact to Azure Web App
 
-name: Deploy Backend to Azure
+name: Deploy Backend to Azure Web App
 
 on:
   workflow_run:
@@ -8,27 +8,22 @@ on:
     types:
       - completed
 
+env:
+  AZURE_WEBAPP_NAME: tazq-backend-api
+  PUBLISH_DIR: Tazq-Backend/publish
+
 jobs:
   deploy:
     name: Deploy to Azure Web App
     runs-on: ubuntu-latest
 
     steps:
-      # Download backend artifact (zipped)
-      - name: Download artifact
+      # Download build artifact
+      - name: Download backend artifact
         uses: actions/download-artifact@v4
         with:
           name: backend
-          path: .
-
-      # Verify downloaded file
-      - name: Check downloaded file
-        run: |
-          if [ ! -f backend.zip ]; then
-            echo "ERROR: backend.zip is missing!"
-            exit 1
-          fi
-          unzip -l backend.zip
+          path: ${{ env.PUBLISH_DIR }}
 
       # Login to Azure
       - name: Azure Login
@@ -36,9 +31,9 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Deploy to Azure App Service using zipped artifact
-      - name: Deploy to Azure Web App
+      # Deploy to Azure Web App
+      - name: Deploy backend to Azure
         uses: azure/webapps-deploy@v3
         with:
-          app-name: tazq-backend-api
-          package: backend.zip
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ${{ env.PUBLISH_DIR }}
