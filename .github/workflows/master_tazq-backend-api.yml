@@ -1,4 +1,4 @@
-# Backend CI/CD pipeline with environment variable fix
+# Backend CI/CD pipeline with environment variable fix and enhanced logging
 
 name: Backend CI/CD Pipeline
 
@@ -50,10 +50,15 @@ jobs:
           JWT_KEY: ${{ secrets.JWT_KEY }}
 
       - name: Run tests
-        run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release
+        run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release --logger trx
+
+      - name: Prepare publish folder
+        run: |
+          rm -rf publish
+          mkdir publish
 
       - name: Publish the backend
-        run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output publish
+        run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output publish -v:diag
 
       - name: Start API for Swagger
         run: |
@@ -75,10 +80,10 @@ jobs:
 
       - name: Export Swagger JSON
         run: curl -s http://localhost:80/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
-        
+
       - name: Show output.log for debugging
         run: cat output.log
-        
+
       - name: Create ZIP Artifact
         run: |
           cd publish
