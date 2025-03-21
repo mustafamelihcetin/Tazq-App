@@ -74,8 +74,11 @@ jobs:
           done
 
       - name: Export Swagger JSON
-        run: curl -s http://localhost:7031/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
-
+        run: curl -s http://localhost:80/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
+        
+      - name: Show output.log for debugging
+        run: cat output.log
+        
       - name: Create ZIP Artifact
         run: |
           cd publish
