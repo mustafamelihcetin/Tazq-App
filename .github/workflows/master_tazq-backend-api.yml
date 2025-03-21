@@ -1,5 +1,4 @@
-# GitHub Actions CI/CD pipeline for deploying backend to Azure App Service
-# Includes EF migrations, Swagger generation, unit testing and zipped deployment
+# CI/CD Pipeline to build, test, apply EF migrations, and deploy ASP.NET Core backend to Azure Web App
 
 name: Backend CI/CD Pipeline
 
@@ -10,10 +9,11 @@ on:
   workflow_dispatch:
 
 env:
-  WORKING_DIRECTORY: Tazq-Backend
   DOTNET_VERSION: 8.0.x
+  WORKING_DIRECTORY: Tazq-Backend
   AZURE_WEBAPP_NAME: tazq-backend-api
   PUBLISH_DIR: Tazq-Backend/publish
+  API_SPEC_PATH: Tazq-Backend/publish/swagger.json
 
 jobs:
   build:
@@ -31,66 +31,65 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      # Install required tools
-      - name: Install EF Core and Swashbuckle CLI
+      # Install EF Core CLI and Swashbuckle CLI
+      - name: Install tools
         run: |
           dotnet tool install --global dotnet-ef
           dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.4.0
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
       # Restore NuGet packages
-      - name: Restore packages
+      - name: Restore dependencies
         run: dotnet restore ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --force --ignore-failed-sources
 
-      # Build backend project
+      # Build project
       - name: Build project
         run: dotnet build ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-restore
 
-      # Apply database migrations
-      - name: Apply EF Core migrations
-        run: dotnet ef database update --project ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --context AppDbContext
+      # Apply EF Core Migrations
+      - name: Apply database migrations
+        run: |
+          if [ -z "${{ secrets.JWT_KEY }}" ]; then
+            echo "JWT_KEY is missing!"
+            exit 1
+          fi
+          dotnet ef database update --project ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --context AppDbContext
 
-      # Run unit tests
+      # Run tests
       - name: Run tests
         run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release
 
-      # Publish output
-      - name: Publish app
+      # Publish application
+      - name: Publish application
         run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output ${{ env.PUBLISH_DIR }}
 
-      # Run backend in background to expose Swagger JSON
-      - name: Start backend for Swagger
+      # Start app and wait for Swagger
+      - name: Start API locally
         run: |
           dotnet run --no-build --urls="http://0.0.0.0:7031" --project ${{ env.WORKING_DIRECTORY }} > output.log 2>&1 &
           sleep 20
 
-      # Check if Swagger is available
-      - name: Check Swagger readiness
+      - name: Wait for Swagger JSON
         run: |
           for i in {1..12}; do
-            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7031/swagger/v1/swagger.json)
-            if [ "$STATUS_CODE" -eq 200 ]; then
-              echo "Swagger JSON is ready."
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7031/swagger/v1/swagger.json)
+            if [ "$STATUS" == "200" ]; then
+              echo "Swagger is ready"
               exit 0
             fi
-            echo "Swagger JSON not ready (HTTP $STATUS_CODE), retrying..."
+            echo "Waiting for Swagger ($STATUS)..."
             sleep 5
           done
-          echo "Swagger JSON unavailable."
+          echo "Swagger endpoint failed."
           cat output.log
           exit 1
 
-      # Export Swagger JSON to file
       - name: Export Swagger JSON
-        run: curl -s http://localhost:7031/swagger/v1/swagger.json > ${{ env.PUBLISH_DIR }}/swagger.json
+        run: curl -s http://localhost:7031/swagger/v1/swagger.json > "${{ env.API_SPEC_PATH }}"
 
-      # Compress published files into backend.zip
-      - name: Zip publish output
-        run: zip -r backend.zip ${{ env.PUBLISH_DIR }}
-
-      # Upload zipped backend as artifact
-      - name: Upload artifact
+      # Upload artifact for deploy
+      - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: backend.zip
+          path: ${{ env.PUBLISH_DIR }}
