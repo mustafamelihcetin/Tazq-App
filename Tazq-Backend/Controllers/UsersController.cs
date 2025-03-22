@@ -30,6 +30,8 @@ public class UsersController : ControllerBase
 	[AllowAnonymous]
 	public async Task<IActionResult> Register([FromBody] UserRegisterDto userDto)
 	{
+		if (!ModelState.IsValid)
+			return BadRequest(ModelState);
 		if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
 			return BadRequest("E-posta adresi zaten kullanımda.");
 
@@ -70,6 +72,8 @@ public class UsersController : ControllerBase
 	[AllowAnonymous]
 	public async Task<IActionResult> Login([FromBody] UserLoginDto userDto)
 	{
+		if (!ModelState.IsValid)
+			return BadRequest(ModelState);
 		var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userDto.Email);
 		if (user == null)
 		{
