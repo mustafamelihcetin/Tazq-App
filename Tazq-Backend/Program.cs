@@ -126,20 +126,23 @@ app.UseExceptionHandler(errorApp =>
 	{
 		context.Response.StatusCode = 500;
 		context.Response.ContentType = "application/json";
+
 		var error = context.Features.Get<IExceptionHandlerFeature>();
 		if (error != null)
 		{
 			var ex = error.Error;
-			await context.Response.WriteAsync(new
+
+			var result = JsonSerializer.Serialize(new
 			{
 				StatusCode = 500,
 				Message = ex.Message,
 				StackTrace = ex.StackTrace
-			}.ToString());
+			});
+
+			await context.Response.WriteAsync(result);
 		}
 	});
 });
-
 
 
 app.UseCors("AllowAllOrigins");
