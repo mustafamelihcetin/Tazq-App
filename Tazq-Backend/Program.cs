@@ -105,6 +105,10 @@ builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpS
 builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
 var app = builder.Build();
+if (app.Environment.IsDevelopment())
+{
+	app.UseDeveloperExceptionPage();
+}
 
 var port = Environment.GetEnvironmentVariable("PORT")
 		 ?? Environment.GetEnvironmentVariable("WEBSITES_PORT")
