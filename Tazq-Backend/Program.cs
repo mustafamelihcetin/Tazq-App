@@ -106,8 +106,11 @@ builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
 var app = builder.Build();
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5001";
+var port = Environment.GetEnvironmentVariable("PORT")
+		 ?? Environment.GetEnvironmentVariable("WEBSITES_PORT")
+		 ?? "5001";
 app.Urls.Add($"http://+:{port}");
+
 
 // Swagger
 app.UseSwagger();
