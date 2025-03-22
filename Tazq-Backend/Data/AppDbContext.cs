@@ -33,6 +33,13 @@ namespace Tazq_App.Data
 				.WithOne(t => t.User)
 				.HasForeignKey(t => t.UserId)
 				.OnDelete(DeleteBehavior.Cascade);
+
+			modelBuilder.Entity<User>()
+				.HasOne(u => u.NotificationPreferences)
+				.WithOne(p => p.User)
+				.HasForeignKey<UserNotificationPreferences>(p => p.UserId)
+				.OnDelete(DeleteBehavior.Cascade);
 		}
+
 	}
 }
