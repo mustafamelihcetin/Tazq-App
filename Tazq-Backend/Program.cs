@@ -142,7 +142,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Set dynamic port for Azure
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8181";
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://+:{port}");
 
 app.UseSwagger();
