@@ -14,7 +14,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Diagnostics;
 using Npgsql.EntityFrameworkCore.PostgreSQL;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Load environment variables from .env file
@@ -83,12 +82,15 @@ builder.Services.AddSwaggerGen(options =>
 	});
 });
 
-// Configure PostgreSQL using environment variables
+// PostgreSQL connection string from environment
 var pgHost = Environment.GetEnvironmentVariable("DB_HOST");
 var pgPort = Environment.GetEnvironmentVariable("DB_PORT");
 var pgDb = Environment.GetEnvironmentVariable("DB_NAME");
 var pgUser = Environment.GetEnvironmentVariable("DB_USER");
 var pgPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+
+if (string.IsNullOrWhiteSpace(pgHost) || string.IsNullOrWhiteSpace(pgDb))
+	throw new Exception("PostgreSQL environment variables are missing!");
 
 var pgConnectionString = $"Host={pgHost};Port={pgPort};Database={pgDb};Username={pgUser};Password={pgPassword}";
 
@@ -118,6 +120,7 @@ builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpS
 builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
 var app = builder.Build();
+
 if (app.Environment.IsDevelopment())
 {
 	app.UseDeveloperExceptionPage();
@@ -129,12 +132,10 @@ using (var scope = app.Services.CreateScope())
 	db.Database.EnsureCreated(); // Creates a table if it doesn't exist
 }
 
-
+// Set dynamic port for Azure
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8181";
 app.Urls.Add($"http://+:{port}");
 
-
-// Swagger
 app.UseSwagger();
 app.UseSwaggerUI();
 
@@ -161,7 +162,6 @@ app.UseExceptionHandler(errorApp =>
 		}
 	});
 });
-
 
 app.UseCors("AllowAllOrigins");
 app.UseAuthentication();
