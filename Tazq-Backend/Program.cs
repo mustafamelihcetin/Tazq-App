@@ -12,6 +12,8 @@ using Tazq_App.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Diagnostics;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -81,8 +83,17 @@ builder.Services.AddSwaggerGen(options =>
 	});
 });
 
+// Configure PostgreSQL using environment variables
+var pgHost = Environment.GetEnvironmentVariable("DB_HOST");
+var pgPort = Environment.GetEnvironmentVariable("DB_PORT");
+var pgDb = Environment.GetEnvironmentVariable("DB_NAME");
+var pgUser = Environment.GetEnvironmentVariable("DB_USER");
+var pgPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+
+var pgConnectionString = $"Host={pgHost};Port={pgPort};Database={pgDb};Username={pgUser};Password={pgPassword}";
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-	options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+	options.UseNpgsql(pgConnectionString));
 
 // JWT Authentication
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
