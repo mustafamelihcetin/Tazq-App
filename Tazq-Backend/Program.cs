@@ -89,6 +89,7 @@ var pgDb = Environment.GetEnvironmentVariable("DB_NAME");
 var pgUser = Environment.GetEnvironmentVariable("DB_USER");
 var pgPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
+
 if (string.IsNullOrWhiteSpace(pgHost) || string.IsNullOrWhiteSpace(pgDb))
 	throw new Exception("PostgreSQL environment variables are missing!");
 
