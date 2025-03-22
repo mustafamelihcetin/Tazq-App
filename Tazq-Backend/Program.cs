@@ -110,8 +110,7 @@ if (app.Environment.IsDevelopment())
 	app.UseDeveloperExceptionPage();
 }
 
-var port = Environment.GetEnvironmentVariable("WEBSITES_PORT")
-		 ?? "8181";
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8181";
 app.Urls.Add($"http://+:{port}");
 
 
