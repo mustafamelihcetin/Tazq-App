@@ -119,12 +119,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddSingleton<JwtService>();
 builder.Services.Configure<SmtpSettings>(options =>
 {
-	options.FromEmail = Environment.GetEnvironmentVariable("SMTP_FROM_EMAIL");
-	options.Username = Environment.GetEnvironmentVariable("SMTP_USERNAME");
-	options.Password = Environment.GetEnvironmentVariable("SMTP_PASSWORD");
+	options.From = Environment.GetEnvironmentVariable("SMTP_FROM_EMAIL") ?? "";
+	options.Username = Environment.GetEnvironmentVariable("SMTP_USERNAME") ?? "";
+	options.Password = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? "";
 	options.Port = int.Parse(Environment.GetEnvironmentVariable("SMTP_PORT") ?? "587");
-	options.Server = Environment.GetEnvironmentVariable("SMTP_SERVER");
+	options.Host = Environment.GetEnvironmentVariable("SMTP_SERVER") ?? "";
 });
+
 builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
 var app = builder.Build();
