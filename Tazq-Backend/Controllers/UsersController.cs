@@ -27,6 +27,7 @@ public class UsersController : ControllerBase
 
 	// Register a new user
 	[HttpPost("register")]
+	[AllowAnonymous]
 	public async Task<IActionResult> Register([FromBody] UserRegisterDto userDto)
 	{
 		if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
@@ -66,6 +67,7 @@ public class UsersController : ControllerBase
 
 	// User Login
 	[HttpPost("login")]
+	[AllowAnonymous]
 	public async Task<IActionResult> Login([FromBody] UserLoginDto userDto)
 	{
 		var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userDto.Email);
