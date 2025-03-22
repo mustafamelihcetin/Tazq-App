@@ -112,6 +112,13 @@ if (app.Environment.IsDevelopment())
 	app.UseDeveloperExceptionPage();
 }
 
+using (var scope = app.Services.CreateScope())
+{
+	var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+	db.Database.EnsureCreated(); // Creates a table if it doesn't exist
+}
+
+
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8181";
 app.Urls.Add($"http://+:{port}");
 
