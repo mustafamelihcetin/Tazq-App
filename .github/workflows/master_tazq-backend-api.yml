@@ -47,7 +47,12 @@ jobs:
       - name: Apply database migrations
         run: dotnet ef database update --project ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --context AppDbContext
         env:
-          JWT_KEY: ${{ secrets.JWT_KEY }}
+           JWT_KEY: ${{ secrets.JWT_KEY }}
+           DB_HOST: ${{ secrets.DB_HOST }}
+           DB_PORT: ${{ secrets.DB_PORT }}
+           DB_NAME: ${{ secrets.DB_NAME }}
+           DB_USER: ${{ secrets.DB_USER }}
+           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
       - name: Run tests
         run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release --logger trx
