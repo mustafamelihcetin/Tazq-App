@@ -10,6 +10,7 @@ using Tazq_App.Services;
 using Tazq_App.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -117,6 +118,28 @@ app.Urls.Add($"http://+:{port}");
 // Swagger
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseExceptionHandler(errorApp =>
+{
+	errorApp.Run(async context =>
+	{
+		context.Response.StatusCode = 500;
+		context.Response.ContentType = "application/json";
+		var error = context.Features.Get<IExceptionHandlerFeature>();
+		if (error != null)
+		{
+			var ex = error.Error;
+			await context.Response.WriteAsync(new
+			{
+				StatusCode = 500,
+				Message = ex.Message,
+				StackTrace = ex.StackTrace
+			}.ToString());
+		}
+	});
+});
+
+
 
 app.UseCors("AllowAllOrigins");
 app.UseAuthentication();
