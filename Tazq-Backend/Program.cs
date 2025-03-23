@@ -128,6 +128,9 @@ builder.Services.Configure<SmtpSettings>(options =>
 
 builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://*:{port}");
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -140,10 +143,6 @@ using (var scope = app.Services.CreateScope())
 	var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 	db.Database.EnsureCreated(); // Creates a table if it doesn't exist
 }
-
-// Set dynamic port for Azure
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Urls.Add($"http://+:{port}");
 
 app.UseSwagger();
 app.UseSwaggerUI();
