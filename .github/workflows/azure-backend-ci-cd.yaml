@@ -1,4 +1,4 @@
-# GitHub Actions pipeline for building, testing, publishing, exporting Swagger, and deploying ASP.NET Core backend to Azure App Service
+# GitHub Actions pipeline for building, testing, publishing, exporting Swagger (via running app), and deploying ASP.NET Core backend to Azure App Service
 
 name: Build and Deploy Backend to Azure
 
@@ -14,8 +14,6 @@ env:
   AZURE_WEBAPP_NAME: tazq-backend-api
   ZIP_PACKAGE_NAME: backend.zip
   API_IMPORT_SPECIFICATION_PATH: publish/swagger.json
-  API_IMPORT_DLL: Tazq-Backend/bin/Release/net8.0/Tazq-Backend.dll
-  API_IMPORT_VERSION: v1
 
 jobs:
   build:
@@ -31,12 +29,13 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Install EF Core CLI & Swagger CLI Locally
+      - name: Install EF Core CLI & Swagger CLI
         run: |
           dotnet tool install --global dotnet-ef
-          dotnet new tool-manifest
-          dotnet tool install Swashbuckle.AspNetCore.Cli --version 6.4.0
-        working-directory: ${{ env.WORKING_DIRECTORY }}
+          dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.4.0
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+        env:
+          DOTNET_ROOT: /usr/share/dotnet
 
       - name: Restore Dependencies
         run: dotnet restore ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --force --ignore-failed-sources
@@ -65,22 +64,61 @@ jobs:
       - name: Publish Application
         run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output publish
 
-      - name: Export Swagger JSON using local tool
-        run: dotnet tool run swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "${{ env.API_IMPORT_DLL }}" ${{ env.API_IMPORT_VERSION }}
-        working-directory: ${{ env.WORKING_DIRECTORY }}
+      - name: Start API for Swagger
+        run: |
+          PORT=5001 nohup dotnet run --no-build --project ${{ env.WORKING_DIRECTORY }} > output.log 2>&1 &
+          sleep 20
+          echo "dotnet process check:"
+          ps aux | grep dotnet
+        env:
+          JWT_KEY: ${{ secrets.JWT_KEY }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM_EMAIL: ${{ secrets.SMTP_FROM_EMAIL }}
+
+      - name: Wait for Swagger JSON
+        run: |
+          for i in {1..12}; do
+            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5001/swagger/v1/swagger.json)
+            if [ "$STATUS_CODE" -eq 200 ]; then
+              echo "Swagger available"
+              break
+            fi
+            echo "Attempt $i: Swagger not available (HTTP $STATUS_CODE)"
+            sleep 5
+          done
+
+      - name: Export Swagger JSON
+        run: curl -s http://localhost:5001/swagger/v1/swagger.json > "${{ env.API_IMPORT_SPECIFICATION_PATH }}"
+
+      - name: Show output.log for debugging
+        if: always()
+        run: |
+          if [ -f output.log ]; then
+            echo "output.log bulundu. İçeriği:"
+            cat output.log
+          else
+            echo "output.log bulunamadı!"
+          fi
 
       - name: Create ZIP Artifact
         run: |
           cd publish
           zip -r ../${{ env.ZIP_PACKAGE_NAME }} .
           cd ..
-        working-directory: ${{ env.WORKING_DIRECTORY }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: ${{ env.WORKING_DIRECTORY }}/${{ env.ZIP_PACKAGE_NAME }}
+          path: ${{ env.ZIP_PACKAGE_NAME }}
 
   deploy:
     name: Deploy to Azure Web App
@@ -103,4 +141,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: backend.zip
+          package: ${{ env.ZIP_PACKAGE_NAME }}
