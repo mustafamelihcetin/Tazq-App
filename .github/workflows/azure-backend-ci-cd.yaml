@@ -1,6 +1,6 @@
-# GitHub Actions pipeline for building and deploying ASP.NET Core backend to Azure App Service with Swagger export
+# GitHub Actions pipeline for building, testing, publishing, exporting Swagger, and deploying ASP.NET Core backend to Azure App Service
 
-name: Backend CI/CD Pipeline
+name: Build and Deploy Backend to Azure
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Setup .NET SDK
@@ -31,19 +31,20 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Install EF Core & Swagger CLI
+      - name: Install EF Core CLI & Swagger CLI Locally
         run: |
           dotnet tool install --global dotnet-ef
-          dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 6.4.0
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+          dotnet new tool-manifest
+          dotnet tool install Swashbuckle.AspNetCore.Cli --version 6.4.0
+        working-directory: ${{ env.WORKING_DIRECTORY }}
 
-      - name: Restore dependencies
+      - name: Restore Dependencies
         run: dotnet restore ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --force --ignore-failed-sources
 
-      - name: Build backend project
+      - name: Build Project
         run: dotnet build ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-restore
 
-      - name: Apply database migrations
+      - name: Apply EF Migrations
         run: dotnet ef database update --project ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --context AppDbContext
         env:
           JWT_KEY: ${{ secrets.JWT_KEY }}
@@ -58,26 +59,28 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SMTP_FROM_EMAIL: ${{ secrets.SMTP_FROM_EMAIL }}
 
-      - name: Run tests
-        run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release --logger trx
+      - name: Run Unit Tests
+        run: dotnet test ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --no-build --configuration Release
 
-      - name: Publish the backend
+      - name: Publish Application
         run: dotnet publish ${{ env.WORKING_DIRECTORY }}/Tazq-Backend.csproj --configuration Release --no-build --output publish
 
-      - name: Export Swagger JSON from DLL
-        run: swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" ${{ env.API_IMPORT_DLL }} ${{ env.API_IMPORT_VERSION }}
+      - name: Export Swagger JSON using local tool
+        run: dotnet tool run swagger tofile --output "${{ env.API_IMPORT_SPECIFICATION_PATH }}" "${{ env.API_IMPORT_DLL }}" ${{ env.API_IMPORT_VERSION }}
+        working-directory: ${{ env.WORKING_DIRECTORY }}
 
       - name: Create ZIP Artifact
         run: |
           cd publish
           zip -r ../${{ env.ZIP_PACKAGE_NAME }} .
           cd ..
+        working-directory: ${{ env.WORKING_DIRECTORY }}
 
-      - name: Upload build artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: ${{ env.ZIP_PACKAGE_NAME }}
+          path: ${{ env.WORKING_DIRECTORY }}/${{ env.ZIP_PACKAGE_NAME }}
 
   deploy:
     name: Deploy to Azure Web App
@@ -85,19 +88,19 @@ jobs:
     needs: build
 
     steps:
-      - name: Download backend artifact
+      - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: backend
           path: .
 
-      - name: Login to Azure
+      - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy backend to Azure
+      - name: Deploy Web App Package
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ env.ZIP_PACKAGE_NAME }}
+          package: backend.zip
