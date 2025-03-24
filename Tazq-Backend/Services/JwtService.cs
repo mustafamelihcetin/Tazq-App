@@ -30,7 +30,7 @@ namespace Tazq_App.Services
 
 			var key = Encoding.UTF8.GetBytes(keyString);
 			var issuer = _configuration["JwtSettings:Issuer"];
-			var audience = _configuration["JwtSettings:Audience"];
+			var audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? _configuration["JwtSettings:Audience"];
 			if (string.IsNullOrEmpty(audience))
 			{
 				throw new Exception("JWT_AUDIENCE is missing in configuration or environment!");
