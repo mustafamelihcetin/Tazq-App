@@ -37,9 +37,10 @@ namespace Tazq_App.Services
 			var claims = new[]
 			{
 				new Claim(JwtRegisteredClaimNames.Sub, userId),
-				new Claim(ClaimTypes.NameIdentifier, userId), // Kullanıcı ID kesin olarak eklendi
+				new Claim(ClaimTypes.NameIdentifier, userId),
 				new Claim(ClaimTypes.Role, role),
-				new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+				new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+				new Claim(JwtRegisteredClaimNames.Aud, audience)
 			};
 
 			var securityKey = new SymmetricSecurityKey(key);
