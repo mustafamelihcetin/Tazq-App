@@ -29,13 +29,13 @@ namespace Tazq_App.Services
 			}
 
 			var key = Encoding.UTF8.GetBytes(keyString);
-			var issuer = _configuration["JwtSettings:Issuer"];
+			var issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? _configuration["JwtSettings:Issuer"];
 			var audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? _configuration["JwtSettings:Audience"];
 			if (string.IsNullOrEmpty(audience))
 			{
 				throw new Exception("JWT_AUDIENCE is missing in configuration or environment!");
 			}
-			var expiration = Convert.ToInt32(_configuration["JwtSettings:ExpirationInMinutes"] ?? "60");
+			var expiration = Convert.ToInt32(Environment.GetEnvironmentVariable("JWT_EXPIRATION") ?? _configuration["JwtSettings:ExpirationInMinutes"] ?? "60");
 
 			var claims = new[]
 			{
