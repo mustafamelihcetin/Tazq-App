@@ -32,10 +32,6 @@ namespace Tazq_App.Services
 			var key = Encoding.UTF8.GetBytes(keyString);
 			var issuer = _configuration["JwtSettings:Issuer"];
 			var audience = _configuration["JwtSettings:Audience"];
-			if (string.IsNullOrEmpty(audience))
-			{
-				throw new Exception("JWT_AUDIENCE is missing in configuration or environment!");
-			}
 			var expiration = Convert.ToInt32(_configuration["JwtSettings:ExpirationInMinutes"] ?? "60");
 
 			var claims = new[]
@@ -43,8 +39,7 @@ namespace Tazq_App.Services
 				new Claim(JwtRegisteredClaimNames.Sub, userId),
 				new Claim(ClaimTypes.NameIdentifier, userId),
 				new Claim(ClaimTypes.Role, role),
-				new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-				new Claim(JwtRegisteredClaimNames.Aud, audience) // JWT token'a audience bilgisi eklendi
+				new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
 			};
 
 			var securityKey = new SymmetricSecurityKey(key);
