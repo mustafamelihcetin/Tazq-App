@@ -59,7 +59,7 @@
         <CollectionView Grid.Row="1"
                         ItemsSource="{Binding Tasks}"
                         EmptyView="Henüz bir göreviniz yok."
-                        VerticalOptions="FillAndExpand">
+                        VerticalOptions="Fill">
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Frame CornerRadius="12"
@@ -67,7 +67,8 @@
                            Padding="15"
                            Margin="0,0,0,15"
                            HasShadow="True">
-                        <StackLayout Spacing="5">
+                        <VerticalStackLayout Spacing="6">
+
                             <Label Text="{Binding Title}"
                                    FontSize="18"
                                    FontAttributes="Bold"
@@ -75,18 +76,26 @@
 
                             <Label Text="{Binding Description}"
                                    FontSize="14"
-                                   TextColor="#555" />
+                                   TextColor="#555"
+                                   IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
 
-                            <Label Text="{Binding Tags}"
+                            <Label Text="{Binding DueDate, StringFormat='Son Tarih: {0:dd MMM yyyy}'}"
                                    FontSize="12"
-                                   TextColor="#999" />
+                                   TextColor="#666"
+                                   IsVisible="{Binding DueDate.HasValue}" />
 
-                            <Label Text="{Binding Priority}"
+                            <Label Text="{Binding Tags, StringFormat='Etiketler: {0}'}"
                                    FontSize="12"
-                                   TextColor="Red"
+                                   TextColor="#777"
+                                   IsVisible="{Binding Tags.Length, Converter={StaticResource IntGreaterThanZeroConverter}}" />
+
+                            <Label Text="{Binding Priority, Converter={StaticResource PriorityToTextConverter}}"
+                                   FontSize="12"
+                                   TextColor="#D9534F"
                                    FontAttributes="Bold"
                                    HorizontalOptions="End" />
-                        </StackLayout>
+
+                        </VerticalStackLayout>
                     </Frame>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
