@@ -82,6 +82,9 @@ namespace Tazq_Frontend.ViewModels
 				{
 					if (currentPage != null)
 						await currentPage.DisplayAlert("Başarılı", "Giriş başarılı!", "Tamam");
+
+					if (Shell.Current != null)
+						await Shell.Current.GoToAsync("//HomePage");
 				}
 				else
 				{

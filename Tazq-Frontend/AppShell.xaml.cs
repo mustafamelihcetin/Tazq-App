@@ -12,6 +12,7 @@ namespace Tazq_Frontend
 			// Register correct routes
 			Routing.RegisterRoute(nameof(LoginPage), typeof(LoginPage));
 			Routing.RegisterRoute(nameof(RegisterPage), typeof(RegisterPage));
+			Routing.RegisterRoute(nameof(HomePage), typeof(HomePage));
 		}
 	}
 }
