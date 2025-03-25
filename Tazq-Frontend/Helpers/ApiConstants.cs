@@ -2,6 +2,6 @@
 {
 	public static class ApiConstants
 	{
-		public static string BaseUrl => "http://localhost:5062/api";
+		public static string BaseUrl => "https://tazq-backend.onrender.com/api";
 	}
 }

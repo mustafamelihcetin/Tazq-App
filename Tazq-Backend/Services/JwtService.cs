@@ -43,7 +43,7 @@ namespace Tazq_App.Services
 				new Claim(ClaimTypes.NameIdentifier, userId),
 				new Claim(ClaimTypes.Role, role),
 				new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-				new Claim(JwtRegisteredClaimNames.Aud, audience) // audience claim eklendi
+				new Claim(JwtRegisteredClaimNames.Aud, audience)
 			};
 
 			var securityKey = new SymmetricSecurityKey(key);
