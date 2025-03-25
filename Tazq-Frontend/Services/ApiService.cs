@@ -47,6 +47,8 @@ namespace Tazq_Frontend.Services
 		// User Register
 		public async Task<bool> Register(string email, string name, string password)
 		{
+			Console.WriteLine("Register fonksiyonu başlatıldı.");
+
 			var request = new { email, name, password };
 			var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
 
@@ -76,7 +78,7 @@ namespace Tazq_Frontend.Services
 
 			try
 			{
-				Console.WriteLine($"API'ye giriş isteği gönderiliyor: {ApiConstants.BaseUrl}/users/login");
+				Console.WriteLine($"API'ye giriş isteği gönderiliyor: {ApiConstants.BaseUrl}users/login");
 				Console.WriteLine($"Request Body: {JsonSerializer.Serialize(request)}");
 
 				HttpResponseMessage response = await _httpClient.PostAsync("users/login", content);
@@ -138,6 +140,41 @@ namespace Tazq_Frontend.Services
 			{
 				Console.WriteLine($"HATA - GetTasks: {ex.Message}");
 				return new List<TaskModel>();
+			}
+		}
+
+		// User Register with response message
+		public async Task<(bool IsSuccess, string? ErrorMessage)> RegisterWithMessage(string email, string name, string password)
+		{
+			Console.WriteLine("RegisterWithMessage fonksiyonu başlatıldı.");
+
+			var request = new { email, name, password };
+			var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+
+			try
+			{
+				HttpResponseMessage response = await _httpClient.PostAsync("users/register", content);
+
+				Console.WriteLine($"Register API Request: users/register");
+				Console.WriteLine($"Request Body: {JsonSerializer.Serialize(request)}");
+				Console.WriteLine($"Response Status: {response.StatusCode}");
+				string responseContent = await response.Content.ReadAsStringAsync();
+				Console.WriteLine($"Response Content: {responseContent}");
+
+				if (response.IsSuccessStatusCode)
+				{
+					return (true, null);
+				}
+				else
+				{
+					// Try to return raw text message without parsing as JSON
+					return (false, responseContent);
+				}
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"HATA - RegisterWithMessage: {ex.Message}");
+				return (false, "Sunucu hatası oluştu.");
 			}
 		}
 	}

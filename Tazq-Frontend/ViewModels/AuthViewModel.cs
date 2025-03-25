@@ -34,25 +34,27 @@ namespace Tazq_Frontend.ViewModels
 		// Command for navigating to Register Page
 		public ICommand NavigateToRegisterCommand => new AsyncRelayCommand(async () =>
 		{
-			if (Shell.Current == null)
+			if (Shell.Current != null)
 			{
-				await Application.Current?.MainPage?.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
-				return;
+				await Shell.Current.GoToAsync(nameof(Views.RegisterPage));
 			}
-
-			await Shell.Current.GoToAsync(nameof(Views.RegisterPage));
+			else if (Application.Current?.MainPage != null)
+			{
+				await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
+			}
 		});
 
 		// Command for navigating back to Login Page
 		public ICommand NavigateToLoginCommand => new AsyncRelayCommand(async () =>
 		{
-			if (Shell.Current == null)
+			if (Shell.Current != null)
 			{
-				await Application.Current?.MainPage?.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
-				return;
+				await Shell.Current.GoToAsync("//LoginPage");
 			}
-
-			await Shell.Current.GoToAsync("//Login");
+			else if (Application.Current?.MainPage != null)
+			{
+				await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
+			}
 		});
 
 		// Command for Login Action
@@ -62,7 +64,11 @@ namespace Tazq_Frontend.ViewModels
 			{
 				if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
 				{
-					await Application.Current?.MainPage?.DisplayAlert("Hata", "E-posta ve şifre boş olamaz!", "Tamam");
+					var page = Application.Current?.MainPage;
+					if (page != null)
+					{
+						await page.DisplayAlert("Hata", "E-posta ve şifre boş olamaz!", "Tamam");
+					}
 					return;
 				}
 
@@ -70,37 +76,69 @@ namespace Tazq_Frontend.ViewModels
 
 				bool loginSuccess = await _apiService.Login(Email, Password);
 
+				var currentPage = Application.Current?.MainPage;
+
 				if (loginSuccess)
 				{
-					await Application.Current?.MainPage?.DisplayAlert("Başarılı", "Giriş başarılı!", "Tamam");
+					if (currentPage != null)
+						await currentPage.DisplayAlert("Başarılı", "Giriş başarılı!", "Tamam");
 				}
 				else
 				{
-					await Application.Current?.MainPage?.DisplayAlert("Hata", "Geçersiz giriş bilgileri! Lütfen tekrar deneyin.", "Tamam");
+					if (currentPage != null)
+						await currentPage.DisplayAlert("Hata", "Geçersiz giriş bilgileri! Lütfen tekrar deneyin.", "Tamam");
 				}
 			}
 			catch (Exception ex)
 			{
-				await Application.Current?.MainPage?.DisplayAlert("Hata", $"Login hatası: {ex.Message}", "Tamam");
+				var currentPage = Application.Current?.MainPage;
+				if (currentPage != null)
+					await currentPage.DisplayAlert("Hata", $"Login hatası: {ex.Message}", "Tamam");
 			}
 		});
-
 
 		// Command for Register Action
 		public ICommand RegisterCommand => new AsyncRelayCommand(async () =>
 		{
-			// Simulate registration process (replace this with API call if needed)
-			await Application.Current?.MainPage?.DisplayAlert("Başarılı", "Kayıt işlemi tamamlandı!", "Tamam");
+			try
+			{
+				if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
+				{
+					var page = Application.Current?.MainPage;
+					if (page != null)
+					{
+						await page.DisplayAlert("Hata", "E-posta ve şifre boş olamaz!", "Tamam");
+					}
+					return;
+				}
 
-			if (Shell.Current != null)
-			{
-				await Shell.Current.GoToAsync("//LoginPage");
+				Console.WriteLine("Kayıt denemesi yapılıyor...");
+
+				string name = "Kullanıcı";
+				var (success, errorMessage) = await _apiService.RegisterWithMessage(Email, name, Password);
+
+				var currentPage = Application.Current?.MainPage;
+
+				if (success)
+				{
+					if (currentPage != null)
+						await currentPage.DisplayAlert("Başarılı", "Kayıt işlemi tamamlandı!", "Tamam");
+
+					if (Shell.Current != null)
+						await Shell.Current.GoToAsync("//LoginPage");
+				}
+				else
+				{
+					if (currentPage != null)
+						await currentPage.DisplayAlert("Hata", errorMessage ?? "Kayıt başarısız oldu!", "Tamam");
+				}
 			}
-			else
+			catch (Exception ex)
 			{
-				await Application.Current?.MainPage?.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
+				var page = Application.Current?.MainPage;
+				if (page != null)
+					await page.DisplayAlert("Hata", $"Kayıt hatası: {ex.Message}", "Tamam");
 			}
 		});
-
 	}
 }

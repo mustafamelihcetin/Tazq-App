@@ -13,7 +13,8 @@
             <GradientStop Color="#6A85B6" Offset="1.0" />
         </LinearGradientBrush>
     </ContentPage.Background>
-    
+
+    <!-- ViewModel Binding Context -->
     <ContentPage.BindingContext>
         <vm:AuthViewModel />
     </ContentPage.BindingContext>
@@ -25,7 +26,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Logo -->
+        <!-- Logo and Title -->
         <VerticalStackLayout Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Center">
             <Image Source="tazq_logo.png" WidthRequest="130" HeightRequest="45" />
             <Label Text="Hesabını Oluştur"
@@ -36,32 +37,46 @@
                    Margin="0,5,0,40" />
         </VerticalStackLayout>
 
-        <!-- Input Fields -->
+        <!-- Input Fields and Buttons -->
         <VerticalStackLayout Grid.Row="1" Spacing="12" HorizontalOptions="Center"
                              WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=400}">
 
+            <!-- Name Input -->
             <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="True">
-                <Entry Placeholder="Adınız" TextColor="Black" PlaceholderColor="#A5A5A5"/>
+                <Entry Placeholder="Adınız"
+                       TextColor="Black"
+                       PlaceholderColor="#A5A5A5"
+                       Text="{Binding Name}" />
             </Frame>
 
+            <!-- Email Input -->
             <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="True">
-                <Entry Placeholder="E-posta" Keyboard="Email" TextColor="Black" PlaceholderColor="#A5A5A5"/>
+                <Entry Placeholder="E-posta"
+                       Keyboard="Email"
+                       TextColor="Black"
+                       PlaceholderColor="#A5A5A5"
+                       Text="{Binding Email}" />
             </Frame>
 
+            <!-- Password Input -->
             <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="True">
-                <Entry Placeholder="Şifre" IsPassword="True" TextColor="Black" PlaceholderColor="#A5A5A5"/>
+                <Entry Placeholder="Şifre"
+                       IsPassword="True"
+                       TextColor="Black"
+                       PlaceholderColor="#A5A5A5"
+                       Text="{Binding Password}" />
             </Frame>
 
             <!-- Register Button -->
             <Frame BackgroundColor="Transparent" Padding="0" CornerRadius="12" HasShadow="True"
                    Margin="0,5,0,15">
                 <Button Text="Kaydol"
-        Command="{Binding RegisterCommand}"
-        TextColor="#2C2C2C"
-        FontAttributes="Bold"
-        Padding="12"
-        CornerRadius="10"
-        HeightRequest="48">
+                        Command="{Binding RegisterCommand}"
+                        TextColor="#2C2C2C"
+                        FontAttributes="Bold"
+                        Padding="12"
+                        CornerRadius="10"
+                        HeightRequest="48">
                     <Button.Background>
                         <LinearGradientBrush EndPoint="0,1">
                             <GradientStop Color="#ECECEC" Offset="0.0"/>
@@ -69,10 +84,9 @@
                         </LinearGradientBrush>
                     </Button.Background>
                 </Button>
-
             </Frame>
 
-            <!-- Back to Login Button -->
+            <!-- Back to Login -->
             <Label Text="Zaten bir hesabın var mı?"
                    FontSize="14"
                    TextColor="#B0B0B0"
