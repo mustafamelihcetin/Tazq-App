@@ -26,11 +26,21 @@
             <DatePicker Date="{Binding DueDate}" />
 
             <Label Text="Etiketler" TextColor="White" />
-            <Entry Placeholder="Etiket girin ve Enter'a basın">
-                <Entry.Behaviors>
-                    <local:TagInputBehavior Tags="{Binding Tags}" />
-                </Entry.Behaviors>
-            </Entry>
+            <Entry Text="{Binding NewTag}" Placeholder="Etiket girin" />
+            <Button Text="Ekle" Command="{Binding AddTagCommand}" />
+
+            <CollectionView ItemsSource="{Binding Tags}" HeightRequest="80">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Horizontal" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame BackgroundColor="#90CAF9" Padding="8" Margin="4" CornerRadius="16">
+                            <Label Text="{Binding .}" TextColor="Black" />
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
 
             <Button Text="Kaydet" Command="{Binding AddTaskCommand}" BackgroundColor="#4CAF50" TextColor="White" />
         </VerticalStackLayout>
