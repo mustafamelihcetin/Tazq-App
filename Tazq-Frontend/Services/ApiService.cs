@@ -143,6 +143,31 @@ namespace Tazq_Frontend.Services
 			}
 		}
 
+		// Add New Task
+		public async Task<bool> AddTask(TaskModel task)
+		{
+			await SetAuthHeader();
+			var json = JsonSerializer.Serialize(task);
+			var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+			try
+			{
+				HttpResponseMessage response = await _httpClient.PostAsync("tasks", content);
+
+				Console.WriteLine($"AddTask API Request: tasks");
+				Console.WriteLine($"Request Body: {json}");
+				Console.WriteLine($"Response Status: {response.StatusCode}");
+				Console.WriteLine($"Response Content: {await response.Content.ReadAsStringAsync()}");
+
+				return response.IsSuccessStatusCode;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"HATA - AddTask: {ex.Message}");
+				return false;
+			}
+		}
+
 		// User Register with response message
 		public async Task<(bool IsSuccess, string? ErrorMessage)> RegisterWithMessage(string email, string name, string password)
 		{
