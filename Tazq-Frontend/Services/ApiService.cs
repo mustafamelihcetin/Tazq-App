@@ -20,7 +20,7 @@ namespace Tazq_Frontend.Services
 		}
 
 		// Store JWT Token
-		public async Task SaveToken(string token)
+		public async Task SaveToken(string? token)
 		{
 			if (!string.IsNullOrEmpty(token))
 			{

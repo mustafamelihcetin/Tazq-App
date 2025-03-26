@@ -63,7 +63,7 @@
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Frame CornerRadius="12"
-                           BackgroundColor="White"
+                           BackgroundColor="{Binding Priority, Converter={StaticResource PriorityToColorConverter}}"
                            Padding="15"
                            Margin="0,0,0,15"
                            HasShadow="True">
@@ -84,12 +84,12 @@
                                    TextColor="#666"
                                    IsVisible="{Binding DueDate.HasValue}" />
 
-                            <Label Text="{Binding Tags, StringFormat='Etiketler: {0}'}"
+                            <Label Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
                                    FontSize="12"
                                    TextColor="#777"
                                    IsVisible="{Binding Tags.Length, Converter={StaticResource IntGreaterThanZeroConverter}}" />
 
-                            <Label Text="{Binding Priority, Converter={StaticResource PriorityToTextConverter}}"
+                            <Label Text="{Binding Priority}"
                                    FontSize="12"
                                    TextColor="#D9534F"
                                    FontAttributes="Bold"

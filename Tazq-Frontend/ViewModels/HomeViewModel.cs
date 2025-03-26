@@ -26,7 +26,8 @@ namespace Tazq_Frontend.ViewModels
 
 		// Observable task list
 		[ObservableProperty]
-		private ObservableCollection<TaskModel> tasks;
+		private ObservableCollection<TaskModel> _tasks = new();
+
 
 		// Command to load tasks
 		public IAsyncRelayCommand LoadTasksCommand { get; }
