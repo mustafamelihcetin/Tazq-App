@@ -43,6 +43,9 @@
             </CollectionView>
 
             <Button Text="Kaydet" Command="{Binding AddTaskCommand}" BackgroundColor="#4CAF50" TextColor="White" />
+
+            <Button Text="Geri Dön" BackgroundColor="#455A64" TextColor="White"
+                    Command="{Binding GoBackCommand}" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
