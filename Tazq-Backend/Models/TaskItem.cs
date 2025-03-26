@@ -45,7 +45,7 @@ namespace Tazq_App.Models
 				}
 				catch (JsonException)
 				{
-					return new List<string>(); // JSON hatalıysa boş liste döndür
+					return new List<string>();
 				}
 			}
 			set

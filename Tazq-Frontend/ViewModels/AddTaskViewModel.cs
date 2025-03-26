@@ -3,7 +3,8 @@ using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.VisualBasic;
+using CommunityToolkit.Mvvm.Messaging.Messages;
+using CommunityToolkit.Mvvm.Messaging;
 using Tazq_Frontend.Models;
 using Tazq_Frontend.Services;
 
@@ -27,7 +28,7 @@ namespace Tazq_Frontend.ViewModels
 		private string description = string.Empty;
 
 		[ObservableProperty]
-		private DateTime? dueDate;
+		private DateTime? dueDate = DateTime.Today.AddDays(1);
 
 		[ObservableProperty]
 		private string selectedPriority = "Medium";
@@ -37,28 +38,70 @@ namespace Tazq_Frontend.ViewModels
 
 		public ObservableCollection<string> PriorityOptions { get; }
 
+		[ObservableProperty]
+		private string newTag;
+
 		[RelayCommand]
 		private async Task AddTask()
 		{
-			if (string.IsNullOrWhiteSpace(Title)) return;
+			Console.WriteLine("AddTaskCommand tetiklendi.");
+
+			if (string.IsNullOrWhiteSpace(Title))
+			{
+				await Shell.Current.DisplayAlert("Uyarı", "Başlık boş olamaz.", "Tamam");
+				return;
+			}
+
+			if (DueDate == null)
+			{
+				await Shell.Current.DisplayAlert("Uyarı", "Son tarih seçilmelidir.", "Tamam");
+				return;
+			}
+
+			// Convert SelectedPriority (string) to int enum
+			bool parseSuccess = Enum.TryParse<TaskPriority>(SelectedPriority, out var parsedPriority);
+			if (!parseSuccess)
+			{
+				await Shell.Current.DisplayAlert("Hata", "Öncelik değeri geçersiz.", "Tamam");
+				return;
+			}
 
 			var newTask = new TaskModel
 			{
 				Title = Title,
 				Description = Description,
 				DueDate = DueDate,
-				Priority = SelectedPriority,
+				IsCompleted = false,
 				Tags = Tags.ToArray(),
-				IsCompleted = false
+				Priority = parsedPriority.ToString()
 			};
 
-			await _apiService.AddTask(newTask);
+			bool result = await _apiService.AddTask(newTask);
 
-			// Reset form after submission
-			Title = string.Empty;
-			Description = string.Empty;
-			DueDate = null;
-			Tags.Clear();
+			Console.WriteLine($"AddTask API sonucu: {result}");
+
+			if (result)
+			{
+				WeakReferenceMessenger.Default.Send(new TaskAddedMessage());
+				await Shell.Current.GoToAsync("..");
+			}
+			else
+			{
+				await Shell.Current.DisplayAlert("Hata", "Görev kaydedilemedi.", "Tamam");
+			}
 		}
+	}
+
+	// Local frontend enum for int casting
+	public enum TaskPriority
+	{
+		Low = 0,
+		Medium = 1,
+		High = 2
+	}
+
+	public class TaskAddedMessage : ValueChangedMessage<bool>
+	{
+		public TaskAddedMessage() : base(true) { }
 	}
 }

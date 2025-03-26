@@ -3,49 +3,77 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
              x:Class="Tazq_Frontend.Views.AddTaskPage"
-             Title="Yeni Görev Ekle"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
              BackgroundColor="#1F2D3D">
+
+    <!-- Background Gradient -->
+    <ContentPage.Background>
+        <LinearGradientBrush>
+            <GradientStop Color="#1F2D3D" Offset="0.0" />
+            <GradientStop Color="#6A85B6" Offset="1.0" />
+        </LinearGradientBrush>
+    </ContentPage.Background>
 
     <ContentPage.BindingContext>
         <vm:AddTaskViewModel />
     </ContentPage.BindingContext>
 
-    <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="15">
+    <Grid Padding="20">
+        <ScrollView>
+            <Frame BackgroundColor="White"
+                   Padding="20"
+                   CornerRadius="16"
+                   HasShadow="True"
+                   VerticalOptions="Center"
+                   HorizontalOptions="Fill">
+                <VerticalStackLayout Spacing="15">
 
-            <Label Text="Başlık" TextColor="White" />
-            <Entry Text="{Binding Title}" Placeholder="Görev başlığı" />
+                    <Label Text="Başlık" TextColor="#1F2D3D" FontAttributes="Bold" />
+                    <Entry Text="{Binding Title}" Placeholder="Görev başlığı" TextColor="Black" />
 
-            <Label Text="Açıklama" TextColor="White" />
-            <Editor Text="{Binding Description}" Placeholder="Detaylı açıklama..." AutoSize="TextChanges" />
+                    <Label Text="Açıklama" TextColor="#1F2D3D" FontAttributes="Bold" />
+                    <Editor Text="{Binding Description}" Placeholder="Detaylı açıklama..." AutoSize="TextChanges" TextColor="Black" />
 
-            <Label Text="Öncelik" TextColor="White" />
-            <Picker ItemsSource="{Binding PriorityOptions}" SelectedItem="{Binding SelectedPriority}" />
+                    <Label Text="Öncelik" TextColor="#1F2D3D" FontAttributes="Bold" />
+                    <Picker ItemsSource="{Binding PriorityOptions}" SelectedItem="{Binding SelectedPriority}" TextColor="Black" />
 
-            <Label Text="Son Tarih" TextColor="White" />
-            <DatePicker Date="{Binding DueDate}" />
+                    <Label Text="Son Tarih" TextColor="#1F2D3D" FontAttributes="Bold" />
+                    <DatePicker Date="{Binding DueDate, TargetNullValue=2025-01-01}" TextColor="Black" />
 
-            <Label Text="Etiketler" TextColor="White" />
-            <Entry Text="{Binding NewTag}" Placeholder="Etiket girin" />
-            <Button Text="Ekle" Command="{Binding AddTagCommand}" />
+                    <Label Text="Etiketler" TextColor="#1F2D3D" FontAttributes="Bold" />
+                    <Entry Text="{Binding NewTag, Mode=TwoWay}" Placeholder="Etiket girin"
+                           Completed="OnTagCompleted" TextColor="Black" />
 
-            <CollectionView ItemsSource="{Binding Tags}" HeightRequest="80">
-                <CollectionView.ItemsLayout>
-                    <LinearItemsLayout Orientation="Horizontal" />
-                </CollectionView.ItemsLayout>
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Frame BackgroundColor="#90CAF9" Padding="8" Margin="4" CornerRadius="16">
-                            <Label Text="{Binding .}" TextColor="Black" />
-                        </Frame>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+                    <CollectionView ItemsSource="{Binding Tags}" HeightRequest="80">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame BackgroundColor="#E0F2F1" Padding="8" Margin="4" CornerRadius="16">
+                                    <Label Text="{Binding .}" TextColor="#004D40" />
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
 
-            <Button Text="Kaydet" Command="{Binding AddTaskCommand}" BackgroundColor="#4CAF50" TextColor="White" />
+                    <Button Text="Kaydet"
+                            Command="{Binding AddTaskCommand}"
+                            TextColor="White"
+                            FontAttributes="Bold"
+                            CornerRadius="10"
+                            Padding="10">
+                        <Button.Background>
+                            <LinearGradientBrush EndPoint="1,0">
+                                <GradientStop Color="#6A85B6" Offset="0.0" />
+                                <GradientStop Color="#5A6C8F" Offset="1.0" />
+                            </LinearGradientBrush>
+                        </Button.Background>
+                    </Button>
 
-            <Button Text="Geri Dön" BackgroundColor="#455A64" TextColor="White"
-                    Command="{Binding GoBackCommand}" />
-        </VerticalStackLayout>
-    </ScrollView>
+                </VerticalStackLayout>
+            </Frame>
+        </ScrollView>
+    </Grid>
 </ContentPage>

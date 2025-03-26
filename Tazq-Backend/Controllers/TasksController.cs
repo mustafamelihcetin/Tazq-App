@@ -32,7 +32,6 @@ namespace Tazq_App.Controllers
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-			// Kullanıcı ID token'dan alınamazsa hata döndür
 			if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
 				return Unauthorized(new { status = 401, message = "Invalid or missing user ID in token." });
 
@@ -70,7 +69,6 @@ namespace Tazq_App.Controllers
 			return Ok(tasks);
 		}
 
-
 		// Get a specific task by ID
 		[HttpGet("{id}")]
 		public async Task<IActionResult> GetTaskById(int id)
@@ -94,9 +92,9 @@ namespace Tazq_App.Controllers
 			return Ok(task);
 		}
 
-		// Create a new task
+		// Create a new task (updated to use TaskItem)
 		[HttpPost]
-		public async Task<IActionResult> CreateTask([FromBody] TaskDto taskDto)
+		public async Task<IActionResult> CreateTask([FromBody] TaskItem task)
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 			if (userIdClaim == null)
@@ -105,16 +103,7 @@ namespace Tazq_App.Controllers
 			if (!int.TryParse(userIdClaim, out int userId))
 				return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
 
-			var task = new TaskItem
-			{
-				Title = taskDto.Title,
-				Description = taskDto.Description,
-				DueDate = taskDto.DueDate,
-				IsCompleted = taskDto.IsCompleted,
-				Priority = taskDto.Priority,
-				UserId = userId,
-				Tags = taskDto.Tags
-			};
+			task.UserId = userId;
 
 			_context.Tasks.Add(task);
 			await _context.SaveChangesAsync();
@@ -154,9 +143,9 @@ namespace Tazq_App.Controllers
 			return Ok(new { message = $"{taskItems.Count} tasks created successfully." });
 		}
 
-		// Update a task
+		// Update a task (updated to use TaskItem)
 		[HttpPut("{id}")]
-		public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskDto taskDto)
+		public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskItem updatedTask)
 		{
 			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 			if (userIdClaim == null)
@@ -173,13 +162,12 @@ namespace Tazq_App.Controllers
 			if (!isAdmin && task.UserId != userId)
 				return Forbid("You are not allowed to update this task.");
 
-			// Update task fields
-			task.Title = taskDto.Title;
-			task.Description = taskDto.Description;
-			task.DueDate = taskDto.DueDate;
-			task.IsCompleted = taskDto.IsCompleted;
-			task.Priority = taskDto.Priority;
-			task.Tags = taskDto.Tags;
+			task.Title = updatedTask.Title;
+			task.Description = updatedTask.Description;
+			task.DueDate = updatedTask.DueDate;
+			task.IsCompleted = updatedTask.IsCompleted;
+			task.Priority = updatedTask.Priority;
+			task.Tags = updatedTask.Tags;
 
 			_context.Tasks.Update(task);
 			await _context.SaveChangesAsync();

@@ -1,9 +1,9 @@
 ﻿using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Maui.Storage;
 using Tazq_Frontend.Models;
-using Tazq_Frontend.Services;
 
 namespace Tazq_Frontend.Services
 {
@@ -93,7 +93,6 @@ namespace Tazq_Frontend.Services
 					return false;
 				}
 
-				// API Yanıtını Çözümle
 				var json = JsonDocument.Parse(responseData);
 
 				if (!json.RootElement.TryGetProperty("token", out var tokenElement) || tokenElement.GetString() == null)
@@ -147,17 +146,26 @@ namespace Tazq_Frontend.Services
 		public async Task<bool> AddTask(TaskModel task)
 		{
 			await SetAuthHeader();
-			var json = JsonSerializer.Serialize(task);
+
+			var options = new JsonSerializerOptions
+			{
+				PropertyNamingPolicy = null,
+				DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+			};
+
+			var requestBody = new { taskDto = task };
+			var json = JsonSerializer.Serialize(requestBody, options);
 			var content = new StringContent(json, Encoding.UTF8, "application/json");
 
 			try
 			{
-				HttpResponseMessage response = await _httpClient.PostAsync("tasks", content);
+				var response = await _httpClient.PostAsync("tasks", content);
+				var responseContent = await response.Content.ReadAsStringAsync();
 
-				Console.WriteLine($"AddTask API Request: tasks");
-				Console.WriteLine($"Request Body: {json}");
-				Console.WriteLine($"Response Status: {response.StatusCode}");
-				Console.WriteLine($"Response Content: {await response.Content.ReadAsStringAsync()}");
+				Console.WriteLine($"[DOTNET] AddTask API Request: tasks");
+				Console.WriteLine($"[DOTNET] Request Body: {json}");
+				Console.WriteLine($"[DOTNET] Response Status: {response.StatusCode}");
+				Console.WriteLine($"[DOTNET] Response Content: {responseContent}");
 
 				return response.IsSuccessStatusCode;
 			}
@@ -192,7 +200,6 @@ namespace Tazq_Frontend.Services
 				}
 				else
 				{
-					// Try to return raw text message without parsing as JSON
 					return (false, responseContent);
 				}
 			}

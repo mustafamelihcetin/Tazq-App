@@ -2,9 +2,12 @@
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging.Messages;
 using Microsoft.Maui.Controls;
 using Tazq_Frontend.Models;
 using Tazq_Frontend.Services;
+using Tazq_Frontend.Views;
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -20,25 +23,24 @@ namespace Tazq_Frontend.ViewModels
 			LogoutCommand = new AsyncRelayCommand(Logout);
 			SettingsCommand = new AsyncRelayCommand(OpenSettings);
 
-			// Load tasks initially
 			LoadTasksCommand.Execute(null);
+
+			// Dinleyici: Görev eklendiğinde görevleri güncelle
+			WeakReferenceMessenger.Default.Register<TaskAddedMessage>(this, async (r, m) =>
+			{
+				await LoadTasks();
+			});
 		}
 
-		// Observable task list
 		[ObservableProperty]
 		private ObservableCollection<TaskModel> _tasks = new();
 
-
-		// Command to load tasks
 		public IAsyncRelayCommand LoadTasksCommand { get; }
 
-		// Command to log out
 		public IAsyncRelayCommand LogoutCommand { get; }
 
-		// Command to open settings
 		public IAsyncRelayCommand SettingsCommand { get; }
 
-		// Load user tasks from API
 		private async Task LoadTasks()
 		{
 			var taskList = await _apiService.GetTasks();
@@ -49,7 +51,6 @@ namespace Tazq_Frontend.ViewModels
 			}
 		}
 
-		// Logout user
 		private async Task Logout()
 		{
 			await SecureStorage.Default.SetAsync("jwt_token", string.Empty);
@@ -60,10 +61,21 @@ namespace Tazq_Frontend.ViewModels
 			}
 		}
 
-		// Navigate to Settings (placeholder)
 		private async Task OpenSettings()
 		{
 			await Application.Current?.MainPage?.DisplayAlert("Ayarlar", "Ayarlar sayfası yakında gelecek.", "Tamam");
 		}
+
+		[RelayCommand]
+		private async Task GoToAddTaskPage()
+		{
+			await Shell.Current.GoToAsync(nameof(AddTaskPage));
+		}
 	}
+
+	//// WeakReference mesaj tipi
+	//public class TaskAddedMessage : ValueChangedMessage<bool>
+	//{
+	//	public TaskAddedMessage() : base(true) { }
+	//}
 }
