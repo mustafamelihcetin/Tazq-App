@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -58,22 +59,24 @@ namespace Tazq_Frontend.ViewModels
 				return;
 			}
 
-			// Convert SelectedPriority (string) to int enum
-			bool parseSuccess = Enum.TryParse<TaskPriority>(SelectedPriority, out var parsedPriority);
+			// Convert SelectedPriority string to enum int
+			bool parseSuccess = Enum.TryParse(typeof(TaskPriority), SelectedPriority, out var parsedEnum);
 			if (!parseSuccess)
 			{
 				await Shell.Current.DisplayAlert("Hata", "Öncelik değeri geçersiz.", "Tamam");
 				return;
 			}
 
+			var priorityInt = (int)parsedEnum!;
+
 			var newTask = new TaskModel
 			{
 				Title = Title,
 				Description = Description,
-				DueDate = DueDate,
+				DueDate = DueDate?.ToUniversalTime(),
 				IsCompleted = false,
-				Tags = Tags.ToArray(),
-				Priority = parsedPriority.ToString()
+				Tags = Tags.ToList(),
+				Priority = priorityInt
 			};
 
 			bool result = await _apiService.AddTask(newTask);
@@ -90,14 +93,6 @@ namespace Tazq_Frontend.ViewModels
 				await Shell.Current.DisplayAlert("Hata", "Görev kaydedilemedi.", "Tamam");
 			}
 		}
-	}
-
-	// Local frontend enum for int casting
-	public enum TaskPriority
-	{
-		Low = 0,
-		Medium = 1,
-		High = 2
 	}
 
 	public class TaskAddedMessage : ValueChangedMessage<bool>

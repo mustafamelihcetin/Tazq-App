@@ -103,11 +103,28 @@ namespace Tazq_App.Controllers
 			if (!int.TryParse(userIdClaim, out int userId))
 				return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
 
-			task.UserId = userId;
+			try
+			{
+				task.UserId = userId;
+				task.Tags = task.Tags ?? new List<string>();
+				task.TagsJson = JsonSerializer.Serialize(task.Tags);
 
-			_context.Tasks.Add(task);
-			await _context.SaveChangesAsync();
-			return CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, task);
+				_context.Tasks.Add(task);
+				await _context.SaveChangesAsync();
+
+				return CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, task);
+			}
+			catch (Exception ex)
+			{
+				// Explicit error log
+				return StatusCode(500, new
+				{
+					StatusCode = 500,
+					Message = ex.Message,
+					Inner = ex.InnerException?.Message,
+					StackTrace = ex.StackTrace
+				});
+			}
 		}
 
 		// Bulk create tasks

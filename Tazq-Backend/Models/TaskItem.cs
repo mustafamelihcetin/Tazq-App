@@ -20,7 +20,7 @@ namespace Tazq_App.Models
 
 		public bool IsCompleted { get; set; } = false;
 
-		[JsonConverter(typeof(JsonStringEnumConverter))]
+		// Removed [JsonConverter] to accept integer from frontend
 		public TaskPriority Priority { get; set; } = TaskPriority.Medium;
 
 		[ForeignKey("User")]
@@ -30,6 +30,7 @@ namespace Tazq_App.Models
 		public User? User { get; set; }
 
 		[Column(TypeName = "TEXT")]
+		[JsonIgnore]
 		public string TagsJson { get; set; } = "[]";
 
 		[NotMapped]
@@ -41,6 +42,10 @@ namespace Tazq_App.Models
 			{
 				try
 				{
+					// Ensure empty JSON array is default
+					if (string.IsNullOrWhiteSpace(TagsJson))
+						TagsJson = "[]";
+
 					return JsonSerializer.Deserialize<List<string>>(TagsJson) ?? new List<string>();
 				}
 				catch (JsonException)
@@ -50,7 +55,8 @@ namespace Tazq_App.Models
 			}
 			set
 			{
-				TagsJson = JsonSerializer.Serialize(value);
+				// Ensure always valid JSON, even for null lists
+				TagsJson = JsonSerializer.Serialize(value ?? new List<string>());
 			}
 		}
 	}

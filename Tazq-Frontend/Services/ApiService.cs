@@ -1,9 +1,11 @@
 ﻿using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Maui.Storage;
 using Tazq_Frontend.Models;
+
 
 namespace Tazq_Frontend.Services
 {
@@ -150,11 +152,22 @@ namespace Tazq_Frontend.Services
 			var options = new JsonSerializerOptions
 			{
 				PropertyNamingPolicy = null,
-				DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+				DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+				Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+				Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
 			};
 
-			var requestBody = new { taskDto = task };
-			var json = JsonSerializer.Serialize(requestBody, options);
+			var payload = new
+			{
+				title = task.Title,
+				description = task.Description,
+				dueDate = task.DueDate,
+				isCompleted = task.IsCompleted,
+				priority = task.Priority,
+				tags = task.Tags
+			};
+
+			var json = JsonSerializer.Serialize(payload, options);
 			var content = new StringContent(json, Encoding.UTF8, "application/json");
 
 			try
@@ -175,6 +188,7 @@ namespace Tazq_Frontend.Services
 				return false;
 			}
 		}
+
 
 		// User Register with response message
 		public async Task<(bool IsSuccess, string? ErrorMessage)> RegisterWithMessage(string email, string name, string password)

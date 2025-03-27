@@ -13,7 +13,7 @@ namespace Tazq_App.Models
 			}
 			catch (JsonException)
 			{
-				return new List<string>(); // Hatalı JSON verisi varsa boş liste döndür
+				return new List<string>(); 
 			}
 		}
 

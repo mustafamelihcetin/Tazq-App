@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Tazq_Frontend.Models
 {
@@ -9,7 +10,7 @@ namespace Tazq_Frontend.Models
 		public string? Description { get; set; }
 		public DateTime? DueDate { get; set; }
 		public bool IsCompleted { get; set; }
-		public string Priority { get; set; } = string.Empty;
-		public string[] Tags { get; set; } = Array.Empty<string>();
+		public int Priority { get; set; }
+		public List<string> Tags { get; set; } = new();
 	}
 }
