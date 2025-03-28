@@ -38,15 +38,31 @@ namespace Tazq_Frontend.ViewModels
 		public IAsyncRelayCommand LogoutCommand { get; }
 		public IAsyncRelayCommand SettingsCommand { get; }
 
+		[ObservableProperty]
+		private bool isLoading = false;
+
 		private async Task LoadTasks()
 		{
-			var taskList = await _apiService.GetTasks();
-			Tasks.Clear();
-			foreach (var task in taskList)
+			IsLoading = true;
+			try
 			{
-				Tasks.Add(task);
+				var taskList = await _apiService.GetTasks();
+				Tasks.Clear();
+				foreach (var task in taskList)
+				{
+					Tasks.Add(task);
+				}
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Hata: {ex.Message}");
+			}
+			finally
+			{
+				IsLoading = false;
 			}
 		}
+
 
 		private async Task Logout()
 		{

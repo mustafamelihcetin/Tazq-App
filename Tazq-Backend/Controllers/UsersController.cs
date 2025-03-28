@@ -228,11 +228,18 @@ public class UsersController : ControllerBase
 		_context.PasswordResetTokens.Add(resetToken);
 		await _context.SaveChangesAsync();
 
-		var resetLink = $"https://tazq-frontend.com/reset-password?token={token}";
-		await _emailService.SendEmailAsync(user.Email, "Şifre Sıfırlama", $"Şifrenizi sıfırlamak için tıklayın: {resetLink}");
-
-		return Ok("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.");
+		try
+		{
+			await _emailService.SendEmailAsync(user.Email, "Şifre Sıfırlama", $"Şifre sıfırlama kodunuz:\n\n{token}\n\nUygulamada bu kodu kullanarak şifrenizi sıfırlayabilirsiniz.");
+			return Ok("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.");
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"[ERROR - EmailService] {ex.Message}");
+			return StatusCode(500, "Şifre sıfırlama bağlantısı gönderilemedi. Lütfen tekrar deneyin.");
+		}
 	}
+
 
 	[HttpPost("reset-password")]
 	[AllowAnonymous]

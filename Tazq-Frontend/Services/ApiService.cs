@@ -252,5 +252,12 @@ namespace Tazq_Frontend.Services
 			await SetAuthHeader();
 			return await _httpClient.PostAsync(endpoint, content);
 		}
+
+		public async Task<HttpResponseMessage> SendForgotPasswordEmail(string email)
+		{
+			var request = new { Email = email };
+			return await PostAsync("api/users/forgot-password", request);
+		}
+
 	}
 }

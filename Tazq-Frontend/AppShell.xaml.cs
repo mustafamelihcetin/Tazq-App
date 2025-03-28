@@ -14,6 +14,7 @@ namespace Tazq_Frontend
 			Routing.RegisterRoute(nameof(RegisterPage), typeof(RegisterPage));
 			Routing.RegisterRoute(nameof(HomePage), typeof(HomePage));
 			Routing.RegisterRoute(nameof(AddTaskPage), typeof(AddTaskPage));
+			Routing.RegisterRoute(nameof(ForgotPasswordPage), typeof(ForgotPasswordPage));
 		}
 	}
 }

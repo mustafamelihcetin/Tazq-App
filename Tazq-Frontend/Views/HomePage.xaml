@@ -65,51 +65,62 @@
                 Padding="10"
                 Margin="0,0,0,15" />
 
-        <!-- Task List -->
-        <CollectionView Grid.Row="2"
-                        ItemsSource="{Binding Tasks}"
-                        EmptyView="Henüz bir göreviniz yok."
-                        VerticalOptions="Fill">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Frame CornerRadius="12"
-                           BackgroundColor="{Binding Priority, Converter={StaticResource PriorityToColorConverter}}"
-                           Padding="15"
-                           Margin="0,0,0,15"
-                           HasShadow="True">
-                        <VerticalStackLayout Spacing="6">
+        <!-- Task List & Loading -->
+        <Grid Grid.Row="2">
+            <!-- Loading -->
+            <ActivityIndicator IsRunning="{Binding IsLoading}"
+                               IsVisible="{Binding IsLoading}"
+                               Color="White"
+                               VerticalOptions="Center"
+                               HorizontalOptions="Center"
+                               WidthRequest="50"
+                               HeightRequest="50" />
 
-                            <Label Text="{Binding Title}"
-                                   FontSize="18"
-                                   FontAttributes="Bold"
-                                   TextColor="#333" />
+            <!-- Task List -->
+            <CollectionView ItemsSource="{Binding Tasks}"
+                            IsVisible="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
+                            EmptyView="Henüz bir göreviniz yok."
+                            VerticalOptions="Fill">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame CornerRadius="12"
+                               BackgroundColor="{Binding Priority, Converter={StaticResource PriorityToColorConverter}}"
+                               Padding="15"
+                               Margin="0,0,0,15"
+                               HasShadow="True">
+                            <VerticalStackLayout Spacing="6">
 
-                            <Label Text="{Binding Description}"
-                                   FontSize="14"
-                                   TextColor="#555"
-                                   IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
+                                <Label Text="{Binding Title}"
+                                       FontSize="18"
+                                       FontAttributes="Bold"
+                                       TextColor="#333" />
 
-                            <Label Text="{Binding DueDate, StringFormat='Son Tarih: {0:dd MMM yyyy}'}"
-                                   FontSize="12"
-                                   TextColor="#666"
-                                   IsVisible="{Binding DueDate.HasValue}" />
+                                <Label Text="{Binding Description}"
+                                       FontSize="14"
+                                       TextColor="#555"
+                                       IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
 
-                            <Label Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
-	                               FontSize="12"
-	                               TextColor="#777"
-	                               IsVisible="{Binding Tags.Count, Converter={StaticResource IntGreaterThanZeroConverter}}" />
+                                <Label Text="{Binding DueDate, StringFormat='Son Tarih: {0:dd MMM yyyy}'}"
+                                       FontSize="12"
+                                       TextColor="#666"
+                                       IsVisible="{Binding DueDate.HasValue}" />
 
+                                <Label Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
+                                       FontSize="12"
+                                       TextColor="#777"
+                                       IsVisible="{Binding Tags.Count, Converter={StaticResource IntGreaterThanZeroConverter}}" />
 
-                            <Label Text="{Binding Priority}"
-                                   FontSize="12"
-                                   TextColor="#D9534F"
-                                   FontAttributes="Bold"
-                                   HorizontalOptions="End" />
+                                <Label Text="{Binding Priority}"
+                                       FontSize="12"
+                                       TextColor="#D9534F"
+                                       FontAttributes="Bold"
+                                       HorizontalOptions="End" />
 
-                        </VerticalStackLayout>
-                    </Frame>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+                            </VerticalStackLayout>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
     </Grid>
 </ContentPage>

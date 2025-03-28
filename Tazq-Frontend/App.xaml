@@ -16,6 +16,7 @@
             <converters:TagsArrayToStringConverter x:Key="TagsArrayToStringConverter" />
             <converters:NullOrEmptyToBoolConverter x:Key="NullOrEmptyToBoolConverter" />
             <converters:IntGreaterThanZeroConverter x:Key="IntGreaterThanZeroConverter" />
+            <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -3,6 +3,7 @@ using Tazq_Frontend.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Controls;
+using Tazq_Frontend.Views;
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -15,7 +16,6 @@ namespace Tazq_Frontend.ViewModels
 			_apiService = new ApiService();
 		}
 
-		// Email Property
 		private string _email = string.Empty;
 		public string Email
 		{
@@ -23,7 +23,6 @@ namespace Tazq_Frontend.ViewModels
 			set => SetProperty(ref _email, value);
 		}
 
-		// Password Property
 		private string _password = string.Empty;
 		public string Password
 		{
@@ -31,7 +30,12 @@ namespace Tazq_Frontend.ViewModels
 			set => SetProperty(ref _password, value);
 		}
 
-		// Command for navigating to Register Page
+		[ObservableProperty]
+		private bool isLoading;
+
+		[ObservableProperty]
+		private bool showForgotPassword;
+
 		public ICommand NavigateToRegisterCommand => new AsyncRelayCommand(async () =>
 		{
 			if (Shell.Current != null)
@@ -44,7 +48,6 @@ namespace Tazq_Frontend.ViewModels
 			}
 		});
 
-		// Command for navigating back to Login Page
 		public ICommand NavigateToLoginCommand => new AsyncRelayCommand(async () =>
 		{
 			if (Shell.Current != null)
@@ -57,13 +60,29 @@ namespace Tazq_Frontend.ViewModels
 			}
 		});
 
-		// Command for Login Action
+		public ICommand NavigateToResetPasswordCommand => new AsyncRelayCommand(async () =>
+		{
+			if (Shell.Current != null)
+			{
+				await Shell.Current.GoToAsync("///ResetPasswordPage");
+			}
+			else if (Application.Current?.MainPage != null)
+			{
+				await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
+			}
+		});
+
 		public ICommand LoginCommand => new AsyncRelayCommand(async () =>
 		{
+			IsLoading = true;
+			ShowForgotPassword = false;
+
 			try
 			{
 				if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
 				{
+					IsLoading = false;
+
 					var page = Application.Current?.MainPage;
 					if (page != null)
 					{
@@ -80,33 +99,41 @@ namespace Tazq_Frontend.ViewModels
 
 				if (loginSuccess)
 				{
-					if (currentPage != null)
-						await currentPage.DisplayAlert("Başarılı", "Giriş başarılı!", "Tamam");
+					IsLoading = false;
 
 					if (Shell.Current != null)
 						await Shell.Current.GoToAsync("//HomePage");
 				}
 				else
 				{
+					IsLoading = false;
+					ShowForgotPassword = true;
+
 					if (currentPage != null)
 						await currentPage.DisplayAlert("Hata", "Geçersiz giriş bilgileri! Lütfen tekrar deneyin.", "Tamam");
 				}
 			}
 			catch (Exception ex)
 			{
+				IsLoading = false;
+				ShowForgotPassword = true;
+
 				var currentPage = Application.Current?.MainPage;
 				if (currentPage != null)
 					await currentPage.DisplayAlert("Hata", $"Login hatası: {ex.Message}", "Tamam");
 			}
 		});
 
-		// Command for Register Action
 		public ICommand RegisterCommand => new AsyncRelayCommand(async () =>
 		{
+			IsLoading = true;
+
 			try
 			{
 				if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
 				{
+					IsLoading = false;
+
 					var page = Application.Current?.MainPage;
 					if (page != null)
 					{
@@ -119,6 +146,8 @@ namespace Tazq_Frontend.ViewModels
 
 				string name = "Kullanıcı";
 				var (success, errorMessage) = await _apiService.RegisterWithMessage(Email, name, Password);
+
+				IsLoading = false;
 
 				var currentPage = Application.Current?.MainPage;
 
@@ -138,9 +167,23 @@ namespace Tazq_Frontend.ViewModels
 			}
 			catch (Exception ex)
 			{
+				IsLoading = false;
+
 				var page = Application.Current?.MainPage;
 				if (page != null)
 					await page.DisplayAlert("Hata", $"Kayıt hatası: {ex.Message}", "Tamam");
+			}
+		});
+
+		public ICommand NavigateToForgotPasswordCommand => new AsyncRelayCommand(async () =>
+		{
+			if (Shell.Current != null)
+			{
+				await Shell.Current.GoToAsync("/ForgotPasswordPage");
+			}
+			else if (Application.Current?.MainPage != null)
+			{
+				await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
 			}
 		});
 	}

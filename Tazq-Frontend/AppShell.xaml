@@ -8,4 +8,5 @@
     <ShellContent Title="Register" Route="RegisterPage" ContentTemplate="{DataTemplate views:RegisterPage}" />
     <ShellContent Title="Home" Route="HomePage" ContentTemplate="{DataTemplate views:HomePage}" />
     <ShellContent Title="Yeni Görev" Route="AddTaskPage" ContentTemplate="{DataTemplate views:AddTaskPage}" />
+    <ShellContent Route="ResetPasswordPage" ContentTemplate="{DataTemplate views:ResetPasswordPage}" />
 </Shell>
