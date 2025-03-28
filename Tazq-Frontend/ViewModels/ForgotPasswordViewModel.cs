@@ -30,7 +30,7 @@ namespace Tazq_Frontend.ViewModels
 
 			try
 			{
-				var response = await apiService.PostAsync("api/users/forgot-password", payload);
+				var response = await apiService.PostAsync("users/forgot-password", payload);
 
 				if (response.IsSuccessStatusCode)
 				{

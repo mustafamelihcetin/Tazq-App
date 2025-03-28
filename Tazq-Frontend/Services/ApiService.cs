@@ -256,7 +256,7 @@ namespace Tazq_Frontend.Services
 		public async Task<HttpResponseMessage> SendForgotPasswordEmail(string email)
 		{
 			var request = new { Email = email };
-			return await PostAsync("api/users/forgot-password", request);
+			return await PostAsync("users/forgot-password", request);
 		}
 
 	}
