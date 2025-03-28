@@ -64,7 +64,7 @@ namespace Tazq_Frontend.ViewModels
 		{
 			if (Shell.Current != null)
 			{
-				await Shell.Current.GoToAsync("///ResetPasswordPage");
+				await Shell.Current.GoToAsync(nameof(ResetPasswordPage));
 			}
 			else if (Application.Current?.MainPage != null)
 			{
@@ -179,7 +179,7 @@ namespace Tazq_Frontend.ViewModels
 		{
 			if (Shell.Current != null)
 			{
-				await Shell.Current.GoToAsync("/ForgotPasswordPage");
+				await Shell.Current.GoToAsync(nameof(ForgotPasswordPage));
 			}
 			else if (Application.Current?.MainPage != null)
 			{

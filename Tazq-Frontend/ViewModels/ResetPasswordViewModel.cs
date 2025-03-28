@@ -1,63 +1,50 @@
 ﻿using System;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading.Tasks;
-using System.Windows.Input;
-using Microsoft.Maui.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.Maui.Controls;
+using System.Windows.Input;
 using Tazq_Frontend.Services;
 
 namespace Tazq_Frontend.ViewModels
 {
 	public partial class ResetPasswordViewModel : ObservableObject
 	{
-		private string _newPassword;
-		private string _confirmPassword;
-		private string _token;
-		private string _statusMessage;
+		[ObservableProperty]
+		private string newPassword;
 
-		public string NewPassword
-		{
-			get => _newPassword;
-			set => SetProperty(ref _newPassword, value);
-		}
+		[ObservableProperty]
+		private string confirmPassword;
 
-		public string ConfirmPassword
-		{
-			get => _confirmPassword;
-			set => SetProperty(ref _confirmPassword, value);
-		}
+		[ObservableProperty]
+		private string token;
 
-		public string Token
-		{
-			get => _token;
-			set => SetProperty(ref _token, value);
-		}
+		[ObservableProperty]
+		private string statusMessage;
 
-		public string StatusMessage
-		{
-			get => _statusMessage;
-			set => SetProperty(ref _statusMessage, value);
-		}
+		[ObservableProperty]
+		private bool isLoading;
 
-		public ICommand ResetPasswordCommand { get; }
-
-		public ResetPasswordViewModel()
-		{
-			ResetPasswordCommand = new Command(async () => await ResetPasswordAsync());
-		}
-
+		[RelayCommand]
 		private async Task ResetPasswordAsync()
 		{
-			if (string.IsNullOrWhiteSpace(NewPassword) || string.IsNullOrWhiteSpace(ConfirmPassword) || string.IsNullOrWhiteSpace(Token))
+			IsLoading = true;
+			StatusMessage = string.Empty;
+
+			if (string.IsNullOrWhiteSpace(NewPassword) ||
+				string.IsNullOrWhiteSpace(ConfirmPassword) ||
+				string.IsNullOrWhiteSpace(Token))
 			{
 				StatusMessage = "Tüm alanları doldurmalısınız.";
+				IsLoading = false;
 				return;
 			}
 
 			if (NewPassword != ConfirmPassword)
 			{
 				StatusMessage = "Şifreler uyuşmuyor.";
+				IsLoading = false;
 				return;
 			}
 
@@ -87,6 +74,10 @@ namespace Tazq_Frontend.ViewModels
 			catch (Exception ex)
 			{
 				StatusMessage = $"İstek sırasında hata oluştu: {ex.Message}";
+			}
+			finally
+			{
+				IsLoading = false;
 			}
 		}
 	}

@@ -230,8 +230,13 @@ public class UsersController : ControllerBase
 
 		try
 		{
-			var mailBody = $@"Şifre sıfırlama kodunuz: {token}
-			Uygulamada bu kodu kullanarak şifrenizi sıfırlayabilirsiniz.";
+			var mailBody = $@"
+						   Merhaba,<br/><br/>
+						   Şifrenizi sıfırlamak için aşağıdaki kodu uygulamadaki şifre sıfırlama ekranında kullanabilirsiniz:<br/><br/>
+						   <b>{token}</b><br/><br/>
+						   İyi günler dileriz,<br/>
+						   Tazq Ekibi
+						   ";
 
 			await _emailService.SendEmailAsync(user.Email, "Şifre Sıfırlama", mailBody);
 			return Ok("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.");
