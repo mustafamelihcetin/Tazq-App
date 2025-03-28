@@ -3,7 +3,6 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using CommunityToolkit.Mvvm.Messaging.Messages;
 using Microsoft.Maui.Controls;
 using Tazq_Frontend.Models;
 using Tazq_Frontend.Services;
@@ -25,7 +24,7 @@ namespace Tazq_Frontend.ViewModels
 
 			LoadTasksCommand.Execute(null);
 
-			// Dinleyici: Görev eklendiğinde görevleri güncelle
+			// Listener: Refresh task list when a task is added
 			WeakReferenceMessenger.Default.Register<TaskAddedMessage>(this, async (r, m) =>
 			{
 				await LoadTasks();
@@ -36,9 +35,7 @@ namespace Tazq_Frontend.ViewModels
 		private ObservableCollection<TaskModel> _tasks = new();
 
 		public IAsyncRelayCommand LoadTasksCommand { get; }
-
 		public IAsyncRelayCommand LogoutCommand { get; }
-
 		public IAsyncRelayCommand SettingsCommand { get; }
 
 		private async Task LoadTasks()
@@ -72,10 +69,4 @@ namespace Tazq_Frontend.ViewModels
 			await Shell.Current.GoToAsync(nameof(AddTaskPage));
 		}
 	}
-
-	//// WeakReference mesaj tipi
-	//public class TaskAddedMessage : ValueChangedMessage<bool>
-	//{
-	//	public TaskAddedMessage() : base(true) { }
-	//}
 }

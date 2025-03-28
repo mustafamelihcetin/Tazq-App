@@ -1,4 +1,4 @@
-﻿using System;
+﻿ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,6 +8,8 @@ using CommunityToolkit.Mvvm.Messaging.Messages;
 using CommunityToolkit.Mvvm.Messaging;
 using Tazq_Frontend.Models;
 using Tazq_Frontend.Services;
+using Tazq_Frontend.ViewModels;
+
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -40,7 +42,7 @@ namespace Tazq_Frontend.ViewModels
 		public ObservableCollection<string> PriorityOptions { get; }
 
 		[ObservableProperty]
-		private string newTag;
+		private string? newTag;
 
 		[RelayCommand]
 		private async Task AddTask()
@@ -76,7 +78,7 @@ namespace Tazq_Frontend.ViewModels
 				DueDate = DueDate?.ToUniversalTime(),
 				IsCompleted = false,
 				Tags = Tags.ToList(),
-				Priority = priorityInt
+				Priority = priorityInt.ToString()
 			};
 
 			bool result = await _apiService.AddTask(newTask);

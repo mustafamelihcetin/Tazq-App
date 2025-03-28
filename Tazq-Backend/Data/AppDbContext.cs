@@ -10,7 +10,7 @@ namespace Tazq_App.Data
 			try
 			{
 				Console.WriteLine("Veritabanı başlatılıyor...");
-				Database.Migrate();
+				//Database.Migrate();
 				Console.WriteLine("Veritabanı kontrolü tamamlandı.");
 			}
 			catch (Exception ex)
@@ -23,6 +23,8 @@ namespace Tazq_App.Data
 		public DbSet<TaskItem> Tasks { get; set; }
 		public DbSet<User> Users { get; set; }
 		public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
+		public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -38,6 +40,12 @@ namespace Tazq_App.Data
 				.HasOne(u => u.NotificationPreferences)
 				.WithOne(p => p.User)
 				.HasForeignKey<UserNotificationPreferences>(p => p.UserId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			modelBuilder.Entity<PasswordResetToken>()
+				.HasOne(t => t.User)
+				.WithMany()
+				.HasForeignKey(t => t.UserId)
 				.OnDelete(DeleteBehavior.Cascade);
 		}
 

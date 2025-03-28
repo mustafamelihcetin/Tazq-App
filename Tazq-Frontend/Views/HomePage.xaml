@@ -95,9 +95,10 @@
                                    IsVisible="{Binding DueDate.HasValue}" />
 
                             <Label Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
-                                   FontSize="12"
-                                   TextColor="#777"
-                                   IsVisible="{Binding Tags.Length, Converter={StaticResource IntGreaterThanZeroConverter}}" />
+	                               FontSize="12"
+	                               TextColor="#777"
+	                               IsVisible="{Binding Tags.Count, Converter={StaticResource IntGreaterThanZeroConverter}}" />
+
 
                             <Label Text="{Binding Priority}"
                                    FontSize="12"

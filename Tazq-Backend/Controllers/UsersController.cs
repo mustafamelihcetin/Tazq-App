@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Org.BouncyCastle.Crypto.Macs;
@@ -240,5 +241,150 @@ public class UsersController : ControllerBase
 			user.IsPhoneVerified,
 			ProfilePicture = user.ProfilePicture ?? "/default-profile.png"
 		});
+	}
+
+	[HttpPost("forgot-password")]
+	[AllowAnonymous]
+	public async Task<IActionResult> ForgotPassword([FromBody] string email)
+	{
+		if (string.IsNullOrWhiteSpace(email))
+			return BadRequest("E-posta boş olamaz.");
+
+		var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+		if (user == null)
+			return Ok("Eğer kullanıcı varsa, e-posta gönderildi.");
+
+		// Create reset token
+		var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+		var expiration = DateTime.UtcNow.AddHours(1);
+
+		// Save token to database
+		var resetToken = new PasswordResetToken
+		{
+			UserId = user.Id,
+			Token = token,
+			Expiration = expiration
+		};
+
+		_context.PasswordResetTokens.Add(resetToken);
+		await _context.SaveChangesAsync();
+
+		// Email link
+		var resetUrl = $"https://tazq-frontend/reset-password?token={Uri.EscapeDataString(token)}";
+		await _emailService.SendEmailAsync(email, "Şifre Sıfırlama", $"Şifrenizi sıfırlamak için tıklayın: {resetUrl}");
+
+		return Ok("Eğer kullanıcı varsa, e-posta gönderildi.");
+	}
+
+	[HttpPost("reset-password")]
+	[AllowAnonymous]
+	public async Task<IActionResult> ResetPassword([FromBody] UserResetPasswordDto resetDto)
+	{
+		if (!ModelState.IsValid)
+			return BadRequest(ModelState);
+
+		var tokenRecord = await _context.PasswordResetTokens
+			.Include(t => t.User)
+			.FirstOrDefaultAsync(t => t.Token == resetDto.Token);
+
+		if (tokenRecord == null || tokenRecord.Expiration < DateTime.UtcNow)
+			return BadRequest("Token geçersiz veya süresi dolmuş.");
+
+		// Şifreyi hashle (aynı SHA256 + salt yöntemi)
+		using var rng = RandomNumberGenerator.Create();
+		byte[] salt = new byte[16];
+		rng.GetBytes(salt);
+
+		using var pbkdf2 = new Rfc2898DeriveBytes(resetDto.NewPassword, salt, 100000, HashAlgorithmName.SHA256);
+		byte[] passwordHash = pbkdf2.GetBytes(32);
+
+		string passwordHashString = Convert.ToBase64String(passwordHash);
+		string saltString = Convert.ToBase64String(salt);
+
+		tokenRecord.User.PasswordHash = passwordHashString;
+		tokenRecord.User.PasswordSalt = saltString;
+
+		_context.Users.Update(tokenRecord.User);
+		_context.PasswordResetTokens.Remove(tokenRecord);
+		await _context.SaveChangesAsync();
+
+		return Ok("Şifre başarıyla sıfırlandı.");
+	}
+
+	// POST: api/users/forgot-password
+	[HttpPost("forgot-password")]
+	[AllowAnonymous]
+	public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+	{
+		if (!ModelState.IsValid)
+			return BadRequest(ModelState);
+
+		var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+		if (user == null)
+			return NotFound("Bu e-posta adresine kayıtlı bir kullanıcı bulunamadı.");
+
+		// Token oluştur
+		var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+		var expiration = DateTime.UtcNow.AddHours(1);
+
+		var resetToken = new PasswordResetToken
+		{
+			UserId = user.Id,
+			Token = token,
+			Expiration = expiration
+		};
+
+		_context.PasswordResetTokens.Add(resetToken);
+		await _context.SaveChangesAsync();
+
+		var resetLink = $"https://tazq-frontend.com/reset-password?token={token}"; // Bu URL'yi frontend yapısına göre güncelle
+
+		await _emailService.SendEmailAsync(user.Email, "Şifre Sıfırlama", $"Şifrenizi sıfırlamak için bu bağlantıya tıklayın: {resetLink}");
+
+		return Ok("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.");
+	}
+
+
+	// POST: api/users/reset-password
+	[HttpPost("reset-password")]
+	[AllowAnonymous]
+	public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+	{
+		if (!ModelState.IsValid)
+			return BadRequest(ModelState);
+
+		var tokenEntry = await _context.PasswordResetTokens
+			.Include(t => t.User)
+			.FirstOrDefaultAsync(t => t.Token == request.Token);
+
+		if (tokenEntry == null || tokenEntry.Expiration < DateTime.UtcNow)
+			return BadRequest("Geçersiz veya süresi dolmuş şifre sıfırlama bağlantısı.");
+
+		// Yeni şifreyi hashle
+		using var rng = RandomNumberGenerator.Create();
+		byte[] salt = new byte[16];
+		rng.GetBytes(salt);
+		using var pbkdf2 = new Rfc2898DeriveBytes(request.NewPassword, salt, 100000, HashAlgorithmName.SHA256);
+		byte[] passwordHash = pbkdf2.GetBytes(32);
+
+		tokenEntry.User.PasswordHash = Convert.ToBase64String(passwordHash);
+		tokenEntry.User.PasswordSalt = Convert.ToBase64String(salt);
+
+		_context.Users.Update(tokenEntry.User);
+		_context.PasswordResetTokens.Remove(tokenEntry);
+		await _context.SaveChangesAsync();
+
+		return Ok("Şifreniz başarıyla güncellendi.");
+	}
+
+	public class ForgotPasswordRequest
+	{
+		public string Email { get; set; } = string.Empty;
+	}
+
+	public class ResetPasswordRequest
+	{
+		public string Token { get; set; } = string.Empty;
+		public string NewPassword { get; set; } = string.Empty;
 	}
 }

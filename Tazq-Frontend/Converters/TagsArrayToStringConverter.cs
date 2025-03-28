@@ -1,8 +1,9 @@
-﻿// Converts string[] tags into a single comma-separated string.
+﻿// Converts List<string> or string[] tags into a single comma-separated string.
 using System;
 using System.Globalization;
 using Microsoft.Maui.Controls;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Tazq_Frontend.Converters
 {
@@ -10,7 +11,7 @@ namespace Tazq_Frontend.Converters
 	{
 		public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
 		{
-			if (value is string[] tags)
+			if (value is IEnumerable<string> tags)
 			{
 				return string.Join(", ", tags);
 			}

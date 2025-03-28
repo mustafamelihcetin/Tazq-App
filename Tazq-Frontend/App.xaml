@@ -14,6 +14,8 @@
             <!-- Custom Converters -->
             <converters:PriorityToColorConverter x:Key="PriorityToColorConverter" />
             <converters:TagsArrayToStringConverter x:Key="TagsArrayToStringConverter" />
+            <converters:NullOrEmptyToBoolConverter x:Key="NullOrEmptyToBoolConverter" />
+            <converters:IntGreaterThanZeroConverter x:Key="IntGreaterThanZeroConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

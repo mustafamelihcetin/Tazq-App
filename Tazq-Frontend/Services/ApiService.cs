@@ -135,7 +135,14 @@ namespace Tazq_Frontend.Services
 				}
 
 				var json = await response.Content.ReadAsStringAsync();
-				return JsonSerializer.Deserialize<List<TaskModel>>(json) ?? new List<TaskModel>();
+
+				// JSON camelCase'e duyarsız deserialize
+				var options = new JsonSerializerOptions
+				{
+					PropertyNameCaseInsensitive = true
+				};
+
+				return JsonSerializer.Deserialize<List<TaskModel>>(json, options) ?? new List<TaskModel>();
 			}
 			catch (Exception ex)
 			{
@@ -143,6 +150,7 @@ namespace Tazq_Frontend.Services
 				return new List<TaskModel>();
 			}
 		}
+
 
 		// Add New Task
 		public async Task<bool> AddTask(TaskModel task)
