@@ -1,9 +1,14 @@
-namespace Tazq_Frontend.Views;
+using Microsoft.Maui.Controls;
+using Tazq_Frontend.ViewModels;
 
-public partial class ResetPasswordPage : ContentPage
+namespace Tazq_Frontend.Views
 {
-	public ResetPasswordPage()
+	public partial class ResetPasswordPage : ContentPage
 	{
-		InitializeComponent();
+		public ResetPasswordPage()
+		{
+			InitializeComponent();
+			BindingContext = new ResetPasswordViewModel();
+		}
 	}
 }

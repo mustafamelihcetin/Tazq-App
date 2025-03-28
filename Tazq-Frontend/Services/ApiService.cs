@@ -198,7 +198,7 @@ namespace Tazq_Frontend.Services
 		}
 
 
-		// User Register with response message
+		// User Register with response message	
 		public async Task<(bool IsSuccess, string? ErrorMessage)> RegisterWithMessage(string email, string name, string password)
 		{
 			Console.WriteLine("RegisterWithMessage fonksiyonu başlatıldı.");
@@ -230,6 +230,27 @@ namespace Tazq_Frontend.Services
 				Console.WriteLine($"HATA - RegisterWithMessage: {ex.Message}");
 				return (false, "Sunucu hatası oluştu.");
 			}
+		}
+
+		// Reset password API call
+		public async Task<HttpResponseMessage> ResetPasswordAsync(object resetRequest)
+		{
+			var content = new StringContent(
+				JsonSerializer.Serialize(resetRequest),
+				Encoding.UTF8,
+				"application/json"
+			);
+
+			return await _httpClient.PostAsync("users/reset-password", content);
+		}
+
+		// General purpose POST method for custom payloads
+		public async Task<HttpResponseMessage> PostAsync(string endpoint, object data)
+		{
+			var json = JsonSerializer.Serialize(data);
+			var content = new StringContent(json, Encoding.UTF8, "application/json");
+			await SetAuthHeader();
+			return await _httpClient.PostAsync(endpoint, content);
 		}
 	}
 }
