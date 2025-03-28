@@ -28,6 +28,14 @@ namespace Tazq_App.Services
 				smtpPort = _smtpSettings.Port;
 			}
 
+			// DEBUG LOGS FOR RENDER ENVIRONMENT
+			Console.WriteLine("======= SMTP DEBUG START =======");
+			Console.WriteLine($"SMTP_HOST: {smtpHost}");
+			Console.WriteLine($"SMTP_USERNAME: {smtpUser}");
+			Console.WriteLine($"SMTP_FROM: {smtpFrom}");
+			Console.WriteLine($"SMTP_PORT: {smtpPort}");
+			Console.WriteLine("======= SMTP DEBUG END ========");
+
 			if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(smtpUser) ||
 				string.IsNullOrWhiteSpace(smtpPass) || string.IsNullOrWhiteSpace(smtpFrom))
 			{
