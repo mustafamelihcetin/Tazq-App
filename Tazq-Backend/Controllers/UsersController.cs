@@ -230,16 +230,18 @@ public class UsersController : ControllerBase
 
 		try
 		{
-			await _emailService.SendEmailAsync(user.Email, "Şifre Sıfırlama", $"Şifre sıfırlama kodunuz:\n\n{token}\n\nUygulamada bu kodu kullanarak şifrenizi sıfırlayabilirsiniz.");
+			var mailBody = $@"Şifre sıfırlama kodunuz: {token}
+			Uygulamada bu kodu kullanarak şifrenizi sıfırlayabilirsiniz.";
+
+			await _emailService.SendEmailAsync(user.Email, "Şifre Sıfırlama", mailBody);
 			return Ok("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.");
 		}
 		catch (Exception ex)
 		{
-			Console.WriteLine($"[ERROR - EmailService] {ex.Message}");
-			return StatusCode(500, "Şifre sıfırlama bağlantısı gönderilemedi. Lütfen tekrar deneyin.");
+			// LOG: ex.Message
+			return StatusCode(500, $"Mail gönderim hatası: {ex.Message}");
 		}
 	}
-
 
 	[HttpPost("reset-password")]
 	[AllowAnonymous]

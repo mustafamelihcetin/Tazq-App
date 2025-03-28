@@ -40,8 +40,9 @@ namespace Tazq_Frontend.ViewModels
 				{
 					var error = await response.Content.ReadAsStringAsync();
 					StatusMessage = !string.IsNullOrWhiteSpace(error)
-						? $"Hata: {error}"
+						? $"Hata: {error}" // This will show backend error content if any
 						: "Hata: Şifre sıfırlama bağlantısı gönderilemedi. Lütfen tekrar deneyin.";
+
 
 				}
 			}
