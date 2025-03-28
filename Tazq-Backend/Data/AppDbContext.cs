@@ -47,6 +47,9 @@ namespace Tazq_App.Data
 				.WithMany()
 				.HasForeignKey(t => t.UserId)
 				.OnDelete(DeleteBehavior.Cascade);
+			modelBuilder.Entity<TaskItem>()
+				.Property(t => t.TagsJson)
+				.HasColumnType("text");
 		}
 
 	}
