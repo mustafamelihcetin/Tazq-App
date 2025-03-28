@@ -65,8 +65,8 @@ namespace Tazq_Frontend.ViewModels
 			{
 				var resetRequest = new
 				{
-					Token = Token,
-					NewPassword = NewPassword
+					token = Token.Trim(),
+					newPassword = NewPassword
 				};
 
 				var apiService = new ApiService();
@@ -75,7 +75,7 @@ namespace Tazq_Frontend.ViewModels
 				if (response.IsSuccessStatusCode)
 				{
 					StatusMessage = "Şifre başarıyla sıfırlandı.";
-					await Task.Delay(1500); 
+					await Task.Delay(1500);
 					await Shell.Current.GoToAsync("//LoginPage");
 				}
 				else
