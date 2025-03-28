@@ -174,6 +174,6 @@ app.UseExceptionHandler(errorApp =>
 app.UseCors("AllowAllOrigins");
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();
