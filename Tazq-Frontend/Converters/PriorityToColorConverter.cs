@@ -13,9 +13,9 @@ namespace Tazq_Frontend.Converters
             {
                 return priority switch
                 {
-                    0 => Color.FromArgb("#4CAF50"), // Düşük - Yeşil
-                    1 => Color.FromArgb("#FFC107"), // Orta - Sarı
-                    2 => Color.FromArgb("#F44336"), // Yüksek - Kırmızı
+                    0 => Color.FromArgb("#4CAF50"), // Low - Green
+                    1 => Color.FromArgb("#FFC107"), // Medium - Yellow
+                    2 => Color.FromArgb("#F44336"), // High - Red
                     _ => Colors.Gray
                 };
             }

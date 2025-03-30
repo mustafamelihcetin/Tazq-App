@@ -23,6 +23,7 @@ namespace Tazq_Frontend.ViewModels
             LoadTasksCommand = new AsyncRelayCommand(LoadTasks);
             LogoutCommand = new AsyncRelayCommand(Logout);
             SettingsCommand = new AsyncRelayCommand(OpenSettings);
+            TogglePastTasksCommand = new RelayCommand(TogglePastTasks);
 
             LoadTasksCommand.Execute(null);
 
@@ -32,16 +33,22 @@ namespace Tazq_Frontend.ViewModels
             });
         }
 
-        // Tasks listesi (AOT uyumlu partial property)
         [ObservableProperty]
         private ObservableCollection<TaskModel> tasks = new();
 
         public IAsyncRelayCommand LoadTasksCommand { get; }
         public IAsyncRelayCommand LogoutCommand { get; }
         public IAsyncRelayCommand SettingsCommand { get; }
+        public ICommand TogglePastTasksCommand { get; }
 
         [ObservableProperty]
         private bool isLoading = false;
+
+        [ObservableProperty]
+        private bool showPastTasks = false;
+
+        [ObservableProperty]
+        private bool isScrolledDown = false;
 
         private async Task LoadTasks()
         {
@@ -55,7 +62,10 @@ namespace Tazq_Frontend.ViewModels
                 {
                     foreach (var task in taskList)
                     {
-                        Tasks.Add(task);
+                        if (ShowPastTasks || !task.IsExpired)
+                        {
+                            Tasks.Add(task);
+                        }
                     }
                 }
             }
@@ -67,6 +77,12 @@ namespace Tazq_Frontend.ViewModels
             {
                 IsLoading = false;
             }
+        }
+
+        private void TogglePastTasks()
+        {
+            ShowPastTasks = !ShowPastTasks;
+            LoadTasksCommand.Execute(null);
         }
 
         private async Task Logout()
