@@ -7,7 +7,8 @@ public partial class AddTaskPage : ContentPage
 	public AddTaskPage()
 	{
 		InitializeComponent();
-	}
+		BindingContext = new AddTaskViewModel();
+    }
 
 	// Handles tag entry completion and adds tag to the list
 	private void OnTagCompleted(object sender, EventArgs e)

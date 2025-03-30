@@ -1,4 +1,4 @@
-using Microsoft.Maui.Controls;
+using Tazq_Frontend.ViewModels;
 
 namespace Tazq_Frontend.Views
 {
@@ -7,6 +7,7 @@ namespace Tazq_Frontend.Views
 		public HomePage()
 		{
 			InitializeComponent();
-		}
+            BindingContext = new HomeViewModel();
+        }
 	}
 }

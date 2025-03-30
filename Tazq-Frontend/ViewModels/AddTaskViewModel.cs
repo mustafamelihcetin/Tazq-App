@@ -1,4 +1,4 @@
-﻿ using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,97 +8,121 @@ using CommunityToolkit.Mvvm.Messaging.Messages;
 using CommunityToolkit.Mvvm.Messaging;
 using Tazq_Frontend.Models;
 using Tazq_Frontend.Services;
-using Tazq_Frontend.ViewModels;
-
 
 namespace Tazq_Frontend.ViewModels
 {
-	public partial class AddTaskViewModel : ObservableObject
-	{
-		private readonly ApiService _apiService;
+    public partial class AddTaskViewModel : ObservableObject
+    {
+        private readonly ApiService _apiService;
 
-		public AddTaskViewModel()
-		{
-			_apiService = new ApiService();
-			Tags = new ObservableCollection<string>();
-			PriorityOptions = new ObservableCollection<string> { "Low", "Medium", "High" };
-		}
+        public AddTaskViewModel()
+        {
+            _apiService = new ApiService();
+            Tags = [];
+            Priorities = ["Düşük", "Orta", "Yüksek"];
+        }
 
-		[ObservableProperty]
-		private string title = string.Empty;
+        // Title
+        public string Title
+        {
+            get => title;
+            set => SetProperty(ref title, value);
+        }
+        private string title = string.Empty;
 
-		[ObservableProperty]
-		private string description = string.Empty;
+        // Description
+        public string Description
+        {
+            get => description;
+            set => SetProperty(ref description, value);
+        }
+        private string description = string.Empty;
 
-		[ObservableProperty]
-		private DateTime? dueDate = DateTime.Today.AddDays(1);
+        // DueDate
+        public DateTime? DueDate
+        {
+            get => dueDate;
+            set => SetProperty(ref dueDate, value);
+        }
+        private DateTime? dueDate = DateTime.Today.AddDays(1);
 
-		[ObservableProperty]
-		private string selectedPriority = "Medium";
+        // SelectedPriority
+        public string SelectedPriority
+        {
+            get => selectedPriority;
+            set => SetProperty(ref selectedPriority, value);
+        }
+        private string selectedPriority = "Orta";
 
-		[ObservableProperty]
-		private ObservableCollection<string> tags = new();
+        // Tags
+        public ObservableCollection<string> Tags
+        {
+            get => tags;
+            set => SetProperty(ref tags, value);
+        }
+        private ObservableCollection<string> tags = [];
 
-		public ObservableCollection<string> PriorityOptions { get; }
+        // NewTag
+        public string? NewTag
+        {
+            get => newTag;
+            set => SetProperty(ref newTag, value);
+        }
+        private string? newTag;
 
-		[ObservableProperty]
-		private string? newTag;
+        public ObservableCollection<string> Priorities { get; }
 
-		[RelayCommand]
-		private async Task AddTask()
-		{
-			Console.WriteLine("AddTaskCommand tetiklendi.");
+        public string TagsDisplay => Tags.Any() ? string.Join(", ", Tags) : string.Empty;
 
-			if (string.IsNullOrWhiteSpace(Title))
-			{
-				await Shell.Current.DisplayAlert("Uyarı", "Başlık boş olamaz.", "Tamam");
-				return;
-			}
+        [RelayCommand]
+        private async Task SaveTask()
+        {
+            if (string.IsNullOrWhiteSpace(Title))
+            {
+                await Shell.Current.DisplayAlert("Uyarı", "Başlık boş olamaz.", "Tamam");
+                return;
+            }
 
-			if (DueDate == null)
-			{
-				await Shell.Current.DisplayAlert("Uyarı", "Son tarih seçilmelidir.", "Tamam");
-				return;
-			}
+            if (DueDate == null)
+            {
+                await Shell.Current.DisplayAlert("Uyarı", "Son tarih seçilmelidir.", "Tamam");
+                return;
+            }
 
-			// Convert SelectedPriority string to enum int
-			bool parseSuccess = Enum.TryParse(typeof(TaskPriority), SelectedPriority, out var parsedEnum);
-			if (!parseSuccess)
-			{
-				await Shell.Current.DisplayAlert("Hata", "Öncelik değeri geçersiz.", "Tamam");
-				return;
-			}
+            string priorityEnum = SelectedPriority switch
+            {
+                "Düşük" => "Low",
+                "Orta" => "Medium",
+                "Yüksek" => "High",
+                _ => "Medium"
+            };
 
-			var priorityInt = (int)parsedEnum!;
+            var newTask = new TaskModel
+            {
+                Title = Title,
+                Description = Description,
+                DueDate = DueDate?.ToUniversalTime(),
+                IsCompleted = false,
+                Tags = Tags.ToList(),
+                Priority = priorityEnum
+            };
 
-			var newTask = new TaskModel
-			{
-				Title = Title,
-				Description = Description,
-				DueDate = DueDate?.ToUniversalTime(),
-				IsCompleted = false,
-				Tags = Tags.ToList(),
-				Priority = priorityInt.ToString()
-			};
+            bool result = await _apiService.AddTask(newTask);
 
-			bool result = await _apiService.AddTask(newTask);
+            if (result)
+            {
+                WeakReferenceMessenger.Default.Send(new TaskAddedMessage());
+                await Shell.Current.GoToAsync("..");
+            }
+            else
+            {
+                await Shell.Current.DisplayAlert("Hata", "Görev kaydedilemedi.", "Tamam");
+            }
+        }
+    }
 
-			Console.WriteLine($"AddTask API sonucu: {result}");
-
-			if (result)
-			{
-				WeakReferenceMessenger.Default.Send(new TaskAddedMessage());
-				await Shell.Current.GoToAsync("..");
-			}
-			else
-			{
-				await Shell.Current.DisplayAlert("Hata", "Görev kaydedilemedi.", "Tamam");
-			}
-		}
-	}
-
-	public class TaskAddedMessage : ValueChangedMessage<bool>
-	{
-		public TaskAddedMessage() : base(true) { }
-	}
+    public class TaskAddedMessage : ValueChangedMessage<bool>
+    {
+        public TaskAddedMessage() : base(true) { }
+    }
 }

@@ -2,24 +2,22 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
+             xmlns:converters="clr-namespace:Tazq_Frontend.Converters"
              x:Class="Tazq_Frontend.Views.HomePage"
+             x:Name="HomePageRoot"
              Shell.NavBarIsVisible="False"
              NavigationPage.HasNavigationBar="False"
              BackgroundColor="#1F2D3D">
 
     <!-- Background Gradient -->
     <ContentPage.Background>
-        <LinearGradientBrush>
+        <LinearGradientBrush EndPoint="1,1">
             <GradientStop Color="#1F2D3D" Offset="0.0" />
-            <GradientStop Color="#6A85B6" Offset="1.0" />
+            <GradientStop Color="#3B5998" Offset="1.0" />
         </LinearGradientBrush>
     </ContentPage.Background>
 
-    <ContentPage.BindingContext>
-        <vm:HomeViewModel />
-    </ContentPage.BindingContext>
-
-    <Grid Padding="20">
+    <Grid Padding="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -27,7 +25,7 @@
         </Grid.RowDefinitions>
 
         <!-- Top Menu -->
-        <Grid Grid.Row="0" ColumnSpacing="10" Padding="0,10,0,20">
+        <Grid Grid.Row="0" ColumnSpacing="10" Padding="0,0,0,20">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -35,7 +33,7 @@
             </Grid.ColumnDefinitions>
 
             <Label Text="Görevlerim"
-                   FontSize="22"
+                   FontSize="26"
                    FontAttributes="Bold"
                    TextColor="White"
                    VerticalOptions="Center"
@@ -44,78 +42,96 @@
             <Button Text="Ayarlar"
                     Command="{Binding SettingsCommand}"
                     BackgroundColor="Transparent"
-                    TextColor="White"
+                    TextColor="#E0E0E0"
+                    FontAttributes="Bold"
+                    FontSize="14"
                     Grid.Column="1"
-                    Padding="5" />
+                    Padding="6" />
 
-            <Button Text="Çıkış Yap"
+            <Button Text="Çıkış"
                     Command="{Binding LogoutCommand}"
                     BackgroundColor="Transparent"
-                    TextColor="White"
+                    TextColor="#E0E0E0"
+                    FontAttributes="Bold"
+                    FontSize="14"
                     Grid.Column="2"
-                    Padding="5" />
+                    Padding="6" />
         </Grid>
 
         <!-- Add Task Button -->
         <Button Grid.Row="1"
                 Text="Yeni Görev Ekle"
                 Command="{Binding GoToAddTaskPageCommand}"
-                BackgroundColor="#2196F3"
-                TextColor="White"
-                Padding="10"
-                Margin="0,0,0,15" />
+                TextColor="#2C2C2C"
+                FontAttributes="Bold"
+                FontSize="16"
+                Padding="12"
+                HeightRequest="48"
+                Margin="0,0,0,20"
+                CornerRadius="10">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0,1">
+                    <GradientStop Color="#ECECEC" Offset="0.0"/>
+                    <GradientStop Color="#DADADA" Offset="1.0"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
 
         <!-- Task List & Loading -->
         <Grid Grid.Row="2">
-            <!-- Loading -->
             <ActivityIndicator IsRunning="{Binding IsLoading}"
                                IsVisible="{Binding IsLoading}"
                                Color="White"
                                VerticalOptions="Center"
                                HorizontalOptions="Center"
-                               WidthRequest="50"
-                               HeightRequest="50" />
+                               WidthRequest="40"
+                               HeightRequest="40" />
 
-            <!-- Task List -->
             <CollectionView ItemsSource="{Binding Tasks}"
                             IsVisible="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
-                            EmptyView="Henüz bir göreviniz yok."
-                            VerticalOptions="Fill">
+                            EmptyView="Henüz görev eklenmedi.">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Vertical"/>
+                </CollectionView.ItemsLayout>
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Frame CornerRadius="12"
-                               BackgroundColor="{Binding Priority, Converter={StaticResource PriorityToColorConverter}}"
-                               Padding="15"
-                               Margin="0,0,0,15"
-                               HasShadow="True">
+                        <Frame CornerRadius="14"
+                               BackgroundColor="#2C3E50"
+                               Padding="16"
+                               Margin="0,0,0,16"
+                               HasShadow="True"
+                               Opacity="0.95">
                             <VerticalStackLayout Spacing="6">
-
                                 <Label Text="{Binding Title}"
                                        FontSize="18"
                                        FontAttributes="Bold"
-                                       TextColor="#333" />
+                                       TextColor="White" />
 
                                 <Label Text="{Binding Description}"
                                        FontSize="14"
-                                       TextColor="#555"
+                                       TextColor="#D0D0D0"
                                        IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
 
                                 <Label Text="{Binding DueDate, StringFormat='Son Tarih: {0:dd MMM yyyy}'}"
                                        FontSize="12"
-                                       TextColor="#666"
+                                       TextColor="#B0B0B0"
                                        IsVisible="{Binding DueDate.HasValue}" />
 
                                 <Label Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
                                        FontSize="12"
-                                       TextColor="#777"
+                                       TextColor="#AAAAAA"
                                        IsVisible="{Binding Tags.Count, Converter={StaticResource IntGreaterThanZeroConverter}}" />
 
-                                <Label Text="{Binding Priority}"
-                                       FontSize="12"
-                                       TextColor="#D9534F"
-                                       FontAttributes="Bold"
-                                       HorizontalOptions="End" />
-
+                                <Frame Padding="4,2"
+                                       BackgroundColor="#546E7A"
+                                       CornerRadius="6"
+                                       HorizontalOptions="End"
+                                       HasShadow="False">
+                                    <Label Text="{Binding Priority, Converter={StaticResource PriorityToTurkishConverter}}"
+                                           FontSize="12"
+                                           TextColor="White"
+                                           FontAttributes="Bold" />
+                                </Frame>
                             </VerticalStackLayout>
                         </Frame>
                     </DataTemplate>

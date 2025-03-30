@@ -7,184 +7,194 @@ using Tazq_Frontend.Views;
 
 namespace Tazq_Frontend.ViewModels
 {
-	public partial class AuthViewModel : ObservableObject
-	{
-		private readonly ApiService _apiService;
+    public partial class AuthViewModel : ObservableObject
+    {
+        private readonly ApiService _apiService;
 
-		public AuthViewModel()
-		{
-			_apiService = new ApiService();
-		}
+        public AuthViewModel()
+        {
+            _apiService = new ApiService();
+        }
 
-		private string _email = string.Empty;
-		public string Email
-		{
-			get => _email;
-			set => SetProperty(ref _email, value);
-		}
+        private string _email = string.Empty;
+        public string Email
+        {
+            get => _email;
+            set => SetProperty(ref _email, value);
+        }
 
-		private string _password = string.Empty;
-		public string Password
-		{
-			get => _password;
-			set => SetProperty(ref _password, value);
-		}
+        private string _password = string.Empty;
+        public string Password
+        {
+            get => _password;
+            set => SetProperty(ref _password, value);
+        }
 
-		[ObservableProperty]
-		private bool isLoading;
+        // AOT uyumlu: IsLoading alanı
+        private bool isLoading;
+        public bool IsLoading
+        {
+            get => isLoading;
+            set => SetProperty(ref isLoading, value);
+        }
 
-		[ObservableProperty]
-		private bool showForgotPassword;
+        // AOT uyumlu: ShowForgotPassword alanı
+        private bool showForgotPassword;
+        public bool ShowForgotPassword
+        {
+            get => showForgotPassword;
+            set => SetProperty(ref showForgotPassword, value);
+        }
 
-		public ICommand NavigateToRegisterCommand => new AsyncRelayCommand(async () =>
-		{
-			if (Shell.Current != null)
-			{
-				await Shell.Current.GoToAsync(nameof(Views.RegisterPage));
-			}
-			else if (Application.Current?.MainPage != null)
-			{
-				await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
-			}
-		});
+        public ICommand NavigateToRegisterCommand => new AsyncRelayCommand(async () =>
+        {
+            if (Shell.Current != null)
+            {
+                await Shell.Current.GoToAsync(nameof(Views.RegisterPage));
+            }
+            else if (Application.Current?.MainPage != null)
+            {
+                await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
+            }
+        });
 
-		public ICommand NavigateToLoginCommand => new AsyncRelayCommand(async () =>
-		{
-			if (Shell.Current != null)
-			{
-				await Shell.Current.GoToAsync("//LoginPage");
-			}
-			else if (Application.Current?.MainPage != null)
-			{
-				await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
-			}
-		});
+        public ICommand NavigateToLoginCommand => new AsyncRelayCommand(async () =>
+        {
+            if (Shell.Current != null)
+            {
+                await Shell.Current.GoToAsync("//LoginPage");
+            }
+            else if (Application.Current?.MainPage != null)
+            {
+                await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
+            }
+        });
 
-		public ICommand NavigateToResetPasswordCommand => new AsyncRelayCommand(async () =>
-		{
-			if (Shell.Current != null)
-			{
-				await Shell.Current.GoToAsync(nameof(ResetPasswordPage));
-			}
-			else if (Application.Current?.MainPage != null)
-			{
-				await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
-			}
-		});
+        public ICommand NavigateToResetPasswordCommand => new AsyncRelayCommand(async () =>
+        {
+            if (Shell.Current != null)
+            {
+                await Shell.Current.GoToAsync(nameof(ResetPasswordPage));
+            }
+            else if (Application.Current?.MainPage != null)
+            {
+                await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
+            }
+        });
 
-		public ICommand LoginCommand => new AsyncRelayCommand(async () =>
-		{
-			IsLoading = true;
-			ShowForgotPassword = false;
+        public ICommand LoginCommand => new AsyncRelayCommand(async () =>
+        {
+            IsLoading = true;
+            ShowForgotPassword = false;
 
-			try
-			{
-				if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
-				{
-					IsLoading = false;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
+                {
+                    IsLoading = false;
 
-					var page = Application.Current?.MainPage;
-					if (page != null)
-					{
-						await page.DisplayAlert("Hata", "E-posta ve şifre boş olamaz!", "Tamam");
-					}
-					return;
-				}
+                    var page = Application.Current?.MainPage;
+                    if (page != null)
+                    {
+                        await page.DisplayAlert("Hata", "E-posta ve şifre boş olamaz!", "Tamam");
+                    }
+                    return;
+                }
 
-				Console.WriteLine("Giriş denemesi yapılıyor...");
+                Console.WriteLine("Giriş denemesi yapılıyor...");
 
-				bool loginSuccess = await _apiService.Login(Email, Password);
+                bool loginSuccess = await _apiService.Login(Email, Password);
 
-				var currentPage = Application.Current?.MainPage;
+                var currentPage = Application.Current?.MainPage;
 
-				if (loginSuccess)
-				{
-					IsLoading = false;
+                if (loginSuccess)
+                {
+                    IsLoading = false;
 
-					if (Shell.Current != null)
-						await Shell.Current.GoToAsync("//HomePage");
-				}
-				else
-				{
-					IsLoading = false;
-					ShowForgotPassword = true;
+                    if (Shell.Current != null)
+                        await Shell.Current.GoToAsync("//HomePage");
+                }
+                else
+                {
+                    IsLoading = false;
+                    ShowForgotPassword = true;
 
-					if (currentPage != null)
-						await currentPage.DisplayAlert("Hata", "Geçersiz giriş bilgileri! Lütfen tekrar deneyin.", "Tamam");
-				}
-			}
-			catch (Exception ex)
-			{
-				IsLoading = false;
-				ShowForgotPassword = true;
+                    if (currentPage != null)
+                        await currentPage.DisplayAlert("Hata", "Geçersiz giriş bilgileri! Lütfen tekrar deneyin.", "Tamam");
+                }
+            }
+            catch (Exception ex)
+            {
+                IsLoading = false;
+                ShowForgotPassword = true;
 
-				var currentPage = Application.Current?.MainPage;
-				if (currentPage != null)
-					await currentPage.DisplayAlert("Hata", $"Login hatası: {ex.Message}", "Tamam");
-			}
-		});
+                var currentPage = Application.Current?.MainPage;
+                if (currentPage != null)
+                    await currentPage.DisplayAlert("Hata", $"Login hatası: {ex.Message}", "Tamam");
+            }
+        });
 
-		public ICommand RegisterCommand => new AsyncRelayCommand(async () =>
-		{
-			IsLoading = true;
+        public ICommand RegisterCommand => new AsyncRelayCommand(async () =>
+        {
+            IsLoading = true;
 
-			try
-			{
-				if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
-				{
-					IsLoading = false;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
+                {
+                    IsLoading = false;
 
-					var page = Application.Current?.MainPage;
-					if (page != null)
-					{
-						await page.DisplayAlert("Hata", "E-posta ve şifre boş olamaz!", "Tamam");
-					}
-					return;
-				}
+                    var page = Application.Current?.MainPage;
+                    if (page != null)
+                    {
+                        await page.DisplayAlert("Hata", "E-posta ve şifre boş olamaz!", "Tamam");
+                    }
+                    return;
+                }
 
-				Console.WriteLine("Kayıt denemesi yapılıyor...");
+                Console.WriteLine("Kayıt denemesi yapılıyor...");
 
-				string name = "Kullanıcı";
-				var (success, errorMessage) = await _apiService.RegisterWithMessage(Email, name, Password);
+                string name = "Kullanıcı";
+                var (success, errorMessage) = await _apiService.RegisterWithMessage(Email, name, Password);
 
-				IsLoading = false;
+                IsLoading = false;
 
-				var currentPage = Application.Current?.MainPage;
+                var currentPage = Application.Current?.MainPage;
 
-				if (success)
-				{
-					if (currentPage != null)
-						await currentPage.DisplayAlert("Başarılı", "Kayıt işlemi tamamlandı!", "Tamam");
+                if (success)
+                {
+                    if (currentPage != null)
+                        await currentPage.DisplayAlert("Başarılı", "Kayıt işlemi tamamlandı!", "Tamam");
 
-					if (Shell.Current != null)
-						await Shell.Current.GoToAsync("//LoginPage");
-				}
-				else
-				{
-					if (currentPage != null)
-						await currentPage.DisplayAlert("Hata", errorMessage ?? "Kayıt başarısız oldu!", "Tamam");
-				}
-			}
-			catch (Exception ex)
-			{
-				IsLoading = false;
+                    if (Shell.Current != null)
+                        await Shell.Current.GoToAsync("//LoginPage");
+                }
+                else
+                {
+                    if (currentPage != null)
+                        await currentPage.DisplayAlert("Hata", errorMessage ?? "Kayıt başarısız oldu!", "Tamam");
+                }
+            }
+            catch (Exception ex)
+            {
+                IsLoading = false;
 
-				var page = Application.Current?.MainPage;
-				if (page != null)
-					await page.DisplayAlert("Hata", $"Kayıt hatası: {ex.Message}", "Tamam");
-			}
-		});
+                var page = Application.Current?.MainPage;
+                if (page != null)
+                    await page.DisplayAlert("Hata", $"Kayıt hatası: {ex.Message}", "Tamam");
+            }
+        });
 
-		public ICommand NavigateToForgotPasswordCommand => new AsyncRelayCommand(async () =>
-		{
-			if (Shell.Current != null)
-			{
-				await Shell.Current.GoToAsync(nameof(ForgotPasswordPage));
-			}
-			else if (Application.Current?.MainPage != null)
-			{
-				await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
-			}
-		});
-	}
+        public ICommand NavigateToForgotPasswordCommand => new AsyncRelayCommand(async () =>
+        {
+            if (Shell.Current != null)
+            {
+                await Shell.Current.GoToAsync(nameof(ForgotPasswordPage));
+            }
+            else if (Application.Current?.MainPage != null)
+            {
+                await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
+            }
+        });
+    }
 }

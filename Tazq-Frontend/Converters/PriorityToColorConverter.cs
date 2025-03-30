@@ -4,25 +4,29 @@ using Microsoft.Maui.Controls;
 
 namespace Tazq_Frontend.Converters
 {
-	public class PriorityToColorConverter : IValueConverter
-	{
-		// Converts integer priority to color.
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			if (value is int priority)
-			{
-				return priority switch
-				{
-					0 => Color.FromArgb("#A8D5BA"), // Low
-					1 => Color.FromArgb("#FFE9A0"), // Medium
-					2 => Color.FromArgb("#F4A6A6"), // High
-					_ => Color.FromArgb("#D3D3D3")
-				};
-			}
+    public class PriorityToColorConverter : IValueConverter
+    {
+        // Converts the priority integer value to a color representation
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is int priority)
+            {
+                return priority switch
+                {
+                    0 => Color.FromArgb("#4CAF50"), // Düşük - Yeşil
+                    1 => Color.FromArgb("#FFC107"), // Orta - Sarı
+                    2 => Color.FromArgb("#F44336"), // Yüksek - Kırmızı
+                    _ => Colors.Gray
+                };
+            }
 
-			return Color.FromArgb("#D3D3D3");
-		}
+            return Colors.Gray;
+        }
 
-		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
-	}
+        // Converts the color back to priority integer (optional, not used)
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

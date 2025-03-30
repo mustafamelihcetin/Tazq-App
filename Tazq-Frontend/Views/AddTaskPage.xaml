@@ -7,11 +7,10 @@
              NavigationPage.HasNavigationBar="False"
              BackgroundColor="#1F2D3D">
 
-    <!-- Background Gradient -->
     <ContentPage.Background>
-        <LinearGradientBrush>
+        <LinearGradientBrush EndPoint="1,1">
             <GradientStop Color="#1F2D3D" Offset="0.0" />
-            <GradientStop Color="#6A85B6" Offset="1.0" />
+            <GradientStop Color="#3B5998" Offset="1.0" />
         </LinearGradientBrush>
     </ContentPage.Background>
 
@@ -19,61 +18,70 @@
         <vm:AddTaskViewModel />
     </ContentPage.BindingContext>
 
-    <Grid Padding="20">
-        <ScrollView>
-            <Frame BackgroundColor="White"
-                   Padding="20"
-                   CornerRadius="16"
-                   HasShadow="True"
-                   VerticalOptions="Center"
-                   HorizontalOptions="Fill">
-                <VerticalStackLayout Spacing="15">
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="16">
 
-                    <Label Text="Başlık" TextColor="#1F2D3D" FontAttributes="Bold" />
-                    <Entry Text="{Binding Title}" Placeholder="Görev başlığı" TextColor="Black" />
+            <Label Text="Yeni Görev Ekle"
+                   FontSize="26"
+                   FontAttributes="Bold"
+                   TextColor="White" />
 
-                    <Label Text="Açıklama" TextColor="#1F2D3D" FontAttributes="Bold" />
-                    <Editor Text="{Binding Description}" Placeholder="Detaylı açıklama..." AutoSize="TextChanges" TextColor="Black" />
-
-                    <Label Text="Öncelik" TextColor="#1F2D3D" FontAttributes="Bold" />
-                    <Picker ItemsSource="{Binding PriorityOptions}" SelectedItem="{Binding SelectedPriority}" TextColor="Black" />
-
-                    <Label Text="Son Tarih" TextColor="#1F2D3D" FontAttributes="Bold" />
-                    <DatePicker Date="{Binding DueDate, TargetNullValue=2025-01-01}" TextColor="Black" />
-
-                    <Label Text="Etiketler" TextColor="#1F2D3D" FontAttributes="Bold" />
-                    <Entry Text="{Binding NewTag, Mode=TwoWay}" Placeholder="Etiket girin"
-                           Completed="OnTagCompleted" TextColor="Black" />
-
-                    <CollectionView ItemsSource="{Binding Tags}" HeightRequest="80">
-                        <CollectionView.ItemsLayout>
-                            <LinearItemsLayout Orientation="Horizontal" />
-                        </CollectionView.ItemsLayout>
-                        <CollectionView.ItemTemplate>
-                            <DataTemplate>
-                                <Frame BackgroundColor="#E0F2F1" Padding="8" Margin="4" CornerRadius="16">
-                                    <Label Text="{Binding .}" TextColor="#004D40" />
-                                </Frame>
-                            </DataTemplate>
-                        </CollectionView.ItemTemplate>
-                    </CollectionView>
-
-                    <Button Text="Kaydet"
-                            Command="{Binding AddTaskCommand}"
-                            TextColor="White"
-                            FontAttributes="Bold"
-                            CornerRadius="10"
-                            Padding="10">
-                        <Button.Background>
-                            <LinearGradientBrush EndPoint="1,0">
-                                <GradientStop Color="#6A85B6" Offset="0.0" />
-                                <GradientStop Color="#5A6C8F" Offset="1.0" />
-                            </LinearGradientBrush>
-                        </Button.Background>
-                    </Button>
-
-                </VerticalStackLayout>
+            <!-- Title Entry -->
+            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
+                <Entry Placeholder="Başlık"
+                       Text="{Binding Title}"
+                       TextColor="Black" />
             </Frame>
-        </ScrollView>
-    </Grid>
+
+            <!-- Description Editor -->
+            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
+                <Editor Placeholder="Açıklama"
+                        Text="{Binding Description}"
+                        AutoSize="TextChanges"
+                        TextColor="Black" />
+            </Frame>
+
+            <!-- DueDate Picker -->
+            <DatePicker Date="{Binding DueDate}"
+                        TextColor="White"
+                        BackgroundColor="Transparent"
+                        Format="dd MMMM yyyy" />
+
+            <!-- Priority Picker -->
+            <Picker Title="Öncelik Seçin"
+                    ItemsSource="{Binding Priorities}"
+                    SelectedItem="{Binding SelectedPriority}"
+                    TextColor="White"
+                    BackgroundColor="Transparent" />
+
+            <!-- Tag Entry -->
+            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
+                <Entry Placeholder="Etiket ekle"
+                       Text="{Binding NewTag}"
+                       Completed="OnTagCompleted"
+                       TextColor="Black" />
+            </Frame>
+
+            <!-- Tags Display -->
+            <Label Text="{Binding TagsDisplay}"
+                   TextColor="White"
+                   FontAttributes="Italic" />
+
+            <!-- Save Button -->
+            <Button Text="Görevi Kaydet"
+                    Command="{Binding SaveTaskCommand}"
+                    TextColor="#2C2C2C"
+                    FontAttributes="Bold"
+                    CornerRadius="10"
+                    Padding="12"
+                    HeightRequest="48">
+                <Button.Background>
+                    <LinearGradientBrush EndPoint="0,1">
+                        <GradientStop Color="#ECECEC" Offset="0.0"/>
+                        <GradientStop Color="#DADADA" Offset="1.0"/>
+                    </LinearGradientBrush>
+                </Button.Background>
+            </Button>
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>
