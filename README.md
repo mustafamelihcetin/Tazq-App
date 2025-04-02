@@ -1,6 +1,6 @@
 # Tazq-App
 
-![Project Logo]("Tazq-App/Tazq-Frontend/Resources/Images/tazq_white_logo.png")
+![Project Logo](Tazq-App/Tazq-Frontend/Resources/Images/tazq_white_logo.png)
 
 Tazq-App is a robust and scalable **To-Do List Management API** built using **ASP.NET Core 8.0**. This project provides features such as **user authentication, task management, email notifications, and OTP-based phone number verification**.
 
