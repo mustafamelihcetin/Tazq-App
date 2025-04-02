@@ -9,7 +9,7 @@ namespace Tazq_Frontend
         {
             InitializeComponent();
 
-            // Register correct routes
+            // Register routes for all pages used in the application
             Routing.RegisterRoute(nameof(LoginPage), typeof(LoginPage));
             Routing.RegisterRoute(nameof(RegisterPage), typeof(RegisterPage));
             Routing.RegisterRoute(nameof(HomePage), typeof(HomePage));

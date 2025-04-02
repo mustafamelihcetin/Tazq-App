@@ -27,7 +27,11 @@
 
         <!-- Logo -->
         <VerticalStackLayout Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Center">
-            <Image Source="tazq_logo.png" WidthRequest="130" HeightRequest="45" />
+            <Image Source="tazq_white_logo.png"
+                   WidthRequest="130"
+                   HeightRequest="45"
+                   BackgroundColor="Transparent" />
+
             <Label Text="Yapılacaklarını Yönet"
                    FontSize="16"
                    LineHeight="1.2"

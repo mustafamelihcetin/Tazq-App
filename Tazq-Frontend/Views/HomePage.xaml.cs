@@ -1,3 +1,4 @@
+using System;
 using Tazq_Frontend.ViewModels;
 
 namespace Tazq_Frontend.Views
@@ -13,7 +14,11 @@ namespace Tazq_Frontend.Views
         // Triggered when user pulls down to refresh
         private void MainRefreshView_Refreshing(object sender, EventArgs e)
         {
-            ShowPastTasksLabel.IsVisible = true;
+            if (BindingContext is HomeViewModel viewModel)
+            {
+                viewModel.IsScrolledDown = true;
+            }
+
             MainRefreshView.IsRefreshing = false;
         }
     }

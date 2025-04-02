@@ -1,5 +1,4 @@
-﻿// Converts List<string> or string[] tags into a single comma-separated string.
-using System;
+﻿using System;
 using System.Globalization;
 using Microsoft.Maui.Controls;
 using System.Linq;

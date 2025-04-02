@@ -24,6 +24,8 @@ namespace Tazq_Frontend.ViewModels
             LogoutCommand = new AsyncRelayCommand(Logout);
             SettingsCommand = new AsyncRelayCommand(OpenSettings);
             TogglePastTasksCommand = new RelayCommand(TogglePastTasks);
+            EditTaskCommand = new AsyncRelayCommand<TaskModel?>(EditTask);
+            DeleteTaskCommand = new AsyncRelayCommand<TaskModel?>(DeleteTask);
 
             LoadTasksCommand.Execute(null);
 
@@ -34,21 +36,23 @@ namespace Tazq_Frontend.ViewModels
         }
 
         [ObservableProperty]
-        private ObservableCollection<TaskModel> tasks = new();
+        private ObservableCollection<TaskModel> tasks;
 
         public IAsyncRelayCommand LoadTasksCommand { get; }
         public IAsyncRelayCommand LogoutCommand { get; }
         public IAsyncRelayCommand SettingsCommand { get; }
         public ICommand TogglePastTasksCommand { get; }
+        public IAsyncRelayCommand<TaskModel?> EditTaskCommand { get; }
+        public IAsyncRelayCommand<TaskModel?> DeleteTaskCommand { get; }
 
         [ObservableProperty]
-        private bool isLoading = false;
+        private bool isLoading;
 
         [ObservableProperty]
-        private bool showPastTasks = false;
+        private bool showPastTasks;
 
         [ObservableProperty]
-        private bool isScrolledDown = false;
+        private bool isScrolledDown;
 
         private async Task LoadTasks()
         {
@@ -107,6 +111,25 @@ namespace Tazq_Frontend.ViewModels
         private async Task GoToAddTaskPage()
         {
             await Shell.Current.GoToAsync(nameof(AddTaskPage));
+        }
+
+        private async Task EditTask(TaskModel? task)
+        {
+            if (task != null)
+                await Shell.Current.GoToAsync($"{nameof(AddTaskPage)}?taskId={task.Id}");
+        }
+
+        private async Task DeleteTask(TaskModel? task)
+        {
+            if (task == null)
+                return;
+
+            var confirmed = await Application.Current.MainPage.DisplayAlert("Görevi Sil", $"'{task.Title}' silinsin mi?", "Evet", "Hayır");
+            if (confirmed)
+            {
+                await _apiService.DeleteTask(task.Id);
+                await LoadTasks();
+            }
         }
     }
 }

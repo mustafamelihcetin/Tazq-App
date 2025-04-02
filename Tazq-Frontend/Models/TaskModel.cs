@@ -15,6 +15,22 @@ namespace Tazq_Frontend.Models
 
         public bool IsExpired => DueDate.HasValue && DueDate.Value.Date < DateTime.Today;
         public bool IsToday => DueDate.HasValue && DueDate.Value.Date == DateTime.Today;
-        public string PriorityLevel => Priority;
+
+        // Converts string "0", "1", "2" or "Low", "Medium", "High" to enum
+        public TaskPriority PriorityEnum
+        {
+            get
+            {
+                if (int.TryParse(Priority, out int intPriority) && Enum.IsDefined(typeof(TaskPriority), intPriority))
+                    return (TaskPriority)intPriority;
+
+                if (Enum.TryParse<TaskPriority>(Priority, true, out var parsed))
+                    return parsed;
+
+                return TaskPriority.Low; // default fallback
+            }
+        }
+
+        public string PriorityLevel => PriorityEnum.ToString();
     }
 }

@@ -1,15 +1,27 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="com.tazqapp.tazq">
 
-	<!-- Internet permission for accessing APIs -->
 	<uses-permission android:name="android.permission.INTERNET" />
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
 	<application
-		android:allowBackup="true"
-		android:icon="@mipmap/appicon"
-		android:roundIcon="@mipmap/appicon_round"
-		android:supportsRtl="true">
-	</application>
+	  android:allowBackup="true"
+	  android:label="TAZQ"
+	  android:theme="@style/Maui.MainTheme"
+	  android:supportsRtl="true"
+	  android:icon="@mipmap/ic_launcher">
 
+		<activity android:name="crc64b94d2a5a511603ea.MainActivity"
+				  android:exported="true"
+				  android:label="TAZQ"
+				  android:theme="@style/Maui.SplashTheme"
+				  android:screenOrientation="portrait">
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+		</activity>
+
+	</application>
 </manifest>

@@ -258,6 +258,21 @@ namespace Tazq_Frontend.Services
 			var request = new { Email = email };
 			return await PostAsync("users/forgot-password", request);
 		}
-
-	}
+        public async Task<bool> DeleteTask(int taskId)
+        {
+            await SetAuthHeader();
+            try
+            {
+                var response = await _httpClient.DeleteAsync($"tasks/{taskId}");
+                Console.WriteLine($"[DOTNET] DeleteTask API Request: tasks/{taskId}");
+                Console.WriteLine($"[DOTNET] Response Status: {response.StatusCode}");
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HATA - DeleteTask: {ex.Message}");
+                return false;
+            }
+        }
+    }
 }

@@ -6,26 +6,24 @@ namespace Tazq_Frontend.Converters
 {
     public class PriorityToTurkishConverter : IValueConverter
     {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            return value?.ToString() switch
+            if (value is int priority)
             {
-                "Low" => "Düşük",
-                "Medium" => "Orta",
-                "High" => "Yüksek",
-                _ => "Bilinmiyor"
-            };
+                return priority switch
+                {
+                    1 => "Düşük",
+                    2 => "Orta",
+                    3 => "Yüksek",
+                    _ => "Bilinmeyen"
+                };
+            }
+            return "Bilinmeyen";
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            return value?.ToString() switch
-            {
-                "Düşük" => "Low",
-                "Orta" => "Medium",
-                "Yüksek" => "High",
-                _ => "Medium"
-            };
+            return null;
         }
     }
 }

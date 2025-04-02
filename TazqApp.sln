@@ -5,7 +5,7 @@ VisualStudioVersion = 17.9.34723.18
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tazq-Backend", "Tazq-Backend\Tazq-Backend.csproj", "{24FC7F5A-0591-4D0C-97A1-64A4439315EE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tazq-Frontend", "Tazq-Frontend\Tazq-Frontend.csproj", "{C5D12FE8-5551-446C-A81B-5E20986896C3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tazq-Frontend", "Tazq-Frontend\Tazq-Frontend.csproj", "{20C638B8-42F7-F05E-E537-AD0FB1ECCD01}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,12 +17,12 @@ Global
 		{24FC7F5A-0591-4D0C-97A1-64A4439315EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{24FC7F5A-0591-4D0C-97A1-64A4439315EE}.Release|Any CPU.ActiveCfg = Debug|Any CPU
 		{24FC7F5A-0591-4D0C-97A1-64A4439315EE}.Release|Any CPU.Build.0 = Debug|Any CPU
-		{C5D12FE8-5551-446C-A81B-5E20986896C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C5D12FE8-5551-446C-A81B-5E20986896C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C5D12FE8-5551-446C-A81B-5E20986896C3}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
-		{C5D12FE8-5551-446C-A81B-5E20986896C3}.Release|Any CPU.ActiveCfg = Debug|Any CPU
-		{C5D12FE8-5551-446C-A81B-5E20986896C3}.Release|Any CPU.Build.0 = Debug|Any CPU
-		{C5D12FE8-5551-446C-A81B-5E20986896C3}.Release|Any CPU.Deploy.0 = Debug|Any CPU
+		{20C638B8-42F7-F05E-E537-AD0FB1ECCD01}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{20C638B8-42F7-F05E-E537-AD0FB1ECCD01}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{20C638B8-42F7-F05E-E537-AD0FB1ECCD01}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{20C638B8-42F7-F05E-E537-AD0FB1ECCD01}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{20C638B8-42F7-F05E-E537-AD0FB1ECCD01}.Release|Any CPU.Build.0 = Release|Any CPU
+		{20C638B8-42F7-F05E-E537-AD0FB1ECCD01}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
