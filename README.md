@@ -1,32 +1,49 @@
-# Tazq-App
-
 ![Project Logo](Tazq-Frontend/Resources/Images/tazq_white_logo.png)
 
-Tazq-App is a robust and scalable **To-Do List Management API** built using **ASP.NET Core 8.0**. This project provides features such as **user authentication, task management, email notifications, and OTP-based phone number verification**.
+**Tazq-App** is a full-featured cross-platform **To-Do List application** built with **ASP.NET Core 8.0** (Backend) and **.NET MAUI** (Frontend). It allows users to register, log in, and manage tasks easily with a modern and responsive UI.
 
-## Features
+## 🔐 Backend Features (ASP.NET Core)
 
-**User Authentication**  
-**JWT-Based Authentication & Authorization**  
-**Task Management (CRUD)**  
-**Filtering, Sorting, and Searching Tasks**  
-**Bulk Task Creation**  
-**Email Notifications**  
-**Phone Number Verification via OTP (Upcoming)**  
-**Role-Based Access Control (Admin/User)**  
-**SQLite Database Integration**  
-
-## Technologies Used
-
-- **.NET 8.0 (ASP.NET Core)**
-- **Entity Framework Core**
-- **SQLite Database**
-- **JWT Authentication**
+- **User Authentication with JWT**
+- **Task Management (Create, Read, Update, Delete)**
+- **Task Filtering, Searching, and Sorting**
+- **Email Notifications**
+- **Phone Number Verification with OTP (Coming Soon)**
+- **Role-Based Access Control (Admin/User)**
+- **SQLite Database Integration**
 - **Swagger API Documentation**
-- **Dependency Injection**
 - **Rate Limiting**
-- **Email Sending with SMTP**
-- **OTP Verification for Phone Numbers (Upcoming)**
-- **Docker Support (Upcoming)**
+- **Dependency Injection**
+- **Secure Password Hashing**
+- **Custom Error Handling**
+
+## 📱 Frontend Features (.NET MAUI)
+
+- **Cross-Platform Support (Android, Windows)**
+- **Login, Registration, and Password Reset Screens**
+- **Modern UI/UX with Gradient Backgrounds**
+- **Task List View with Swipe-to-Delete and Priority Colors**
+- **Add/Edit Tasks with Tagging and Prioritization**
+- **Forgot Password Flow with Token**
+- **Loading Indicators and Smooth Transitions**
+- **Persistent JWT Token Handling**
+- **Platform-Specific Splash Screen and Icons**
+- **Dark Background with Gradient Support**
+- **Fully Responsive Layouts**
+
+## 🛠 Technologies Used
+
+- **ASP.NET Core 8.0**
+- **Entity Framework Core**
+- **.NET MAUI**
+- **CommunityToolkit.Mvvm**
+- **SQLite**
+- **JWT**
+- **SMTP for Emails**
+- **Swagger**
+- **SecureStorage**
+- **Android/iOS/Windows Support**
 
 ---
+
+This app was built with scalability, modern UI principles, and platform compatibility in mind.
