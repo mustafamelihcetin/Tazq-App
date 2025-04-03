@@ -1,21 +1,22 @@
 ﻿using System;
 using System.Globalization;
 using Microsoft.Maui.Controls;
+using Tazq_Frontend.Models;
 
 namespace Tazq_Frontend.Converters
 {
     public class PriorityToColorConverter : IValueConverter
     {
-        // Converts the priority integer value to a color representation
+        // Converts the TaskPriority enum to a soft theme-compatible color
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            if (value is int priority)
+            if (value is TaskPriority priority)
             {
                 return priority switch
                 {
-                    0 => Color.FromArgb("#4CAF50"), // Low - Green
-                    1 => Color.FromArgb("#FFC107"), // Medium - Yellow
-                    2 => Color.FromArgb("#F44336"), // High - Red
+                    TaskPriority.Low => Color.FromArgb("#81C784"),     // Düşük - soft yeşil
+                    TaskPriority.Medium => Color.FromArgb("#FFD54F"),  // Orta - soft sarı
+                    TaskPriority.High => Color.FromArgb("#EF5350"),    // Yüksek - pastel kırmızı
                     _ => Colors.Gray
                 };
             }
@@ -23,7 +24,6 @@ namespace Tazq_Frontend.Converters
             return Colors.Gray;
         }
 
-        // Converts the color back to priority integer (optional, not used)
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             throw new NotImplementedException();

@@ -135,21 +135,32 @@
                             <SwipeView>
                                 <SwipeView.RightItems>
                                     <SwipeItems Mode="Reveal">
-                                        <SwipeItem BackgroundColor="Transparent"
-                                                   Command="{Binding Path=BindingContext.EditTaskCommand, Source={x:Reference HomePageRoot}}"
-                                                   CommandParameter="{Binding .}">
-                                            <SwipeItem.IconImageSource>
-                                                <FileImageSource File="edit_icon.png" />
-                                            </SwipeItem.IconImageSource>
-                                        </SwipeItem>
-
-                                        <SwipeItem BackgroundColor="Transparent"
-                                                   Command="{Binding Path=BindingContext.DeleteTaskCommand, Source={x:Reference HomePageRoot}}"
-                                                   CommandParameter="{Binding .}">
-                                            <SwipeItem.IconImageSource>
-                                                <FileImageSource File="delete_icon.png" />
-                                            </SwipeItem.IconImageSource>
-                                        </SwipeItem>
+                                        <SwipeItemView>
+                                            <ImageButton
+                                                Source="edit_icon.png"
+                                                BackgroundColor="Transparent"
+                                                HeightRequest="40"
+                                                WidthRequest="40"
+                                                Padding="8"
+                                                Margin="10"
+                                                HorizontalOptions="Center"
+                                                VerticalOptions="Center"
+                                                Command="{Binding Path=BindingContext.EditTaskCommand, Source={x:Reference HomePageRoot}}"
+                                                CommandParameter="{Binding .}" />
+                                        </SwipeItemView>
+                                        <SwipeItemView>
+                                            <ImageButton
+                                                Source="delete_icon.png"
+                                                BackgroundColor="Transparent"
+                                                HeightRequest="40"
+                                                WidthRequest="40"
+                                                Padding="8"
+                                                Margin="10"
+                                                HorizontalOptions="Center"
+                                                VerticalOptions="Center"
+                                                Command="{Binding Path=BindingContext.DeleteTaskCommand, Source={x:Reference HomePageRoot}}"
+                                                CommandParameter="{Binding .}" />
+                                        </SwipeItemView>
                                     </SwipeItems>
                                 </SwipeView.RightItems>
 
@@ -167,13 +178,13 @@
                                     <Grid>
                                         <!-- Priority Badge -->
                                         <Frame Padding="4,2"
-                                               BackgroundColor="{Binding Priority, Converter={StaticResource PriorityToColorConverter}}"
+                                               BackgroundColor="{Binding PriorityEnum, Converter={StaticResource PriorityToColorConverter}}"
                                                CornerRadius="8"
                                                HorizontalOptions="End"
                                                VerticalOptions="Start"
                                                HasShadow="False"
                                                Margin="0,0,0,4">
-                                            <Label Text="{Binding Priority, Converter={StaticResource PriorityToTurkishConverter}}"
+                                            <Label Text="{Binding PriorityEnum, Converter={StaticResource PriorityToTurkishConverter}}"
                                                    FontSize="10"
                                                    TextColor="White"
                                                    FontAttributes="Bold"/>
