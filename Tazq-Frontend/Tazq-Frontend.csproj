@@ -22,19 +22,19 @@
 		<UseInterpreter Condition="'$(Configuration)' == 'Debug'">true</UseInterpreter>
 	</PropertyGroup>
 
-	<!-- Disable AOT for Release builds to avoid splash crash -->
+	<!-- Disable AOT for Release builds to avoid splash crash --> 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
 		<RunAOTCompilation>false</RunAOTCompilation>
 		<UseInterpreter>true</UseInterpreter>
 	</PropertyGroup>
 
-	<!--
+	
     <ItemGroup>
 	  <MauiSplashScreen Include="Resources\Images\tazq_white_icon.png" Color="#395177" BaseSize="300,92" />
 	  <MauiImage Include="Resources\Images\*.png" />
-      <MauiImage Include="Resources\Images\*.svg" />
+      <!--<MauiImage Include="Resources\Images\*.svg" />-->
     </ItemGroup>
-    -->
+    
 
 	<ItemGroup>
 		<None Remove="Resources\AppIcon\**\*.*" />
