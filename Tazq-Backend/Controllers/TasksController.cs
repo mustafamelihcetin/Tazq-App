@@ -37,7 +37,7 @@ namespace Tazq_App.Controllers
 
             var query = _context.Tasks.AsQueryable();
 
-            // Only show tasks belonging to the logged-in user, even for Admins
+            // Administrators are restricted to access only their own tasks
             query = query.Where(t => t.UserId == userId);
 
             if (!string.IsNullOrEmpty(tag))
@@ -89,7 +89,7 @@ namespace Tazq_App.Controllers
             return Ok(task);
         }
 
-        // Create a new task (updated to use TaskItem)
+        // Create a new task
         [HttpPost]
         public async Task<IActionResult> CreateTask([FromBody] TaskItem task)
         {
@@ -109,7 +109,7 @@ namespace Tazq_App.Controllers
                 // Save DueTime if it exists
                 if (task.DueTime != null)
                 {
-                    task.DueTime = task.DueTime.Value.ToUniversalTime();
+                    task.DueTime = task.DueTime.Value.ToUniversalTime();  // Ensure UTC time is saved
                 }
 
                 _context.Tasks.Add(task);
@@ -162,7 +162,7 @@ namespace Tazq_App.Controllers
             return Ok(new { message = $"{taskItems.Count} tasks created successfully." });
         }
 
-        // Update a task (updated to use TaskItem)
+        // Update a task
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskItem updatedTask)
         {
@@ -190,7 +190,7 @@ namespace Tazq_App.Controllers
             // Update DueTime if it exists
             if (updatedTask.DueTime != null)
             {
-                task.DueTime = updatedTask.DueTime.Value.ToUniversalTime();
+                task.DueTime = updatedTask.DueTime.Value.ToUniversalTime();  // Ensure UTC time is saved
             }
 
             _context.Tasks.Update(task);
