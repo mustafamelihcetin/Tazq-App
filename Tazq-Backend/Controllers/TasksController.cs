@@ -107,9 +107,9 @@ namespace Tazq_App.Controllers
                 task.TagsJson = JsonSerializer.Serialize(task.Tags);
 
                 // Save DueTime if it exists
-                if (task.DueTime != null)
+                if (task.DueTime.HasValue)
                 {
-                    task.DueTime = task.DueTime.Value.ToUniversalTime();  // Ensure UTC time is saved
+                    task.DueTime = task.DueTime.Value.ToUniversalTime(); // Convert to UTC
                 }
 
                 _context.Tasks.Add(task);
