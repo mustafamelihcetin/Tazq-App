@@ -198,6 +198,9 @@
                                             <Label Text="{Binding DueDate, StringFormat='Son Tarih: {0:dd MMM yyyy}'}"
                                                    FontSize="13" TextColor="#FFEE58"
                                                    IsVisible="{Binding DueDate.HasValue}" />
+                                            <Label Text="{Binding DueTime, StringFormat='{0:t}'}"
+                                                   FontSize="13" TextColor="#FFEE58"
+                                                   IsVisible="{Binding DueTime.HasValue}" />
                                             <Label Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
                                                    FontSize="12" TextColor="#AAAAAA"
                                                    IsVisible="{Binding Tags.Count, Converter={StaticResource NullOrEmptyToBoolConverter}}" />

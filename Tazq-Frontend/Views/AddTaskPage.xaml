@@ -41,18 +41,44 @@
                         TextColor="Black" />
             </Frame>
 
-            <!-- DueDate Picker -->
-            <DatePicker Date="{Binding DueDate}"
-                        TextColor="White"
-                        BackgroundColor="Transparent"
-                        Format="dd MMMM yyyy" />
+            <!-- DueDate Picker (with toggle and time) -->
+            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
+                <VerticalStackLayout>
+                    <Label Text="Son Tarih"
+                           FontSize="14"
+                           TextColor="Black"
+                           Margin="0,0,0,6" />
+                    <DatePicker Date="{Binding DueDate}"
+                                TextColor="Black"
+                                BackgroundColor="Transparent"
+                                Format="dd MMMM yyyy" />
+
+                    <HorizontalStackLayout Margin="0,6,0,0">
+                        <CheckBox IsChecked="{Binding EnableTime}" />
+                        <Label Text="Saat belirle" VerticalOptions="Center" TextColor="Black" Margin="6,0,0,0" />
+                    </HorizontalStackLayout>
+
+                    <!-- TimePicker only visible when checkbox is checked -->
+                    <Frame IsVisible="{Binding EnableTime}" HorizontalOptions="Start" WidthRequest="130" Padding="2" HasShadow="False" BackgroundColor="Transparent">
+                        <TimePicker Time="{Binding DueTime}"
+                                    HorizontalOptions="Center"
+                                    TextColor="Black"
+                                    BackgroundColor="White"
+                                    HeightRequest="40"
+                                    WidthRequest="80"
+                                    Margin="0,2,0,0" />
+                    </Frame>
+                </VerticalStackLayout>
+            </Frame>
 
             <!-- Priority Picker -->
-            <Picker Title="Öncelik Seçin"
-                    ItemsSource="{Binding Priorities}"
-                    SelectedItem="{Binding SelectedPriority}"
-                    TextColor="White"
-                    BackgroundColor="Transparent" />
+            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
+                <Picker Title="Öncelik Seçin"
+                        ItemsSource="{Binding Priorities}"
+                        SelectedItem="{Binding SelectedPriority}"
+                        TextColor="Black"
+                        BackgroundColor="Transparent" />
+            </Frame>
 
             <!-- Tag Entry -->
             <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">

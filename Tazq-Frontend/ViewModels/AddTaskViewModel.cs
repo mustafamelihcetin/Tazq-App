@@ -4,8 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using CommunityToolkit.Mvvm.Messaging.Messages;
 using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging.Messages;
 using Tazq_Frontend.Models;
 using Tazq_Frontend.Services;
 
@@ -18,8 +18,9 @@ namespace Tazq_Frontend.ViewModels
         public AddTaskViewModel()
         {
             _apiService = new ApiService();
-            Tags = [];
-            Priorities = ["Düşük", "Orta", "Yüksek"];
+            Tags = new ObservableCollection<string>();
+            Priorities = new ObservableCollection<string> { "Düşük", "Orta", "Yüksek" };
+            EnableTime = false; // Default is not checked
         }
 
         // Title
@@ -46,6 +47,22 @@ namespace Tazq_Frontend.ViewModels
         }
         private DateTime? dueDate = DateTime.Today.AddDays(1);
 
+        // DueTime (for the time picker)
+        public DateTime? DueTime
+        {
+            get => dueTime;
+            set => SetProperty(ref dueTime, value);
+        }
+        private DateTime? dueTime;
+
+        // EnableTime (checkbox)
+        public bool EnableTime
+        {
+            get => enableTime;
+            set => SetProperty(ref enableTime, value);
+        }
+        private bool enableTime;
+
         // SelectedPriority
         public string SelectedPriority
         {
@@ -60,7 +77,7 @@ namespace Tazq_Frontend.ViewModels
             get => tags;
             set => SetProperty(ref tags, value);
         }
-        private ObservableCollection<string> tags = [];
+        private ObservableCollection<string> tags = new();
 
         // NewTag
         public string? NewTag
@@ -102,6 +119,7 @@ namespace Tazq_Frontend.ViewModels
                 Title = Title,
                 Description = Description,
                 DueDate = DueDate?.ToUniversalTime(),
+                DueTime = DueTime?.ToUniversalTime(),
                 IsCompleted = false,
                 Tags = Tags.ToList(),
                 Priority = priorityEnum

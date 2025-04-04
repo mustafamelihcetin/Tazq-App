@@ -17,8 +17,9 @@ namespace Tazq_App.Models
 		public string Description { get; set; } = string.Empty;
 
 		public DateTime DueDate { get; set; }
+        public DateTime? DueTime { get; set; }
 
-		public bool IsCompleted { get; set; } = false;
+        public bool IsCompleted { get; set; } = false;
 
 		// Removed [JsonConverter] to accept integer from frontend
 		public TaskPriority Priority { get; set; } = TaskPriority.Medium;
