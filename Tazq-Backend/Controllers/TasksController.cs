@@ -35,12 +35,10 @@ namespace Tazq_App.Controllers
             if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
                 return Unauthorized(new { status = 401, message = "Invalid or missing user ID in token." });
 
-            bool isAdmin = User.IsInRole("Admin");
-
             var query = _context.Tasks.AsQueryable();
 
-            if (!isAdmin)
-                query = query.Where(t => t.UserId == userId);
+            // Only show tasks belonging to the logged-in user, even for Admins
+            query = query.Where(t => t.UserId == userId);
 
             if (!string.IsNullOrEmpty(tag))
                 query = query.Where(t => t.Tags.Contains(tag));
@@ -79,14 +77,13 @@ namespace Tazq_App.Controllers
 
             if (!int.TryParse(userIdClaim, out int userId))
                 return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
-            bool isAdmin = User.IsInRole("Admin");
 
             var task = await _context.Tasks.FindAsync(id);
 
             if (task == null)
                 return NotFound();
 
-            if (!isAdmin && task.UserId != userId)
+            if (task.UserId != userId)
                 return Forbid("You are not allowed to access this task.");
 
             return Ok(task);
@@ -122,7 +119,6 @@ namespace Tazq_App.Controllers
             }
             catch (Exception ex)
             {
-                // Explicit error log
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
@@ -176,13 +172,12 @@ namespace Tazq_App.Controllers
 
             if (!int.TryParse(userIdClaim, out int userId))
                 return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
-            bool isAdmin = User.IsInRole("Admin");
 
             var task = await _context.Tasks.FindAsync(id);
             if (task == null)
                 return NotFound("Task not found.");
 
-            if (!isAdmin && task.UserId != userId)
+            if (task.UserId != userId)
                 return Forbid("You are not allowed to update this task.");
 
             task.Title = updatedTask.Title;
@@ -214,13 +209,12 @@ namespace Tazq_App.Controllers
 
             if (!int.TryParse(userIdClaim, out int userId))
                 return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
-            bool isAdmin = User.IsInRole("Admin");
 
             var task = await _context.Tasks.FindAsync(id);
             if (task == null)
                 return NotFound("Task not found.");
 
-            if (!isAdmin && task.UserId != userId)
+            if (task.UserId != userId)
                 return Forbid("You are not allowed to delete this task.");
 
             _context.Tasks.Remove(task);
