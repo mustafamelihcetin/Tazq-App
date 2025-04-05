@@ -17,9 +17,9 @@ namespace Tazq_App.Services
         {
             byte[] iv = RandomNumberGenerator.GetBytes(12);
             byte[] tag = new byte[16];
-            byte[] cipherText = new byte[plainText.Length + 16];
+            byte[] cipherText = new byte[plainText.Length];
 
-            using var aes = new AesGcm(key, 128);
+            using var aes = new AesGcm(key);
             aes.Encrypt(iv, Encoding.UTF8.GetBytes(plainText), cipherText, tag);
 
             byte[] result = new byte[iv.Length + tag.Length + cipherText.Length];
@@ -44,7 +44,7 @@ namespace Tazq_App.Services
 
             byte[] plainText = new byte[cipherText.Length];
 
-            using var aes = new AesGcm(key, 128);
+            using var aes = new AesGcm(key);
             aes.Decrypt(iv, cipherText, tag, plainText);
 
             return Encoding.UTF8.GetString(plainText);
@@ -54,7 +54,7 @@ namespace Tazq_App.Services
         public byte[] GetKeyForUser(int userId)
         {
             using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_secretKey));
-            return hmac.ComputeHash(Encoding.UTF8.GetBytes(userId.ToString()));
+            return hmac.ComputeHash(Encoding.UTF8.GetBytes($"user:{userId}"));
         }
     }
 }
