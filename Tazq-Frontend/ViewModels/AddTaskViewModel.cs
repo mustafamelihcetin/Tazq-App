@@ -20,10 +20,10 @@ namespace Tazq_Frontend.ViewModels
             _apiService = new ApiService();
             Tags = new ObservableCollection<string>();
             Priorities = new ObservableCollection<string> { "Düşük", "Orta", "Yüksek" };
-            EnableTime = false; // Default is not checked
+            EnableTime = false;
+            SelectedTime = null;
         }
 
-        // Title
         public string Title
         {
             get => title;
@@ -31,7 +31,6 @@ namespace Tazq_Frontend.ViewModels
         }
         private string title = string.Empty;
 
-        // Description
         public string Description
         {
             get => description;
@@ -39,7 +38,6 @@ namespace Tazq_Frontend.ViewModels
         }
         private string description = string.Empty;
 
-        // DueDate
         public DateTime? DueDate
         {
             get => dueDate;
@@ -47,15 +45,6 @@ namespace Tazq_Frontend.ViewModels
         }
         private DateTime? dueDate = DateTime.Today.AddDays(1);
 
-        // DueTime (for the time picker)
-        public DateTime? DueTime
-        {
-            get => dueTime;
-            set => SetProperty(ref dueTime, value);
-        }
-        private DateTime? dueTime;
-
-        // EnableTime (checkbox)
         public bool EnableTime
         {
             get => enableTime;
@@ -63,7 +52,13 @@ namespace Tazq_Frontend.ViewModels
         }
         private bool enableTime;
 
-        // SelectedPriority
+        public TimeSpan? SelectedTime
+        {
+            get => selectedTime;
+            set => SetProperty(ref selectedTime, value);
+        }
+        private TimeSpan? selectedTime;
+
         public string SelectedPriority
         {
             get => selectedPriority;
@@ -71,7 +66,6 @@ namespace Tazq_Frontend.ViewModels
         }
         private string selectedPriority = "Orta";
 
-        // Tags
         public ObservableCollection<string> Tags
         {
             get => tags;
@@ -79,7 +73,6 @@ namespace Tazq_Frontend.ViewModels
         }
         private ObservableCollection<string> tags = new();
 
-        // NewTag
         public string? NewTag
         {
             get => newTag;
@@ -87,7 +80,7 @@ namespace Tazq_Frontend.ViewModels
         }
         private string? newTag;
 
-        public ObservableCollection<string> Priorities { get; }
+        public ObservableCollection<string> Priorities { get; } = new();
 
         public string TagsDisplay => Tags.Any() ? string.Join(", ", Tags) : string.Empty;
 
@@ -106,6 +99,25 @@ namespace Tazq_Frontend.ViewModels
                 return;
             }
 
+            if (!string.IsNullOrWhiteSpace(NewTag) && !Tags.Contains(NewTag))
+                Tags.Add(NewTag);
+
+            DateTime? finalDueTime = null;
+
+            if (EnableTime)
+            {
+                var time = SelectedTime ?? TimeSpan.Zero; // varsayılan 00:00:00
+                finalDueTime = new DateTime(
+                    DueDate.Value.Year,
+                    DueDate.Value.Month,
+                    DueDate.Value.Day,
+                    time.Hours,
+                    time.Minutes,
+                    0,
+                    DateTimeKind.Local
+                ).ToUniversalTime();
+            }
+
             string priorityEnum = SelectedPriority switch
             {
                 "Düşük" => "Low",
@@ -119,7 +131,7 @@ namespace Tazq_Frontend.ViewModels
                 Title = Title,
                 Description = Description,
                 DueDate = DueDate?.ToUniversalTime(),
-                DueTime = DueTime?.ToUniversalTime(),
+                DueTime = finalDueTime,
                 IsCompleted = false,
                 Tags = Tags.ToList(),
                 Priority = priorityEnum

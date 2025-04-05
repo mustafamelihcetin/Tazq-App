@@ -60,7 +60,7 @@
 
                     <!-- TimePicker only visible when checkbox is checked -->
                     <Frame IsVisible="{Binding EnableTime}" HorizontalOptions="Start" WidthRequest="130" Padding="2" HasShadow="False" BackgroundColor="Transparent">
-                        <TimePicker Time="{Binding DueTime}"
+                        <TimePicker Time="{Binding SelectedTime, Mode=TwoWay}"
                                     HorizontalOptions="Center"
                                     TextColor="Black"
                                     BackgroundColor="White"

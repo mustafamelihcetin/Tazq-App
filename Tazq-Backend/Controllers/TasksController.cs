@@ -46,8 +46,13 @@ namespace Tazq_App.Controllers
 
             var query = _context.Tasks.Where(t => t.UserId == userId.Value).AsQueryable();
 
+            var key = _cryptoService.GetKeyForUser(userId.Value)!;
+
             if (!string.IsNullOrEmpty(tag))
-                query = query.Where(t => t.Tags.Contains(tag));
+            {
+                var encryptedTag = _cryptoService.Encrypt(tag, key);
+                query = query.Where(t => t.TagsJson.Contains(encryptedTag));
+            }
 
             if (isCompleted.HasValue)
                 query = query.Where(t => t.IsCompleted == isCompleted.Value);
@@ -60,11 +65,16 @@ namespace Tazq_App.Controllers
 
             var taskList = await query.ToListAsync();
 
-            var key = _cryptoService.GetKeyForUser(userId.Value)!;
             foreach (var task in taskList)
             {
                 task.Title = _cryptoService.Decrypt(task.Title, key);
                 task.Description = string.IsNullOrEmpty(task.Description) ? null : _cryptoService.Decrypt(task.Description, key);
+
+                if (!string.IsNullOrEmpty(task.TagsJson))
+                {
+                    var decryptedJson = _cryptoService.Decrypt(task.TagsJson, key);
+                    task.Tags = JsonSerializer.Deserialize<List<string>>(decryptedJson) ?? new List<string>();
+                }
             }
 
             if (!string.IsNullOrEmpty(search))
@@ -105,6 +115,12 @@ namespace Tazq_App.Controllers
             task.Title = _cryptoService.Decrypt(task.Title, key);
             task.Description = string.IsNullOrEmpty(task.Description) ? null : _cryptoService.Decrypt(task.Description, key);
 
+            if (!string.IsNullOrEmpty(task.TagsJson))
+            {
+                var decryptedJson = _cryptoService.Decrypt(task.TagsJson, key);
+                task.Tags = JsonSerializer.Deserialize<List<string>>(decryptedJson) ?? new List<string>();
+            }
+
             return Ok(task);
         }
 
@@ -119,11 +135,13 @@ namespace Tazq_App.Controllers
             {
                 task.UserId = userId.Value;
                 task.Tags = task.Tags ?? new List<string>();
-                task.TagsJson = JsonSerializer.Serialize(task.Tags);
 
                 var key = _cryptoService.GetKeyForUser(userId.Value)!;
                 task.Title = _cryptoService.Encrypt(task.Title, key);
                 task.Description = string.IsNullOrEmpty(task.Description) ? null : _cryptoService.Encrypt(task.Description, key);
+
+                var jsonTags = JsonSerializer.Serialize(task.Tags);
+                task.TagsJson = _cryptoService.Encrypt(jsonTags, key);
 
                 if (task.DueTime.HasValue)
                     task.DueTime = task.DueTime.Value.ToUniversalTime();
@@ -157,17 +175,21 @@ namespace Tazq_App.Controllers
 
             var key = _cryptoService.GetKeyForUser(userId.Value)!;
 
-            var taskItems = taskRequest.Tasks.Select(t => new TaskItem
+            var taskItems = taskRequest.Tasks.Select(t =>
             {
-                Title = _cryptoService.Encrypt(t.Title, key),
-                Description = string.IsNullOrEmpty(t.Description) ? null : _cryptoService.Encrypt(t.Description, key),
-                DueDate = t.DueDate,
-                DueTime = t.GetType().GetProperty("DueTime")?.GetValue(t) as DateTime? ?? null,
-                IsCompleted = t.IsCompleted,
-                Priority = t.Priority,
-                UserId = userId.Value,
-                Tags = t.Tags ?? new List<string>(),
-                TagsJson = JsonSerializer.Serialize(t.Tags ?? new List<string>())
+                var encryptedTagsJson = _cryptoService.Encrypt(JsonSerializer.Serialize(t.Tags ?? new List<string>()), key);
+                return new TaskItem
+                {
+                    Title = _cryptoService.Encrypt(t.Title, key),
+                    Description = string.IsNullOrEmpty(t.Description) ? null : _cryptoService.Encrypt(t.Description, key),
+                    DueDate = t.DueDate,
+                    DueTime = t.GetType().GetProperty("DueTime")?.GetValue(t) as DateTime? ?? null,
+                    IsCompleted = t.IsCompleted,
+                    Priority = t.Priority,
+                    UserId = userId.Value,
+                    Tags = t.Tags ?? new List<string>(),
+                    TagsJson = encryptedTagsJson
+                };
             }).ToList();
 
             await _context.Tasks.AddRangeAsync(taskItems);
@@ -199,7 +221,9 @@ namespace Tazq_App.Controllers
             task.IsCompleted = updatedTask.IsCompleted;
             task.Priority = updatedTask.Priority;
             task.Tags = updatedTask.Tags ?? new List<string>();
-            task.TagsJson = JsonSerializer.Serialize(task.Tags);
+
+            var tagsJson = JsonSerializer.Serialize(task.Tags);
+            task.TagsJson = _cryptoService.Encrypt(tagsJson, key);
 
             _context.Tasks.Update(task);
             await _context.SaveChangesAsync();

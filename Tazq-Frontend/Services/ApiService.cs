@@ -170,7 +170,8 @@ namespace Tazq_Frontend.Services
 				title = task.Title,
 				description = task.Description,
 				dueDate = task.DueDate,
-				isCompleted = task.IsCompleted,
+                dueTime = task.DueTime,
+                isCompleted = task.IsCompleted,
 				priority = task.Priority,
 				tags = task.Tags
 			};
