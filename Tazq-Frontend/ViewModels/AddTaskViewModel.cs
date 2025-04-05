@@ -27,16 +27,44 @@ namespace Tazq_Frontend.ViewModels
         public string Title
         {
             get => title;
-            set => SetProperty(ref title, value);
+            set
+            {
+                if (SetProperty(ref title, value))
+                {
+                    OnPropertyChanged(nameof(IsTitleLimitExceeded));
+                    OnPropertyChanged(nameof(TitleWarning));
+                }
+            }
         }
         private string title = string.Empty;
 
         public string Description
         {
             get => description;
-            set => SetProperty(ref description, value);
+            set
+            {
+                if (SetProperty(ref description, value))
+                {
+                    OnPropertyChanged(nameof(IsDescriptionLimitExceeded));
+                    OnPropertyChanged(nameof(DescriptionWarning));
+                }
+            }
         }
         private string description = string.Empty;
+
+        public string? NewTag
+        {
+            get => newTag;
+            set
+            {
+                if (SetProperty(ref newTag, value))
+                {
+                    OnPropertyChanged(nameof(IsTagLimitExceeded));
+                    OnPropertyChanged(nameof(TagWarning));
+                }
+            }
+        }
+        private string? newTag;
 
         public DateTime? DueDate
         {
@@ -73,16 +101,18 @@ namespace Tazq_Frontend.ViewModels
         }
         private ObservableCollection<string> tags = new();
 
-        public string? NewTag
-        {
-            get => newTag;
-            set => SetProperty(ref newTag, value);
-        }
-        private string? newTag;
-
         public ObservableCollection<string> Priorities { get; } = new();
 
         public string TagsDisplay => Tags.Any() ? string.Join(", ", Tags) : string.Empty;
+
+        public bool IsTitleLimitExceeded => Title?.Length >= 80;
+        public string TitleWarning => IsTitleLimitExceeded ? "Başlık en fazla 80 karakter olabilir." : string.Empty;
+
+        public bool IsDescriptionLimitExceeded => Description?.Length >= 300;
+        public string DescriptionWarning => IsDescriptionLimitExceeded ? "Açıklama en fazla 300 karakter olabilir." : string.Empty;
+
+        public bool IsTagLimitExceeded => NewTag?.Length >= 30;
+        public string TagWarning => IsTagLimitExceeded ? "Etiket en fazla 30 karakter olabilir." : string.Empty;
 
         [RelayCommand]
         private async Task SaveTask()
@@ -106,7 +136,7 @@ namespace Tazq_Frontend.ViewModels
 
             if (EnableTime)
             {
-                var time = SelectedTime ?? TimeSpan.Zero; // varsayılan 00:00:00
+                var time = SelectedTime ?? TimeSpan.Zero;
                 finalDueTime = new DateTime(
                     DueDate.Value.Year,
                     DueDate.Value.Month,

@@ -28,17 +28,32 @@
 
             <!-- Title Entry -->
             <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
-                <Entry Placeholder="Başlık"
-                       Text="{Binding Title}"
-                       TextColor="Black" />
+                <VerticalStackLayout>
+                    <Entry Placeholder="Başlık"
+                           Text="{Binding Title}"
+                           TextColor="Black"
+                           MaxLength="80" />
+                    <Label Text="{Binding TitleWarning}"
+                           TextColor="Red"
+                           FontSize="12"
+                           IsVisible="{Binding IsTitleLimitExceeded, Mode=OneWay}" />
+                </VerticalStackLayout>
             </Frame>
 
             <!-- Description Editor -->
             <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
-                <Editor Placeholder="Açıklama"
-                        Text="{Binding Description}"
-                        AutoSize="TextChanges"
-                        TextColor="Black" />
+                <VerticalStackLayout>
+                    <Editor Placeholder="Açıklama"
+                            Text="{Binding Description}"
+                            AutoSize="TextChanges"
+                            TextColor="Black"
+                            HeightRequest="100"
+                            MaxLength="300" />
+                    <Label Text="{Binding DescriptionWarning}"
+                           TextColor="Red"
+                           FontSize="12"
+                           IsVisible="{Binding IsDescriptionLimitExceeded, Mode=OneWay}" />
+                </VerticalStackLayout>
             </Frame>
 
             <!-- DueDate Picker (with toggle and time) -->
@@ -82,10 +97,17 @@
 
             <!-- Tag Entry -->
             <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
-                <Entry Placeholder="Etiket ekle"
-                       Text="{Binding NewTag}"
-                       Completed="OnTagCompleted"
-                       TextColor="Black" />
+                <VerticalStackLayout>
+                    <Entry Placeholder="Etiket ekle"
+                           Text="{Binding NewTag}"
+                           Completed="OnTagCompleted"
+                           TextColor="Black"
+                           MaxLength="30" />
+                    <Label Text="{Binding TagWarning}"
+                           TextColor="Red"
+                           FontSize="12"
+                           IsVisible="{Binding IsTagLimitExceeded, Mode=OneWay}" />
+                </VerticalStackLayout>
             </Frame>
 
             <!-- Tags Display -->

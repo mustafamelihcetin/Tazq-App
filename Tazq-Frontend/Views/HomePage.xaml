@@ -114,7 +114,6 @@
                                 EmptyView="Henüz görev eklenmedi."
                                 ItemsLayout="VerticalList">
 
-                    <!-- Show Past Tasks Label -->
                     <CollectionView.Header>
                         <Label x:Name="ShowPastTasksLabel"
                                Text="{Binding ShowPastTasks, Converter={StaticResource BoolToShowPastTasksTextConverter}}"
@@ -165,7 +164,7 @@
                                     </SwipeItems>
                                 </SwipeView.RightItems>
 
-                                <!-- Dark Task Card -->
+                                <!-- Task Card -->
                                 <Frame CornerRadius="12"
                                        BackgroundColor="#2C3E50"
                                        Padding="16"
@@ -176,30 +175,55 @@
                                         <Shadow Brush="Black" Opacity="0.2" Offset="0,2" Radius="4"/>
                                     </Frame.Shadow>
 
-                                    <Grid>
+                                    <Grid RowSpacing="6">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Title -->
+                                        <Label Grid.Row="0" Grid.Column="0"
+                                               Text="{Binding Title}"
+                                               FontSize="15"
+                                               FontAttributes="Bold"
+                                               TextColor="White"
+                                               LineBreakMode="TailTruncation"
+                                               MaxLines="2" />
+
                                         <!-- Priority Badge -->
-                                        <Frame Padding="4,2"
+                                        <Frame Grid.Row="0" Grid.Column="1"
+                                               Padding="4,2"
                                                BackgroundColor="{Binding PriorityEnum, Converter={StaticResource PriorityToColorConverter}}"
                                                CornerRadius="8"
-                                               HorizontalOptions="End"
-                                               VerticalOptions="Start"
                                                HasShadow="False"
-                                               Margin="0,0,0,4">
+                                               Margin="8,0,0,0"
+                                               VerticalOptions="Start"
+                                               HorizontalOptions="End">
                                             <Label Text="{Binding PriorityEnum, Converter={StaticResource PriorityToTurkishConverter}}"
                                                    FontSize="10"
                                                    TextColor="White"
                                                    FontAttributes="Bold"/>
                                         </Frame>
 
-                                        <!-- Task Content -->
-                                        <VerticalStackLayout Spacing="6" Margin="0,12,0,0">
-                                            <Label Text="{Binding Title}" FontSize="15" FontAttributes="Bold" TextColor="White" />
-                                            <Label Text="{Binding Description}" FontSize="13" TextColor="#D0D0D0"
+                                        <!-- Description, Dates, Tags -->
+                                        <VerticalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="6" Margin="0,6,0,0">
+                                            <Label Text="{Binding Description}"
+                                                   FontSize="13"
+                                                   TextColor="#D0D0D0"
+                                                   LineHeight="1.1"
+                                                   HeightRequest="33"
+                                                   WidthRequest="280"
+                                                   HorizontalOptions="Start"
+                                                   VerticalOptions="Start"
                                                    IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
                                             <Label Text="{Binding DueDate, StringFormat='Son Tarih: {0:dd MMM yyyy}'}"
                                                    FontSize="13" TextColor="#FFEE58"
                                                    IsVisible="{Binding DueDate.HasValue}" />
-                                            <Label Text="{Binding DueTime, StringFormat='{0:t}'}"
+                                            <Label Text="{Binding DueTime, StringFormat='{0:HH\\:mm}'}"
                                                    FontSize="13" TextColor="#FFEE58"
                                                    IsVisible="{Binding DueTime.HasValue}" />
                                             <Label Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
