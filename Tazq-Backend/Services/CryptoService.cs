@@ -1,26 +1,25 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 
-namespace Tazq_App.Services
+namespace Tazq_Backend.Services // Namespace düzeltildi
 {
-    public class CryptoService
+    public class CryptoService(string secretKey)
     {
-        private readonly string _secretKey;
-
-        public CryptoService(IConfiguration configuration)
-        {
-            _secretKey = configuration["EncryptionKey"] ?? throw new ArgumentNullException("EncryptionKey");
-        }
+        private readonly string _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey), "EncryptionKey is required");
 
         // Encrypts plain text using AES-GCM
         public string Encrypt(string plainText, byte[] key)
         {
             byte[] iv = RandomNumberGenerator.GetBytes(12);
             byte[] tag = new byte[16];
-            byte[] cipherText = new byte[plainText.Length];
+            byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+            byte[] cipherText = new byte[plainBytes.Length];
 
+#pragma warning disable SYSLIB0053
             using var aes = new AesGcm(key);
-            aes.Encrypt(iv, Encoding.UTF8.GetBytes(plainText), cipherText, tag);
+#pragma warning restore SYSLIB0053
+
+            aes.Encrypt(iv, plainBytes, cipherText, tag);
 
             byte[] result = new byte[iv.Length + tag.Length + cipherText.Length];
             Buffer.BlockCopy(iv, 0, result, 0, iv.Length);
@@ -44,7 +43,10 @@ namespace Tazq_App.Services
 
             byte[] plainText = new byte[cipherText.Length];
 
+#pragma warning disable SYSLIB0053
             using var aes = new AesGcm(key);
+#pragma warning restore SYSLIB0053
+
             aes.Decrypt(iv, cipherText, tag, plainText);
 
             return Encoding.UTF8.GetString(plainText);

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿// IDE0037 ve CA2208 çözüldü
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -7,12 +8,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DotNetEnv;
 using Tazq_App.Data;
-using Tazq_App.Services;
+using Tazq_Backend.Services;
 using Tazq_App.Models;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Diagnostics;
 using Npgsql.EntityFrameworkCore.PostgreSQL;
+using Tazq_App.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,43 +20,38 @@ var builder = WebApplication.CreateBuilder(args);
 Env.Load();
 
 // Load JWT settings
-var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
-             ?? throw new Exception("JWT_KEY is missing! Set it in environment variables.");
+var jwtKeyEnv = Environment.GetEnvironmentVariable("JWT_KEY");
+if (string.IsNullOrEmpty(jwtKeyEnv) || jwtKeyEnv.Length < 32)
+    throw new ArgumentException("JWT_KEY is missing or too short! It must be at least 32 characters long.", nameof(jwtKeyEnv));
+
+var jwtKey = jwtKeyEnv;
 var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Configuration["JwtSettings:Issuer"];
 var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? builder.Configuration["JwtSettings:Audience"];
 var jwtExpiration = Convert.ToInt32(Environment.GetEnvironmentVariable("JWT_EXPIRATION") ?? builder.Configuration["JwtSettings:ExpirationInMinutes"] ?? "60");
 
-// Validate JWT Key
-if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
-{
-    throw new Exception("JWT_KEY is missing or too short! It must be at least 32 characters long.");
-}
-
 builder.Services.AddControllers()
-    .AddJsonOptions(options =>
+    .AddJsonOptions(opt =>
     {
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        opt.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
 
 builder.Services.AddEndpointsApiExplorer();
 
-// CORS Configuration
-builder.Services.AddCors(options =>
+builder.Services.AddCors(opt =>
 {
-    options.AddPolicy("AllowAllOrigins",
-        builder => builder.AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader());
+    opt.AddPolicy("AllowAllOrigins",
+        policy => policy.AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader());
 });
 
-// Swagger JWT Authentication Integration
-builder.Services.AddSwaggerGen(options =>
+builder.Services.AddSwaggerGen(opt =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "Tazq-App API", Version = "v1" });
+    opt.SwaggerDoc("v1", new OpenApiInfo { Title = "Tazq-App API", Version = "v1" });
 
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    opt.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
@@ -66,7 +61,7 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Enter 'Bearer' followed by your valid token."
     });
 
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    opt.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
             new OpenApiSecurityScheme
@@ -77,12 +72,11 @@ builder.Services.AddSwaggerGen(options =>
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
 
-// PostgreSQL connection string from environment
 var pgHost = Environment.GetEnvironmentVariable("DB_HOST");
 var pgPort = Environment.GetEnvironmentVariable("DB_PORT");
 var pgDb = Environment.GetEnvironmentVariable("DB_NAME");
@@ -97,12 +91,11 @@ var pgConnectionString = $"Host={pgHost};Port={pgPort};Database={pgDb};Username=
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(pgConnectionString));
 
-// JWT Authentication
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddJwtBearer(opt =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
+        opt.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
@@ -114,17 +107,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Register Services
 builder.Services.AddSingleton<JwtService>();
-builder.Services.AddSingleton<CryptoService>(); // Added securely
+builder.Services.AddSingleton(new CryptoService(jwtKey));
 
-builder.Services.Configure<SmtpSettings>(options =>
+builder.Services.Configure<SmtpSettings>(opt =>
 {
-    options.From = Environment.GetEnvironmentVariable("SMTP_FROM_EMAIL") ?? "";
-    options.Username = Environment.GetEnvironmentVariable("SMTP_USERNAME") ?? "";
-    options.Password = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? "";
-    options.Port = int.Parse(Environment.GetEnvironmentVariable("SMTP_PORT") ?? "587");
-    options.Host = Environment.GetEnvironmentVariable("SMTP_SERVER") ?? "";
+    opt.From = Environment.GetEnvironmentVariable("SMTP_FROM_EMAIL") ?? "";
+    opt.Username = Environment.GetEnvironmentVariable("SMTP_USERNAME") ?? "";
+    opt.Password = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? "";
+    opt.Port = int.Parse(Environment.GetEnvironmentVariable("SMTP_PORT") ?? "587");
+    opt.Host = Environment.GetEnvironmentVariable("SMTP_SERVER") ?? "";
 });
 
 builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
@@ -135,14 +127,12 @@ builder.WebHost.UseUrls($"http://*:{port}");
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
-{
     app.UseDeveloperExceptionPage();
-}
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated(); // Creates a table if it doesn't exist
+    db.Database.EnsureCreated();
 }
 
 app.UseSwagger();
@@ -159,7 +149,6 @@ app.UseExceptionHandler(errorApp =>
         if (error != null)
         {
             var ex = error.Error;
-
             var result = JsonSerializer.Serialize(new
             {
                 StatusCode = 500,
