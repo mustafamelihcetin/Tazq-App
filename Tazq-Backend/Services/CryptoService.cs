@@ -1,11 +1,16 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 
-namespace Tazq_Backend.Services // Namespace düzeltildi
+namespace Tazq_Backend.Services
 {
-    public class CryptoService(string secretKey)
+    public class CryptoService
     {
-        private readonly string _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey), "EncryptionKey is required");
+        private readonly string _secretKey;
+
+        public CryptoService(string secretKey)
+        {
+            _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey), "EncryptionKey is required");
+        }
 
         // Encrypts plain text using AES-GCM
         public string Encrypt(string plainText, byte[] key)

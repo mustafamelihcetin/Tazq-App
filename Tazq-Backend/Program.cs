@@ -1,5 +1,4 @@
-﻿// IDE0037 ve CA2208 çözüldü
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -164,6 +163,5 @@ app.UseExceptionHandler(errorApp =>
 app.UseCors("AllowAllOrigins");
 app.UseAuthentication();
 app.UseAuthorization();
-//app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();
