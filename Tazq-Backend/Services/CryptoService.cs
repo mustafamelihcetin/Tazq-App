@@ -26,27 +26,26 @@ namespace Tazq_App.Services
 
             aes.Encrypt(iv, plainBytes, cipherBytes, tag);
 
-            // Encode all parts into one Base64 string
-            using var ms = new MemoryStream();
-            using var bw = new BinaryWriter(ms);
-            bw.Write(iv);
-            bw.Write(tag);
-            bw.Write(cipherBytes);
+            // Combine iv + tag + cipherBytes
+            byte[] combined = new byte[iv.Length + tag.Length + cipherBytes.Length];
+            Buffer.BlockCopy(iv, 0, combined, 0, iv.Length);
+            Buffer.BlockCopy(tag, 0, combined, iv.Length, tag.Length);
+            Buffer.BlockCopy(cipherBytes, 0, combined, iv.Length + tag.Length, cipherBytes.Length);
 
-            return Convert.ToBase64String(ms.ToArray());
+            return Convert.ToBase64String(combined);
         }
 
         // Decrypts cipher text using AES-GCM
         public string Decrypt(string cipherTextBase64, byte[] key)
         {
-            byte[] fullData = Convert.FromBase64String(cipherTextBase64);
+            byte[] data = Convert.FromBase64String(cipherTextBase64);
+            byte[] iv = new byte[12];
+            byte[] tag = new byte[16];
+            byte[] cipherBytes = new byte[data.Length - iv.Length - tag.Length];
 
-            using var ms = new MemoryStream(fullData);
-            using var br = new BinaryReader(ms);
-
-            byte[] iv = br.ReadBytes(12);
-            byte[] tag = br.ReadBytes(16);
-            byte[] cipherBytes = br.ReadBytes(fullData.Length - 12 - 16);
+            Buffer.BlockCopy(data, 0, iv, 0, iv.Length);
+            Buffer.BlockCopy(data, iv.Length, tag, 0, tag.Length);
+            Buffer.BlockCopy(data, iv.Length + tag.Length, cipherBytes, 0, cipherBytes.Length);
 
             byte[] plainBytes = new byte[cipherBytes.Length];
 
