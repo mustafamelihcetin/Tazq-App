@@ -1,7 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 
-namespace Tazq_Backend.Services
+namespace Tazq_App.Services
 {
     public class CryptoService
     {
