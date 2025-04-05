@@ -18,43 +18,45 @@ namespace Tazq_App.Services
             byte[] iv = RandomNumberGenerator.GetBytes(12);
             byte[] tag = new byte[16];
             byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
-            byte[] cipherText = new byte[plainBytes.Length];
+            byte[] cipherBytes = new byte[plainBytes.Length];
 
 #pragma warning disable SYSLIB0053
             using var aes = new AesGcm(key);
 #pragma warning restore SYSLIB0053
 
-            aes.Encrypt(iv, plainBytes, cipherText, tag);
+            aes.Encrypt(iv, plainBytes, cipherBytes, tag);
 
-            byte[] result = new byte[iv.Length + tag.Length + cipherText.Length];
-            Buffer.BlockCopy(iv, 0, result, 0, iv.Length);
-            Buffer.BlockCopy(tag, 0, result, iv.Length, tag.Length);
-            Buffer.BlockCopy(cipherText, 0, result, iv.Length + tag.Length, cipherText.Length);
+            // Encode all parts into one Base64 string
+            using var ms = new MemoryStream();
+            using var bw = new BinaryWriter(ms);
+            bw.Write(iv);
+            bw.Write(tag);
+            bw.Write(cipherBytes);
 
-            return Convert.ToBase64String(result);
+            return Convert.ToBase64String(ms.ToArray());
         }
 
         // Decrypts cipher text using AES-GCM
         public string Decrypt(string cipherTextBase64, byte[] key)
         {
-            byte[] data = Convert.FromBase64String(cipherTextBase64);
-            byte[] iv = new byte[12];
-            byte[] tag = new byte[16];
-            byte[] cipherText = new byte[data.Length - iv.Length - tag.Length];
+            byte[] fullData = Convert.FromBase64String(cipherTextBase64);
 
-            Buffer.BlockCopy(data, 0, iv, 0, iv.Length);
-            Buffer.BlockCopy(data, iv.Length, tag, 0, tag.Length);
-            Buffer.BlockCopy(data, iv.Length + tag.Length, cipherText, 0, cipherText.Length);
+            using var ms = new MemoryStream(fullData);
+            using var br = new BinaryReader(ms);
 
-            byte[] plainText = new byte[cipherText.Length];
+            byte[] iv = br.ReadBytes(12);
+            byte[] tag = br.ReadBytes(16);
+            byte[] cipherBytes = br.ReadBytes(fullData.Length - 12 - 16);
+
+            byte[] plainBytes = new byte[cipherBytes.Length];
 
 #pragma warning disable SYSLIB0053
             using var aes = new AesGcm(key);
 #pragma warning restore SYSLIB0053
 
-            aes.Decrypt(iv, cipherText, tag, plainText);
+            aes.Decrypt(iv, cipherBytes, tag, plainBytes);
 
-            return Encoding.UTF8.GetString(plainText);
+            return Encoding.UTF8.GetString(plainBytes);
         }
 
         // Generates a user-specific AES key using HMAC-SHA256 and a master secret
