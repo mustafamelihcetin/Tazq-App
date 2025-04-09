@@ -5,176 +5,186 @@
              xmlns:converters="clr-namespace:Tazq_Frontend.Converters"
              x:Class="Tazq_Frontend.Views.LoginPage"
              Shell.NavBarIsVisible="False"
-             NavigationPage.HasNavigationBar="False"
-             BackgroundColor="#1F2D3D">
+             NavigationPage.HasNavigationBar="False">
 
-    <!-- Gradient background -->
     <ContentPage.Background>
-        <LinearGradientBrush>
-            <GradientStop Color="#1F2D3D" Offset="0.0" />
-            <GradientStop Color="#6A85B6" Offset="1.0" />
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#212121" Offset="0.0" />
+            <GradientStop Color="#2B2B2B" Offset="0.5" />
+            <GradientStop Color="#3A3A3A" Offset="1.0" />
         </LinearGradientBrush>
     </ContentPage.Background>
 
-    <!-- Resources -->
     <ContentPage.Resources>
         <ResourceDictionary>
             <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
         </ResourceDictionary>
     </ContentPage.Resources>
 
-    <!-- Binding context -->
-    <ContentPage.BindingContext>
-        <vm:AuthViewModel />
-    </ContentPage.BindingContext>
+    <ScrollView>
+        <Grid Padding="30">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="2*" />
+                <RowDefinition Height="3*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-    <Grid Padding="30">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="2*" />
-            <RowDefinition Height="3*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+            <!-- Logo -->
+            <VerticalStackLayout Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Center">
+                <Image Source="tazq_white_logo.png" HeightRequest="50" BackgroundColor="Transparent" />
+                <Label Text="Yapılacaklarını Yönet"
+                       FontSize="16"
+                       LineHeight="1.2"
+                       TextColor="#B0B0B0"
+                       HorizontalTextAlignment="Center"
+                       Margin="0,3,0,40"
+                       FontFamily="RobotoRegular"/>
+            </VerticalStackLayout>
 
-        <!-- Logo -->
-        <VerticalStackLayout Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Center">
-            <Image Source="tazq_white_logo.png" WidthRequest="130" HeightRequest="45" BackgroundColor="Transparent" />
-            <Label Text="Yapılacaklarını Yönet"
-                   FontSize="16"
-                   LineHeight="1.2"
-                   TextColor="#B0B0B0"
-                   HorizontalTextAlignment="Center"
-                   Margin="0,5,0,40" />
-        </VerticalStackLayout>
+            <!-- Inputs -->
+            <VerticalStackLayout Grid.Row="1" Spacing="12" HorizontalOptions="Center"
+                                 WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=400}">
 
-        <!-- Input Fields -->
-        <VerticalStackLayout Grid.Row="1" Spacing="12" HorizontalOptions="Center"
-                             WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=400}">
+                <!-- Email -->
+                <Frame Padding="10" CornerRadius="12" BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" HasShadow="False">
+                    <Entry Placeholder="E-posta"
+                           Text="{Binding Email}"
+                           Keyboard="Email"
+                           BackgroundColor="Transparent"
+                           FontSize="15"
+                           FontFamily="RobotoRegular"
+                           TextColor="#D0D0D0"
+                           PlaceholderColor="#888888"
+                           IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
+                </Frame>
 
-            <!-- Email -->
-            <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="True">
-                <Entry Placeholder="E-posta"
-                       Text="{Binding Email}"
-                       Keyboard="Email"
-                       TextColor="Black"
-                       PlaceholderColor="#A5A5A5"
-                       IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
-            </Frame>
+                <!-- Password -->
+                <Frame Padding="10" CornerRadius="12" BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" HasShadow="False">
+                    <Entry Placeholder="Şifre"
+                           Text="{Binding Password}"
+                           IsPassword="True"
+                           BackgroundColor="Transparent"
+                           FontSize="15"
+                           FontFamily="RobotoRegular"
+                           TextColor="#D0D0D0"
+                           PlaceholderColor="#888888"
+                           Completed="OnPasswordCompleted"
+                           IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
+                </Frame>
 
-            <!-- Password -->
-            <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="True">
-                <Entry Placeholder="Şifre"
-                       Text="{Binding Password}"
-                       IsPassword="True"
-                       TextColor="Black"
-                       PlaceholderColor="#A5A5A5"
+                <!-- Forgot Password -->
+                <Label Text="Şifreni mi unuttun?"
+                       TextColor="#4C9ED9"
+                       FontSize="13"
+                       HorizontalOptions="End"
+                       Margin="0,2,2,0"
+                       IsVisible="{Binding ShowForgotPassword}"
                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
-                       Completed="OnPasswordCompleted" />
-            </Frame>
+                       FontFamily="RobotoRegular">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding NavigateToForgotPasswordCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
 
-            <!-- Forgot Password -->
-            <Label Text="Şifremi Unuttum"
-                   TextColor="LightBlue"
-                   FontSize="13"
-                   HorizontalOptions="End"
-                   Margin="0,0,5,0"
-                   IsVisible="{Binding ShowForgotPassword}"
-                   IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}">
-                <Label.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding NavigateToForgotPasswordCommand}" />
-                </Label.GestureRecognizers>
-            </Label>
+                <!-- Login Button -->
+                <Frame BackgroundColor="Transparent" Padding="0" CornerRadius="12" HasShadow="False" Margin="0,5,0,15">
+                    <Grid>
+                        <Button
+                            Command="{Binding LoginCommand}"
+                            BackgroundColor="Transparent"
+                            Text=""
+                            HeightRequest="48"
+                            CornerRadius="10"
+                            IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
+                            FontFamily="RobotoRegular"/>
+                        <Grid Padding="12" InputTransparent="True">
+                            <Grid.Background>
+                                <LinearGradientBrush EndPoint="0,1">
+                                    <GradientStop Color="#3C4D90" Offset="0.0" />
+                                    <GradientStop Color="#2B365E" Offset="1.0" />
+                                </LinearGradientBrush>
+                            </Grid.Background>
+                            <ActivityIndicator 
+                                IsRunning="{Binding IsLoading}" 
+                                IsVisible="{Binding IsLoading}" 
+                                Color="White"
+                                WidthRequest="24"
+                                HeightRequest="24"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" />
+                            <Label 
+                                Text="Giriş Yap" 
+                                IsVisible="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center"
+                                TextColor="White"
+                                FontAttributes="Bold"
+                                FontFamily="RobotoRegular"/>
+                        </Grid>
+                    </Grid>
+                </Frame>
 
-            <!-- Login Button with ActivityIndicator -->
-            <Frame BackgroundColor="Transparent" Padding="0" CornerRadius="12" HasShadow="True" Margin="0,5,0,15">
-                <Grid>
-                    <Button
-                        Command="{Binding LoginCommand}"
-                        BackgroundColor="Transparent"
-                        Text=""
-                        HeightRequest="48"
-                        CornerRadius="10"
-                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
+                <!-- Register Prompt -->
+                <Label Text="Hesabınız yok mu?"
+                       FontSize="14"
+                       TextColor="#B0B0B0"
+                       HorizontalTextAlignment="Center"
+                       Margin="0,5,0,5"
+                       FontFamily="RobotoRegular"/>
 
-                    <Grid Padding="12" InputTransparent="True">
+                <!-- Register Button -->
+                <Frame BackgroundColor="Transparent" Padding="0" CornerRadius="12" HasShadow="False" Margin="0,5,0,15">
+                    <Grid>
                         <Grid.Background>
                             <LinearGradientBrush EndPoint="0,1">
-                                <GradientStop Color="#ECECEC" Offset="0.0" />
-                                <GradientStop Color="#DADADA" Offset="1.0" />
+                                <GradientStop Color="#3C4D90" Offset="0.0" />
+                                <GradientStop Color="#2B365E" Offset="1.0" />
                             </LinearGradientBrush>
                         </Grid.Background>
-
-                        <ActivityIndicator 
-                            IsRunning="{Binding IsLoading}" 
-                            IsVisible="{Binding IsLoading}" 
-                            Color="#2C2C2C"
-                            WidthRequest="24"
-                            HeightRequest="24"
-                            HorizontalOptions="Center"
-                            VerticalOptions="Center" />
-
-                        <Label 
-                            Text="Giriş Yap" 
-                            IsVisible="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
-                            HorizontalOptions="Center"
-                            VerticalOptions="Center"
-                            TextColor="#2C2C2C"
-                            FontAttributes="Bold" />
+                        <Button Text="Kayıt Ol"
+                                Command="{Binding NavigateToRegisterCommand}"
+                                TextColor="White"
+                                FontAttributes="Bold"
+                                Padding="12"
+                                BackgroundColor="Transparent"
+                                CornerRadius="10"
+                                FontSize="15"
+                                FontFamily="RobotoRegular"
+                                HeightRequest="48"
+                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
                     </Grid>
-                </Grid>
-            </Frame>
+                </Frame>
+            </VerticalStackLayout>
 
-            <!-- Register -->
-            <Label Text="Hesabınız yok mu?"
-                   FontSize="14"
-                   TextColor="#B0B0B0"
-                   HorizontalTextAlignment="Center"
-                   Margin="0,5,0,5" />
+            <!-- Social Login -->
+            <VerticalStackLayout Grid.Row="2" Spacing="10" Padding="10" HorizontalOptions="Center" VerticalOptions="End"
+                                 WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=410}">
+                <Label Text="veya" FontSize="14" TextColor="#B0B0B0" HorizontalTextAlignment="Center" Margin="0,10,0,10" FontFamily="RobotoRegular"/>
 
-            <Frame BackgroundColor="Transparent" Padding="0" CornerRadius="12" HasShadow="True" Margin="0,5,0,15">
-                <Button Text="Kayıt Ol"
-                        Command="{Binding NavigateToRegisterCommand}"
-                        TextColor="#2C2C2C"
-                        FontAttributes="Bold"
-                        Padding="12"
-                        CornerRadius="10"
-                        HeightRequest="48"
-                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}">
-                    <Button.Background>
-                        <LinearGradientBrush EndPoint="0,1">
-                            <GradientStop Color="#C4C4C4" Offset="0.0" />
-                            <GradientStop Color="#A9A9A9" Offset="1.0" />
-                        </LinearGradientBrush>
-                    </Button.Background>
-                </Button>
-            </Frame>
-        </VerticalStackLayout>
+                <!-- Google Login -->
+                <Frame BackgroundColor="White" Padding="0" CornerRadius="8" HasShadow="True" Margin="0,5,0,5" BorderColor="Transparent"
+                       WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=400}">
+                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="12" Padding="10">
+                        <Image Source="google_logo.png" WidthRequest="22" HeightRequest="22" />
+                        <Label Text="Google ile Giriş Yap" TextColor="Black" FontAttributes="Bold" VerticalOptions="Center" FontFamily="RobotoRegular"/>
+                    </HorizontalStackLayout>
+                    <Frame.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnGoogleLoginClicked" />
+                    </Frame.GestureRecognizers>
+                </Frame>
 
-        <!-- Social Login -->
-        <VerticalStackLayout Grid.Row="2" Spacing="12" Padding="10" HorizontalOptions="Center" VerticalOptions="End"
-                             WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=410}">
-            <Label Text="veya" FontSize="14" TextColor="#B0B0B0" HorizontalTextAlignment="Center" Margin="0,10,0,10" />
-
-            <!-- Google Login -->
-            <Frame BackgroundColor="White" Padding="0" CornerRadius="8" HasShadow="True" Margin="0,5,0,5">
-                <HorizontalStackLayout HorizontalOptions="Center" Spacing="12" Padding="10">
-                    <Image Source="google_logo.png" WidthRequest="22" HeightRequest="22" />
-                    <Label Text="Google ile Giriş Yap" TextColor="Black" FontAttributes="Bold" VerticalOptions="Center" />
-                </HorizontalStackLayout>
-                <Frame.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnGoogleLoginClicked" />
-                </Frame.GestureRecognizers>
-            </Frame>
-
-            <!-- Apple Login -->
-            <Frame BackgroundColor="Black" Padding="0" CornerRadius="8" HasShadow="True" Margin="0,5,0,25">
-                <HorizontalStackLayout HorizontalOptions="Center" Spacing="12" Padding="10">
-                    <Image Source="apple_logo.png" WidthRequest="22" HeightRequest="22" />
-                    <Label Text="Apple ile Giriş Yap" TextColor="White" FontAttributes="Bold" VerticalOptions="Center" />
-                </HorizontalStackLayout>
-                <Frame.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnAppleLoginClicked" />
-                </Frame.GestureRecognizers>
-            </Frame>
-        </VerticalStackLayout>
-    </Grid>
+                <!-- Apple Login -->
+                <Frame Padding="0" CornerRadius="8" HasShadow="True" Margin="0,5,0,25" BackgroundColor="Black" BorderColor="Transparent"
+                       WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=400}">
+                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="12" Padding="10">
+                        <Image Source="apple_logo.png" WidthRequest="22" HeightRequest="22" />
+                        <Label Text="Apple ile Giriş Yap" TextColor="White" FontAttributes="Bold" VerticalOptions="Center" FontFamily="RobotoRegular"/>
+                    </HorizontalStackLayout>
+                    <Frame.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnAppleLoginClicked" />
+                    </Frame.GestureRecognizers>
+                </Frame>
+            </VerticalStackLayout>
+        </Grid>
+    </ScrollView>
 </ContentPage>

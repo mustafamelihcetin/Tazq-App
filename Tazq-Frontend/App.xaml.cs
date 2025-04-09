@@ -1,13 +1,12 @@
-﻿using Microsoft.Maui.Controls;
+﻿using Tazq_Frontend.Views;
 
-namespace Tazq_Frontend
+namespace Tazq_Frontend;
+
+public partial class App : Application
 {
-    public partial class App : Application
+    public App()
     {
-        public App()
-        {
-            InitializeComponent();
-            MainPage = new AppShell();
-        }
+        InitializeComponent();
+        MainPage = new SplashPage();
     }
 }

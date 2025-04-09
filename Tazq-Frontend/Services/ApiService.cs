@@ -275,5 +275,73 @@ namespace Tazq_Frontend.Services
                 return false;
             }
         }
+
+        public async Task<bool> UpdateTask(TaskModel task)
+        {
+            await SetAuthHeader();
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = null,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            };
+
+            var payload = new
+            {
+                title = task.Title,
+                description = task.Description,
+                dueDate = task.DueDate,
+                dueTime = task.DueTime,
+                isCompleted = task.IsCompleted,
+                priority = task.Priority,
+                tags = task.Tags
+            };
+
+            var json = JsonSerializer.Serialize(payload, options);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            try
+            {
+                var response = await _httpClient.PutAsync($"tasks/{task.Id}", content);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                Console.WriteLine($"[DOTNET] UpdateTask API Request: tasks/{task.Id}");
+                Console.WriteLine($"[DOTNET] Request Body: {json}");
+                Console.WriteLine($"[DOTNET] Response Status: {response.StatusCode}");
+                Console.WriteLine($"[DOTNET] Response Content: {responseContent}");
+
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HATA - UpdateTask: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<TaskModel?> GetTaskById(int id)
+        {
+            await SetAuthHeader();
+            try
+            {
+                HttpResponseMessage response = await _httpClient.GetAsync($"tasks/{id}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("HATA - GetTaskById başarısız.");
+                    return null;
+                }
+
+                var json = await response.Content.ReadAsStringAsync();
+                var task = JsonSerializer.Deserialize<TaskModel>(json);
+                return task;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HATA - GetTaskById: {ex.Message}");
+                return null;
+            }
+        }
     }
 }

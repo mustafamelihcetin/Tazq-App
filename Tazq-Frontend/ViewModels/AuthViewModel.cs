@@ -3,7 +3,6 @@ using Tazq_Frontend.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Controls;
-using Tazq_Frontend.Views;
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -30,7 +29,6 @@ namespace Tazq_Frontend.ViewModels
             set => SetProperty(ref _password, value);
         }
 
-        // AOT uyumlu: IsLoading alanı
         private bool isLoading;
         public bool IsLoading
         {
@@ -38,7 +36,6 @@ namespace Tazq_Frontend.ViewModels
             set => SetProperty(ref isLoading, value);
         }
 
-        // AOT uyumlu: ShowForgotPassword alanı
         private bool showForgotPassword;
         public bool ShowForgotPassword
         {
@@ -50,7 +47,7 @@ namespace Tazq_Frontend.ViewModels
         {
             if (Shell.Current != null)
             {
-                await Shell.Current.GoToAsync(nameof(Views.RegisterPage));
+                await Shell.Current.GoToAsync("RegisterPage");
             }
             else if (Application.Current?.MainPage != null)
             {
@@ -62,7 +59,7 @@ namespace Tazq_Frontend.ViewModels
         {
             if (Shell.Current != null)
             {
-                await Shell.Current.GoToAsync("//LoginPage");
+                await Shell.Current.GoToAsync("LoginPage");
             }
             else if (Application.Current?.MainPage != null)
             {
@@ -74,7 +71,7 @@ namespace Tazq_Frontend.ViewModels
         {
             if (Shell.Current != null)
             {
-                await Shell.Current.GoToAsync(nameof(ResetPasswordPage));
+                await Shell.Current.GoToAsync("ResetPasswordPage");
             }
             else if (Application.Current?.MainPage != null)
             {
@@ -112,7 +109,7 @@ namespace Tazq_Frontend.ViewModels
                     IsLoading = false;
 
                     if (Shell.Current != null)
-                        await Shell.Current.GoToAsync("//HomePage");
+                        await Shell.Current.GoToAsync("HomePage");
                 }
                 else
                 {
@@ -167,7 +164,7 @@ namespace Tazq_Frontend.ViewModels
                         await currentPage.DisplayAlert("Başarılı", "Kayıt işlemi tamamlandı!", "Tamam");
 
                     if (Shell.Current != null)
-                        await Shell.Current.GoToAsync("//LoginPage");
+                        await Shell.Current.GoToAsync("LoginPage");
                 }
                 else
                 {
@@ -189,7 +186,7 @@ namespace Tazq_Frontend.ViewModels
         {
             if (Shell.Current != null)
             {
-                await Shell.Current.GoToAsync(nameof(ForgotPasswordPage));
+                await Shell.Current.GoToAsync("ResetPasswordPage");
             }
             else if (Application.Current?.MainPage != null)
             {

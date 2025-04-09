@@ -1,12 +1,15 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-       xmlns:views="clr-namespace:Tazq_Frontend.Views"
-       x:Class="Tazq_Frontend.AppShell">
+<Shell
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:Tazq_Frontend.Views"
+    x:Class="Tazq_Frontend.AppShell"
+    Shell.FlyoutBehavior="Disabled">
 
-    <ShellContent Title="Login" Route="LoginPage" ContentTemplate="{DataTemplate views:LoginPage}" />
-    <ShellContent Title="Register" Route="RegisterPage" ContentTemplate="{DataTemplate views:RegisterPage}" />
-    <ShellContent Title="Home" Route="HomePage" ContentTemplate="{DataTemplate views:HomePage}" />
-    <ShellContent Title="Yeni Görev" Route="AddTaskPage" ContentTemplate="{DataTemplate views:AddTaskPage}" />
+    <ShellContent Route="LoginPage" ContentTemplate="{DataTemplate views:LoginPage}" />
+    <ShellContent Route="RegisterPage" ContentTemplate="{DataTemplate views:RegisterPage}" />
     <ShellContent Route="ResetPasswordPage" ContentTemplate="{DataTemplate views:ResetPasswordPage}" />
+    <ShellContent Route="HomePage" ContentTemplate="{DataTemplate views:HomePage}" />
+    <ShellContent Route="AddTaskPage" ContentTemplate="{DataTemplate views:AddTaskPage}" />
+    <ShellContent Route="EditTaskPage" ContentTemplate="{DataTemplate views:EditTaskPage}" />
+
 </Shell>

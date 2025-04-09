@@ -14,9 +14,9 @@ namespace Tazq_Frontend.Converters
             {
                 return priority switch
                 {
-                    TaskPriority.Low => Color.FromArgb("#81C784"),     // Düşük - soft yeşil
-                    TaskPriority.Medium => Color.FromArgb("#FFD54F"),  // Orta - soft sarı
-                    TaskPriority.High => Color.FromArgb("#EF5350"),    // Yüksek - pastel kırmızı
+                    TaskPriority.Low => Color.FromArgb("#2E86C1"),      // Koyu mavi
+                    TaskPriority.Medium => Color.FromArgb("#B7950B"),   // Koyu sarı
+                    TaskPriority.High => Color.FromArgb("#922B21"),     // Koyu kırmızı
                     _ => Colors.Gray
                 };
             }

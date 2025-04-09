@@ -34,7 +34,7 @@
                    LineHeight="1.2"
                    TextColor="#B0B0B0"
                    HorizontalTextAlignment="Center"
-                   Margin="0,5,0,40" />
+                   Margin="0,5,0,40" FontFamily="RobotoRegular"/>
         </VerticalStackLayout>
 
         <!-- Input Fields and Buttons -->
@@ -46,7 +46,8 @@
                 <Entry Placeholder="Adınız"
                        TextColor="Black"
                        PlaceholderColor="#A5A5A5"
-                       Text="{Binding Name}" />
+                       Text="{Binding Name}"
+                       FontFamily="RobotoRegular"/>
             </Frame>
 
             <!-- Email Input -->
@@ -55,7 +56,8 @@
                        Keyboard="Email"
                        TextColor="Black"
                        PlaceholderColor="#A5A5A5"
-                       Text="{Binding Email}" />
+                       Text="{Binding Email}"
+                       FontFamily="RobotoRegular"/>
             </Frame>
 
             <!-- Password Input -->
@@ -64,7 +66,8 @@
                        IsPassword="True"
                        TextColor="Black"
                        PlaceholderColor="#A5A5A5"
-                       Text="{Binding Password}" />
+                       Text="{Binding Password}"
+                       FontFamily="RobotoRegular"/>
             </Frame>
 
             <!-- Register Button -->
@@ -76,7 +79,8 @@
                         FontAttributes="Bold"
                         Padding="12"
                         CornerRadius="10"
-                        HeightRequest="48">
+                        HeightRequest="48"
+                        FontFamily="RobotoRegular">
                     <Button.Background>
                         <LinearGradientBrush EndPoint="0,1">
                             <GradientStop Color="#ECECEC" Offset="0.0"/>
@@ -91,7 +95,8 @@
                    FontSize="14"
                    TextColor="#B0B0B0"
                    HorizontalTextAlignment="Center"
-                   Margin="0,5,0,5"/>
+                   Margin="0,5,0,5"
+                   FontFamily="RobotoRegular"/>
 
             <Frame BackgroundColor="Transparent" Padding="0" CornerRadius="12" HasShadow="True"
                    Margin="0,5,0,15">
@@ -101,7 +106,8 @@
                         FontAttributes="Bold"
                         Padding="12"
                         CornerRadius="10"
-                        HeightRequest="48">
+                        HeightRequest="48"
+                        FontFamily="RobotoRegular">
                     <Button.Background>
                         <LinearGradientBrush EndPoint="0,1">
                             <GradientStop Color="#C4C4C4" Offset="0.0"/>

@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
+             x:Class="Tazq_Frontend.Views.EditTaskPage"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             BackgroundColor="#1F2D3D">
+
+    <ContentPage.Background>
+        <LinearGradientBrush>
+            <GradientStop Color="#1F2D3D" Offset="0.0" />
+            <GradientStop Color="#6A85B6" Offset="1.0" />
+        </LinearGradientBrush>
+    </ContentPage.Background>
+
+    <ContentPage.BindingContext>
+        <vm:EditTaskViewModel />
+    </ContentPage.BindingContext>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="16">
+
+            <Label Text="Görevi Düzenle"
+                   FontSize="26"
+                   FontAttributes="Bold"
+                   TextColor="White" FontFamily="RobotoRegular"/>
+
+            <!-- Title Entry -->
+            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
+                <VerticalStackLayout>
+                    <Entry Placeholder="Başlık"
+                           Text="{Binding Title}"
+                           TextColor="Black"
+                           MaxLength="80" FontFamily="RobotoRegular"/>
+                    <Label Text="{Binding TitleWarning}"
+                           TextColor="Red"
+                           FontSize="12"
+                           IsVisible="{Binding IsTitleLimitExceeded, Mode=OneWay}" FontFamily="RobotoRegular"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Description Editor -->
+            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
+                <VerticalStackLayout>
+                    <Editor Placeholder="Açıklama"
+                            Text="{Binding Description}"
+                            AutoSize="TextChanges"
+                            TextColor="Black"
+                            HeightRequest="100"
+                            MaxLength="300" FontFamily="RobotoRegular"/>
+                    <Label Text="{Binding DescriptionWarning}"
+                           TextColor="Red"
+                           FontSize="12"
+                           IsVisible="{Binding IsDescriptionLimitExceeded, Mode=OneWay}" FontFamily="RobotoRegular"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- DueDate Picker (with toggle and time) -->
+            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
+                <VerticalStackLayout>
+                    <Label Text="Son Tarih"
+                           FontSize="14"
+                           TextColor="Black"
+                           Margin="0,0,0,6" FontFamily="RobotoRegular"/>
+                    <DatePicker Date="{Binding DueDate}"
+                                TextColor="Black"
+                                BackgroundColor="Transparent"
+                                Format="dd MMMM yyyy" FontFamily="RobotoRegular"/>
+
+                    <HorizontalStackLayout Margin="0,6,0,0">
+                        <CheckBox IsChecked="{Binding EnableTime}" />
+                        <Label Text="Saat belirle" VerticalOptions="Center" TextColor="Black" Margin="6,0,0,0" FontFamily="RobotoRegular"/>
+                    </HorizontalStackLayout>
+
+                    <!-- TimePicker only visible when checkbox is checked -->
+                    <Frame IsVisible="{Binding EnableTime}" HorizontalOptions="Start" WidthRequest="130" Padding="2" HasShadow="False" BackgroundColor="Transparent">
+                        <TimePicker Time="{Binding SelectedTime, Mode=TwoWay}"
+                                    HorizontalOptions="Center"
+                                    TextColor="Black"
+                                    BackgroundColor="White"
+                                    HeightRequest="40"
+                                    WidthRequest="80"
+                                    Margin="0,2,0,0" FontFamily="RobotoRegular"/>
+                    </Frame>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Priority Picker -->
+            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
+                <Picker Title="Öncelik Seçin"
+                        ItemsSource="{Binding Priorities}"
+                        SelectedItem="{Binding SelectedPriority}"
+                        TextColor="Black"
+                        BackgroundColor="Transparent" FontFamily="RobotoRegular"/>
+            </Frame>
+
+            <!-- Tag Entry -->
+            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
+                <VerticalStackLayout>
+                    <Entry Placeholder="Etiket ekle"
+                           Text="{Binding NewTag}"
+                           Completed="OnTagCompleted"
+                           TextColor="Black"
+                           MaxLength="30" FontFamily="RobotoRegular"/>
+                    <Label Text="{Binding TagWarning}"
+                           TextColor="Red"
+                           FontSize="12"
+                           IsVisible="{Binding IsTagLimitExceeded, Mode=OneWay}" FontFamily="RobotoRegular"/>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Tags Display -->
+            <Label Text="{Binding TagsDisplay}"
+                   TextColor="White"
+                   FontAttributes="Italic" FontFamily="RobotoItalic"/>
+
+            <!-- Save Button -->
+            <Button Text="Görevi Güncelle"
+                    Command="{Binding UpdateTaskCommand}"
+                    TextColor="#2C2C2C"
+                    FontAttributes="Bold"
+                    CornerRadius="10"
+                    Padding="12"
+                    HeightRequest="48" FontFamily="RobotoRegular">
+                <Button.Background>
+                    <LinearGradientBrush EndPoint="0,1">
+                        <GradientStop Color="#ECECEC" Offset="0.0"/>
+                        <GradientStop Color="#DADADA" Offset="1.0"/>
+                    </LinearGradientBrush>
+                </Button.Background>
+            </Button>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -8,6 +8,7 @@ namespace Tazq_Frontend.Views
         public HomePage()
         {
             InitializeComponent();
+            Console.WriteLine("[DOTNET] HomePage yüklendi.");
             BindingContext = new HomeViewModel();
         }
 
@@ -19,7 +20,8 @@ namespace Tazq_Frontend.Views
                 viewModel.IsScrolledDown = true;
             }
 
-            MainRefreshView.IsRefreshing = false;
+            if (MainRefreshView != null)
+                MainRefreshView.IsRefreshing = false;
         }
     }
 }

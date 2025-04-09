@@ -15,7 +15,7 @@
 		<activity android:name="crc64b94d2a5a511603ea.MainActivity"
 				  android:exported="true"
 				  android:label="TAZQ"
-				  android:theme="@style/Maui.SplashTheme"
+				  android:theme="@style/Maui.MainTheme"
 				  android:screenOrientation="portrait">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN" />

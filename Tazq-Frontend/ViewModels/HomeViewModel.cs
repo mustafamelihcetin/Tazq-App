@@ -1,14 +1,11 @@
-﻿using System.Collections.ObjectModel;
-using System.Windows.Input;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using CommunityToolkit.Mvvm.Messaging;
-using Microsoft.Maui.Controls;
+using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using Tazq_Frontend.Models;
 using Tazq_Frontend.Services;
-using Tazq_Frontend.Views;
-using Microsoft.Maui.Storage;
-using System.Threading.Tasks;
+using Microsoft.Maui.Controls;
+using System.Windows.Input;
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -24,15 +21,9 @@ namespace Tazq_Frontend.ViewModels
             LogoutCommand = new AsyncRelayCommand(Logout);
             SettingsCommand = new AsyncRelayCommand(OpenSettings);
             TogglePastTasksCommand = new RelayCommand(TogglePastTasks);
-            EditTaskCommand = new AsyncRelayCommand<TaskModel?>(EditTask);
             DeleteTaskCommand = new AsyncRelayCommand<TaskModel?>(DeleteTask);
 
             LoadTasksCommand.Execute(null);
-
-            WeakReferenceMessenger.Default.Register<TaskAddedMessage>(this, async (r, m) =>
-            {
-                await LoadTasks();
-            });
         }
 
         [ObservableProperty]
@@ -42,7 +33,7 @@ namespace Tazq_Frontend.ViewModels
         public IAsyncRelayCommand LogoutCommand { get; }
         public IAsyncRelayCommand SettingsCommand { get; }
         public ICommand TogglePastTasksCommand { get; }
-        public IAsyncRelayCommand<TaskModel?> EditTaskCommand { get; }
+        // Remove the explicit definition of EditTaskCommand since it's generated automatically
         public IAsyncRelayCommand<TaskModel?> DeleteTaskCommand { get; }
 
         [ObservableProperty]
@@ -57,9 +48,15 @@ namespace Tazq_Frontend.ViewModels
         private async Task LoadTasks()
         {
             IsLoading = true;
+
             try
             {
+                Console.WriteLine("[DOTNET] Görevler API çağrılıyor...");
+
                 var taskList = await _apiService.GetTasks();
+
+                Console.WriteLine($"[DOTNET] Gelen görev sayısı: {taskList?.Count}");
+
                 Tasks.Clear();
 
                 if (taskList != null)
@@ -75,7 +72,9 @@ namespace Tazq_Frontend.ViewModels
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Hata: {ex.Message}");
+                Console.WriteLine($"[DOTNET] Görev çekme hatası: {ex.Message}");
+
+                await Application.Current.MainPage.DisplayAlert("Hata", "Görevler alınamadı: " + ex.Message, "Tamam");
             }
             finally
             {
@@ -110,13 +109,16 @@ namespace Tazq_Frontend.ViewModels
         [RelayCommand]
         private async Task GoToAddTaskPage()
         {
-            await Shell.Current.GoToAsync(nameof(AddTaskPage));
+            await Shell.Current.GoToAsync("AddTaskPage");
         }
 
+        [RelayCommand]
         private async Task EditTask(TaskModel? task)
         {
             if (task != null)
-                await Shell.Current.GoToAsync($"{nameof(AddTaskPage)}?taskId={task.Id}");
+            {
+                await Shell.Current.GoToAsync($"///EditTaskPage?taskId={task.Id}");
+            }
         }
 
         private async Task DeleteTask(TaskModel? task)

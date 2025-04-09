@@ -24,7 +24,7 @@
             <Label Text="Yeni Görev Ekle"
                    FontSize="26"
                    FontAttributes="Bold"
-                   TextColor="White" />
+                   TextColor="White" FontFamily="RobotoRegular"/>
 
             <!-- Title Entry -->
             <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
@@ -32,11 +32,11 @@
                     <Entry Placeholder="Başlık"
                            Text="{Binding Title}"
                            TextColor="Black"
-                           MaxLength="80" />
+                           MaxLength="80" FontFamily="RobotoRegular"/>
                     <Label Text="{Binding TitleWarning}"
                            TextColor="Red"
                            FontSize="12"
-                           IsVisible="{Binding IsTitleLimitExceeded, Mode=OneWay}" />
+                           IsVisible="{Binding IsTitleLimitExceeded, Mode=OneWay}" FontFamily="RobotoRegular"/>
                 </VerticalStackLayout>
             </Frame>
 
@@ -48,11 +48,11 @@
                             AutoSize="TextChanges"
                             TextColor="Black"
                             HeightRequest="100"
-                            MaxLength="300" />
+                            MaxLength="300" FontFamily="RobotoRegular"/>
                     <Label Text="{Binding DescriptionWarning}"
                            TextColor="Red"
                            FontSize="12"
-                           IsVisible="{Binding IsDescriptionLimitExceeded, Mode=OneWay}" />
+                           IsVisible="{Binding IsDescriptionLimitExceeded, Mode=OneWay}" FontFamily="RobotoRegular"/>
                 </VerticalStackLayout>
             </Frame>
 
@@ -62,15 +62,15 @@
                     <Label Text="Son Tarih"
                            FontSize="14"
                            TextColor="Black"
-                           Margin="0,0,0,6" />
+                           Margin="0,0,0,6" FontFamily="RobotoRegular"/>
                     <DatePicker Date="{Binding DueDate}"
                                 TextColor="Black"
                                 BackgroundColor="Transparent"
-                                Format="dd MMMM yyyy" />
+                                Format="dd MMMM yyyy" FontFamily="RobotoRegular"/>
 
                     <HorizontalStackLayout Margin="0,6,0,0">
                         <CheckBox IsChecked="{Binding EnableTime}" />
-                        <Label Text="Saat belirle" VerticalOptions="Center" TextColor="Black" Margin="6,0,0,0" />
+                        <Label Text="Saat belirle" VerticalOptions="Center" TextColor="Black" Margin="6,0,0,0" FontFamily="RobotoRegular"/>
                     </HorizontalStackLayout>
 
                     <!-- TimePicker only visible when checkbox is checked -->
@@ -81,7 +81,7 @@
                                     BackgroundColor="White"
                                     HeightRequest="40"
                                     WidthRequest="80"
-                                    Margin="0,2,0,0" />
+                                    Margin="0,2,0,0" FontFamily="RobotoRegular"/>
                     </Frame>
                 </VerticalStackLayout>
             </Frame>
@@ -92,7 +92,7 @@
                         ItemsSource="{Binding Priorities}"
                         SelectedItem="{Binding SelectedPriority}"
                         TextColor="Black"
-                        BackgroundColor="Transparent" />
+                        BackgroundColor="Transparent" FontFamily="RobotoRegular"/>
             </Frame>
 
             <!-- Tag Entry -->
@@ -102,18 +102,18 @@
                            Text="{Binding NewTag}"
                            Completed="OnTagCompleted"
                            TextColor="Black"
-                           MaxLength="30" />
+                           MaxLength="30" FontFamily="RobotoRegular"/>
                     <Label Text="{Binding TagWarning}"
                            TextColor="Red"
                            FontSize="12"
-                           IsVisible="{Binding IsTagLimitExceeded, Mode=OneWay}" />
+                           IsVisible="{Binding IsTagLimitExceeded, Mode=OneWay}" FontFamily="RobotoRegular"/>
                 </VerticalStackLayout>
             </Frame>
 
             <!-- Tags Display -->
             <Label Text="{Binding TagsDisplay}"
                    TextColor="White"
-                   FontAttributes="Italic" />
+                   FontAttributes="Italic" FontFamily="RobotoItalic"/>
 
             <!-- Save Button -->
             <Button Text="Görevi Kaydet"
@@ -122,7 +122,7 @@
                     FontAttributes="Bold"
                     CornerRadius="10"
                     Padding="12"
-                    HeightRequest="48">
+                    HeightRequest="48" FontFamily="RobotoRegular">
                 <Button.Background>
                     <LinearGradientBrush EndPoint="0,1">
                         <GradientStop Color="#ECECEC" Offset="0.0"/>

@@ -16,6 +16,11 @@ namespace Tazq_Frontend
             Routing.RegisterRoute(nameof(AddTaskPage), typeof(AddTaskPage));
             Routing.RegisterRoute(nameof(ForgotPasswordPage), typeof(ForgotPasswordPage));
             Routing.RegisterRoute(nameof(ResetPasswordPage), typeof(ResetPasswordPage));
+            Routing.RegisterRoute(nameof(EditTaskPage), typeof(EditTaskPage));
+
+#if ANDROID
+
+#endif
         }
     }
 }

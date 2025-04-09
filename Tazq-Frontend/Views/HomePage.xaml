@@ -6,13 +6,17 @@
              x:Class="Tazq_Frontend.Views.HomePage"
              x:Name="HomePageRoot"
              Shell.NavBarIsVisible="False"
-             NavigationPage.HasNavigationBar="False"
-             BackgroundColor="Transparent">
+             NavigationPage.HasNavigationBar="False">
+
+    <ContentPage.BindingContext>
+        <vm:HomeViewModel />
+    </ContentPage.BindingContext>
 
     <ContentPage.Background>
         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#1F2D3D" Offset="0.0" />
-            <GradientStop Color="#6A85B6" Offset="1.0" />
+            <GradientStop Color="#212121" Offset="0.0" />
+            <GradientStop Color="#2B2B2B" Offset="0.5" />
+            <GradientStop Color="#3A3A3A" Offset="1.0" />
         </LinearGradientBrush>
     </ContentPage.Background>
 
@@ -26,9 +30,9 @@
             <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
             <converters:NullOrEmptyToBoolConverter x:Key="NullOrEmptyToBoolConverter" />
             <converters:TagsArrayToStringConverter x:Key="TagsArrayToStringConverter" />
-            <converters:PriorityToColorConverter x:Key="PriorityToColorConverter" />
             <converters:PriorityToTurkishConverter x:Key="PriorityToTurkishConverter" />
             <converters:BoolToBorderColorConverter x:Key="BoolToBorderColorConverter" />
+            <converters:PriorityToColorConverter x:Key="PriorityToColorConverter" />
         </ResourceDictionary>
     </ContentPage.Resources>
 
@@ -40,7 +44,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Grid Grid.Row="0" ColumnSpacing="12">
+        <Grid Grid.Row="0" ColumnSpacing="12" Padding="0,5,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="40" />
@@ -56,57 +60,72 @@
             <ImageButton Grid.Column="1"
                          Source="settings_icon.png"
                          BackgroundColor="Transparent"
-                         HeightRequest="30"
-                         WidthRequest="30"
+                         HeightRequest="36"
+                         WidthRequest="36"
                          Command="{Binding SettingsCommand}"
                          HorizontalOptions="End"
-                         VerticalOptions="Center"/>
+                         VerticalOptions="Center"
+                         Padding="4"/>
 
             <ImageButton Grid.Column="2"
                          Source="logout_icon.png"
                          BackgroundColor="Transparent"
-                         HeightRequest="30"
-                         WidthRequest="30"
+                         HeightRequest="36"
+                         WidthRequest="36"
                          Command="{Binding LogoutCommand}"
                          HorizontalOptions="End"
-                         VerticalOptions="Center"/>
+                         VerticalOptions="Center"
+                         Padding="4"/>
         </Grid>
 
         <!-- Add Task Button -->
-        <Button Grid.Row="1"
-                Text="Yeni Görev Ekle"
-                Command="{Binding GoToAddTaskPageCommand}"
-                TextColor="#2C2C2C"
-                FontAttributes="Bold"
-                FontSize="15"
-                Padding="10"
-                HeightRequest="48"
-                WidthRequest="250"
-                CornerRadius="15"
-                HorizontalOptions="Center">
-            <Button.Shadow>
-                <Shadow Brush="Black" Opacity="0.1" Offset="0,2" />
-            </Button.Shadow>
-            <Button.Background>
-                <LinearGradientBrush EndPoint="0,1">
-                    <GradientStop Color="#ECECEC" Offset="0.0"/>
-                    <GradientStop Color="#DADADA" Offset="1.0"/>
-                </LinearGradientBrush>
-            </Button.Background>
-        </Button>
+        <Frame Grid.Row="1" Padding="0" CornerRadius="12" HasShadow="False" BackgroundColor="Transparent" HorizontalOptions="Center">
+            <Grid>
+                <Grid.Background>
+                    <LinearGradientBrush EndPoint="0,1">
+                        <GradientStop Color="#3C4D90" Offset="0.0" />
+                        <GradientStop Color="#2B365E" Offset="1.0" />
+                    </LinearGradientBrush>
+                </Grid.Background>
+                <Button Text="Yeni Görev Ekle"
+                        Command="{Binding GoToAddTaskPageCommand}"
+                        FontAttributes="Bold"
+                        FontSize="15"
+                        TextColor="White"
+                        CornerRadius="12"
+                        HeightRequest="48"
+                        WidthRequest="200"
+                        FontFamily="RobotoRegular"
+                        Padding="10"
+                        BackgroundColor="Transparent"
+                        HorizontalOptions="Center">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroupList>
+                            <VisualStateGroup Name="CommonStates">
+                                <VisualState Name="Pressed">
+                                    <VisualState.Setters>
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush EndPoint="0,1">
+                                                    <GradientStop Color="#2C386A" Offset="0.0" />
+                                                    <GradientStop Color="#1E2649" Offset="1.0" />
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateGroupList>
+                    </VisualStateManager.VisualStateGroups>
+                </Button>
+            </Grid>
+        </Frame>
 
         <!-- Task List -->
         <Grid Grid.Row="2">
-            <ActivityIndicator IsRunning="{Binding IsLoading}"
-                               IsVisible="{Binding IsLoading}"
-                               Color="White"
-                               WidthRequest="40"
-                               HeightRequest="40"
-                               VerticalOptions="Center"
-                               HorizontalOptions="Center" />
-
             <RefreshView x:Name="MainRefreshView"
                          Command="{Binding LoadTasksCommand}"
+                         IsRefreshing="{Binding IsLoading}"
                          Refreshing="MainRefreshView_Refreshing">
 
                 <CollectionView x:Name="MainCollectionView"
@@ -122,7 +141,8 @@
                                FontSize="14"
                                HorizontalOptions="Center"
                                Margin="0,0,0,10"
-                               IsVisible="{Binding IsScrolledDown}">
+                               IsVisible="{Binding IsScrolledDown}"
+                               FontFamily="RobotoRegular">
                             <Label.GestureRecognizers>
                                 <TapGestureRecognizer Command="{Binding TogglePastTasksCommand}" />
                             </Label.GestureRecognizers>
@@ -166,7 +186,7 @@
 
                                 <!-- Task Card -->
                                 <Frame CornerRadius="12"
-                                       BackgroundColor="#2C3E50"
+                                       BackgroundColor="#2C2C2E"
                                        Padding="16"
                                        Margin="0,0,0,12"
                                        HasShadow="True"
@@ -185,7 +205,6 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Title -->
                                         <Label Grid.Row="0" Grid.Column="0"
                                                Text="{Binding Title}"
                                                FontSize="15"
@@ -194,13 +213,12 @@
                                                LineBreakMode="TailTruncation"
                                                MaxLines="2" />
 
-                                        <!-- Priority Badge -->
                                         <Frame Grid.Row="0" Grid.Column="1"
                                                Padding="4,2"
                                                BackgroundColor="{Binding PriorityEnum, Converter={StaticResource PriorityToColorConverter}}"
                                                CornerRadius="8"
                                                HasShadow="False"
-                                               Margin="8,0,0,0"
+                                               Margin="8,2,0,0"
                                                VerticalOptions="Start"
                                                HorizontalOptions="End">
                                             <Label Text="{Binding PriorityEnum, Converter={StaticResource PriorityToTurkishConverter}}"
@@ -209,25 +227,23 @@
                                                    FontAttributes="Bold"/>
                                         </Frame>
 
-                                        <!-- Description, Dates, Tags -->
                                         <VerticalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="6" Margin="0,6,0,0">
                                             <Label Text="{Binding Description}"
                                                    FontSize="13"
                                                    TextColor="#D0D0D0"
                                                    LineHeight="1.1"
-                                                   HeightRequest="33"
-                                                   WidthRequest="280"
+                                                   MaxLines="3"
+                                                   LineBreakMode="TailTruncation"
                                                    HorizontalOptions="Start"
                                                    VerticalOptions="Start"
                                                    IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
-                                            <Label Text="{Binding DueDate, StringFormat='Son Tarih: {0:dd MMM yyyy}'}"
-                                                   FontSize="13" TextColor="#FFEE58"
+                                            <Label Text="{Binding DueDate, StringFormat='Son Tarih: {0:dd MMM yyyy HH\\:mm}'}"
+                                                   FontSize="13"
+                                                   TextColor="#FFEE58"
                                                    IsVisible="{Binding DueDate.HasValue}" />
-                                            <Label Text="{Binding DueTime, StringFormat='{0:HH\\:mm}'}"
-                                                   FontSize="13" TextColor="#FFEE58"
-                                                   IsVisible="{Binding DueTime.HasValue}" />
                                             <Label Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
-                                                   FontSize="12" TextColor="#AAAAAA"
+                                                   FontSize="12"
+                                                   TextColor="#AAAAAA"
                                                    IsVisible="{Binding Tags.Count, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
                                         </VerticalStackLayout>
                                     </Grid>

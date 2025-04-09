@@ -13,6 +13,13 @@ namespace Tazq_Frontend.Models
         public bool IsCompleted { get; set; }
         public string Priority { get; set; } = string.Empty;
         public List<string> Tags { get; set; } = new();
+        public string TagsJson { get; set; } = string.Empty; // Encrypted Tags
+
+        // Constructor
+        public TaskModel()
+        {
+            Tags = new List<string>();
+        }
 
         public bool IsExpired => DueDate.HasValue && DueDate.Value.Date < DateTime.Today;
         public bool IsToday => DueDate.HasValue && DueDate.Value.Date == DateTime.Today;
