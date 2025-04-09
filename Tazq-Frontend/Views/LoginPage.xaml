@@ -31,7 +31,7 @@
 
             <!-- Logo -->
             <VerticalStackLayout Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Center">
-                <Image Source="tazq_white_logo.png" HeightRequest="50" BackgroundColor="Transparent" />
+                <Image x:Name="LoginLogo" Source="tazq_white_logo.png" HeightRequest="50" BackgroundColor="Transparent" />
                 <Label Text="Yapılacaklarını Yönet"
                        FontSize="16"
                        LineHeight="1.2"
@@ -40,6 +40,7 @@
                        Margin="0,3,0,40"
                        FontFamily="RobotoRegular"/>
             </VerticalStackLayout>
+
 
             <!-- Inputs -->
             <VerticalStackLayout Grid.Row="1" Spacing="12" HorizontalOptions="Center"

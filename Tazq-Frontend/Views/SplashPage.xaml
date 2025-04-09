@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:Tazq_Frontend.Views"
              x:Class="Tazq_Frontend.Views.SplashPage"
              Shell.NavBarIsVisible="False"
              NavigationPage.HasNavigationBar="False">
@@ -13,13 +14,13 @@
         </LinearGradientBrush>
     </ContentPage.Background>
 
-    <Grid>
+    <Grid x:Name="RootGrid">
         <Image x:Name="Logo"
                Source="tazq_white_logo.png"
                WidthRequest="160"
                HeightRequest="160"
-               VerticalOptions="Center"
+               Opacity="0"
                HorizontalOptions="Center"
-               Opacity="0"/>
+               VerticalOptions="Center" />
     </Grid>
 </ContentPage>

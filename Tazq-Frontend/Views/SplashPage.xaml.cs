@@ -8,31 +8,41 @@ namespace Tazq_Frontend.Views
         public SplashPage()
         {
             InitializeComponent();
+            BackgroundColor = Color.FromArgb("#212121");
         }
 
         protected override async void OnAppearing()
         {
             base.OnAppearing();
-            await AnimateLogoAsync();
-        }
 
-        private async Task AnimateLogoAsync()
-        {
+            Logo.Opacity = 0;
+            await Task.Delay(300);
             await Logo.FadeTo(1, 800, Easing.CubicInOut);
-            await Logo.TranslateTo(0, -180, 1000, Easing.SpringOut);
-            await Task.Delay(400);
-
-            Application.Current.MainPage = new AppShell();
+            await Task.Delay(500);
+            await Logo.FadeTo(0, 600, Easing.CubicInOut);
 
             var token = await SecureStorage.GetAsync("jwt_token");
 
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                Application.Current.MainPage = new AppShell();
+            });
+
+            await Task.Delay(50);
+
             if (!string.IsNullOrEmpty(token))
             {
-                await Shell.Current.GoToAsync("//HomePage");
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    await Shell.Current.GoToAsync("//HomePage");
+                });
             }
             else
             {
-                await Shell.Current.GoToAsync("//LoginPage");
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    await Shell.Current.GoToAsync("//LoginPage");
+                });
             }
         }
     }

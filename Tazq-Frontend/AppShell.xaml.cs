@@ -9,7 +9,6 @@ namespace Tazq_Frontend
         {
             InitializeComponent();
 
-            // Register routes for all pages used in the application
             Routing.RegisterRoute(nameof(LoginPage), typeof(LoginPage));
             Routing.RegisterRoute(nameof(RegisterPage), typeof(RegisterPage));
             Routing.RegisterRoute(nameof(HomePage), typeof(HomePage));
@@ -17,10 +16,6 @@ namespace Tazq_Frontend
             Routing.RegisterRoute(nameof(ForgotPasswordPage), typeof(ForgotPasswordPage));
             Routing.RegisterRoute(nameof(ResetPasswordPage), typeof(ResetPasswordPage));
             Routing.RegisterRoute(nameof(EditTaskPage), typeof(EditTaskPage));
-
-#if ANDROID
-
-#endif
         }
     }
 }

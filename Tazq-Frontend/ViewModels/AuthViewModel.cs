@@ -109,7 +109,7 @@ namespace Tazq_Frontend.ViewModels
                     IsLoading = false;
 
                     if (Shell.Current != null)
-                        await Shell.Current.GoToAsync("HomePage");
+                        await Shell.Current.GoToAsync("//HomePage");
                 }
                 else
                 {
