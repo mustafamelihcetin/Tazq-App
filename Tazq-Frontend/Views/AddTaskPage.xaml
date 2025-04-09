@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
@@ -18,118 +17,165 @@
         <vm:AddTaskViewModel />
     </ContentPage.BindingContext>
 
-    <ScrollView>
-        <VerticalStackLayout Padding="24" Spacing="16">
+    <Grid Padding="20" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-            <Label Text="Yeni Görev Ekle"
-                   FontSize="26"
-                   FontAttributes="Bold"
-                   TextColor="White" FontFamily="RobotoRegular"/>
+        <!-- Page title -->
+        <Label Grid.Row="0"
+               Text="Yeni Görev Ekle"
+               FontSize="24"
+               FontAttributes="Bold"
+               TextColor="White"
+               FontFamily="RobotoRegular"
+               HorizontalOptions="Center"
+               HorizontalTextAlignment="Center" />
 
-            <!-- Title Entry -->
-            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
-                <VerticalStackLayout>
-                    <Entry Placeholder="Başlık"
+        <!-- Form grid -->
+        <Grid Grid.Row="1" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Title -->
+            <Frame Grid.Row="0"
+                   BackgroundColor="White"
+                   CornerRadius="10"
+                   Padding="10"
+                   HasShadow="False">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Entry Grid.Row="0"
+                           Placeholder="Başlık"
                            Text="{Binding Title}"
                            TextColor="Black"
-                           MaxLength="80" FontFamily="RobotoRegular"/>
-                    <Label Text="{Binding TitleWarning}"
+                           MaxLength="80"
+                           FontFamily="RobotoRegular"/>
+                    <Label Grid.Row="1"
+                           Text="{Binding TitleWarning}"
                            TextColor="Red"
                            FontSize="12"
-                           IsVisible="{Binding IsTitleLimitExceeded, Mode=OneWay}" FontFamily="RobotoRegular"/>
-                </VerticalStackLayout>
+                           IsVisible="{Binding IsTitleLimitExceeded}"
+                           FontFamily="RobotoRegular"/>
+                </Grid>
             </Frame>
 
-            <!-- Description Editor -->
-            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
-                <VerticalStackLayout>
-                    <Editor Placeholder="Açıklama"
+            <!-- Description -->
+            <Frame Grid.Row="1"
+                   BackgroundColor="White"
+                   CornerRadius="10"
+                   Padding="10"
+                   HasShadow="False">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Editor Grid.Row="0"
+                            Placeholder="Açıklama"
                             Text="{Binding Description}"
                             AutoSize="TextChanges"
                             TextColor="Black"
-                            HeightRequest="100"
-                            MaxLength="300" FontFamily="RobotoRegular"/>
-                    <Label Text="{Binding DescriptionWarning}"
+                            MaxLength="300"
+                            FontFamily="RobotoRegular"/>
+                    <Label Grid.Row="1"
+                           Text="{Binding DescriptionWarning}"
                            TextColor="Red"
                            FontSize="12"
-                           IsVisible="{Binding IsDescriptionLimitExceeded, Mode=OneWay}" FontFamily="RobotoRegular"/>
-                </VerticalStackLayout>
+                           IsVisible="{Binding IsDescriptionLimitExceeded}"
+                           FontFamily="RobotoRegular"/>
+                </Grid>
             </Frame>
 
-            <!-- DueDate Picker (with toggle and time) -->
-            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
-                <VerticalStackLayout>
-                    <Label Text="Son Tarih"
-                           FontSize="14"
-                           TextColor="Black"
-                           Margin="0,0,0,6" FontFamily="RobotoRegular"/>
+            <!-- Date & Time -->
+            <Frame Grid.Row="2"
+                   BackgroundColor="White"
+                   CornerRadius="10"
+                   Padding="10"
+                   HasShadow="False">
+                <VerticalStackLayout Spacing="6">
                     <DatePicker Date="{Binding DueDate}"
+                                Format="dd MMMM yyyy"
                                 TextColor="Black"
-                                BackgroundColor="Transparent"
-                                Format="dd MMMM yyyy" FontFamily="RobotoRegular"/>
-
-                    <HorizontalStackLayout Margin="0,6,0,0">
+                                FontFamily="RobotoRegular" />
+                    <HorizontalStackLayout>
                         <CheckBox IsChecked="{Binding EnableTime}" />
-                        <Label Text="Saat belirle" VerticalOptions="Center" TextColor="Black" Margin="6,0,0,0" FontFamily="RobotoRegular"/>
+                        <Label Text="Saat belirle"
+                               TextColor="Black"
+                               FontFamily="RobotoRegular"
+                               VerticalOptions="Center"
+                               Margin="6,0,0,0"/>
                     </HorizontalStackLayout>
-
-                    <!-- TimePicker only visible when checkbox is checked -->
-                    <Frame IsVisible="{Binding EnableTime}" HorizontalOptions="Start" WidthRequest="130" Padding="2" HasShadow="False" BackgroundColor="Transparent">
-                        <TimePicker Time="{Binding SelectedTime, Mode=TwoWay}"
-                                    HorizontalOptions="Center"
-                                    TextColor="Black"
-                                    BackgroundColor="White"
-                                    HeightRequest="40"
-                                    WidthRequest="80"
-                                    Margin="0,2,0,0" FontFamily="RobotoRegular"/>
-                    </Frame>
+                    <TimePicker Time="{Binding SelectedTime}"
+                                IsVisible="{Binding EnableTime}"
+                                TextColor="Black"
+                                FontFamily="RobotoRegular" />
                 </VerticalStackLayout>
             </Frame>
 
-            <!-- Priority Picker -->
-            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
+            <!-- Priority -->
+            <Frame Grid.Row="3"
+                   BackgroundColor="White"
+                   CornerRadius="10"
+                   Padding="10"
+                   HasShadow="False">
                 <Picker Title="Öncelik Seçin"
                         ItemsSource="{Binding Priorities}"
                         SelectedItem="{Binding SelectedPriority}"
                         TextColor="Black"
-                        BackgroundColor="Transparent" FontFamily="RobotoRegular"/>
+                        FontFamily="RobotoRegular" />
             </Frame>
 
-            <!-- Tag Entry -->
-            <Frame BackgroundColor="White" CornerRadius="10" HasShadow="False" Padding="10">
-                <VerticalStackLayout>
-                    <Entry Placeholder="Etiket ekle"
-                           Text="{Binding NewTag}"
-                           Completed="OnTagCompleted"
-                           TextColor="Black"
-                           MaxLength="30" FontFamily="RobotoRegular"/>
-                    <Label Text="{Binding TagWarning}"
-                           TextColor="Red"
-                           FontSize="12"
-                           IsVisible="{Binding IsTagLimitExceeded, Mode=OneWay}" FontFamily="RobotoRegular"/>
-                </VerticalStackLayout>
+            <!-- Tag -->
+            <Frame Grid.Row="4"
+                   BackgroundColor="White"
+                   CornerRadius="10"
+                   Padding="10"
+                   HasShadow="False">
+                <Entry Placeholder="Etiket ekle"
+                       Text="{Binding NewTag}"
+                       Completed="OnTagCompleted"
+                       TextColor="Black"
+                       MaxLength="30"
+                       FontFamily="RobotoRegular"/>
             </Frame>
 
-            <!-- Tags Display -->
-            <Label Text="{Binding TagsDisplay}"
+            <!-- Tag display -->
+            <Label Grid.Row="5"
+                   Text="{Binding TagsDisplay}"
                    TextColor="White"
-                   FontAttributes="Italic" FontFamily="RobotoItalic"/>
+                   FontAttributes="Italic"
+                   FontFamily="RobotoItalic"
+                   HorizontalOptions="Center"/>
+        </Grid>
 
-            <!-- Save Button -->
-            <Button Text="Görevi Kaydet"
-                    Command="{Binding SaveTaskCommand}"
-                    TextColor="#2C2C2C"
-                    FontAttributes="Bold"
-                    CornerRadius="10"
-                    Padding="12"
-                    HeightRequest="48" FontFamily="RobotoRegular">
-                <Button.Background>
-                    <LinearGradientBrush EndPoint="0,1">
-                        <GradientStop Color="#ECECEC" Offset="0.0"/>
-                        <GradientStop Color="#DADADA" Offset="1.0"/>
-                    </LinearGradientBrush>
-                </Button.Background>
-            </Button>
-        </VerticalStackLayout>
-    </ScrollView>
+        <!-- Save button -->
+        <Button Grid.Row="2"
+                Text="Görevi Kaydet"
+                Command="{Binding SaveTaskCommand}"
+                TextColor="#2C2C2C"
+                FontAttributes="Bold"
+                CornerRadius="10"
+                FontFamily="RobotoRegular"
+                HeightRequest="48"
+                HorizontalOptions="Fill">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0,1">
+                    <GradientStop Color="#ECECEC" Offset="0.0"/>
+                    <GradientStop Color="#DADADA" Offset="1.0"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+    </Grid>
 </ContentPage>
