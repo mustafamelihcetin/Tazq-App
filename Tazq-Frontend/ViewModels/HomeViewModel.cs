@@ -6,6 +6,7 @@ using Tazq_Frontend.Models;
 using Tazq_Frontend.Services;
 using Microsoft.Maui.Controls;
 using System.Windows.Input;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -22,6 +23,18 @@ namespace Tazq_Frontend.ViewModels
             SettingsCommand = new AsyncRelayCommand(OpenSettings);
             TogglePastTasksCommand = new RelayCommand(TogglePastTasks);
             DeleteTaskCommand = new AsyncRelayCommand<TaskModel?>(DeleteTask);
+
+            // Refreshing after adding a task
+            WeakReferenceMessenger.Default.Register<TaskAddedMessage>(this, async (r, m) =>
+            {
+                await LoadTasks();
+            });
+
+            // Refreshin after editing a task
+            WeakReferenceMessenger.Default.Register<TaskUpdatedMessage>(this, async (r, m) =>
+            {
+                await LoadTasksAsync();
+            });
 
             LoadTasksCommand.Execute(null);
         }
@@ -61,12 +74,14 @@ namespace Tazq_Frontend.ViewModels
 
                 if (taskList != null)
                 {
-                    foreach (var task in taskList)
+                    var ordered = taskList
+                        .Where(t => ShowPastTasks || !t.IsExpired)
+                        .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
+                        .ThenBy(t => t.DueTime ?? DateTime.MaxValue); // 👈 Saat ile ikinci sıralama
+
+                    foreach (var task in ordered)
                     {
-                        if (ShowPastTasks || !task.IsExpired)
-                        {
-                            Tasks.Add(task);
-                        }
+                        Tasks.Add(task);
                     }
                 }
             }
@@ -133,6 +148,19 @@ namespace Tazq_Frontend.ViewModels
                 await _apiService.DeleteTask(task.Id);
                 await LoadTasks();
             }
+        }
+
+        public async Task LoadTasksAsync()
+        {
+            var tasks = await _apiService.GetTasks();
+
+            var ordered = tasks
+                .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
+                .ThenBy(t => t.DueTime ?? DateTime.MaxValue);
+
+            Tasks.Clear();
+            foreach (var task in ordered)
+                Tasks.Add(task);
         }
     }
 }

@@ -60,8 +60,12 @@ namespace Tazq_Frontend.ViewModels
             Tags = task.Tags != null
                 ? new ObservableCollection<string>(task.Tags)
                 : new ObservableCollection<string>();
+
+            NewTag = Tags.FirstOrDefault();
+
             TaskId = task.Id;
         }
+
 
         [ObservableProperty]
         private string title = string.Empty;
@@ -118,8 +122,13 @@ namespace Tazq_Frontend.ViewModels
                 return;
             }
 
-            if (!string.IsNullOrWhiteSpace(NewTag) && !Tags.Contains(NewTag))
+            // Reset all tag list and put NewTag
+            if (!string.IsNullOrWhiteSpace(NewTag))
+            {
+                Tags.Clear();
                 Tags.Add(NewTag);
+            }
+
 
             DateTime? finalDueTime = null;
 

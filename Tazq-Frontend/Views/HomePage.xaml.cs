@@ -13,16 +13,18 @@ namespace Tazq_Frontend.Views
         }
 
         // Triggered when user pulls down to refresh
-        private void MainRefreshView_Refreshing(object sender, EventArgs e)
+        private async void MainRefreshView_Refreshing(object sender, EventArgs e)
         {
             if (BindingContext is HomeViewModel viewModel)
             {
+                await viewModel.LoadTasksAsync();
                 viewModel.IsScrolledDown = true;
             }
 
             if (MainRefreshView != null)
                 MainRefreshView.IsRefreshing = false;
         }
+
 
         protected override async void OnAppearing()
         {
