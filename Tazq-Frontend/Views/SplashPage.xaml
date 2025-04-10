@@ -7,20 +7,24 @@
              NavigationPage.HasNavigationBar="False">
 
     <ContentPage.Background>
+        <!-- Wide and smooth diagonal gradient -->
         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#212121" Offset="0.0" />
-            <GradientStop Color="#2B2B2B" Offset="0.5" />
-            <GradientStop Color="#3A3A3A" Offset="1.0" />
+            <GradientStop Color="#1A1A1A" Offset="0.0" />
+            <GradientStop Color="#262626" Offset="0.5" />
+            <GradientStop Color="#333333" Offset="1.0" />
         </LinearGradientBrush>
     </ContentPage.Background>
 
-    <Grid x:Name="RootGrid">
+    <AbsoluteLayout>
+
+        <!-- Foreground Logo -->
         <Image x:Name="Logo"
                Source="tazq_white_logo.png"
                WidthRequest="160"
                HeightRequest="160"
                Opacity="0"
-               HorizontalOptions="Center"
-               VerticalOptions="Center" />
-    </Grid>
+               AbsoluteLayout.LayoutBounds="0.5,0.5,-1,-1"
+               AbsoluteLayout.LayoutFlags="PositionProportional" />
+
+    </AbsoluteLayout>
 </ContentPage>

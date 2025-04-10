@@ -117,7 +117,8 @@ namespace Tazq_Frontend.ViewModels
         {
             if (task != null)
             {
-                await Shell.Current.GoToAsync($"///EditTaskPage?taskId={task.Id}");
+                Console.WriteLine($">>> EditTask yönlendirme: {task.Id}");
+                await Shell.Current.GoToAsync($"EditTaskPage?taskId={task.Id}");
             }
         }
 

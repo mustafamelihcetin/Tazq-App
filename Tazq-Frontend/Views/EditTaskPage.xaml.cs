@@ -1,45 +1,51 @@
-using System;
-using System.Web;
 using Tazq_Frontend.ViewModels;
 
 namespace Tazq_Frontend.Views
 {
+    [QueryProperty(nameof(TaskIdQuery), "taskId")]
     public partial class EditTaskPage : ContentPage
     {
+        private readonly EditTaskViewModel _viewModel;
+
         public EditTaskPage()
         {
             InitializeComponent();
+            _viewModel = new EditTaskViewModel();
+            BindingContext = _viewModel;
         }
 
-        // Event handler for tag completion
-        private void OnTagCompleted(object sender, EventArgs e)
+        private string taskIdQuery;
+        public string TaskIdQuery
         {
-            if (BindingContext is EditTaskViewModel vm && !string.IsNullOrWhiteSpace(vm.NewTag))
+            get => taskIdQuery;
+            set
             {
-                // Check if the tag doesn't already exist, then add it
-                if (!vm.Tags.Contains(vm.NewTag))
-                    vm.Tags.Add(vm.NewTag);
+                taskIdQuery = value;
+                Console.WriteLine($">>> Query'den gelen taskId: {taskIdQuery}");
 
-                // Clear the input field after adding the tag
-                vm.NewTag = string.Empty;
+                if (int.TryParse(taskIdQuery, out int id))
+                {
+                    _ = LoadTask(id);
+                }
+                else
+                {
+                    Console.WriteLine(">>> taskId geçerli deðil!");
+                }
             }
         }
-        protected override async void OnAppearing()
+
+        private async Task LoadTask(int id)
         {
-            base.OnAppearing();
+            await _viewModel.LoadTaskById(id);
+            Console.WriteLine($">>> Title: {_viewModel.Title}");
+        }
 
-            var taskId = Shell.Current.CurrentState?.Location.OriginalString;
-            if (taskId != null)
+        private void OnTagCompleted(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrWhiteSpace(_viewModel.NewTag) && !_viewModel.Tags.Contains(_viewModel.NewTag))
             {
-                var uri = new Uri(taskId);
-                var queryParams = HttpUtility.ParseQueryString(uri.Query);
-                var taskIdValue = queryParams["taskId"];
-
-                if (int.TryParse(taskIdValue, out int id))
-                {
-                    var viewModel = (EditTaskViewModel)BindingContext;
-                    await viewModel.LoadTaskById(id);
-                }
+                _viewModel.Tags.Add(_viewModel.NewTag);
+                _viewModel.NewTag = string.Empty;
             }
         }
     }

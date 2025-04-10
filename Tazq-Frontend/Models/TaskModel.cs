@@ -40,5 +40,18 @@ namespace Tazq_Frontend.Models
         }
 
         public string PriorityLevel => PriorityEnum.ToString();
+
+        // Combined DueDate and DueTime
+        public DateTime? DueDateTimeCombined =>
+            DueDate.HasValue && DueTime.HasValue
+                ? new DateTime(
+                    DueDate.Value.Year,
+                    DueDate.Value.Month,
+                    DueDate.Value.Day,
+                    DueTime.Value.Hour,
+                    DueTime.Value.Minute,
+                    0,
+                    DateTimeKind.Local)
+                : DueDate;
     }
 }

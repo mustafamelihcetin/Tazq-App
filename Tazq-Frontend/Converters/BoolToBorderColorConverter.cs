@@ -7,7 +7,7 @@ namespace Tazq_Frontend.Converters
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is bool boolValue && boolValue)
-                return Color.FromArgb("#FFEE58");
+                return Color.FromArgb("#3F51B5");
 
             return Colors.Transparent;
         }

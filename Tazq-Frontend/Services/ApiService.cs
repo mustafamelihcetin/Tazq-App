@@ -334,7 +334,13 @@ namespace Tazq_Frontend.Services
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var task = JsonSerializer.Deserialize<TaskModel>(json);
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var task = JsonSerializer.Deserialize<TaskModel>(json, options);
                 return task;
             }
             catch (Exception ex)

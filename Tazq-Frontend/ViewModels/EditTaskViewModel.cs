@@ -38,7 +38,6 @@ namespace Tazq_Frontend.ViewModels
             if (task != null)
             {
                 EditingTask = task;
-                LoadTask(task);
             }
         }
 
@@ -47,7 +46,9 @@ namespace Tazq_Frontend.ViewModels
             Title = task.Title;
             Description = task.Description;
             DueDate = task.DueDate?.ToLocalTime() ?? DateTime.Today.AddDays(1);
-            SelectedTime = task.DueTime?.ToLocalTime().TimeOfDay ?? TimeSpan.Zero;
+            SelectedTime = task.DueTime.HasValue
+                ? task.DueTime.Value.ToLocalTime().TimeOfDay
+                : (TimeSpan?)null;
             EnableTime = task.DueTime.HasValue;
             SelectedPriority = task.Priority switch
             {
@@ -56,7 +57,9 @@ namespace Tazq_Frontend.ViewModels
                 "High" => "Yüksek",
                 _ => "Orta"
             };
-            Tags = new ObservableCollection<string>(task.Tags ?? new List<string>());
+            Tags = task.Tags != null
+                ? new ObservableCollection<string>(task.Tags)
+                : new ObservableCollection<string>();
             TaskId = task.Id;
         }
 
