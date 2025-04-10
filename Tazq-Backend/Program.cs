@@ -159,6 +159,19 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
+app.Use(async (context, next) =>
+{
+    if (!context.Request.Headers.TryGetValue("X-App-Signature", out var signature) ||
+        signature != "tazq-maui-frontend")
+    {
+        context.Response.StatusCode = 403;
+        await context.Response.WriteAsync("Frontend dışında erişim engellendi.");
+        return;
+    }
+
+    await next();
+});
+
 app.UseCors("AllowAllOrigins");
 app.UseAuthentication();
 app.UseAuthorization();

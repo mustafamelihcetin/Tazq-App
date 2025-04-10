@@ -19,6 +19,7 @@ namespace Tazq_Frontend.Services
 			{
 				BaseAddress = new Uri(ApiConstants.BaseUrl)
 			};
+            _httpClient.DefaultRequestHeaders.Add("X-App-Signature", "tazq-maui-frontend");
 		}
 
 		// Store JWT Token
