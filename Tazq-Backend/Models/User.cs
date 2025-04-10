@@ -34,5 +34,7 @@ namespace Tazq_App.Models
 
 		[JsonIgnore]
 		public List<TaskItem> Tasks { get; set; } = new List<TaskItem>();
-	}
+        public string? LastLoginIp { get; set; }
+
+    }
 }

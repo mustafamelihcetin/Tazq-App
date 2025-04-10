@@ -1,10 +1,13 @@
 using Microsoft.Maui.Controls;
 using Tazq_Frontend.Views;
+using Tazq_Frontend.Services;
 
 namespace Tazq_Frontend.Views
 {
     public partial class SplashPage : ContentPage
     {
+        private readonly ApiService _apiService = new();
+
         public SplashPage()
         {
             InitializeComponent();
@@ -32,18 +35,15 @@ namespace Tazq_Frontend.Views
 
             if (!string.IsNullOrEmpty(token))
             {
-                await MainThread.InvokeOnMainThreadAsync(async () =>
+                bool isValid = await _apiService.CheckTokenValidityAsync();
+                if (isValid)
                 {
                     await Shell.Current.GoToAsync("//HomePage");
-                });
+                    return;
+                }
             }
-            else
-            {
-                await MainThread.InvokeOnMainThreadAsync(async () =>
-                {
-                    await Shell.Current.GoToAsync("//LoginPage");
-                });
-            }
+
+            await Shell.Current.GoToAsync("//LoginPage");
         }
     }
 }

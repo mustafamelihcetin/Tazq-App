@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using Tazq_App.Data;
@@ -76,8 +77,16 @@ public class UsersController : ControllerBase
 			return Unauthorized("Geçersiz e-posta veya şifre.");
 
 		var token = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
-		return Ok(new { token });
-	}
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        if (!string.IsNullOrEmpty(ip))
+        {
+            user.LastLoginIp = ip;
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new { token });
+    }
 
 	[HttpPost("add-phone")]
 	[Authorize]
@@ -297,4 +306,41 @@ public class UsersController : ControllerBase
 		public string Token { get; set; } = string.Empty;
 		public string NewPassword { get; set; } = string.Empty;
 	}
+
+    [HttpPost("refresh-session")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RefreshSession()
+    {
+        var tokenHeader = Request.Headers["Authorization"].ToString();
+        if (string.IsNullOrEmpty(tokenHeader) || !tokenHeader.StartsWith("Bearer "))
+            return Unauthorized();
+
+        var tokenString = tokenHeader.Substring("Bearer ".Length);
+        var handler = new JwtSecurityTokenHandler();
+
+        try
+        {
+            var jwtToken = handler.ReadJwtToken(tokenString);
+            var userId = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId) || !int.TryParse(userId, out var userIdInt))
+                return Unauthorized();
+
+            var user = await _context.Users.FindAsync(userIdInt);
+            if (user == null)
+                return Unauthorized();
+
+            var requestIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+            if (requestIp != user.LastLoginIp)
+                return Unauthorized("IP adresi değişmiş. Yeniden giriş yapılmalı.");
+
+            var newToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
+            return Ok(new { token = newToken });
+        }
+        catch
+        {
+            return Unauthorized("Token geçersiz.");
+        }
+    }
+
 }

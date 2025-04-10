@@ -349,5 +349,19 @@ namespace Tazq_Frontend.Services
                 return null;
             }
         }
+
+        public async Task<bool> CheckTokenValidityAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("/api/auth/check");
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
     }
 }
