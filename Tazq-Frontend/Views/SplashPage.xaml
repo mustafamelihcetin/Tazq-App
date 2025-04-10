@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:views="clr-namespace:Tazq_Frontend.Views"
              x:Class="Tazq_Frontend.Views.SplashPage"
              Shell.NavBarIsVisible="False"
              NavigationPage.HasNavigationBar="False">
 
     <ContentPage.Background>
-        <!-- Wide and smooth diagonal gradient -->
         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
             <GradientStop Color="#1A1A1A" Offset="0.0" />
             <GradientStop Color="#262626" Offset="0.5" />
@@ -15,16 +13,30 @@
         </LinearGradientBrush>
     </ContentPage.Background>
 
-    <AbsoluteLayout>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="2*" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-        <!-- Foreground Logo -->
-        <Image x:Name="Logo"
-               Source="tazq_white_logo.png"
-               WidthRequest="160"
-               HeightRequest="160"
-               Opacity="0"
-               AbsoluteLayout.LayoutBounds="0.5,0.5,-1,-1"
-               AbsoluteLayout.LayoutFlags="PositionProportional" />
-
-    </AbsoluteLayout>
+        <!-- Logo + Slogan -->
+        <VerticalStackLayout Grid.Row="0"
+                             x:Name="LogoContainer"
+                             VerticalOptions="Center"
+                             HorizontalOptions="Center"
+                             Spacing="8">
+            <Image x:Name="Logo"
+                   Source="tazq_white_logo.png"
+                   HeightRequest="50"
+                   Opacity="0"
+                   BackgroundColor="Transparent" />
+            <Label Text="Yapılacakları yönet."
+                   FontSize="16"
+                   TextColor="#B0B0B0"
+                   FontFamily="RobotoRegular"
+                   HorizontalTextAlignment="Center"
+                   Opacity="0"
+                   x:Name="SloganLabel" />
+        </VerticalStackLayout>
+    </Grid>
 </ContentPage>
