@@ -44,7 +44,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Grid Grid.Row="0" ColumnSpacing="12" Padding="0,5,0,0">
+        <Grid x:Name="HeaderGrid" Grid.Row="0" ColumnSpacing="12" Padding="0,5,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="40" />
@@ -79,7 +79,7 @@
         </Grid>
 
         <!-- Add Task Button -->
-        <Frame Grid.Row="1" Padding="0" CornerRadius="12" HasShadow="False" BackgroundColor="Transparent" HorizontalOptions="Center">
+        <Frame x:Name="AddTaskFrame" Grid.Row="1" Padding="0" CornerRadius="12" HasShadow="False" BackgroundColor="Transparent" HorizontalOptions="Center">
             <Grid>
                 <Grid.Background>
                     <LinearGradientBrush EndPoint="0,1">
@@ -121,138 +121,147 @@
             </Grid>
         </Frame>
 
-        <!-- Task List -->
+        <!-- Task List + Loading -->
         <Grid Grid.Row="2">
-            <RefreshView x:Name="MainRefreshView"
-                         Command="{Binding LoadTasksCommand}"
-                         IsRefreshing="{Binding IsLoading}"
-                         Refreshing="MainRefreshView_Refreshing">
+            <Grid>
+                <ActivityIndicator 
+                    IsRunning="{Binding IsLoading}" 
+                    IsVisible="{Binding IsLoading}" 
+                    Color="#FFEE58"
+                    VerticalOptions="Center"
+                    HorizontalOptions="Center"
+                    WidthRequest="50"
+                    HeightRequest="50" />
 
-                <CollectionView x:Name="MainCollectionView"
-                                ItemsSource="{Binding Tasks}"
-                                EmptyView="Henüz görev eklenmedi."
-                                ItemsLayout="VerticalList">
+                <RefreshView x:Name="MainRefreshView"
+                             Command="{Binding LoadTasksCommand}"
+                             IsRefreshing="{Binding IsLoading}"
+                             Refreshing="MainRefreshView_Refreshing">
 
-                    <CollectionView.Header>
-                        <Label x:Name="ShowPastTasksLabel"
-                               Text="{Binding ShowPastTasks, Converter={StaticResource BoolToShowPastTasksTextConverter}}"
-                               TextColor="#90CAF9"
-                               FontAttributes="Bold"
-                               FontSize="14"
-                               HorizontalOptions="Center"
-                               Margin="0,0,0,10"
-                               IsVisible="{Binding IsScrolledDown}"
-                               FontFamily="RobotoRegular">
-                            <Label.GestureRecognizers>
-                                <TapGestureRecognizer Command="{Binding TogglePastTasksCommand}" />
-                            </Label.GestureRecognizers>
-                        </Label>
-                    </CollectionView.Header>
+                    <CollectionView x:Name="MainCollectionView"
+                                    ItemsSource="{Binding Tasks}"
+                                    EmptyView="Henüz görev eklenmedi."
+                                    ItemsLayout="VerticalList">
 
-                    <!-- Task Item -->
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate>
-                            <SwipeView>
-                                <SwipeView.RightItems>
-                                    <SwipeItems Mode="Reveal">
-                                        <SwipeItemView>
-                                            <ImageButton
-                                                Source="edit_icon.png"
-                                                BackgroundColor="Transparent"
-                                                HeightRequest="40"
-                                                WidthRequest="40"
-                                                Padding="8"
-                                                Margin="10"
-                                                HorizontalOptions="Center"
-                                                VerticalOptions="Center"
-                                                Command="{Binding Path=BindingContext.EditTaskCommand, Source={x:Reference HomePageRoot}}"
-                                                CommandParameter="{Binding .}" />
-                                        </SwipeItemView>
-                                        <SwipeItemView>
-                                            <ImageButton
-                                                Source="delete_icon.png"
-                                                BackgroundColor="Transparent"
-                                                HeightRequest="40"
-                                                WidthRequest="40"
-                                                Padding="8"
-                                                Margin="10"
-                                                HorizontalOptions="Center"
-                                                VerticalOptions="Center"
-                                                Command="{Binding Path=BindingContext.DeleteTaskCommand, Source={x:Reference HomePageRoot}}"
-                                                CommandParameter="{Binding .}" />
-                                        </SwipeItemView>
-                                    </SwipeItems>
-                                </SwipeView.RightItems>
+                        <CollectionView.Header>
+                            <Label x:Name="ShowPastTasksLabel"
+                                   Text="{Binding ShowPastTasks, Converter={StaticResource BoolToShowPastTasksTextConverter}}"
+                                   TextColor="#90CAF9"
+                                   FontAttributes="Bold"
+                                   FontSize="14"
+                                   HorizontalOptions="Center"
+                                   Margin="0,0,0,10"
+                                   IsVisible="{Binding IsScrolledDown}"
+                                   FontFamily="RobotoRegular">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding TogglePastTasksCommand}" />
+                                </Label.GestureRecognizers>
+                            </Label>
+                        </CollectionView.Header>
 
-                                <!-- Task Card -->
-                                <Frame CornerRadius="12"
-                                       BackgroundColor="#2C2C2E"
-                                       Padding="16"
-                                       Margin="0,0,0,12"
-                                       HasShadow="True"
-                                       BorderColor="{Binding IsToday, Converter={StaticResource BoolToBorderColorConverter}}">
-                                    <Frame.Shadow>
-                                        <Shadow Brush="Black" Opacity="0.2" Offset="0,2" Radius="4"/>
-                                    </Frame.Shadow>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <SwipeView>
+                                    <SwipeView.RightItems>
+                                        <SwipeItems Mode="Reveal">
+                                            <SwipeItemView>
+                                                <ImageButton
+                                                    Source="edit_icon.png"
+                                                    BackgroundColor="Transparent"
+                                                    HeightRequest="40"
+                                                    WidthRequest="40"
+                                                    Padding="8"
+                                                    Margin="10"
+                                                    HorizontalOptions="Center"
+                                                    VerticalOptions="Center"
+                                                    Command="{Binding Path=BindingContext.EditTaskCommand, Source={x:Reference HomePageRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                            </SwipeItemView>
+                                            <SwipeItemView>
+                                                <ImageButton
+                                                    Source="delete_icon.png"
+                                                    BackgroundColor="Transparent"
+                                                    HeightRequest="40"
+                                                    WidthRequest="40"
+                                                    Padding="8"
+                                                    Margin="10"
+                                                    HorizontalOptions="Center"
+                                                    VerticalOptions="Center"
+                                                    Command="{Binding Path=BindingContext.DeleteTaskCommand, Source={x:Reference HomePageRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                            </SwipeItemView>
+                                        </SwipeItems>
+                                    </SwipeView.RightItems>
 
-                                    <Grid RowSpacing="6">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
+                                    <Frame CornerRadius="12"
+                                           BackgroundColor="#2C2C2E"
+                                           Padding="16"
+                                           Margin="0,0,0,12"
+                                           HasShadow="True"
+                                           BorderColor="{Binding IsToday, Converter={StaticResource BoolToBorderColorConverter}}">
+                                        <Frame.Shadow>
+                                            <Shadow Brush="Black" Opacity="0.2" Offset="0,2" Radius="4"/>
+                                        </Frame.Shadow>
 
-                                        <Label Grid.Row="0" Grid.Column="0"
-                                               Text="{Binding Title}"
-                                               FontSize="15"
-                                               FontAttributes="Bold"
-                                               TextColor="White"
-                                               LineBreakMode="TailTruncation"
-                                               MaxLines="2" />
+                                        <Grid RowSpacing="6">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*" />
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
 
-                                        <Frame Grid.Row="0" Grid.Column="1"
-                                               Padding="4,2"
-                                               BackgroundColor="{Binding PriorityEnum, Converter={StaticResource PriorityToColorConverter}}"
-                                               CornerRadius="8"
-                                               HasShadow="False"
-                                               Margin="8,2,0,0"
-                                               VerticalOptions="Start"
-                                               HorizontalOptions="End">
-                                            <Label Text="{Binding PriorityEnum, Converter={StaticResource PriorityToTurkishConverter}}"
-                                                   FontSize="10"
+                                            <Label Grid.Row="0" Grid.Column="0"
+                                                   Text="{Binding Title}"
+                                                   FontSize="15"
+                                                   FontAttributes="Bold"
                                                    TextColor="White"
-                                                   FontAttributes="Bold"/>
-                                        </Frame>
-
-                                        <VerticalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="6" Margin="0,6,0,0">
-                                            <Label Text="{Binding Description}"
-                                                   FontSize="13"
-                                                   TextColor="#D0D0D0"
-                                                   LineHeight="1.1"
-                                                   MaxLines="3"
                                                    LineBreakMode="TailTruncation"
-                                                   HorizontalOptions="Start"
+                                                   MaxLines="2" />
+
+                                            <Frame Grid.Row="0" Grid.Column="1"
+                                                   Padding="4,2"
+                                                   BackgroundColor="{Binding PriorityEnum, Converter={StaticResource PriorityToColorConverter}}"
+                                                   CornerRadius="8"
+                                                   HasShadow="False"
+                                                   Margin="8,2,0,0"
                                                    VerticalOptions="Start"
-                                                   IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
-                                            <Label Text="{Binding DueDateTimeCombined, StringFormat='Son Tarih: {0:dd MMM yyyy HH\\:mm}'}"
-                                                   FontSize="13"
-                                                   TextColor="#B0BEC5"
-                                                   IsVisible="{Binding HasDueDate}" />
-                                            <Label Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
-                                                   FontSize="12"
-                                                   TextColor="#AAAAAA"
-                                                   IsVisible="{Binding Tags.Count, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
-                                        </VerticalStackLayout>
-                                    </Grid>
-                                </Frame>
-                            </SwipeView>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
-            </RefreshView>
+                                                   HorizontalOptions="End">
+                                                <Label Text="{Binding PriorityEnum, Converter={StaticResource PriorityToTurkishConverter}}"
+                                                       FontSize="10"
+                                                       TextColor="White"
+                                                       FontAttributes="Bold"/>
+                                            </Frame>
+
+                                            <VerticalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="6" Margin="0,6,0,0">
+                                                <Label Text="{Binding Description}"
+                                                       FontSize="13"
+                                                       TextColor="#D0D0D0"
+                                                       LineHeight="1.1"
+                                                       MaxLines="3"
+                                                       LineBreakMode="TailTruncation"
+                                                       HorizontalOptions="Start"
+                                                       VerticalOptions="Start"
+                                                       IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
+                                                <Label Text="{Binding DueDateTimeCombined, StringFormat='Son Tarih: {0:dd MMM yyyy HH\\:mm}'}"
+                                                       FontSize="13"
+                                                       TextColor="#B0BEC5"
+                                                       IsVisible="{Binding HasDueDate}" />
+                                                <Label Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
+                                                       FontSize="12"
+                                                       TextColor="#AAAAAA"
+                                                       IsVisible="{Binding Tags.Count, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </Frame>
+                                </SwipeView>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </RefreshView>
+            </Grid>
         </Grid>
     </Grid>
 </ContentPage>

@@ -23,5 +23,20 @@ namespace Tazq_Frontend.Views
             if (MainRefreshView != null)
                 MainRefreshView.IsRefreshing = false;
         }
+
+        protected override async void OnAppearing()
+        {
+            base.OnAppearing();
+
+            HeaderGrid.Opacity = 0;
+            AddTaskFrame.Opacity = 0;
+            MainRefreshView.Opacity = 0;
+
+            await Task.Delay(200);
+
+            await HeaderGrid.FadeTo(1, 300);
+            await AddTaskFrame.FadeTo(1, 300);
+            await MainRefreshView.FadeTo(1, 300);
+        }
     }
 }
