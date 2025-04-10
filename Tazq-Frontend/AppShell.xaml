@@ -5,12 +5,12 @@
     x:Class="Tazq_Frontend.AppShell"
     Shell.FlyoutBehavior="Disabled">
 
+    <ShellContent Route="SplashPage" ContentTemplate="{DataTemplate views:SplashPage}" />
+
     <ShellContent Route="LoginPage" ContentTemplate="{DataTemplate views:LoginPage}" />
     <ShellContent Route="RegisterPage" ContentTemplate="{DataTemplate views:RegisterPage}" />
     <ShellContent Route="ResetPasswordPage" ContentTemplate="{DataTemplate views:ResetPasswordPage}" />
     <ShellContent Route="HomePage" ContentTemplate="{DataTemplate views:HomePage}" />
     <ShellContent Route="AddTaskPage" ContentTemplate="{DataTemplate views:AddTaskPage}" />
-    <ShellContent Title="EditTask" ContentTemplate="{DataTemplate views:EditTaskPage}" Route="EditTaskPage"/>
-
-
+    <ShellContent Route="EditTaskPage" ContentTemplate="{DataTemplate views:EditTaskPage}" />
 </Shell>

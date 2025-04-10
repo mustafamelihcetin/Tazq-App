@@ -13,7 +13,6 @@ namespace Tazq_Frontend.Views
             InitializeComponent();
             BackgroundColor = Color.FromArgb("#212121");
         }
-
         protected override async void OnAppearing()
         {
             base.OnAppearing();
@@ -26,24 +25,19 @@ namespace Tazq_Frontend.Views
 
             var token = await SecureStorage.GetAsync("jwt_token");
 
-            await MainThread.InvokeOnMainThreadAsync(() =>
-            {
-                Application.Current.MainPage = new AppShell();
-            });
-
-            await Task.Delay(50);
-
+            bool isValid = false;
             if (!string.IsNullOrEmpty(token))
             {
-                bool isValid = await _apiService.CheckTokenValidityAsync();
-                if (isValid)
+                isValid = await _apiService.CheckTokenValidityAsync();
+                if (!isValid)
                 {
-                    await Shell.Current.GoToAsync("//HomePage");
-                    return;
+                    var newToken = await _apiService.RefreshTokenAsync();
+                    isValid = !string.IsNullOrEmpty(newToken);
                 }
             }
 
-            await Shell.Current.GoToAsync("//LoginPage");
+            await Shell.Current.GoToAsync(isValid ? "//HomePage" : "//LoginPage");
         }
+
     }
 }

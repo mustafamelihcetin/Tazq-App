@@ -363,5 +363,37 @@ namespace Tazq_Frontend.Services
             }
         }
 
+        public async Task<string?> RefreshTokenAsync()
+        {
+            var token = await GetToken();
+            if (string.IsNullOrEmpty(token))
+                return null;
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "users/refresh-session");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                    return null;
+
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+
+                if (doc.RootElement.TryGetProperty("token", out var tokenProp))
+                {
+                    var newToken = tokenProp.GetString();
+                    await SaveToken(newToken);
+                    return newToken;
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }

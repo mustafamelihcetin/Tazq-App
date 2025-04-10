@@ -10,14 +10,22 @@ namespace Tazq_Frontend;
     ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
 public class MainActivity : MauiAppCompatActivity
 {
-    protected override void OnCreate(Bundle savedInstanceState)
+    protected override void OnCreate(Bundle? savedInstanceState)  // Nullable parametre
     {
         base.OnCreate(savedInstanceState);
+
+        // Null kontrolü ekledik
+        if (savedInstanceState != null)
+        {
+        }
 
         if (Build.VERSION.SdkInt >= BuildVersionCodes.Lollipop)
         {
             Window.SetStatusBarColor(Android.Graphics.Color.Black);
+        }
 
+        if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
+        {
             Window.DecorView.SystemUiVisibility = (StatusBarVisibility)SystemUiFlags.Visible;
         }
     }

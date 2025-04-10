@@ -24,6 +24,8 @@ namespace Tazq_Frontend.Models
         public bool IsExpired => DueDate.HasValue && DueDate.Value.Date < DateTime.Today;
         public bool IsToday => DueDate.HasValue && DueDate.Value.Date == DateTime.Today;
 
+        public bool HasDueDate => DueDate.HasValue;
+
         // Converts string "0", "1", "2" or "Low", "Medium", "High" to enum
         public TaskPriority PriorityEnum
         {
