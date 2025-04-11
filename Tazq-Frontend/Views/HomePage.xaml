@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
              xmlns:converters="clr-namespace:Tazq_Frontend.Converters"
-             xmlns:toolkit="clr-namespace:CommunityToolkit.Maui.Behaviors;assembly=CommunityToolkit.Maui"
              x:Class="Tazq_Frontend.Views.HomePage"
              x:Name="HomePageRoot"
              Shell.NavBarIsVisible="False"
@@ -23,10 +22,6 @@
 
     <ContentPage.Resources>
         <ResourceDictionary>
-            <Style TargetType="Label" x:Key="TodayDateStyle">
-                <Setter Property="TextColor" Value="#FFEE58"/>
-                <Setter Property="FontAttributes" Value="Bold"/>
-            </Style>
             <converters:BoolToShowPastTasksTextConverter x:Key="BoolToShowPastTasksTextConverter" />
             <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
             <converters:NullOrEmptyToBoolConverter x:Key="NullOrEmptyToBoolConverter" />
@@ -40,78 +35,118 @@
         </ResourceDictionary>
     </ContentPage.Resources>
 
-    <Grid Padding="24" RowSpacing="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <AbsoluteLayout>
 
-        <Grid x:Name="HeaderGrid" Grid.Row="0" ColumnSpacing="12" Padding="0,5,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="40" />
-                <ColumnDefinition Width="40" />
-            </Grid.ColumnDefinitions>
+        <Grid Padding="24" RowSpacing="20" AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-            <Label Text="Ajandam"
-                   FontSize="26"
-                   FontAttributes="Bold"
-                   TextColor="White"
-                   VerticalOptions="Center" />
+            <!-- Header -->
+            <Grid x:Name="HeaderGrid" Grid.Row="0" ColumnSpacing="12" Padding="0,5,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="40" />
+                </Grid.ColumnDefinitions>
 
-            <ImageButton Grid.Column="1"
-                         Source="settings_icon.png"
-                         BackgroundColor="Transparent"
-                         HeightRequest="36"
-                         WidthRequest="36"
-                         Command="{Binding SettingsCommand}"
-                         HorizontalOptions="End"
-                         VerticalOptions="Center"
-                         Padding="4"/>
+                <Label Text="Ajandam"
+                       FontSize="26"
+                       FontAttributes="Bold"
+                       TextColor="White"
+                       VerticalOptions="Center" />
 
-            <ImageButton Grid.Column="2"
-                         Source="logout_icon.png"
-                         BackgroundColor="Transparent"
-                         HeightRequest="36"
-                         WidthRequest="36"
-                         Command="{Binding LogoutCommand}"
-                         HorizontalOptions="End"
-                         VerticalOptions="Center"
-                         Padding="4"/>
-        </Grid>
+                <Frame Grid.Column="2"
+                       Padding="0"
+                       CornerRadius="24"
+                       HasShadow="False"
+                       HeightRequest="40"
+                       WidthRequest="40"
+                       VerticalOptions="Center"
+                       HorizontalOptions="End"
+                       BackgroundColor="#2C2C2E"
+                       BorderColor="#444"
+                       Margin="0,0,4,0">
+                    <ImageButton Source="settings_icon.png"
+                                 BackgroundColor="Transparent"
+                                 HeightRequest="24"
+                                 WidthRequest="24"
+                                 Padding="4"
+                                 Command="{Binding SettingsCommand}"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center" />
+                </Frame>
 
-        <Frame x:Name="AddTaskFrame" Grid.Row="1" Padding="0" CornerRadius="12" HasShadow="False" BackgroundColor="Transparent" HorizontalOptions="Center">
-            <Grid>
-                <Grid.Background>
-                    <LinearGradientBrush EndPoint="0,1">
-                        <GradientStop Color="#3C4D90" Offset="0.0" />
-                        <GradientStop Color="#2B365E" Offset="1.0" />
-                    </LinearGradientBrush>
-                </Grid.Background>
-                <Button Text="Yeni Görev Ekle"
-                        Command="{Binding GoToAddTaskPageCommand}"
-                        FontAttributes="Bold"
-                        FontSize="15"
-                        TextColor="White"
-                        CornerRadius="12"
-                        HeightRequest="48"
-                        WidthRequest="200"
-                        FontFamily="RobotoRegular"
-                        Padding="10"
-                        BackgroundColor="Transparent"
-                        HorizontalOptions="Center"/>
+
             </Grid>
-        </Frame>
 
-        <Grid Grid.Row="2">
+            <Grid Grid.Row="1" ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Add Task Button Frame -->
+                <Frame x:Name="AddTaskFrame" Grid.Column="1" Padding="0" CornerRadius="12" HasShadow="False" BackgroundColor="Transparent">
+                    <Grid>
+                        <Grid.Background>
+                            <LinearGradientBrush EndPoint="0,1">
+                                <GradientStop Color="#3C4D90" Offset="0.0" />
+                                <GradientStop Color="#2B365E" Offset="1.0" />
+                            </LinearGradientBrush>
+                        </Grid.Background>
+                        <Button x:Name="AddTaskButton"
+                                Text="Yeni Görev Ekle"
+                                Command="{Binding GoToAddTaskPageCommand}"
+                                FontAttributes="Bold"
+                                FontSize="15"
+                                TextColor="White"
+                                CornerRadius="12"
+                                HeightRequest="48"
+                                FontFamily="RobotoRegular"
+                                Padding="10"
+                                BackgroundColor="Transparent"
+                                HorizontalOptions="Center"/>    
+                    </Grid>
+                </Frame>
+
+                <!-- Filter Button -->
+                <Frame Grid.Column="3"
+                       Padding="0"
+                       CornerRadius="24"
+                       HasShadow="False"
+                       HeightRequest="40"
+                       WidthRequest="40"
+                       VerticalOptions="Center"
+                       HorizontalOptions="End"
+                       BackgroundColor="#2C2C2E"
+                       BorderColor="#444"
+                       Margin="0,0,4,0">
+                    <ImageButton Source="filter_icon_white.png"
+                                 Command="{Binding ToggleFilterPanelCommand}"
+                                 BackgroundColor="Transparent"
+                                 HeightRequest="24"
+                                 WidthRequest="24"
+                                 Padding="4"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center"/>
+                </Frame>
+
+            </Grid>
+
+            <!-- Task List -->
             <RefreshView x:Name="MainRefreshView"
+                         Grid.Row="2"
                          Command="{Binding LoadTasksCommand}"
                          IsRefreshing="{Binding IsLoading}"
                          Refreshing="MainRefreshView_Refreshing">
 
                 <CollectionView x:Name="MainCollectionView"
-                                ItemsSource="{Binding Tasks}"
+                                ItemsSource="{Binding FilteredTasks}"
                                 ItemsLayout="VerticalList"
                                 EmptyView="Henüz görev eklenmedi.">
 
@@ -130,6 +165,7 @@
                             </Label.GestureRecognizers>
                         </Label>
                     </CollectionView.Header>
+
 
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
@@ -267,5 +303,49 @@
                 </CollectionView>
             </RefreshView>
         </Grid>
-    </Grid>
+
+        <!-- Modal Filter Panel -->
+        <Frame BackgroundColor="#2C2C2E"
+               Padding="16"
+               CornerRadius="12"
+               BorderColor="#444"
+               HasShadow="True"
+               IsVisible="{Binding IsFilterPanelVisible}"
+               AbsoluteLayout.LayoutBounds="0.5,0.2,0.9,-1"
+               AbsoluteLayout.LayoutFlags="PositionProportional, WidthProportional"
+               ZIndex="9999">
+            <VerticalStackLayout Spacing="16">
+
+                <Label Text="Tamamlanma Durumu" FontSize="14" TextColor="White" FontAttributes="Bold"/>
+                <HorizontalStackLayout Spacing="12">
+                    <RadioButton Content="Tümü"
+                                 GroupName="Status"
+                                 Value="{x:Null}"
+                                 IsChecked="{Binding FilterByCompleted, Mode=TwoWay}"
+                                 CheckedChanged="OnFilterChanged"/>
+                    <RadioButton Content="Tamamlandı"
+                                 GroupName="Status"
+                                 Value="true"
+                                 IsChecked="{Binding FilterByCompleted, Mode=TwoWay}"
+                                 CheckedChanged="OnFilterChanged"/>
+                    <RadioButton Content="Tamamlanmadı"
+                                 GroupName="Status"
+                                 Value="false"
+                                 IsChecked="{Binding FilterByCompleted, Mode=TwoWay}"
+                                 CheckedChanged="OnFilterChanged"/>
+                </HorizontalStackLayout>
+
+                <Label Text="Etiket Ara" FontSize="14" TextColor="White" FontAttributes="Bold"/>
+                <Entry Placeholder="Etikete göre filtrele..."
+                       Text="{Binding FilterTag, Mode=TwoWay}"
+                       PlaceholderColor="#AAAAAA"
+                       TextColor="White"
+                       BackgroundColor="#3A3A3A"
+                       HeightRequest="36"
+                       FontSize="13"
+                       FontFamily="RobotoRegular"
+                       TextChanged="OnFilterChanged"/>
+            </VerticalStackLayout>
+        </Frame>
+    </AbsoluteLayout>
 </ContentPage>

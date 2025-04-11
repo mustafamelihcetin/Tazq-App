@@ -1,6 +1,8 @@
 using System;
 using Tazq_Frontend.ViewModels;
 using Tazq_Frontend.Models;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Devices;
 
 namespace Tazq_Frontend.Views
 {
@@ -27,8 +29,6 @@ namespace Tazq_Frontend.Views
 
         private void MainRefreshView_Scrolled(object sender, ScrolledEventArgs e)
         {
-            Console.WriteLine($"[DEBUG] Scroll Y: {e.ScrollY}");
-
             if (BindingContext is HomeViewModel viewModel)
             {
                 viewModel.IsScrolledDown = e.ScrollY > 30;
@@ -43,9 +43,38 @@ namespace Tazq_Frontend.Views
             }
         }
 
+        private void OnStatusFilterChanged(object sender, CheckedChangedEventArgs e)
+        {
+            if (sender is RadioButton radioButton && e.Value)
+            {
+                var value = radioButton.Value?.ToString();
+                if (BindingContext is HomeViewModel vm)
+                {
+                    if (string.IsNullOrWhiteSpace(value))
+                        vm.FilterByCompleted = null;
+                    else if (bool.TryParse(value, out var result))
+                        vm.FilterByCompleted = result;
+                }
+            }
+        }
+
+        private void OnFilterChanged(object? sender, EventArgs e)
+        {
+            if (BindingContext is HomeViewModel viewModel)
+            {
+                viewModel.ApplyFilters();
+            }
+        }
+
         protected override async void OnAppearing()
         {
             base.OnAppearing();
+
+            double screenWidth = DeviceDisplay.MainDisplayInfo.Width / DeviceDisplay.MainDisplayInfo.Density;
+            if (AddTaskButton != null)
+            {
+                AddTaskButton.WidthRequest = screenWidth / 3;
+            }
 
             HeaderGrid.Opacity = 0;
             AddTaskFrame.Opacity = 0;
@@ -57,5 +86,16 @@ namespace Tazq_Frontend.Views
             await AddTaskFrame.FadeTo(1, 300);
             await MainRefreshView.FadeTo(1, 300);
         }
+
+        protected override void OnSizeAllocated(double width, double height)
+        {
+            base.OnSizeAllocated(width, height);
+
+            if (width > 0 && AddTaskButton != null)
+            {
+                AddTaskButton.WidthRequest = width / 3;
+            }
+        }
+
     }
 }

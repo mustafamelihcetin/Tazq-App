@@ -24,14 +24,13 @@ namespace Tazq_Frontend.ViewModels
             TogglePastTasksCommand = new RelayCommand(TogglePastTasks);
             DeleteTaskCommand = new AsyncRelayCommand<TaskModel?>(DeleteTask);
             ToggleTaskCompletionCommand = new AsyncRelayCommand<TaskModel?>(ToggleTaskCompletion);
+            ToggleFilterPanelCommand = new RelayCommand(ToggleFilterPanel);
 
-            // Refreshing after adding a task
             WeakReferenceMessenger.Default.Register<TaskAddedMessage>(this, async (r, m) =>
             {
                 await LoadTasks();
             });
 
-            // Refreshing after editing a task
             WeakReferenceMessenger.Default.Register<TaskUpdatedMessage>(this, async (r, m) =>
             {
                 await LoadTasks();
@@ -43,14 +42,6 @@ namespace Tazq_Frontend.ViewModels
         [ObservableProperty]
         private ObservableCollection<TaskModel> tasks;
 
-        public IAsyncRelayCommand LoadTasksCommand { get; }
-        public IAsyncRelayCommand LogoutCommand { get; }
-        public IAsyncRelayCommand SettingsCommand { get; }
-        public ICommand TogglePastTasksCommand { get; }
-        public IAsyncRelayCommand<TaskModel?> DeleteTaskCommand { get; }
-        // Command for toggling task completion status
-        public IAsyncRelayCommand<TaskModel?> ToggleTaskCompletionCommand { get; }
-
         [ObservableProperty]
         private bool isLoading;
 
@@ -59,6 +50,37 @@ namespace Tazq_Frontend.ViewModels
 
         [ObservableProperty]
         private bool isScrolledDown;
+
+        [ObservableProperty]
+        private bool filterCompleted;
+
+        [ObservableProperty]
+        private bool filterIncomplete;
+
+        [ObservableProperty]
+        private string filterTag = string.Empty;
+
+        [ObservableProperty]
+        private bool? filterByCompleted = null;
+
+        [ObservableProperty]
+        private ObservableCollection<TaskModel> filteredTasks = new();
+
+        [ObservableProperty]
+        private bool isFilterPanelVisible = false;
+
+        public IAsyncRelayCommand LoadTasksCommand { get; }
+        public IAsyncRelayCommand LogoutCommand { get; }
+        public IAsyncRelayCommand SettingsCommand { get; }
+        public ICommand TogglePastTasksCommand { get; }
+        public IAsyncRelayCommand<TaskModel?> DeleteTaskCommand { get; }
+        public IAsyncRelayCommand<TaskModel?> ToggleTaskCompletionCommand { get; }
+        public ICommand ToggleFilterPanelCommand { get; }
+
+        private void ToggleFilterPanel()
+        {
+            IsFilterPanelVisible = !IsFilterPanelVisible;
+        }
 
         private async Task LoadTasks()
         {
@@ -75,7 +97,12 @@ namespace Tazq_Frontend.ViewModels
                 if (taskList != null)
                 {
                     var ordered = taskList
-                        .Where(t => ShowPastTasks || !t.IsExpired)
+                        .Where(t =>
+                            (ShowPastTasks || !t.IsExpired) &&
+                            (!FilterCompleted || t.IsCompleted) &&
+                            (!FilterIncomplete || !t.IsCompleted) &&
+                            (string.IsNullOrWhiteSpace(FilterTag) || (t.Tags != null && t.Tags.Any(tag => tag.Contains(FilterTag, StringComparison.OrdinalIgnoreCase))))
+                        )
                         .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
                         .ThenBy(t => t.DueTime ?? DateTime.MaxValue)
                         .ToList();
@@ -110,7 +137,12 @@ namespace Tazq_Frontend.ViewModels
                 var tasks = await _apiService.GetTasks();
 
                 var ordered = tasks
-                    .Where(t => ShowPastTasks || !t.IsExpired)
+                    .Where(t =>
+                        (ShowPastTasks || !t.IsExpired) &&
+                        (!FilterCompleted || t.IsCompleted) &&
+                        (!FilterIncomplete || !t.IsCompleted) &&
+                        (string.IsNullOrWhiteSpace(FilterTag) || (t.Tags != null && t.Tags.Any(tag => tag.Contains(FilterTag, StringComparison.OrdinalIgnoreCase))))
+                    )
                     .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
                     .ThenBy(t => t.DueTime ?? DateTime.MaxValue)
                     .ToList();
@@ -174,6 +206,23 @@ namespace Tazq_Frontend.ViewModels
             }
         }
 
+        public void ApplyFilters()
+        {
+            if (Tasks == null)
+                return;
+
+            var filtered = Tasks.AsEnumerable();
+
+            if (FilterByCompleted.HasValue)
+                filtered = filtered.Where(t => t.IsCompleted == FilterByCompleted.Value);
+
+            if (!string.IsNullOrWhiteSpace(FilterTag))
+                filtered = filtered.Where(t => t.Tags != null && t.Tags.Any(tag =>
+                    tag.Contains(FilterTag, StringComparison.OrdinalIgnoreCase)));
+
+            FilteredTasks = new ObservableCollection<TaskModel>(filtered);
+        }
+
         private async Task DeleteTask(TaskModel? task)
         {
             if (task == null)
@@ -187,11 +236,6 @@ namespace Tazq_Frontend.ViewModels
             }
         }
 
-
-
-        
-
-        // Method to toggle IsCompleted and update task on server
         private async Task ToggleTaskCompletion(TaskModel? task)
         {
             if (task == null)
@@ -201,7 +245,5 @@ namespace Tazq_Frontend.ViewModels
             await _apiService.UpdateTask(task);
             await LoadTasks();
         }
-
-
     }
 }
