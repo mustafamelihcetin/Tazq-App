@@ -12,7 +12,6 @@ namespace Tazq_Frontend.Views
             BindingContext = new HomeViewModel();
         }
 
-        // Triggered when user pulls down to refresh
         private async void MainRefreshView_Refreshing(object sender, EventArgs e)
         {
             if (BindingContext is HomeViewModel viewModel)
@@ -25,6 +24,15 @@ namespace Tazq_Frontend.Views
                 MainRefreshView.IsRefreshing = false;
         }
 
+        private void MainRefreshView_Scrolled(object sender, ScrolledEventArgs e)
+        {
+            Console.WriteLine($"[DEBUG] Scroll Y: {e.ScrollY}");
+
+            if (BindingContext is HomeViewModel viewModel)
+            {
+                viewModel.IsScrolledDown = e.ScrollY > 30;
+            }
+        }
 
         protected override async void OnAppearing()
         {

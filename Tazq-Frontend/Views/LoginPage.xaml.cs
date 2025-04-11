@@ -15,6 +15,14 @@ namespace Tazq_Frontend.Views
             BindingContext = _viewModel;
         }
 
+        protected override async void OnAppearing()
+        {
+            base.OnAppearing();
+
+            // Animate logo section sliding from right to center
+            await LogoStack.TranslateTo(0, 0, 600, Easing.CubicOut);
+        }
+
         private void OnPasswordCompleted(object sender, EventArgs e)
         {
             if (_viewModel.LoginCommand.CanExecute(null))

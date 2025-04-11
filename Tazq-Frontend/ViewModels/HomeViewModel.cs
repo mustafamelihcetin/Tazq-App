@@ -30,10 +30,10 @@ namespace Tazq_Frontend.ViewModels
                 await LoadTasks();
             });
 
-            // Refreshin after editing a task
+            // Refreshing after editing a task
             WeakReferenceMessenger.Default.Register<TaskUpdatedMessage>(this, async (r, m) =>
             {
-                await LoadTasksAsync();
+                await LoadTasks();
             });
 
             LoadTasksCommand.Execute(null);
@@ -46,14 +46,13 @@ namespace Tazq_Frontend.ViewModels
         public IAsyncRelayCommand LogoutCommand { get; }
         public IAsyncRelayCommand SettingsCommand { get; }
         public ICommand TogglePastTasksCommand { get; }
-        // Remove the explicit definition of EditTaskCommand since it's generated automatically
         public IAsyncRelayCommand<TaskModel?> DeleteTaskCommand { get; }
 
         [ObservableProperty]
         private bool isLoading;
 
         [ObservableProperty]
-        private bool showPastTasks;
+        private bool showPastTasks = false;
 
         [ObservableProperty]
         private bool isScrolledDown;
@@ -70,25 +69,27 @@ namespace Tazq_Frontend.ViewModels
 
                 Console.WriteLine($"[DOTNET] Gelen görev sayısı: {taskList?.Count}");
 
-                Tasks.Clear();
-
                 if (taskList != null)
                 {
                     var ordered = taskList
                         .Where(t => ShowPastTasks || !t.IsExpired)
                         .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
-                        .ThenBy(t => t.DueTime ?? DateTime.MaxValue); // 👈 Saat ile ikinci sıralama
+                        .ThenBy(t => t.DueTime ?? DateTime.MaxValue)
+                        .ToList();
 
-                    foreach (var task in ordered)
+                    await MainThread.InvokeOnMainThreadAsync(() =>
                     {
-                        Tasks.Add(task);
-                    }
+                        Tasks.Clear();
+                        foreach (var task in ordered)
+                        {
+                            Tasks.Add(task);
+                        }
+                    });
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[DOTNET] Görev çekme hatası: {ex.Message}");
-
                 await Application.Current.MainPage.DisplayAlert("Hata", "Görevler alınamadı: " + ex.Message, "Tamam");
             }
             finally
@@ -152,15 +153,35 @@ namespace Tazq_Frontend.ViewModels
 
         public async Task LoadTasksAsync()
         {
-            var tasks = await _apiService.GetTasks();
+            IsLoading = true;
 
-            var ordered = tasks
-                .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
-                .ThenBy(t => t.DueTime ?? DateTime.MaxValue);
+            try
+            {
+                var tasks = await _apiService.GetTasks();
 
-            Tasks.Clear();
-            foreach (var task in ordered)
-                Tasks.Add(task);
+                var ordered = tasks
+                    .Where(t => ShowPastTasks || !t.IsExpired)
+                    .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
+                    .ThenBy(t => t.DueTime ?? DateTime.MaxValue)
+                    .ToList();
+
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    Tasks.Clear();
+                    foreach (var task in ordered)
+                    {
+                        Tasks.Add(task);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DOTNET] Görev çekme hatası (async): {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
     }
 }

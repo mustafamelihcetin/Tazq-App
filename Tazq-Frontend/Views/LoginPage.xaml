@@ -30,9 +30,16 @@
             </Grid.RowDefinitions>
 
             <!-- Logo -->
-            <VerticalStackLayout Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Center">
-                <Image x:Name="LoginLogo" Source="tazq_white_logo.png" HeightRequest="50" BackgroundColor="Transparent" />
-                <Label Text="Yalın. Hızlı. Odaklı."
+            <VerticalStackLayout Grid.Row="0"
+                     HorizontalOptions="Center"
+                     VerticalOptions="Center"
+                     x:Name="LogoStack"
+                     TranslationX="300">
+                <Image x:Name="LoginLogo"
+                       Source="tazq_white_logo.png"
+                       HeightRequest="50"
+                       BackgroundColor="Transparent" />
+                            <Label Text="Yalın. Hızlı. Odaklı."
                        FontSize="16"
                        LineHeight="1.2"
                        TextColor="#B0B0B0"
