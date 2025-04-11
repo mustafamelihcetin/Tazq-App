@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
              xmlns:converters="clr-namespace:Tazq_Frontend.Converters"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              x:Class="Tazq_Frontend.Views.HomePage"
              x:Name="HomePageRoot"
              Shell.NavBarIsVisible="False"
@@ -78,43 +79,51 @@
                                  HorizontalOptions="Center"
                                  VerticalOptions="Center" />
                 </Frame>
-
-
             </Grid>
 
+            <!-- AddTask + Filter -->
             <Grid Grid.Row="1" ColumnSpacing="10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Add Task Button Frame -->
-                <Frame x:Name="AddTaskFrame" Grid.Column="1" Padding="0" CornerRadius="12" HasShadow="False" BackgroundColor="Transparent">
-                    <Grid>
-                        <Grid.Background>
-                            <LinearGradientBrush EndPoint="0,1">
-                                <GradientStop Color="#3C4D90" Offset="0.0" />
-                                <GradientStop Color="#2B365E" Offset="1.0" />
-                            </LinearGradientBrush>
-                        </Grid.Background>
-                        <Button x:Name="AddTaskButton"
-                                Text="Yeni Görev Ekle"
-                                Command="{Binding GoToAddTaskPageCommand}"
-                                FontAttributes="Bold"
-                                FontSize="15"
-                                TextColor="White"
-                                CornerRadius="12"
-                                HeightRequest="48"
-                                FontFamily="RobotoRegular"
-                                Padding="10"
-                                BackgroundColor="Transparent"
-                                HorizontalOptions="Center"/>    
-                    </Grid>
-                </Frame>
+                <!-- Centered "Yeni Görev Ekle" button across two middle columns -->
+                <Grid Grid.Column="1" Grid.ColumnSpan="2"
+                      HorizontalOptions="Center"
+                      VerticalOptions="Center">
+                    <Frame x:Name="AddTaskFrame"
+                           Padding="0"
+                           CornerRadius="12"
+                           HasShadow="False"
+                           BackgroundColor="Transparent"
+                           HorizontalOptions="Center">
+                        <Grid>
+                            <Grid.Background>
+                                <LinearGradientBrush EndPoint="0,1">
+                                    <GradientStop Color="#3C4D90" Offset="0.0" />
+                                    <GradientStop Color="#2B365E" Offset="1.0" />
+                                </LinearGradientBrush>
+                            </Grid.Background>
+                            <Button x:Name="AddTaskButton"
+                                    Text="Yeni Görev Ekle"
+                                    Command="{Binding GoToAddTaskPageCommand}"
+                                    FontAttributes="Bold"
+                                    FontSize="15"
+                                    TextColor="White"
+                                    CornerRadius="12"
+                                    HeightRequest="48"
+                                    FontFamily="RobotoRegular"
+                                    Padding="10"
+                                    BackgroundColor="Transparent"
+                                    HorizontalOptions="Center"/>
+                        </Grid>
+                    </Frame>
+                </Grid>
 
-                <!-- Filter Button -->
+                <!-- Filter button remains on the far right -->
                 <Frame Grid.Column="3"
                        Padding="0"
                        CornerRadius="24"
@@ -127,18 +136,18 @@
                        BorderColor="#444"
                        Margin="0,0,4,0">
                     <ImageButton Source="filter_icon_white.png"
-                                 Command="{Binding ToggleFilterPanelCommand}"
-                                 BackgroundColor="Transparent"
-                                 HeightRequest="24"
-                                 WidthRequest="24"
-                                 Padding="4"
-                                 HorizontalOptions="Center"
-                                 VerticalOptions="Center"/>
+                     Command="{Binding ToggleFilterPanelCommand}"
+                     BackgroundColor="Transparent"
+                     HeightRequest="24"
+                     WidthRequest="24"
+                     Padding="4"
+                     HorizontalOptions="Center"
+                     VerticalOptions="Center"/>
                 </Frame>
-
             </Grid>
 
-            <!-- Task List -->
+
+            <!-- Tasks -->
             <RefreshView x:Name="MainRefreshView"
                          Grid.Row="2"
                          Command="{Binding LoadTasksCommand}"
@@ -305,37 +314,50 @@
         </Grid>
 
         <!-- Modal Filter Panel -->
-        <Frame BackgroundColor="#2C2C2E"
+        <Frame x:Name="FilterPanelFrame"
+               BackgroundColor="#2C2C2E"
                Padding="16"
                CornerRadius="12"
                BorderColor="#444"
                HasShadow="True"
                IsVisible="{Binding IsFilterPanelVisible}"
-               AbsoluteLayout.LayoutBounds="0.5,0.2,0.9,-1"
+               AbsoluteLayout.LayoutBounds="1,0.17,0.42,-1"
                AbsoluteLayout.LayoutFlags="PositionProportional, WidthProportional"
                ZIndex="9999">
+
+
             <VerticalStackLayout Spacing="16">
 
-                <Label Text="Tamamlanma Durumu" FontSize="14" TextColor="White" FontAttributes="Bold"/>
-                <HorizontalStackLayout Spacing="12">
+                <Label Text="Tamamlanma Durumu"
+               FontSize="14"
+               TextColor="White"
+               FontAttributes="Bold"/>
+
+                <!-- Vertical RadioGroup -->
+                <VerticalStackLayout Spacing="8">
                     <RadioButton Content="Tümü"
                                  GroupName="Status"
-                                 Value="{x:Null}"
-                                 IsChecked="{Binding FilterByCompleted, Mode=TwoWay}"
-                                 CheckedChanged="OnFilterChanged"/>
+                                 IsChecked="{Binding IsStatusAll, Mode=TwoWay}"
+                                 CheckedChanged="OnStatusFilterChanged"/>
+
                     <RadioButton Content="Tamamlandı"
                                  GroupName="Status"
-                                 Value="true"
-                                 IsChecked="{Binding FilterByCompleted, Mode=TwoWay}"
-                                 CheckedChanged="OnFilterChanged"/>
+                                 IsChecked="{Binding IsStatusCompleted, Mode=TwoWay}"
+                                 CheckedChanged="OnStatusFilterChanged"/>
+
                     <RadioButton Content="Tamamlanmadı"
                                  GroupName="Status"
-                                 Value="false"
-                                 IsChecked="{Binding FilterByCompleted, Mode=TwoWay}"
-                                 CheckedChanged="OnFilterChanged"/>
-                </HorizontalStackLayout>
+                                 IsChecked="{Binding IsStatusIncomplete, Mode=TwoWay}"
+                                 CheckedChanged="OnStatusFilterChanged"/>       
+                </VerticalStackLayout>
 
-                <Label Text="Etiket Ara" FontSize="14" TextColor="White" FontAttributes="Bold"/>
+
+
+                <Label Text="Etiket Ara"
+                       FontSize="14"
+                       TextColor="White"
+                       FontAttributes="Bold"/>
+
                 <Entry Placeholder="Etikete göre filtrele..."
                        Text="{Binding FilterTag, Mode=TwoWay}"
                        PlaceholderColor="#AAAAAA"
@@ -347,5 +369,17 @@
                        TextChanged="OnFilterChanged"/>
             </VerticalStackLayout>
         </Frame>
+
+        <!-- Closure on external click -->
+        <BoxView AbsoluteLayout.LayoutBounds="0,0,1,1"
+                 AbsoluteLayout.LayoutFlags="All"
+                 BackgroundColor="Transparent"
+                 InputTransparent="False"
+                 IsVisible="{Binding IsFilterPanelVisible}">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding ToggleFilterPanelCommand}" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
     </AbsoluteLayout>
 </ContentPage>

@@ -69,6 +69,16 @@ namespace Tazq_Frontend.ViewModels
         [ObservableProperty]
         private bool isFilterPanelVisible = false;
 
+        [ObservableProperty]
+        private bool isStatusAll = true;
+
+        [ObservableProperty]
+        private bool isStatusCompleted;
+
+        [ObservableProperty]
+        private bool isStatusIncomplete;
+
+
         public IAsyncRelayCommand LoadTasksCommand { get; }
         public IAsyncRelayCommand LogoutCommand { get; }
         public IAsyncRelayCommand SettingsCommand { get; }
@@ -114,6 +124,8 @@ namespace Tazq_Frontend.ViewModels
                         {
                             Tasks.Add(task);
                         }
+
+                        ApplyFilters();
                     });
                 }
             }
@@ -127,6 +139,7 @@ namespace Tazq_Frontend.ViewModels
                 IsLoading = false;
             }
         }
+
 
         public async Task LoadTasksAsync()
         {

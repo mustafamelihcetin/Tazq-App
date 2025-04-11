@@ -42,21 +42,23 @@ namespace Tazq_Frontend.Views
                 await viewModel.ToggleTaskCompletionCommand.ExecuteAsync(task);
             }
         }
-
         private void OnStatusFilterChanged(object sender, CheckedChangedEventArgs e)
         {
-            if (sender is RadioButton radioButton && e.Value)
+            if (BindingContext is HomeViewModel vm && e.Value)
             {
-                var value = radioButton.Value?.ToString();
-                if (BindingContext is HomeViewModel vm)
-                {
-                    if (string.IsNullOrWhiteSpace(value))
-                        vm.FilterByCompleted = null;
-                    else if (bool.TryParse(value, out var result))
-                        vm.FilterByCompleted = result;
-                }
+                vm.FilterByCompleted = null;
+
+                if (vm.IsStatusCompleted)
+                    vm.FilterByCompleted = true;
+                else if (vm.IsStatusIncomplete)
+                    vm.FilterByCompleted = false;
+
+                vm.ApplyFilters();
             }
         }
+
+
+
 
         private void OnFilterChanged(object? sender, EventArgs e)
         {
@@ -93,9 +95,8 @@ namespace Tazq_Frontend.Views
 
             if (width > 0 && AddTaskButton != null)
             {
-                AddTaskButton.WidthRequest = width / 3;
+                AddTaskButton.WidthRequest = width / 2;
             }
         }
-
     }
 }
