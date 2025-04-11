@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
              xmlns:converters="clr-namespace:Tazq_Frontend.Converters"
+             xmlns:toolkit="clr-namespace:CommunityToolkit.Maui.Behaviors;assembly=CommunityToolkit.Maui"
              x:Class="Tazq_Frontend.Views.HomePage"
              x:Name="HomePageRoot"
              Shell.NavBarIsVisible="False"
@@ -33,6 +34,9 @@
             <converters:PriorityToTurkishConverter x:Key="PriorityToTurkishConverter" />
             <converters:BoolToBorderColorConverter x:Key="BoolToBorderColorConverter" />
             <converters:PriorityToColorConverter x:Key="PriorityToColorConverter" />
+            <converters:IsCompletedToIconConverter x:Key="IsCompletedToIconConverter" />
+            <converters:BoolToStatusTextConverter x:Key="BoolToStatusTextConverter" />
+            <converters:IsCompletedToColorConverter x:Key="IsCompletedToColorConverter" />
         </ResourceDictionary>
     </ContentPage.Resources>
 
@@ -96,26 +100,7 @@
                         FontFamily="RobotoRegular"
                         Padding="10"
                         BackgroundColor="Transparent"
-                        HorizontalOptions="Center">
-                    <VisualStateManager.VisualStateGroups>
-                        <VisualStateGroupList>
-                            <VisualStateGroup Name="CommonStates">
-                                <VisualState Name="Pressed">
-                                    <VisualState.Setters>
-                                        <Setter Property="Background">
-                                            <Setter.Value>
-                                                <LinearGradientBrush EndPoint="0,1">
-                                                    <GradientStop Color="#2C386A" Offset="0.0" />
-                                                    <GradientStop Color="#1E2649" Offset="1.0" />
-                                                </LinearGradientBrush>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </VisualState.Setters>
-                                </VisualState>
-                            </VisualStateGroup>
-                        </VisualStateGroupList>
-                    </VisualStateManager.VisualStateGroups>
-                </Button>
+                        HorizontalOptions="Center"/>
             </Grid>
         </Frame>
 
@@ -159,8 +144,6 @@
                                                 WidthRequest="40"
                                                 Padding="8"
                                                 Margin="10"
-                                                HorizontalOptions="Center"
-                                                VerticalOptions="Center"
                                                 Command="{Binding Path=BindingContext.EditTaskCommand, Source={x:Reference HomePageRoot}}"
                                                 CommandParameter="{Binding .}" />
                                         </SwipeItemView>
@@ -172,8 +155,6 @@
                                                 WidthRequest="40"
                                                 Padding="8"
                                                 Margin="10"
-                                                HorizontalOptions="Center"
-                                                VerticalOptions="Center"
                                                 Command="{Binding Path=BindingContext.DeleteTaskCommand, Source={x:Reference HomePageRoot}}"
                                                 CommandParameter="{Binding .}" />
                                         </SwipeItemView>
@@ -186,6 +167,7 @@
                                        Margin="0,0,0,12"
                                        HasShadow="True"
                                        BorderColor="{Binding IsToday, Converter={StaticResource BoolToBorderColorConverter}}">
+
                                     <Frame.Shadow>
                                         <Shadow Brush="Black" Opacity="0.2" Offset="0,2" Radius="4"/>
                                     </Frame.Shadow>
@@ -193,13 +175,16 @@
                                     <Grid RowSpacing="6">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*" />
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
+                                        <!-- Title -->
                                         <Label Grid.Row="0" Grid.Column="0"
                                                Text="{Binding Title}"
                                                FontSize="15"
@@ -222,25 +207,58 @@
                                                    FontAttributes="Bold"/>
                                         </Frame>
 
-                                        <VerticalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="6" Margin="0,6,0,0">
-                                            <Label Text="{Binding Description}"
-                                                   FontSize="13"
-                                                   TextColor="#D0D0D0"
-                                                   LineHeight="1.1"
-                                                   MaxLines="3"
-                                                   LineBreakMode="TailTruncation"
-                                                   HorizontalOptions="Start"
-                                                   VerticalOptions="Start"
-                                                   IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
-                                            <Label Text="{Binding DueDateTimeCombined, StringFormat='Son Tarih: {0:dd MMM yyyy HH\\:mm}'}"
+                                        <!-- Description -->
+                                        <Label Grid.Row="1" Grid.ColumnSpan="2"
+                                               Text="{Binding Description}"
+                                               FontSize="13"
+                                               TextColor="#D0D0D0"
+                                               LineHeight="1.1"
+                                               MaxLines="3"
+                                               LineBreakMode="TailTruncation"
+                                               IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
+
+                                        <!-- Tarih ve Tamamlandı aynı satırda -->
+                                        <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Label Grid.Column="0"
+                                                   Text="{Binding DueDateTimeCombined, StringFormat='Son Tarih: {0:dd MMM yyyy HH\\:mm}'}"
                                                    FontSize="13"
                                                    TextColor="#B0BEC5"
                                                    IsVisible="{Binding HasDueDate}" />
-                                            <Label Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
-                                                   FontSize="12"
-                                                   TextColor="#AAAAAA"
-                                                   IsVisible="{Binding Tags.Count, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
-                                        </VerticalStackLayout>
+
+                                            <HorizontalStackLayout Grid.Column="1"
+                                                                   Spacing="6"
+                                                                   VerticalOptions="Center">
+                                                <HorizontalStackLayout.GestureRecognizers>
+                                                    <TapGestureRecognizer 
+                                                        Command="{Binding Path=BindingContext.ToggleTaskCompletionCommand, Source={x:Reference HomePageRoot}}"
+                                                        CommandParameter="{Binding .}" />
+                                                </HorizontalStackLayout.GestureRecognizers>
+
+                                                <Image Source="{Binding IsCompleted, Converter={StaticResource IsCompletedToIconConverter}}"
+                                                       WidthRequest="20"
+                                                       HeightRequest="20"
+                                                       VerticalOptions="Center" />
+
+                                                <Label Text="{Binding IsCompleted, Converter={StaticResource BoolToStatusTextConverter}}"
+                                                       FontSize="13"
+                                                       TextColor="{Binding IsCompleted, Converter={StaticResource IsCompletedToColorConverter}}"
+                                                       VerticalOptions="Center"
+                                                       FontAttributes="Bold"
+                                                       FontFamily="RobotoRegular"/>
+                                            </HorizontalStackLayout>
+                                        </Grid>
+
+                                        <!-- Tags -->
+                                        <Label Grid.Row="3" Grid.ColumnSpan="2"
+                                               Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
+                                               FontSize="13"
+                                               TextColor="#AAAAAA"
+                                               IsVisible="{Binding Tags.Count, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
                                     </Grid>
                                 </Frame>
                             </SwipeView>

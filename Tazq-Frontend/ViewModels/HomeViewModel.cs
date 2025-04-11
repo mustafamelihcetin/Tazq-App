@@ -23,6 +23,7 @@ namespace Tazq_Frontend.ViewModels
             SettingsCommand = new AsyncRelayCommand(OpenSettings);
             TogglePastTasksCommand = new RelayCommand(TogglePastTasks);
             DeleteTaskCommand = new AsyncRelayCommand<TaskModel?>(DeleteTask);
+            ToggleTaskCompletionCommand = new AsyncRelayCommand<TaskModel?>(ToggleTaskCompletion);
 
             // Refreshing after adding a task
             WeakReferenceMessenger.Default.Register<TaskAddedMessage>(this, async (r, m) =>
@@ -47,6 +48,8 @@ namespace Tazq_Frontend.ViewModels
         public IAsyncRelayCommand SettingsCommand { get; }
         public ICommand TogglePastTasksCommand { get; }
         public IAsyncRelayCommand<TaskModel?> DeleteTaskCommand { get; }
+        // Command for toggling task completion status
+        public IAsyncRelayCommand<TaskModel?> ToggleTaskCompletionCommand { get; }
 
         [ObservableProperty]
         private bool isLoading;
@@ -91,6 +94,39 @@ namespace Tazq_Frontend.ViewModels
             {
                 Console.WriteLine($"[DOTNET] Görev çekme hatası: {ex.Message}");
                 await Application.Current.MainPage.DisplayAlert("Hata", "Görevler alınamadı: " + ex.Message, "Tamam");
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        public async Task LoadTasksAsync()
+        {
+            IsLoading = true;
+
+            try
+            {
+                var tasks = await _apiService.GetTasks();
+
+                var ordered = tasks
+                    .Where(t => ShowPastTasks || !t.IsExpired)
+                    .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
+                    .ThenBy(t => t.DueTime ?? DateTime.MaxValue)
+                    .ToList();
+
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    Tasks.Clear();
+                    foreach (var task in ordered)
+                    {
+                        Tasks.Add(task);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DOTNET] Görev çekme hatası (async): {ex.Message}");
             }
             finally
             {
@@ -151,37 +187,21 @@ namespace Tazq_Frontend.ViewModels
             }
         }
 
-        public async Task LoadTasksAsync()
+
+
+        
+
+        // Method to toggle IsCompleted and update task on server
+        private async Task ToggleTaskCompletion(TaskModel? task)
         {
-            IsLoading = true;
+            if (task == null)
+                return;
 
-            try
-            {
-                var tasks = await _apiService.GetTasks();
-
-                var ordered = tasks
-                    .Where(t => ShowPastTasks || !t.IsExpired)
-                    .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
-                    .ThenBy(t => t.DueTime ?? DateTime.MaxValue)
-                    .ToList();
-
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    Tasks.Clear();
-                    foreach (var task in ordered)
-                    {
-                        Tasks.Add(task);
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DOTNET] Görev çekme hatası (async): {ex.Message}");
-            }
-            finally
-            {
-                IsLoading = false;
-            }
+            task.IsCompleted = !task.IsCompleted;
+            await _apiService.UpdateTask(task);
+            await LoadTasks();
         }
+
+
     }
 }

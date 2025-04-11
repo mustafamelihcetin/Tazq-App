@@ -1,5 +1,6 @@
 using System;
 using Tazq_Frontend.ViewModels;
+using Tazq_Frontend.Models;
 
 namespace Tazq_Frontend.Views
 {
@@ -31,6 +32,14 @@ namespace Tazq_Frontend.Views
             if (BindingContext is HomeViewModel viewModel)
             {
                 viewModel.IsScrolledDown = e.ScrollY > 30;
+            }
+        }
+
+        private async void CheckBox_CheckedChanged(object sender, CheckedChangedEventArgs e)
+        {
+            if (BindingContext is HomeViewModel viewModel && sender is CheckBox checkBox && checkBox.BindingContext is TaskModel task)
+            {
+                await viewModel.ToggleTaskCompletionCommand.ExecuteAsync(task);
             }
         }
 
