@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net8.0-android;net8.0-windows10.0.19041.0</TargetFrameworks>
+		<TargetFrameworks>net8.0-android;net8.0-windows10.0.19041.0;net8.0-ios</TargetFrameworks>
 		<OutputType>Exe</OutputType>
 		<RootNamespace>Tazq_Frontend</RootNamespace>
 		<UseMaui>true</UseMaui>
@@ -20,6 +20,9 @@
 
 		<AndroidLinkMode>None</AndroidLinkMode>
 		<UseInterpreter Condition="'$(Configuration)' == 'Debug'">true</UseInterpreter>
+		<DefaultLanguage>tr</DefaultLanguage>
+		<PackageCertificateThumbprint>883C57A88AE9E695FDD6DB8A5DF21BF758B86BBB</PackageCertificateThumbprint>
+		<AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
 	</PropertyGroup>
 
 	<!-- Disable AOT for Release builds to avoid splash crash -->
@@ -46,11 +49,34 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <None Remove="Platforms\Windows\Assets\%24placeholder%24.scale-400.png" />
+	  <None Remove="Platforms\Windows\Assets\AppIcon.scale-100.png" />
+	  <None Remove="Platforms\Windows\Assets\AppIcon.scale-200.png" />
+	  <None Remove="Platforms\Windows\Assets\AppIcon.scale-400.png" />
+	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-16.png" />
+	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-256.png" />
+	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-48.png" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Maui" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="8.0.14" />
 		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="8.0.14" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="Platforms\Windows\Assets\$placeholder$.scale-400.png" />
+		<Content Include="Platforms\Windows\Assets\AppIcon.scale-100.png" />
+		<Content Include="Platforms\Windows\Assets\AppIcon.scale-200.png" />
+		<Content Include="Platforms\Windows\Assets\AppIcon.scale-400.png" />
+		<Content Include="Platforms\Windows\Assets\AppIcon.targetsize-16.png" />
+		<Content Include="Platforms\Windows\Assets\AppIcon.targetsize-256.png" />
+		<Content Include="Platforms\Windows\Assets\AppIcon.targetsize-48.png" />
+		<Content Include="Platforms\Windows\Assets\wide310x150.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
 	</ItemGroup>
 
 </Project>
