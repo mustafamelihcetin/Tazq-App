@@ -68,7 +68,7 @@ namespace Tazq_App.Controllers
             foreach (var task in taskList)
             {
                 task.Title = _cryptoService.Decrypt(task.Title, key);
-                task.Description = string.IsNullOrEmpty(task.Description) ? null : _cryptoService.Decrypt(task.Description, key);
+                task.Description = _cryptoService.Decrypt(task.Description ?? string.Empty, key);
 
                 if (!string.IsNullOrEmpty(task.TagsJson))
                 {
@@ -113,7 +113,7 @@ namespace Tazq_App.Controllers
 
             var key = _cryptoService.GetKeyForUser(userId.Value)!;
             task.Title = _cryptoService.Decrypt(task.Title, key);
-            task.Description = string.IsNullOrEmpty(task.Description) ? null : _cryptoService.Decrypt(task.Description, key);
+            task.Description = string.IsNullOrEmpty(task.Description) ? string.Empty : _cryptoService.Decrypt(task.Description, key);
 
             if (!string.IsNullOrEmpty(task.TagsJson))
             {
@@ -138,7 +138,7 @@ namespace Tazq_App.Controllers
 
                 var key = _cryptoService.GetKeyForUser(userId.Value)!;
                 task.Title = _cryptoService.Encrypt(task.Title, key);
-                task.Description = string.IsNullOrEmpty(task.Description) ? null : _cryptoService.Encrypt(task.Description, key);
+                task.Description = _cryptoService.Encrypt(task.Description ?? string.Empty, key);
 
                 var jsonTags = JsonSerializer.Serialize(task.Tags);
                 task.TagsJson = _cryptoService.Encrypt(jsonTags, key);
@@ -181,7 +181,7 @@ namespace Tazq_App.Controllers
                 return new TaskItem
                 {
                     Title = _cryptoService.Encrypt(t.Title, key),
-                    Description = string.IsNullOrEmpty(t.Description) ? null : _cryptoService.Encrypt(t.Description, key),
+                    Description = _cryptoService.Encrypt(t.Description ?? string.Empty, key),
                     DueDate = t.DueDate,
                     DueTime = t.GetType().GetProperty("DueTime")?.GetValue(t) as DateTime? ?? null,
                     IsCompleted = t.IsCompleted,
@@ -215,7 +215,7 @@ namespace Tazq_App.Controllers
             var key = _cryptoService.GetKeyForUser(userId.Value)!;
 
             task.Title = _cryptoService.Encrypt(updatedTask.Title, key);
-            task.Description = string.IsNullOrEmpty(updatedTask.Description) ? null : _cryptoService.Encrypt(updatedTask.Description, key);
+            task.Description = _cryptoService.Encrypt(updatedTask.Description ?? string.Empty, key);
             task.DueDate = updatedTask.DueDate;
             task.DueTime = updatedTask.DueTime?.ToUniversalTime();
             task.IsCompleted = updatedTask.IsCompleted;

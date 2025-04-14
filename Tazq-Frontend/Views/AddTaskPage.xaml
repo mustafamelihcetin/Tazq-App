@@ -104,8 +104,8 @@
                                    VerticalOptions="Center"
                                    Margin="6,0,0,0"/>
                         </HorizontalStackLayout>
-                        <TimePicker Time="{Binding SelectedTime}"
-                                    IsVisible="{Binding EnableTime}"
+                        <TimePicker Time="{Binding SelectedTime}" Format="HH:mm"
+                        IsVisible="{Binding EnableTime}"
                                     TextColor="White"
                                     FontSize="20"
                                     WidthRequest="100"

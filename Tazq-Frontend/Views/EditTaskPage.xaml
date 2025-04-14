@@ -101,6 +101,7 @@
                                    Margin="6,0,0,0"/>
                         </HorizontalStackLayout>
                         <TimePicker Time="{Binding SelectedTime, Mode=TwoWay, TargetNullValue='00:00:00'}"
+                                    Format="HH:mm"
                                     IsVisible="{Binding EnableTime}"
                                     TextColor="White"
                                     FontSize="20"

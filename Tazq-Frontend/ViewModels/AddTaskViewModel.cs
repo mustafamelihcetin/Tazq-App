@@ -129,20 +129,25 @@ namespace Tazq_Frontend.ViewModels
             if (!string.IsNullOrWhiteSpace(NewTag) && !Tags.Contains(NewTag))
                 Tags.Add(NewTag);
 
+            DateTime? finalDueDate = null;
             DateTime? finalDueTime = null;
 
-            if (EnableTime)
+            if (DueDate.HasValue)
             {
-                var time = SelectedTime ?? TimeSpan.Zero;
-                finalDueTime = new DateTime(
-                    DueDate.Value.Year,
-                    DueDate.Value.Month,
-                    DueDate.Value.Day,
-                    time.Hours,
-                    time.Minutes,
-                    0,
-                    DateTimeKind.Local
-                ).ToUniversalTime();
+                var date = DueDate.Value.Date;
+
+                if (EnableTime)
+                {
+                    var time = SelectedTime ?? TimeSpan.Zero;
+                    var localDateTime = new DateTime(date.Year, date.Month, date.Day, time.Hours, time.Minutes, 0, DateTimeKind.Local);
+                    finalDueDate = localDateTime.ToUniversalTime();
+                    finalDueTime = localDateTime.ToUniversalTime();
+                }
+                else
+                {
+                    var localDateTime = new DateTime(date.Year, date.Month, date.Day, 0, 0, 0, DateTimeKind.Local);
+                    finalDueDate = localDateTime.ToUniversalTime();
+                }
             }
 
             string priorityEnum = SelectedPriority switch
@@ -156,8 +161,8 @@ namespace Tazq_Frontend.ViewModels
             var newTask = new TaskModel
             {
                 Title = Title,
-                Description = Description,
-                DueDate = DueDate?.ToUniversalTime(),
+                Description = string.IsNullOrWhiteSpace(Description) ? string.Empty : Description,
+                DueDate = finalDueDate,
                 DueTime = finalDueTime,
                 IsCompleted = false,
                 Tags = Tags.ToList(),
@@ -176,6 +181,7 @@ namespace Tazq_Frontend.ViewModels
                 await Shell.Current.DisplayAlert("Hata", "Görev kaydedilemedi.", "Tamam");
             }
         }
+
     }
 
     public class TaskAddedMessage : ValueChangedMessage<bool>
