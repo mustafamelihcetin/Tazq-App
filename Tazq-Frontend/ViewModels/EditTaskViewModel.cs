@@ -146,6 +146,7 @@ namespace Tazq_Frontend.ViewModels
                 ).ToUniversalTime();
             }
 
+
             string priorityEnum = SelectedPriority switch
             {
                 "Düşük" => "Low",
@@ -159,7 +160,7 @@ namespace Tazq_Frontend.ViewModels
                 Id = TaskId,
                 Title = Title,
                 Description = Description,
-                DueDate = DueDate?.ToUniversalTime(),
+                DueDate = DueDate,
                 DueTime = finalDueTime,
                 IsCompleted = EditingTask?.IsCompleted ?? false,
                 Tags = Tags.ToList(),

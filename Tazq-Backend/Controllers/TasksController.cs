@@ -143,8 +143,8 @@ namespace Tazq_App.Controllers
                 var jsonTags = JsonSerializer.Serialize(task.Tags);
                 task.TagsJson = _cryptoService.Encrypt(jsonTags, key);
 
-                //if (task.DueTime.HasValue)
-                //    task.DueTime = task.DueTime.Value.ToUniversalTime();
+                if (task.DueTime.HasValue)
+                task.DueTime = task.DueTime.Value.ToUniversalTime();
 
                 _context.Tasks.Add(task);
                 await _context.SaveChangesAsync();
@@ -217,7 +217,7 @@ namespace Tazq_App.Controllers
             task.Title = _cryptoService.Encrypt(updatedTask.Title, key);
             task.Description = _cryptoService.Encrypt(updatedTask.Description ?? string.Empty, key);
             task.DueDate = updatedTask.DueDate;
-            //task.DueTime = updatedTask.DueTime?.ToUniversalTime();
+            task.DueTime = updatedTask.DueTime?.ToUniversalTime();
             task.IsCompleted = updatedTask.IsCompleted;
             task.Priority = updatedTask.Priority;
             task.Tags = updatedTask.Tags ?? new List<string>();
