@@ -124,7 +124,6 @@ namespace Tazq_Frontend.ViewModels
                         {
                             Tasks.Add(task);
                         }
-
                         ApplyFilters();
                     });
                 }

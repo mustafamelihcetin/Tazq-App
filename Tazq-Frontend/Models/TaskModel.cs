@@ -45,15 +45,17 @@ namespace Tazq_Frontend.Models
 
         // Combined DueDate and DueTime
         public DateTime? DueDateTimeCombined =>
-            DueDate.HasValue && DueTime.HasValue
-                ? new DateTime(
-                    DueDate.Value.Year,
-                    DueDate.Value.Month,
-                    DueDate.Value.Day,
-                    DueTime.Value.Hour,
-                    DueTime.Value.Minute,
-                    0,
-                    DateTimeKind.Local)
-                : DueDate;
+        DueDate.HasValue && DueTime.HasValue
+        ? DateTime.SpecifyKind(
+            new DateTime(
+                DueDate.Value.Year,
+                DueDate.Value.Month,
+                DueDate.Value.Day,
+                DueTime.Value.Hour,
+                DueTime.Value.Minute,
+                0),
+            DateTimeKind.Utc).ToLocalTime()
+        : DueDate?.ToLocalTime();
+
     }
 }

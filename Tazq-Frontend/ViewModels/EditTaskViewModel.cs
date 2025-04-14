@@ -130,20 +130,25 @@ namespace Tazq_Frontend.ViewModels
             }
 
 
+            DateTime? finalDueDate = null;
             DateTime? finalDueTime = null;
 
-            if (EnableTime)
+            if (DueDate.HasValue)
             {
-                var time = SelectedTime ?? TimeSpan.Zero;
-                finalDueTime = new DateTime(
-                    DueDate.Value.Year,
-                    DueDate.Value.Month,
-                    DueDate.Value.Day,
-                    time.Hours,
-                    time.Minutes,
-                    0,
-                    DateTimeKind.Local
-                ).ToUniversalTime();
+                var date = DueDate.Value.Date;
+
+                if (EnableTime)
+                {
+                    var time = SelectedTime ?? TimeSpan.Zero;
+                    var localDateTime = DateTime.SpecifyKind(date.Add(time), DateTimeKind.Local);
+                    finalDueDate = localDateTime.ToUniversalTime();
+                    finalDueTime = localDateTime.ToUniversalTime();
+                }
+                else
+                {
+                    var localDateTime = new DateTime(date.Year, date.Month, date.Day, 0, 0, 0, DateTimeKind.Local);
+                    finalDueDate = localDateTime.ToUniversalTime();
+                }
             }
 
 
@@ -160,7 +165,7 @@ namespace Tazq_Frontend.ViewModels
                 Id = TaskId,
                 Title = Title,
                 Description = Description,
-                DueDate = DueDate,
+                DueDate = finalDueDate,
                 DueTime = finalDueTime,
                 IsCompleted = EditingTask?.IsCompleted ?? false,
                 Tags = Tags.ToList(),

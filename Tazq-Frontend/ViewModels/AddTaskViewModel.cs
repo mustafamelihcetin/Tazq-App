@@ -139,7 +139,7 @@ namespace Tazq_Frontend.ViewModels
                 if (EnableTime)
                 {
                     var time = SelectedTime ?? TimeSpan.Zero;
-                    var localDateTime = new DateTime(date.Year, date.Month, date.Day, time.Hours, time.Minutes, 0, DateTimeKind.Local);
+                    var localDateTime = DateTime.SpecifyKind(date.Add(time), DateTimeKind.Local);
                     finalDueDate = localDateTime.ToUniversalTime();
                     finalDueTime = localDateTime.ToUniversalTime();
                 }
