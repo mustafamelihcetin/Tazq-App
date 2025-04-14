@@ -66,15 +66,32 @@ namespace Tazq_Frontend.ViewModels
             TaskId = task.Id;
         }
 
-
         [ObservableProperty]
         private string title = string.Empty;
+
+        partial void OnTitleChanged(string value)
+        {
+            OnPropertyChanged(nameof(IsTitleLimitExceeded));
+            OnPropertyChanged(nameof(TitleWarning));
+        }
 
         [ObservableProperty]
         private string description = string.Empty;
 
+        partial void OnDescriptionChanged(string value)
+        {
+            OnPropertyChanged(nameof(IsDescriptionLimitExceeded));
+            OnPropertyChanged(nameof(DescriptionWarning));
+        }
+
         [ObservableProperty]
         private string? newTag;
+
+        partial void OnNewTagChanged(string? value)
+        {
+            OnPropertyChanged(nameof(IsTagLimitExceeded));
+            OnPropertyChanged(nameof(TagWarning));
+        }
 
         [ObservableProperty]
         private DateTime? dueDate = DateTime.Today.AddDays(1);
@@ -99,13 +116,13 @@ namespace Tazq_Frontend.ViewModels
         public string TagsDisplay => Tags.Any() ? string.Join(", ", Tags) : string.Empty;
 
         public bool IsTitleLimitExceeded => Title?.Length >= 80;
-        public string TitleWarning => IsTitleLimitExceeded ? "Başlık en fazla 80 karakter olabilir." : string.Empty;
+        public string TitleWarning => IsTitleLimitExceeded ? "En fazla 80 karakter olabilir." : string.Empty;
 
         public bool IsDescriptionLimitExceeded => Description?.Length >= 300;
-        public string DescriptionWarning => IsDescriptionLimitExceeded ? "Açıklama en fazla 300 karakter olabilir." : string.Empty;
+        public string DescriptionWarning => IsDescriptionLimitExceeded ? "En fazla 300 karakter olabilir." : string.Empty;
 
         public bool IsTagLimitExceeded => NewTag?.Length >= 30;
-        public string TagWarning => IsTagLimitExceeded ? "Etiket en fazla 30 karakter olabilir." : string.Empty;
+        public string TagWarning => IsTagLimitExceeded ? "En fazla 30 karakter olabilir." : string.Empty;
 
         [RelayCommand]
         private async Task UpdateTask()
@@ -122,13 +139,11 @@ namespace Tazq_Frontend.ViewModels
                 return;
             }
 
-            // Reset all tag list and put NewTag
             if (!string.IsNullOrWhiteSpace(NewTag))
             {
                 Tags.Clear();
                 Tags.Add(NewTag);
             }
-
 
             DateTime? finalDueDate = null;
             DateTime? finalDueTime = null;
@@ -150,7 +165,6 @@ namespace Tazq_Frontend.ViewModels
                     finalDueDate = localDateTime.ToUniversalTime();
                 }
             }
-
 
             string priorityEnum = SelectedPriority switch
             {

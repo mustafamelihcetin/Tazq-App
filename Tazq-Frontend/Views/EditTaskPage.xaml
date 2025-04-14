@@ -91,22 +91,23 @@
                                     Format="dd MMMM yyyy"
                                     TextColor="White"
                                     FontFamily="RobotoRegular" />
-                        <HorizontalStackLayout>
+                        <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
                             <CheckBox IsChecked="{Binding EnableTime}"
-                                      Color="#3C4D90"/>
+                                      Color="#3C4D90"
+                                      VerticalOptions="Center"/>
                             <Label Text="Saat belirle"
                                    TextColor="White"
                                    FontFamily="RobotoRegular"
-                                   VerticalOptions="Center"
-                                   Margin="6,0,0,0"/>
+                                   VerticalOptions="Center"/>
+                            <TimePicker Time="{Binding SelectedTime, Mode=TwoWay, TargetNullValue='00:00:00'}"
+                                        Format="HH:mm"
+                                        IsVisible="{Binding EnableTime}"
+                                        TextColor="White"
+                                        FontSize="16"
+                                        WidthRequest="60"
+                                        FontFamily="RobotoRegular"
+                                        VerticalOptions="Center"/>
                         </HorizontalStackLayout>
-                        <TimePicker Time="{Binding SelectedTime, Mode=TwoWay, TargetNullValue='00:00:00'}"
-                                    Format="HH:mm"
-                                    IsVisible="{Binding EnableTime}"
-                                    TextColor="White"
-                                    FontSize="20"
-                                    WidthRequest="100"
-                                    FontFamily="RobotoRegular" />
                     </VerticalStackLayout>
                 </Frame>
 
@@ -122,7 +123,7 @@
                            BackgroundColor="#1C1C1E"
                            BorderColor="#2F2F2F"
                            CornerRadius="10"
-                           Padding="5,0"
+                           Padding="5, 0, 0, 12"
                            HasShadow="True"
                            HeightRequest="80"
                            VerticalOptions="Start">
@@ -143,8 +144,8 @@
                     <Frame Grid.Column="1" HeightRequest="80" Padding="10" CornerRadius="12" BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" HasShadow="False">
                         <Grid>
                             <Grid.RowDefinitions>
+                                <RowDefinition Height="45"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="16"/>
                             </Grid.RowDefinitions>
                             <Entry Grid.Row="0"
                                    Placeholder="Etiket ekle"
@@ -159,7 +160,7 @@
                             <Label Grid.Row="1"
                                    Text="{Binding TagWarning}"
                                    TextColor="Red"
-                                   FontSize="10"
+                                   FontSize="11"
                                    FontFamily="RobotoRegular"
                                    LineBreakMode="TailTruncation"
                                    IsVisible="{Binding IsTagLimitExceeded}"

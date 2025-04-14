@@ -38,5 +38,17 @@
                    Opacity="0"
                    x:Name="SloganLabel" />
         </VerticalStackLayout>
+
+        <!-- Loading indicator -->
+        <ActivityIndicator x:Name="LoadingIndicator"
+                           Grid.Row="1"
+                           Color="White"
+                           IsRunning="True"
+                           IsVisible="False"
+                           Opacity="0"
+                           WidthRequest="30"
+                           HeightRequest="30"
+                           VerticalOptions="Center"
+                           HorizontalOptions="Center" />
     </Grid>
 </ContentPage>

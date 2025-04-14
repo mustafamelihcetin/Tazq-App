@@ -21,17 +21,18 @@ namespace Tazq_Frontend.Views
             Logo.Opacity = 0;
             SloganLabel.Opacity = 0;
             SloganLabel.TranslationY = 20;
+            LoadingIndicator.IsVisible = true;
 
             await Task.Delay(300);
-
             await Logo.FadeTo(1, 800, Easing.CubicInOut);
 
             await Task.Delay(500);
 
             var sloganFade = SloganLabel.FadeTo(1, 600, Easing.CubicInOut);
             var sloganSlide = SloganLabel.TranslateTo(0, 0, 600, Easing.CubicOut);
+            var loaderFadeIn = LoadingIndicator.FadeTo(1, 600, Easing.CubicInOut);
 
-            await Task.WhenAll(sloganFade, sloganSlide);
+            await Task.WhenAll(sloganFade, sloganSlide, loaderFadeIn);
 
             await Task.Delay(500);
 
@@ -47,6 +48,9 @@ namespace Tazq_Frontend.Views
                     isValid = !string.IsNullOrEmpty(newToken);
                 }
             }
+
+            await LoadingIndicator.FadeTo(0, 400);
+            LoadingIndicator.IsVisible = false;
 
             await Shell.Current.GoToAsync(isValid ? "//HomePage" : "//LoginPage");
         }
