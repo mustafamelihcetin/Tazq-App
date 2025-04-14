@@ -33,6 +33,7 @@
             <converters:IsCompletedToIconConverter x:Key="IsCompletedToIconConverter" />
             <converters:BoolToStatusTextConverter x:Key="BoolToStatusTextConverter" />
             <converters:IsCompletedToColorConverter x:Key="IsCompletedToColorConverter" />
+            <converters:IsCompletedToBackgroundColorConverter x:Key="IsCompletedToBackgroundColorConverter" />
         </ResourceDictionary>
     </ContentPage.Resources>
 
@@ -262,7 +263,7 @@
                                                LineBreakMode="TailTruncation"
                                                IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
 
-                                        <!-- Tarih ve Tamamlandı aynı satırda -->
+                                        <!-- Date and IsCompleted Status -->
                                         <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnSpacing="10">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
@@ -275,27 +276,38 @@
                                                    TextColor="#B0BEC5"
                                                    IsVisible="{Binding HasDueDate}" />
 
-                                            <HorizontalStackLayout Grid.Column="1"
-                                                                   Spacing="6"
-                                                                   VerticalOptions="Center">
-                                                <HorizontalStackLayout.GestureRecognizers>
-                                                    <TapGestureRecognizer 
-                                                        Command="{Binding Path=BindingContext.ToggleTaskCompletionCommand, Source={x:Reference HomePageRoot}}"
-                                                        CommandParameter="{Binding .}" />
-                                                </HorizontalStackLayout.GestureRecognizers>
+                                            <Frame Grid.Column="1"
+                                                   CornerRadius="20"
+                                                   Padding="6"
+                                                   Margin="0,0,5,0"
+                                                   HorizontalOptions="End"
+                                                   VerticalOptions="Center"
+                                                   HasShadow="False"
+                                                   BackgroundColor="{Binding IsCompleted, Converter={StaticResource IsCompletedToBackgroundColorConverter}}"
+                                                   BorderColor="Transparent">           
 
-                                                <Image Source="{Binding IsCompleted, Converter={StaticResource IsCompletedToIconConverter}}"
-                                                       WidthRequest="20"
-                                                       HeightRequest="20"
-                                                       VerticalOptions="Center" />
+                                                <HorizontalStackLayout Spacing="6"
+                                                                       VerticalOptions="Center">
+                                                    <HorizontalStackLayout.GestureRecognizers>
+                                                        <TapGestureRecognizer 
+                                                            Command="{Binding Path=BindingContext.ToggleTaskCompletionCommand, Source={x:Reference HomePageRoot}}"
+                                                            CommandParameter="{Binding .}" />
+                                                    </HorizontalStackLayout.GestureRecognizers>
 
-                                                <Label Text="{Binding IsCompleted, Converter={StaticResource BoolToStatusTextConverter}}"
-                                                       FontSize="13"
-                                                       TextColor="{Binding IsCompleted, Converter={StaticResource IsCompletedToColorConverter}}"
-                                                       VerticalOptions="Center"
-                                                       FontAttributes="Bold"
-                                                       FontFamily="RobotoRegular"/>
-                                            </HorizontalStackLayout>
+                                                    <Image Source="{Binding IsCompleted, Converter={StaticResource IsCompletedToIconConverter}}"
+                                                           WidthRequest="20"
+                                                           HeightRequest="20"
+                                                           VerticalOptions="Center" />
+
+                                                    <Label Text="{Binding IsCompleted, Converter={StaticResource BoolToStatusTextConverter}}"
+                                                           FontSize="13"
+                                                           TextColor="{Binding IsCompleted, Converter={StaticResource IsCompletedToColorConverter}}"
+                                                           VerticalOptions="Center"
+                                                           FontAttributes="Bold"
+                                                           FontFamily="RobotoRegular"/>
+                                                </HorizontalStackLayout>
+                                            </Frame>
+
                                         </Grid>
 
                                         <!-- Tags -->
@@ -348,7 +360,7 @@
                     <RadioButton Content="Tamamlanmadı"
                                  GroupName="Status"
                                  IsChecked="{Binding IsStatusIncomplete, Mode=TwoWay}"
-                                 CheckedChanged="OnStatusFilterChanged"/>       
+                                 CheckedChanged="OnStatusFilterChanged"/>
                 </VerticalStackLayout>
 
 
