@@ -98,5 +98,26 @@ namespace Tazq_Frontend.Views
                 AddTaskButton.WidthRequest = width / 2;
             }
         }
+
+        private async void OnTaskTapped(object sender, EventArgs e)
+        {
+            if (sender is VisualElement element && element.BindingContext is TaskModel task)
+            {
+                task.IsExpanded = !task.IsExpanded;
+
+                if (element is Label descriptionLabel)
+                {
+                    double currentHeight = descriptionLabel.Height;
+                    double targetHeight = task.IsExpanded ? currentHeight * 3 : currentHeight / 3;
+
+                    var animation = new Animation(v => descriptionLabel.HeightRequest = v,
+                                                  currentHeight, targetHeight,
+                                                  easing: Easing.CubicInOut);
+
+                    animation.Commit(this, "descExpand", length: 500);
+                }
+            }
+        }
+
     }
 }

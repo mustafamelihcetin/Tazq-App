@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using CommunityToolkit.Mvvm.ComponentModel;
+
 
 namespace Tazq_Frontend.Models
 {
-    public class TaskModel
+    public partial class TaskModel : ObservableObject
     {
         public int Id { get; set; }
         public string Title { get; set; } = string.Empty;
@@ -14,6 +16,10 @@ namespace Tazq_Frontend.Models
         public string Priority { get; set; } = string.Empty;
         public List<string> Tags { get; set; } = new();
         public string TagsJson { get; set; } = string.Empty; // Encrypted Tags
+
+        [ObservableProperty]
+        private bool isExpanded = false;
+
 
         // Constructor
         public TaskModel()

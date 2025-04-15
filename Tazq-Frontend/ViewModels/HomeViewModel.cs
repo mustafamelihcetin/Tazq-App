@@ -235,6 +235,17 @@ namespace Tazq_Frontend.ViewModels
             FilteredTasks = new ObservableCollection<TaskModel>(filtered);
         }
 
+        [RelayCommand]
+        private void ToggleExpand(TaskModel task)
+        {
+            task.IsExpanded = !task.IsExpanded;
+
+            var updated = FilteredTasks.ToList();
+            FilteredTasks = new ObservableCollection<TaskModel>(updated);
+        }
+
+
+
         private async Task DeleteTask(TaskModel? task)
         {
             if (task == null)

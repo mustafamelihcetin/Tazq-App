@@ -105,8 +105,8 @@ namespace Tazq_Frontend.ViewModels
         public bool IsTitleLimitExceeded => Title?.Length >= 80;
         public string TitleWarning => IsTitleLimitExceeded ? "Başlık en fazla 80 karakter olabilir." : string.Empty;
 
-        public bool IsDescriptionLimitExceeded => Description?.Length >= 300;
-        public string DescriptionWarning => IsDescriptionLimitExceeded ? "Açıklama en fazla 300 karakter olabilir." : string.Empty;
+        public bool IsDescriptionLimitExceeded => Description?.Length >= 500;
+        public string DescriptionWarning => IsDescriptionLimitExceeded ? "Açıklama en fazla 500 karakter olabilir." : string.Empty;
 
         public bool IsTagLimitExceeded => NewTag?.Length >= 30;
         public string TagWarning => IsTagLimitExceeded ? "Etiket en fazla 30 karakter olabilir." : string.Empty;

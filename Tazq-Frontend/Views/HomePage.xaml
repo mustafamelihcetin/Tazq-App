@@ -34,6 +34,7 @@
             <converters:BoolToStatusTextConverter x:Key="BoolToStatusTextConverter" />
             <converters:IsCompletedToColorConverter x:Key="IsCompletedToColorConverter" />
             <converters:IsCompletedToBackgroundColorConverter x:Key="IsCompletedToBackgroundColorConverter" />
+            <converters:BoolToMaxLinesConverter x:Key="BoolToMaxLinesConverter" />
         </ResourceDictionary>
     </ContentPage.Resources>
 
@@ -213,6 +214,12 @@
                                        Margin="0,0,0,12"
                                        HasShadow="True"
                                        BorderColor="{Binding IsToday, Converter={StaticResource BoolToBorderColorConverter}}">
+                                    <Frame.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleExpandCommand, Source={x:Reference HomePageRoot}}"
+                                          CommandParameter="{Binding .}" />
+                                        <TapGestureRecognizer Tapped="OnTaskTapped" />
+                                    </Frame.GestureRecognizers>
+
 
                                     <Frame.Shadow>
                                         <Shadow Brush="Black" Opacity="0.2" Offset="0,2" Radius="4"/>
@@ -237,7 +244,8 @@
                                                FontAttributes="Bold"
                                                TextColor="White"
                                                LineBreakMode="TailTruncation"
-                                               MaxLines="2" />
+                                               MaxLines="{Binding IsExpanded, Converter={StaticResource BoolToMaxLinesConverter}, ConverterParameter=2}" />
+
 
                                         <Frame Grid.Row="0" Grid.Column="1"
                                                Padding="4,2"
@@ -254,14 +262,21 @@
                                         </Frame>
 
                                         <!-- Description -->
-                                        <Label Grid.Row="1" Grid.ColumnSpan="2"
+                                        <Label x:Name="DescriptionLabel"
+                                               Grid.Row="1" Grid.ColumnSpan="2"
                                                Text="{Binding Description}"
                                                FontSize="13"
                                                TextColor="#D0D0D0"
                                                LineHeight="1.1"
-                                               MaxLines="3"
                                                LineBreakMode="TailTruncation"
-                                               IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
+                                               MaxLines="{Binding IsExpanded, Converter={StaticResource BoolToMaxLinesConverter}, ConverterParameter=3}"
+                                               IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}">
+                                            <Label.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnTaskTapped" />
+                                            </Label.GestureRecognizers>
+                                        </Label>
+
+
 
                                         <!-- Date and IsCompleted Status -->
                                         <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnSpacing="10">
