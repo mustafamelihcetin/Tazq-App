@@ -3,6 +3,10 @@ using CommunityToolkit.Maui;
 using Tazq_Frontend.Services;
 using Tazq_Frontend.ViewModels;
 
+#if IOS
+using UIKit;
+#endif
+
 namespace Tazq_Frontend;
 
 public static class MauiProgram

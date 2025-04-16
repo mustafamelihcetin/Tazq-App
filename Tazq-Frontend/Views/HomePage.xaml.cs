@@ -4,6 +4,11 @@ using Tazq_Frontend.Models;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Devices;
 
+#if IOS
+using UIKit;
+using CoreAnimation;
+#endif
+
 namespace Tazq_Frontend.Views
 {
     public partial class HomePage : ContentPage
@@ -13,6 +18,19 @@ namespace Tazq_Frontend.Views
             InitializeComponent();
             Console.WriteLine("[DOTNET] HomePage yüklendi.");
             BindingContext = new HomeViewModel();
+
+#if IOS
+            AddTaskFrame.HandlerChanged += (s, e) =>
+            {
+                var nativeView = AddTaskFrame.Handler?.PlatformView as UIView;
+                if (nativeView != null)
+                {
+                    nativeView.Layer.BorderWidth = 0;
+                    nativeView.Layer.BorderColor = UIColor.Clear.CGColor;
+                    nativeView.ClipsToBounds = true;
+                }
+            };
+#endif
         }
 
         private async void MainRefreshView_Refreshing(object sender, EventArgs e)
@@ -42,6 +60,7 @@ namespace Tazq_Frontend.Views
                 await viewModel.ToggleTaskCompletionCommand.ExecuteAsync(task);
             }
         }
+
         private void OnStatusFilterChanged(object sender, CheckedChangedEventArgs e)
         {
             if (BindingContext is HomeViewModel vm && e.Value)
@@ -56,9 +75,6 @@ namespace Tazq_Frontend.Views
                 vm.ApplyFilters();
             }
         }
-
-
-
 
         private void OnFilterChanged(object? sender, EventArgs e)
         {
@@ -118,6 +134,5 @@ namespace Tazq_Frontend.Views
                 }
             }
         }
-
     }
 }

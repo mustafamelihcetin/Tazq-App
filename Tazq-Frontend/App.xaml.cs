@@ -6,13 +6,13 @@ using Microsoft.UI.Windowing;
 using Windows.Graphics;
 using WinRT.Interop;
 #endif
-
 namespace Tazq_Frontend;
 
 public partial class App : Application
 {
     public App()
     {
+
         InitializeComponent();
         MainPage = new AppShell();
     }

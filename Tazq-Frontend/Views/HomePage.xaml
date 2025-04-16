@@ -97,6 +97,7 @@
                       HorizontalOptions="Center"
                       VerticalOptions="Center">
                     <Frame x:Name="AddTaskFrame"
+                           StyleClass="NoBorderFrame"
                            Padding="0"
                            CornerRadius="12"
                            HasShadow="False"
@@ -120,7 +121,29 @@
                                     FontFamily="RobotoRegular"
                                     Padding="10"
                                     BackgroundColor="Transparent"
-                                    HorizontalOptions="Center"/>
+                                    HorizontalOptions="Center">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="BorderWidth">
+                                            <Setter.Value>
+                                                <OnPlatform x:TypeArguments="x:Double">
+                                                    <On Platform="iOS" Value="0"/>
+                                                    <On Platform="Android" Value="0"/>
+                                                </OnPlatform>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="BorderColor">
+                                            <Setter.Value>
+                                                <OnPlatform x:TypeArguments="Color">
+                                                    <On Platform="iOS" Value="Transparent"/>
+                                                    <On Platform="Android" Value="Transparent"/>
+                                                </OnPlatform>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+
                         </Grid>
                     </Frame>
                 </Grid>
