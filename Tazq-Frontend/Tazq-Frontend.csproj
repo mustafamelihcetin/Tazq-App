@@ -30,11 +30,17 @@
 		<RunAOTCompilation>false</RunAOTCompilation>
 		<UseInterpreter>true</UseInterpreter>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(TargetFramework)'=='net8.0-ios'">
+	  <ProvisioningType>automatic</ProvisioningType>
+	  <CodesignProvision>VS: com.tazqapp.tazq Development</CodesignProvision>
+	  <CodesignKey>Apple Development: Created via API (HY2MYHM459)</CodesignKey>
+	</PropertyGroup>
 
 	<ItemGroup>
 		<MauiSplashScreen Include="Resources\Images\tazq_white_icon.png" Color="#395177" BaseSize="300,92" />
 		<MauiImage Include="Resources\Images\*.png" />
 		<!--<MauiImage Include="Resources\Images\*.svg" />-->
+		<MauiIcon Include="Platforms\Windows\Assets\appicons.png" ForegroundFile="Platforms\Windows\Assets\appicons.png" IsAppIcon="true" />
 	</ItemGroup>
 
 	<ItemGroup>
