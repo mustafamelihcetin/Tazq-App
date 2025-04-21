@@ -22,7 +22,7 @@
             <converters:NullOrEmptyToBoolConverter x:Key="NullOrEmptyToBoolConverter" />
             <converters:IntGreaterThanZeroConverter x:Key="IntGreaterThanZeroConverter" />
             <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
-
+            <converters:BoolAndConverter x:Key="BoolAndConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

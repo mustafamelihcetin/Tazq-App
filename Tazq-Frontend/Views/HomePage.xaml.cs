@@ -137,11 +137,28 @@ namespace Tazq_Frontend.Views
             MainRefreshView.IsRefreshing = false;
         }
 
-        private void MainRefreshView_Scrolled(object sender, ScrolledEventArgs e)
+        private void MainRefreshView_Scrolled(object sender, ItemsViewScrolledEventArgs e)
         {
-            if (BindingContext is HomeViewModel viewModel)
-                viewModel.IsScrolledDown = e.ScrollY > 30;
+            if (BindingContext is not HomeViewModel viewModel)
+                return;
+
+#if IOS
+    var newValue = e.VerticalOffset > 5;
+#else
+            var newValue = e.VerticalOffset > 30;
+#endif
+
+            if (viewModel.IsScrolledDown != newValue)
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    viewModel.IsScrolledDown = newValue;
+                    ShowPastTasksLabel.IsVisible = false;
+                    ShowPastTasksLabel.IsVisible = newValue;
+                });
+            }
         }
+
 
         private void OnStatusFilterChanged(object sender, CheckedChangedEventArgs e)
         {
@@ -163,7 +180,7 @@ namespace Tazq_Frontend.Views
         private async void OnTaskTapped(object sender, EventArgs e)
         {
             if (sender is VisualElement element && element.BindingContext is TaskModel task)
-            {
+            {                                                
                 task.IsExpanded = !task.IsExpanded;
 
                 if (element is Label descriptionLabel)

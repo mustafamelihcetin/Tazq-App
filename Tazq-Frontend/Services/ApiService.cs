@@ -353,16 +353,23 @@ namespace Tazq_Frontend.Services
 
         public async Task<bool> CheckTokenValidityAsync()
         {
+            await SetAuthHeader();
             try
             {
-                var response = await _httpClient.GetAsync("/api/auth/check");
+                var response = await _httpClient.GetAsync("users/me");
+                var content = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"[DEBUG] Token check status: {response.StatusCode}");
+                Console.WriteLine($"[DEBUG] Response content: {content}");
+
                 return response.IsSuccessStatusCode;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"[DEBUG] Token check error: {ex.Message}");
                 return false;
             }
         }
+
 
         public async Task<string?> RefreshTokenAsync()
         {

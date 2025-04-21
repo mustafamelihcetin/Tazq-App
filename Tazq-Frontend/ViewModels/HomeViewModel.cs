@@ -37,6 +37,11 @@ namespace Tazq_Frontend.ViewModels
             });
 
             LoadTasksCommand.Execute(null);
+
+            this.PropertyChanged += (s, e) =>
+            {
+                Console.WriteLine($"[DEBUG] Property changed: {e.PropertyName}");
+            };
         }
 
         [ObservableProperty]
@@ -48,8 +53,13 @@ namespace Tazq_Frontend.ViewModels
         [ObservableProperty]
         private bool showPastTasks = false;
 
-        [ObservableProperty]
         private bool isScrolledDown;
+        public bool IsScrolledDown
+        {
+            get => isScrolledDown;
+            set => SetProperty(ref isScrolledDown, value);
+        }
+
 
         [ObservableProperty]
         private bool filterCompleted;
@@ -166,6 +176,8 @@ namespace Tazq_Frontend.ViewModels
                     {
                         Tasks.Add(task);
                     }
+
+                    ApplyFilters();
                 });
             }
             catch (Exception ex)

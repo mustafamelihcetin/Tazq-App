@@ -35,6 +35,8 @@
             <converters:IsCompletedToColorConverter x:Key="IsCompletedToColorConverter" />
             <converters:IsCompletedToBackgroundColorConverter x:Key="IsCompletedToBackgroundColorConverter" />
             <converters:BoolToMaxLinesConverter x:Key="BoolToMaxLinesConverter" />
+            <converters:BoolAndConverter x:Key="BoolAndConverter" />
+
 
             <Style TargetType="RadioButton" x:Key="CustomRadioButtonStyle">
                 <Setter Property="TextColor" Value="White" />
@@ -229,7 +231,8 @@
                 <CollectionView x:Name="MainCollectionView"
                                 ItemsSource="{Binding FilteredTasks}"
                                 ItemsLayout="VerticalList"
-                                EmptyView="Henüz görev eklenmedi.">
+                                EmptyView="Henüz görev eklenmedi."
+                                Scrolled="MainRefreshView_Scrolled">
 
                     <CollectionView.Header>
                         <Label x:Name="ShowPastTasksLabel"
@@ -239,18 +242,23 @@
                                FontSize="14"
                                HorizontalOptions="Center"
                                Margin="0,0,0,10"
-                               IsVisible="{Binding IsScrolledDown}"
-                               FontFamily="RobotoRegular">
+                               FontFamily="RobotoRegular"
+                               IsVisible="{Binding IsScrolledDown}">
                             <Label.GestureRecognizers>
-                                <TapGestureRecognizer Command="{Binding TogglePastTasksCommand}" />
+                                <TapGestureRecognizer Command="{Binding TogglePastTasksCommand, FallbackValue=False}" />
                             </Label.GestureRecognizers>
                         </Label>
+
+
                     </CollectionView.Header>
 
 
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
                             <SwipeView>
+                                <SwipeView.GestureRecognizers>
+                                    <SwipeGestureRecognizer Direction="Left" />
+                                </SwipeView.GestureRecognizers>
                                 <SwipeView.RightItems>
                                     <SwipeItems Mode="Reveal">
                                         <SwipeItemView>
