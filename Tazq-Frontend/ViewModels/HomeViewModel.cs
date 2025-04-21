@@ -18,6 +18,7 @@ namespace Tazq_Frontend.ViewModels
         {
             _apiService = new ApiService();
             Tasks = new ObservableCollection<TaskModel>();
+            FilteredTasks = new ObservableCollection<TaskModel>();
             LoadTasksCommand = new AsyncRelayCommand(LoadTasks);
             LogoutCommand = new AsyncRelayCommand(Logout);
             SettingsCommand = new AsyncRelayCommand(OpenSettings);
@@ -53,13 +54,26 @@ namespace Tazq_Frontend.ViewModels
         [ObservableProperty]
         private bool showPastTasks = false;
 
-        private bool isScrolledDown;
+        private bool isScrolledDown = true;
+
         public bool IsScrolledDown
         {
             get => isScrolledDown;
-            set => SetProperty(ref isScrolledDown, value);
+            set
+            {
+                if (SetProperty(ref isScrolledDown, value))
+                {
+                    Console.WriteLine($"[DEBUG] IsScrolledDown changed to: {value}");
+                }
+            }
         }
 
+        private bool _canScroll;
+        public bool CanScroll
+        {
+            get => _canScroll;
+            set => SetProperty(ref _canScroll, value);
+        }
 
         [ObservableProperty]
         private bool filterCompleted;
@@ -74,7 +88,7 @@ namespace Tazq_Frontend.ViewModels
         private bool? filterByCompleted = null;
 
         [ObservableProperty]
-        private ObservableCollection<TaskModel> filteredTasks = new();
+        private ObservableCollection<TaskModel> filteredTasks;
 
         [ObservableProperty]
         private bool isFilterPanelVisible = false;
@@ -87,7 +101,6 @@ namespace Tazq_Frontend.ViewModels
 
         [ObservableProperty]
         private bool isStatusIncomplete;
-
 
         public IAsyncRelayCommand LoadTasksCommand { get; }
         public IAsyncRelayCommand LogoutCommand { get; }
@@ -149,7 +162,6 @@ namespace Tazq_Frontend.ViewModels
             }
         }
 
-
         public async Task LoadTasksAsync()
         {
             IsLoading = true;
@@ -176,7 +188,6 @@ namespace Tazq_Frontend.ViewModels
                     {
                         Tasks.Add(task);
                     }
-
                     ApplyFilters();
                 });
             }
@@ -244,7 +255,9 @@ namespace Tazq_Frontend.ViewModels
                 filtered = filtered.Where(t => t.Tags != null && t.Tags.Any(tag =>
                     tag.Contains(FilterTag, StringComparison.OrdinalIgnoreCase)));
 
-            FilteredTasks = new ObservableCollection<TaskModel>(filtered);
+            FilteredTasks.Clear();
+            foreach (var task in filtered)
+                FilteredTasks.Add(task);
         }
 
         [RelayCommand]
@@ -252,11 +265,13 @@ namespace Tazq_Frontend.ViewModels
         {
             task.IsExpanded = !task.IsExpanded;
 
-            var updated = FilteredTasks.ToList();
-            FilteredTasks = new ObservableCollection<TaskModel>(updated);
+            var index = FilteredTasks.IndexOf(task);
+            if (index >= 0)
+            {
+                FilteredTasks.RemoveAt(index);
+                FilteredTasks.Insert(index, task);
+            }
         }
-
-
 
         private async Task DeleteTask(TaskModel? task)
         {

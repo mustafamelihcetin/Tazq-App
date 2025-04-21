@@ -25,7 +25,6 @@ namespace Tazq_Frontend.Views
         {
             InitializeComponent();
             Console.WriteLine("[DOTNET] HomePage yüklendi.");
-            BindingContext = new HomeViewModel();
         }
 
         protected override async void OnAppearing()
@@ -131,34 +130,44 @@ namespace Tazq_Frontend.Views
             if (BindingContext is HomeViewModel viewModel)
             {
                 await viewModel.LoadTasksAsync();
-                viewModel.IsScrolledDown = true;
+
+                await Task.Delay(50);
+
+                // var scrollNeeded = MainCollectionView.Height < MainCollectionView.ScrollableHeight;
+                // viewModel.CanScroll = scrollNeeded;
+
+                MainCollectionView.ScrollTo(0, position: ScrollToPosition.Start, animate: false);
             }
 
             MainRefreshView.IsRefreshing = false;
         }
+
+
+        private double _lastVerticalOffset = 0;
 
         private void MainRefreshView_Scrolled(object sender, ItemsViewScrolledEventArgs e)
         {
             if (BindingContext is not HomeViewModel viewModel)
                 return;
 
+            double offset = e.VerticalOffset;
+
 #if IOS
-    var newValue = e.VerticalOffset > 5;
-#else
-            var newValue = e.VerticalOffset > 30;
+    offset = Math.Abs(offset);
 #endif
 
-            if (viewModel.IsScrolledDown != newValue)
+            bool hasScrolled = offset > 10;
+
+            Console.WriteLine($"[SCROLL FIXED] iOS Offset: {e.VerticalOffset}, UsedOffset: {offset}, HasScrolled: {hasScrolled}");
+
+            if (viewModel.IsScrolledDown != hasScrolled)
             {
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    viewModel.IsScrolledDown = newValue;
-                    ShowPastTasksLabel.IsVisible = false;
-                    ShowPastTasksLabel.IsVisible = newValue;
+                    viewModel.IsScrolledDown = hasScrolled;
                 });
             }
         }
-
 
         private void OnStatusFilterChanged(object sender, CheckedChangedEventArgs e)
         {
@@ -180,7 +189,7 @@ namespace Tazq_Frontend.Views
         private async void OnTaskTapped(object sender, EventArgs e)
         {
             if (sender is VisualElement element && element.BindingContext is TaskModel task)
-            {                                                
+            {
                 task.IsExpanded = !task.IsExpanded;
 
                 if (element is Label descriptionLabel)

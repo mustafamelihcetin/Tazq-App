@@ -25,28 +25,37 @@ namespace Tazq_Frontend.Views
 
             await Task.Delay(300);
             await Logo.FadeTo(1, 800, Easing.CubicInOut);
-
             await Task.Delay(500);
 
             var sloganFade = SloganLabel.FadeTo(1, 600, Easing.CubicInOut);
             var sloganSlide = SloganLabel.TranslateTo(0, 0, 600, Easing.CubicOut);
             var loaderFadeIn = LoadingIndicator.FadeTo(1, 600, Easing.CubicInOut);
-
             await Task.WhenAll(sloganFade, sloganSlide, loaderFadeIn);
 
             await Task.Delay(500);
 
-            var token = await SecureStorage.GetAsync("jwt_token");
             bool isValid = false;
-
-            if (!string.IsNullOrEmpty(token))
+            try
             {
-                isValid = await _apiService.CheckTokenValidityAsync();
-                if (!isValid)
+                var token = await SecureStorage.GetAsync("jwt_token");
+
+                if (!string.IsNullOrEmpty(token))
                 {
-                    var newToken = await _apiService.RefreshTokenAsync();
-                    isValid = !string.IsNullOrEmpty(newToken);
+                    isValid = await _apiService.CheckTokenValidityAsync();
+                    if (!isValid)
+                    {
+                        var newToken = await _apiService.RefreshTokenAsync();
+                        if (!string.IsNullOrEmpty(newToken))
+                        {
+                            await _apiService.SaveToken(newToken);
+                            isValid = true;
+                        }
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Splash] Token kontrol hatasý: {ex.Message}");
             }
 
             await LoadingIndicator.FadeTo(0, 400);

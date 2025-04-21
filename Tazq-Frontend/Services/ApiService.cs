@@ -117,44 +117,53 @@ namespace Tazq_Frontend.Services
 			}
 		}
 
-		// Get User Tasks
-		public async Task<List<TaskModel>> GetTasks()
-		{
-			await SetAuthHeader();
-			try
-			{
-				HttpResponseMessage response = await _httpClient.GetAsync("tasks");
+        // Get User Tasks
+        public async Task<List<TaskModel>> GetTasks()
+        {
+            if (!await CheckTokenValidityAsync())
+            {
+                var refreshedToken = await RefreshTokenAsync();
+                if (string.IsNullOrEmpty(refreshedToken))
+                {
+                    Console.WriteLine("HATA - Token geçersiz ve yenilenemedi.");
+                    return new List<TaskModel>();
+                }
+            }
 
-				Console.WriteLine($"GetTasks API Request: tasks");
-				Console.WriteLine($"Response Status: {response.StatusCode}");
-				Console.WriteLine($"Response Content: {await response.Content.ReadAsStringAsync()}");
+            await SetAuthHeader();
+            try
+            {
+                HttpResponseMessage response = await _httpClient.GetAsync("tasks");
 
-				if (!response.IsSuccessStatusCode)
-				{
-					Console.WriteLine("HATA - GetTasks başarısız.");
-					return new List<TaskModel>();
-				}
+                Console.WriteLine($"GetTasks API Request: tasks");
+                Console.WriteLine($"Response Status: {response.StatusCode}");
+                Console.WriteLine($"Response Content: {await response.Content.ReadAsStringAsync()}");
 
-				var json = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("HATA - GetTasks başarısız.");
+                    return new List<TaskModel>();
+                }
 
-				// JSON camelCase'e duyarsız deserialize
-				var options = new JsonSerializerOptions
-				{
-					PropertyNameCaseInsensitive = true
-				};
+                var json = await response.Content.ReadAsStringAsync();
 
-				return JsonSerializer.Deserialize<List<TaskModel>>(json, options) ?? new List<TaskModel>();
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine($"HATA - GetTasks: {ex.Message}");
-				return new List<TaskModel>();
-			}
-		}
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                return JsonSerializer.Deserialize<List<TaskModel>>(json, options) ?? new List<TaskModel>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HATA - GetTasks: {ex.Message}");
+                return new List<TaskModel>();
+            }
+        }
 
 
-		// Add New Task
-		public async Task<bool> AddTask(TaskModel task)
+        // Add New Task
+        public async Task<bool> AddTask(TaskModel task)
 		{
 			await SetAuthHeader();
 
@@ -370,7 +379,6 @@ namespace Tazq_Frontend.Services
             }
         }
 
-
         public async Task<string?> RefreshTokenAsync()
         {
             var token = await GetToken();
@@ -403,5 +411,7 @@ namespace Tazq_Frontend.Services
                 return null;
             }
         }
+
+
     }
 }

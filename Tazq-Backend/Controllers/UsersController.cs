@@ -331,8 +331,17 @@ public class UsersController : ControllerBase
                 return Unauthorized();
 
             var requestIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+            //if (requestIp != user.LastLoginIp)
+            //    return Unauthorized("IP adresi değişmiş. Yeniden giriş yapılmalı.");
+
             if (requestIp != user.LastLoginIp)
-                return Unauthorized("IP adresi değişmiş. Yeniden giriş yapılmalı.");
+            {
+                var ipRangeOld = user.LastLoginIp?.Split('.').Take(2).ToArray();
+                var ipRangeNew = requestIp?.Split('.').Take(2).ToArray();
+
+                if (ipRangeOld == null || ipRangeNew == null || !ipRangeOld.SequenceEqual(ipRangeNew))
+                    return Unauthorized("Farklı ağdan erişim.");
+            }
 
             var newToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
             return Ok(new { token = newToken });

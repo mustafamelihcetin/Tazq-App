@@ -236,29 +236,23 @@
 
                     <CollectionView.Header>
                         <Label x:Name="ShowPastTasksLabel"
-                               Text="{Binding ShowPastTasks, Converter={StaticResource BoolToShowPastTasksTextConverter}}"
+                               Text="{Binding BindingContext.ShowPastTasks, Source={x:Reference HomePageRoot}, Converter={StaticResource BoolToShowPastTasksTextConverter}}"
+                               IsVisible="{Binding BindingContext.IsScrolledDown, Source={x:Reference HomePageRoot}, Converter={StaticResource InverseBoolConverter}}"
                                TextColor="#90CAF9"
                                FontAttributes="Bold"
                                FontSize="14"
                                HorizontalOptions="Center"
                                Margin="0,0,0,10"
-                               FontFamily="RobotoRegular"
-                               IsVisible="{Binding IsScrolledDown}">
+                               FontFamily="RobotoRegular">
                             <Label.GestureRecognizers>
-                                <TapGestureRecognizer Command="{Binding TogglePastTasksCommand, FallbackValue=False}" />
+                                <TapGestureRecognizer Command="{Binding BindingContext.TogglePastTasksCommand, Source={x:Reference HomePageRoot}}" />
                             </Label.GestureRecognizers>
                         </Label>
-
-
                     </CollectionView.Header>
-
 
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <SwipeView>
-                                <SwipeView.GestureRecognizers>
-                                    <SwipeGestureRecognizer Direction="Left" />
-                                </SwipeView.GestureRecognizers>
+                            <SwipeView>                                
                                 <SwipeView.RightItems>
                                     <SwipeItems Mode="Reveal">
                                         <SwipeItemView>
