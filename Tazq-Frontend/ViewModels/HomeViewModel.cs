@@ -21,10 +21,11 @@ namespace Tazq_Frontend.ViewModels
             FilteredTasks = new ObservableCollection<TaskModel>();
             LoadTasksCommand = new AsyncRelayCommand(LoadTasks);
             LogoutCommand = new AsyncRelayCommand(Logout);
-            SettingsCommand = new AsyncRelayCommand(OpenSettings);
             DeleteTaskCommand = new AsyncRelayCommand<TaskModel?>(DeleteTask);
             ToggleTaskCompletionCommand = new AsyncRelayCommand<TaskModel?>(ToggleTaskCompletion);
             ToggleFilterPanelCommand = new RelayCommand(ToggleFilterPanel);
+            ToggleSettingsPanelCommand = new RelayCommand(ToggleSettingsPanel);
+
 
             WeakReferenceMessenger.Default.Register<TaskAddedMessage>(this, async (r, m) =>
             {
@@ -95,17 +96,19 @@ namespace Tazq_Frontend.ViewModels
         [ObservableProperty]
         private string showPastTasksLabel = "Gizle";
 
-
+        [ObservableProperty]
+        private bool isSettingsPanelVisible;
 
 
 
         public IAsyncRelayCommand LoadTasksCommand { get; }
         public IAsyncRelayCommand LogoutCommand { get; }
-        public IAsyncRelayCommand SettingsCommand { get; }
         public ICommand TogglePastTasksCommand { get; } = new RelayCommand(() => { });
         public IAsyncRelayCommand<TaskModel?> DeleteTaskCommand { get; }
         public IAsyncRelayCommand<TaskModel?> ToggleTaskCompletionCommand { get; }
         public ICommand ToggleFilterPanelCommand { get; }
+        public ICommand ToggleSettingsPanelCommand { get; }
+
 
         private void ToggleFilterPanel()
         {
@@ -357,7 +360,10 @@ namespace Tazq_Frontend.ViewModels
                     await AnimateLabelChange(label, ShowPastTasksLabel);
             }
         }
-
+        private void ToggleSettingsPanel()
+        {
+            IsSettingsPanelVisible = !IsSettingsPanelVisible;
+        }
 
     }
 }
