@@ -99,6 +99,8 @@ namespace Tazq_Frontend.ViewModels
         [ObservableProperty]
         private bool isSettingsPanelVisible;
 
+        [ObservableProperty]
+        private bool isLightThemeEnabled;
 
 
         public IAsyncRelayCommand LoadTasksCommand { get; }
@@ -364,6 +366,9 @@ namespace Tazq_Frontend.ViewModels
         {
             IsSettingsPanelVisible = !IsSettingsPanelVisible;
         }
-
+        partial void OnIsLightThemeEnabledChanged(bool value)
+        {
+            App.Current.UserAppTheme = value ? AppTheme.Light : AppTheme.Dark;
+        }
     }
 }
