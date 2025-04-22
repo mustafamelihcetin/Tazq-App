@@ -39,7 +39,21 @@ namespace Tazq_Frontend.Views
             AddTaskFrame.Opacity = 0;
             MainRefreshView.Opacity = 0;
 
-            await Task.Delay(200);
+            if (LoadingIndicator != null)
+            {
+                LoadingIndicator.Opacity = 1;
+                LoadingIndicator.IsVisible = true;
+                LoadingIndicator.IsRunning = true;
+            }
+
+            await Task.Delay(600);
+
+            if (LoadingIndicator != null)
+            {
+                await LoadingIndicator.FadeTo(0, 300);
+                LoadingIndicator.IsRunning = false;
+                LoadingIndicator.IsVisible = false;
+            }
 
             await HeaderGrid.FadeTo(1, 300);
             await AddTaskFrame.FadeTo(1, 300);
@@ -140,44 +154,6 @@ namespace Tazq_Frontend.Views
             }
 
             MainRefreshView.IsRefreshing = false;
-        }
-
-
-        private double _lastVerticalOffset = 0;
-
-        private void MainRefreshView_Scrolled(object sender, ItemsViewScrolledEventArgs e)
-        {
-            if (BindingContext is not HomeViewModel viewModel)
-                return;
-
-            double offset = e.VerticalOffset;
-
-#if IOS
-    offset = Math.Abs(offset);
-#endif
-
-            bool hasScrolled = offset > 10;
-
-            Console.WriteLine($"[SCROLL FIXED] iOS Offset: {e.VerticalOffset}, UsedOffset: {offset}, HasScrolled: {hasScrolled}");
-
-            if (viewModel.IsScrolledDown != hasScrolled)
-            {
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    viewModel.IsScrolledDown = hasScrolled;
-                });
-            }
-        }
-
-        private void OnStatusFilterChanged(object sender, CheckedChangedEventArgs e)
-        {
-            if (BindingContext is HomeViewModel vm && e.Value)
-            {
-                vm.FilterByCompleted = null;
-                if (vm.IsStatusCompleted) vm.FilterByCompleted = true;
-                else if (vm.IsStatusIncomplete) vm.FilterByCompleted = false;
-                vm.ApplyFilters();
-            }
         }
 
         private void OnFilterChanged(object? sender, EventArgs e)

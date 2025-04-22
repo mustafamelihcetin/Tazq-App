@@ -14,14 +14,12 @@
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Custom Converters -->
-            <converters:BoolToShowPastTasksTextConverter x:Key="BoolToShowPastTasksTextConverter" />
             <converters:PriorityLevelToColorConverter x:Key="PriorityLevelToColorConverter" />
             <converters:PriorityToTurkishConverter x:Key="PriorityToTurkishConverter" />
             <converters:PriorityToColorConverter x:Key="PriorityToColorConverter" />
             <converters:TagsArrayToStringConverter x:Key="TagsArrayToStringConverter" />
             <converters:NullOrEmptyToBoolConverter x:Key="NullOrEmptyToBoolConverter" />
             <converters:IntGreaterThanZeroConverter x:Key="IntGreaterThanZeroConverter" />
-            <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
             <converters:BoolAndConverter x:Key="BoolAndConverter" />
         </ResourceDictionary>
     </Application.Resources>

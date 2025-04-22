@@ -22,7 +22,6 @@ namespace Tazq_Frontend.ViewModels
             LoadTasksCommand = new AsyncRelayCommand(LoadTasks);
             LogoutCommand = new AsyncRelayCommand(Logout);
             SettingsCommand = new AsyncRelayCommand(OpenSettings);
-            TogglePastTasksCommand = new RelayCommand(TogglePastTasks);
             DeleteTaskCommand = new AsyncRelayCommand<TaskModel?>(DeleteTask);
             ToggleTaskCompletionCommand = new AsyncRelayCommand<TaskModel?>(ToggleTaskCompletion);
             ToggleFilterPanelCommand = new RelayCommand(ToggleFilterPanel);
@@ -50,9 +49,6 @@ namespace Tazq_Frontend.ViewModels
 
         [ObservableProperty]
         private bool isLoading;
-
-        [ObservableProperty]
-        private bool showPastTasks = false;
 
         private bool isScrolledDown = true;
 
@@ -94,18 +90,19 @@ namespace Tazq_Frontend.ViewModels
         private bool isFilterPanelVisible = false;
 
         [ObservableProperty]
-        private bool isStatusAll = true;
+        private string statusFilterLabel = "Tümü";
 
         [ObservableProperty]
-        private bool isStatusCompleted;
+        private string showPastTasksLabel = "Gizle";
 
-        [ObservableProperty]
-        private bool isStatusIncomplete;
+
+
+
 
         public IAsyncRelayCommand LoadTasksCommand { get; }
         public IAsyncRelayCommand LogoutCommand { get; }
         public IAsyncRelayCommand SettingsCommand { get; }
-        public ICommand TogglePastTasksCommand { get; }
+        public ICommand TogglePastTasksCommand { get; } = new RelayCommand(() => { });
         public IAsyncRelayCommand<TaskModel?> DeleteTaskCommand { get; }
         public IAsyncRelayCommand<TaskModel?> ToggleTaskCompletionCommand { get; }
         public ICommand ToggleFilterPanelCommand { get; }
@@ -130,8 +127,7 @@ namespace Tazq_Frontend.ViewModels
                 if (taskList != null)
                 {
                     var ordered = taskList
-                        .Where(t =>
-                            (ShowPastTasks || !t.IsExpired) &&
+                        .Where(t =>                            
                             (!FilterCompleted || t.IsCompleted) &&
                             (!FilterIncomplete || !t.IsCompleted) &&
                             (string.IsNullOrWhiteSpace(FilterTag) || (t.Tags != null && t.Tags.Any(tag => tag.Contains(FilterTag, StringComparison.OrdinalIgnoreCase))))
@@ -201,12 +197,6 @@ namespace Tazq_Frontend.ViewModels
             }
         }
 
-        private void TogglePastTasks()
-        {
-            ShowPastTasks = !ShowPastTasks;
-            LoadTasksCommand.Execute(null);
-        }
-
         private async Task Logout()
         {
 #if ANDROID || IOS || MACCATALYST
@@ -248,6 +238,9 @@ namespace Tazq_Frontend.ViewModels
 
             var filtered = Tasks.AsEnumerable();
 
+            if (!ShowPastTasks)
+                filtered = filtered.Where(t => !t.IsExpired);
+
             if (FilterByCompleted.HasValue)
                 filtered = filtered.Where(t => t.IsCompleted == FilterByCompleted.Value);
 
@@ -259,6 +252,7 @@ namespace Tazq_Frontend.ViewModels
             foreach (var task in filtered)
                 FilteredTasks.Add(task);
         }
+
 
         [RelayCommand]
         private void ToggleExpand(TaskModel task)
@@ -285,6 +279,21 @@ namespace Tazq_Frontend.ViewModels
                 await LoadTasks();
             }
         }
+        private async Task AnimateLabelChange(Label label, string newText)
+        {
+            await Task.WhenAll(
+                label.FadeTo(0, 150),
+                label.ScaleTo(0.8, 150)
+            );
+
+            label.Text = newText;
+
+            await Task.WhenAll(
+                label.FadeTo(1, 150),
+                label.ScaleTo(1.0, 150)
+            );
+        }
+
 
         private async Task ToggleTaskCompletion(TaskModel? task)
         {
@@ -295,5 +304,60 @@ namespace Tazq_Frontend.ViewModels
             await _apiService.UpdateTask(task);
             await LoadTasks();
         }
+
+        private bool isShowOnlyIncomplete;
+        public bool IsShowOnlyIncomplete
+        {
+            get => isShowOnlyIncomplete;
+            set
+            {
+                if (SetProperty(ref isShowOnlyIncomplete, value))
+                {
+                    _ = UpdateStatusLabelAsync(); // arkaplanda çağır
+                }
+            }
+        }
+
+        private async Task UpdateStatusLabelAsync()
+        {
+            StatusFilterLabel = IsShowOnlyIncomplete ? "Tamamlanmadı" : "Tümü";
+            FilterByCompleted = IsShowOnlyIncomplete ? false : null;
+            ApplyFilters();
+
+            if (Application.Current.MainPage is ContentPage page)
+            {
+                var label = page.FindByName<Label>("StatusFilterLabel");
+                if (label != null)
+                    await AnimateLabelChange(label, StatusFilterLabel);
+            }
+        }
+
+        private bool showPastTasks;
+        public bool ShowPastTasks
+        {
+            get => showPastTasks;
+            set
+            {
+                if (SetProperty(ref showPastTasks, value))
+                {
+                    _ = UpdatePastTasksLabelAsync();
+                }
+            }
+        }
+
+        private async Task UpdatePastTasksLabelAsync()
+        {
+            ShowPastTasksLabel = ShowPastTasks ? "Göster" : "Gizle";
+            LoadTasksCommand.Execute(null);
+
+            if (Application.Current.MainPage is ContentPage page)
+            {
+                var label = page.FindByName<Label>("ShowPastTasksLabelRef");
+                if (label != null)
+                    await AnimateLabelChange(label, ShowPastTasksLabel);
+            }
+        }
+
+
     }
 }

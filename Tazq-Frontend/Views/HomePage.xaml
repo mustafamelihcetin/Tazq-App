@@ -23,8 +23,6 @@
 
     <ContentPage.Resources>
         <ResourceDictionary>
-            <converters:BoolToShowPastTasksTextConverter x:Key="BoolToShowPastTasksTextConverter" />
-            <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
             <converters:NullOrEmptyToBoolConverter x:Key="NullOrEmptyToBoolConverter" />
             <converters:TagsArrayToStringConverter x:Key="TagsArrayToStringConverter" />
             <converters:PriorityToTurkishConverter x:Key="PriorityToTurkishConverter" />
@@ -231,24 +229,7 @@
                 <CollectionView x:Name="MainCollectionView"
                                 ItemsSource="{Binding FilteredTasks}"
                                 ItemsLayout="VerticalList"
-                                EmptyView="Henüz görev eklenmedi."
-                                Scrolled="MainRefreshView_Scrolled">
-
-                    <CollectionView.Header>
-                        <Label x:Name="ShowPastTasksLabel"
-                               Text="{Binding BindingContext.ShowPastTasks, Source={x:Reference HomePageRoot}, Converter={StaticResource BoolToShowPastTasksTextConverter}}"
-                               IsVisible="{Binding BindingContext.IsScrolledDown, Source={x:Reference HomePageRoot}, Converter={StaticResource InverseBoolConverter}}"
-                               TextColor="#90CAF9"
-                               FontAttributes="Bold"
-                               FontSize="14"
-                               HorizontalOptions="Center"
-                               Margin="0,0,0,10"
-                               FontFamily="RobotoRegular">
-                            <Label.GestureRecognizers>
-                                <TapGestureRecognizer Command="{Binding BindingContext.TogglePastTasksCommand, Source={x:Reference HomePageRoot}}" />
-                            </Label.GestureRecognizers>
-                        </Label>
-                    </CollectionView.Header>
+                                EmptyView="Henüz görev eklenmedi.">           
 
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
@@ -415,17 +396,16 @@
 
         <!-- Modal Filter Panel -->
         <Frame x:Name="FilterPanelFrame"
-               BackgroundColor="#2C2C2E"
-               Padding="16"
-               CornerRadius="12"
-               BorderColor="#444"
-               HasShadow="True"
-               IsVisible="{Binding IsFilterPanelVisible}"
-               AbsoluteLayout.LayoutBounds="1,0.17,0.42,-1"
-               AbsoluteLayout.LayoutFlags="PositionProportional, WidthProportional"
-               WidthRequest="180"
-               Margin="0, 30, 20, 0"
-               ZIndex="9999">
+       BackgroundColor="#2C2C2E"
+       Padding="16"
+       CornerRadius="12"
+       BorderColor="#444"
+       HasShadow="True"
+       IsVisible="{Binding IsFilterPanelVisible}"
+       AbsoluteLayout.LayoutBounds="1,0.17,0.50,-1"
+       AbsoluteLayout.LayoutFlags="PositionProportional, WidthProportional"
+       Margin="0, 30, 16, 0"
+       ZIndex="9999">
 
             <VerticalStackLayout Spacing="16">
 
@@ -435,53 +415,74 @@
                FontFamily="RobotoRegular"
                TextColor="White" />
 
-                <!-- Vertical RadioGroup -->
-                <VerticalStackLayout Spacing="8">
-                    <RadioButton
-                        Content="Tümü"
-                        GroupName="Status"
-                        IsChecked="{Binding IsStatusAll, Mode=TwoWay}"
-                        CheckedChanged="OnStatusFilterChanged"
-                        TextColor="White"
-                        FontSize="13"
-                        FontFamily="RobotoRegular" />
+                <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                    <Label x:Name="StatusFilterLabel"
+                   Text="{Binding StatusFilterLabel}"
+                   FontSize="13"
+                   FontFamily="RobotoRegular"
+                   TextColor="White"
+                   VerticalOptions="Center"
+                   MinimumWidthRequest="80"
+                   LineBreakMode="NoWrap"
+                   Grid.Column="0" />
 
-                    <RadioButton
-                        Content="Tamamlandı"
-                        GroupName="Status"
-                        IsChecked="{Binding IsStatusCompleted, Mode=TwoWay}"
-                        CheckedChanged="OnStatusFilterChanged"
-                        TextColor="White"
-                        FontSize="13"
-                        FontFamily="RobotoRegular" />
+                    <Switch IsToggled="{Binding IsShowOnlyIncomplete, Mode=TwoWay}"
+                    OnColor="#90CAF9"
+                    ThumbColor="White"
+                    Scale="0.8"
+                    Grid.Column="1" />
+                </Grid>
 
-                    <RadioButton
-                        Content="Tamamlanmadı"
-                        GroupName="Status"
-                        IsChecked="{Binding IsStatusIncomplete, Mode=TwoWay}"
-                        CheckedChanged="OnStatusFilterChanged"
-                        TextColor="White"
-                        FontSize="13"
-                        FontFamily="RobotoRegular" />
-                </VerticalStackLayout>
+                <Label Text="Geçmiş Görevler"
+               FontSize="14"
+               FontAttributes="Bold"
+               FontFamily="RobotoRegular"
+               TextColor="White" />
+
+                <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                    <Label x:Name="ShowPastTasksLabelRef"
+                   Text="{Binding ShowPastTasksLabel}"
+                   FontSize="13"
+                   FontFamily="RobotoRegular"
+                   TextColor="White"
+                   VerticalOptions="Center"
+                   MinimumWidthRequest="80"
+                   LineBreakMode="NoWrap"
+                   Grid.Column="0" />
+
+                    <Switch IsToggled="{Binding ShowPastTasks, Mode=TwoWay}"
+                    OnColor="#90CAF9"
+                    ThumbColor="White"
+                    Scale="0.8"
+                    Grid.Column="1" />
+                </Grid>
 
                 <Label Text="Etiket Ara"
-                       FontSize="14"
-                       FontAttributes="Bold"
-                       FontFamily="RobotoRegular"
-                       TextColor="White" />
+               FontSize="14"
+               FontAttributes="Bold"
+               FontFamily="RobotoRegular"
+               TextColor="White" />
 
-                <Entry Placeholder="Etikete göre filtrele..."
-                       Text="{Binding FilterTag, Mode=TwoWay}"
-                       PlaceholderColor="#AAAAAA"
-                       TextColor="White"
-                       BackgroundColor="#3A3A3A"
-                       FontSize="13"
-                       FontFamily="RobotoRegular"
-                       HeightRequest="36"
-                       TextChanged="OnFilterChanged" />
+                <Frame CornerRadius="6"
+               Padding="0"
+               BorderColor="#555"
+               BackgroundColor="#3A3A3A"
+               HasShadow="False"
+               HeightRequest="36">
+                    <Entry Placeholder="Etikete göre filtrele..."
+                   Text="{Binding FilterTag, Mode=TwoWay}"
+                   PlaceholderColor="#AAAAAA"
+                   TextColor="White"
+                   FontSize="13"
+                   FontFamily="RobotoRegular"
+                   BackgroundColor="Transparent"
+                   Margin="8,0"
+                   TextChanged="OnFilterChanged" />
+                </Frame>
+
             </VerticalStackLayout>
         </Frame>
+
 
         <!-- Closure on external click -->
         <BoxView AbsoluteLayout.LayoutBounds="0,0,1,1"
@@ -493,6 +494,16 @@
                 <TapGestureRecognizer Command="{Binding ToggleFilterPanelCommand}" />
             </BoxView.GestureRecognizers>
         </BoxView>
+        <ActivityIndicator
+            x:Name="LoadingIndicator"
+            IsVisible="False"
+            IsRunning="False"
+            Color="#90CAF9"
+            AbsoluteLayout.LayoutBounds="0.5,0.5,-1,-1"
+            AbsoluteLayout.LayoutFlags="PositionProportional"
+            WidthRequest="40"
+            HeightRequest="40"
+            ZIndex="9999"/>
 
     </AbsoluteLayout>
 </ContentPage>
