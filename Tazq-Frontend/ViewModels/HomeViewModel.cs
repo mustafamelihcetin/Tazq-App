@@ -110,6 +110,14 @@ namespace Tazq_Frontend.ViewModels
         public IAsyncRelayCommand<TaskModel?> ToggleTaskCompletionCommand { get; }
         public ICommand ToggleFilterPanelCommand { get; }
         public ICommand ToggleSettingsPanelCommand { get; }
+        public IRelayCommand<TaskModel> AnimateDueDateCommand => new RelayCommand<TaskModel>(async (task) =>
+        {
+            if (task == null) return;
+
+            task.AnimateDueDate = true;
+            await Task.Delay(50);
+            task.AnimateDueDate = false;
+        });
 
 
         private void ToggleFilterPanel()
@@ -370,5 +378,7 @@ namespace Tazq_Frontend.ViewModels
         {
             App.Current.UserAppTheme = value ? AppTheme.Light : AppTheme.Dark;
         }
+
+
     }
 }

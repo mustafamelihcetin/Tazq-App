@@ -3,24 +3,16 @@ using Tazq_Frontend.ViewModels;
 using Tazq_Frontend.Models;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Devices;
-using Microsoft.Maui.Platform;
 using System.Threading.Tasks;
-
-#if ANDROID
-using Android.Graphics.Drawables;
-using Android.Views;
-#endif
-
-#if IOS
-using UIKit;
-using CoreAnimation;
-using Foundation;
-#endif
+using Microsoft.Maui; // for AppTheme
+using Microsoft.Maui.Graphics; // for Color and GradientStop
 
 namespace Tazq_Frontend.Views
 {
     public partial class HomePage : ContentPage
     {
+        private LinearGradientBrush _backgroundBrush;
+
         public HomePage()
         {
             InitializeComponent();
@@ -46,6 +38,9 @@ namespace Tazq_Frontend.Views
                 LoadingIndicator.IsRunning = true;
             }
 
+            SetupDynamicBackground();
+            Application.Current.RequestedThemeChanged += OnRequestedThemeChanged;
+
             await Task.Delay(600);
 
             if (LoadingIndicator != null)
@@ -60,77 +55,39 @@ namespace Tazq_Frontend.Views
             await MainRefreshView.FadeTo(1, 300);
         }
 
-        public static void AnimateIfToday(Frame frame, TaskModel task)
+        private void OnRequestedThemeChanged(object sender, AppThemeChangedEventArgs e)
         {
-            if (!task.IsToday || frame.Handler?.PlatformView == null)
-                return;
-
-#if ANDROID
-            if (frame.Handler.PlatformView is Android.Views.View nativeView && nativeView.Background is GradientDrawable drawable)
-            {
-                _ = AnimateBorderAndroid(drawable);
-            }
-#elif IOS
-            if (frame.Handler.PlatformView is UIView nativeView)
-            {
-                _ = AnimateBorderIOS(nativeView.Layer);
-            }
-#endif
+            MainThread.BeginInvokeOnMainThread(SetupDynamicBackground);
         }
 
-        private void Frame_HandlerChanged(object? sender, EventArgs e)
+        private void SetupDynamicBackground()
         {
-            if (sender is Frame frame && frame.BindingContext is TaskModel task)
+            _backgroundBrush = new LinearGradientBrush
             {
-                AnimateIfToday(frame, task);
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(1, 1),
+                GradientStops = new GradientStopCollection()
+            };
+
+            if (Application.Current.RequestedTheme == AppTheme.Light)
+            {
+                _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#F5F7FA"), 0.0f));
+                _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#E4E7EB"), 0.3f));
+                _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#D3D6DA"), 0.6f));
+                _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#C2C5C9"), 0.85f));
+                _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#B1B4B8"), 1.0f));
             }
-        }
-
-#if ANDROID
-        private static async Task AnimateBorderAndroid(GradientDrawable drawable)
-        {
-            var baseColor = Android.Graphics.Color.Rgb(60, 125, 255);
-            drawable.SetStroke(1, baseColor);
-            while (true)
+            else
             {
-                for (float i = 1; i <= 2; i += 0.2f)
-                {
-                    drawable.SetStroke((int)i, baseColor);
-                    await Task.Delay(350);
-                }
-                for (float i = 2; i >= 1; i -= 0.2f)
-                {
-                    drawable.SetStroke((int)i, baseColor);
-                    await Task.Delay(350);
-                }
+                _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#1E1E1E"), 0.0f));
+                _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#252525"), 0.25f));
+                _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#2C2C2C"), 0.5f));
+                _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#2F3239"), 0.75f));
+                _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#1F2A38"), 1.0f));
             }
-        }
-#endif
 
-#if IOS
-        private static async Task AnimateBorderIOS(CALayer layer)
-        {
-            await MainThread.InvokeOnMainThreadAsync(async () =>
-            {
-                layer.BorderColor = UIColor.FromRGB(60, 125, 255).CGColor;
-                layer.MasksToBounds = true;
-
-                while (true)
-                {
-                    for (nfloat i = 1; i <= 2; i += 0.2f)
-                    {
-                        layer.BorderWidth = i;
-                        await Task.Delay(300);
-                    }
-                    for (nfloat i = 2; i >= 1; i -= 0.2f)
-                    {
-                        layer.BorderWidth = i;
-                        await Task.Delay(300);
-                    }
-                }
-            });
+            this.Background = _backgroundBrush;
         }
-#endif
 
         protected override void OnSizeAllocated(double width, double height)
         {
@@ -144,12 +101,7 @@ namespace Tazq_Frontend.Views
             if (BindingContext is HomeViewModel viewModel)
             {
                 await viewModel.LoadTasksAsync();
-
                 await Task.Delay(50);
-
-                // var scrollNeeded = MainCollectionView.Height < MainCollectionView.ScrollableHeight;
-                // viewModel.CanScroll = scrollNeeded;
-
                 MainCollectionView.ScrollTo(0, position: ScrollToPosition.Start, animate: false);
             }
 
@@ -177,6 +129,50 @@ namespace Tazq_Frontend.Views
                                                   currentHeight, targetHeight,
                                                   easing: Easing.CubicInOut);
                     animation.Commit(this, "descExpand", length: 500);
+                }
+            }
+        }
+
+        private async void OnTaskAppearing(object sender, EventArgs e)
+        {
+            if (sender is Frame frame && frame.BindingContext is TaskModel task)
+            {
+                if (task.IsDueTodayAndNotCompleted)
+                {
+                    var label = FindDueDateLabel(frame);
+                    if (label != null)
+                    {
+                        label.Opacity = 0;
+                        label.Scale = 0.8;
+
+                        await Task.WhenAll(
+                            label.FadeTo(1, 400, Easing.CubicInOut),
+                            label.ScaleTo(1, 400, Easing.SpringOut)
+                        );
+                    }
+                }
+            }
+        }
+
+        private Label? FindDueDateLabel(Frame frame)
+        {
+            return frame.FindByName<Label>("DueDateLabel");
+        }
+
+        private async void OnTaskBindingContextChanged(object sender, EventArgs e)
+        {
+            if (sender is Frame frame && frame.BindingContext is TaskModel task)
+            {
+                if (task.IsDueTodayAndNotCompleted)
+                {
+                    var label = frame.FindByName<Label>("DueDateLabel");
+                    if (label != null && label.Opacity == 0)
+                    {
+                        await Task.WhenAll(
+                            label.FadeTo(1, 400, Easing.CubicInOut),
+                            label.ScaleTo(1, 400, Easing.SpringOut)
+                        );
+                    }
                 }
             }
         }

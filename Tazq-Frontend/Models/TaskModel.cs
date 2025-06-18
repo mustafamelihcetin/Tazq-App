@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-
 namespace Tazq_Frontend.Models
 {
     public partial class TaskModel : ObservableObject
@@ -20,12 +19,15 @@ namespace Tazq_Frontend.Models
         [ObservableProperty]
         private bool isExpanded = false;
 
+        public bool IsTodayAndIncomplete => IsToday && !IsCompleted;
 
         // Constructor
         public TaskModel()
         {
             Tags = new List<string>();
         }
+
+        public bool IsDueTodayAndNotCompleted => IsToday && !IsCompleted;
 
         public bool IsExpired => DueDate.HasValue && DueDate.Value.Date < DateTime.Today;
         public bool IsToday => DueDate.HasValue && DueDate.Value.Date == DateTime.Today;
@@ -51,17 +53,19 @@ namespace Tazq_Frontend.Models
 
         // Combined DueDate and DueTime
         public DateTime? DueDateTimeCombined =>
-        DueDate.HasValue && DueTime.HasValue
-        ? DateTime.SpecifyKind(
-            new DateTime(
-                DueDate.Value.Year,
-                DueDate.Value.Month,
-                DueDate.Value.Day,
-                DueTime.Value.Hour,
-                DueTime.Value.Minute,
-                0),
-            DateTimeKind.Utc).ToLocalTime()
-        : DueDate?.ToLocalTime();
+            DueDate.HasValue && DueTime.HasValue
+                ? DateTime.SpecifyKind(
+                    new DateTime(
+                        DueDate.Value.Year,
+                        DueDate.Value.Month,
+                        DueDate.Value.Day,
+                        DueTime.Value.Hour,
+                        DueTime.Value.Minute,
+                        0),
+                    DateTimeKind.Utc).ToLocalTime()
+                : DueDate?.ToLocalTime();
 
+        [ObservableProperty]
+        private bool animateDueDate;
     }
 }

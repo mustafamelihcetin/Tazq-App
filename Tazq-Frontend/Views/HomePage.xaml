@@ -5,21 +5,15 @@
              xmlns:converters="clr-namespace:Tazq_Frontend.Converters"
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              x:Class="Tazq_Frontend.Views.HomePage"
-             x:Name="HomePageRoot"
+             x:Name="MainPageRoot"
              Shell.NavBarIsVisible="False"
-             NavigationPage.HasNavigationBar="False">
+             NavigationPage.HasNavigationBar="False"
+             Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
 
     <ContentPage.BindingContext>
         <vm:HomeViewModel />
     </ContentPage.BindingContext>
 
-    <ContentPage.Background>
-        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#1E1E1E" Offset="0.0" />
-            <GradientStop Color="#2C2C2C" Offset="0.4" />
-            <GradientStop Color="#383838" Offset="1.0" />
-        </LinearGradientBrush>
-    </ContentPage.Background>
 
     <ContentPage.Resources>
         <ResourceDictionary>
@@ -35,10 +29,10 @@
             <converters:BoolToMaxLinesConverter x:Key="BoolToMaxLinesConverter" />
             <converters:BoolAndConverter x:Key="BoolAndConverter" />
             <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
-
+            <converters:DueTodayHighlightMultiConverter x:Key="DueTodayHighlightMultiConverter" />
 
             <Style TargetType="RadioButton" x:Key="CustomRadioButtonStyle">
-                <Setter Property="TextColor" Value="White" />
+                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
                 <Setter Property="FontFamily" Value="RobotoRegular" />
                 <Setter Property="FontSize" Value="13" />
                 <Setter Property="Visual" Value="Default" />
@@ -47,19 +41,19 @@
                         <ControlTemplate>
                             <Grid ColumnSpacing="10">
                                 <Ellipse WidthRequest="18"
-                                     HeightRequest="18"
-                                     Stroke="White"
-                                     StrokeThickness="2"
-                                     VerticalOptions="Center"
-                                     HorizontalOptions="Start"
-                                     Margin="0,0,4,0"
-                                     Fill="{TemplateBinding IsChecked, Converter={StaticResource BoolToColorConverter}}" />
+                                         HeightRequest="18"
+                                         Stroke="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                                         StrokeThickness="2"
+                                         VerticalOptions="Center"
+                                         HorizontalOptions="Start"
+                                         Margin="0,0,4,0"
+                                         Fill="{TemplateBinding IsChecked, Converter={StaticResource BoolToColorConverter}}" />
                                 <Label Grid.Column="1"
-                                   Text="{TemplateBinding Content}"
-                                   VerticalOptions="Center"
-                                   TextColor="White"
-                                   FontFamily="RobotoRegular"
-                                   FontSize="13" />
+                                       Text="{TemplateBinding Content}"
+                                       VerticalOptions="Center"
+                                       TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                                       FontFamily="RobotoRegular"
+                                       FontSize="13" />
                             </Grid>
                         </ControlTemplate>
                     </Setter.Value>
@@ -91,7 +85,7 @@
                 <Label Text="Ajandam"
                        FontSize="26"
                        FontAttributes="Bold"
-                       TextColor="White"
+                       TextColor="{AppThemeBinding Light=Black, Dark=White}"
                        VerticalOptions="Center" />
 
                 <Frame Grid.Column="2"
@@ -102,15 +96,10 @@
                        WidthRequest="40"
                        VerticalOptions="Center"
                        HorizontalOptions="End"
-                       BackgroundColor="#2C2C2E"
+                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
                        IsClippedToBounds="True"
-                       Margin="0,0,4,0">
-                    <Frame.BorderColor>
-                        <OnPlatform x:TypeArguments="Color">
-                            <On Platform="Android" Value="Transparent" />
-                            <On Platform="iOS" Value="#2C2C2E" />
-                        </OnPlatform>
-                    </Frame.BorderColor>
+                       Margin="0,0,4,0">                    
 
                     <ImageButton Source="settings_icon.png"
                  Command="{Binding ToggleSettingsPanelCommand}"
@@ -199,16 +188,10 @@
                        WidthRequest="40"
                        VerticalOptions="Center"
                        HorizontalOptions="End"
-                       BackgroundColor="#2C2C2E"
+                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
                        IsClippedToBounds="True"
                        Margin="0,0,4,0">
-
-                    <Frame.BorderColor>
-                        <OnPlatform x:TypeArguments="Color">
-                            <On Platform="Android" Value="Transparent" />                            
-                            <On Platform="iOS" Value="#2C2C2E" />
-                        </OnPlatform>
-                    </Frame.BorderColor>
 
                     <ImageButton Source="filter_icon_white.png"
                              Command="{Binding ToggleFilterPanelCommand}"
@@ -264,12 +247,11 @@
                                 </SwipeView.RightItems>
 
                                 <Frame CornerRadius="12"
-                                       BackgroundColor="#2C2C2E"
+                                       BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}"
                                        Padding="16"
                                        Margin="0,0,0,12"
                                        HasShadow="True"
-                                       HandlerChanged="Frame_HandlerChanged"
-                                       BorderColor="{Binding IsToday, Converter={StaticResource BoolToBorderColorConverter}}">
+                                       BindingContextChanged="OnTaskBindingContextChanged">
                                     <Frame.GestureRecognizers>
                                         <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleExpandCommand, Source={x:Reference HomePageRoot}}"
                                           CommandParameter="{Binding .}" />
@@ -341,11 +323,22 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <Label Grid.Column="0"
+                                            <Label x:Name="DueDateLabel"
+                                                   Grid.Column="0"
                                                    Text="{Binding DueDateTimeCombined, StringFormat='Son Tarih: {0:dd MMM yyyy HH\\:mm}'}"
                                                    FontSize="13"
-                                                   TextColor="#B0BEC5"
-                                                   IsVisible="{Binding HasDueDate}" />
+                                                   FontAttributes="Bold"
+                                                   TextColor="{Binding IsToday, Converter={StaticResource DueTodayHighlightMultiConverter}, ConverterParameter={Binding IsCompleted}}"
+                                                   IsVisible="{Binding HasDueDate}">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label"
+                                                                 Binding="{Binding IsDueTodayAndNotCompleted}"
+                                                                 Value="True">
+                                                        <Setter Property="Opacity" Value="1" />
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+
 
                                             <Frame Grid.Column="1"
                                                    CornerRadius="20"
@@ -355,14 +348,13 @@
                                                    VerticalOptions="Center"
                                                    HasShadow="False"
                                                    BackgroundColor="{Binding IsCompleted, Converter={StaticResource IsCompletedToBackgroundColorConverter}}"
-                                                   BorderColor="Transparent">           
+                                                   BorderColor="Transparent">
 
-                                                <HorizontalStackLayout Spacing="6"
-                                                                       VerticalOptions="Center">
+                                                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
                                                     <HorizontalStackLayout.GestureRecognizers>
                                                         <TapGestureRecognizer 
-                                                            Command="{Binding Path=BindingContext.ToggleTaskCompletionCommand, Source={x:Reference HomePageRoot}}"
-                                                            CommandParameter="{Binding .}" />
+                                                                Command="{Binding Path=BindingContext.ToggleTaskCompletionCommand, Source={x:Reference HomePageRoot}}"
+                                                                CommandParameter="{Binding .}" />
                                                     </HorizontalStackLayout.GestureRecognizers>
 
                                                     <Image Source="{Binding IsCompleted, Converter={StaticResource IsCompletedToIconConverter}}"
@@ -378,8 +370,10 @@
                                                            FontFamily="RobotoRegular"/>
                                                 </HorizontalStackLayout>
                                             </Frame>
-
                                         </Grid>
+
+
+
 
                                         <!-- Tags -->
                                         <Label Grid.Row="3" Grid.ColumnSpan="2"
@@ -399,10 +393,10 @@
 
         <!-- Modal Filter Panel -->
         <Frame x:Name="FilterPanelFrame"
-               BackgroundColor="#2C2C2E"
+               BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray900}}"
+               BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
                Padding="16"
                CornerRadius="12"
-               BorderColor="#444"
                HasShadow="True"
                IsVisible="{Binding IsFilterPanelVisible}"
                AbsoluteLayout.LayoutBounds="1,0.17,0.50,-1"
@@ -462,8 +456,8 @@
 
                 <Frame CornerRadius="6"
                        Padding="0"
-                       BorderColor="#555"
-                       BackgroundColor="#3A3A3A"
+                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                       BorderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                        HasShadow="False"
                        HeightRequest="36">
                     <Entry Placeholder="Etikete göre filtrele..."
@@ -492,10 +486,10 @@
 
         <!-- Modal Setting Panel-->
         <Frame x:Name="SettingsPanelFrame"
-               BackgroundColor="#2C2C2E"
+               BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray900}}"
+               BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
                Padding="16"
                CornerRadius="12"
-               BorderColor="#444"
                HasShadow="True"
                IsVisible="{Binding IsSettingsPanelVisible}"
                AbsoluteLayout.LayoutBounds="1,0.06,0.50,-1"
@@ -552,7 +546,7 @@
                         FontFamily="RobotoRegular"
                         FontSize="13"
                         CornerRadius="8"
-                        Padding="10,6" />
+                        Padding="10,6" /> 
 
             </VerticalStackLayout>
         </Frame>
