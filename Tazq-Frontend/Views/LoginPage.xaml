@@ -5,15 +5,8 @@
              xmlns:converters="clr-namespace:Tazq_Frontend.Converters"
              x:Class="Tazq_Frontend.Views.LoginPage"
              Shell.NavBarIsVisible="False"
-             NavigationPage.HasNavigationBar="False">
-
-    <ContentPage.Background>
-        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#1E1E1E" Offset="0.0" />
-            <GradientStop Color="#2C2C2C" Offset="0.4" />
-            <GradientStop Color="#383838" Offset="1.0" />
-        </LinearGradientBrush>
-    </ContentPage.Background>
+             NavigationPage.HasNavigationBar="False"
+             Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
 
     <ContentPage.Resources>
         <ResourceDictionary>

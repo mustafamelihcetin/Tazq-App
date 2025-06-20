@@ -4,16 +4,9 @@
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
              x:Class="Tazq_Frontend.Views.RegisterPage"
              Shell.NavBarIsVisible="False"
-             NavigationPage.HasNavigationBar="False">
+             NavigationPage.HasNavigationBar="False"
+             Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
 
-    <!-- Background Gradient -->
-    <ContentPage.Background>
-        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#1E1E1E" Offset="0.0" />
-            <GradientStop Color="#2C2C2C" Offset="0.4" />
-            <GradientStop Color="#383838" Offset="1.0" />
-        </LinearGradientBrush>
-    </ContentPage.Background>
     <!-- ViewModel Binding Context -->
     <ContentPage.BindingContext>
         <vm:AuthViewModel />
