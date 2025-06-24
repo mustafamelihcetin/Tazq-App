@@ -21,6 +21,10 @@
             <converters:NullOrEmptyToBoolConverter x:Key="NullOrEmptyToBoolConverter" />
             <converters:IntGreaterThanZeroConverter x:Key="IntGreaterThanZeroConverter" />
             <converters:BoolAndConverter x:Key="BoolAndConverter" />
+            <converters:ThemeImageConverter x:Key="SettingsIconConverter" Light="settings_icon" Dark="settings_icon_dark" />
+            <converters:ThemeImageConverter x:Key="FilterIconConverter" Light="filter_icon" Dark="filter_icon_dark" />
+            <converters:ThemeImageConverter x:Key="EditIconConverter" Light="edit_icon" Dark="edit_icon_dark" />
+            <converters:ThemeImageConverter x:Key="DeleteIconConverter" Light="delete_icon" Dark="delete_icon_dark" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

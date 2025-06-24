@@ -4,6 +4,7 @@
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
              xmlns:converters="clr-namespace:Tazq_Frontend.Converters"
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+             xmlns:helpers="clr-namespace:Tazq_Frontend.Helpers"
              x:Class="Tazq_Frontend.Views.HomePage"
              x:Name="MainPageRoot"
              Shell.NavBarIsVisible="False"
@@ -99,9 +100,9 @@
                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
                        BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
                        IsClippedToBounds="True"
-                       Margin="0,0,4,0">                    
+                       Margin="0,0,4,0">
 
-                    <ImageButton Source="settings_icon.png"
+                    <ImageButton Source="{Binding ., Converter={StaticResource SettingsIconConverter}}"
                  Command="{Binding ToggleSettingsPanelCommand}"
                  BackgroundColor="Transparent"
                  HeightRequest="24"
@@ -193,7 +194,7 @@
                        IsClippedToBounds="True"
                        Margin="0,0,4,0">
 
-                    <ImageButton Source="filter_icon_white.png"
+                    <ImageButton Source="{Binding ., Converter={StaticResource FilterIconConverter}}"
                              Command="{Binding ToggleFilterPanelCommand}"
                              BackgroundColor="Transparent"
                              HeightRequest="24"
@@ -214,37 +215,37 @@
                 <CollectionView x:Name="MainCollectionView"
                                 ItemsSource="{Binding FilteredTasks}"
                                 ItemsLayout="VerticalList"
-                                EmptyView="Henüz görev eklenmedi.">           
+                                EmptyView="Henüz görev eklenmedi.">
 
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <SwipeView>                                
+                            <SwipeView>
                                 <SwipeView.RightItems>
                                     <SwipeItems Mode="Reveal">
                                         <SwipeItemView>
-                                            <ImageButton
-                                                Source="edit_icon.png"
+                                            <ImageButton Source="{Binding ., Converter={StaticResource EditIconConverter}}" 
                                                 BackgroundColor="Transparent"
                                                 HeightRequest="40"
                                                 WidthRequest="40"
                                                 Padding="8"
                                                 Margin="10"
-                                                Command="{Binding Path=BindingContext.EditTaskCommand, Source={x:Reference HomePageRoot}}"
+                                                Command="{Binding Source={x:Reference HomePageRoot}, Path=EditTaskCommand}"
                                                 CommandParameter="{Binding .}" />
                                         </SwipeItemView>
                                         <SwipeItemView>
-                                            <ImageButton
-                                                Source="delete_icon.png"
+                                            <ImageButton Source="{Binding ., Converter={StaticResource DeleteIconConverter}}"
                                                 BackgroundColor="Transparent"
                                                 HeightRequest="40"
                                                 WidthRequest="40"
                                                 Padding="8"
                                                 Margin="10"
-                                                Command="{Binding Path=BindingContext.DeleteTaskCommand, Source={x:Reference HomePageRoot}}"
+                                                Command="{Binding Source={x:Reference HomePageRoot}, Path=DeleteTaskCommand}"
                                                 CommandParameter="{Binding .}" />
                                         </SwipeItemView>
                                     </SwipeItems>
+
                                 </SwipeView.RightItems>
+
 
                                 <Frame CornerRadius="12"
                                        BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}"
@@ -416,7 +417,7 @@
                     <Label Text="{Binding StatusFilterLabel}"
                            FontSize="13"
                            FontFamily="RobotoRegular"
-                           TextColor="White"
+                           TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
                            VerticalOptions="Center"
                            Grid.Column="0" />
 

@@ -22,7 +22,7 @@
                Text="Yeni Görev Ekle"
                FontSize="24"
                FontAttributes="Bold"
-               TextColor="White"
+               TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
                FontFamily="RobotoRegular"
                HorizontalOptions="Center"
                HorizontalTextAlignment="Center" />
@@ -31,7 +31,10 @@
             <VerticalStackLayout Spacing="12">
 
                 <!-- Title -->
-                <Frame Padding="10" CornerRadius="12" BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" HasShadow="False">
+                <Frame Padding="10" CornerRadius="12"
+                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                       HasShadow="False">
                     <Grid RowSpacing="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -43,7 +46,7 @@
                                BackgroundColor="Transparent"
                                FontSize="15"
                                FontFamily="RobotoRegular"
-                               TextColor="#D0D0D0"
+                               TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
                                PlaceholderColor="#888888"
                                MaxLength="80" />
                         <Label Grid.Row="1"
@@ -57,7 +60,10 @@
                 </Frame>
 
                 <!-- Description -->
-                <Frame Padding="10" CornerRadius="12" BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" HasShadow="False">
+                <Frame Padding="10" CornerRadius="12"
+                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                       HasShadow="False">
                     <Grid RowSpacing="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
@@ -83,24 +89,26 @@
                 </Frame>
 
                 <!-- Date & Time -->
-                <Frame BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" CornerRadius="10" Padding="5" HasShadow="True">
+                <Frame BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                       CornerRadius="10" Padding="5" HasShadow="True">
                     <VerticalStackLayout Spacing="6">
                         <DatePicker Date="{Binding DueDate}"
                                     Format="dd MMMM yyyy"
-                                    TextColor="White"
+                                    TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
                                     FontFamily="RobotoRegular" />
                         <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
                             <CheckBox IsChecked="{Binding EnableTime}"
                                       Color="#3C4D90"
                                       VerticalOptions="Center"/>
                             <Label Text="Saat belirle"
-                                   TextColor="White"
+                                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
                                    FontFamily="RobotoRegular"
                                    VerticalOptions="Center"/>
                             <TimePicker Time="{Binding SelectedTime}"
                                         Format="HH:mm"
                                         IsVisible="{Binding EnableTime}"
-                                        TextColor="White"
+                                        TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
                                         FontSize="16"
                                         WidthRequest="60"
                                         FontFamily="RobotoRegular"
@@ -120,8 +128,8 @@
 
                     <!-- Priority -->
                     <Frame Grid.Column="0"
-                           BackgroundColor="#1C1C1E"
-                           BorderColor="#2F2F2F"
+                           BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                           BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
                            CornerRadius="10"
                            Padding="5, 0, 0, 12"
                            HasShadow="True"
@@ -134,14 +142,20 @@
                                 HorizontalTextAlignment="Center"
                                 FontFamily="RobotoRegular"
                                 FontSize="15"
-                                TextColor="White"
+                                TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
                                 TitleColor="#888888"
                                 BackgroundColor="Transparent"
                                 HeightRequest="48"/>
                     </Frame>
 
                     <!-- Tag -->
-                    <Frame Grid.Column="1" HeightRequest="80" Padding="10" CornerRadius="12" BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" HasShadow="False">
+                    <Frame Grid.Column="1"
+                           HeightRequest="80"
+                           Padding="10"
+                           CornerRadius="12"
+                           BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                           BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                           HasShadow="False">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="45"/>
