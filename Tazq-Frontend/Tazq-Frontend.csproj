@@ -42,7 +42,7 @@
 		<!--<MauiImage Include="Resources\Images\*.svg" />-->
 		<MauiIcon Include="Platforms\Windows\Assets\appicons.png" ForegroundFile="Platforms\Windows\Assets\appicons.png" IsAppIcon="true" />
 	</ItemGroup>
-
+	
 	<ItemGroup>
 		<MauiFont Include="Resources\Fonts\Roboto.ttf" Alias="RobotoRegular" />
 		<MauiFont Include="Resources\Fonts\Roboto-Italic.ttf" Alias="RobotoItalic" />

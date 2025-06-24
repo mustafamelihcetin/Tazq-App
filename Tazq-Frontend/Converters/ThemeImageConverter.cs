@@ -11,9 +11,14 @@ namespace Tazq_Frontend.Converters
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            var currentTheme = Application.Current?.RequestedTheme ?? AppTheme.Light;
+            if (value is bool isLight)
+            {
+                string fileName = isLight ? Light : Dark;
+                return ImageSource.FromFile(fileName + ".png");
+            }
 
-            return currentTheme == AppTheme.Dark ? Dark : Light;
+            // fallback
+            return ImageSource.FromFile(Light + ".png");
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

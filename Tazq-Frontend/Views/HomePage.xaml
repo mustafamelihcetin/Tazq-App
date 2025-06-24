@@ -102,7 +102,7 @@
                        IsClippedToBounds="True"
                        Margin="0,0,4,0">
 
-                    <ImageButton Source="{Binding ., Converter={StaticResource SettingsIconConverter}}"
+                    <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource SettingsIconConverter}}"
                  Command="{Binding ToggleSettingsPanelCommand}"
                  BackgroundColor="Transparent"
                  HeightRequest="24"
@@ -194,7 +194,7 @@
                        IsClippedToBounds="True"
                        Margin="0,0,4,0">
 
-                    <ImageButton Source="{Binding ., Converter={StaticResource FilterIconConverter}}"
+                    <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource FilterIconConverter}}"
                              Command="{Binding ToggleFilterPanelCommand}"
                              BackgroundColor="Transparent"
                              HeightRequest="24"
@@ -223,7 +223,7 @@
                                 <SwipeView.RightItems>
                                     <SwipeItems Mode="Reveal">
                                         <SwipeItemView>
-                                            <ImageButton Source="{Binding ., Converter={StaticResource EditIconConverter}}" 
+                                            <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource EditIconConverter}}" 
                                                 BackgroundColor="Transparent"
                                                 HeightRequest="40"
                                                 WidthRequest="40"
@@ -233,7 +233,7 @@
                                                 CommandParameter="{Binding .}" />
                                         </SwipeItemView>
                                         <SwipeItemView>
-                                            <ImageButton Source="{Binding ., Converter={StaticResource DeleteIconConverter}}"
+                                            <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource DeleteIconConverter}}"
                                                 BackgroundColor="Transparent"
                                                 HeightRequest="40"
                                                 WidthRequest="40"
