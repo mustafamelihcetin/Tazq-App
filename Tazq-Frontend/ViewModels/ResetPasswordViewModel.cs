@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Controls;
 using Tazq_Frontend.Services;
+using Tazq_Frontend.Helpers;
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -82,7 +83,7 @@ namespace Tazq_Frontend.ViewModels
                 {
                     StatusMessage = "Şifre başarıyla sıfırlandı.";
                     await Task.Delay(1500);
-                    await Shell.Current.GoToAsync("//LoginPage");
+                    await Shell.Current.GoToAsync($"//{RouteNames.LoginPage}");
                 }
                 else
                 {

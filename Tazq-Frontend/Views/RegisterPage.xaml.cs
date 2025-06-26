@@ -1,5 +1,6 @@
 using Microsoft.Maui.Controls;
 using Tazq_Frontend.ViewModels;
+using Tazq_Frontend.Helpers;
 
 namespace Tazq_Frontend.Views
 {
@@ -35,7 +36,7 @@ namespace Tazq_Frontend.Views
 				{
 					Console.WriteLine("Register successful.");
 					await DisplayAlert("Baþarýlý", "Kayýt iþlemi tamamlandý.", "Tamam");
-                    await Shell.Current.GoToAsync($"//{nameof(LoginPage)}");
+                    await Shell.Current.GoToAsync($"//{RouteNames.LoginPage}");
                 }
 				else
 				{

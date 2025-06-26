@@ -1,6 +1,7 @@
 using Microsoft.Maui.Controls;
 using Tazq_Frontend.Views;
 using Tazq_Frontend.Services;
+using Tazq_Frontend.Helpers;
 
 namespace Tazq_Frontend.Views
 {
@@ -61,7 +62,7 @@ namespace Tazq_Frontend.Views
             await LoadingIndicator.FadeTo(0, 400);
             LoadingIndicator.IsVisible = false;
 
-            await Shell.Current.GoToAsync(isValid ? "//HomePage" : "//LoginPage");
+            await Shell.Current.GoToAsync(isValid ? $"//{RouteNames.HomePage}" : $"//{RouteNames.LoginPage}");
         }
     }
 }

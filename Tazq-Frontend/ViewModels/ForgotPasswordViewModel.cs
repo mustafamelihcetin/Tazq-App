@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Controls;
 using Tazq_Frontend.Services;
+using Tazq_Frontend.Helpers;
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -56,7 +57,7 @@ namespace Tazq_Frontend.ViewModels
                 {
                     StatusMessage = "E-posta gönderildi. Gelen kutunuzu kontrol edin.";
                     await Task.Delay(1500);
-                    await Shell.Current.GoToAsync(nameof(Views.ResetPasswordPage));
+                    await Shell.Current.GoToAsync(RouteNames.ResetPasswordPage);
                 }
                 else
                 {
