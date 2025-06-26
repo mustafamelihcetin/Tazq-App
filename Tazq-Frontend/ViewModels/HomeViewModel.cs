@@ -8,6 +8,7 @@ using Microsoft.Maui.Controls;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Tazq_Frontend.Helpers;
+using Microsoft.Maui.Storage;
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -378,6 +379,7 @@ namespace Tazq_Frontend.ViewModels
         }
         partial void OnIsLightThemeEnabledChanged(bool value)
         {
+            Preferences.Default.Set("IsLightThemeEnabled", value);
             App.Current.UserAppTheme = value ? AppTheme.Light : AppTheme.Dark;
         }
         public void Dispose()
