@@ -223,24 +223,26 @@
                                 <SwipeView.RightItems>
                                     <SwipeItems Mode="Reveal">
                                         <SwipeItemView>
-                                            <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource EditIconConverter}}" 
-                                                BackgroundColor="Transparent"
-                                                HeightRequest="40"
-                                                WidthRequest="40"
-                                                Padding="8"
-                                                Margin="10"
-                                                Command="{Binding Source={x:Reference HomePageRoot}, Path=EditTaskCommand}"
-                                                CommandParameter="{Binding .}" />
+                                            <ImageButton Source="{Binding Path=BindingContext.IsLightThemeEnabled, Source={x:Reference MainPageRoot}, Converter={StaticResource EditIconConverter}}"
+                                                         BackgroundColor="Transparent"
+                                                         HeightRequest="40"
+                                                         WidthRequest="40"
+                                                         Padding="8"
+                                                         Margin="10"
+                                                         Command="{Binding Source={x:Reference MainPageRoot}, Path=EditTaskCommand}"
+                                                         CommandParameter="{Binding .}" />
+
                                         </SwipeItemView>
                                         <SwipeItemView>
-                                            <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource DeleteIconConverter}}"
-                                                BackgroundColor="Transparent"
-                                                HeightRequest="40"
-                                                WidthRequest="40"
-                                                Padding="8"
-                                                Margin="10"
-                                                Command="{Binding Source={x:Reference HomePageRoot}, Path=DeleteTaskCommand}"
-                                                CommandParameter="{Binding .}" />
+                                            <ImageButton Source="{Binding Path=BindingContext.IsLightThemeEnabled, Source={x:Reference MainPageRoot}, Converter={StaticResource DeleteIconConverter}}"
+                                                         BackgroundColor="Transparent"
+                                                         HeightRequest="40"
+                                                         WidthRequest="40"
+                                                         Padding="8"
+                                                         Margin="10"
+                                                         Command="{Binding Source={x:Reference MainPageRoot}, Path=DeleteTaskCommand}"
+                                                         CommandParameter="{Binding .}" />
+
                                         </SwipeItemView>
                                     </SwipeItems>
 
@@ -254,8 +256,8 @@
                                        HasShadow="True"
                                        BindingContextChanged="OnTaskBindingContextChanged">
                                     <Frame.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleExpandCommand, Source={x:Reference HomePageRoot}}"
-                                          CommandParameter="{Binding .}" />
+                                        <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleExpandCommand, Source={x:Reference MainPageRoot}}"
+                                                              CommandParameter="{Binding .}" />
                                         <TapGestureRecognizer Tapped="OnTaskTapped" />
                                     </Frame.GestureRecognizers>
 
@@ -353,8 +355,8 @@
 
                                                 <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
                                                     <HorizontalStackLayout.GestureRecognizers>
-                                                        <TapGestureRecognizer 
-                                                                Command="{Binding Path=BindingContext.ToggleTaskCompletionCommand, Source={x:Reference HomePageRoot}}"
+                                                        <TapGestureRecognizer
+                                                                Command="{Binding Path=BindingContext.ToggleTaskCompletionCommand, Source={x:Reference MainPageRoot}}"
                                                                 CommandParameter="{Binding .}" />
                                                     </HorizontalStackLayout.GestureRecognizers>
 

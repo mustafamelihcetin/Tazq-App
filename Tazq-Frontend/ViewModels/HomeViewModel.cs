@@ -25,7 +25,7 @@ namespace Tazq_Frontend.ViewModels
             ToggleTaskCompletionCommand = new AsyncRelayCommand<TaskModel?>(ToggleTaskCompletion);
             ToggleFilterPanelCommand = new RelayCommand(ToggleFilterPanel);
             ToggleSettingsPanelCommand = new RelayCommand(ToggleSettingsPanel);
-
+            EditTaskCommand = new AsyncRelayCommand<TaskModel?>(EditTask);
 
             WeakReferenceMessenger.Default.Register<TaskAddedMessage>(this, async (r, m) =>
             {
@@ -100,9 +100,11 @@ namespace Tazq_Frontend.ViewModels
         private bool isSettingsPanelVisible;
 
         [ObservableProperty]
-        private bool isLightThemeEnabled;
+        private bool isLightThemeEnabled = Application.Current.RequestedTheme == AppTheme.Light;
 
 
+
+        public IAsyncRelayCommand<TaskModel?> EditTaskCommand { get; }
         public IAsyncRelayCommand LoadTasksCommand { get; }
         public IAsyncRelayCommand LogoutCommand { get; }
         public ICommand TogglePastTasksCommand { get; } = new RelayCommand(() => { });
@@ -234,7 +236,6 @@ namespace Tazq_Frontend.ViewModels
             await Shell.Current.GoToAsync("AddTaskPage");
         }
 
-        [RelayCommand]
         private async Task EditTask(TaskModel? task)
         {
             if (task != null)
