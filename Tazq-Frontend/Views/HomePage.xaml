@@ -229,7 +229,7 @@
                                                          WidthRequest="40"
                                                          Padding="8"
                                                          Margin="10"
-                                                         Command="{Binding Source={x:Reference MainPageRoot}, Path=EditTaskCommand}"
+                                                         Command="{Binding Path=BindingContext.EditTaskCommand, Source={x:Reference MainPageRoot}}"
                                                          CommandParameter="{Binding .}" />
 
                                         </SwipeItemView>
@@ -240,7 +240,7 @@
                                                          WidthRequest="40"
                                                          Padding="8"
                                                          Margin="10"
-                                                         Command="{Binding Source={x:Reference MainPageRoot}, Path=DeleteTaskCommand}"
+                                                         Command="{Binding Path=BindingContext.DeleteTaskCommand, Source={x:Reference MainPageRoot}}"
                                                          CommandParameter="{Binding .}" />
 
                                         </SwipeItemView>
