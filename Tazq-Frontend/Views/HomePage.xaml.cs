@@ -29,6 +29,7 @@ namespace Tazq_Frontend.Views
 
             HeaderGrid.Opacity = 0;
             AddTaskFrame.Opacity = 0;
+            FilterButtonFrame.Opacity = 0;
             MainRefreshView.Opacity = 0;
 
             if (LoadingIndicator != null)
@@ -51,7 +52,10 @@ namespace Tazq_Frontend.Views
             }
 
             await HeaderGrid.FadeTo(1, 300);
-            await AddTaskFrame.FadeTo(1, 300);
+            await Task.WhenAll(
+                AddTaskFrame.FadeTo(1, 300),
+                FilterButtonFrame.FadeTo(1, 300)
+            );
             await MainRefreshView.FadeTo(1, 300);
         }
 
