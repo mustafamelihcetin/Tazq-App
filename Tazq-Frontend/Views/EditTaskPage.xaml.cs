@@ -14,7 +14,7 @@ namespace Tazq_Frontend.Views
             BindingContext = _viewModel;
         }
 
-        private string taskIdQuery;
+        private string taskIdQuery = string.Empty;
         public string TaskIdQuery
         {
             get => taskIdQuery;

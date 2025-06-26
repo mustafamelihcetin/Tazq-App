@@ -4,6 +4,7 @@
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
              xmlns:converters="clr-namespace:Tazq_Frontend.Converters"
              x:Class="Tazq_Frontend.Views.LoginPage"
+             x:Name="LoginPageRoot"
              Shell.NavBarIsVisible="False"
              NavigationPage.HasNavigationBar="False"
              Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
@@ -170,7 +171,8 @@
                         <Label Text="Google ile Giriş Yap" TextColor="Black" FontAttributes="Bold" VerticalOptions="Center" FontFamily="RobotoRegular"/>
                     </HorizontalStackLayout>
                     <Frame.GestureRecognizers>
-                        <TapGestureRecognizer Tapped="OnGoogleLoginClicked" />
+                        <TapGestureRecognizer
+                            Command="{Binding Source={x:Reference LoginPageRoot}, Path=GoogleLoginCommand}" />
                     </Frame.GestureRecognizers>
                 </Frame>
 
@@ -182,7 +184,8 @@
                         <Label Text="Apple ile Giriş Yap" TextColor="White" FontAttributes="Bold" VerticalOptions="Center" FontFamily="RobotoRegular"/>
                     </HorizontalStackLayout>
                     <Frame.GestureRecognizers>
-                        <TapGestureRecognizer Tapped="OnAppleLoginClicked" />
+                        <TapGestureRecognizer
+                            Command="{Binding Source={x:Reference LoginPageRoot}, Path=AppleLoginCommand}" />
                     </Frame.GestureRecognizers>
                 </Frame>
             </VerticalStackLayout>

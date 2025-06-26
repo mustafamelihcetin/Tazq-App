@@ -7,7 +7,7 @@ using Tazq_Frontend.Services;
 
 namespace Tazq_Frontend.ViewModels
 {
-    public partial class EditTaskViewModel : ObservableObject
+    public partial class EditTaskViewModel : ObservableObject, IDisposable
     {
         private readonly ApiService _apiService;
 
@@ -197,6 +197,11 @@ namespace Tazq_Frontend.ViewModels
             {
                 await Shell.Current.DisplayAlert("Hata", "Görev güncellenemedi.", "Tamam");
             }
+        }
+
+        public void Dispose()
+        {
+            _apiService.Dispose();
         }
     }
 

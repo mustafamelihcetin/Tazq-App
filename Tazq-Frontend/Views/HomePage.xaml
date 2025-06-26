@@ -5,6 +5,7 @@
              xmlns:converters="clr-namespace:Tazq_Frontend.Converters"
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              xmlns:helpers="clr-namespace:Tazq_Frontend.Helpers"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:Class="Tazq_Frontend.Views.HomePage"
              x:Name="MainPageRoot"
              Shell.NavBarIsVisible="False"
@@ -211,8 +212,11 @@
             <RefreshView x:Name="MainRefreshView"
                          Grid.Row="2"
                          Command="{Binding LoadTasksCommand}"
-                         IsRefreshing="{Binding IsLoading}"
-                         Refreshing="MainRefreshView_Refreshing">
+                          IsRefreshing="{Binding IsLoading}">
+                <RefreshView.Behaviors>
+                    <toolkit:EventToCommandBehavior EventName="Refreshing"
+                                                  Command="{Binding Source={x:Reference MainPageRoot}, Path=RefreshCommand}" />
+                </RefreshView.Behaviors>
 
                 <CollectionView x:Name="MainCollectionView"
                                 ItemsSource="{Binding FilteredTasks}"
@@ -251,16 +255,21 @@
                                 </SwipeView.RightItems>
 
 
-                                <Frame CornerRadius="12"
+                                <Frame x:Name="TaskItemFrame" CornerRadius="12"
                                        BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}"
                                        Padding="16"
                                        Margin="0,0,0,12"
-                                       HasShadow="True"
-                                       BindingContextChanged="OnTaskBindingContextChanged">
+                                       HasShadow="True">
+                                    <Frame.Behaviors>
+                                        <toolkit:EventToCommandBehavior EventName="BindingContextChanged"
+                                                                       Command="{Binding Source={x:Reference MainPageRoot}, Path=TaskContextChangedCommand}"
+                                                                       CommandParameter="{x:Reference TaskItemFrame}" />
+                                    </Frame.Behaviors>
                                     <Frame.GestureRecognizers>
                                         <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleExpandCommand, Source={x:Reference MainPageRoot}}"
                                                               CommandParameter="{Binding .}" />
-                                        <TapGestureRecognizer Tapped="OnTaskTapped" />
+                                        <TapGestureRecognizer Command="{Binding Source={x:Reference MainPageRoot}, Path=TaskTappedCommand}"
+                                                              CommandParameter="{x:Reference TaskItemFrame}" />
                                     </Frame.GestureRecognizers>
 
 
@@ -315,7 +324,8 @@
                                                MaxLines="{Binding IsExpanded, Converter={StaticResource BoolToMaxLinesConverter}, ConverterParameter=3}"
                                                IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}">
                                             <Label.GestureRecognizers>
-                                                <TapGestureRecognizer Tapped="OnTaskTapped" />
+                                                <TapGestureRecognizer Command="{Binding Source={x:Reference MainPageRoot}, Path=TaskTappedCommand}"
+                                                                      CommandParameter="{x:Reference DescriptionLabel}" />
                                             </Label.GestureRecognizers>
                                         </Label>
 

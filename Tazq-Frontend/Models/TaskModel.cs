@@ -66,6 +66,6 @@ namespace Tazq_Frontend.Models
                 : DueDate?.ToLocalTime();
 
         [ObservableProperty]
-        private bool animateDueDate;
+        private bool animateDueDate = false;
     }
 }

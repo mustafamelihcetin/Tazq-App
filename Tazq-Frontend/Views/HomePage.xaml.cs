@@ -6,6 +6,7 @@ using Microsoft.Maui.Devices;
 using System.Threading.Tasks;
 using Microsoft.Maui; // for AppTheme
 using Microsoft.Maui.Graphics; // for Color and GradientStop
+using CommunityToolkit.Mvvm.Input;
 
 namespace Tazq_Frontend.Views
 {
@@ -13,10 +14,18 @@ namespace Tazq_Frontend.Views
     {
         private LinearGradientBrush _backgroundBrush;
 
+        public IAsyncRelayCommand RefreshCommand { get; }
+        public IAsyncRelayCommand<object?> TaskTappedCommand { get; }
+        public IAsyncRelayCommand<object?> TaskContextChangedCommand { get; }
+
         public HomePage()
         {
             InitializeComponent();
             Console.WriteLine("[DOTNET] HomePage yüklendi.");
+
+            RefreshCommand = new AsyncRelayCommand(OnRefreshAsync);
+            TaskTappedCommand = new AsyncRelayCommand<object?>(OnTaskTappedAsync);
+            TaskContextChangedCommand = new AsyncRelayCommand<object?>(OnTaskContextChangedAsync);
         }
 
         protected override async void OnAppearing()
@@ -100,7 +109,7 @@ namespace Tazq_Frontend.Views
                 AddTaskButton.WidthRequest = width / 2;
         }
 
-        private async void MainRefreshView_Refreshing(object sender, EventArgs e)
+        private async Task OnRefreshAsync()
         {
             if (BindingContext is HomeViewModel viewModel)
             {
@@ -118,13 +127,14 @@ namespace Tazq_Frontend.Views
                 viewModel.ApplyFilters();
         }
 
-        private async void OnTaskTapped(object sender, EventArgs e)
+        private async Task OnTaskTappedAsync(object? param)
         {
-            if (sender is VisualElement element && element.BindingContext is TaskModel task)
+            if (param is VisualElement element && element.BindingContext is TaskModel task)
             {
                 task.IsExpanded = !task.IsExpanded;
 
-                if (element is Label descriptionLabel)
+                var descriptionLabel = element as Label ?? element.FindByName<Label>("DescriptionLabel");
+                if (descriptionLabel != null)
                 {
                     double currentHeight = descriptionLabel.Height;
                     double targetHeight = task.IsExpanded ? currentHeight * 3 : currentHeight / 3;
@@ -137,35 +147,14 @@ namespace Tazq_Frontend.Views
             }
         }
 
-        private async void OnTaskAppearing(object sender, EventArgs e)
-        {
-            if (sender is Frame frame && frame.BindingContext is TaskModel task)
-            {
-                if (task.IsDueTodayAndNotCompleted)
-                {
-                    var label = FindDueDateLabel(frame);
-                    if (label != null)
-                    {
-                        label.Opacity = 0;
-                        label.Scale = 0.8;
-
-                        await Task.WhenAll(
-                            label.FadeTo(1, 400, Easing.CubicInOut),
-                            label.ScaleTo(1, 400, Easing.SpringOut)
-                        );
-                    }
-                }
-            }
-        }
-
         private Label? FindDueDateLabel(Frame frame)
         {
             return frame.FindByName<Label>("DueDateLabel");
         }
 
-        private async void OnTaskBindingContextChanged(object sender, EventArgs e)
+        private async Task OnTaskContextChangedAsync(object? param)
         {
-            if (sender is Frame frame && frame.BindingContext is TaskModel task)
+            if (param is Frame frame && frame.BindingContext is TaskModel task)
             {
                 if (task.IsDueTodayAndNotCompleted)
                 {

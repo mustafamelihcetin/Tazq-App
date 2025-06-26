@@ -11,7 +11,7 @@ using Tazq_Frontend.Helpers;
 
 namespace Tazq_Frontend.ViewModels
 {
-    public partial class HomeViewModel : ObservableObject
+    public partial class HomeViewModel : ObservableObject, IDisposable
     {
         private readonly ApiService _apiService;
 
@@ -47,10 +47,10 @@ namespace Tazq_Frontend.ViewModels
         }
 
         [ObservableProperty]
-        private ObservableCollection<TaskModel> tasks;
+        private ObservableCollection<TaskModel> tasks = new();
 
         [ObservableProperty]
-        private bool isLoading;
+        private bool isLoading = false;
 
         private bool isScrolledDown = true;
 
@@ -86,7 +86,7 @@ namespace Tazq_Frontend.ViewModels
         private bool? filterByCompleted = null;
 
         [ObservableProperty]
-        private ObservableCollection<TaskModel> filteredTasks;
+        private ObservableCollection<TaskModel> filteredTasks = new();
 
         [ObservableProperty]
         private bool isFilterPanelVisible = false;
@@ -98,7 +98,7 @@ namespace Tazq_Frontend.ViewModels
         private string showPastTasksLabel = "Gizle";
 
         [ObservableProperty]
-        private bool isSettingsPanelVisible;
+        private bool isSettingsPanelVisible = false;
 
         [ObservableProperty]
         private bool isLightThemeEnabled = Application.Current.RequestedTheme == AppTheme.Light;
@@ -380,7 +380,10 @@ namespace Tazq_Frontend.ViewModels
         {
             App.Current.UserAppTheme = value ? AppTheme.Light : AppTheme.Dark;
         }
-
+        public void Dispose()
+        {
+            _apiService.Dispose();
+        }
 
     }
 }

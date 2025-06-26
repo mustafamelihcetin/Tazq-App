@@ -76,7 +76,7 @@ namespace Tazq_Frontend.ViewModels
                     newPassword = NewPassword
                 };
 
-                var apiService = new ApiService();
+                using var apiService = new ApiService();
                 var response = await apiService.PostAsync("users/reset-password", resetRequest);
 
                 if (response.IsSuccessStatusCode)

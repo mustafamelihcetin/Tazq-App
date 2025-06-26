@@ -9,11 +9,11 @@ using Tazq_Frontend.Models;
 
 namespace Tazq_Frontend.Services
 {
-	public class ApiService
-	{
-		private readonly HttpClient _httpClient;
+    public class ApiService : IDisposable
+    {
+        private readonly HttpClient _httpClient;
 
-		public ApiService()
+        public ApiService()
 		{
 			_httpClient = new HttpClient
 			{
@@ -410,6 +410,10 @@ namespace Tazq_Frontend.Services
             {
                 return null;
             }
+        }
+        public void Dispose()
+        {
+            _httpClient.Dispose();
         }
 
 

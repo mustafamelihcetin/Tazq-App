@@ -9,7 +9,7 @@ using Tazq_Frontend.Helpers;
 
 namespace Tazq_Frontend.ViewModels
 {
-    public partial class AuthViewModel : ObservableObject
+    public partial class AuthViewModel : ObservableObject, IDisposable
     {
         private readonly ApiService _apiService;
 
@@ -196,5 +196,11 @@ namespace Tazq_Frontend.ViewModels
                 await Application.Current.MainPage.DisplayAlert("Hata", "Navigasyon hatası oluştu!", "Tamam");
             }
         });
+
+        public void Dispose()
+        {
+            _apiService.Dispose();
+        }
+
     }
 }

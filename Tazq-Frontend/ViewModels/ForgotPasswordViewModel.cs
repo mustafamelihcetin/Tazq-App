@@ -46,7 +46,7 @@ namespace Tazq_Frontend.ViewModels
                 return;
             }
 
-            var apiService = new ApiService();
+            using var apiService = new ApiService();
             var payload = new { Email = this.Email };
 
             try
