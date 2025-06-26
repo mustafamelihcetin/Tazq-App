@@ -32,8 +32,8 @@
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(TargetFramework)'=='net8.0-ios'">
 	  <ProvisioningType>automatic</ProvisioningType>
-	  <CodesignProvision>VS: com.tazqapp.tazq Development</CodesignProvision>
-	  <CodesignKey>Apple Development: Created via API (HY2MYHM459)</CodesignKey>
+		<CodesignProvision>TazqManualDevProfile</CodesignProvision>
+		<CodesignKey>Apple Development: Mustafa Melih Çetin (893XDWQYUD)</CodesignKey>
 	</PropertyGroup>
 
 	<ItemGroup>
