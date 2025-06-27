@@ -26,7 +26,7 @@
             <converters:ThemeImageConverter x:Key="EditIconConverter" Light="edit_icon_dark" Dark="edit_icon" />
             <converters:ThemeImageConverter x:Key="DeleteIconConverter" Light="delete_icon_dark" Dark="delete_icon" />
             <converters:ThemeImageConverter x:Key="LogoutIconConverter" Light="logout_icon_dark" Dark="logout_icon" />
-            <converters:ThemeImageConverter x:Key="SplashIconConverter" Light="tazq_white_icon_dark" Dark="tazq_white_logo"/>
+            <!--<converters:ThemeImageConverter x:Key="SplashIconConverter" Light="tazq_white_icon_dark" Dark="tazq_white_logo"/>-->
 
         </ResourceDictionary>
     </Application.Resources>

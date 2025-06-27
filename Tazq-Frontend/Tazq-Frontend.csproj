@@ -39,8 +39,10 @@
 	<ItemGroup>
 		<MauiSplashScreen Include="Resources\Images\tazq_white_logo.svg" Color="#395177" BaseSize="300,92" />
 		<MauiSplashScreen Include="Resources\Images\tazq_white_icon_dark.svg" Color="#395177" BaseSize="300,92" />
-		<!--<MauiImage Include="Resources\Images\tazq_white_logo.svg" />-->
+		<MauiImage Include="Resources\Images\tazq_white_logo.svg" />
+		<MauiImage Include="Resources\Images\tazq_white_icon_dark.svg" />
 		<MauiImage Include="Resources\Images\settings_icon.svg" />
+		<MauiImage Include="Resources\Images\settings_icon_dark.svg" />
 		<MauiImage Include="Resources\Images\edit_icon.svg" />
 		<MauiImage Include="Resources\Images\delete_icon.svg" />
 		<MauiImage Include="Resources\Images\check_filled.svg" />

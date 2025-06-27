@@ -21,7 +21,7 @@
                              HorizontalOptions="Center"
                              Spacing="8">
             <Image x:Name="Logo"
-                   Source="{Binding Path=BindingContext.IsLightThemeEnabled, Source={x:Reference MainPageRoot}, Converter={StaticResource SplashLogoConverter}}"
+                   Source="{AppThemeBinding Light=tazq_white_icon_dark.svg, Dark=tazq_white_logo.svg}"
                    HeightRequest="50"
                    Opacity="0"
                    BackgroundColor="Transparent" />
