@@ -1,7 +1,11 @@
 import os
 import csv
-from PIL import Image, ImageColor
-
+import io
+import io
+try:
+    from cairosvg import svg2png
+except ImportError:
+    svg2png = None
 # Background colors to test
 BACKGROUNDS = {
     "dark": "#2C2C2E",
@@ -27,9 +31,23 @@ def contrast_ratio(c1, c2):
         l1, l2 = l2, l1
     return (l1 + 0.05) / (l2 + 0.05)
 
+def load_icon(path):
+    """Load an icon as an RGBA Pillow Image."""
+    if path.lower().endswith(".svg"):
+        png_bytes = svg2png(url=path)
+        return Image.open(io.BytesIO(png_bytes)).convert("RGBA")
+    return Image.open(path).convert("RGBA")
+
 def analyze_icon(path):
     icon_name = os.path.relpath(path, ICONS_DIR)
     im = Image.open(path).convert("RGBA")
+    if path.lower().endswith(".svg"):
+        if svg2png is None:
+            raise RuntimeError("cairosvg is required for SVG support")
+        png_bytes = svg2png(url=path)
+        im = Image.open(io.BytesIO(png_bytes)).convert("RGBA")
+    else:
+        im = Image.open(path).convert("RGBA")
     for size in SIZES:
         icon_resized = im.resize((size, size), Image.LANCZOS)
         for bg_name, bg_hex in BACKGROUNDS.items():
@@ -48,7 +66,7 @@ def analyze_icon(path):
 def main():
     for root, _, files in os.walk(ICONS_DIR):
         for f in files:
-            if f.lower().endswith(".png"):
+            if f.lower().endswith(('.png', '.svg')):
                 analyze_icon(os.path.join(root, f))
 
     fail = False
