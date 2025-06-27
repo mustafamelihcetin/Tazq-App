@@ -38,10 +38,7 @@
 
 	<ItemGroup>
 		<MauiSplashScreen Include="Resources\Images\tazq_white_icon.svg" Color="#395177" BaseSize="300,92" />
-		<MauiImage Include="Resources\Images\*.png" />
 		<MauiImage Include="Resources\Images\*.svg" />
-		<MauiIcon Include="Platforms\Windows\Assets\appicons.png" ForegroundFile="Platforms\Windows\Assets\appicons.png" IsAppIcon="true" />
-		<MauiImage Include="Resources\Images\*.png" />
 		<MauiIcon Include="Platforms\Windows\Assets\appicons.png" ForegroundFile="Platforms\Windows\Assets\appicons.png" IsAppIcon="true" />
 	</ItemGroup>
 	
