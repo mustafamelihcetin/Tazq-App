@@ -25,6 +25,7 @@
             <converters:ThemeImageConverter x:Key="FilterIconConverter" Light="filter_icon" Dark="filter_icon_dark" />
             <converters:ThemeImageConverter x:Key="EditIconConverter" Light="edit_icon" Dark="edit_icon_dark" />
             <converters:ThemeImageConverter x:Key="DeleteIconConverter" Light="delete_icon" Dark="delete_icon_dark" />
+            <converters:ThemeImageConverter x:Key="LogoutIconConverter" Light="logout_icon" Dark="logout_icon_dark" />
 
         </ResourceDictionary>
     </Application.Resources>
