@@ -21,7 +21,7 @@
                              HorizontalOptions="Center"
                              Spacing="8">
             <Image x:Name="Logo"
-                   Source="tazq_white_logo.png"
+                   Source="tazq_white_logo.svg"
                    HeightRequest="50"
                    Opacity="0"
                    BackgroundColor="Transparent" />

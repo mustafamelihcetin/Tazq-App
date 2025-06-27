@@ -30,7 +30,7 @@
                      x:Name="LogoStack"
                      TranslationX="300">
                 <Image x:Name="LoginLogo"
-                       Source="tazq_white_logo.png"
+                       Source="tazq_white_logo.svg"
                        HeightRequest="50"
                        BackgroundColor="Transparent" />
                             <Label Text="Yalın. Hızlı. Odaklı."
@@ -167,7 +167,7 @@
                 <Frame BackgroundColor="White" Padding="0" CornerRadius="8" HasShadow="True" Margin="0,5,0,5" BorderColor="Transparent"
                        WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=400}">
                     <HorizontalStackLayout HorizontalOptions="Center" Spacing="12" Padding="10">
-                        <Image Source="google_logo.png" WidthRequest="22" HeightRequest="22" />
+                        <Image Source="google_logo.svg" WidthRequest="22" HeightRequest="22" />
                         <Label Text="Google ile Giriş Yap" TextColor="Black" FontAttributes="Bold" VerticalOptions="Center" FontFamily="RobotoRegular"/>
                     </HorizontalStackLayout>
                     <Frame.GestureRecognizers>
@@ -180,7 +180,7 @@
                 <Frame Padding="0" CornerRadius="8" HasShadow="True" Margin="0,5,0,25" BackgroundColor="Black" BorderColor="Transparent"
                        WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=400}">
                     <HorizontalStackLayout HorizontalOptions="Center" Spacing="12" Padding="10">
-                        <Image Source="apple_logo.png" WidthRequest="22" HeightRequest="22" />
+                        <Image Source="apple_logo.svg" WidthRequest="22" HeightRequest="22" />
                         <Label Text="Apple ile Giriş Yap" TextColor="White" FontAttributes="Bold" VerticalOptions="Center" FontFamily="RobotoRegular"/>
                     </HorizontalStackLayout>
                     <Frame.GestureRecognizers>
