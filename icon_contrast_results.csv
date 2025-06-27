@@ -1,0 +1,5 @@
+icon,size,background,contrast_ratio,pass
+tazq_white_icon.png,24,dark,1.0,False
+tazq_white_icon.png,24,light,1.0,False
+tazq_white_icon.png,16,dark,1.0,False
+tazq_white_icon.png,16,light,1.0,False
