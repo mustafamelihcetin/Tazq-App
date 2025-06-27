@@ -21,11 +21,12 @@
             <converters:NullOrEmptyToBoolConverter x:Key="NullOrEmptyToBoolConverter" />
             <converters:IntGreaterThanZeroConverter x:Key="IntGreaterThanZeroConverter" />
             <converters:BoolAndConverter x:Key="BoolAndConverter" />
-            <converters:ThemeImageConverter x:Key="SettingsIconConverter" Light="settings_icon" Dark="settings_icon_dark" />
-            <converters:ThemeImageConverter x:Key="FilterIconConverter" Light="filter_icon" Dark="filter_icon_dark" />
-            <converters:ThemeImageConverter x:Key="EditIconConverter" Light="edit_icon" Dark="edit_icon_dark" />
-            <converters:ThemeImageConverter x:Key="DeleteIconConverter" Light="delete_icon" Dark="delete_icon_dark" />
-            <converters:ThemeImageConverter x:Key="LogoutIconConverter" Light="logout_icon" Dark="logout_icon_dark" />
+            <converters:ThemeImageConverter x:Key="SettingsIconConverter" Light="settings_icon_dark" Dark="settings_icon" />
+            <converters:ThemeImageConverter x:Key="FilterIconConverter" Light="filter_icon_dark" Dark="filter_icon" />
+            <converters:ThemeImageConverter x:Key="EditIconConverter" Light="edit_icon_dark" Dark="edit_icon" />
+            <converters:ThemeImageConverter x:Key="DeleteIconConverter" Light="delete_icon_dark" Dark="delete_icon" />
+            <converters:ThemeImageConverter x:Key="LogoutIconConverter" Light="logout_icon_dark" Dark="logout_icon" />
+            <converters:ThemeImageConverter x:Key="SplashIconConverter" Light="tazq_white_icon_dark" Dark="tazq_white_logo"/>
 
         </ResourceDictionary>
     </Application.Resources>
