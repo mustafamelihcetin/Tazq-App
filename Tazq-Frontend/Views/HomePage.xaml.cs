@@ -131,19 +131,28 @@ namespace Tazq_Frontend.Views
         {
             if (param is VisualElement element && element.BindingContext is TaskModel task)
             {
+                // Locate the description label either directly or by name within the tapped element
+                var descriptionLabel = element as Label ?? element.FindByName<Label>("DescriptionLabel");
+                if (descriptionLabel == null)
+                    return;
+
+                double startHeight = descriptionLabel.Height;
+
+                // Toggle expansion state
                 task.IsExpanded = !task.IsExpanded;
 
-                var descriptionLabel = element as Label ?? element.FindByName<Label>("DescriptionLabel");
-                if (descriptionLabel != null)
-                {
-                    double currentHeight = descriptionLabel.Height;
-                    double targetHeight = task.IsExpanded ? currentHeight * 3 : currentHeight / 3;
+                // Measure the label after the state change
+                descriptionLabel.InvalidateMeasure();
+                double targetHeight = descriptionLabel.Measure(descriptionLabel.Width, double.PositiveInfinity).Request.Height;
 
-                    var animation = new Animation(v => descriptionLabel.HeightRequest = v,
-                                                  currentHeight, targetHeight,
-                                                  easing: Easing.CubicInOut);
-                    animation.Commit(this, "descExpand", length: 500);
-                }
+                // If the text already fits, no animation is needed
+                if (Math.Abs(targetHeight - startHeight) < 0.5)
+                    return;
+
+                var animation = new Animation(v => descriptionLabel.HeightRequest = v,
+                                              startHeight, targetHeight,
+                                              easing: Easing.CubicInOut);
+                animation.Commit(this, "descExpand", length: 300);
             }
         }
 

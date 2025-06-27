@@ -44,7 +44,9 @@
 		<MauiImage Include="Resources\Images\settings_icon.svg" />
 		<MauiImage Include="Resources\Images\settings_icon_dark.svg" />
 		<MauiImage Include="Resources\Images\edit_icon.svg" />
+		<MauiImage Include="Resources\Images\edit_icon_dark.svg" />
 		<MauiImage Include="Resources\Images\delete_icon.svg" />
+		<MauiImage Include="Resources\Images\delete_icon_dark.svg" />
 		<MauiImage Include="Resources\Images\check_filled.svg" />
 		<MauiImage Include="Resources\Images\check_outline.svg" />
 		<MauiImage Include="Resources\Images\filter_icon.svg" />
