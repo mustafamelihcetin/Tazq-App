@@ -27,7 +27,7 @@
                    BackgroundColor="Transparent" />
             <Label Text="Yapılacakları yönet."
                    FontSize="16"
-                   TextColor="#B0B0B0"
+                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
                    FontFamily="RobotoRegular"
                    HorizontalTextAlignment="Center"
                    Opacity="0"

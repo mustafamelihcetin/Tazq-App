@@ -436,7 +436,7 @@
                            Grid.Column="0" />
 
                     <Switch IsToggled="{Binding IsShowOnlyIncomplete, Mode=TwoWay}"
-                            OnColor="#90CAF9"
+                            OnColor="{AppThemeBinding Light={StaticResource AccentBrushLight}, Dark={StaticResource AccentBrushDark}}"
                             ThumbColor="White"
                             Scale="0.8"
                             Grid.Column="1" />
@@ -457,7 +457,7 @@
                            Grid.Column="0" />
 
                     <Switch IsToggled="{Binding ShowPastTasks, Mode=TwoWay}"
-                            OnColor="#90CAF9"
+                            OnColor="{AppThemeBinding Light={StaticResource AccentBrushLight}, Dark={StaticResource AccentBrushDark}}"
                             ThumbColor="White"
                             Scale="0.8"
                             Grid.Column="1" />
@@ -529,7 +529,7 @@
                            Grid.Column="0" />
 
                     <Switch IsToggled="{Binding IsLightThemeEnabled, Mode=TwoWay}"
-                            OnColor="#90CAF9"
+                            OnColor="{AppThemeBinding Light={StaticResource AccentBrushLight}, Dark={StaticResource AccentBrushDark}}"
                             ThumbColor="White"
                             Scale="0.8"
                             Grid.Column="1" />

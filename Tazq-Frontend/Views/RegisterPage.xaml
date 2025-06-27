@@ -25,7 +25,7 @@
             <Label Text="Hesabını Oluştur"
                    FontSize="16"
                    LineHeight="1.2"
-                   TextColor="#B0B0B0"
+                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
                    HorizontalTextAlignment="Center"
                    Margin="0,5,0,40" FontFamily="RobotoRegular"/>
         </VerticalStackLayout>
@@ -68,7 +68,7 @@
                    Margin="0,5,0,15">
                 <Button Text="Kaydol"
                         Command="{Binding RegisterCommand}"
-                        TextColor="#2C2C2C"
+                        TextColor="{AppThemeBinding Light={StaticResource Gray800}, Dark={StaticResource Gray200}}"
                         FontAttributes="Bold"
                         Padding="12"
                         CornerRadius="10"
@@ -86,7 +86,7 @@
             <!-- Back to Login -->
             <Label Text="Zaten bir hesabın var mı?"
                    FontSize="14"
-                   TextColor="#B0B0B0"
+                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
                    HorizontalTextAlignment="Center"
                    Margin="0,5,0,5"
                    FontFamily="RobotoRegular"/>
@@ -95,7 +95,7 @@
                    Margin="0,5,0,15">
                 <Button Text="Giriş Yap"
                         Command="{Binding NavigateToLoginCommand}"
-                        TextColor="#2C2C2C"
+                        TextColor="{AppThemeBinding Light={StaticResource Gray800}, Dark={StaticResource Gray200}}"
                         FontAttributes="Bold"
                         Padding="12"
                         CornerRadius="10"

@@ -36,7 +36,7 @@
                             <Label Text="Yalın. Hızlı. Odaklı."
                        FontSize="16"
                        LineHeight="1.2"
-                       TextColor="#B0B0B0"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
                        HorizontalTextAlignment="Center"
                        Margin="0,3,0,40"
                        FontFamily="RobotoRegular"/>
@@ -48,28 +48,34 @@
                                  WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=400}">
 
                 <!-- Email -->
-                <Frame Padding="10" CornerRadius="12" BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" HasShadow="False">
+                <Frame Padding="10" CornerRadius="12"
+                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                       HasShadow="False">
                     <Entry Placeholder="E-posta"
                            Text="{Binding Email}"
                            Keyboard="Email"
                            BackgroundColor="Transparent"
                            FontSize="15"
                            FontFamily="RobotoRegular"
-                           TextColor="#D0D0D0"
-                           PlaceholderColor="#888888"
+                           TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                           PlaceholderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                            IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
                 </Frame>
 
                 <!-- Password -->
-                <Frame Padding="10" CornerRadius="12" BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" HasShadow="False">
+                <Frame Padding="10" CornerRadius="12"
+                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                       HasShadow="False">
                     <Entry Placeholder="Şifre"
                            Text="{Binding Password}"
                            IsPassword="True"
                            BackgroundColor="Transparent"
                            FontSize="15"
                            FontFamily="RobotoRegular"
-                           TextColor="#D0D0D0"
-                           PlaceholderColor="#888888"
+                           TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                           PlaceholderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                            Completed="OnPasswordCompleted"
                            IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
                 </Frame>
@@ -129,7 +135,7 @@
                 <!-- Register Prompt -->
                 <Label Text="Hesabınız yok mu?"
                        FontSize="14"
-                       TextColor="#B0B0B0"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
                        HorizontalTextAlignment="Center"
                        Margin="0,5,0,5"
                        FontFamily="RobotoRegular"/>
@@ -161,7 +167,7 @@
             <!-- Social Login -->
             <VerticalStackLayout Grid.Row="2" Spacing="10" Padding="10" HorizontalOptions="Center" VerticalOptions="End"
                                  WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=410}">
-                <Label Text="veya" FontSize="14" TextColor="#B0B0B0" HorizontalTextAlignment="Center" Margin="0,10,0,10" FontFamily="RobotoRegular"/>
+                <Label Text="veya" FontSize="14" TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}" HorizontalTextAlignment="Center" Margin="0,10,0,10" FontFamily="RobotoRegular"/>
 
                 <!-- Google Login -->
                 <Frame BackgroundColor="White" Padding="0" CornerRadius="8" HasShadow="True" Margin="0,5,0,5" BorderColor="Transparent"

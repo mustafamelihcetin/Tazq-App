@@ -47,7 +47,7 @@
                                FontSize="15"
                                FontFamily="RobotoRegular"
                                TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
-                               PlaceholderColor="#888888"
+                               PlaceholderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                                MaxLength="80" />
                         <Label Grid.Row="1"
                                Text="{Binding TitleWarning}"
@@ -76,8 +76,8 @@
                                 BackgroundColor="Transparent"
                                 FontSize="15"
                                 FontFamily="RobotoRegular"
-                                TextColor="#D0D0D0"
-                                PlaceholderColor="#888888"
+                                TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                                PlaceholderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                                 MaxLength="300" />
                         <Label Grid.Row="1"
                                Text="{Binding DescriptionWarning}"
@@ -168,8 +168,8 @@
                                    BackgroundColor="Transparent"
                                    FontSize="15"
                                    FontFamily="RobotoRegular"
-                                   TextColor="#D0D0D0"
-                                   PlaceholderColor="#888888"
+                                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                                   PlaceholderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                                    MaxLength="30"/>
                             <Label Grid.Row="1"
                                    Text="{Binding TagWarning}"
@@ -185,7 +185,7 @@
 
                 <!-- Tag Display -->
                 <Label Text="{Binding TagsDisplay}"
-                       TextColor="#AAAAAA"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
                        FontAttributes="Italic"
                        FontFamily="RobotoItalic"
                        HorizontalOptions="Center"/>

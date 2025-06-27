@@ -27,7 +27,10 @@
             <VerticalStackLayout Spacing="12">
 
                 <!-- Title -->
-                <Frame Padding="10" CornerRadius="12" BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" HasShadow="False">
+                <Frame Padding="10" CornerRadius="12"
+                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                       HasShadow="False">
                     <Grid RowSpacing="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -39,8 +42,8 @@
                                BackgroundColor="Transparent"
                                FontSize="15"
                                FontFamily="RobotoRegular"
-                               TextColor="#D0D0D0"
-                               PlaceholderColor="#888888"
+                               TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                               PlaceholderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                                MaxLength="80"/>
                         <Label Grid.Row="1"
                                Text="{Binding TitleWarning}"
@@ -53,7 +56,10 @@
                 </Frame>
 
                 <!-- Description -->
-                <Frame Padding="10" CornerRadius="12" BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" HasShadow="False">
+                <Frame Padding="10" CornerRadius="12"
+                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                       HasShadow="False">
                     <Grid RowSpacing="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
@@ -66,8 +72,8 @@
                                 BackgroundColor="Transparent"
                                 FontSize="15"
                                 FontFamily="RobotoRegular"
-                                TextColor="#D0D0D0"
-                                PlaceholderColor="#888888"
+                                TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                                PlaceholderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                                 MaxLength="300"/>
                         <Label Grid.Row="1"
                                Text="{Binding DescriptionWarning}"
@@ -79,7 +85,9 @@
                 </Frame>
 
                 <!-- Date & Time -->
-                <Frame BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" CornerRadius="10" Padding="5" HasShadow="True">
+                <Frame BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                       CornerRadius="10" Padding="5" HasShadow="True">
                     <VerticalStackLayout Spacing="6">
                         <DatePicker Date="{Binding DueDate}"
                                     Format="dd MMMM yyyy"
@@ -90,13 +98,13 @@
                                       Color="#3C4D90"
                                       VerticalOptions="Center"/>
                             <Label Text="Saat belirle"
-                                   TextColor="White"
+                                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
                                    FontFamily="RobotoRegular"
                                    VerticalOptions="Center"/>
                             <TimePicker Time="{Binding SelectedTime, Mode=TwoWay, TargetNullValue='00:00:00'}"
                                         Format="HH:mm"
                                         IsVisible="{Binding EnableTime}"
-                                        TextColor="White"
+                                        TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
                                         FontSize="16"
                                         WidthRequest="60"
                                         FontFamily="RobotoRegular"
@@ -114,8 +122,8 @@
 
                     <!-- Priority -->
                     <Frame Grid.Column="0"
-                           BackgroundColor="#1C1C1E"
-                           BorderColor="#2F2F2F"
+                           BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                           BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
                            CornerRadius="10"
                            Padding="5, 0, 0, 12"
                            HasShadow="True"
@@ -128,14 +136,17 @@
                                 HorizontalTextAlignment="Center"
                                 FontFamily="RobotoRegular"
                                 FontSize="15"
-                                TextColor="White"
+                                TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
                                 TitleColor="#888888"
                                 BackgroundColor="Transparent"
                                 HeightRequest="48"/>
                     </Frame>
 
                     <!-- Tag -->
-                    <Frame Grid.Column="1" HeightRequest="80" Padding="10" CornerRadius="12" BackgroundColor="#1C1C1E" BorderColor="#2F2F2F" HasShadow="False">
+                    <Frame Grid.Column="1" HeightRequest="80" Padding="10" CornerRadius="12"
+                           BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                           BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                           HasShadow="False">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="45"/>
@@ -148,8 +159,8 @@
                                    BackgroundColor="Transparent"
                                    FontSize="15"
                                    FontFamily="RobotoRegular"
-                                   TextColor="#D0D0D0"
-                                   PlaceholderColor="#888888"
+                                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                                   PlaceholderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                                    MaxLength="30"/>
                             <Label Grid.Row="1"
                                    Text="{Binding TagWarning}"
@@ -165,7 +176,7 @@
 
                 <!-- Tag Display -->
                 <Label Text="{Binding TagsDisplay}"
-                       TextColor="#AAAAAA"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
                        FontAttributes="Italic"
                        FontFamily="RobotoItalic"
                        HorizontalOptions="Center"/>

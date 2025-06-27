@@ -12,7 +12,6 @@ namespace Tazq_Frontend.Views
         public SplashPage()
         {
             InitializeComponent();
-            BackgroundColor = Color.FromArgb("#212121");
         }
         protected override async void OnAppearing()
         {
