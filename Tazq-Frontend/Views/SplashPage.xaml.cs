@@ -14,7 +14,6 @@ namespace Tazq_Frontend.Views
             InitializeComponent();
             BackgroundColor = Color.FromArgb("#212121");
         }
-
         protected override async void OnAppearing()
         {
             base.OnAppearing();
