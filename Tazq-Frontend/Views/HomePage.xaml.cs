@@ -141,8 +141,8 @@ namespace Tazq_Frontend.Views
                 // Toggle expansion state
                 task.IsExpanded = !task.IsExpanded;
 
-                // Measure the label after the state change
-                descriptionLabel.InvalidateMeasure();
+                // Refresh layout measurement after the state change
+                this.InvalidateMeasure();
                 double targetHeight = descriptionLabel.Measure(descriptionLabel.Width, double.PositiveInfinity).Request.Height;
 
                 // If the text already fits, no animation is needed
