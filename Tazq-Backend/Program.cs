@@ -17,6 +17,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Load environment variables from .env file
 Env.Load();
 
+// Load app signature for request validation
+var appSignature = Environment.GetEnvironmentVariable("APP_SIGNATURE") ?? "tazq-maui-frontend";
+
 // Load JWT settings
 var jwtKeyEnv = Environment.GetEnvironmentVariable("JWT_KEY");
 if (string.IsNullOrEmpty(jwtKeyEnv) || jwtKeyEnv.Length < 32)
