@@ -166,7 +166,7 @@ app.UseExceptionHandler(errorApp =>
 app.Use(async (context, next) =>
 {
     if (!context.Request.Headers.TryGetValue("X-App-Signature", out var signature) ||
-        signature != "tazq-maui-frontend")
+         signature != appSignature)
     {
         context.Response.StatusCode = 403;
         await context.Response.WriteAsync("Frontend dışında erişim engellendi.");
