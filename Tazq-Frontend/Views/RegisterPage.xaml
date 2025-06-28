@@ -21,10 +21,8 @@
 
         <!-- Logo and Title -->
         <VerticalStackLayout Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Center">
-            <Image Source="tazq_white_logo
-                   
-                   
-                   " WidthRequest="130" HeightRequest="45" />
+            <Image Source="{Binding IsLightThemeEnabled, Converter={StaticResource HomePageLogoConverter}}"
+                   WidthRequest="130" HeightRequest="45" />
             <Label Text="Hesabını Oluştur"
                    FontSize="16"
                    LineHeight="1.2"
@@ -38,7 +36,7 @@
                              WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=400}">
 
             <!-- Name Input -->
-            <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="True">
+            <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="False">
                 <Entry Placeholder="Adınız"
                        TextColor="Black"
                        PlaceholderColor="#A5A5A5"
@@ -47,7 +45,7 @@
             </Frame>
 
             <!-- Email Input -->
-            <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="True">
+            <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="False">
                 <Entry Placeholder="E-posta"
                        Keyboard="Email"
                        TextColor="Black"
@@ -84,6 +82,7 @@
                         </LinearGradientBrush>
                     </Button.Background>
                 </Button>
+                
             </Frame>
 
             <!-- Back to Login -->

@@ -13,9 +13,23 @@ namespace Tazq_Frontend;
 public static class MauiProgram
 {
     public static IServiceProvider? Services { get; private set; }
+
     public static MauiApp CreateMauiApp()
     {
         var builder = MauiApp.CreateBuilder();
+
+#if IOS
+        Microsoft.Maui.Handlers.EntryHandler.Mapper.AppendToMapping("NoBorder", (handler, view) =>
+        {
+            if (handler.PlatformView is UITextField textField)
+            {
+                textField.BorderStyle = UITextBorderStyle.None;
+                textField.Layer.BorderWidth = 0;
+                textField.Layer.CornerRadius = 0;
+                textField.Layer.BackgroundColor = UIColor.Clear.CGColor;
+            }
+        });
+#endif
 
         builder
             .UseMauiApp<App>()

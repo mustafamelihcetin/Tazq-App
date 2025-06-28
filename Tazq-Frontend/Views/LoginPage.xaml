@@ -56,6 +56,7 @@
                            Text="{Binding Email}"
                            Keyboard="Email"
                            BackgroundColor="Transparent"
+                           Visual="Default"
                            FontSize="15"
                            FontFamily="RobotoRegular"
                            TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
