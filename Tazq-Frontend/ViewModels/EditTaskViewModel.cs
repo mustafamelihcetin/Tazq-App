@@ -7,15 +7,19 @@ using Tazq_Frontend.Services;
 
 namespace Tazq_Frontend.ViewModels
 {
-    public partial class EditTaskViewModel : ObservableObject, IDisposable
+    public partial class EditTaskViewModel : ObservableObject
     {
         private readonly ApiService _apiService;
 
-        public EditTaskViewModel()
+        public EditTaskViewModel(ApiService apiService)
         {
-            _apiService = new ApiService();
+            _apiService = apiService;
             Tags = new ObservableCollection<string>();
             Priorities = new ObservableCollection<string> { "Düşük", "Orta", "Yüksek" };
+        }
+
+        public EditTaskViewModel() : this(MauiProgram.Services!.GetRequiredService<ApiService>())
+        {
         }
 
         private TaskModel? editingTask;
@@ -199,10 +203,6 @@ namespace Tazq_Frontend.ViewModels
             }
         }
 
-        public void Dispose()
-        {
-            _apiService.Dispose();
-        }
     }
 
     public class TaskUpdatedMessage { }

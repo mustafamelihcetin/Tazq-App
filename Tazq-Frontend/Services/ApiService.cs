@@ -9,21 +9,17 @@ using Tazq_Frontend.Models;
 
 namespace Tazq_Frontend.Services
 {
-    public class ApiService : IDisposable
+    public class ApiService
     {
         private readonly HttpClient _httpClient;
 
-        public ApiService()
-		{
-			_httpClient = new HttpClient
-			{
-				BaseAddress = new Uri(ApiConstants.BaseUrl)
-			};
-            _httpClient.DefaultRequestHeaders.Add("X-App-Signature", "tazq-maui-frontend");
-		}
+        public ApiService(HttpClient httpClient)
+        {
+            _httpClient = httpClient;
+        }
 
-		// Store JWT Token
-		public async Task SaveToken(string? token)
+        // Store JWT Token
+        public async Task SaveToken(string? token)
 		{
 			if (!string.IsNullOrEmpty(token))
 			{
@@ -411,11 +407,5 @@ namespace Tazq_Frontend.Services
                 return null;
             }
         }
-        public void Dispose()
-        {
-            _httpClient.Dispose();
-        }
-
-
     }
 }

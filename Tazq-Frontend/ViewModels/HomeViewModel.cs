@@ -12,13 +12,13 @@ using Microsoft.Maui.Storage;
 
 namespace Tazq_Frontend.ViewModels
 {
-    public partial class HomeViewModel : ObservableObject, IDisposable
+    public partial class HomeViewModel : ObservableObject
     {
         private readonly ApiService _apiService;
 
-        public HomeViewModel()
+        public HomeViewModel(ApiService apiService)
         {
-            _apiService = new ApiService();
+            _apiService = apiService;
             Tasks = new ObservableCollection<TaskModel>();
             FilteredTasks = new ObservableCollection<TaskModel>();
             LoadTasksCommand = new AsyncRelayCommand(LoadTasks);
@@ -45,6 +45,10 @@ namespace Tazq_Frontend.ViewModels
             {
                 Console.WriteLine($"[DEBUG] Property changed: {e.PropertyName}");
             };
+        }
+
+        public HomeViewModel() : this(MauiProgram.Services!.GetRequiredService<ApiService>())
+        {
         }
 
         [ObservableProperty]
@@ -381,10 +385,6 @@ namespace Tazq_Frontend.ViewModels
         {
             Preferences.Default.Set("IsLightThemeEnabled", value);
             App.Current.UserAppTheme = value ? AppTheme.Light : AppTheme.Dark;
-        }
-        public void Dispose()
-        {
-            _apiService.Dispose();
         }
 
     }

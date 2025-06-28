@@ -8,17 +8,21 @@ using Tazq_Frontend.Services;
 
 namespace Tazq_Frontend.ViewModels
 {
-    public partial class AddTaskViewModel : ObservableObject, IDisposable
+    public partial class AddTaskViewModel : ObservableObject
     {
         private readonly ApiService _apiService;
 
-        public AddTaskViewModel()
+        public AddTaskViewModel(ApiService apiService)
         {
-            _apiService = new ApiService();
+            _apiService = apiService;
             Tags = new ObservableCollection<string>();
             Priorities = new ObservableCollection<string> { "Düşük", "Orta", "Yüksek" };
             EnableTime = false;
             SelectedTime = null;
+        }
+
+        public AddTaskViewModel() : this(MauiProgram.Services!.GetRequiredService<ApiService>())
+        {
         }
 
         public string Title
@@ -180,10 +184,6 @@ namespace Tazq_Frontend.ViewModels
             {
                 await Shell.Current.DisplayAlert("Hata", "Görev kaydedilemedi.", "Tamam");
             }
-        }
-        public void Dispose()
-        {
-            _apiService.Dispose();
         }
 
     }

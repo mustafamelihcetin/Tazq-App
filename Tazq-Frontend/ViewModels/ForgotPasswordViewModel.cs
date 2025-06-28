@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Controls;
 using Tazq_Frontend.Services;
 using Tazq_Frontend.Helpers;
+using Tazq_Frontend;
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -46,7 +47,7 @@ namespace Tazq_Frontend.ViewModels
                 return;
             }
 
-            using var apiService = new ApiService();
+            var apiService = MauiProgram.Services!.GetRequiredService<ApiService>();
             var payload = new { Email = this.Email };
 
             try

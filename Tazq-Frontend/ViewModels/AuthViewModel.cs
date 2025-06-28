@@ -9,13 +9,17 @@ using Tazq_Frontend.Helpers;
 
 namespace Tazq_Frontend.ViewModels
 {
-    public partial class AuthViewModel : ObservableObject, IDisposable
+    public partial class AuthViewModel : ObservableObject
     {
         private readonly ApiService _apiService;
 
-        public AuthViewModel()
+        public AuthViewModel(ApiService apiService)
         {
-            _apiService = new ApiService();
+            _apiService = apiService;
+        }
+
+        public AuthViewModel() : this(MauiProgram.Services!.GetRequiredService<ApiService>())
+        {
         }
 
         private string _email = string.Empty;
@@ -197,10 +201,6 @@ namespace Tazq_Frontend.ViewModels
             }
         });
 
-        public void Dispose()
-        {
-            _apiService.Dispose();
-        }
 
     }
 }

@@ -39,20 +39,48 @@
 	<ItemGroup>
 		<MauiSplashScreen Include="Resources\Images\tazq_white_logo.png" Color="#395177" BaseSize="300,92" />
 		<MauiSplashScreen Include="Resources\Images\tazq_white_logo_dark.png" Color="#395177" BaseSize="300,92" />
-		<MauiImage Include="Resources\Images\tazq_white_logo.png" />
-		<MauiImage Include="Resources\Images\tazq_white_logo_dark.png" />
-		<MauiImage Include="Resources\Images\settings_icon.png" />
-		<MauiImage Include="Resources\Images\settings_icon_dark.png" />
-		<MauiImage Include="Resources\Images\edit_icon.png" />
-		<MauiImage Include="Resources\Images\edit_icon_dark.png" />
-		<MauiImage Include="Resources\Images\delete_icon.png" />
-		<MauiImage Include="Resources\Images\delete_icon_dark.png" />
-		<MauiImage Include="Resources\Images\check_filled.png" />
-		<MauiImage Include="Resources\Images\check_outline.png" />
-		<MauiImage Include="Resources\Images\filter_icon.png" />
-		<MauiImage Include="Resources\Images\filter_icon_dark.png" />
-		<MauiImage Include="Resources\Images\apple_logo.png" />
-		<MauiImage Include="Resources\Images\google_logo.png" />
+		<MauiImage Include="Resources\Images\tazq_white_logo.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\tazq_white_logo_dark.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\settings_icon.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\settings_icon_dark.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\edit_icon.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\edit_icon_dark.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\delete_icon.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\delete_icon_dark.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\check_filled.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\check_outline.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\filter_icon.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\filter_icon_dark.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\apple_logo.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
+		<MauiImage Include="Resources\Images\google_logo.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</MauiImage>
 
 		<MauiIcon Include="Platforms\Windows\Assets\appicons.png" ForegroundFile="Platforms\Windows\Assets\appicons.png" IsAppIcon="true" />
 	</ItemGroup>

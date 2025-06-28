@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Controls;
 using Tazq_Frontend.Services;
 using Tazq_Frontend.Helpers;
+using Tazq_Frontend;
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -76,7 +77,7 @@ namespace Tazq_Frontend.ViewModels
                     newPassword = NewPassword
                 };
 
-                using var apiService = new ApiService();
+                var apiService = MauiProgram.Services!.GetRequiredService<ApiService>();
                 var response = await apiService.PostAsync("users/reset-password", resetRequest);
 
                 if (response.IsSuccessStatusCode)
