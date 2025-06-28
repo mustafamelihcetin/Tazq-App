@@ -2,6 +2,7 @@
 using CommunityToolkit.Maui;
 using Tazq_Frontend.Services;
 using Tazq_Frontend.ViewModels;
+using SkiaSharp;
 
 #if IOS
 using UIKit;

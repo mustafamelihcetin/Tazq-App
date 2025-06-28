@@ -51,7 +51,11 @@
 		<MauiImage Include="Resources\Images\check_outline.svg" />
 		<MauiImage Include="Resources\Images\filter_icon.svg" />
 		<MauiImage Include="Resources\Images\filter_icon_dark.svg" />
-		
+		<MauiImage Include="Resources\Images\apple_logo.svg" />
+		<MauiImage Include="Resources\Images\google_logo.svg" />
+		<MauiImage Include="Resources\Images\tazq_store_logo.svg" />
+		<MauiImage Include="Resources\Images\tazq_white.svg" />
+
 		<MauiIcon Include="Platforms\Windows\Assets\appicons.png" ForegroundFile="Platforms\Windows\Assets\appicons.png" IsAppIcon="true" />
 	</ItemGroup>
 	
@@ -83,6 +87,7 @@
 		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="8.0.14" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
+		<PackageReference Include="SkiaSharp" Version="3.119.0" />
 	</ItemGroup>
 
 	<ItemGroup>
