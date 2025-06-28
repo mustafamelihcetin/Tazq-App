@@ -118,6 +118,7 @@ builder.Services.Configure<SmtpSettings>(opt =>
 });
 
 builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
+builder.Services.AddHostedService<ScheduledEmailService>();
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://*:{port}");
