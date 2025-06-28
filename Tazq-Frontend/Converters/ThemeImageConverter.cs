@@ -14,11 +14,11 @@ namespace Tazq_Frontend.Converters
             if (value is bool isLight)
             {
                 string fileName = isLight ? Light : Dark;
-                return ImageSource.FromFile(fileName + ".svg");
+                return ImageSource.FromFile(fileName + ".png");
             }
 
             // fallback
-            return ImageSource.FromFile(Light + ".svg");
+            return ImageSource.FromFile(Light + ".png");
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

@@ -21,7 +21,10 @@
 
         <!-- Logo and Title -->
         <VerticalStackLayout Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Center">
-            <Image Source="tazq_white_logo.svg" WidthRequest="130" HeightRequest="45" />
+            <Image Source="tazq_white_logo
+                   
+                   
+                   " WidthRequest="130" HeightRequest="45" />
             <Label Text="Hesabını Oluştur"
                    FontSize="16"
                    LineHeight="1.2"

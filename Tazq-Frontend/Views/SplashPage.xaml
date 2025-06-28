@@ -21,7 +21,7 @@
                              HorizontalOptions="Center"
                              Spacing="8">
             <Image x:Name="Logo"
-                   Source="{AppThemeBinding Light=tazq_white_icon_dark.svg, Dark=tazq_white_logo.svg}"
+                   Source="{AppThemeBinding Light=tazq_white_logo_dark.png, Dark=tazq_white_logo.png}"
                    HeightRequest="50"
                    Opacity="0"
                    BackgroundColor="Transparent" />

@@ -37,24 +37,22 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<MauiSplashScreen Include="Resources\Images\tazq_white_logo.svg" Color="#395177" BaseSize="300,92" />
-		<MauiSplashScreen Include="Resources\Images\tazq_white_icon_dark.svg" Color="#395177" BaseSize="300,92" />
-		<MauiImage Include="Resources\Images\tazq_white_logo.svg" />
-		<MauiImage Include="Resources\Images\tazq_white_icon_dark.svg" />
-		<MauiImage Include="Resources\Images\settings_icon.svg" />
-		<MauiImage Include="Resources\Images\settings_icon_dark.svg" />
-		<MauiImage Include="Resources\Images\edit_icon.svg" />
-		<MauiImage Include="Resources\Images\edit_icon_dark.svg" />
-		<MauiImage Include="Resources\Images\delete_icon.svg" />
-		<MauiImage Include="Resources\Images\delete_icon_dark.svg" />
-		<MauiImage Include="Resources\Images\check_filled.svg" />
-		<MauiImage Include="Resources\Images\check_outline.svg" />
-		<MauiImage Include="Resources\Images\filter_icon.svg" />
-		<MauiImage Include="Resources\Images\filter_icon_dark.svg" />
-		<MauiImage Include="Resources\Images\apple_logo.svg" />
-		<MauiImage Include="Resources\Images\google_logo.svg" />
-		<MauiImage Include="Resources\Images\tazq_store_logo.svg" />
-		<MauiImage Include="Resources\Images\tazq_white.svg" />
+		<MauiSplashScreen Include="Resources\Images\tazq_white_logo.png" Color="#395177" BaseSize="300,92" />
+		<MauiSplashScreen Include="Resources\Images\tazq_white_logo_dark.png" Color="#395177" BaseSize="300,92" />
+		<MauiImage Include="Resources\Images\tazq_white_logo.png" />
+		<MauiImage Include="Resources\Images\tazq_white_logo_dark.png" />
+		<MauiImage Include="Resources\Images\settings_icon.png" />
+		<MauiImage Include="Resources\Images\settings_icon_dark.png" />
+		<MauiImage Include="Resources\Images\edit_icon.png" />
+		<MauiImage Include="Resources\Images\edit_icon_dark.png" />
+		<MauiImage Include="Resources\Images\delete_icon.png" />
+		<MauiImage Include="Resources\Images\delete_icon_dark.png" />
+		<MauiImage Include="Resources\Images\check_filled.png" />
+		<MauiImage Include="Resources\Images\check_outline.png" />
+		<MauiImage Include="Resources\Images\filter_icon.png" />
+		<MauiImage Include="Resources\Images\filter_icon_dark.png" />
+		<MauiImage Include="Resources\Images\apple_logo.png" />
+		<MauiImage Include="Resources\Images\google_logo.png" />
 
 		<MauiIcon Include="Platforms\Windows\Assets\appicons.png" ForegroundFile="Platforms\Windows\Assets\appicons.png" IsAppIcon="true" />
 	</ItemGroup>
@@ -78,7 +76,7 @@
 	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-16.png" />
 	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-256.png" />
 	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-48.png" />
-	  <None Remove="Resources\Images\bg_dark_gradient.svg" />
+	  <None Remove="Resources\Images\bg_dark_gradient.png" />
 	</ItemGroup>
 
 	<ItemGroup>
