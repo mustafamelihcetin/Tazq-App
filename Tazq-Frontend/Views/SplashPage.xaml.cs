@@ -60,7 +60,7 @@ namespace Tazq_Frontend.Views
             await LoadingIndicator.FadeTo(0, 400);
             LoadingIndicator.IsVisible = false;
 
-            await Shell.Current.GoToAsync(isValid ? $"//{RouteNames.HomePage}" : $"//{RouteNames.LoginPage}");
+            await Shell.Current.GoToAsync(isValid ? $"///{RouteNames.HomePage}" : $"///{RouteNames.LoginPage}");
         }
     }
 }

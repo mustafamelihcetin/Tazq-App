@@ -84,7 +84,7 @@ namespace Tazq_Frontend.ViewModels
                 {
                     StatusMessage = "Şifre başarıyla sıfırlandı.";
                     await Task.Delay(1500);
-                    await Shell.Current.GoToAsync($"//{RouteNames.LoginPage}");
+                    await Shell.Current.GoToAsync($"///{RouteNames.LoginPage}");
                 }
                 else
                 {

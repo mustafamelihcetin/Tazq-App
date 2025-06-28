@@ -80,8 +80,7 @@
             <Grid x:Name="HeaderGrid" Grid.Row="0" ColumnSpacing="12" Padding="0,5,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="40" />
-                    <ColumnDefinition Width="40" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <Label Text="Ajandam"
@@ -90,30 +89,53 @@
                        TextColor="{AppThemeBinding Light=Black, Dark=White}"
                        VerticalOptions="Center" />
 
-                <Frame Grid.Column="2"
-                       Padding="0"
-                       CornerRadius="24"
-                       HasShadow="False"
-                       HeightRequest="40"
-                       WidthRequest="40"
-                       VerticalOptions="Center"
-                       HorizontalOptions="End"
-                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
-                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
-                       IsClippedToBounds="True"
-                       Margin="0,0,4,0">
+                <HorizontalStackLayout Grid.Column="1"
+                                      Spacing="6"
+                                      Margin="0,0,4,0"
+                                      HorizontalOptions="End"
+                                      VerticalOptions="Center">
+                    <Frame x:Name="FilterButtonFrame"
+                           Padding="0"
+                           CornerRadius="24"
+                           HasShadow="False"
+                           HeightRequest="40"
+                           WidthRequest="40"
+                           VerticalOptions="Center"
+                           BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                           BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                           IsClippedToBounds="True"
+                           Opacity="0">
 
-                    <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource SettingsIconConverter}}"
-                 Command="{Binding ToggleSettingsPanelCommand}"
-                 BackgroundColor="Transparent"
-                 HeightRequest="24"
-                 WidthRequest="24"
-                 Padding="2"
-                 HorizontalOptions="Center"
-                 VerticalOptions="Center"/>
-                </Frame>
+                        <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource FilterIconConverter}}"
+                                     Command="{Binding ToggleFilterPanelCommand}"
+                                     BackgroundColor="Transparent"
+                                     HeightRequest="24"
+                                     WidthRequest="24"
+                                     Padding="4"
+                                     HorizontalOptions="Center"
+                                     VerticalOptions="Center"/>
+                    </Frame>
 
+                    <Frame Padding="0"
+                           CornerRadius="24"
+                           HasShadow="False"
+                           HeightRequest="40"
+                           WidthRequest="40"
+                           VerticalOptions="Center"
+                           BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
+                           BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                           IsClippedToBounds="True">
 
+                        <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource SettingsIconConverter}}"
+                                     Command="{Binding ToggleSettingsPanelCommand}"
+                                     BackgroundColor="Transparent"
+                                     HeightRequest="24"
+                                     WidthRequest="24"
+                                     Padding="2"
+                                     HorizontalOptions="Center"
+                                     VerticalOptions="Center"/>
+                    </Frame>
+                </HorizontalStackLayout>
             </Grid>
 
             <!-- AddTask + Filter -->
@@ -126,7 +148,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Centered "Yeni Görev Ekle" button across two middle columns -->
-                <Grid Grid.Column="1" Grid.ColumnSpan="2"
+                <Grid Grid.Column="1"
                       HorizontalOptions="Center"
                       VerticalOptions="Center">
                     <Frame x:Name="AddTaskFrame"
@@ -181,31 +203,7 @@
                     </Frame>
                 </Grid>
 
-                <!-- Filter button remains on the far right -->
-                <Frame x:Name="FilterButtonFrame"
-                       Grid.Column="3"
-                       Padding="0"
-                       CornerRadius="24"
-                       HasShadow="False"
-                       HeightRequest="40"
-                       WidthRequest="40"
-                       VerticalOptions="Center"
-                       HorizontalOptions="End"
-                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
-                       BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
-                       IsClippedToBounds="True"
-                       Margin="0,0,4,0"
-                       Opacity="0">
-
-                    <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource FilterIconConverter}}"
-                             Command="{Binding ToggleFilterPanelCommand}"
-                             BackgroundColor="Transparent"
-                             HeightRequest="24"
-                             WidthRequest="24"
-                             Padding="4"
-                             HorizontalOptions="Center"
-                             VerticalOptions="Center"/>
-                </Frame>
+                
             </Grid>
 
             <!-- Tasks -->
@@ -220,8 +218,10 @@
 
                 <CollectionView x:Name="MainCollectionView"
                                 ItemsSource="{Binding FilteredTasks}"
-                                ItemsLayout="VerticalList"
                                 EmptyView="Henüz görev eklenmedi.">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
+                    </CollectionView.ItemsLayout>
 
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
@@ -253,12 +253,13 @@
                                     </SwipeItems>
 
                                 </SwipeView.RightItems>
+                                
+
 
 
                                 <Frame x:Name="TaskItemFrame" CornerRadius="12"
                                        BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}"
                                        Padding="16"
-                                       Margin="0,0,0,12"
                                        HasShadow="True">
                                     <Frame.Behaviors>
                                         <toolkit:EventToCommandBehavior EventName="BindingContextChanged"

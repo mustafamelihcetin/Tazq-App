@@ -5,6 +5,8 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Windows.Graphics;
 using WinRT.Interop;
+using Windows.Foundation;
+using Windows.UI.ViewManagement;
 #endif
 
 namespace Tazq_Frontend;
@@ -29,13 +31,16 @@ public partial class App : Application
 #if WINDOWS
         window.HandlerChanged += (s, e) =>
         {
-            var nativeWindow = (MauiWinUIWindow)window.Handler.PlatformView;
-            IntPtr hWnd = WindowNative.GetWindowHandle(nativeWindow);
-            WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
-            AppWindow appWindow = AppWindow.GetFromWindowId(wndId);
+             if (window.Handler?.PlatformView is MauiWinUIWindow nativeWindow)
+            {
+                nativeWindow.Title = "TAZQ";
 
-            nativeWindow.Title = "TAZQ";
-            appWindow.Resize(new SizeInt32(1280, 800));
+                IntPtr hWnd = WindowNative.GetWindowHandle(nativeWindow);
+                WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
+                AppWindow appWindow = AppWindow.GetFromWindowId(wndId);
+
+                appWindow.Resize(new SizeInt32(1280, 800));
+            }
         };
 #endif
 

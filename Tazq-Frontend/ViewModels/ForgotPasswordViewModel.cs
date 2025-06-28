@@ -58,7 +58,7 @@ namespace Tazq_Frontend.ViewModels
                 {
                     StatusMessage = "E-posta gönderildi. Gelen kutunuzu kontrol edin.";
                     await Task.Delay(1500);
-                    await Shell.Current.GoToAsync(RouteNames.ResetPasswordPage);
+                    await Shell.Current.GoToAsync($"///{RouteNames.ResetPasswordPage}");
                 }
                 else
                 {

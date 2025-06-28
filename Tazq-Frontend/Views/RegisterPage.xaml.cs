@@ -40,7 +40,7 @@ namespace Tazq_Frontend.Views
                 {
                     Console.WriteLine("Register successful.");
                     await DisplayAlert("Baþarýlý", "Kayýt iþlemi tamamlandý.", "Tamam");
-                    await Shell.Current.GoToAsync($"//{RouteNames.LoginPage}");
+                    await Shell.Current.GoToAsync($"///{RouteNames.LoginPage}");
                 }
                 else
                 {

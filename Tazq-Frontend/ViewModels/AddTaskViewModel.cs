@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using CommunityToolkit.Mvvm.Messaging.Messages;
 using Tazq_Frontend.Models;
 using Tazq_Frontend.Services;
+using Tazq_Frontend.Helpers;
 
 namespace Tazq_Frontend.ViewModels
 {
@@ -178,7 +179,7 @@ namespace Tazq_Frontend.ViewModels
             if (result)
             {
                 WeakReferenceMessenger.Default.Send(new TaskAddedMessage());
-                await Shell.Current.GoToAsync("..");
+                await Shell.Current.GoToAsync($"///{RouteNames.HomePage}");
             }
             else
             {

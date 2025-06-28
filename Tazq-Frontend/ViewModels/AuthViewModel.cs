@@ -54,7 +54,7 @@ namespace Tazq_Frontend.ViewModels
         {
             if (Shell.Current != null)
             {
-                await Shell.Current.GoToAsync(RouteNames.RegisterPage);
+                await Shell.Current.GoToAsync($"///{RouteNames.RegisterPage}");
             }
             else if (Application.Current?.MainPage != null)
             {
@@ -66,7 +66,7 @@ namespace Tazq_Frontend.ViewModels
         {
             if (Shell.Current != null)
             {
-                await Shell.Current.GoToAsync(RouteNames.LoginPage);
+                await Shell.Current.GoToAsync($"///{RouteNames.LoginPage}");
             }
             else if (Application.Current?.MainPage != null)
             {
@@ -78,7 +78,7 @@ namespace Tazq_Frontend.ViewModels
         {
             if (Shell.Current != null)
             {
-                await Shell.Current.GoToAsync(nameof(ForgotPasswordPage));
+                await Shell.Current.GoToAsync($"///{nameof(ForgotPasswordPage)}");
             }
             else if (Application.Current?.MainPage != null)
             {
@@ -116,7 +116,7 @@ namespace Tazq_Frontend.ViewModels
                     IsLoading = false;
 
                     if (Shell.Current != null)
-                        await Shell.Current.GoToAsync($"//{RouteNames.HomePage}");
+                        await Shell.Current.GoToAsync($"///{RouteNames.HomePage}");
                 }
                 else
                 {
@@ -171,7 +171,7 @@ namespace Tazq_Frontend.ViewModels
                         await currentPage.DisplayAlert("Başarılı", "Kayıt işlemi tamamlandı!", "Tamam");
 
                     if (Shell.Current != null)
-                        await Shell.Current.GoToAsync(RouteNames.LoginPage);
+                        await Shell.Current.GoToAsync($"///{RouteNames.LoginPage}");
                 }
                 else
                 {
@@ -193,7 +193,7 @@ namespace Tazq_Frontend.ViewModels
         {
             if (Shell.Current != null)
             {
-                await Shell.Current.GoToAsync(RouteNames.ResetPasswordPage);
+                await Shell.Current.GoToAsync($"///{RouteNames.ResetPasswordPage}");
             }
             else if (Application.Current?.MainPage != null)
             {
