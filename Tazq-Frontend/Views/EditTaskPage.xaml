@@ -182,32 +182,12 @@
                        HorizontalOptions="Center"/>
 
                 <!-- Save Button -->
-                <Frame Padding="0"
-                       CornerRadius="12"
-                       HasShadow="False"
-                       BackgroundColor="Transparent"
-                       HorizontalOptions="Center">
-                    <Grid>
-                        <Grid.Background>
-                            <LinearGradientBrush EndPoint="0,1">
-                                <GradientStop Color="#3C4D90" Offset="0.0" />
-                                <GradientStop Color="#2B365E" Offset="1.0" />
-                            </LinearGradientBrush>
-                        </Grid.Background>
-                        <Button Text="Görevi Güncelle"
-                                Command="{Binding UpdateTaskCommand}"
-                                FontAttributes="Bold"
-                                FontSize="15"
-                                TextColor="White"
-                                CornerRadius="12"
-                                HeightRequest="48"
-                                WidthRequest="200"
-                                FontFamily="RobotoRegular"
-                                Padding="10"
-                                BackgroundColor="Transparent"
-                                HorizontalOptions="Center"/>
-                    </Grid>
-                </Frame>
+                <Button Text="Görevi Güncelle"
+                        Command="{Binding UpdateTaskCommand}"
+                        Style="{StaticResource PrimaryGradientButtonStyle}"
+                        HeightRequest="48"
+                        WidthRequest="200"
+                        HorizontalOptions="Center" />
 
             </VerticalStackLayout>
         </ScrollView>

@@ -96,42 +96,21 @@
                 </Label>
 
                 <!-- Login Button -->
-                <Frame BackgroundColor="Transparent" Padding="0" CornerRadius="12" HasShadow="False" Margin="0,5,0,15">
-                    <Grid>
-                        <Button
+                <Grid Margin="0,5,0,15">
+                    <Button Text="Giriş Yap"
                             Command="{Binding LoginCommand}"
-                            BackgroundColor="Transparent"
-                            Text=""
+                            Style="{StaticResource PrimaryGradientButtonStyle}"
                             HeightRequest="48"
-                            CornerRadius="10"
-                            IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
-                            FontFamily="RobotoRegular"/>
-                        <Grid Padding="12" InputTransparent="True">
-                            <Grid.Background>
-                                <LinearGradientBrush EndPoint="0,1">
-                                    <GradientStop Color="#3C4D90" Offset="0.0" />
-                                    <GradientStop Color="#2B365E" Offset="1.0" />
-                                </LinearGradientBrush>
-                            </Grid.Background>
-                            <ActivityIndicator 
-                                IsRunning="{Binding IsLoading}" 
-                                IsVisible="{Binding IsLoading}" 
-                                Color="White"
-                                WidthRequest="24"
-                                HeightRequest="24"
-                                HorizontalOptions="Center"
-                                VerticalOptions="Center" />
-                            <Label 
-                                Text="Giriş Yap" 
-                                IsVisible="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
-                                HorizontalOptions="Center"
-                                VerticalOptions="Center"
-                                TextColor="White"
-                                FontAttributes="Bold"
-                                FontFamily="RobotoRegular"/>
-                        </Grid>
-                    </Grid>
-                </Frame>
+                            IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
+                    <ActivityIndicator IsRunning="{Binding IsLoading}"
+                                       IsVisible="{Binding IsLoading}"
+                                       Color="White"
+                                       WidthRequest="24"
+                                       HeightRequest="24"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center"
+                                       InputTransparent="True" />
+                </Grid>
 
                 <!-- Register Prompt -->
                 <Label Text="Hesabınız yok mu?"
@@ -142,27 +121,12 @@
                        FontFamily="RobotoRegular"/>
 
                 <!-- Register Button -->
-                <Frame BackgroundColor="Transparent" Padding="0" CornerRadius="12" HasShadow="False" Margin="0,5,0,15">
-                    <Grid>
-                        <Grid.Background>
-                            <LinearGradientBrush EndPoint="0,1">
-                                <GradientStop Color="#3C4D90" Offset="0.0" />
-                                <GradientStop Color="#2B365E" Offset="1.0" />
-                            </LinearGradientBrush>
-                        </Grid.Background>
-                        <Button Text="Kayıt Ol"
-                                Command="{Binding NavigateToRegisterCommand}"
-                                TextColor="White"
-                                FontAttributes="Bold"
-                                Padding="12"
-                                BackgroundColor="Transparent"
-                                CornerRadius="10"
-                                FontSize="15"
-                                FontFamily="RobotoRegular"
-                                HeightRequest="48"
-                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
-                    </Grid>
-                </Frame>
+                <Button Text="Kayıt Ol"
+                        Command="{Binding NavigateToRegisterCommand}"
+                        Style="{StaticResource PrimaryGradientButtonStyle}"
+                        HeightRequest="48"
+                        Margin="0,5,0,15"
+                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
             </VerticalStackLayout>
 
             <!-- Social Login -->
