@@ -7,7 +7,7 @@ namespace Tazq_Frontend.Views
 {
     public partial class SplashPage : ContentPage
     {
-        private readonly ApiService _apiService = new();
+        private readonly ApiService _apiService = MauiProgram.Services!.GetRequiredService<ApiService>();
 
         public SplashPage()
         {
