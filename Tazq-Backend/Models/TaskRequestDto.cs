@@ -9,17 +9,18 @@ namespace Tazq_App.Models
 		public List<TaskDto> Tasks { get; set; } = new List<TaskDto>();
 	}
 
-	public class TaskDto
-	{
-		[Required]
+    public class TaskDto
+    {
+        [Required]
 		[MinLength(1)]
 		public string Title { get; set; } = string.Empty;
 
-		public string Description { get; set; } = string.Empty;
-		public DateTime DueDate { get; set; }
-		public bool IsCompleted { get; set; } = false;
+        public string Description { get; set; } = string.Empty;
+        public DateTime DueDate { get; set; }
+        public DateTime? DueTime { get; set; }
+        public bool IsCompleted { get; set; } = false;
 
-		[JsonConverter(typeof(JsonStringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
 		public TaskPriority Priority { get; set; } = TaskPriority.Medium;
 
 		[JsonPropertyName("tags")]

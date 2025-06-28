@@ -183,7 +183,6 @@ namespace Tazq_App.Controllers
                     Title = _cryptoService.Encrypt(t.Title, key),
                     Description = _cryptoService.Encrypt(t.Description ?? string.Empty, key),
                     DueDate = t.DueDate,
-                    DueTime = t.GetType().GetProperty("DueTime")?.GetValue(t) as DateTime? ?? null,
                     IsCompleted = t.IsCompleted,
                     Priority = t.Priority,
                     UserId = userId.Value,
