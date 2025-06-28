@@ -66,6 +66,15 @@ namespace Tazq_Frontend.Views
                 FilterButtonFrame.FadeTo(1, 300)
             );
             await MainRefreshView.FadeTo(1, 300);
+
+            if (LogoImage.Opacity == 0)
+            {
+                await LogoImage.FadeTo(1, 500, Easing.SinOut);
+                await LogoImage.ScaleTo(1.1, 400, Easing.CubicOut);
+                await LogoImage.ScaleTo(1.0, 300, Easing.CubicIn);
+
+            }
+
         }
 
         private void OnRequestedThemeChanged(object sender, AppThemeChangedEventArgs e)
