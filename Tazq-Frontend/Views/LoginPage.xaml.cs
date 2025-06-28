@@ -31,7 +31,7 @@ namespace Tazq_Frontend.Views
 
         private void OnPasswordCompleted(object sender, EventArgs e)
         {
-            if (_viewModel.LoginCommand.CanExecute(null))
+            if (!_viewModel.IsLoading && _viewModel.LoginCommand.CanExecute(null))
             {
                 _viewModel.LoginCommand.Execute(null);
             }

@@ -10,5 +10,7 @@
         public const string HomePage = nameof(Views.HomePage);
         public const string AddTaskPage = nameof(Views.AddTaskPage);
         public const string EditTaskPage = nameof(Views.EditTaskPage);
+        public const string NotificationSettingsPage = nameof(Views.NotificationSettingsPage);
+        public const string AboutPage = nameof(Views.AboutPage);
     }
 }

@@ -37,7 +37,7 @@
 
             <!-- Name Input -->
             <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="False">
-                <Entry Placeholder="Adınız"
+                <Entry Visual="Default" BackgroundColor="Transparent" Placeholder="Adınız"
                        TextColor="Black"
                        PlaceholderColor="#A5A5A5"
                        Text="{Binding Name}"
@@ -46,7 +46,7 @@
 
             <!-- Email Input -->
             <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="False">
-                <Entry Placeholder="E-posta"
+                <Entry Visual="Default" BackgroundColor="Transparent" Placeholder="E-posta"
                        Keyboard="Email"
                        TextColor="Black"
                        PlaceholderColor="#A5A5A5"
@@ -55,8 +55,8 @@
             </Frame>
 
             <!-- Password Input -->
-            <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="True">
-                <Entry Placeholder="Şifre"
+            <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="False">
+                <Entry Visual="Default" BackgroundColor="Transparent" Placeholder="Şifre"
                        IsPassword="True"
                        TextColor="Black"
                        PlaceholderColor="#A5A5A5"

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
+             x:Class="Tazq_Frontend.Views.NotificationSettingsPage"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
+    <ContentPage.BindingContext>
+        <vm:NotificationSettingsViewModel />
+    </ContentPage.BindingContext>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+            <Label Text="Bildirim Ayarları"
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   HorizontalOptions="Center"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                   FontFamily="RobotoRegular" />
+
+            <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                <Label Text="E-posta bildirimi"
+                       Grid.Column="0"
+                       FontFamily="RobotoRegular"
+                       FontSize="13"
+                       TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                       VerticalOptions="Center" />
+                <Switch Grid.Column="1"
+                        IsToggled="{Binding EmailNotificationEnabled}"
+                        OnColor="{AppThemeBinding Light={StaticResource AccentBrushLight}, Dark={StaticResource AccentBrushDark}}"
+                        ThumbColor="White"
+                        Scale="0.8" />
+            </Grid>
+
+            <Grid ColumnDefinitions="Auto,*" VerticalOptions="Center">
+                <Label Text="Hatırlatma günü"
+                       Grid.Column="0"
+                       FontFamily="RobotoRegular"
+                       FontSize="13"
+                       TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                       VerticalOptions="Center" />
+                <Stepper Grid.Column="1"
+                         Minimum="0"
+                         Maximum="10"
+                         Increment="1"
+                         Value="{Binding ReminderDays}" />
+            </Grid>
+
+            <Label Text="{Binding ReminderDays, StringFormat='{0} gün önce hatırlat'}"
+                   FontFamily="RobotoRegular"
+                   FontSize="13"
+                   HorizontalOptions="Center"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+
+            <Button Text="Kaydet"
+                    Command="{Binding SaveCommand}"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray800}}"
+                    TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                    FontFamily="RobotoRegular"
+                    FontSize="13"
+                    CornerRadius="8"
+                    Padding="10,6" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

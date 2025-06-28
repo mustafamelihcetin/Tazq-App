@@ -62,15 +62,12 @@ namespace Tazq_Frontend.ViewModels
                 }
                 else
                 {
-                    var error = await response.Content.ReadAsStringAsync();
-                    StatusMessage = !string.IsNullOrWhiteSpace(error)
-                        ? $"Hata: {error}"
-                        : "Hata: Şifre sıfırlama bağlantısı gönderilemedi. Lütfen tekrar deneyin.";
+                    StatusMessage = "Bir hata oluştu, lütfen tekrar deneyin.";
                 }
             }
             catch (Exception ex)
             {
-                StatusMessage = $"İstek başarısız: {ex.Message}";
+                StatusMessage = "Bir hata oluştu, lütfen tekrar deneyin.";
             }
             finally
             {

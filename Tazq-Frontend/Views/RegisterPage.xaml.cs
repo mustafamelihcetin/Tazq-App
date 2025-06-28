@@ -51,7 +51,7 @@ namespace Tazq_Frontend.Views
             catch (Exception ex)
             {
                 Console.WriteLine($"Register exception: {ex.Message}");
-                await DisplayAlert("Hata", "Bir hata oluþtu: " + ex.Message, "Tamam");
+                await DisplayAlert("Hata", "Bir hata oluþtu, lütfen tekrar deneyin.", "Tamam");
             }
         }
     }

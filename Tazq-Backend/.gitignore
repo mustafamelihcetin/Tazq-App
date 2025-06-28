@@ -42,3 +42,12 @@ MigrationBackup/
 FodyWeavers.xsd
 /Tazq-Backend/.env
 /Tazq-Backend/appsettings.json
+
+# Ignore common archive files
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.tgz
+*.bz2

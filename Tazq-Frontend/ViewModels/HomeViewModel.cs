@@ -242,6 +242,12 @@ namespace Tazq_Frontend.ViewModels
             await Shell.Current.GoToAsync($"///{RouteNames.AddTaskPage}");
         }
 
+        [RelayCommand]
+        private async Task About()
+        {
+            await Shell.Current.GoToAsync($"///{RouteNames.AboutPage}");
+        }
+
         private async Task EditTask(TaskModel? task)
         {
             if (task != null)
@@ -250,6 +256,13 @@ namespace Tazq_Frontend.ViewModels
                 await Shell.Current.GoToAsync($"///{RouteNames.EditTaskPage}?taskId={task.Id}");
             }
         }
+
+        [RelayCommand]
+        private async Task NotificationSettings()
+        {
+            await Shell.Current.GoToAsync($"///{RouteNames.NotificationSettingsPage}");
+        }
+
 
         public void ApplyFilters()
         {

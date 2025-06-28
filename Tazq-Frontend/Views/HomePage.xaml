@@ -268,7 +268,7 @@
                                 <Frame x:Name="TaskItemFrame" CornerRadius="12"
                                        BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}"
                                        Padding="16"
-                                       HasShadow="True">
+                                       HasShadow="False">
                                     <Frame.Behaviors>
                                         <toolkit:EventToCommandBehavior EventName="BindingContextChanged"
                                                                        Command="{Binding Source={x:Reference MainPageRoot}, Path=TaskContextChangedCommand}"
@@ -282,9 +282,6 @@
                                     </Frame.GestureRecognizers>
 
 
-                                    <Frame.Shadow>
-                                        <Shadow Brush="Transparent" Opacity="0.2" Offset="0,2" Radius="4"/>
-                                    </Frame.Shadow>
 
                                     <Grid RowSpacing="6">
                                         <Grid.RowDefinitions>
@@ -484,7 +481,7 @@
                        BorderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                        HasShadow="False"
                        HeightRequest="36">
-                    <Entry Placeholder="Etikete göre filtrele..."
+                    <Entry Visual="Default" Placeholder="Etikete göre filtrele..."
                            Text="{Binding FilterTag, Mode=TwoWay}"
                            PlaceholderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                            TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
@@ -514,7 +511,7 @@
                BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
                Padding="16"
                CornerRadius="12"
-               HasShadow="True"
+               HasShadow="False"
                IsVisible="{Binding IsSettingsPanelVisible}"
                AbsoluteLayout.LayoutBounds="1,0.06,0.50,-1"
                AbsoluteLayout.LayoutFlags="PositionProportional, WidthProportional"

@@ -40,7 +40,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <Entry Grid.Row="0"
+                        <Entry Visual="Default" Grid.Row="0"
                                Placeholder="Başlık"
                                Text="{Binding Title}"
                                BackgroundColor="Transparent"
@@ -91,7 +91,7 @@
                 <!-- Date & Time -->
                 <Frame BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
                        BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
-                       CornerRadius="10" Padding="5" HasShadow="True">
+                       CornerRadius="10" Padding="5" HasShadow="False">
                     <VerticalStackLayout Spacing="6">
                         <DatePicker Date="{Binding DueDate}"
                                     Format="dd MMMM yyyy"
@@ -132,7 +132,7 @@
                            BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
                            CornerRadius="10"
                            Padding="5, 0, 0, 12"
-                           HasShadow="True"
+                           HasShadow="False"
                            HeightRequest="80"
                            VerticalOptions="Start">
                         <Picker Title="Öncelik Seçin"
@@ -161,7 +161,7 @@
                                 <RowDefinition Height="45"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <Entry Grid.Row="0"
+                            <Entry Visual="Default" Grid.Row="0"
                                    Placeholder="Etiket ekle"
                                    Text="{Binding NewTag}"                                   
                                    Completed="OnTagCompleted"

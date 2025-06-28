@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Tazq_Frontend.Views.AboutPage"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
+    <ScrollView Padding="20">
+        <VerticalStackLayout Spacing="10">
+            <Label Text="Hakkında"
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   FontFamily="RobotoRegular"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                   HorizontalOptions="Center" />
+            <Label Text="Tazq, yapılacaklarınızı sade ve hızlı bir şekilde düzenlemenize yardımcı olmak için tasarlandı. Uygulama .NET MAUI ve ASP.NET Core kullanılarak geliştirildi. Tasarımda modern arayüz trendlerinden ve Todoist ile Google Tasks gibi popüler uygulamalardan esinlenildi."
+                   FontSize="15"
+                   FontFamily="RobotoRegular"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                   LineHeight="1.2" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

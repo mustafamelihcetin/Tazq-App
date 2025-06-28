@@ -88,13 +88,12 @@ namespace Tazq_Frontend.ViewModels
                 }
                 else
                 {
-                    var content = await response.Content.ReadAsStringAsync();
-                    StatusMessage = $"Hata: {content}";
+                    StatusMessage = "Bir hata oluştu, lütfen tekrar deneyin.";
                 }
             }
             catch (Exception ex)
             {
-                StatusMessage = $"İstek sırasında hata oluştu: {ex.Message}";
+                StatusMessage = "Bir hata oluştu, lütfen tekrar deneyin.";
             }
             finally
             {

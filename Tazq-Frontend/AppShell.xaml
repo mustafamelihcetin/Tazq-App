@@ -14,4 +14,6 @@
     <ShellContent Route="{x:Static helpers:RouteNames.HomePage}" ContentTemplate="{DataTemplate views:HomePage}" />
     <ShellContent Route="{x:Static helpers:RouteNames.AddTaskPage}" ContentTemplate="{DataTemplate views:AddTaskPage}" />
     <ShellContent Route="{x:Static helpers:RouteNames.EditTaskPage}" ContentTemplate="{DataTemplate views:EditTaskPage}" />
+    <ShellContent Route="{x:Static helpers:RouteNames.NotificationSettingsPage}" ContentTemplate="{DataTemplate views:NotificationSettingsPage}" />
+    <ShellContent Route="{x:Static helpers:RouteNames.AboutPage}" ContentTemplate="{DataTemplate views:AboutPage}" />
 </Shell>

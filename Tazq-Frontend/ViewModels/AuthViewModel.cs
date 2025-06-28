@@ -134,7 +134,7 @@ namespace Tazq_Frontend.ViewModels
 
                 var currentPage = Application.Current?.MainPage;
                 if (currentPage != null)
-                    await currentPage.DisplayAlert("Hata", $"Login hatası: {ex.Message}", "Tamam");
+                    await currentPage.DisplayAlert("Hata", "Bir hata oluştu, lütfen tekrar deneyin.", "Tamam");
             }
         });
 
@@ -176,7 +176,7 @@ namespace Tazq_Frontend.ViewModels
                 else
                 {
                     if (currentPage != null)
-                        await currentPage.DisplayAlert("Hata", errorMessage ?? "Kayıt başarısız oldu!", "Tamam");
+                        await currentPage.DisplayAlert("Hata", "Kayıt başarısız oldu, lütfen tekrar deneyin.", "Tamam");
                 }
             }
             catch (Exception ex)
@@ -185,7 +185,7 @@ namespace Tazq_Frontend.ViewModels
 
                 var page = Application.Current?.MainPage;
                 if (page != null)
-                    await page.DisplayAlert("Hata", $"Kayıt hatası: {ex.Message}", "Tamam");
+                    await page.DisplayAlert("Hata", "Bir hata oluştu, lütfen tekrar deneyin.", "Tamam");
             }
         });
 
