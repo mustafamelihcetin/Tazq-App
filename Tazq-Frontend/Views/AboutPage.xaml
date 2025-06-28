@@ -7,6 +7,33 @@
              Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
     <ScrollView Padding="20">
         <VerticalStackLayout Spacing="10">
+            <Label Text="Hakkında"
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   FontFamily="RobotoRegular"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                   HorizontalOptions="Center" />
+
+            <Label Text="Tazq, yapılacaklarınızı sade ve hızlı bir şekilde yönetmenizi amaçlayan bir yapılacaklar uygulamasıdır."
+                   FontSize="15"
+                   FontFamily="RobotoRegular"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                   LineHeight="1.2" />
+
+            <Label Text="• .NET MAUI, ASP.NET Core Web API kullanır"
+                   FontSize="15"
+                   FontFamily="RobotoRegular"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+
+            <Label Text="• CommunityToolkit.Maui, System.Text.Json ve SQLite-net paketlerini içerir"
+                   FontSize="15"
+                   FontFamily="RobotoRegular"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+
+            <Label Text="• Duyarlı düzen, erişilebilirlik ve koyu/açık tema desteği"
+                   FontSize="15"
+                   FontFamily="RobotoRegular"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
             <Frame Padding="0"
                    CornerRadius="12"
                    HasShadow="False"
@@ -20,11 +47,11 @@
                         </LinearGradientBrush>
                     </Grid.Background>
                     <Button Text="Geri Dön"
-                            Clicked="OnBackClicked"
+                            Command="{Binding GoBackCommand}"
                             FontFamily="RobotoRegular"
                             FontSize="15"
                             FontAttributes="Bold"
-                            TextColor="White"
+                            TextColor="{AppThemeBinding Light=Black, Dark=White}"
                             CornerRadius="12"
                             HeightRequest="48"
                             Padding="10"
@@ -53,17 +80,6 @@
                     </Button>
                 </Grid>
             </Frame>
-            <Label Text="Hakkında"
-                   FontSize="24"
-                   FontAttributes="Bold"
-                   FontFamily="RobotoRegular"
-                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
-                   HorizontalOptions="Center" />
-            <Label Text="Tazq, yapılacaklarınızı sade ve hızlı bir şekilde düzenlemenize yardımcı olmak için tasarlandı. Uygulama .NET MAUI ve ASP.NET Core kullanılarak geliştirildi. Tasarımda modern arayüz trendlerinden ve Todoist ile Google Tasks gibi popüler uygulamalardan esinlenildi."
-                   FontSize="15"
-                   FontFamily="RobotoRegular"
-                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
-                   LineHeight="1.2" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

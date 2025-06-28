@@ -48,5 +48,10 @@ namespace Tazq_Frontend.Views
                 _viewModel.NewTag = string.Empty;
             }
         }
+
+        private async void OnBackClicked(object sender, EventArgs e)
+        {
+            await Shell.Current.GoToAsync("..");
+        }
     }
 }

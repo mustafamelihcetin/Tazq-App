@@ -14,14 +14,35 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Label Grid.Row="0"
-               Text="Görevi Düzenle"
-               FontSize="24"
-               FontAttributes="Bold"
-               TextColor="White"
-               FontFamily="RobotoRegular"
-               HorizontalOptions="Center"
-               HorizontalTextAlignment="Center" />
+        <HorizontalStackLayout Grid.Row="0" Spacing="10" VerticalOptions="Center">
+            <Frame Padding="0"
+                   CornerRadius="12"
+                   HasShadow="False"
+                   BackgroundColor="Transparent"
+                   VerticalOptions="Center">
+                <Grid>
+                    <Grid.Background>
+                        <LinearGradientBrush EndPoint="0,1">
+                            <GradientStop Color="#3C4D90" Offset="0.0" />
+                            <GradientStop Color="#2B365E" Offset="1.0" />
+                        </LinearGradientBrush>
+                    </Grid.Background>
+                    <Button Text="Geri Dön"
+                            Clicked="OnBackClicked"
+                            Style="{StaticResource PrimaryGradientButtonStyle}"
+                            BackgroundColor="Transparent"
+                            HeightRequest="40"
+                            Padding="10" />
+                </Grid>
+            </Frame>
+
+            <Label Text="Görevi Düzenle"
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                   FontFamily="RobotoRegular"
+                   VerticalOptions="Center" />
+        </HorizontalStackLayout>
 
         <ScrollView Grid.Row="1">
             <VerticalStackLayout Spacing="12">
@@ -91,7 +112,7 @@
                     <VerticalStackLayout Spacing="6">
                         <DatePicker Date="{Binding DueDate}"
                                     Format="dd MMMM yyyy"
-                                    TextColor="White"
+                                    TextColor="{AppThemeBinding Light=Black, Dark=White}"
                                     FontFamily="RobotoRegular" />
                         <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
                             <CheckBox IsChecked="{Binding EnableTime}"

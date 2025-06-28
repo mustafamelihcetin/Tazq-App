@@ -22,16 +22,12 @@ namespace Tazq_Frontend.Views
             SloganLabel.TranslationY = 20;
             LoadingIndicator.IsVisible = true;
 
-            await Task.Delay(300);
-            await Logo.FadeTo(1, 800, Easing.CubicInOut);
-            await Task.Delay(500);
+            await Logo.FadeTo(1, 300, Easing.CubicInOut);
 
-            var sloganFade = SloganLabel.FadeTo(1, 600, Easing.CubicInOut);
-            var sloganSlide = SloganLabel.TranslateTo(0, 0, 600, Easing.CubicOut);
-            var loaderFadeIn = LoadingIndicator.FadeTo(1, 600, Easing.CubicInOut);
+            var sloganFade = SloganLabel.FadeTo(1, 300, Easing.CubicInOut);
+            var sloganSlide = SloganLabel.TranslateTo(0, 0, 300, Easing.CubicOut);
+            var loaderFadeIn = LoadingIndicator.FadeTo(1, 300, Easing.CubicInOut);
             await Task.WhenAll(sloganFade, sloganSlide, loaderFadeIn);
-
-            await Task.Delay(500);
 
             bool isValid = false;
             try

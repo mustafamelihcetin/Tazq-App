@@ -38,7 +38,7 @@
             <!-- Name Input -->
             <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="False">
                 <Entry Visual="Default" BackgroundColor="Transparent" Placeholder="Adınız"
-                       TextColor="Black"
+                       TextColor="{AppThemeBinding Light=Black, Dark=White}"
                        PlaceholderColor="#A5A5A5"
                        Text="{Binding Name}"
                        FontFamily="RobotoRegular"/>
@@ -48,7 +48,7 @@
             <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="False">
                 <Entry Visual="Default" BackgroundColor="Transparent" Placeholder="E-posta"
                        Keyboard="Email"
-                       TextColor="Black"
+                       TextColor="{AppThemeBinding Light=Black, Dark=White}"
                        PlaceholderColor="#A5A5A5"
                        Text="{Binding Email}"
                        FontFamily="RobotoRegular"/>
@@ -58,7 +58,7 @@
             <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="False">
                 <Entry Visual="Default" BackgroundColor="Transparent" Placeholder="Şifre"
                        IsPassword="True"
-                       TextColor="Black"
+                       TextColor="{AppThemeBinding Light=Black, Dark=White}"
                        PlaceholderColor="#A5A5A5"
                        Text="{Binding Password}"
                        FontFamily="RobotoRegular"/>

@@ -178,7 +178,7 @@
                                     Command="{Binding GoToAddTaskPageCommand}"
                                     FontAttributes="Bold"
                                     FontSize="15"
-                                    TextColor="White"
+                                    TextColor="{AppThemeBinding Light=Black, Dark=White}"
                                     CornerRadius="12"
                                     HeightRequest="48"
                                     FontFamily="RobotoRegular"
@@ -315,7 +315,7 @@
                                                HorizontalOptions="End">
                                             <Label Text="{Binding PriorityEnum, Converter={StaticResource PriorityToTurkishConverter}}"
                                                    FontSize="10"
-                                                   TextColor="White"
+                                                   TextColor="{AppThemeBinding Light=Black, Dark=White}"
                                                    FontAttributes="Bold"/>
                                         </Frame>
 
