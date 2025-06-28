@@ -24,7 +24,8 @@
                    Source="{AppThemeBinding Light=tazq_white_logo_dark.png, Dark=tazq_white_logo.png}"
                    HeightRequest="50"
                    Opacity="0"
-                   BackgroundColor="Transparent" />
+                   BackgroundColor="Transparent"
+                   Aspect="AspectFit" />
             <Label Text="Yapılacakları yönet."
                    FontSize="16"
                    TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"

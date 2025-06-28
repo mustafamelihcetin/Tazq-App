@@ -65,11 +65,26 @@
             </Frame>
 
             <!-- Register Button -->
-            <Button Text="Kaydol"
-                    Command="{Binding RegisterCommand}"
-                    Style="{StaticResource PrimaryGradientButtonStyle}"
-                    HeightRequest="48"
-                    Margin="0,5,0,15" />
+            <Frame Padding="0"
+                   CornerRadius="12"
+                   HasShadow="False"
+                   BackgroundColor="Transparent"
+                   Margin="0,5,0,15">
+                <Grid>
+                    <Grid.Background>
+                        <LinearGradientBrush EndPoint="0,1">
+                            <GradientStop Color="#3C4D90" Offset="0.0" />
+                            <GradientStop Color="#2B365E" Offset="1.0" />
+                        </LinearGradientBrush>
+                    </Grid.Background>
+                    <Button Text="Kaydol"
+                            Command="{Binding RegisterCommand}"
+                            Style="{StaticResource PrimaryGradientButtonStyle}"
+                            BackgroundColor="Transparent"
+                            HeightRequest="48"
+                            Padding="10" />
+                </Grid>
+            </Frame>
 
             <!-- Back to Login -->
             <Label Text="Zaten bir hesabın var mı?"
@@ -79,11 +94,26 @@
                    Margin="0,5,0,5"
                    FontFamily="RobotoRegular"/>
 
-            <Button Text="Giriş Yap"
-                    Command="{Binding NavigateToLoginCommand}"
-                    Style="{StaticResource PrimaryGradientButtonStyle}"
-                    HeightRequest="48"
-                    Margin="0,5,0,15" />
+            <Frame Padding="0"
+                   CornerRadius="12"
+                   HasShadow="False"
+                   BackgroundColor="Transparent"
+                   Margin="0,5,0,15">
+                <Grid>
+                    <Grid.Background>
+                        <LinearGradientBrush EndPoint="0,1">
+                            <GradientStop Color="#3C4D90" Offset="0.0" />
+                            <GradientStop Color="#2B365E" Offset="1.0" />
+                        </LinearGradientBrush>
+                    </Grid.Background>
+                    <Button Text="Giriş Yap"
+                            Command="{Binding NavigateToLoginCommand}"
+                            Style="{StaticResource PrimaryGradientButtonStyle}"
+                            BackgroundColor="Transparent"
+                            HeightRequest="48"
+                            Padding="10" />
+                </Grid>
+            </Frame>
 
         </VerticalStackLayout>
 

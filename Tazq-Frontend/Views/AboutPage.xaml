@@ -7,6 +7,52 @@
              Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
     <ScrollView Padding="20">
         <VerticalStackLayout Spacing="10">
+            <Frame Padding="0"
+                   CornerRadius="12"
+                   HasShadow="False"
+                   BackgroundColor="Transparent"
+                   HorizontalOptions="Center">
+                <Grid>
+                    <Grid.Background>
+                        <LinearGradientBrush EndPoint="0,1">
+                            <GradientStop Color="#3C4D90" Offset="0.0" />
+                            <GradientStop Color="#2B365E" Offset="1.0" />
+                        </LinearGradientBrush>
+                    </Grid.Background>
+                    <Button Text="Geri Dön"
+                            Clicked="OnBackClicked"
+                            FontFamily="RobotoRegular"
+                            FontSize="15"
+                            FontAttributes="Bold"
+                            TextColor="White"
+                            CornerRadius="12"
+                            HeightRequest="48"
+                            Padding="10"
+                            BackgroundColor="Transparent"
+                            HorizontalOptions="Center">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="BorderWidth">
+                                    <Setter.Value>
+                                        <OnPlatform x:TypeArguments="x:Double">
+                                            <On Platform="iOS" Value="0" />
+                                            <On Platform="Android" Value="0" />
+                                        </OnPlatform>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="BorderColor">
+                                    <Setter.Value>
+                                        <OnPlatform x:TypeArguments="Color">
+                                            <On Platform="iOS" Value="Transparent" />
+                                            <On Platform="Android" Value="Transparent" />
+                                        </OnPlatform>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Frame>
             <Label Text="Hakkında"
                    FontSize="24"
                    FontAttributes="Bold"

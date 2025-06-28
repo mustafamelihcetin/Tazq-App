@@ -100,11 +100,26 @@
 
                 <!-- Login Button -->
                 <Grid Margin="0,5,0,15">
-                    <Button Text="Giriş Yap"
-                            Command="{Binding LoginCommand}"
-                            Style="{StaticResource PrimaryGradientButtonStyle}"
-                            HeightRequest="48"
-                            IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
+                    <Frame Padding="0"
+                           CornerRadius="12"
+                           HasShadow="False"
+                           BackgroundColor="Transparent">
+                        <Grid>
+                            <Grid.Background>
+                                <LinearGradientBrush EndPoint="0,1">
+                                    <GradientStop Color="#3C4D90" Offset="0.0" />
+                                    <GradientStop Color="#2B365E" Offset="1.0" />
+                                </LinearGradientBrush>
+                            </Grid.Background>
+                            <Button Text="Giriş Yap"
+                                    Command="{Binding LoginCommand}"
+                                    Style="{StaticResource PrimaryGradientButtonStyle}"
+                                    BackgroundColor="Transparent"
+                                    HeightRequest="48"
+                                    Padding="10"
+                                    IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
+                        </Grid>
+                    </Frame>
                     <ActivityIndicator IsRunning="{Binding IsLoading}"
                                        IsVisible="{Binding IsLoading}"
                                        Color="White"
@@ -124,12 +139,27 @@
                        FontFamily="RobotoRegular"/>
 
                 <!-- Register Button -->
-                <Button Text="Kayıt Ol"
-                        Command="{Binding NavigateToRegisterCommand}"
-                        Style="{StaticResource PrimaryGradientButtonStyle}"
-                        HeightRequest="48"
-                        Margin="0,5,0,15"
-                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
+                <Frame Padding="0"
+                       CornerRadius="12"
+                       HasShadow="False"
+                       BackgroundColor="Transparent"
+                       Margin="0,5,0,15">
+                    <Grid>
+                        <Grid.Background>
+                            <LinearGradientBrush EndPoint="0,1">
+                                <GradientStop Color="#3C4D90" Offset="0.0" />
+                                <GradientStop Color="#2B365E" Offset="1.0" />
+                            </LinearGradientBrush>
+                        </Grid.Background>
+                        <Button Text="Kayıt Ol"
+                                Command="{Binding NavigateToRegisterCommand}"
+                                Style="{StaticResource PrimaryGradientButtonStyle}"
+                                BackgroundColor="Transparent"
+                                HeightRequest="48"
+                                Padding="10"
+                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}" />
+                    </Grid>
+                </Frame>
             </VerticalStackLayout>
 
             <!-- Social Login -->

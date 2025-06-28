@@ -191,12 +191,28 @@
                        HorizontalOptions="Center"/>
 
                 <!-- Save Button -->
-                <Button Text="Görevi Kaydet"
-                        Command="{Binding SaveTaskCommand}"
-                        Style="{StaticResource PrimaryGradientButtonStyle}"
-                        HeightRequest="48"
-                        WidthRequest="200"
-                        HorizontalOptions="Center" />
+                <Frame Padding="0"
+                       CornerRadius="12"
+                       HasShadow="False"
+                       BackgroundColor="Transparent"
+                       HorizontalOptions="Center">
+                    <Grid>
+                        <Grid.Background>
+                            <LinearGradientBrush EndPoint="0,1">
+                                <GradientStop Color="#3C4D90" Offset="0.0" />
+                                <GradientStop Color="#2B365E" Offset="1.0" />
+                            </LinearGradientBrush>
+                        </Grid.Background>
+                        <Button Text="Görevi Kaydet"
+                                Command="{Binding SaveTaskCommand}"
+                                Style="{StaticResource PrimaryGradientButtonStyle}"
+                                BackgroundColor="Transparent"
+                                HeightRequest="48"
+                                Padding="10"
+                                WidthRequest="200"
+                                HorizontalOptions="Center" />
+                    </Grid>
+                </Frame>
 
             </VerticalStackLayout>
         </ScrollView>
