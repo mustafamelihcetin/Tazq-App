@@ -331,7 +331,7 @@
                                                IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}">
                                             <Label.GestureRecognizers>
                                                 <TapGestureRecognizer Command="{Binding Source={x:Reference MainPageRoot}, Path=TaskTappedCommand}"
-                                                                      CommandParameter="{x:Reference TaskItemFrame}" />
+                                                                      CommandParameter="{x:Reference DescriptionLabel}" />
                                             </Label.GestureRecognizers>
                                         </Label>
 

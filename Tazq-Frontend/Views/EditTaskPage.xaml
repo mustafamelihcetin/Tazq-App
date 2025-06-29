@@ -182,8 +182,15 @@
                        HorizontalOptions="Center"/>
 
                 <!-- Navigation Buttons -->
-                <HorizontalStackLayout HorizontalOptions="Center" Spacing="10">
-                    <Frame Padding="0"
+                <Grid ColumnSpacing="10" Margin="0,20,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Go Back -->
+                    <Frame Grid.Column="0"
+                           Padding="0"
                            CornerRadius="12"
                            HasShadow="False"
                            BackgroundColor="Transparent">
@@ -195,15 +202,22 @@
                                 </LinearGradientBrush>
                             </Grid.Background>
                             <Button Text="Geri Dön"
-                                    Clicked="OnBackClicked"
-                                    Style="{StaticResource PrimaryGradientButtonStyle}"
-                                    BackgroundColor="Transparent"
-                                    HeightRequest="48"
-                                    Padding="10" />
+                    Clicked="OnBackClicked"
+                    FontFamily="RobotoRegular"
+                    FontSize="15"
+                    FontAttributes="Bold"
+                    TextColor="White"
+                    CornerRadius="12"
+                    Padding="10"
+                    HeightRequest="48"
+                    BackgroundColor="Transparent"
+                    HorizontalOptions="Fill" />
                         </Grid>
                     </Frame>
 
-                    <Frame Padding="0"
+                    <!-- Task Update -->
+                    <Frame Grid.Column="1"
+                           Padding="0"
                            CornerRadius="12"
                            HasShadow="False"
                            BackgroundColor="Transparent">
@@ -216,13 +230,18 @@
                             </Grid.Background>
                             <Button Text="Görevi Güncelle"
                                     Command="{Binding UpdateTaskCommand}"
-                                    Style="{StaticResource PrimaryGradientButtonStyle}"
-                                    BackgroundColor="Transparent"
+                                    FontFamily="RobotoRegular"
+                                    FontSize="15"
+                                    FontAttributes="Bold"
+                                    TextColor="White"
+                                    CornerRadius="12"
+                                    Padding="10"
                                     HeightRequest="48"
-                                    Padding="10" />
+                                    BackgroundColor="Transparent"
+                                    HorizontalOptions="Fill" />
                         </Grid>
                     </Frame>
-                </HorizontalStackLayout>
+                </Grid>
             </VerticalStackLayout>
         </ScrollView>
     </Grid>

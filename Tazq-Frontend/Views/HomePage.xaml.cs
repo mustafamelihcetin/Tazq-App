@@ -142,9 +142,8 @@ namespace Tazq_Frontend.Views
             {
                 double startHeight = frame.Height;
 
-                await Task.Delay(10);
-                this.InvalidateMeasure();
-                await Task.Delay(10);
+                await MainThread.InvokeOnMainThreadAsync(() => this.InvalidateMeasure());
+                await Task.Yield();
 
                 double targetHeight = frame.Measure(frame.Width, double.PositiveInfinity).Request.Height;
 
