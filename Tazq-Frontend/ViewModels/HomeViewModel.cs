@@ -293,7 +293,26 @@ namespace Tazq_Frontend.ViewModels
         [RelayCommand]
         private void ToggleExpand(TaskModel task)
         {
-            task.IsExpanded = !task.IsExpanded;
+            bool willExpand = !task.IsExpanded;
+
+            if (willExpand)
+            {
+                foreach (var other in FilteredTasks)
+                {
+                    if (!ReferenceEquals(other, task) && other.IsExpanded)
+                    {
+                        other.IsExpanded = false;
+                        var otherIndex = FilteredTasks.IndexOf(other);
+                        if (otherIndex >= 0)
+                        {
+                            FilteredTasks.RemoveAt(otherIndex);
+                            FilteredTasks.Insert(otherIndex, other);
+                        }
+                    }
+                }
+            }
+
+            task.IsExpanded = willExpand;
 
             var index = FilteredTasks.IndexOf(task);
             if (index >= 0)

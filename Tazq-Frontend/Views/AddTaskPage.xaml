@@ -18,28 +18,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <HorizontalStackLayout Grid.Row="0" Spacing="10" VerticalOptions="Center">
-            <Frame Padding="0"
-                   CornerRadius="12"
-                   HasShadow="False"
-                   BackgroundColor="Transparent"
-                   VerticalOptions="Center">
-                <Grid>
-                    <Grid.Background>
-                        <LinearGradientBrush EndPoint="0,1">
-                            <GradientStop Color="#3C4D90" Offset="0.0" />
-                            <GradientStop Color="#2B365E" Offset="1.0" />
-                        </LinearGradientBrush>
-                    </Grid.Background>
-                    <Button Text="Geri Dön"
-                            Clicked="OnBackClicked"
-                            Style="{StaticResource PrimaryGradientButtonStyle}"
-                            BackgroundColor="Transparent"
-                            HeightRequest="40"
-                            Padding="10" />
-                </Grid>
-            </Frame>
-
+        <HorizontalStackLayout Grid.Row="0" Spacing="10" VerticalOptions="Center">            
             <Label Text="Yeni Görev Ekle"
                    FontSize="24"
                    FontAttributes="Bold"
@@ -211,29 +190,59 @@
                        FontFamily="RobotoItalic"
                        HorizontalOptions="Center"/>
 
-                <!-- Save Button -->
-                <Frame Padding="0"
-                       CornerRadius="12"
-                       HasShadow="False"
-                       BackgroundColor="Transparent"
-                       HorizontalOptions="Center">
-                    <Grid>
-                        <Grid.Background>
-                            <LinearGradientBrush EndPoint="0,1">
-                                <GradientStop Color="#3C4D90" Offset="0.0" />
-                                <GradientStop Color="#2B365E" Offset="1.0" />
-                            </LinearGradientBrush>
-                        </Grid.Background>
-                        <Button Text="Görevi Kaydet"
-                                Command="{Binding SaveTaskCommand}"
-                                Style="{StaticResource PrimaryGradientButtonStyle}"
-                                BackgroundColor="Transparent"
-                                HeightRequest="48"
-                                Padding="10"
-                                WidthRequest="200"
-                                HorizontalOptions="Center" />
-                    </Grid>
-                </Frame>
+                <Grid ColumnSpacing="10"
+      HorizontalOptions="Center"
+      WidthRequest="320">
+                    <!-- Genişlik isteğe göre ayarlanabilir -->
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Geri Dön Butonu -->
+                    <Frame Grid.Column="0"
+           Padding="0"
+           CornerRadius="12"
+           HasShadow="False"
+           BackgroundColor="Transparent">
+                        <Grid>
+                            <Grid.Background>
+                                <LinearGradientBrush EndPoint="0,1">
+                                    <GradientStop Color="#3C4D90" Offset="0.0" />
+                                    <GradientStop Color="#2B365E" Offset="1.0" />
+                                </LinearGradientBrush>
+                            </Grid.Background>
+                            <Button Text="Geri Dön"
+                    Clicked="OnBackClicked"
+                    Style="{StaticResource PrimaryGradientButtonStyle}"
+                    BackgroundColor="Transparent"
+                    HeightRequest="48"
+                    Padding="10" />
+                        </Grid>
+                    </Frame>
+
+                    <!-- Görevi Kaydet Butonu -->
+                    <Frame Grid.Column="1"
+           Padding="0"
+           CornerRadius="12"
+           HasShadow="False"
+           BackgroundColor="Transparent">
+                        <Grid>
+                            <Grid.Background>
+                                <LinearGradientBrush EndPoint="0,1">
+                                    <GradientStop Color="#3C4D90" Offset="0.0" />
+                                    <GradientStop Color="#2B365E" Offset="1.0" />
+                                </LinearGradientBrush>
+                            </Grid.Background>
+                            <Button Text="Görevi Kaydet"
+                    Command="{Binding SaveTaskCommand}"
+                    Style="{StaticResource PrimaryGradientButtonStyle}"
+                    BackgroundColor="Transparent"
+                    HeightRequest="48"
+                    Padding="10" />
+                        </Grid>
+                    </Frame>
+                </Grid>
 
             </VerticalStackLayout>
         </ScrollView>

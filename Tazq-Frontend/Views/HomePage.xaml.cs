@@ -138,30 +138,26 @@ namespace Tazq_Frontend.Views
 
         private async Task OnTaskTappedAsync(object? param)
         {
-            if (param is VisualElement element && element.BindingContext is TaskModel task)
+            if (param is Frame frame && frame.BindingContext is TaskModel task)
             {
-                // Locate the description label either directly or by name within the tapped element
-                var descriptionLabel = element as Label ?? element.FindByName<Label>("DescriptionLabel");
-                if (descriptionLabel == null)
-                    return;
+                double startHeight = frame.Height;
 
-                double startHeight = descriptionLabel.Height;
-
-                // Toggle expansion state
-                task.IsExpanded = !task.IsExpanded;
-
-                // Refresh layout measurement after the state change
+                await Task.Delay(10);
                 this.InvalidateMeasure();
-                double targetHeight = descriptionLabel.Measure(descriptionLabel.Width, double.PositiveInfinity).Request.Height;
+                await Task.Delay(10);
 
-                // If the text already fits, no animation is needed
+                double targetHeight = frame.Measure(frame.Width, double.PositiveInfinity).Request.Height;
+
                 if (Math.Abs(targetHeight - startHeight) < 0.5)
                     return;
 
-                var animation = new Animation(v => descriptionLabel.HeightRequest = v,
+                var tcs = new TaskCompletionSource<bool>();
+                var animation = new Animation(v => frame.HeightRequest = v,
                                               startHeight, targetHeight,
                                               easing: Easing.CubicInOut);
-                animation.Commit(this, "descExpand", length: 300);
+                animation.Commit(this, "frameExpand", length: 300,
+                    finished: (v, c) => { frame.HeightRequest = -1; tcs.SetResult(true); });
+                await tcs.Task;
             }
         }
 

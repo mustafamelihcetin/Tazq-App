@@ -5,8 +5,10 @@
              Shell.NavBarIsVisible="False"
              NavigationPage.HasNavigationBar="False"
              Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
+
     <ScrollView Padding="20">
         <VerticalStackLayout Spacing="10">
+
             <Label Text="Hakkında"
                    FontSize="24"
                    FontAttributes="Bold"
@@ -14,31 +16,42 @@
                    TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
                    HorizontalOptions="Center" />
 
-            <Label Text="Tazq, yapılacaklarınızı sade ve hızlı bir şekilde yönetmenizi amaçlayan bir yapılacaklar uygulamasıdır."
+            <Label Text="Tazq, gündelik görevlerinizi düzenli, güvenli ve erişilebilir bir şekilde yönetebilmeniz için geliştirilmiş modern bir yapılacaklar listesi uygulamasıdır. Kullanımı kolay arayüzü sayesinde teknik bilgiye sahip olmayan kullanıcılar da rahatlıkla planlama yapabilir. Temel hedef, kullanıcıya zamanı üzerinde daha fazla kontrol ve verimlilik sağlamaktır."
                    FontSize="15"
                    FontFamily="RobotoRegular"
                    TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
-                   LineHeight="1.2" />
+                   LineHeight="1.3" />
 
-            <Label Text="• .NET MAUI, ASP.NET Core Web API kullanır"
+            <Label Text="Tazq sadece bir yapılacaklar listesi sunmaz. Her görev, size özel olarak şifrelenir ve cihazlar arası güvenli bir şekilde saklanır. Bilgi güvenliği bizim için temel önceliktir. Görev içerikleri, ileri düzey AES-GCM algoritmasıyla şifrelenerek yalnızca sizin erişebileceğiniz şekilde korunur. Kişisel veriler, hiçbir koşulda üçüncü taraflarla paylaşılmaz."
                    FontSize="15"
                    FontFamily="RobotoRegular"
-                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                   LineHeight="1.3" />
 
-            <Label Text="• CommunityToolkit.Maui, System.Text.Json ve SQLite-net paketlerini içerir"
+            <Label Text="Tazq'ın arkasındaki sistem, .NET MAUI ile geliştirilen modern bir mobil arayüz ve ASP.NET Core Web API ile güçlendirilmiş güçlü bir sunucu yapısına sahiptir. SQLite-net gibi hafif veri çözümleri ve CommunityToolkit.Maui ile zenginleştirilmiş kullanıcı deneyimi sunar."
                    FontSize="15"
                    FontFamily="RobotoRegular"
-                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                   LineHeight="1.3" />
 
-            <Label Text="• Duyarlı düzen, erişilebilirlik ve koyu/açık tema desteği"
+            <Label Text="Uygulama hem koyu hem açık tema destekler, farklı cihazlara duyarlı olarak esnek bir şekilde çalışır. Engelli bireyler için erişilebilirlik standartlarına uygun tasarlanmıştır."
                    FontSize="15"
                    FontFamily="RobotoRegular"
-                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                   LineHeight="1.3" />
+
+            <Label Text="Gelecek hedeflerimiz arasında görevleri yapay zeka ile önceliklendirme, hatırlatıcılar, sesle giriş ve takım çalışması özellikleri yer almaktadır. Böylece Tazq sadece bireysel değil, ekip temelli üretkenlik çözümlerine de evrilerek gelişimini sürdürecektir."
+                   FontSize="15"
+                   FontFamily="RobotoRegular"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                   LineHeight="1.3" />
+
+            <!-- Back button in styled frame -->
             <Frame Padding="0"
                    CornerRadius="12"
                    HasShadow="False"
                    BackgroundColor="Transparent"
-                   HorizontalOptions="Center">
+                   Margin="0,20,0,0">
                 <Grid>
                     <Grid.Background>
                         <LinearGradientBrush EndPoint="0,1">
@@ -51,35 +64,15 @@
                             FontFamily="RobotoRegular"
                             FontSize="15"
                             FontAttributes="Bold"
-                            TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                            TextColor="White"
                             CornerRadius="12"
-                            HeightRequest="48"
                             Padding="10"
+                            HeightRequest="48"
                             BackgroundColor="Transparent"
-                            HorizontalOptions="Center">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="BorderWidth">
-                                    <Setter.Value>
-                                        <OnPlatform x:TypeArguments="x:Double">
-                                            <On Platform="iOS" Value="0" />
-                                            <On Platform="Android" Value="0" />
-                                        </OnPlatform>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter Property="BorderColor">
-                                    <Setter.Value>
-                                        <OnPlatform x:TypeArguments="Color">
-                                            <On Platform="iOS" Value="Transparent" />
-                                            <On Platform="Android" Value="Transparent" />
-                                        </OnPlatform>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                    </Button>
+                            HorizontalOptions="Fill" />
                 </Grid>
             </Frame>
+
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
