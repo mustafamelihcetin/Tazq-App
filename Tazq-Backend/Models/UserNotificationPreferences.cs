@@ -20,12 +20,20 @@ namespace Tazq_App.Models
 		[Required]
 		public bool ReceiveWeeklySummary { get; set; } = false;
 
-		// Determines how many days before the due date the user wants to receive a reminder email
-		[Range(0, 90, ErrorMessage = "Reminder days must be between 0 and 90.")]
-		public int ReminderDaysBeforeDue { get; set; } = 2; // Default: 2 days before due date
+        // Determines how many days before the due date the user wants to receive a reminder email
+        [Range(0, 90, ErrorMessage = "Reminder days must be between 0 and 90.")]
+        public int ReminderDaysBeforeDue { get; set; } = 2; // Default: 2 days before due date
 
-		// Specifies which day of the week the user wants to receive the weekly summary
-		[Required]
-		public DayOfWeek WeeklySummaryDay { get; set; } = DayOfWeek.Sunday;
-	}
+        // Specifies which day of the week the user wants to receive the weekly summary
+        [Required]
+        public DayOfWeek WeeklySummaryDay { get; set; } = DayOfWeek.Sunday;
+
+        // How many days before the due date notifications should be sent
+        [Range(0, 90, ErrorMessage = "Notification days must be between 0 and 90.")]
+        public int NotificationDaysBefore { get; set; } = 1;
+
+        // What time of day notifications should be sent
+        [Required]
+        public TimeSpan NotificationTimeOfDay { get; set; } = TimeSpan.FromHours(9);
+    }
 }

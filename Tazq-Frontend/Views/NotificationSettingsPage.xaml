@@ -53,6 +53,42 @@
                    HorizontalOptions="Center"
                    TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
 
+            <Grid ColumnDefinitions="Auto,*" VerticalOptions="Center">
+                <Label Text="Bildirim saati"
+                       Grid.Column="0"
+                       FontFamily="RobotoRegular"
+                       FontSize="13"
+                       TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                       VerticalOptions="Center" />
+                <TimePicker Grid.Column="1"
+                            Time="{Binding NotificationTimeOfDay}"
+                            Format="HH:mm" />
+            </Grid>
+
+            <Label Text="{Binding NotificationTimeOfDay, StringFormat='Saat {0:hh\\:mm}'}"
+                   FontFamily="RobotoRegular"
+                   FontSize="13"
+                   HorizontalOptions="Center"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+
+            <Grid ColumnDefinitions="Auto,*" VerticalOptions="Center">
+                <Label Text="Bildirim saati"
+                       Grid.Column="0"
+                       FontFamily="RobotoRegular"
+                       FontSize="13"
+                       TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
+                       VerticalOptions="Center" />
+                <TimePicker Grid.Column="1"
+                            Time="{Binding NotificationTimeOfDay}"
+                            Format="HH:mm" />
+            </Grid>
+
+            <Label Text="{Binding NotificationTimeOfDay, StringFormat='Saat {0:hh\\:mm}'}"
+                   FontFamily="RobotoRegular"
+                   FontSize="13"
+                   HorizontalOptions="Center"
+                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+
             <Button Text="Kaydet"
                     Command="{Binding SaveCommand}"
                     BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray800}}"

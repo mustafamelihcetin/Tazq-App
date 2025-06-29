@@ -11,6 +11,11 @@ public partial class NotificationSettingsViewModel : ObservableObject
     {
         ReminderDays = Preferences.Default.Get(nameof(ReminderDays), 1);
         EmailNotificationEnabled = Preferences.Default.Get(nameof(EmailNotificationEnabled), true);
+        var timeString = Preferences.Default.Get(nameof(NotificationTimeOfDay), "09:00");
+        if (TimeSpan.TryParse(timeString, out var time))
+            NotificationTimeOfDay = time;
+        else
+            NotificationTimeOfDay = TimeSpan.FromHours(9);
     }
 
     [ObservableProperty]
@@ -18,6 +23,14 @@ public partial class NotificationSettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool emailNotificationEnabled;
+
+    [ObservableProperty]
+    private TimeSpan notificationTimeOfDay;
+
+    partial void OnNotificationTimeOfDayChanged(TimeSpan value)
+    {
+        Preferences.Default.Set(nameof(NotificationTimeOfDay), value.ToString());
+    }
 
     partial void OnReminderDaysChanged(int value)
     {

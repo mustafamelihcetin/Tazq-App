@@ -95,10 +95,12 @@ public class UsersController : ControllerBase
 		var userId = GetUserId();
 		if (userId == null) return Unauthorized();
 
-		var user = await _context.Users.FindAsync(userId);
-		if (user == null) return NotFound();
+        var user = await _context.Users
+                        .Include(u => u.NotificationPreferences)
+                        .FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return NotFound();
 
-		if (!string.IsNullOrEmpty(user.PhoneNumber))
+        if (!string.IsNullOrEmpty(user.PhoneNumber))
 			return BadRequest("A phone number is already added.");
 
 		user.PhoneNumber = phoneDto.PhoneNumber;
@@ -117,10 +119,12 @@ public class UsersController : ControllerBase
 		var userId = GetUserId();
 		if (userId == null) return Unauthorized();
 
-		var user = await _context.Users.FindAsync(userId);
-		if (user == null) return NotFound();
+        var user = await _context.Users
+                        .Include(u => u.NotificationPreferences)
+                        .FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return NotFound();
 
-		user.PhoneNumber = phoneDto.PhoneNumber;
+        user.PhoneNumber = phoneDto.PhoneNumber;
 		user.IsPhoneVerified = false;
 
 		_context.Users.Update(user);
@@ -144,34 +148,48 @@ public class UsersController : ControllerBase
 			user.NotificationPreferences = new UserNotificationPreferences
 			{
 				UserId = userId.Value,
-				ReceiveWeeklySummary = preferencesDto.ReceiveWeeklySummary,
-				ReminderDaysBeforeDue = preferencesDto.ReminderDaysBeforeDue,
-				WeeklySummaryDay = preferencesDto.WeeklySummaryDay
-			};
-			_context.UserNotificationPreferences.Add(user.NotificationPreferences);
+                ReceiveWeeklySummary = preferencesDto.ReceiveWeeklySummary,
+                ReminderDaysBeforeDue = preferencesDto.ReminderDaysBeforeDue,
+                WeeklySummaryDay = preferencesDto.WeeklySummaryDay,
+                NotificationDaysBefore = preferencesDto.NotificationDaysBefore,
+                NotificationTimeOfDay = preferencesDto.NotificationTimeOfDay
+            };
+            _context.UserNotificationPreferences.Add(user.NotificationPreferences);
 		}
 		else
 		{
-			user.NotificationPreferences.ReceiveWeeklySummary = preferencesDto.ReceiveWeeklySummary;
-			user.NotificationPreferences.ReminderDaysBeforeDue = preferencesDto.ReminderDaysBeforeDue;
-			user.NotificationPreferences.WeeklySummaryDay = preferencesDto.WeeklySummaryDay;
-		}
+            user.NotificationPreferences.ReceiveWeeklySummary = preferencesDto.ReceiveWeeklySummary;
+            user.NotificationPreferences.ReminderDaysBeforeDue = preferencesDto.ReminderDaysBeforeDue;
+            user.NotificationPreferences.WeeklySummaryDay = preferencesDto.WeeklySummaryDay;
+            user.NotificationPreferences.NotificationDaysBefore = preferencesDto.NotificationDaysBefore;
+            user.NotificationPreferences.NotificationTimeOfDay = preferencesDto.NotificationTimeOfDay;
+        }
 
-		await _context.SaveChangesAsync();
-		return Ok(new { message = "Notification preferences updated." });
-	}
+        await _context.SaveChangesAsync();
+        return Ok(new
+        {
+            message = "Notification preferences updated.",
+            user.NotificationPreferences!.ReceiveWeeklySummary,
+            user.NotificationPreferences.ReminderDaysBeforeDue,
+            user.NotificationPreferences.WeeklySummaryDay,
+            user.NotificationPreferences.NotificationDaysBefore,
+            user.NotificationPreferences.NotificationTimeOfDay
+        });
+    }
 
-	[HttpPost("upload-profile-picture")]
+    [HttpPost("upload-profile-picture")]
 	[Authorize]
 	public async Task<IActionResult> UploadProfilePicture([FromForm] IFormFile file)
 	{
 		var userId = GetUserId();
 		if (userId == null) return Unauthorized();
 
-		var user = await _context.Users.FindAsync(userId);
-		if (user == null) return NotFound();
+        var user = await _context.Users
+                        .Include(u => u.NotificationPreferences)
+                        .FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return NotFound();
 
-		if (file == null || file.Length == 0)
+        if (file == null || file.Length == 0)
 			return BadRequest("Invalid file.");
 
 		var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "profile_pictures");
@@ -198,10 +216,12 @@ public class UsersController : ControllerBase
 		var userId = GetUserId();
 		if (userId == null) return Unauthorized();
 
-		var user = await _context.Users.FindAsync(userId);
-		if (user == null) return NotFound();
+        var user = await _context.Users
+                        .Include(u => u.NotificationPreferences)
+                        .FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return NotFound();
 
-		return Ok(new
+        return Ok(new
 		{
 			user.Id,
 			user.Name,
@@ -209,9 +229,17 @@ public class UsersController : ControllerBase
 			user.Role,
 			user.PhoneNumber,
 			user.IsPhoneVerified,
-			ProfilePicture = user.ProfilePicture ?? "/default-profile.png"
-		});
-	}
+            ProfilePicture = user.ProfilePicture ?? "/default-profile.png",
+            NotificationPreferences = user.NotificationPreferences == null ? null : new
+            {
+                user.NotificationPreferences.ReceiveWeeklySummary,
+                user.NotificationPreferences.ReminderDaysBeforeDue,
+                user.NotificationPreferences.WeeklySummaryDay,
+                user.NotificationPreferences.NotificationDaysBefore,
+                user.NotificationPreferences.NotificationTimeOfDay
+            }
+        });
+    }
 
 	[HttpPost("forgot-password")]
 	[AllowAnonymous]
