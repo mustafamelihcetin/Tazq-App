@@ -29,6 +29,9 @@ namespace Tazq_Frontend.ViewModels
             ToggleSettingsPanelCommand = new RelayCommand(ToggleSettingsPanel);
             EditTaskCommand = new AsyncRelayCommand<TaskModel?>(EditTask);
 
+            IsShowOnlyIncomplete = Preferences.Default.Get(nameof(IsShowOnlyIncomplete), false);
+            ShowPastTasks = Preferences.Default.Get(nameof(ShowPastTasks), false);
+
             WeakReferenceMessenger.Default.Register<TaskAddedMessage>(this, async (r, m) =>
             {
                 await LoadTasks();
@@ -337,18 +340,12 @@ namespace Tazq_Frontend.ViewModels
             await _apiService.UpdateTask(task);
             await LoadTasks();
         }
-
+        [ObservableProperty]
         private bool isShowOnlyIncomplete;
-        public bool IsShowOnlyIncomplete
+        partial void OnIsShowOnlyIncompleteChanged(bool value)
         {
-            get => isShowOnlyIncomplete;
-            set
-            {
-                if (SetProperty(ref isShowOnlyIncomplete, value))
-                {
-                    _ = UpdateStatusLabelAsync(); // arkaplanda çağır
-                }
-            }
+            Preferences.Default.Set(nameof(IsShowOnlyIncomplete), value);
+            _ = UpdateStatusLabelAsync();
         }
 
         private async Task UpdateStatusLabelAsync()
@@ -364,18 +361,12 @@ namespace Tazq_Frontend.ViewModels
                     await AnimateLabelChange(label, StatusFilterLabel);
             }
         }
-
+        [ObservableProperty]
         private bool showPastTasks;
-        public bool ShowPastTasks
+        partial void OnShowPastTasksChanged(bool value)
         {
-            get => showPastTasks;
-            set
-            {
-                if (SetProperty(ref showPastTasks, value))
-                {
-                    _ = UpdatePastTasksLabelAsync();
-                }
-            }
+            Preferences.Default.Set(nameof(ShowPastTasks), value);
+            _ = UpdatePastTasksLabelAsync();
         }
 
         private async Task UpdatePastTasksLabelAsync()

@@ -82,19 +82,14 @@
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</MauiImage>
 
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" IsAppIcon="true" />
 		<MauiIcon Include="Platforms\Windows\Assets\appicons.png" ForegroundFile="Platforms\Windows\Assets\appicons.png" IsAppIcon="true" />
 	</ItemGroup>
 	
 	<ItemGroup>
 		<MauiFont Include="Resources\Fonts\Roboto.ttf" Alias="RobotoRegular" />
 		<MauiFont Include="Resources\Fonts\Roboto-Italic.ttf" Alias="RobotoItalic" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<None Remove="Resources\AppIcon\**\*.*" />
-		<Content Remove="Resources\AppIcon\**\*.*" />
-		<AndroidResource Remove="Resources\AppIcon\**\*.*" />
-	</ItemGroup>
+	</ItemGroup>	
 
 	<ItemGroup>
 	  <None Remove="Platforms\Windows\Assets\%24placeholder%24.scale-400.png" />
