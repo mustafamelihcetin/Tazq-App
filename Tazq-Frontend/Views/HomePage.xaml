@@ -178,7 +178,7 @@
                                     Command="{Binding GoToAddTaskPageCommand}"
                                     FontAttributes="Bold"
                                     FontSize="15"
-                                    TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                                    TextColor="White"
                                     CornerRadius="12"
                                     HeightRequest="48"
                                     FontFamily="RobotoRegular"
