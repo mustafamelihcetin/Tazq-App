@@ -239,13 +239,13 @@ namespace Tazq_Frontend.ViewModels
         [RelayCommand]
         private async Task GoToAddTaskPage()
         {
-            await Shell.Current.GoToAsync($"///{RouteNames.AddTaskPage}");
+            await Shell.Current.GoToAsync(RouteNames.AddTaskPage);
         }
 
         [RelayCommand]
         private async Task About()
         {
-            await Shell.Current.GoToAsync($"///{RouteNames.AboutPage}");
+            await Shell.Current.GoToAsync(RouteNames.AboutPage);
         }
 
         private async Task EditTask(TaskModel? task)
@@ -253,14 +253,14 @@ namespace Tazq_Frontend.ViewModels
             if (task != null)
             {
                 Console.WriteLine($">>> EditTask yönlendirme: {task.Id}");
-                await Shell.Current.GoToAsync($"///{RouteNames.EditTaskPage}?taskId={task.Id}");
+                await Shell.Current.GoToAsync($"{RouteNames.EditTaskPage}?taskId={task.Id}");
             }
         }
 
         [RelayCommand]
         private async Task NotificationSettings()
         {
-            await Shell.Current.GoToAsync($"///{RouteNames.NotificationSettingsPage}");
+            await Shell.Current.GoToAsync(RouteNames.NotificationSettingsPage);
         }
 
 
