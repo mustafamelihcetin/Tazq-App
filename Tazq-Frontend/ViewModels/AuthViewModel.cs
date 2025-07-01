@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.Controls;
 using Tazq_Frontend.Views;
 using Tazq_Frontend.Helpers;
+using Microsoft.Maui.Storage;
 
 
 namespace Tazq_Frontend.ViewModels
@@ -48,6 +49,20 @@ namespace Tazq_Frontend.ViewModels
         {
             get => showForgotPassword;
             set => SetProperty(ref showForgotPassword, value);
+        }
+
+        private bool isLightThemeEnabled = Application.Current.UserAppTheme == AppTheme.Light;
+        public bool IsLightThemeEnabled
+        {
+            get => isLightThemeEnabled;
+            set
+            {
+                if (SetProperty(ref isLightThemeEnabled, value))
+                {
+                    Preferences.Default.Set("IsLightThemeEnabled", value);
+                    Application.Current.UserAppTheme = value ? AppTheme.Light : AppTheme.Dark;
+                }
+            }
         }
 
         public ICommand NavigateToRegisterCommand => new AsyncRelayCommand(async () =>
