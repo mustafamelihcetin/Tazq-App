@@ -242,12 +242,14 @@ namespace Tazq_Frontend.ViewModels
         [RelayCommand]
         private async Task GoToAddTaskPage()
         {
+            ResetTaskExpansions();
             await Shell.Current.GoToAsync(RouteNames.AddTaskPage);
         }
 
         [RelayCommand]
         private async Task About()
         {
+            ResetTaskExpansions();
             await Shell.Current.GoToAsync(RouteNames.AboutPage);
         }
 
@@ -263,6 +265,7 @@ namespace Tazq_Frontend.ViewModels
         [RelayCommand]
         private async Task NotificationSettings()
         {
+            ResetTaskExpansions();
             await Shell.Current.GoToAsync(RouteNames.NotificationSettingsPage);
         }
 
@@ -289,30 +292,45 @@ namespace Tazq_Frontend.ViewModels
                 FilteredTasks.Add(task);
         }
 
-
-        [RelayCommand]
-        private void ToggleExpand(TaskModel task)
+        private void ToggleExpand(TaskModel task, bool toggleTitle)
         {
-            bool willExpand = !task.IsExpanded;
+            bool willExpand = toggleTitle ? !task.IsTitleExpanded : !task.IsDescriptionExpanded;
 
             if (willExpand)
             {
                 foreach (var other in FilteredTasks)
                 {
-                    if (!ReferenceEquals(other, task) && other.IsExpanded)
+                    if (ReferenceEquals(other, task))
+                        continue;
+
+                    if (toggleTitle && other.IsTitleExpanded)
                     {
-                        other.IsExpanded = false;
-                        var otherIndex = FilteredTasks.IndexOf(other);
-                        if (otherIndex >= 0)
-                        {
-                            FilteredTasks.RemoveAt(otherIndex);
-                            FilteredTasks.Insert(otherIndex, other);
-                        }
+                        other.IsTitleExpanded = false;
+                    }
+                    else if (!toggleTitle && other.IsDescriptionExpanded)
+                    {
+                        other.IsDescriptionExpanded = false;
+                    }
+
+                    var otherIndex = FilteredTasks.IndexOf(other);
+                    if (otherIndex >= 0)
+                    {
+                        FilteredTasks.RemoveAt(otherIndex);
+                        FilteredTasks.Insert(otherIndex, other);
                     }
                 }
             }
 
-            task.IsExpanded = willExpand;
+            if (toggleTitle)
+            {
+                task.IsTitleExpanded = willExpand;
+                if (willExpand) task.IsDescriptionExpanded = false;
+            }
+            else
+            {
+                task.IsDescriptionExpanded = willExpand;
+                if (willExpand) task.IsTitleExpanded = false;
+            }
 
             var index = FilteredTasks.IndexOf(task);
             if (index >= 0)
@@ -321,6 +339,19 @@ namespace Tazq_Frontend.ViewModels
                 FilteredTasks.Insert(index, task);
             }
         }
+
+        [RelayCommand]
+        private void ToggleTitleExpand(TaskModel task)
+        {
+            ToggleExpand(task, true);
+        }
+
+        [RelayCommand]
+        private void ToggleDescriptionExpand(TaskModel task)
+        {
+            ToggleExpand(task, false);
+        }
+
 
         private async Task DeleteTask(TaskModel? task)
         {
@@ -409,6 +440,14 @@ namespace Tazq_Frontend.ViewModels
             Preferences.Default.Set("IsLightThemeEnabled", value);
             App.Current.UserAppTheme = value ? AppTheme.Light : AppTheme.Dark;
         }
-
+        public void ResetTaskExpansions()
+        {
+            foreach (var task in FilteredTasks)
+            {
+                task.IsExpanded = false;
+                task.IsTitleExpanded = false;
+                task.IsDescriptionExpanded = false;
+            }
+        }
     }
 }

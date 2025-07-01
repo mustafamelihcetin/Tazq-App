@@ -174,7 +174,7 @@ namespace Tazq_Frontend.ViewModels
                 Priority = priorityEnum
             };
 
-            bool result = await _apiService.AddTask(newTask);
+            var (result, message) = await _apiService.AddTask(newTask);
 
             if (result)
             {
@@ -183,7 +183,8 @@ namespace Tazq_Frontend.ViewModels
             }
             else
             {
-                await Shell.Current.DisplayAlert("Hata", "Görev kaydedilemedi.", "Tamam");
+                var error = string.IsNullOrWhiteSpace(message) ? "Görev kaydedilemedi." : message;
+                await Shell.Current.DisplayAlert("Hata", error, "Tamam");
             }
         }
 

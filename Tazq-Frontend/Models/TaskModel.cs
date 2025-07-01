@@ -19,6 +19,12 @@ namespace Tazq_Frontend.Models
         [ObservableProperty]
         private bool isExpanded = false;
 
+        [ObservableProperty]
+        private bool isTitleExpanded = false;
+
+        [ObservableProperty]
+        private bool isDescriptionExpanded = false;
+
         public bool IsTodayAndIncomplete => IsToday && !IsCompleted;
 
         // Constructor

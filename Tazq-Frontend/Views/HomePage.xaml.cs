@@ -77,6 +77,16 @@ namespace Tazq_Frontend.Views
 
         }
 
+        protected override void OnDisappearing()
+        {
+            base.OnDisappearing();
+
+            if (BindingContext is HomeViewModel viewModel)
+                viewModel.ResetTaskExpansions();
+
+            Application.Current.RequestedThemeChanged -= OnRequestedThemeChanged;
+        }
+
         private void OnRequestedThemeChanged(object sender, AppThemeChangedEventArgs e)
         {
             MainThread.BeginInvokeOnMainThread(SetupDynamicBackground);

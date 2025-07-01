@@ -159,54 +159,77 @@ namespace Tazq_Frontend.Services
 
 
         // Add New Task
-        public async Task<bool> AddTask(TaskModel task)
-		{
-			await SetAuthHeader();
+        public async Task<(bool Success, string? ErrorMessage)> AddTask(TaskModel task)
+        {
+            await SetAuthHeader();
 
-			var options = new JsonSerializerOptions
-			{
-				PropertyNamingPolicy = null,
-				DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-				Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
-				Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-			};
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = null,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            };
 
-			var payload = new
-			{
-				title = task.Title,
-				description = task.Description,
-				dueDate = task.DueDate,
+            var payload = new
+            {
+                title = task.Title,
+                description = task.Description,
+                dueDate = task.DueDate,
                 dueTime = task.DueTime,
                 isCompleted = task.IsCompleted,
-				priority = task.Priority,
-				tags = task.Tags
-			};
+                priority = task.Priority,
+                tags = task.Tags
+            };
 
-			var json = JsonSerializer.Serialize(payload, options);
-			var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var json = JsonSerializer.Serialize(payload, options);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-			try
-			{
-				var response = await _httpClient.PostAsync("tasks", content);
-				var responseContent = await response.Content.ReadAsStringAsync();
+            try
+            {
+                var response = await _httpClient.PostAsync("tasks", content);
+                var responseContent = await response.Content.ReadAsStringAsync();
 
-				Console.WriteLine($"[DOTNET] AddTask API Request: tasks");
+                Console.WriteLine($"[DOTNET] AddTask API Request: tasks");
 				Console.WriteLine($"[DOTNET] Request Body: {json}");
 				Console.WriteLine($"[DOTNET] Response Status: {response.StatusCode}");
 				Console.WriteLine($"[DOTNET] Response Content: {responseContent}");
 
-				return response.IsSuccessStatusCode;
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine($"HATA - AddTask: {ex.Message}");
-				return false;
-			}
-		}
+                if (response.IsSuccessStatusCode)
+                {
+                    return (true, null);
+                }
+
+                string? message = null;
+                try
+                {
+                    var doc = JsonDocument.Parse(responseContent);
+                    if (doc.RootElement.TryGetProperty("message", out var msgProp))
+                    {
+                        message = msgProp.GetString();
+                    }
+                    else
+                    {
+                        message = responseContent;
+                    }
+                }
+                catch
+                {
+                    message = responseContent;
+                }
+
+                return (false, message);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HATA - AddTask: {ex.Message}");
+                return (false, ex.Message);
+            }
+        }
 
 
-		// User Register with response message	
-		public async Task<(bool IsSuccess, string? ErrorMessage)> RegisterWithMessage(string email, string name, string password)
+        // User Register with response message	
+        public async Task<(bool IsSuccess, string? ErrorMessage)> RegisterWithMessage(string email, string name, string password)
 		{
 			Console.WriteLine("RegisterWithMessage fonksiyonu başlatıldı.");
 

@@ -64,4 +64,5 @@
         <GradientStop Color="{StaticResource Gray950}" Offset="1.0" />
     </LinearGradientBrush>
 
+    <!-- Used for the Google login button text to adapt to theme changes -->
 </ResourceDictionary>

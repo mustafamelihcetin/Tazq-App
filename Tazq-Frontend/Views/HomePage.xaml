@@ -275,8 +275,6 @@
                                                                        CommandParameter="{x:Reference TaskItemFrame}" />
                                     </Frame.Behaviors>
                                     <Frame.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleExpandCommand, Source={x:Reference MainPageRoot}}"
-                                                              CommandParameter="{Binding .}" />
                                         <TapGestureRecognizer Command="{Binding Source={x:Reference MainPageRoot}, Path=TaskTappedCommand}"
                                                               CommandParameter="{x:Reference TaskItemFrame}" />
                                     </Frame.GestureRecognizers>
@@ -302,7 +300,12 @@
                                                FontAttributes="Bold"
                                                TextColor="{AppThemeBinding Light={StaticResource Black}, Dark=White}"
                                                LineBreakMode="TailTruncation"
-                                               MaxLines="{Binding IsExpanded, Converter={StaticResource BoolToMaxLinesConverter}, ConverterParameter=2}" />
+                                               MaxLines="{Binding IsTitleExpanded, Converter={StaticResource BoolToMaxLinesConverter}, ConverterParameter=2}">
+                                            <Label.GestureRecognizers>
+                                                <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleTitleExpandCommand, Source={x:Reference MainPageRoot}}"
+                                                                      CommandParameter="{Binding .}" />
+                                            </Label.GestureRecognizers>
+                                        </Label>
 
 
                                         <Frame Grid.Row="0" Grid.Column="1"
@@ -327,9 +330,11 @@
                                                TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
                                                LineHeight="1.1"
                                                LineBreakMode="TailTruncation"
-                                               MaxLines="{Binding IsExpanded, Converter={StaticResource BoolToMaxLinesConverter}, ConverterParameter=3}"
+                                               MaxLines="{Binding IsDescriptionExpanded, Converter={StaticResource BoolToMaxLinesConverter}, ConverterParameter=3}"
                                                IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}">
                                             <Label.GestureRecognizers>
+                                                <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleDescriptionExpandCommand, Source={x:Reference MainPageRoot}}"
+                                                                      CommandParameter="{Binding .}" />
                                                 <TapGestureRecognizer Command="{Binding Source={x:Reference MainPageRoot}, Path=TaskTappedCommand}"
                                                                       CommandParameter="{x:Reference DescriptionLabel}" />
                                             </Label.GestureRecognizers>
