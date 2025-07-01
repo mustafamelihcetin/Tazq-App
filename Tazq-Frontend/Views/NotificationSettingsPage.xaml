@@ -83,12 +83,6 @@
                             Format="HH:mm" />
             </Grid>
 
-            <Label Text="{Binding NotificationTimeOfDay, StringFormat='Saat {0:hh\\:mm}'}"
-                   FontFamily="RobotoRegular"
-                   FontSize="13"
-                   HorizontalOptions="Center"
-                   TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
-
             <Button Text="Kaydet"
                     Command="{Binding SaveCommand}"
                     BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray800}}"
