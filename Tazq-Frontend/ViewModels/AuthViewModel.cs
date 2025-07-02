@@ -51,7 +51,7 @@ namespace Tazq_Frontend.ViewModels
             set => SetProperty(ref showForgotPassword, value);
         }
 
-        private bool isLightThemeEnabled = Application.Current.UserAppTheme == AppTheme.Light;
+        private bool isLightThemeEnabled = Application.Current?.UserAppTheme == AppTheme.Light;
         public bool IsLightThemeEnabled
         {
             get => isLightThemeEnabled;
@@ -60,7 +60,10 @@ namespace Tazq_Frontend.ViewModels
                 if (SetProperty(ref isLightThemeEnabled, value))
                 {
                     Preferences.Default.Set("IsLightThemeEnabled", value);
-                    Application.Current.UserAppTheme = value ? AppTheme.Light : AppTheme.Dark;
+                    if (Application.Current != null)
+                    {
+                        Application.Current.UserAppTheme = value ? AppTheme.Light : AppTheme.Dark;
+                    }
                 }
             }
         }

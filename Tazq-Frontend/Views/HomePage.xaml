@@ -336,7 +336,7 @@
                                                 <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleDescriptionExpandCommand, Source={x:Reference MainPageRoot}}"
                                                                       CommandParameter="{Binding .}" />
                                                 <TapGestureRecognizer Command="{Binding Source={x:Reference MainPageRoot}, Path=TaskTappedCommand}"
-                                                                      CommandParameter="{x:Reference DescriptionLabel}" />
+                                                                      CommandParameter="{x:Reference TaskItemFrame}" />
                                             </Label.GestureRecognizers>
                                         </Label>
 

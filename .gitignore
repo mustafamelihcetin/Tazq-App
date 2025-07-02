@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /Tazq-Backend/.env
 /Tazq-Backend/appsettings.json
+*.rar

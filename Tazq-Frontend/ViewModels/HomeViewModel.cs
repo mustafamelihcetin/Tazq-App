@@ -109,7 +109,7 @@ namespace Tazq_Frontend.ViewModels
         private bool isSettingsPanelVisible = false;
 
         [ObservableProperty]
-        private bool isLightThemeEnabled = Application.Current.RequestedTheme == AppTheme.Light;
+        private bool isLightThemeEnabled = Application.Current?.RequestedTheme == AppTheme.Light;
 
 
 
@@ -174,7 +174,11 @@ namespace Tazq_Frontend.ViewModels
             catch (Exception ex)
             {
                 Console.WriteLine($"[DOTNET] Görev çekme hatası: {ex.Message}");
-                await Application.Current.MainPage.DisplayAlert("Hata", "Görevler alınamadı: " + ex.Message, "Tamam");
+                var page = Application.Current?.MainPage;
+                if (page != null)
+                {
+                    await page.DisplayAlert("Hata", "Görevler alınamadı: " + ex.Message, "Tamam");
+                }
             }
             finally
             {
@@ -298,7 +302,7 @@ namespace Tazq_Frontend.ViewModels
 
             if (willExpand)
             {
-                foreach (var other in FilteredTasks)
+                foreach (var other in FilteredTasks.ToList())
                 {
                     if (ReferenceEquals(other, task))
                         continue;
@@ -358,7 +362,12 @@ namespace Tazq_Frontend.ViewModels
             if (task == null)
                 return;
 
-            var confirmed = await Application.Current.MainPage.DisplayAlert("Görevi Sil", $"'{task.Title}' silinsin mi?", "Evet", "Hayır");
+            var page = Application.Current?.MainPage;
+            bool confirmed = false;
+            if (page != null)
+            {
+                confirmed = await page.DisplayAlert("Görevi Sil", $"'{task.Title}' silinsin mi?", "Evet", "Hayır");
+            }
             if (confirmed)
             {
                 await _apiService.DeleteTask(task.Id);
@@ -438,7 +447,10 @@ namespace Tazq_Frontend.ViewModels
         partial void OnIsLightThemeEnabledChanged(bool value)
         {
             Preferences.Default.Set("IsLightThemeEnabled", value);
-            App.Current.UserAppTheme = value ? AppTheme.Light : AppTheme.Dark;
+            if (App.Current != null)
+            {
+                App.Current.UserAppTheme = value ? AppTheme.Light : AppTheme.Dark;
+            }
         }
         public void ResetTaskExpansions()
         {

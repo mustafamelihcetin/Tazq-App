@@ -19,7 +19,10 @@ public partial class App : Application
 
         // Read user preference and apply theme accordingly
         bool isLightEnabled = Preferences.Default.Get("IsLightThemeEnabled", false);
-        Application.Current.UserAppTheme = isLightEnabled ? AppTheme.Light : AppTheme.Dark;
+        if (Application.Current != null)
+        {
+            Application.Current.UserAppTheme = isLightEnabled ? AppTheme.Light : AppTheme.Dark;
+        }
 
         MainPage = new AppShell();
     }
