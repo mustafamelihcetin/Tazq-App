@@ -65,7 +65,7 @@ namespace Tazq_Frontend.ViewModels
                     StatusMessage = "Bir hata oluştu, lütfen tekrar deneyin.";
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 StatusMessage = "Bir hata oluştu, lütfen tekrar deneyin.";
             }

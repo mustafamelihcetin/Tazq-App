@@ -413,7 +413,7 @@ namespace Tazq_Frontend.ViewModels
             FilterByCompleted = IsShowOnlyIncomplete ? false : null;
             ApplyFilters();
 
-            if (Application.Current.MainPage is ContentPage page)
+            if (Application.Current?.MainPage is ContentPage page)
             {
                 var label = page.FindByName<Label>("StatusFilterLabel");
                 if (label != null)
@@ -433,7 +433,7 @@ namespace Tazq_Frontend.ViewModels
             ShowPastTasksLabel = ShowPastTasks ? "Göster" : "Gizle";
             LoadTasksCommand.Execute(null);
 
-            if (Application.Current.MainPage is ContentPage page)
+            if (Application.Current?.MainPage is ContentPage page)
             {
                 var label = page.FindByName<Label>("ShowPastTasksLabelRef");
                 if (label != null)

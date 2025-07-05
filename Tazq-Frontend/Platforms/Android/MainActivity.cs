@@ -28,5 +28,7 @@ public class MainActivity : MauiAppCompatActivity
         {
             Window.DecorView.SystemUiVisibility = (StatusBarVisibility)SystemUiFlags.Visible;
         }
+
+        Window.SetBackgroundDrawable(new Android.Graphics.Drawables.ColorDrawable(Android.Graphics.Color.Black));
     }
 }

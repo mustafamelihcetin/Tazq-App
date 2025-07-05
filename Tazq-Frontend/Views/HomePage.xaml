@@ -6,6 +6,7 @@
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              xmlns:helpers="clr-namespace:Tazq_Frontend.Helpers"
              xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             xmlns:controls="clr-namespace:Tazq_Frontend.Controls"
              x:Class="Tazq_Frontend.Views.HomePage"
              x:Name="MainPageRoot"
              Shell.NavBarIsVisible="False"
@@ -79,17 +80,21 @@
             <!-- Logo + icons -->
             <Grid x:Name="HeaderGrid" Grid.Row="0" ColumnSpacing="12" Margin="0,0,0,10">
                 <Grid.Padding>
-                    <OnPlatform iOS="0,0,0,0" Default="0,5,0,0" />
+                    <OnPlatform x:TypeArguments="Thickness">
+                        <On Platform="iOS" Value="0,0,0,0" />
+                        <On Platform="Default" Value="0,5,0,0" />
+                    </OnPlatform>
                 </Grid.Padding>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Image
+                <controls:LogoImage
                     Grid.Column="0"
                     x:Name="LogoImage"
                     Source="{Binding IsLightThemeEnabled, Converter={StaticResource HomePageLogoConverter}}"
+                    BackgroundColor="Transparent"
                     HeightRequest="38"
                     Opacity="0.95"
                     Scale="0.9"

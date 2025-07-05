@@ -145,7 +145,7 @@ namespace Tazq_Frontend.ViewModels
                         await currentPage.DisplayAlert("Hata", "Geçersiz giriş bilgileri! Lütfen tekrar deneyin.", "Tamam");
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 IsLoading = false;
                 ShowForgotPassword = true;
@@ -197,7 +197,7 @@ namespace Tazq_Frontend.ViewModels
                         await currentPage.DisplayAlert("Hata", "Kayıt başarısız oldu, lütfen tekrar deneyin.", "Tamam");
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 IsLoading = false;
 
