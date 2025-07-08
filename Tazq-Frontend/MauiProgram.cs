@@ -3,7 +3,6 @@ using CommunityToolkit.Maui;
 using Tazq_Frontend.Services;
 using Tazq_Frontend.ViewModels;
 using SkiaSharp;
-using Tazq_Frontend.Controls;
 
 #if IOS
 using UIKit;
@@ -41,12 +40,6 @@ public static class MauiProgram
                 fonts.AddFont("Roboto-Italic.ttf", "RobotoItalic");
             });
 
-#if ANDROID
-        builder.ConfigureMauiHandlers(handlers =>
-        {
-            handlers.AddHandler<LogoImage, LogoImageHandler>();
-        });
-#endif
 
         builder.Services.AddHttpClient<ApiService>(client =>
         {
