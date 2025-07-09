@@ -20,7 +20,7 @@
                              VerticalOptions="Center"
                              HorizontalOptions="Center"
                              Spacing="8">
-            <controls:LogoImage x:Name="Logo"
+           <Image x:Name="Logo"
                    Source="{AppThemeBinding Light=tazq_white_logo_dark.png, Dark=tazq_white_logo.png}"
                    HeightRequest="50"
                    Opacity="0"

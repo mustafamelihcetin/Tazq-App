@@ -89,7 +89,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <controls:LogoImage
+               <Image
                     Grid.Column="0"
                     x:Name="LogoImage"
                     Source="{Binding IsLightThemeEnabled, Converter={StaticResource HomePageLogoConverter}}"

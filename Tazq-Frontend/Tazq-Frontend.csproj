@@ -32,8 +32,8 @@
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(TargetFramework)'=='net8.0-ios'">
 	  <ProvisioningType>automatic</ProvisioningType>
-		<CodesignProvision>TazqManualDevProfile</CodesignProvision>
-		<CodesignKey>Apple Development: Mustafa Melih Çetin (893XDWQYUD)</CodesignKey>
+		<CodesignProvision>VS: com.tazqapp.tazq Development</CodesignProvision>
+		<CodesignKey>Apple Development: Created via API (W7Z3M965RF)</CodesignKey>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -81,8 +81,7 @@
 		<MauiImage Include="Resources\Images\google_logo.png">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</MauiImage>
-
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" IsAppIcon="true" />
+		<!--<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" IsAppIcon="true" />-->
 		<MauiIcon Include="Platforms\Windows\Assets\appicons.png" ForegroundFile="Platforms\Windows\Assets\appicons.png" IsAppIcon="true" />
 	</ItemGroup>
 	
@@ -99,6 +98,7 @@
 	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-16.png" />
 	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-256.png" />
 	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-48.png" />
+	  <None Remove="Resources\Images\appicon.png" />
 	  <None Remove="Resources\Images\bg_dark_gradient.png" />
 	</ItemGroup>
 
