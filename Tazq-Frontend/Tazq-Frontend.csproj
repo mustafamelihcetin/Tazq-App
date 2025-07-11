@@ -31,10 +31,11 @@
 		<UseInterpreter>true</UseInterpreter>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(TargetFramework)'=='net8.0-ios'">
-	  <ProvisioningType>automatic</ProvisioningType>
+		<ProvisioningType>automatic</ProvisioningType>
 		<CodesignProvision>VS: com.tazqapp.tazq Development</CodesignProvision>
 		<CodesignKey>Apple Development: Created via API (W7Z3M965RF)</CodesignKey>
 	</PropertyGroup>
+
 
 	<ItemGroup>
 		<MauiSplashScreen Include="Resources\Images\tazq_white_logo.png" Color="#395177" BaseSize="300,92" />
@@ -81,11 +82,16 @@
 		<MauiImage Include="Resources\Images\google_logo.png">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</MauiImage>
-		<!-- Use the SVG icon for all non-Windows targets -->
-                <!-- Mark as the primary app icon so iOS uses it -->
-                <MauiIcon Include="Resources\AppIcon\appicon.svg"
-                          ForegroundFile="Resources\AppIcon\appicon.svg"
-                          IsAppIcon="true" />
+
+		<MauiImage Include="Resources\Images\icon1024.png">
+			<IsAppIcon>true</IsAppIcon>
+		</MauiImage>
+
+		<!--<MauiIcon Include="Platforms\Windows\Assets\appicons.png"
+          ForegroundFile="Platforms\Windows\Assets\appicons.png"
+          IsAppIcon="true"
+          Condition="'$(TargetFramework)'=='net8.0-windows10.0.19041.0'" />-->
+
 		<MauiIcon Include="Platforms\Windows\Assets\appicons.png" ForegroundFile="Platforms\Windows\Assets\appicons.png" IsAppIcon="true" Condition="'$(TargetFramework)'=='net8.0-windows10.0.19041.0'" />
 	</ItemGroup>
 	
@@ -128,7 +134,7 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
-
+ 
 	<ItemGroup>
 		<MauiXaml Update="Views\AboutPage.xaml">
 			<Generator>MSBuild:Compile</Generator>
@@ -139,7 +145,14 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Folder Include="Platforms\iOS\Assets.xcassets\" />
 	  <Folder Include="Resources\AppIcon\" />
 	</ItemGroup>
+
+	<ItemGroup>
+		<ImageAsset Include="Platforms\iOS\Assets.xcassets\AppIcon.appiconset\**\*" />
+	</ItemGroup>
+
+
 
 </Project>

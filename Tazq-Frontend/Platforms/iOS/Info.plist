@@ -44,6 +44,6 @@
 
 
 		<key>CFBundleIdentifier</key>
-		<string></string>
+		<string>com.tazqapp.tazq</string>
 	</dict>
 </plist>

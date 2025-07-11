@@ -1,0 +1,36 @@
+name: iOS Release to TestFlight
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    name: Build and Upload to TestFlight
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install MAUI workloads
+        run: dotnet workload install maui
+
+      - name: Restore NuGet packages
+        run: dotnet restore
+
+      - name: Build .ipa for iOS
+        run: dotnet publish Tazq-Frontend/Tazq-Frontend.csproj -f:net8.0-ios -c:Release -p:RuntimeIdentifier=ios-arm64 -p:EnableAssemblyILStripping=false -p:BuildIpa=true
+
+      - name: Upload to TestFlight
+        uses: apple-actions/upload-testflight-build@v1
+        with:
+          app_platform: ios
+          app_identifier: com.tazqapp.tazq
+          issuer_id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api_key_id: ${{ secrets.APPSTORE_API_KEY_ID }}
+          api_private_key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+          ipa_path: '**/*.ipa'
