@@ -83,17 +83,7 @@
 		<MauiImage Include="Resources\Images\google_logo.png">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</MauiImage>
-
-		<MauiImage Include="Resources\Images\icon1024.png">
-			<IsAppIcon>true</IsAppIcon>
-		</MauiImage>
-
-		<!--<MauiIcon Include="Platforms\Windows\Assets\appicons.png"
-          ForegroundFile="Platforms\Windows\Assets\appicons.png"
-          IsAppIcon="true"
-          Condition="'$(TargetFramework)'=='net8.0-windows10.0.19041.0'" />-->
-
-		<MauiIcon Include="Platforms\Windows\Assets\appicons.png" ForegroundFile="Platforms\Windows\Assets\appicons.png" IsAppIcon="true" Condition="'$(TargetFramework)'=='net8.0-windows10.0.19041.0'" />
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" TintColor="Yellow" IsAppIcon="true" />
 	</ItemGroup>
 	
 	<ItemGroup>
@@ -109,6 +99,7 @@
 	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-16.png" />
 	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-256.png" />
 	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-48.png" />
+	  <None Remove="Resources\AppIcon\appiconfg.svg" />
 	  <None Remove="Resources\Images\appicon.png" />
 	  <None Remove="Resources\Images\bg_dark_gradient.png" />
 	</ItemGroup>
@@ -147,13 +138,5 @@
 
 	<ItemGroup>
 	  <Folder Include="Platforms\iOS\Assets.xcassets\" />
-	  <Folder Include="Resources\AppIcon\" />
 	</ItemGroup>
-
-	<ItemGroup>
-		<ImageAsset Include="Platforms\iOS\Assets.xcassets\AppIcon.appiconset\**\*" />
-	</ItemGroup>
-
-
-
 </Project>
