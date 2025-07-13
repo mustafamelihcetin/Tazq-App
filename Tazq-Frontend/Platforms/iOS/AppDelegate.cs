@@ -14,8 +14,8 @@ public class AppDelegate : MauiUIApplicationDelegate
     {
         var result = base.FinishedLaunching(app, options);
 
-        // iOS global dark mod override
-        Window!.OverrideUserInterfaceStyle = UIUserInterfaceStyle.Dark;
+        if (Window != null)
+            Window.OverrideUserInterfaceStyle = UIUserInterfaceStyle.Dark;
 
         return result;
     }
