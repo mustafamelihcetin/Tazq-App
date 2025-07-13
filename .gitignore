@@ -365,3 +365,5 @@ FodyWeavers.xsd
 /Tazq-Backend/appsettings.json
 /Tazq-Backend/tazq.db
 *.rar
+/Tazq-Frontend.zip
+/Tazq-Frontend/Resources/Images/icon1024.png
