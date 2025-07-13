@@ -26,6 +26,6 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>XSAppIconAssets</key>
-	<string>Assets.xcassets/Appicon.appiconset</string>
+	<string>Assets.xcassets/AppIcon.appiconset</string>
 </dict>
 </plist>
