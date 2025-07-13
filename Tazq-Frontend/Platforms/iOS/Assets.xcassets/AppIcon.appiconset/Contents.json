@@ -55,6 +55,12 @@
       "filename": "Icon-App-60x60@3x.png"
     },
     {
+      "idiom": "iphone",
+      "size": "76x76",
+      "scale": "2x",
+      "filename": "Icon-App-76x76@2x.png"
+    },
+    {
       "idiom": "ipad",
       "size": "20x20",
       "scale": "1x",
@@ -117,6 +123,6 @@
   ],
   "info": {
     "version": 1,
-    "author": "makeappicon"
+    "author": "easyappicon"
   }
 }
