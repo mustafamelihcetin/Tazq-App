@@ -83,7 +83,7 @@
 		<MauiImage Include="Resources\Images\google_logo.png">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</MauiImage>
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" TintColor="Yellow" IsAppIcon="true" />
+		<!--<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" TintColor="Yellow" IsAppIcon="true" />-->
 	</ItemGroup>
 
 	<ItemGroup>
