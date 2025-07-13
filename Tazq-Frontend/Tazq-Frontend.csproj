@@ -85,23 +85,23 @@
 		</MauiImage>
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" TintColor="Yellow" IsAppIcon="true" />
 	</ItemGroup>
-	
+
 	<ItemGroup>
 		<MauiFont Include="Resources\Fonts\Roboto.ttf" Alias="RobotoRegular" />
 		<MauiFont Include="Resources\Fonts\Roboto-Italic.ttf" Alias="RobotoItalic" />
-	</ItemGroup>	
+	</ItemGroup>
 
 	<ItemGroup>
-	  <None Remove="Platforms\Windows\Assets\%24placeholder%24.scale-400.png" />
-	  <None Remove="Platforms\Windows\Assets\AppIcon.scale-100.png" />
-	  <None Remove="Platforms\Windows\Assets\AppIcon.scale-200.png" />
-	  <None Remove="Platforms\Windows\Assets\AppIcon.scale-400.png" />
-	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-16.png" />
-	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-256.png" />
-	  <None Remove="Platforms\Windows\Assets\AppIcon.targetsize-48.png" />
-	  <None Remove="Resources\AppIcon\appiconfg.svg" />
-	  <None Remove="Resources\Images\appicon.png" />
-	  <None Remove="Resources\Images\bg_dark_gradient.png" />
+		<None Remove="Platforms\Windows\Assets\%24placeholder%24.scale-400.png" />
+		<None Remove="Platforms\Windows\Assets\AppIcon.scale-100.png" />
+		<None Remove="Platforms\Windows\Assets\AppIcon.scale-200.png" />
+		<None Remove="Platforms\Windows\Assets\AppIcon.scale-400.png" />
+		<None Remove="Platforms\Windows\Assets\AppIcon.targetsize-16.png" />
+		<None Remove="Platforms\Windows\Assets\AppIcon.targetsize-256.png" />
+		<None Remove="Platforms\Windows\Assets\AppIcon.targetsize-48.png" />
+		<None Remove="Resources\AppIcon\appiconfg.svg" />
+		<None Remove="Resources\Images\appicon.png" />
+		<None Remove="Resources\Images\bg_dark_gradient.png" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -126,7 +126,7 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
- 
+
 	<ItemGroup>
 		<MauiXaml Update="Views\AboutPage.xaml">
 			<Generator>MSBuild:Compile</Generator>
@@ -137,6 +137,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Platforms\iOS\Assets.xcassets\" />
+		<Folder Include="Platforms\iOS\Assets.xcassets\" />
 	</ItemGroup>
 </Project>
