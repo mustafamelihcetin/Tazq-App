@@ -10,7 +10,7 @@
 - **Email Notifications**
 - **Phone Number Verification with OTP (Coming Soon)**
 - **Role-Based Access Control (Admin/User)**
-- **SQLite Database Integration**
+- **PostgreSQL Database Integration**
 - **Swagger API Documentation**
 - **Rate Limiting**
 - **Dependency Injection**
@@ -37,7 +37,7 @@
 - **Entity Framework Core**
 - **.NET MAUI**
 - **CommunityToolkit.Mvvm**
-- **SQLite**
+- **PostgreSQL**
 - **JWT**
 - **SMTP for Emails**
 - **Swagger**
