@@ -1,21 +1,25 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Tazq_App.Models;
 
 namespace Tazq_App.Data
 {
 	public class AppDbContext : DbContext
 	{
-		public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+		private readonly ILogger<AppDbContext>? _logger;
+
+		public AppDbContext(DbContextOptions<AppDbContext> options, ILogger<AppDbContext>? logger = null) : base(options)
 		{
+			_logger = logger;
 			try
 			{
-				Console.WriteLine("Veritabanı başlatılıyor...");
+				_logger?.LogInformation("Veritabanı başlatılıyor...");
 				//Database.Migrate();
-				Console.WriteLine("Veritabanı kontrolü tamamlandı.");
+				_logger?.LogInformation("Veritabanı kontrolü tamamlandı.");
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine($"Veritabanı başlatılamadı: {ex.Message}");
+				_logger?.LogError(ex, "Veritabanı başlatılamadı: {Message}", ex.Message);
 			}
 		}
 
