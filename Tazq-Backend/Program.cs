@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -11,6 +11,9 @@ using Tazq_App.Models;
 using Microsoft.AspNetCore.Diagnostics;
 using Npgsql.EntityFrameworkCore.PostgreSQL;
 using Tazq_App.Services;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Tazq_App.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +40,9 @@ builder.Services.AddControllers()
         opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         opt.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
+
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<UserRegisterDtoValidator>();
 
 builder.Services.AddEndpointsApiExplorer();
 

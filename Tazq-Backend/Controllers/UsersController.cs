@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -380,4 +380,19 @@ public class UsersController : ControllerBase
         }
     }
 
+    [HttpDelete("me")]
+    [Authorize]
+    public async Task<IActionResult> DeleteMe()
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return NotFound();
+
+        _context.Users.Remove(user);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Hesabınız ve tüm verileriniz başarıyla silindi." });
+    }
 }
