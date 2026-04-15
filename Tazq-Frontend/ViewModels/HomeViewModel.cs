@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
@@ -15,10 +15,16 @@ namespace Tazq_Frontend.ViewModels
     public partial class HomeViewModel : ObservableObject
     {
         private readonly ApiService _apiService;
+        private readonly ConnectivityService _connectivityService;
+        private readonly LocalCacheService _cacheService;
 
-        public HomeViewModel(ApiService apiService)
+        public HomeViewModel(ApiService apiService, ConnectivityService connectivityService, LocalCacheService cacheService)
         {
             _apiService = apiService;
+            _connectivityService = connectivityService;
+            _cacheService = cacheService;
+            
+            _connectivityService.ConnectivityChanged += OnConnectivityChanged;
             Tasks = new ObservableCollection<TaskModel>();
             FilteredTasks = new ObservableCollection<TaskModel>();
             LoadTasksCommand = new AsyncRelayCommand(LoadTasks);
@@ -42,17 +48,19 @@ namespace Tazq_Frontend.ViewModels
                 await LoadTasks();
             });
 
-            LoadTasksCommand.Execute(null);
-
             this.PropertyChanged += (s, e) =>
             {
                 Console.WriteLine($"[DEBUG] Property changed: {e.PropertyName}");
             };
         }
 
-        public HomeViewModel() : this(MauiProgram.Services!.GetRequiredService<ApiService>())
+        private void OnConnectivityChanged(object? sender, bool isConnected)
         {
+            IsOffline = !isConnected;
         }
+
+        [ObservableProperty]
+        private bool isOffline;
 
         [ObservableProperty]
         private ObservableCollection<TaskModel> tasks = new();
@@ -109,7 +117,7 @@ namespace Tazq_Frontend.ViewModels
         private bool isSettingsPanelVisible = false;
 
         [ObservableProperty]
-        private bool isLightThemeEnabled = Application.Current?.RequestedTheme == AppTheme.Light;
+        private bool isLightThemeEnabled = false; // Will be set by property or on appear
 
 
 
@@ -139,14 +147,28 @@ namespace Tazq_Frontend.ViewModels
         private async Task LoadTasks()
         {
             IsLoading = true;
+            IsOffline = !_connectivityService.IsConnected;
 
             try
             {
-                Console.WriteLine("[DOTNET] Görevler API çağrılıyor...");
+                List<TaskModel>? taskList;
 
-                var taskList = await _apiService.GetTasks();
+                if (IsOffline)
+                {
+                    Console.WriteLine("[DOTNET] Offline: Önbellekten yükleniyor...");
+                    taskList = await _cacheService.GetTasks();
+                }
+                else
+                {
+                    Console.WriteLine("[DOTNET] Online: API çağrılıyor...");
+                    taskList = await _apiService.GetTasks();
+                    if (taskList != null && taskList.Count > 0)
+                    {
+                        await _cacheService.SaveTasks(taskList);
+                    }
+                }
 
-                Console.WriteLine($"[DOTNET] Gelen görev sayısı: {taskList?.Count}");
+                Console.WriteLine($"[DOTNET] Yüklenen görev sayısı: {taskList?.Count}");
 
                 if (taskList != null)
                 {

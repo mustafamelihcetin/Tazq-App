@@ -1,0 +1,7 @@
+bin/
+obj/
+publish/
+Tazq-Backend/
+.env
+.vs/
+.git/

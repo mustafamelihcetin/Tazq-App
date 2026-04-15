@@ -1,4 +1,4 @@
-﻿using System.Windows.Input;
+using System.Windows.Input;
 using Tazq_Frontend.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -17,10 +17,6 @@ namespace Tazq_Frontend.ViewModels
         public AuthViewModel(ApiService apiService)
         {
             _apiService = apiService;
-        }
-
-        public AuthViewModel() : this(MauiProgram.Services!.GetRequiredService<ApiService>())
-        {
         }
 
         private string _email = string.Empty;
@@ -51,7 +47,7 @@ namespace Tazq_Frontend.ViewModels
             set => SetProperty(ref showForgotPassword, value);
         }
 
-        private bool isLightThemeEnabled = Application.Current?.UserAppTheme == AppTheme.Light;
+        private bool isLightThemeEnabled = false;
         public bool IsLightThemeEnabled
         {
             get => isLightThemeEnabled;

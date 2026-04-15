@@ -1,12 +1,12 @@
-using Tazq_Frontend.ViewModels;
+﻿using Tazq_Frontend.ViewModels;
 
 namespace Tazq_Frontend.Views;
 
 public partial class NotificationSettingsPage : ContentPage
 {
-    public NotificationSettingsPage()
+    public NotificationSettingsPage(NotificationSettingsViewModel viewModel)
     {
         InitializeComponent();
-        BindingContext = new NotificationSettingsViewModel();
+        BindingContext = viewModel;
     }
 }

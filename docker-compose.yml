@@ -1,0 +1,44 @@
+services:
+  tazq-db:
+    image: postgres:17
+    container_name: tazq-db
+    environment:
+      POSTGRES_DB: tazqdb
+      POSTGRES_USER: tazqadmin
+      POSTGRES_PASSWORD: wAL5dWMoBZ3KdHE9VHkuvSp3NXkUYIpE
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    restart: always
+
+  tazq-backend:
+    build:
+      context: ./Tazq-Backend
+      dockerfile: DockerFile
+    container_name: tazq-backend
+    environment:
+      - DB_HOST=tazq-db
+      - DB_PORT=5432
+      - DB_NAME=tazqdb
+      - DB_USER=tazqadmin
+      - DB_PASSWORD=wAL5dWMoBZ3KdHE9VHkuvSp3NXkUYIpE
+      - JWT_KEY=MySuperUltraSecureSecretKey1234567890morethan32characters
+      - JWT_ISSUER=TazqApp
+      - JWT_AUDIENCE=TazqUsers
+      - JWT_EXPIRATION=60
+      - PORT=80
+      - APP_SIGNATURE=tazq-maui-frontend
+      - SMTP_SERVER=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USERNAME=tazq.app@gmail.com
+      - SMTP_PASSWORD=tajyacayvveoczsj
+      - SMTP_FROM_EMAIL=tazq.app@gmail.com
+    ports:
+      - "5200:80"
+    depends_on:
+      - tazq-db
+    restart: on-failure
+
+volumes:
+  postgres_data:

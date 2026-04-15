@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Json;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -12,6 +12,12 @@ namespace Tazq_Frontend.ViewModels
 {
     public partial class ForgotPasswordViewModel : ObservableObject
     {
+        private readonly ApiService _apiService;
+
+        public ForgotPasswordViewModel(ApiService apiService)
+        {
+            _apiService = apiService;
+        }
         private string _email = string.Empty;
         public string Email
         {
@@ -47,12 +53,9 @@ namespace Tazq_Frontend.ViewModels
                 return;
             }
 
-            var apiService = MauiProgram.Services!.GetRequiredService<ApiService>();
-            var payload = new { Email = this.Email };
-
             try
             {
-                var response = await apiService.PostAsync("users/forgot-password", payload);
+                var response = await _apiService.PostAsync("users/forgot-password", new { Email = this.Email });
 
                 if (response.IsSuccessStatusCode)
                 {

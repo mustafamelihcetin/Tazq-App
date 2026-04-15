@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
@@ -7,11 +7,6 @@
              NavigationPage.HasNavigationBar="False"
              Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
 
-
-    <ContentPage.BindingContext>
-        <vm:AddTaskViewModel />
-    </ContentPage.BindingContext>
-
     <Grid Padding="20" RowSpacing="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -19,7 +14,7 @@
         </Grid.RowDefinitions>
 
         <HorizontalStackLayout Grid.Row="0" Spacing="10" VerticalOptions="Center">            
-            <Label Text="Yeni Görev Ekle"
+            <Label Text="Yeni GÃ¶rev Ekle"
                    FontSize="24"
                    FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
@@ -41,7 +36,7 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <Entry Visual="Default" Grid.Row="0"
-                               Placeholder="Başlık"
+                               Placeholder="BaÅŸlÄ±k"
                                Text="{Binding Title}"
                                BackgroundColor="Transparent"
                                FontSize="15"
@@ -70,7 +65,7 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Editor Grid.Row="0"
-                                Placeholder="Açıklama"
+                                Placeholder="AÃ§Ä±klama"
                                 Text="{Binding Description}"
                                 AutoSize="TextChanges"
                                 BackgroundColor="Transparent"
@@ -135,7 +130,7 @@
                            HasShadow="False"
                            HeightRequest="80"
                            VerticalOptions="Start">
-                        <Picker Title="Öncelik Seçin"
+                        <Picker Title="Ã–ncelik SeÃ§in"
                                 ItemsSource="{Binding Priorities}"
                                 SelectedItem="{Binding SelectedPriority}"
                                 ItemDisplayBinding="{Binding .}"
@@ -193,13 +188,13 @@
                 <Grid ColumnSpacing="10"
       HorizontalOptions="Center"
       WidthRequest="320">
-                    <!-- Genişlik isteğe göre ayarlanabilir -->
+                    <!-- GeniÅŸlik isteÄŸe gÃ¶re ayarlanabilir -->
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Geri Dön Butonu -->
+                    <!-- Geri DÃ¶n Butonu -->
                     <Frame Grid.Column="0"
            Padding="0"
            CornerRadius="12"
@@ -212,7 +207,7 @@
                                     <GradientStop Color="#2B365E" Offset="1.0" />
                                 </LinearGradientBrush>
                             </Grid.Background>
-                            <Button Text="Geri Dön"
+                            <Button Text="Geri DÃ¶n"
                     Clicked="OnBackClicked"
                     Style="{StaticResource PrimaryGradientButtonStyle}"
                     BackgroundColor="Transparent"
@@ -221,7 +216,7 @@
                         </Grid>
                     </Frame>
 
-                    <!-- Görevi Kaydet Butonu -->
+                    <!-- GÃ¶revi Kaydet Butonu -->
                     <Frame Grid.Column="1"
            Padding="0"
            CornerRadius="12"
@@ -234,7 +229,7 @@
                                     <GradientStop Color="#2B365E" Offset="1.0" />
                                 </LinearGradientBrush>
                             </Grid.Background>
-                            <Button Text="Görevi Kaydet"
+                            <Button Text="GÃ¶revi Kaydet"
                     Command="{Binding SaveTaskCommand}"
                     Style="{StaticResource PrimaryGradientButtonStyle}"
                     BackgroundColor="Transparent"

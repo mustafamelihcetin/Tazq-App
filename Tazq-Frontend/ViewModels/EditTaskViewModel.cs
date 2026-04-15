@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using System.Collections.ObjectModel;
@@ -17,10 +17,6 @@ namespace Tazq_Frontend.ViewModels
             _apiService = apiService;
             Tags = new ObservableCollection<string>();
             Priorities = new ObservableCollection<string> { "Düşük", "Orta", "Yüksek" };
-        }
-
-        public EditTaskViewModel() : this(MauiProgram.Services!.GetRequiredService<ApiService>())
-        {
         }
 
         private TaskModel? editingTask;

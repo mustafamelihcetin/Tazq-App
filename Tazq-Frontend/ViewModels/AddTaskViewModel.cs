@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -20,10 +20,6 @@ namespace Tazq_Frontend.ViewModels
             Priorities = new ObservableCollection<string> { "Düşük", "Orta", "Yüksek" };
             EnableTime = false;
             SelectedTime = null;
-        }
-
-        public AddTaskViewModel() : this(MauiProgram.Services!.GetRequiredService<ApiService>())
-        {
         }
 
         public string Title

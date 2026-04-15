@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
@@ -8,9 +8,6 @@
              Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
 
     <!-- ViewModel Binding Context -->
-    <ContentPage.BindingContext>
-        <vm:AuthViewModel />
-    </ContentPage.BindingContext>
 
     <Grid Padding="30">
         <Grid.RowDefinitions>
@@ -23,7 +20,7 @@
         <VerticalStackLayout Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Center">
             <Image Source="{Binding IsLightThemeEnabled, Converter={StaticResource HomePageLogoConverter}}"
                    WidthRequest="130" HeightRequest="45" />
-            <Label Text="Hesabını Oluştur"
+            <Label Text="HesabÄ±nÄ± OluÅŸtur"
                    FontSize="16"
                    LineHeight="1.2"
                    TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
@@ -37,7 +34,7 @@
 
             <!-- Name Input -->
             <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="False">
-                <Entry Visual="Default" BackgroundColor="Transparent" Placeholder="Adınız"
+                <Entry Visual="Default" BackgroundColor="Transparent" Placeholder="AdÄ±nÄ±z"
                        TextColor="{AppThemeBinding Light=Black, Dark=White}"
                        PlaceholderColor="#A5A5A5"
                        Text="{Binding Name}"
@@ -56,7 +53,7 @@
 
             <!-- Password Input -->
             <Frame Padding="10" CornerRadius="10" BackgroundColor="White" HasShadow="False">
-                <Entry Visual="Default" BackgroundColor="Transparent" Placeholder="Şifre"
+                <Entry Visual="Default" BackgroundColor="Transparent" Placeholder="Åifre"
                        IsPassword="True"
                        TextColor="{AppThemeBinding Light=Black, Dark=White}"
                        PlaceholderColor="#A5A5A5"
@@ -87,7 +84,7 @@
             </Frame>
 
             <!-- Back to Login -->
-            <Label Text="Zaten bir hesabın var mı?"
+            <Label Text="Zaten bir hesabÄ±n var mÄ±?"
                    FontSize="14"
                    TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
                    HorizontalTextAlignment="Center"
@@ -106,7 +103,7 @@
                             <GradientStop Color="#2B365E" Offset="1.0" />
                         </LinearGradientBrush>
                     </Grid.Background>
-                    <Button Text="Giriş Yap"
+                    <Button Text="GiriÅŸ Yap"
                             Command="{Binding NavigateToLoginCommand}"
                             Style="{StaticResource PrimaryGradientButtonStyle}"
                             BackgroundColor="Transparent"

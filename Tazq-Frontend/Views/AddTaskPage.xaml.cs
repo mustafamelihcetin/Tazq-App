@@ -1,13 +1,13 @@
-using Tazq_Frontend.ViewModels;
+﻿using Tazq_Frontend.ViewModels;
 
 namespace Tazq_Frontend.Views;
 
 public partial class AddTaskPage : ContentPage
 {
-	public AddTaskPage()
+	public AddTaskPage(AddTaskViewModel viewModel)
 	{
 		InitializeComponent();
-		BindingContext = new AddTaskViewModel();
+		BindingContext = viewModel;
     }
 
     // Handles tag entry completion and adds tag to the list
@@ -30,3 +30,4 @@ public partial class AddTaskPage : ContentPage
         await Shell.Current.GoToAsync("..");
     }
 }
+

@@ -18,10 +18,10 @@ namespace Tazq_Frontend.Views
         public IAsyncRelayCommand<object?> TaskTappedCommand { get; }
         public IAsyncRelayCommand<object?> TaskContextChangedCommand { get; }
 
-        public HomePage()
+        public HomePage(HomeViewModel viewModel)
         {
             InitializeComponent();
-            Console.WriteLine("[DOTNET] HomePage yüklendi.");
+            Console.WriteLine("[DOTNET] HomePage yÃ¼klendi.");
 
             RefreshCommand = new AsyncRelayCommand(OnRefreshAsync);
             TaskTappedCommand = new AsyncRelayCommand<object?>(OnTaskTappedAsync);
@@ -49,7 +49,8 @@ namespace Tazq_Frontend.Views
             }
 
             SetupDynamicBackground();
-            Application.Current.RequestedThemeChanged += OnRequestedThemeChanged;
+            if (Application.Current != null)
+                Application.Current.RequestedThemeChanged += OnRequestedThemeChanged;
 
             await Task.Delay(600);
 
@@ -84,7 +85,8 @@ namespace Tazq_Frontend.Views
             if (BindingContext is HomeViewModel viewModel)
                 viewModel.ResetTaskExpansions();
 
-            Application.Current.RequestedThemeChanged -= OnRequestedThemeChanged;
+            if (Application.Current != null)
+                Application.Current.RequestedThemeChanged -= OnRequestedThemeChanged;
         }
 
         private void OnRequestedThemeChanged(object sender, AppThemeChangedEventArgs e)
@@ -101,7 +103,7 @@ namespace Tazq_Frontend.Views
                 GradientStops = new GradientStopCollection()
             };
 
-            if (Application.Current.RequestedTheme == AppTheme.Light)
+            if (Application.Current != null && Application.Current.RequestedTheme == AppTheme.Light)
             {
                 _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#F5F7FA"), 0.0f));
                 _backgroundBrush.GradientStops.Add(new GradientStop(Color.FromArgb("#E4E7EB"), 0.3f));

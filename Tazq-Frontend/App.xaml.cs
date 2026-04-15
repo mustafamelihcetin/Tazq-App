@@ -1,4 +1,4 @@
-﻿using Tazq_Frontend.Views;
+using Tazq_Frontend.Views;
 
 #if WINDOWS
 using Microsoft.UI;
@@ -13,7 +13,7 @@ namespace Tazq_Frontend;
 
 public partial class App : Application
 {
-    public App()
+    public App(AppShell appShell)
     {
         InitializeComponent();
 
@@ -24,7 +24,7 @@ public partial class App : Application
             Application.Current.UserAppTheme = isLightEnabled ? AppTheme.Light : AppTheme.Dark;
         }
 
-        MainPage = new AppShell();
+        MainPage = appShell;
     }
 
     protected override Window CreateWindow(IActivationState activationState)

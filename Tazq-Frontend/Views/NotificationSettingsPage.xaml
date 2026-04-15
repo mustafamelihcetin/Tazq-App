@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
@@ -6,13 +6,10 @@
              Shell.NavBarIsVisible="False"
              NavigationPage.HasNavigationBar="False"
              Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
-    <ContentPage.BindingContext>
-        <vm:NotificationSettingsViewModel />
-    </ContentPage.BindingContext>
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="20">
-            <Label Text="Bildirim Ayarları"
+            <Label Text="Bildirim AyarlarÄ±"
                    FontSize="24"
                    FontAttributes="Bold"
                    HorizontalOptions="Center"
@@ -34,7 +31,7 @@
             </Grid>
 
             <Grid ColumnDefinitions="Auto,*" VerticalOptions="Center">
-                <Label Text="Hatırlatma günü"
+                <Label Text="HatÄ±rlatma gÃ¼nÃ¼"
                        Grid.Column="0"
                        FontFamily="RobotoRegular"
                        FontSize="13"
@@ -47,7 +44,7 @@
                          Value="{Binding ReminderDays}" />
             </Grid>
 
-            <Label Text="{Binding ReminderDays, StringFormat='{0} gün önce hatırlat'}"
+            <Label Text="{Binding ReminderDays, StringFormat='{0} gÃ¼n Ã¶nce hatÄ±rlat'}"
                    FontFamily="RobotoRegular"
                    FontSize="13"
                    HorizontalOptions="Center"

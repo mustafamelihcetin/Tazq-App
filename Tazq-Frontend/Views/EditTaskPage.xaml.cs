@@ -1,4 +1,4 @@
-using Tazq_Frontend.ViewModels;
+ï»¿using Tazq_Frontend.ViewModels;
 
 namespace Tazq_Frontend.Views
 {
@@ -7,10 +7,10 @@ namespace Tazq_Frontend.Views
     {
         private readonly EditTaskViewModel _viewModel;
 
-        public EditTaskPage()
+        public EditTaskPage(EditTaskViewModel viewModel)
         {
             InitializeComponent();
-            _viewModel = new EditTaskViewModel();
+            _viewModel = viewModel;
             BindingContext = _viewModel;
         }
 
@@ -29,7 +29,7 @@ namespace Tazq_Frontend.Views
                 }
                 else
                 {
-                    Console.WriteLine(">>> taskId geçerli değil!");
+                    Console.WriteLine(">>> taskId geÃ§erli deÄŸil!");
                 }
             }
         }

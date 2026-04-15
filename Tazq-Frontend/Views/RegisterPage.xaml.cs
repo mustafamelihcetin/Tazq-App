@@ -11,11 +11,12 @@ namespace Tazq_Frontend.Views
         private readonly AuthViewModel _viewModel;
         private readonly ApiService _apiService;
 
-        public RegisterPage()
+        public RegisterPage(AuthViewModel viewModel, ApiService apiService)
         {
             InitializeComponent();
-            _apiService = new ApiService(new HttpClient());
-            _viewModel = new AuthViewModel();
+            
+            _viewModel = viewModel;
+            _apiService = apiService;
             BindingContext = _viewModel;
         }
 
@@ -28,31 +29,32 @@ namespace Tazq_Frontend.Views
             {
                 if (string.IsNullOrWhiteSpace(_viewModel.Email) || string.IsNullOrWhiteSpace(_viewModel.Password))
                 {
-                    await DisplayAlert("Hata", "E-posta ve þifre boþ olamaz!", "Tamam");
+                    await DisplayAlert("Hata", "E-posta ve ÅŸifre boÅŸ olamaz!", "Tamam");
                     return;
                 }
 
                 // You can also collect name from UI if needed (currently hardcoded)
-                string name = "Kullanýcý"; // Adjust if name input exists
+                string name = "KullanÄ±cÄ±"; // Adjust if name input exists
                 bool result = await _apiService.Register(_viewModel.Email, name, _viewModel.Password);
 
                 if (result)
                 {
                     Console.WriteLine("Register successful.");
-                    await DisplayAlert("Baþarýlý", "Kayýt iþlemi tamamlandý.", "Tamam");
+                    await DisplayAlert("BaÅŸarÄ±lÄ±", "KayÄ±t iÅŸlemi tamamlandÄ±.", "Tamam");
                     await Shell.Current.GoToAsync($"///{RouteNames.LoginPage}");
                 }
                 else
                 {
                     Console.WriteLine("Register failed.");
-                    await DisplayAlert("Hata", "Kayýt iþlemi baþarýsýz oldu.", "Tamam");
+                    await DisplayAlert("Hata", "KayÄ±t iÅŸlemi baÅŸarÄ±sÄ±z oldu.", "Tamam");
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Register exception: {ex.Message}");
-                await DisplayAlert("Hata", "Bir hata oluþtu, lütfen tekrar deneyin.", "Tamam");
+                await DisplayAlert("Hata", "Bir hata oluÅŸtu, lÃ¼tfen tekrar deneyin.", "Tamam");
             }
         }
     }
 }
+

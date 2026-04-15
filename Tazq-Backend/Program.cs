@@ -93,7 +93,7 @@ var pgPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 if (string.IsNullOrWhiteSpace(pgHost) || string.IsNullOrWhiteSpace(pgDb))
     throw new Exception("PostgreSQL environment variables are missing!");
 
-var pgConnectionString = $"Host={pgHost};Port={pgPort};Database={pgDb};Username={pgUser};Password={pgPassword}";
+var pgConnectionString = $"Host={pgHost};Port={pgPort};Database={pgDb};Username={pgUser};Password={pgPassword};SslMode=Prefer;Trust Server Certificate=true;";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(pgConnectionString));
@@ -140,7 +140,7 @@ if (app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
 }
 
 app.UseSwagger();
@@ -186,4 +186,8 @@ app.UseCors("AllowAllOrigins");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+app.MapGet("/privacy", () => Results.Content("<h1>Privacy Policy</h1><p>Tazq-App, verilerinizi sadece cihazınızda ve güvenli sunucularımızda saklar. Verileriniz üçüncü şahıslarla paylaşılmaz.</p>", "text/html"));
+app.MapGet("/terms", () => Results.Content("<h1>Terms of Service</h1><p>Tazq-App'i kullanarak şartlarımızı kabul etmiş sayılırsınız.</p>", "text/html"));
+
 app.Run();

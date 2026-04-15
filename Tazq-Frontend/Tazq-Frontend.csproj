@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFrameworks>net8.0-android;net8.0-windows10.0.19041.0;net8.0-ios</TargetFrameworks>
@@ -22,8 +22,11 @@
 		<AndroidLinkMode>None</AndroidLinkMode>
 		<UseInterpreter Condition="'$(Configuration)' == 'Debug'">true</UseInterpreter>
 		<DefaultLanguage>tr</DefaultLanguage>
-		<PackageCertificateThumbprint>883C57A88AE9E695FDD6DB8A5DF21BF758B86BBB</PackageCertificateThumbprint>
-		<AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
+		<!-- Yerel geliştirme için sertifika ve paketleme zorunluluğunu kaldırıyoruz -->
+		<WindowsPackageType>None</WindowsPackageType>
+		<AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+		<GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
+		<TrustLevel>FullTrust</TrustLevel>
 	</PropertyGroup>
 
 	<!-- Disable AOT for Release builds to avoid splash crash -->

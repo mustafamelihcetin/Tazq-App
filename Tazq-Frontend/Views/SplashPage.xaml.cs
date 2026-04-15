@@ -1,4 +1,4 @@
-using Microsoft.Maui.Controls;
+﻿using Microsoft.Maui.Controls;
 using Tazq_Frontend.Views;
 using Tazq_Frontend.Services;
 using Tazq_Frontend.Helpers;
@@ -7,11 +7,12 @@ namespace Tazq_Frontend.Views
 {
     public partial class SplashPage : ContentPage
     {
-        private readonly ApiService _apiService = MauiProgram.Services!.GetRequiredService<ApiService>();
+        private readonly ApiService _apiService;
 
-        public SplashPage()
+        public SplashPage(ApiService apiService)
         {
-            InitializeComponent();
+            InitializeComponent(); 
+            _apiService = apiService;
         }
         protected override async void OnAppearing()
         {
@@ -50,7 +51,7 @@ namespace Tazq_Frontend.Views
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Splash] Token kontrol hatas�: {ex.Message}");
+                Console.WriteLine($"[Splash] Token kontrol hatası: {ex.Message}");
             }
 
             await LoadingIndicator.FadeTo(0, 400);

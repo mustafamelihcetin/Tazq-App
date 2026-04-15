@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -428,6 +428,23 @@ namespace Tazq_Frontend.Services
             catch
             {
                 return null;
+            }
+        }
+
+        public async Task<bool> DeleteAccount()
+        {
+            await SetAuthHeader();
+            try
+            {
+                var response = await _httpClient.DeleteAsync("users/me");
+                Console.WriteLine($"[DOTNET] DeleteAccount API Request: users/me");
+                Console.WriteLine($"[DOTNET] Response Status: {response.StatusCode}");
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"HATA - DeleteAccount: {ex.Message}");
+                return false;
             }
         }
     }

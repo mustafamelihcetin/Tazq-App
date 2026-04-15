@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -12,6 +12,12 @@ namespace Tazq_Frontend.ViewModels
 {
     public partial class ResetPasswordViewModel : ObservableObject
     {
+        private readonly ApiService _apiService;
+
+        public ResetPasswordViewModel(ApiService apiService)
+        {
+            _apiService = apiService;
+        }
         private string _newPassword = string.Empty;
         public string NewPassword
         {
@@ -77,7 +83,7 @@ namespace Tazq_Frontend.ViewModels
                     newPassword = NewPassword
                 };
 
-                var apiService = MauiProgram.Services!.GetRequiredService<ApiService>();
+                var apiService = _apiService;
                 var response = await apiService.PostAsync("users/reset-password", resetRequest);
 
                 if (response.IsSuccessStatusCode)

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
@@ -37,7 +37,7 @@
                        HorizontalOptions="Center"
                        VerticalOptions="Center"
                        BackgroundColor="Transparent" />
-                            <Label Text="Yalın. Hızlı. Odaklı."
+                            <Label Text="YalÄ±n. HÄ±zlÄ±. OdaklÄ±."
                        FontSize="16"
                        LineHeight="1.2"
                        TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
@@ -72,7 +72,7 @@
                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
                        BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
                        HasShadow="False">
-                    <Entry Visual="Default" Placeholder="Şifre"
+                    <Entry Visual="Default" Placeholder="Åifre"
                            Text="{Binding Password}"
                            IsPassword="True"
                            BackgroundColor="Transparent"
@@ -85,7 +85,7 @@
                 </Frame>
 
                 <!-- Forgot Password -->
-                <Label Text="Şifreni mi unuttun?"
+                <Label Text="Åifreni mi unuttun?"
                        TextColor="#4C9ED9"
                        FontSize="13"
                        HorizontalOptions="End"
@@ -111,7 +111,7 @@
                                     <GradientStop Color="#2B365E" Offset="1.0" />
                                 </LinearGradientBrush>
                             </Grid.Background>
-                            <Button Text="Giriş Yap"
+                            <Button Text="GiriÅŸ Yap"
                                     Command="{Binding LoginCommand}"
                                     Style="{StaticResource PrimaryGradientButtonStyle}"
                                     BackgroundColor="Transparent"
@@ -131,7 +131,7 @@
                 </Grid>
 
                 <!-- Register Prompt -->
-                <Label Text="Hesabınız yok mu?"
+                <Label Text="HesabÄ±nÄ±z yok mu?"
                        FontSize="14"
                        TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
                        HorizontalTextAlignment="Center"
@@ -151,7 +151,7 @@
                                 <GradientStop Color="#2B365E" Offset="1.0" />
                             </LinearGradientBrush>
                         </Grid.Background>
-                        <Button Text="Kayıt Ol"
+                        <Button Text="KayÄ±t Ol"
                                 Command="{Binding NavigateToRegisterCommand}"
                                 Style="{StaticResource PrimaryGradientButtonStyle}"
                                 BackgroundColor="Transparent"
@@ -172,7 +172,7 @@
                        WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=400}">
                     <HorizontalStackLayout HorizontalOptions="Center" Spacing="12" Padding="10">
                         <Image Source="google_logo.png" WidthRequest="22" HeightRequest="22" />
-                        <Label Text="Google ile Giriş Yap" TextColor="Black" FontAttributes="Bold" VerticalOptions="Center" FontFamily="RobotoRegular"/>
+                        <Label Text="Google ile GiriÅŸ Yap" TextColor="Black" FontAttributes="Bold" VerticalOptions="Center" FontFamily="RobotoRegular"/>
                     </HorizontalStackLayout>
                     <Frame.GestureRecognizers>
                         <TapGestureRecognizer
@@ -185,7 +185,7 @@
                        WidthRequest="{OnPlatform Android=320, iOS=350, WinUI=400}">
                     <HorizontalStackLayout HorizontalOptions="Center" Spacing="12" Padding="10">
                         <Image Source="apple_logo.png" WidthRequest="22" HeightRequest="22" />
-                        <Label Text="Apple ile Giriş Yap" TextColor="{AppThemeBinding Light=Black, Dark=White}" FontAttributes="Bold" VerticalOptions="Center" FontFamily="RobotoRegular"/>
+                        <Label Text="Apple ile GiriÅŸ Yap" TextColor="{AppThemeBinding Light=Black, Dark=White}" FontAttributes="Bold" VerticalOptions="Center" FontFamily="RobotoRegular"/>
                     </HorizontalStackLayout>
                     <Frame.GestureRecognizers>
                         <TapGestureRecognizer

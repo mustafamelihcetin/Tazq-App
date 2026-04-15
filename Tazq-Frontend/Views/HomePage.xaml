@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
@@ -12,9 +12,6 @@
              NavigationPage.HasNavigationBar="False"
              Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
 
-    <ContentPage.BindingContext>
-        <vm:HomeViewModel />
-    </ContentPage.BindingContext>
 
 
     <ContentPage.Resources>
@@ -159,7 +156,7 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Centered "Yeni Görev Ekle" button across two middle columns -->
+                <!-- Centered "Yeni GÃ¶rev Ekle" button across two middle columns -->
                 <Grid Grid.Column="1"
                       HorizontalOptions="Center"
                       VerticalOptions="Center">
@@ -178,7 +175,7 @@
                                 </LinearGradientBrush>
                             </Grid.Background>
                             <Button x:Name="AddTaskButton"
-                                    Text="Yeni Görev Ekle"
+                                    Text="Yeni GÃ¶rev Ekle"
                                     Command="{Binding GoToAddTaskPageCommand}"
                                     FontAttributes="Bold"
                                     FontSize="15"
@@ -230,7 +227,7 @@
 
                 <CollectionView x:Name="MainCollectionView"
                                 ItemsSource="{Binding FilteredTasks}"
-                                EmptyView="Henüz görev eklenmedi.">
+                                EmptyView="HenÃ¼z gÃ¶rev eklenmedi.">
                     <CollectionView.ItemsLayout>
                         <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
                     </CollectionView.ItemsLayout>
@@ -457,7 +454,7 @@
                             Grid.Column="1" />
                 </Grid>
 
-                <Label Text="Geçmiş Görevler"
+                <Label Text="GeÃ§miÅŸ GÃ¶revler"
                        FontSize="14"
                        FontAttributes="Bold"
                        FontFamily="RobotoRegular"
@@ -490,7 +487,7 @@
                        BorderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                        HasShadow="False"
                        HeightRequest="36">
-                    <Entry Visual="Default" Placeholder="Etikete göre filtrele..."
+                    <Entry Visual="Default" Placeholder="Etikete gÃ¶re filtrele..."
                            Text="{Binding FilterTag, Mode=TwoWay}"
                            PlaceholderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
                            TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
@@ -536,7 +533,7 @@
                        TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
 
                 <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
-                    <Label Text="Açık Tema"
+                    <Label Text="AÃ§Ä±k Tema"
                            FontSize="13"
                            FontFamily="RobotoRegular"
                            TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
@@ -551,7 +548,7 @@
                 </Grid>
 
 
-                <Button Text="Bildirim Ayarları"
+                <Button Text="Bildirim AyarlarÄ±"
                         Command="{Binding NotificationSettingsCommand}"
                         BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray800}}"
                         TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
@@ -560,7 +557,7 @@
                         CornerRadius="8"
                         Padding="10,6" />
 
-                <Button Text="Hakkında"
+                <Button Text="HakkÄ±nda"
                         Command="{Binding AboutCommand}"
                         BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray800}}"
                         TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
@@ -569,7 +566,7 @@
                         CornerRadius="8"
                         Padding="10,6" />
 
-                <Button Text="Çıkış Yap"
+                <Button Text="Ã‡Ä±kÄ±ÅŸ Yap"
                         Command="{Binding LogoutCommand}"
                         BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray800}}"
                         TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"

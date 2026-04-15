@@ -1,4 +1,4 @@
-using Tazq_Frontend.ViewModels;
+ï»¿using Tazq_Frontend.ViewModels;
 using Microsoft.Maui.Controls;
 using System;
 using CommunityToolkit.Mvvm.Input;
@@ -11,10 +11,10 @@ namespace Tazq_Frontend.Views
         public IAsyncRelayCommand GoogleLoginCommand { get; }
         public IAsyncRelayCommand AppleLoginCommand { get; }
 
-        public LoginPage()
+        public LoginPage(AuthViewModel viewModel)
         {
             InitializeComponent();
-            _viewModel = new AuthViewModel();
+            _viewModel = viewModel;
             BindingContext = _viewModel;
 
             GoogleLoginCommand = new AsyncRelayCommand(OnGoogleLoginClickedAsync);
@@ -39,12 +39,12 @@ namespace Tazq_Frontend.Views
 
         private async Task OnGoogleLoginClickedAsync()
         {
-            await DisplayAlert("Google Giriþ", "Google ile giriþ iþlemi henüz entegre edilmedi.", "Tamam");
+            await DisplayAlert("Google GiriÅŸ", "Google ile giriÅŸ iÅŸlemi henÃ¼z entegre edilmedi.", "Tamam");
         }
 
         private async Task OnAppleLoginClickedAsync()
         {
-            await DisplayAlert("Apple Giriþ", "Apple ile giriþ iþlemi henüz entegre edilmedi.", "Tamam");
+            await DisplayAlert("Apple GiriÅŸ", "Apple ile giriÅŸ iÅŸlemi henÃ¼z entegre edilmedi.", "Tamam");
         }
     }
 }
