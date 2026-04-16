@@ -1,9 +1,9 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Tazq_App.Services
 {
-    public class CryptoService(string secretKey)
+    public class CryptoService(string secretKey) : ICryptoService
     {
         private readonly string _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey), "EncryptionKey is required");
 

@@ -14,6 +14,8 @@ using Tazq_App.Services;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Tazq_App.Validators;
+using Microsoft.AspNetCore.HttpOverrides;
+using AspNetCoreRateLimit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,9 +48,34 @@ builder.Services.AddValidatorsFromAssemblyContaining<UserRegisterDtoValidator>()
 
 builder.Services.AddEndpointsApiExplorer();
 
+// Rate Limiting Services
+builder.Services.AddMemoryCache();
+builder.Services.AddInMemoryRateLimiting();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.Configure<IpRateLimitOptions>(opt =>
+{
+    opt.GeneralRules = new List<RateLimitRule>
+    {
+        new RateLimitRule
+        {
+            Endpoint = "*",
+            Period = "1m",
+            Limit = 100
+        },
+        new RateLimitRule
+        {
+            Endpoint = "*",
+            Period = "1h",
+            Limit = 1000
+        }
+    };
+});
+
+builder.Services.AddHealthChecks();
+
 builder.Services.AddCors(opt =>
 {
-    opt.AddPolicy("AllowAllOrigins",
+    opt.AddPolicy("TazqCorsPolicy",
         policy => policy.AllowAnyOrigin()
                         .AllowAnyMethod()
                         .AllowAnyHeader());
@@ -114,8 +141,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddSingleton<JwtService>();
-builder.Services.AddSingleton(new CryptoService(jwtKey));
+builder.Services.AddSingleton<IJwtService, JwtService>();
+builder.Services.AddSingleton<ICryptoService>(new CryptoService(jwtKey));
 
 builder.Services.Configure<SmtpSettings>(opt =>
 {
@@ -127,12 +154,19 @@ builder.Services.Configure<SmtpSettings>(opt =>
 });
 
 builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
+builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddHostedService<ScheduledEmailService>();
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://*:{port}");
 
 var app = builder.Build();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
@@ -157,11 +191,13 @@ app.UseExceptionHandler(errorApp =>
         if (error != null)
         {
             var ex = error.Error;
+            var isDev = app.Environment.IsDevelopment();
+            
             var result = JsonSerializer.Serialize(new
             {
                 StatusCode = 500,
-                Message = ex.Message,
-                StackTrace = ex.StackTrace
+                Message = isDev ? ex.Message : "Sunucu tarafında bir hata oluştu.",
+                StackTrace = isDev ? ex.StackTrace : null
             });
 
             await context.Response.WriteAsync(result);
@@ -182,7 +218,9 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.UseCors("AllowAllOrigins");
+app.UseIpRateLimiting();
+app.MapHealthChecks("/health");
+app.UseCors("TazqCorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

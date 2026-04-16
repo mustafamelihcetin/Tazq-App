@@ -1,0 +1,12 @@
+{
+    email tazq.app@gmail.com
+}
+
+:80 {
+    reverse_proxy tazq-backend:80
+}
+
+# Gelecekte bir domain eklediğinde burayı açabilirsin:
+# yourdomain.com {
+#     reverse_proxy tazq-backend:80
+# }
