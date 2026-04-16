@@ -11,12 +11,12 @@ namespace Tazq_Frontend.Views
         private readonly AuthViewModel _viewModel;
         private readonly ApiService _apiService;
 
-        public RegisterPage(AuthViewModel viewModel, ApiService apiService)
+        public RegisterPage()
         {
             InitializeComponent();
             
-            _viewModel = viewModel;
-            _apiService = apiService;
+            _viewModel = MauiProgram.Services?.GetService<AuthViewModel>() ?? throw new InvalidOperationException("AuthViewModel not found");
+            _apiService = MauiProgram.Services?.GetService<ApiService>() ?? throw new InvalidOperationException("ApiService not found");
             BindingContext = _viewModel;
         }
 

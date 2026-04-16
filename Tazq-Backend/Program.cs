@@ -38,6 +38,7 @@ var jwtExpiration = Convert.ToInt32(Environment.GetEnvironmentVariable("JWT_EXPI
 builder.Services.AddControllers()
     .AddJsonOptions(opt =>
     {
+        opt.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         opt.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
@@ -158,7 +159,7 @@ builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddHostedService<ScheduledEmailService>();
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5200";
 builder.WebHost.UseUrls($"http://*:{port}");
 
 var app = builder.Build();
@@ -175,6 +176,31 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+
+    // Seeding: Create or Update Admin user
+    var adminEmail = "admin@tazq.com";
+    var adminPassword = "admin123";
+    
+    var adminUser = db.Users.FirstOrDefault(u => u.Email == adminEmail);
+    var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
+    using var pbkdf2 = new System.Security.Cryptography.Rfc2898DeriveBytes(adminPassword, salt, 100000, System.Security.Cryptography.HashAlgorithmName.SHA256);
+    byte[] passwordHash = pbkdf2.GetBytes(32);
+
+    if (adminUser == null)
+    {
+        adminUser = new Tazq_App.Models.User
+        {
+            Name = "System Admin",
+            Email = adminEmail,
+            Role = "Admin"
+        };
+        db.Users.Add(adminUser);
+    }
+    
+    adminUser.PasswordHash = Convert.ToBase64String(passwordHash);
+    adminUser.PasswordSalt = Convert.ToBase64String(salt);
+    db.SaveChanges();
+    Console.WriteLine($">>> Admin kullanıcısı güncellendi: {adminEmail} / {adminPassword}");
 }
 
 app.UseSwagger();
@@ -207,12 +233,33 @@ app.UseExceptionHandler(errorApp =>
 
 app.Use(async (context, next) =>
 {
-    if (!context.Request.Headers.TryGetValue("X-App-Signature", out var signature) ||
-         signature != appSignature)
+    // Log login requests specifically
+    if (context.Request.Path.Value?.Contains("/login") == true)
     {
-        context.Response.StatusCode = 403;
-        await context.Response.WriteAsync("Frontend dışında erişim engellendi.");
-        return;
+        Console.WriteLine($">>> Login isteği geldi: {context.Request.Method} {context.Request.Path}");
+    }
+
+    if (!context.Request.Headers.TryGetValue("X-App-Signature", out var signature))
+    {
+        Console.WriteLine($">>> UYARI: X-App-Signature başlığı eksik! (İşlem: {context.Request.Path})");
+        if (!app.Environment.IsDevelopment())
+        {
+            context.Response.StatusCode = 403;
+            await context.Response.WriteAsync("Signature missing.");
+            return;
+        }
+        Console.WriteLine($">>> [DEV MODU] İmza eksik olmasına rağmen izin verildi.");
+    }
+    else if (!string.Equals(signature.ToString(), appSignature, StringComparison.OrdinalIgnoreCase))
+    {
+        Console.WriteLine($">>> UYARI: X-App-Signature uyumsuz! Gelen: '{signature}', Beklenen: '{appSignature}'");
+        if (!app.Environment.IsDevelopment())
+        {
+            context.Response.StatusCode = 403;
+            await context.Response.WriteAsync("Signature mismatch.");
+            return;
+        }
+        Console.WriteLine($">>> [DEV MODU] İmza hatalı olmasına rağmen izin verildi.");
     }
 
     await next();

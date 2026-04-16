@@ -1,13 +1,13 @@
-﻿using Tazq_Frontend.ViewModels;
+using Tazq_Frontend.ViewModels;
 
 namespace Tazq_Frontend.Views;
 
 public partial class AddTaskPage : ContentPage
 {
-	public AddTaskPage(AddTaskViewModel viewModel)
+	public AddTaskPage()
 	{
 		InitializeComponent();
-		BindingContext = viewModel;
+		BindingContext = MauiProgram.Services?.GetService<AddTaskViewModel>() ?? throw new InvalidOperationException("AddTaskViewModel not found");
     }
 
     // Handles tag entry completion and adds tag to the list

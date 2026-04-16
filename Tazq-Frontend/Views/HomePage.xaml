@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
@@ -16,6 +16,7 @@
 
     <ContentPage.Resources>
         <ResourceDictionary>
+            <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
             <converters:NullOrEmptyToBoolConverter x:Key="NullOrEmptyToBoolConverter" />
             <converters:TagsArrayToStringConverter x:Key="TagsArrayToStringConverter" />
             <converters:PriorityToTurkishConverter x:Key="PriorityToTurkishConverter" />
@@ -28,6 +29,7 @@
             <converters:BoolToMaxLinesConverter x:Key="BoolToMaxLinesConverter" />
             <converters:BoolAndConverter x:Key="BoolAndConverter" />
             <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+            <converters:BoolOrConverter x:Key="BoolOrConverter" />
             <converters:DueTodayHighlightMultiConverter x:Key="DueTodayHighlightMultiConverter" />
 
             <Style TargetType="RadioButton" x:Key="CustomRadioButtonStyle">
@@ -63,24 +65,17 @@
 
     <AbsoluteLayout>
 
-        <Grid Padding="24" 
-              RowSpacing="20" 
+        <Grid Padding="20" 
+              RowSpacing="16" 
               AbsoluteLayout.LayoutBounds="0,0,1,1" 
               AbsoluteLayout.LayoutFlags="All">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <!-- Logo + icons -->
-            <Grid x:Name="HeaderGrid" Grid.Row="0" ColumnSpacing="12" Margin="0,0,0,10">
-                <Grid.Padding>
-                    <OnPlatform x:TypeArguments="Thickness">
-                        <On Platform="iOS" Value="0,0,0,0" />
-                        <On Platform="Default" Value="0,5,0,0" />
-                    </OnPlatform>
-                </Grid.Padding>
+            <Grid x:Name="HeaderGrid" Grid.Row="0" ColumnSpacing="12" Margin="0,10,0,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -90,146 +85,51 @@
                     Grid.Column="0"
                     x:Name="LogoImage"
                     Source="{Binding IsLightThemeEnabled, Converter={StaticResource HomePageLogoConverter}}"
-                    BackgroundColor="Transparent"
-                    HeightRequest="38"
-                    Opacity="0.95"
-                    Scale="0.9"
-                    Margin="5,0,0,0"
+                    HeightRequest="42"
                     HorizontalOptions="Start"
                     VerticalOptions="Center" />
 
-                <HorizontalStackLayout Grid.Column="1"
-                                      Spacing="10"
-                                      Margin="0,0,4,0"
-                                      HorizontalOptions="End"
-                                      VerticalOptions="Center">
-                    <Frame x:Name="FilterButtonFrame"
-                           Padding="0"
-                           CornerRadius="24"
-                           HasShadow="False"
-                           HeightRequest="40"
-                           WidthRequest="40"
-                           VerticalOptions="Center"
-                           BackgroundColor="Transparent"
-                           BorderColor="Transparent"
-                           IsClippedToBounds="True"
-                           Opacity="0">
-
+                <HorizontalStackLayout Grid.Column="1" Spacing="12" VerticalOptions="Center">
+                    <Frame Padding="0" CornerRadius="20" HasShadow="False" HeightRequest="40" WidthRequest="40" BackgroundColor="Transparent" BorderColor="Transparent">
                         <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource FilterIconConverter}}"
                                      Command="{Binding ToggleFilterPanelCommand}"
-                                     BackgroundColor="Transparent"
-                                     HeightRequest="24"
-                                     WidthRequest="24"
-                                     Padding="3"
-                                     HorizontalOptions="Center"
-                                     VerticalOptions="Center"/>
+                                     HeightRequest="26" WidthRequest="26" HorizontalOptions="Center" VerticalOptions="Center"/>
                     </Frame>
 
-                    <Frame Padding="0"
-                           CornerRadius="24"
-                           HasShadow="False"
-                           HeightRequest="40"
-                           WidthRequest="40"
-                           VerticalOptions="Center"                           
-                           BackgroundColor="Transparent"
-                           BorderColor="Transparent"
-                           IsClippedToBounds="True">
-
+                    <Frame Padding="0" CornerRadius="20" HasShadow="False" HeightRequest="40" WidthRequest="40" BackgroundColor="Transparent" BorderColor="Transparent">
                         <ImageButton Source="{Binding IsLightThemeEnabled, Converter={StaticResource SettingsIconConverter}}"
                                      Command="{Binding ToggleSettingsPanelCommand}"
-                                     BackgroundColor="Transparent"
-                                     HeightRequest="24"
-                                     WidthRequest="24"
-                                     Padding="2"
-                                     HorizontalOptions="Center"
-                                     VerticalOptions="Center"/>
+                                     HeightRequest="26" WidthRequest="26" HorizontalOptions="Center" VerticalOptions="Center"/>
                     </Frame>
                 </HorizontalStackLayout>
             </Grid>
 
-            <!-- AddTask + Filter -->
-            <Grid Grid.Row="1" ColumnSpacing="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <!-- Centered "Yeni GÃ¶rev Ekle" button across two middle columns -->
-                <Grid Grid.Column="1"
-                      HorizontalOptions="Center"
-                      VerticalOptions="Center">
-                    <Frame x:Name="AddTaskFrame"
-                           StyleClass="NoBorderFrame"
-                           Padding="0"
-                           CornerRadius="12"
-                           HasShadow="False"
-                           BackgroundColor="Transparent"
-                           HorizontalOptions="Center">
-                        <Grid>
-                            <Grid.Background>
-                                <LinearGradientBrush EndPoint="0,1">
-                                    <GradientStop Color="#3C4D90" Offset="0.0" />
-                                    <GradientStop Color="#2B365E" Offset="1.0" />
-                                </LinearGradientBrush>
-                            </Grid.Background>
-                            <Button x:Name="AddTaskButton"
-                                    Text="Yeni GÃ¶rev Ekle"
-                                    Command="{Binding GoToAddTaskPageCommand}"
-                                    FontAttributes="Bold"
-                                    FontSize="15"
-                                    TextColor="White"
-                                    CornerRadius="12"
-                                    HeightRequest="48"
-                                    FontFamily="RobotoRegular"
-                                    Padding="10"
-                                    BackgroundColor="Transparent"
-                                    HorizontalOptions="Center">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="BorderWidth">
-                                            <Setter.Value>
-                                                <OnPlatform x:TypeArguments="x:Double">
-                                                    <On Platform="iOS" Value="0"/>
-                                                    <On Platform="Android" Value="0"/>
-                                                </OnPlatform>
-                                            </Setter.Value>
-                                        </Setter>
-                                        <Setter Property="BorderColor">
-                                            <Setter.Value>
-                                                <OnPlatform x:TypeArguments="Color">
-                                                    <On Platform="iOS" Value="Transparent"/>
-                                                    <On Platform="Android" Value="Transparent"/>
-                                                </OnPlatform>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
-
-                        </Grid>
-                    </Frame>
-                </Grid>
-
-                
-            </Grid>
-
             <!-- Tasks -->
             <RefreshView x:Name="MainRefreshView"
-                         Grid.Row="2"
+                         Grid.Row="1"
                          Command="{Binding LoadTasksCommand}"
-                          IsRefreshing="{Binding IsLoading}">
-                <RefreshView.Behaviors>
-                    <toolkit:EventToCommandBehavior EventName="Refreshing"
-                                                  Command="{Binding Source={x:Reference MainPageRoot}, Path=RefreshCommand}" />
-                </RefreshView.Behaviors>
-
+                         IsRefreshing="{Binding IsLoading}">
+                
                 <CollectionView x:Name="MainCollectionView"
-                                ItemsSource="{Binding FilteredTasks}"
-                                EmptyView="HenÃ¼z gÃ¶rev eklenmedi.">
+                                ItemsSource="{Binding FilteredTasks}">
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout Spacing="20" VerticalOptions="Center" HorizontalOptions="Center" Padding="40">
+                             <Label Text="🚀" FontSize="48" HorizontalOptions="Center" />
+                             <Label Text="Henüz görev eklenmedi."
+                                    FontSize="18"
+                                    FontAttributes="Bold"
+                                    HorizontalOptions="Center"
+                                    TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
+                             <Label Text="İlk görevini eklemek için alttaki butona dokun!"
+                                    FontSize="14"
+                                    HorizontalOptions="Center"
+                                    HorizontalTextAlignment="Center"
+                                    TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+
                     <CollectionView.ItemsLayout>
-                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
+                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="16" />
                     </CollectionView.ItemsLayout>
 
                     <CollectionView.ItemTemplate>
@@ -237,54 +137,27 @@
                             <SwipeView>
                                 <SwipeView.RightItems>
                                     <SwipeItems Mode="Reveal">
-                                        <SwipeItemView>
-                                            <ImageButton Source="{Binding Path=BindingContext.IsLightThemeEnabled, Source={x:Reference MainPageRoot}, Converter={StaticResource EditIconConverter}}"
-                                                         BackgroundColor="Transparent"
-                                                         HeightRequest="40"
-                                                         WidthRequest="40"
-                                                         Padding="8"
-                                                         Margin="10"
-                                                         Command="{Binding Path=BindingContext.EditTaskCommand, Source={x:Reference MainPageRoot}}"
-                                                         CommandParameter="{Binding .}" />
-
-                                        </SwipeItemView>
-                                        <SwipeItemView>
-                                            <ImageButton Source="{Binding Path=BindingContext.IsLightThemeEnabled, Source={x:Reference MainPageRoot}, Converter={StaticResource DeleteIconConverter}}"
-                                                         BackgroundColor="Transparent"
-                                                         HeightRequest="40"
-                                                         WidthRequest="40"
-                                                         Padding="8"
-                                                         Margin="10"
-                                                         Command="{Binding Path=BindingContext.DeleteTaskCommand, Source={x:Reference MainPageRoot}}"
-                                                         CommandParameter="{Binding .}" />
-
-                                        </SwipeItemView>
+                                        <SwipeItem BackgroundColor="#3B82F6"
+                                                   Command="{Binding Path=BindingContext.EditTaskCommand, Source={x:Reference MainPageRoot}}"
+                                                   CommandParameter="{Binding .}"
+                                                   IconImageSource="edit_icon"
+                                                   Text="Düzenle" />
+                                        <SwipeItem BackgroundColor="#EF4444"
+                                                   Command="{Binding Path=BindingContext.DeleteTaskCommand, Source={x:Reference MainPageRoot}}"
+                                                   CommandParameter="{Binding .}"
+                                                   IconImageSource="delete_icon"
+                                                   Text="Sil" />
                                     </SwipeItems>
-
                                 </SwipeView.RightItems>
-                                
 
-
-
-                                <Frame x:Name="TaskItemFrame" CornerRadius="12"
-                                       BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}"
-                                       Padding="16"
-                                       HasShadow="False">
-                                    <Frame.Behaviors>
-                                        <toolkit:EventToCommandBehavior EventName="BindingContextChanged"
-                                                                       Command="{Binding Source={x:Reference MainPageRoot}, Path=TaskContextChangedCommand}"
-                                                                       CommandParameter="{x:Reference TaskItemFrame}" />
-                                    </Frame.Behaviors>
-                                    <Frame.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding Source={x:Reference MainPageRoot}, Path=TaskTappedCommand}"
-                                                              CommandParameter="{x:Reference TaskItemFrame}" />
-                                    </Frame.GestureRecognizers>
-
-
-
-                                    <Grid RowSpacing="6">
+                                <Frame x:Name="TaskItemFrame" 
+                                       CornerRadius="16"
+                                       Padding="0"
+                                       HasShadow="True"
+                                       BackgroundColor="Transparent">
+                                    <Grid Background="{AppThemeBinding Light={StaticResource CardBackgroundBrushLight}, Dark={StaticResource CardBackgroundBrushDark}}"
+                                          Padding="16" RowSpacing="8">
                                         <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
@@ -294,120 +167,70 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Title -->
+                                        <!-- Title & Priority -->
                                         <Label Grid.Row="0" Grid.Column="0"
                                                Text="{Binding Title}"
-                                               FontSize="15"
+                                               FontSize="17"
                                                FontAttributes="Bold"
-                                               TextColor="{AppThemeBinding Light={StaticResource Black}, Dark=White}"
-                                               LineBreakMode="TailTruncation"
-                                               MaxLines="{Binding IsTitleExpanded, Converter={StaticResource BoolToMaxLinesConverter}, ConverterParameter=2}">
-                                            <Label.GestureRecognizers>
-                                                <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleTitleExpandCommand, Source={x:Reference MainPageRoot}}"
-                                                                      CommandParameter="{Binding .}" />
-                                            </Label.GestureRecognizers>
-                                        </Label>
-
+                                               TextColor="{AppThemeBinding Light={StaticResource Black}, Dark=White}" />
 
                                         <Frame Grid.Row="0" Grid.Column="1"
-                                               Padding="4,2"
+                                               Padding="8,4"
                                                BackgroundColor="{Binding PriorityEnum, Converter={StaticResource PriorityToColorConverter}}"
                                                CornerRadius="8"
-                                               HasShadow="False"
-                                               Margin="8,2,0,0"
-                                               VerticalOptions="Start"
-                                               HorizontalOptions="End">
+                                               HasShadow="False">
                                             <Label Text="{Binding PriorityEnum, Converter={StaticResource PriorityToTurkishConverter}}"
-                                                   FontSize="10"
-                                                   TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                                                   FontSize="11"
+                                                   TextColor="White"
                                                    FontAttributes="Bold"/>
                                         </Frame>
 
                                         <!-- Description -->
-                                        <Label x:Name="DescriptionLabel"
-                                               Grid.Row="1" Grid.ColumnSpan="2"
+                                        <Label Grid.Row="1" Grid.ColumnSpan="2"
                                                Text="{Binding Description}"
-                                               FontSize="13"
-                                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
-                                               LineHeight="1.1"
+                                               FontSize="14"
+                                               TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}"
+                                               IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}"
                                                LineBreakMode="TailTruncation"
-                                               MaxLines="{Binding IsDescriptionExpanded, Converter={StaticResource BoolToMaxLinesConverter}, ConverterParameter=3}"
-                                               IsVisible="{Binding Description, Converter={StaticResource NullOrEmptyToBoolConverter}}">
-                                            <Label.GestureRecognizers>
-                                                <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleDescriptionExpandCommand, Source={x:Reference MainPageRoot}}"
-                                                                      CommandParameter="{Binding .}" />
-                                                <TapGestureRecognizer Command="{Binding Source={x:Reference MainPageRoot}, Path=TaskTappedCommand}"
-                                                                      CommandParameter="{x:Reference TaskItemFrame}" />
-                                            </Label.GestureRecognizers>
-                                        </Label>
+                                               MaxLines="2" />
 
-
-
-                                        <!-- Date and IsCompleted Status -->
-                                        <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnSpacing="10">
+                                        <!-- Footer: DueDate & Checkbox -->
+                                        <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnSpacing="12" VerticalOptions="Center">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <Label x:Name="DueDateLabel"
-                                                   Grid.Column="0"
-                                                   Text="{Binding DueDateTimeCombined, StringFormat='Son Tarih: {0:dd MMM yyyy HH\\:mm}'}"
-                                                   FontSize="13"
-                                                   FontAttributes="Bold"
-                                                   TextColor="{Binding IsToday, Converter={StaticResource DueTodayHighlightMultiConverter}, ConverterParameter={Binding IsCompleted}}"
-                                                   IsVisible="{Binding HasDueDate}">
-                                                <Label.Triggers>
-                                                    <DataTrigger TargetType="Label"
-                                                                 Binding="{Binding IsDueTodayAndNotCompleted}"
-                                                                 Value="True">
-                                                        <Setter Property="Opacity" Value="1" />
-                                                    </DataTrigger>
-                                                </Label.Triggers>
-                                            </Label>
-
+                                            <HorizontalStackLayout Grid.Column="0" Spacing="6" VerticalOptions="Center" 
+                                                                  IsVisible="{Binding HasDueDate}">
+                                                <Label Text="📅" FontSize="12" VerticalOptions="Center" />
+                                                <Label Text="{Binding DueDateTimeCombined, StringFormat='{0:dd MMM yyyy HH\\:mm}'}"
+                                                       FontSize="12"
+                                                       FontAttributes="Bold"
+                                                       TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}"
+                                                       VerticalOptions="Center" />
+                                            </HorizontalStackLayout>
 
                                             <Frame Grid.Column="1"
                                                    CornerRadius="20"
-                                                   Padding="6"
-                                                   Margin="0,0,5,0"
-                                                   HorizontalOptions="End"
-                                                   VerticalOptions="Center"
+                                                   Padding="10,6"
                                                    HasShadow="False"
                                                    BackgroundColor="{Binding IsCompleted, Converter={StaticResource IsCompletedToBackgroundColorConverter}}"
-                                                   BorderColor="Transparent">
-
-                                                <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                                                   VerticalOptions="Center">
+                                                <HorizontalStackLayout Spacing="8">
                                                     <HorizontalStackLayout.GestureRecognizers>
-                                                        <TapGestureRecognizer
-                                                                Command="{Binding Path=BindingContext.ToggleTaskCompletionCommand, Source={x:Reference MainPageRoot}}"
-                                                                CommandParameter="{Binding .}" />
+                                                        <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleTaskCompletionCommand, Source={x:Reference MainPageRoot}}"
+                                                                               CommandParameter="{Binding .}" />
                                                     </HorizontalStackLayout.GestureRecognizers>
-
                                                     <Image Source="{Binding IsCompleted, Converter={StaticResource IsCompletedToIconConverter}}"
-                                                           WidthRequest="20"
-                                                           HeightRequest="20"
-                                                           VerticalOptions="Center" />
-
+                                                           WidthRequest="18" HeightRequest="18" />
                                                     <Label Text="{Binding IsCompleted, Converter={StaticResource BoolToStatusTextConverter}}"
-                                                           FontSize="13"
-                                                           TextColor="{Binding IsCompleted, Converter={StaticResource IsCompletedToColorConverter}}"
-                                                           VerticalOptions="Center"
+                                                           FontSize="12"
                                                            FontAttributes="Bold"
-                                                           FontFamily="RobotoRegular"/>
+                                                           TextColor="{Binding IsCompleted, Converter={StaticResource IsCompletedToColorConverter}}" />
                                                 </HorizontalStackLayout>
                                             </Frame>
                                         </Grid>
-
-
-
-
-                                        <!-- Tags -->
-                                        <Label Grid.Row="3" Grid.ColumnSpan="2"
-                                               Text="{Binding Tags, Converter={StaticResource TagsArrayToStringConverter}}"
-                                               FontSize="13"
-                                               TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}"
-                                               IsVisible="{Binding Tags.Count, Converter={StaticResource NullOrEmptyToBoolConverter}}" />
                                     </Grid>
                                 </Frame>
                             </SwipeView>
@@ -415,178 +238,92 @@
                     </CollectionView.ItemTemplate>
                 </CollectionView>
             </RefreshView>
-            
         </Grid>
 
-        <!-- Modal Filter Panel -->
+        <!-- Floating Action Button (FAB) -->
+        <Frame AbsoluteLayout.LayoutBounds="0.9, 0.9, 64, 64"
+               AbsoluteLayout.LayoutFlags="PositionProportional"
+               BackgroundColor="{StaticResource Primary}"
+               CornerRadius="32"
+               Padding="0"
+               HasShadow="True">
+            <ImageButton Source="plus_icon"
+                         Command="{Binding GoToAddTaskPageCommand}"
+                         Padding="16"
+                         BackgroundColor="Transparent"
+                         WidthRequest="64"
+                         HeightRequest="64" />
+        </Frame>
+
+        <!-- Modal Panels (Filter & Settings) -->
         <Frame x:Name="FilterPanelFrame"
-               BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray900}}"
-               BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
-               Padding="16"
-               CornerRadius="12"
-               HasShadow="True"
+               BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray800}}"
+               Padding="20"
+               CornerRadius="20"
                IsVisible="{Binding IsFilterPanelVisible}"
-               AbsoluteLayout.LayoutBounds="0.8,0.06,0.50,-1"
+               AbsoluteLayout.LayoutBounds="0.5,0.5,0.85,-1"
                AbsoluteLayout.LayoutFlags="PositionProportional, WidthProportional"
-               Margin="0, 30, 16, 0"
                ZIndex="9999">
-
-            <VerticalStackLayout Spacing="16">
-
-                <Label Text="Tamamlanma Durumu"
-                       FontSize="14"
-                       FontAttributes="Bold"
-                       FontFamily="RobotoRegular"
-                       TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
-
-                <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
-                    <Label Text="{Binding StatusFilterLabel}"
-                           FontSize="13"
-                           FontFamily="RobotoRegular"
-                           TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
-                           VerticalOptions="Center"
-                           Grid.Column="0" />
-
-                    <Switch IsToggled="{Binding IsShowOnlyIncomplete, Mode=TwoWay}"
-                            OnColor="{AppThemeBinding Light={StaticResource AccentBrushLight}, Dark={StaticResource AccentBrushDark}}"
-                            ThumbColor="White"
-                            Scale="0.8"
-                            Grid.Column="1" />
+            <VerticalStackLayout Spacing="20">
+                <Label Text="Filtrele" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+                
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Sadece Tamamlanmayanlar" VerticalOptions="Center" />
+                    <Switch Grid.Column="1" IsToggled="{Binding IsShowOnlyIncomplete, Mode=TwoWay}" />
                 </Grid>
 
-                <Label Text="GeÃ§miÅŸ GÃ¶revler"
-                       FontSize="14"
-                       FontAttributes="Bold"
-                       FontFamily="RobotoRegular"
-                       TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
-
-                <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
-                    <Label Text="{Binding ShowPastTasksLabel}"
-                           FontSize="13"
-                           FontFamily="RobotoRegular"
-                          TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
-                           VerticalOptions="Center"
-                           Grid.Column="0" />
-
-                    <Switch IsToggled="{Binding ShowPastTasks, Mode=TwoWay}"
-                            OnColor="{AppThemeBinding Light={StaticResource AccentBrushLight}, Dark={StaticResource AccentBrushDark}}"
-                            ThumbColor="White"
-                            Scale="0.8"
-                            Grid.Column="1" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Geçmiş Görevleri Göster" VerticalOptions="Center" />
+                    <Switch Grid.Column="1" IsToggled="{Binding ShowPastTasks, Mode=TwoWay}" />
                 </Grid>
 
-                <Label Text="Etiket Ara"
-                       FontSize="14"
-                       FontAttributes="Bold"
-                       FontFamily="RobotoRegular"
-                       TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
-
-                <Frame CornerRadius="6"
-                       Padding="0"
-                       BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
-                       BorderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
-                       HasShadow="False"
-                       HeightRequest="36">
-                    <Entry Visual="Default" Placeholder="Etikete gÃ¶re filtrele..."
-                           Text="{Binding FilterTag, Mode=TwoWay}"
-                           PlaceholderColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray600}}"
-                           TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
-                           FontSize="13"
-                           FontFamily="RobotoRegular"
-                           BackgroundColor="Transparent"
-                           Margin="8,0"
-                           TextChanged="OnFilterChanged" />
+                <Frame CornerRadius="12" Padding="12,0" BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}" HasShadow="False">
+                    <Entry Placeholder="Etikete göre ara..." Text="{Binding FilterTag, Mode=TwoWay}" />
                 </Frame>
-
+                
+                <Button Text="Uygula" Command="{Binding ToggleFilterPanelCommand}" />
             </VerticalStackLayout>
         </Frame>
-        <!-- Closure on external click -->
+
+        <Frame x:Name="SettingsPanelFrame"
+               BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray800}}"
+               Padding="20"
+               CornerRadius="20"
+               IsVisible="{Binding IsSettingsPanelVisible}"
+               AbsoluteLayout.LayoutBounds="0.5,0.5,0.85,-1"
+               AbsoluteLayout.LayoutFlags="PositionProportional, WidthProportional"
+               ZIndex="9999">
+            <VerticalStackLayout Spacing="16">
+                <Label Text="Ayarlar" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+                
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Açık Tema" VerticalOptions="Center" />
+                    <Switch Grid.Column="1" IsToggled="{Binding IsLightThemeEnabled, Mode=TwoWay}" />
+                </Grid>
+
+                <Button Text="Bildirim Ayarları" Command="{Binding NotificationSettingsCommand}" StyleClass="SecondaryButton" />
+                <Button Text="Hakkında" Command="{Binding AboutCommand}" StyleClass="SecondaryButton" />
+                <Button Text="Çıkış Yap" Command="{Binding LogoutCommand}" BackgroundColor="#EF4444" />
+                <Button Text="Kapat" Command="{Binding ToggleSettingsPanelCommand}" BackgroundColor="Transparent" TextColor="{StaticResource Primary}" />
+            </VerticalStackLayout>
+        </Frame>
+
+        <!-- Overlay to close panels on click outside -->
         <BoxView AbsoluteLayout.LayoutBounds="0,0,1,1"
                  AbsoluteLayout.LayoutFlags="All"
-                 BackgroundColor="Transparent"
-                 InputTransparent="False"
-                 IsVisible="{Binding IsFilterPanelVisible}">
+                 BackgroundColor="#80000000"
+                 ZIndex="9998">
+            <BoxView.IsVisible>
+                <MultiBinding Converter="{StaticResource BoolOrConverter}">
+                    <Binding Path="IsFilterPanelVisible" />
+                    <Binding Path="IsSettingsPanelVisible" />
+                </MultiBinding>
+            </BoxView.IsVisible>
             <BoxView.GestureRecognizers>
                 <TapGestureRecognizer Command="{Binding ToggleFilterPanelCommand}" />
+                <TapGestureRecognizer Command="{Binding ToggleSettingsPanelCommand}" />
             </BoxView.GestureRecognizers>
         </BoxView>
-
-        <!-- Modal Setting Panel-->
-        <Frame x:Name="SettingsPanelFrame"
-               BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray900}}"
-               BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
-               Padding="16"
-               CornerRadius="12"
-               HasShadow="False"
-               IsVisible="{Binding IsSettingsPanelVisible}"
-               AbsoluteLayout.LayoutBounds="1,0.06,0.50,-1"
-               AbsoluteLayout.LayoutFlags="PositionProportional, WidthProportional"
-               Margin="0, 30, 16, 0"
-               ZIndex="9999">
-
-            <VerticalStackLayout Spacing="16">
-
-                <Label Text="Ayarlar"
-                       FontSize="14"
-                       FontAttributes="Bold"
-                       FontFamily="RobotoRegular"
-                       TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
-
-                <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
-                    <Label Text="AÃ§Ä±k Tema"
-                           FontSize="13"
-                           FontFamily="RobotoRegular"
-                           TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
-                           VerticalOptions="Center"
-                           Grid.Column="0" />
-
-                    <Switch IsToggled="{Binding IsLightThemeEnabled, Mode=TwoWay}"
-                            OnColor="{AppThemeBinding Light={StaticResource AccentBrushLight}, Dark={StaticResource AccentBrushDark}}"
-                            ThumbColor="White"
-                            Scale="0.8"
-                            Grid.Column="1" />
-                </Grid>
-
-
-                <Button Text="Bildirim AyarlarÄ±"
-                        Command="{Binding NotificationSettingsCommand}"
-                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray800}}"
-                        TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
-                        FontFamily="RobotoRegular"
-                        FontSize="13"
-                        CornerRadius="8"
-                        Padding="10,6" />
-
-                <Button Text="HakkÄ±nda"
-                        Command="{Binding AboutCommand}"
-                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray800}}"
-                        TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
-                        FontFamily="RobotoRegular"
-                        FontSize="13"
-                        CornerRadius="8"
-                        Padding="10,6" />
-
-                <Button Text="Ã‡Ä±kÄ±ÅŸ Yap"
-                        Command="{Binding LogoutCommand}"
-                        BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray800}}"
-                        TextColor="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}"
-                        FontFamily="RobotoRegular"
-                        FontSize="13"
-                        CornerRadius="8"
-                        Padding="10,6" /> 
-
-            </VerticalStackLayout>
-        </Frame>
-        <!-- Closure on external click -->
-        <BoxView AbsoluteLayout.LayoutBounds="0,0,1,1"
-         AbsoluteLayout.LayoutFlags="All"
-         BackgroundColor="Transparent"
-         InputTransparent="False"
-         IsVisible="{Binding IsSettingsPanelVisible}">
-    <BoxView.GestureRecognizers>
-        <TapGestureRecognizer Command="{Binding ToggleSettingsPanelCommand}" />
-    </BoxView.GestureRecognizers>
-</BoxView>
 
         <ActivityIndicator
             x:Name="LoadingIndicator"

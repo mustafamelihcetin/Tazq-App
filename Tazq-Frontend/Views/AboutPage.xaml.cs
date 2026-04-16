@@ -8,7 +8,7 @@ public partial class AboutPage : ContentPage
     public AboutPage()
     {
         InitializeComponent();
-        BindingContext = new AboutViewModel();
+        BindingContext = MauiProgram.Services?.GetService<AboutViewModel>() ?? new AboutViewModel();
     }
 
     private async void OnBackClicked(object sender, EventArgs e)

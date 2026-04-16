@@ -1,7 +1,8 @@
-﻿using Tazq_Frontend.ViewModels;
+using Tazq_Frontend.ViewModels;
 using Microsoft.Maui.Controls;
 using System;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Tazq_Frontend.Views
 {
@@ -11,22 +12,19 @@ namespace Tazq_Frontend.Views
         public IAsyncRelayCommand GoogleLoginCommand { get; }
         public IAsyncRelayCommand AppleLoginCommand { get; }
 
-        public LoginPage(AuthViewModel viewModel)
+        public LoginPage()
         {
             InitializeComponent();
-            _viewModel = viewModel;
+            _viewModel = MauiProgram.Services?.GetService<AuthViewModel>() ?? throw new InvalidOperationException("AuthViewModel not found");
             BindingContext = _viewModel;
 
             GoogleLoginCommand = new AsyncRelayCommand(OnGoogleLoginClickedAsync);
             AppleLoginCommand = new AsyncRelayCommand(OnAppleLoginClickedAsync);
         }
 
-        protected override async void OnAppearing()
+        protected override void OnAppearing()
         {
             base.OnAppearing();
-
-            // Animate logo section sliding from right to center
-            await LogoStack.TranslateTo(0, 0, 600, Easing.CubicOut);
         }
 
         private void OnPasswordCompleted(object sender, EventArgs e)

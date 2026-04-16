@@ -1,4 +1,4 @@
-﻿<?xml version = "1.0" encoding = "UTF-8" ?>
+<?xml version = "1.0" encoding = "UTF-8" ?>
 <Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:Tazq_Frontend"
@@ -28,7 +28,6 @@
             <converters:ThemeImageConverter x:Key="LogoutIconConverter" Light="logout_icon_dark" Dark="logout_icon" />
             <!--<converters:ThemeImageConverter x:Key="SplashIconConverter" Light="tazq_white_icon_dark" Dark="tazq_white_logo"/>-->
             <converters:ThemeImageConverter x:Key="HomePageLogoConverter" Light="tazq_white_logo_dark" Dark="tazq_white_logo"/>
-
         </ResourceDictionary>
     </Application.Resources>
 </Application>

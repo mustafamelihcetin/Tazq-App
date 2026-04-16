@@ -1,7 +1,8 @@
-﻿using Microsoft.Maui.Controls;
+using Microsoft.Maui.Controls;
 using Tazq_Frontend.Views;
 using Tazq_Frontend.Services;
 using Tazq_Frontend.Helpers;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Tazq_Frontend.Views
 {
@@ -9,10 +10,10 @@ namespace Tazq_Frontend.Views
     {
         private readonly ApiService _apiService;
 
-        public SplashPage(ApiService apiService)
+        public SplashPage()
         {
             InitializeComponent(); 
-            _apiService = apiService;
+            _apiService = MauiProgram.Services?.GetService<ApiService>() ?? throw new InvalidOperationException("ApiService not found");
         }
         protected override async void OnAppearing()
         {

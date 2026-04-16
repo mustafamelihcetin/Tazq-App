@@ -32,10 +32,19 @@ namespace Tazq_Frontend.Services
 		{
 			return await SecureStorage.GetAsync("jwt_token");
 		}
+ 
+		private void EnsureSignatureHeader()
+		{
+			if (!_httpClient.DefaultRequestHeaders.Contains("X-App-Signature"))
+			{
+				_httpClient.DefaultRequestHeaders.Add("X-App-Signature", "tazq-maui-frontend");
+			}
+		}
 
 		// Set Authorization Header
 		private async Task SetAuthHeader()
 		{
+			EnsureSignatureHeader();
 			var token = await GetToken();
 			if (!string.IsNullOrEmpty(token))
 			{
@@ -53,6 +62,7 @@ namespace Tazq_Frontend.Services
 
 			try
 			{
+				EnsureSignatureHeader();
 				HttpResponseMessage response = await _httpClient.PostAsync("users/register", content);
 
 				Console.WriteLine($"Register API Request: users/register");
@@ -77,6 +87,7 @@ namespace Tazq_Frontend.Services
 
 			try
 			{
+				EnsureSignatureHeader();
 				Console.WriteLine($"API'ye giriş isteği gönderiliyor: {ApiConstants.BaseUrl}users/login");
 				Console.WriteLine($"Request Body: {JsonSerializer.Serialize(request)}");
 
@@ -238,6 +249,7 @@ namespace Tazq_Frontend.Services
 
 			try
 			{
+				EnsureSignatureHeader();
 				HttpResponseMessage response = await _httpClient.PostAsync("users/register", content);
 
 				Console.WriteLine($"Register API Request: users/register");

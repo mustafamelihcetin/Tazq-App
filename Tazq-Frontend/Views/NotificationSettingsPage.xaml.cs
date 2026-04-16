@@ -1,12 +1,12 @@
-﻿using Tazq_Frontend.ViewModels;
+using Tazq_Frontend.ViewModels;
 
 namespace Tazq_Frontend.Views;
 
 public partial class NotificationSettingsPage : ContentPage
 {
-    public NotificationSettingsPage(NotificationSettingsViewModel viewModel)
+    public NotificationSettingsPage()
     {
         InitializeComponent();
-        BindingContext = viewModel;
+        BindingContext = MauiProgram.Services?.GetService<NotificationSettingsViewModel>() ?? throw new InvalidOperationException("NotificationSettingsViewModel not found");
     }
 }

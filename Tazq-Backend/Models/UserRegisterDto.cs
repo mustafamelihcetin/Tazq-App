@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace Tazq_App.Models
@@ -21,9 +21,11 @@ namespace Tazq_App.Models
 	public class UserLoginDto
 	{
 		[Required, EmailAddress]
+		[JsonPropertyName("email")]
 		public string Email { get; set; } = string.Empty;
 
 		[Required]
+		[JsonPropertyName("password")]
 		public string Password { get; set; } = string.Empty;
 	}
 }

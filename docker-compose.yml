@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: tazqadmin
       POSTGRES_PASSWORD: wAL5dWMoBZ3KdHE9VHkuvSp3NXkUYIpE
     ports:
-      - "5432:5432"
+      - "65432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     restart: always

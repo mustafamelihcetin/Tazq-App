@@ -1,14 +1,14 @@
-﻿using Microsoft.Maui.Controls;
+using Microsoft.Maui.Controls;
 using Tazq_Frontend.ViewModels;
 
 namespace Tazq_Frontend.Views
 {
 	public partial class ResetPasswordPage : ContentPage
 	{
-		public ResetPasswordPage(ResetPasswordViewModel viewModel)
+		public ResetPasswordPage()
 		{
 			InitializeComponent();
-			BindingContext = viewModel;
+			BindingContext = MauiProgram.Services?.GetService<ResetPasswordViewModel>() ?? throw new InvalidOperationException("ResetPasswordViewModel not found");
 		}
 	}
 }

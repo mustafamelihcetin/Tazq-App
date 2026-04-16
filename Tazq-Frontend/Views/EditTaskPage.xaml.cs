@@ -1,4 +1,4 @@
-﻿using Tazq_Frontend.ViewModels;
+using Tazq_Frontend.ViewModels;
 
 namespace Tazq_Frontend.Views
 {
@@ -7,10 +7,10 @@ namespace Tazq_Frontend.Views
     {
         private readonly EditTaskViewModel _viewModel;
 
-        public EditTaskPage(EditTaskViewModel viewModel)
+        public EditTaskPage()
         {
             InitializeComponent();
-            _viewModel = viewModel;
+            _viewModel = MauiProgram.Services?.GetService<EditTaskViewModel>() ?? throw new InvalidOperationException("EditTaskViewModel not found");
             BindingContext = _viewModel;
         }
 

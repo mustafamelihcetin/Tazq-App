@@ -5,10 +5,10 @@ namespace Tazq_Frontend.Views
 {
 	public partial class ForgotPasswordPage : ContentPage
 	{
-		public ForgotPasswordPage(ForgotPasswordViewModel viewModel)
+		public ForgotPasswordPage()
 		{
 			InitializeComponent();
-            BindingContext = viewModel;
+            BindingContext = MauiProgram.Services?.GetService<ForgotPasswordViewModel>() ?? throw new InvalidOperationException("ForgotPasswordViewModel not found");
 		}
 	}
 }
