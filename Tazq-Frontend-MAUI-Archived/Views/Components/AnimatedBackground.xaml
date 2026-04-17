@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Tazq_Frontend.Views.Components.AnimatedBackground">
+    <AbsoluteLayout x:Name="BackgroundContainer" 
+                    HorizontalOptions="FillAndExpand" 
+                    VerticalOptions="FillAndExpand">
+        
+        <!-- Orb 1 -->
+        <Ellipse x:Name="Orb1" 
+                 WidthRequest="300" 
+                 HeightRequest="300"
+                 Fill="{StaticResource OrbColor1}"
+                 Opacity="0.4"
+                 AbsoluteLayout.LayoutBounds="-100, -100, 300, 300"
+                 TranslationX="0" 
+                 TranslationY="0">
+            <Ellipse.Shadow>
+                <Shadow Brush="{StaticResource OrbColor1}" Radius="100" Opacity="0.8" />
+            </Ellipse.Shadow>
+        </Ellipse>
+
+        <!-- Orb 2 -->
+        <Ellipse x:Name="Orb2" 
+                 WidthRequest="400" 
+                 HeightRequest="400"
+                 Fill="{StaticResource OrbColor2}"
+                 Opacity="0.3"
+                 AbsoluteLayout.LayoutBounds="0.8, 0.8, 400, 400"
+                 AbsoluteLayout.LayoutFlags="PositionProportional">
+            <Ellipse.Shadow>
+                <Shadow Brush="{StaticResource OrbColor2}" Radius="150" Opacity="0.6" />
+            </Ellipse.Shadow>
+        </Ellipse>
+
+        <!-- Orb 3 -->
+        <Ellipse x:Name="Orb3" 
+                 WidthRequest="250" 
+                 HeightRequest="250"
+                 Fill="{StaticResource OrbColor3}"
+                 Opacity="0.3"
+                 AbsoluteLayout.LayoutBounds="0.2, 0.5, 250, 250"
+                 AbsoluteLayout.LayoutFlags="PositionProportional">
+            <Ellipse.Shadow>
+                <Shadow Brush="{StaticResource OrbColor3}" Radius="120" Opacity="0.7" />
+            </Ellipse.Shadow>
+        </Ellipse>
+
+    </AbsoluteLayout>
+</ContentView>

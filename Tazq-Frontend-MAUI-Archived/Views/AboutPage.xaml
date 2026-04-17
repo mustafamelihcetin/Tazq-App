@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:components="clr-namespace:Tazq_Frontend.Views.Components"
+             x:Class="Tazq_Frontend.Views.AboutPage"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
+
+    <Grid>
+        <components:AnimatedBackground />
+
+        <Grid RowDefinitions="Auto, *">
+            <!-- Header -->
+            <Grid Grid.Row="0" Padding="24,40,24,10" ColumnDefinitions="Auto, *">
+                <Border Grid.Column="0" WidthRequest="44" HeightRequest="44" 
+                        Style="{StaticResource GlassBorder}" Padding="0">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding GoBackCommand}" />
+                    </Border.GestureRecognizers>
+                    <Label Text="←" FontSize="20" HorizontalOptions="Center" VerticalOptions="Center" />
+                </Border>
+                <Label Grid.Column="1" Text="Hakkında" FontSize="24" FontAttributes="Bold" VerticalOptions="Center" Margin="12,0" />
+            </Grid>
+
+            <ScrollView Grid.Row="1" Padding="24">
+                <VerticalStackLayout Spacing="16">
+                            <Label Text="Teknoloji" FontSize="18" FontAttributes="Bold" />
+                            <Label Text=".NET MAUI ve ASP.NET Core ile uçtan uca yüksek performanslı ve güvenli bir mimari üzerine inşa edilmiştir."
+                                   FontSize="15" LineHeight="1.4" Opacity="0.8" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Button Text="Geri Dön" Command="{Binding GoBackCommand}" Margin="0,20,0,40" />
+                </VerticalStackLayout>
+            </ScrollView>
+        </Grid>
+    </Grid>
+</ContentPage>

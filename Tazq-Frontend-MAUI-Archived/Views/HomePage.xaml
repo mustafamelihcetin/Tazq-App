@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
+             xmlns:converters="clr-namespace:Tazq_Frontend.Converters"
+             xmlns:components="clr-namespace:Tazq_Frontend.Views.Components"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:Class="Tazq_Frontend.Views.HomePage"
+             x:Name="MainPageRoot"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
+
+    <ContentPage.Behaviors>
+        <toolkit:StatusBarBehavior StatusBarColor="Transparent" StatusBarStyle="{AppThemeBinding Light=DarkContent, Dark=LightContent}" />
+    </ContentPage.Behaviors>
+
+    <AbsoluteLayout>
+        <!-- Background Animation Layer -->
+        <components:AnimatedBackground AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All" />
+
+        <Grid RowDefinitions="Auto, *" AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All">
+            
+            <!-- Custom Header -->
+            <Grid Grid.Row="0" Padding="24,40,24,10" ColumnDefinitions="*, Auto">
+                <Image Grid.Column="0"
+                       Source="{Binding IsLightThemeEnabled, Converter={StaticResource HomePageLogoConverter}}"
+                       HeightRequest="36"
+                       HorizontalOptions="Start" />
+
+                <HorizontalStackLayout Grid.Column="1" Spacing="12">
+                    <Border WidthRequest="44" HeightRequest="44" 
+                            Style="{StaticResource GlassBorder}"
+                            Padding="10">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding ToggleFilterPanelCommand}" />
+                        </Border.GestureRecognizers>
+                        <Image Source="{Binding IsLightThemeEnabled, Converter={StaticResource FilterIconConverter}}" />
+                    </Border>
+                    <Border WidthRequest="44" HeightRequest="44" 
+                            Style="{StaticResource GlassBorder}"
+                            Padding="10">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding ToggleSettingsPanelCommand}" />
+                        </Border.GestureRecognizers>
+                        <Image Source="{Binding IsLightThemeEnabled, Converter={StaticResource SettingsIconConverter}}" />
+                    </Border>
+                </HorizontalStackLayout>
+            </Grid>
+
+            <!-- Content Area -->
+            <RefreshView Grid.Row="1"
+                         Command="{Binding LoadTasksCommand}"
+                         IsRefreshing="{Binding IsLoading}">
+                
+                <CollectionView x:Name="MainCollectionView"
+                                ItemsSource="{Binding FilteredTasks}"
+                                Margin="0,10,0,0">
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout Spacing="24" VerticalOptions="Center" Padding="40" Margin="0,100,0,0">
+                             <Label Text="✨" FontSize="64" HorizontalOptions="Center" />
+                             <Label Text="Tertemiz Bir Sayfa"
+                                    Style="{StaticResource BrandTitle}"
+                                    FontSize="24"
+                                    HorizontalOptions="Center" />
+                             <Label Text="Bugün harika şeyler yapmak için mükemmel bir gün. İlk görevini ekleyerek akışı başlat!"
+                                    FontSize="14"
+                                    HorizontalOptions="Center"
+                                    HorizontalTextAlignment="Center"
+                                    Opacity="0.7" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
+                    </CollectionView.ItemsLayout>
+
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <SwipeView Padding="24,0">
+                                <SwipeView.RightItems>
+                                    <SwipeItems Mode="Reveal">
+                                        <SwipeItem BackgroundColor="{StaticResource Primary}"
+                                                   Command="{Binding Path=BindingContext.EditTaskCommand, Source={x:Reference MainPageRoot}}"
+                                                   CommandParameter="{Binding .}"
+                                                   Text="Düzenle" />
+                                        <SwipeItem BackgroundColor="{StaticResource Danger}"
+                                                   Command="{Binding Path=BindingContext.DeleteTaskCommand, Source={x:Reference MainPageRoot}}"
+                                                   CommandParameter="{Binding .}"
+                                                   Text="Sil" />
+                                    </SwipeItems>
+                                </SwipeView.RightItems>
+
+                                <Border Style="{StaticResource GlassBorder}" 
+                                        Padding="16"
+                                        Opacity="0"
+                                        TranslationY="20"
+                                        Loaded="OnItemLoaded">
+                                    <Grid RowDefinitions="Auto, Auto" ColumnDefinitions="*, Auto" RowSpacing="6">
+                                        
+                                        <!-- Row 0: Title and Priority Dot -->
+                                        <Label Grid.Row="0" Grid.Column="0"
+                                               Text="{Binding Title}"
+                                               FontSize="16"
+                                               FontAttributes="Bold"
+                                               TextColor="{AppThemeBinding Light={StaticResource Black}, Dark=White}" />
+                                        
+                                        <Ellipse Grid.Row="0" Grid.Column="1"
+                                                 WidthRequest="10" HeightRequest="10"
+                                                 Fill="{Binding PriorityEnum, Converter={StaticResource PriorityToColorConverter}}"
+                                                 VerticalOptions="Center" />
+
+                                        <!-- Row 1: Description or Date -->
+                                        <HorizontalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="8" Opacity="0.6" VerticalOptions="Center">
+                                            <Label Text="📅" FontSize="12" IsVisible="{Binding HasDueDate}" />
+                                            <Label Text="{Binding DueDateTimeCombined, StringFormat='{0:dd MMM HH:mm}'}"
+                                                   FontSize="12"
+                                                   IsVisible="{Binding HasDueDate}" />
+                                            <Label Text="•" FontSize="12" IsVisible="{Binding HasDueDate}" />
+                                            <Label Text="{Binding Description}" 
+                                                   FontSize="12"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1" />
+                                        </HorizontalStackLayout>
+
+                                        <Grid.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding Path=BindingContext.ToggleTaskCompletionCommand, Source={x:Reference MainPageRoot}}"
+                                                                  CommandParameter="{Binding .}" />
+                                        </Grid.GestureRecognizers>
+                                    </Grid>
+                                </Border>
+                            </SwipeView>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </RefreshView>
+        </Grid>
+
+
+        <!-- Modern Floating Action Button -->
+        <Border AbsoluteLayout.LayoutBounds="1, 1, 72, 72"
+                AbsoluteLayout.LayoutFlags="PositionProportional"
+                BackgroundColor="{StaticResource Primary}"
+                StrokeShape="RoundRectangle 36"
+                Margin="0,0,24,30"
+                WidthRequest="72" HeightRequest="72">
+            <Border.Shadow>
+                <Shadow Brush="{StaticResource Primary}" Radius="20" Opacity="0.5" Offset="0,10" />
+            </Border.Shadow>
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroupList>
+                    <VisualStateGroup x:Name="CommonStates">
+                        <VisualState x:Name="Normal" />
+                        <VisualState x:Name="PointerOver">
+                            <VisualState.Setters>
+                                <Setter Property="Scale" Value="1.05" />
+                            </VisualState.Setters>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateGroupList>
+            </VisualStateManager.VisualStateGroups>
+            <ImageButton Source="plus_icon"
+                         Command="{Binding GoToAddTaskPageCommand}"
+                         Padding="22"
+                         BackgroundColor="Transparent" />
+        </Border>
+
+        <!-- Panels Overlays -->
+        <BoxView IsVisible="{Binding IsFilterPanelVisible}"
+                 BackgroundColor="#40000000"
+                 AbsoluteLayout.LayoutBounds="0,0,1,1" AbsoluteLayout.LayoutFlags="All">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding ToggleFilterPanelCommand}" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <Border IsVisible="{Binding IsFilterPanelVisible}"
+                Style="{StaticResource GlassBorder}"
+                AbsoluteLayout.LayoutBounds="0.5, 0.5, 0.9, Auto"
+                AbsoluteLayout.LayoutFlags="PositionProportional, WidthProportional"
+                ZIndex="100" Padding="24">
+            <VerticalStackLayout Spacing="20">
+                <Label Text="Filtrele" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+                
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Tamamlanmayanlar" VerticalOptions="Center" />
+                    <Switch Grid.Column="1" IsToggled="{Binding IsShowOnlyIncomplete, Mode=TwoWay}" />
+                </Grid>
+
+                <Border Style="{StaticResource GlassBorder}" Padding="12,0" BackgroundColor="{AppThemeBinding Light={StaticResource Gray50}, Dark={StaticResource Gray950}}">
+                    <Entry Placeholder="Etikete göre ara..." Text="{Binding FilterTag, Mode=TwoWay}" />
+                </Border>
+                
+                <Button Text="Uygula" Command="{Binding ToggleFilterPanelCommand}" />
+            </VerticalStackLayout>
+        </Border>
+
+        <Border IsVisible="{Binding IsSettingsPanelVisible}"
+                Style="{StaticResource GlassBorder}"
+                AbsoluteLayout.LayoutBounds="0.5, 0.5, 0.9, Auto"
+                AbsoluteLayout.LayoutFlags="PositionProportional, WidthProportional"
+                ZIndex="100" Padding="24">
+            <VerticalStackLayout Spacing="16">
+                <Label Text="Ayarlar" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+                
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Açık Tema" VerticalOptions="Center" />
+                    <Switch Grid.Column="1" IsToggled="{Binding IsLightThemeEnabled, Mode=TwoWay}" />
+                </Grid>
+
+                <Button Text="Bildirim Ayarları" Command="{Binding NotificationSettingsCommand}" BackgroundColor="Transparent" TextColor="{StaticResource Primary}" />
+                <Button Text="Hakkında" Command="{Binding AboutCommand}" BackgroundColor="Transparent" TextColor="{StaticResource Primary}" />
+                <Button Text="Çıkış Yap" Command="{Binding LogoutCommand}" BackgroundColor="{StaticResource Danger}" />
+                <Button Text="Kapat" Command="{Binding ToggleSettingsPanelCommand}" BackgroundColor="Transparent" TextColor="{StaticResource Gray500}" />
+            </VerticalStackLayout>
+        </Border>
+
+    </AbsoluteLayout>
+</ContentPage>

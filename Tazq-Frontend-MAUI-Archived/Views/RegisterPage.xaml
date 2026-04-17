@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Tazq_Frontend.ViewModels"
+             xmlns:components="clr-namespace:Tazq_Frontend.Views.Components"
+             x:Class="Tazq_Frontend.Views.RegisterPage"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False"
+             Background="{AppThemeBinding Light={StaticResource AppBackgroundBrushLight}, Dark={StaticResource AppBackgroundBrushDark}}">
+
+    <Grid>
+        <!-- Background Animation Layer -->
+        <components:AnimatedBackground />
+
+        <ScrollView>
+            <Grid Padding="40,20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Header Area -->
+                <VerticalStackLayout Grid.Row="0" Spacing="10" Margin="0,60,0,40" HorizontalOptions="Center">
+                    <Image Source="{Binding IsLightThemeEnabled, Converter={StaticResource HomePageLogoConverter}}"
+                           WidthRequest="140"
+                           Aspect="AspectFit" />
+                    <Label Text="Yeni bir başlangıç yap."
+                           FontSize="14"
+                           TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                           HorizontalOptions="Center"
+                           Opacity="0.8" />
+                </VerticalStackLayout>
+
+                <!-- Register Form -->
+                <VerticalStackLayout Grid.Row="1" Spacing="20" VerticalOptions="Center" 
+                                     MaxWidthRequest="400" HorizontalOptions="Center">
+                    
+                    <Border Style="{StaticResource GlassBorder}" Padding="0">
+                        <VerticalStackLayout Padding="2">
+                            <Entry Placeholder="Adınız"
+                                   Text="{Binding Name}"
+                                   Margin="16,4" />
+                            <BoxView Style="{StaticResource BoxView}" HeightRequest="1" Margin="16,0" Opacity="0.1" />
+                            <Entry Placeholder="E-posta"
+                                   Text="{Binding Email}"
+                                   Keyboard="Email"
+                                   Margin="16,4" />
+                            <BoxView Style="{StaticResource BoxView}" HeightRequest="1" Margin="16,0" Opacity="0.1" />
+                            <Entry Placeholder="Şifre"
+                                   Text="{Binding Password}"
+                                   IsPassword="True"
+                                   Margin="16,4" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Button Text="Kaydol"
+                            Command="{Binding RegisterCommand}" />
+
+                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="6">
+                        <Label Text="Zaten hesabın var mı?" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+                        <Label Text="Giriş Yap" TextColor="{StaticResource Primary}" FontAttributes="Bold">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding NavigateToLoginCommand}" />
+                            </Label.GestureRecognizers>
+                        </Label>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+
+                <!-- Footer Spacer -->
+                <BoxView Grid.Row="2" HeightRequest="40" Color="Transparent" />
+            </Grid>
+        </ScrollView>
+    </Grid>
+</ContentPage>d>
+</ContentPage>
