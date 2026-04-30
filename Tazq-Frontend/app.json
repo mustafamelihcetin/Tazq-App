@@ -1,15 +1,24 @@
 {
   "expo": {
-    "name": "Tazq-Frontend",
+    "name": "Tazq",
     "slug": "Tazq-Frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "scheme": "tazq-app",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1",
+            "newArchEnabled": false
+          }
+        }
+      ]
     ],
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -17,7 +26,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tazqapp.tazq",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,6 +41,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "de37967e-e414-4881-ba6f-6e17f04c974e"
+      }
     }
   }
 }

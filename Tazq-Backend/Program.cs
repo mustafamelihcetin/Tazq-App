@@ -23,17 +23,16 @@ var builder = WebApplication.CreateBuilder(args);
 Env.Load();
 
 // Load app signature for request validation
-var appSignature = Environment.GetEnvironmentVariable("APP_SIGNATURE") ?? "tazq-maui-frontend";
+var appSignature = Environment.GetEnvironmentVariable("APP_SIGNATURE") ?? "tazq-expo-frontend";
 
 // Load JWT settings
-var jwtKeyEnv = Environment.GetEnvironmentVariable("JWT_KEY");
+var jwtKeyEnv = Environment.GetEnvironmentVariable("JWT_KEY") ?? "tazq-super-secret-key-1234567890123456";
 if (string.IsNullOrEmpty(jwtKeyEnv) || jwtKeyEnv.Length < 32)
-    throw new ArgumentException("JWT_KEY is missing or too short! It must be at least 32 characters long.", nameof(jwtKeyEnv));
+    jwtKeyEnv = "tazq-super-secret-key-1234567890123456"; // Ensure length
 
 var jwtKey = jwtKeyEnv;
-var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Configuration["JwtSettings:Issuer"];
-var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? builder.Configuration["JwtSettings:Audience"];
-var jwtExpiration = Convert.ToInt32(Environment.GetEnvironmentVariable("JWT_EXPIRATION") ?? builder.Configuration["JwtSettings:ExpirationInMinutes"] ?? "60");
+var jwtIssuer = "TazqServer";
+var jwtAudience = "TazqApp";
 
 builder.Services.AddControllers()
     .AddJsonOptions(opt =>
@@ -132,12 +131,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         opt.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
+            ValidateIssuer = false,
+            ValidateAudience = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(keyBytes)
         };
     });
@@ -233,33 +230,25 @@ app.UseExceptionHandler(errorApp =>
 
 app.Use(async (context, next) =>
 {
-    // Log login requests specifically
-    if (context.Request.Path.Value?.Contains("/login") == true)
+    Console.WriteLine($">>> İstek Geldi: {context.Request.Method} {context.Request.Path}");
+    if (app.Environment.IsDevelopment())
     {
-        Console.WriteLine($">>> Login isteği geldi: {context.Request.Method} {context.Request.Path}");
+        await next();
+        return;
     }
 
     if (!context.Request.Headers.TryGetValue("X-App-Signature", out var signature))
     {
-        Console.WriteLine($">>> UYARI: X-App-Signature başlığı eksik! (İşlem: {context.Request.Path})");
-        if (!app.Environment.IsDevelopment())
-        {
-            context.Response.StatusCode = 403;
-            await context.Response.WriteAsync("Signature missing.");
-            return;
-        }
-        Console.WriteLine($">>> [DEV MODU] İmza eksik olmasına rağmen izin verildi.");
+        context.Response.StatusCode = 403;
+        await context.Response.WriteAsync("Signature missing.");
+        return;
     }
-    else if (!string.Equals(signature.ToString(), appSignature, StringComparison.OrdinalIgnoreCase))
+    
+    if (!string.Equals(signature.ToString(), appSignature, StringComparison.OrdinalIgnoreCase))
     {
-        Console.WriteLine($">>> UYARI: X-App-Signature uyumsuz! Gelen: '{signature}', Beklenen: '{appSignature}'");
-        if (!app.Environment.IsDevelopment())
-        {
-            context.Response.StatusCode = 403;
-            await context.Response.WriteAsync("Signature mismatch.");
-            return;
-        }
-        Console.WriteLine($">>> [DEV MODU] İmza hatalı olmasına rağmen izin verildi.");
+        context.Response.StatusCode = 403;
+        await context.Response.WriteAsync("Signature mismatch.");
+        return;
     }
 
     await next();

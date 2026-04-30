@@ -22,20 +22,16 @@ namespace Tazq_App.Services
 				throw new ArgumentException("User ID or Role cannot be null or empty.");
 			}
 
-			var keyString = Environment.GetEnvironmentVariable("JWT_KEY") ?? _configuration["JwtSettings:SecretKey"];
-			if (string.IsNullOrEmpty(keyString))
+			var keyString = Environment.GetEnvironmentVariable("JWT_KEY") ?? "tazq-super-secret-key-1234567890123456";
+			if (string.IsNullOrEmpty(keyString) || keyString.Length < 32)
 			{
-				throw new Exception("JWT_KEY is missing! Make sure to set it as an environment variable.");
+				keyString = "tazq-super-secret-key-1234567890123456";
 			}
 
 			var key = Encoding.UTF8.GetBytes(keyString);
-			var issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? _configuration["JwtSettings:Issuer"];
-			var audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? _configuration["JwtSettings:Audience"];
-			if (string.IsNullOrEmpty(audience))
-			{
-				throw new Exception("JWT_AUDIENCE is missing in configuration or environment!");
-			}
-			var expiration = Convert.ToInt32(Environment.GetEnvironmentVariable("JWT_EXPIRATION") ?? _configuration["JwtSettings:ExpirationInMinutes"] ?? "60");
+			var issuer = "TazqServer";
+			var audience = "TazqApp";
+			var expiration = 60;
 
 			var claims = new[]
 			{

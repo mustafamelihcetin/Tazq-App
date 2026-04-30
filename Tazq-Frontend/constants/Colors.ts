@@ -1,20 +1,42 @@
 export const Colors = {
   light: {
-    text: "#0F172A", // Slate 900
-    background: "#F8FAFC", // Slate 50
-    primary: "#6366F1", // Indigo 500
-    secondary: "#64748B", // Slate 500
-    accent: "#818CF8",
-    card: "rgba(255, 255, 255, 0.4)",
-    border: "rgba(0, 0, 0, 0.1)",
+    text: "#2d2f31",
+    background: "#f6f6f8",
+    primary: "#0058bb",
+    secondary: "#b4005d",
+    tertiary: "#006859",
+    surface: "#f6f6f8",
+    surfaceContainer: "#e7e8ea",
+    surfaceContainerHigh: "#e1e2e5",
+    surfaceContainerLowest: "#ffffff",
+    onSurface: "#2d2f31",
+    onSurfaceVariant: "#5a5c5d",
+    outline: "#757779",
+    outlineVariant: "#acadaf",
+    card: "rgba(255, 255, 255, 0.8)",
+    border: "rgba(0, 0, 0, 0.06)",
+    error: "#ba1a1a",
+    primary_fixed_dim: "#adc6ff",
+    secondary_fixed_dim: "#ffb1c8",
   },
   dark: {
-    text: "#F1F5F9", // Slate 100
-    background: "#020617", // Slate 950
-    primary: "#6366F1", // Indigo 500
-    secondary: "#94A3B8", // Slate 400
-    accent: "#4F46E5",
-    card: "rgba(255, 255, 255, 0.1)",
-    border: "rgba(255, 255, 255, 0.15)",
+    text: "#ffffff",
+    background: "#0c0e10",
+    primary: "#6c9fff",
+    secondary: "#ffc1d1",
+    tertiary: "#26fedc",
+    surface: "#1c1e21",
+    surfaceContainer: "#2d2f31",
+    surfaceContainerHigh: "#3d3f41",
+    surfaceContainerLowest: "#0c0e10",
+    onSurface: "#ffffff",
+    onSurfaceVariant: "#acadaf",
+    outline: "#8e9092",
+    outlineVariant: "#444749",
+    card: "rgba(45, 47, 49, 0.4)",
+    border: "rgba(255, 255, 255, 0.1)",
+    error: "#ffb4ab",
+    primary_fixed_dim: "#adc6ff",
+    secondary_fixed_dim: "#ffb1c8",
   },
 };

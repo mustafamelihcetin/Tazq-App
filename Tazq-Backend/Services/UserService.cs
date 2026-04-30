@@ -44,15 +44,26 @@ namespace Tazq_App.Services
 
         public async Task<string?> LoginAsync(UserLoginDto userDto, string? ipAddress)
         {
+            Console.WriteLine($">>> Login denemesi: {userDto.Email}");
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userDto.Email);
-            if (user == null || string.IsNullOrEmpty(user.PasswordSalt))
+            if (user == null) {
+                Console.WriteLine(">>> HATA: Kullanıcı bulunamadı!");
                 return null;
+            }
+            if (string.IsNullOrEmpty(user.PasswordSalt)) {
+                Console.WriteLine(">>> HATA: Kullanıcı Salt verisi boş!");
+                return null;
+            }
 
             using var pbkdf2 = new Rfc2898DeriveBytes(userDto.Password, Convert.FromBase64String(user.PasswordSalt), 100000, HashAlgorithmName.SHA256);
             var computedHash = Convert.ToBase64String(pbkdf2.GetBytes(32));
 
-            if (computedHash != user.PasswordHash)
+            if (computedHash != user.PasswordHash) {
+                Console.WriteLine($">>> HATA: Şifre uyuşmuyor! Gelen: {userDto.Password}");
                 return null;
+            }
+            
+            Console.WriteLine(">>> Login BAŞARILI!");
 
             if (!string.IsNullOrEmpty(ipAddress))
             {

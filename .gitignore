@@ -367,3 +367,7 @@ FodyWeavers.xsd
 *.rar
 /Tazq-Frontend.zip
 /Tazq-Frontend/Resources/Images/icon1024.png
+# UI Design folder
+stitch_tazq_sophisticated_playful_ui/
+
+stitch_tazq_sophisticated_playful_ui/
