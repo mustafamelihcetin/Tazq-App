@@ -6,6 +6,10 @@ interface User {
   id: number;
   email: string;
   name: string;
+  avatar?: string;
+  totalFocusHours?: number;
+  completedTasksCount?: number;
+  activeStreak?: number;
 }
 
 interface AuthState {

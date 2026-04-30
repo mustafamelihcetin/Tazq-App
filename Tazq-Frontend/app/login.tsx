@@ -26,13 +26,14 @@ import { useAuthStore } from '../store/useAuthStore';
 
 export default function LoginScreen() {
   const { width, height } = useWindowDimensions();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const colorScheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,22 +52,17 @@ export default function LoginScreen() {
 
     try {
       const { token } = await AuthService.login(email, password);
-      
-      // Pass the token manually to getCurrentUser to avoid 401
       const userData = await AuthService.getCurrentUser(token);
-      
       setAuth(userData, token);
-      
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/');
     } catch (err: any) {
       console.error(err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      
       if (err.response?.status === 401) {
         setError('Invalid email or password');
       } else {
-        setError('Connection error. Is backend running?');
+        setError('Unable to connect. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -74,7 +70,8 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.background }}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Background Orbs */}
       <MotiView
         from={{ opacity: 0, scale: 0.5, translateX: -100 }}
         animate={{ opacity: 0.4, scale: 1, translateX: 0 }}
@@ -88,37 +85,35 @@ export default function LoginScreen() {
         style={[styles.orb, { backgroundColor: theme.secondary, bottom: -100, right: -100, width: width * 0.9, height: width * 0.9 }]}
       />
 
-      <SafeAreaView className="flex-1">
+      <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          className="flex-1"
+          style={styles.keyboardView}
         >
           <ScrollView 
-            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal }}
+            contentContainerStyle={[styles.scrollContent, { paddingHorizontal }]}
             showsVerticalScrollIndicator={false}
           >
             <MotiView 
               from={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ type: 'spring', damping: 12 }}
-              className="items-center mb-10"
+              style={styles.logoContainer}
             >
               <View 
-                style={[styles.logoBubble, { width: logoSize, height: logoSize, borderRadius: logoSize * 0.4 }]}
-                className="bg-primary items-center justify-center shadow-2xl"
+                style={[styles.logoBubble, { width: logoSize, height: logoSize, borderRadius: logoSize * 0.4, backgroundColor: theme.primary }]}
               >
                   <LinearGradient
                     colors={['rgba(255,255,255,0.3)', 'transparent']}
-                    className="absolute inset-0 rounded-full"
+                    style={[StyleSheet.absoluteFill, { borderRadius: logoSize * 0.4 }]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   />
-                  <Text style={{ fontSize: logoSize * 0.45 }} className="text-white font-black italic tracking-tighter">T</Text>
+                  <Text style={[styles.logoText, { fontSize: logoSize * 0.45 }]}>T</Text>
               </View>
               
               <MotiText 
-                className="text-4xl font-black mt-6 tracking-tighter"
-                style={{ color: theme.onSurface }}
+                style={[styles.welcomeTitle, { color: theme.onSurface }]}
               >
                 Welcome Back
               </MotiText>
@@ -128,28 +123,27 @@ export default function LoginScreen() {
              from={{ opacity: 0, translateY: 30 }}
              animate={{ opacity: 1, translateY: 0 }}
              transition={{ delay: 200, type: 'spring' }}
-             className="overflow-hidden rounded-[40px] border border-white/20 shadow-2xl shadow-black/5"
+             style={[styles.glassCard, { borderColor: 'rgba(255,255,255,0.2)' }]}
             >
-                <BlurView intensity={Platform.OS === 'ios' ? 40 : 100} tint={colorScheme} className="p-8">
-                    <View className="gap-5">
+                <BlurView intensity={Platform.OS === 'ios' ? 40 : 100} tint={colorScheme} style={styles.blurContent}>
+                    <View style={styles.formGap}>
                         {error && (
                             <MotiView 
                                 from={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="bg-error/10 p-4 rounded-2xl flex-row items-center gap-3 border border-error/20"
+                                style={[styles.errorBox, { backgroundColor: theme.error + '15', borderColor: theme.error + '30' }]}
                             >
                                 <AlertCircle size={18} color={theme.error} />
-                                <Text className="text-xs font-bold" style={{ color: theme.error }}>{error}</Text>
+                                <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
                             </MotiView>
                         )}
 
-                        <View className="bg-surface-container-high/40 rounded-[24px] px-5 py-4 flex-row items-center border border-white/10">
+                        <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerHigh + '60' }]}>
                             <Mail size={18} color={theme.primary} />
                             <TextInput 
                                 placeholder="Email Address" 
                                 placeholderTextColor={theme.onSurfaceVariant + '80'}
-                                className="flex-1 ml-4 text-base font-semibold"
-                                style={{ color: theme.onSurface }}
+                                style={[styles.input, { color: theme.onSurface }]}
                                 value={email}
                                 onChangeText={(val) => { setEmail(val); setError(null); }}
                                 autoCapitalize="none"
@@ -157,41 +151,44 @@ export default function LoginScreen() {
                             />
                         </View>
 
-                        <View className="bg-surface-container-high/40 rounded-[24px] px-5 py-4 flex-row items-center border border-white/10">
+                        <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerHigh + '60' }]}>
                             <Lock size={18} color={theme.primary} />
                             <TextInput 
                                 placeholder="Password" 
                                 placeholderTextColor={theme.onSurfaceVariant + '80'}
-                                className="flex-1 ml-4 text-base font-semibold"
-                                style={{ color: theme.onSurface }}
-                                secureTextEntry
+                                style={[styles.input, { color: theme.onSurface }]}
+                                secureTextEntry={!showPassword}
                                 value={password}
                                 onChangeText={(val) => { setPassword(val); setError(null); }}
                                 returnKeyType="done"
                                 onSubmitEditing={handleLogin}
                             />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                <Text style={{ fontSize: 12, fontWeight: '800', color: theme.primary }}>
+                                    {showPassword ? 'HIDE' : 'SHOW'}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
 
                         <TouchableOpacity 
                             onPress={handleLogin}
                             disabled={isLoading}
                             activeOpacity={0.8}
-                            style={styles.ctaButton}
-                            className={`bg-primary rounded-[24px] overflow-hidden shadow-xl shadow-primary/30 mt-4 ${isLoading ? 'opacity-70' : ''}`}
+                            style={[styles.ctaButton, { backgroundColor: theme.secondary, shadowColor: theme.secondary }]}
                         >
                             <LinearGradient
-                                colors={[theme.primary, theme.primary_fixed_dim || theme.primary]}
+                                colors={[theme.secondary, theme.secondaryContainer || theme.secondary]}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
-                                className="py-5 items-center flex-row justify-center gap-3"
+                                style={styles.gradientBtn}
                             >
                                 {isLoading ? (
                                     <ActivityIndicator color="white" />
                                 ) : (
-                                    <>
-                                        <LogIn size={18} color="white" strokeWidth={2.5} />
-                                        <Text className="text-white text-lg font-black tracking-tight">Login Now</Text>
-                                    </>
+                                    <View style={styles.btnContent}>
+                                        <LogIn size={20} color="white" strokeWidth={2.5} />
+                                        <Text style={styles.ctaText}>Login Now</Text>
+                                    </View>
                                 )}
                             </LinearGradient>
                         </TouchableOpacity>
@@ -199,10 +196,10 @@ export default function LoginScreen() {
                 </BlurView>
             </MotiView>
 
-            <View className="mt-8 flex-row justify-center items-center gap-2">
-                <Text className="text-sm font-medium" style={{ color: theme.onSurfaceVariant }}>Don't have an account?</Text>
+            <View style={styles.footer}>
+                <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>Don't have an account?</Text>
                 <TouchableOpacity onPress={() => router.push('/register')}>
-                    <Text className="font-black text-sm" style={{ color: theme.secondary }}>Sign Up</Text>
+                    <Text style={[styles.signUpText, { color: theme.primary }]}>Sign Up</Text>
                 </TouchableOpacity>
             </View>
           </ScrollView>
@@ -213,21 +210,130 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   orb: {
     position: 'absolute',
     borderRadius: 1000,
   },
+  safeArea: {
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 48,
+  },
   logoBubble: {
-    shadowColor: '#0058bb',
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
     elevation: 10,
   },
-  ctaButton: {
+  logoText: {
+    color: 'white',
+    fontWeight: '900',
+    fontStyle: 'italic',
+    letterSpacing: -2,
+  },
+  welcomeTitle: {
+    fontSize: 36,
+    fontWeight: '900',
+    marginTop: 24,
+    letterSpacing: -1.5,
+  },
+  glassCard: {
+    borderRadius: 40,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-    borderTopWidth: 1.5,
-    borderLeftWidth: 1.2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.1,
+    shadowRadius: 30,
+    elevation: 5,
+  },
+  blurContent: {
+    padding: 32,
+  },
+  formGap: {
+    gap: 20,
+  },
+  errorBox: {
+    padding: 16,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+  },
+  errorText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  inputWrapper: {
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  input: {
+    flex: 1,
+    marginLeft: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    height: '100%',
+  },
+  ctaButton: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginTop: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  gradientBtn: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  ctaText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  footer: {
+    marginTop: 32,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  footerText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  signUpText: {
+    fontSize: 14,
+    fontWeight: '900',
   }
 });

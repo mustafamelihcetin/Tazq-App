@@ -7,13 +7,15 @@ import { useColorScheme } from 'react-native';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export function BottomNavBar() {
   const router = useRouter();
   const segments = useSegments();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const colorScheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const tabs = [
     { name: 'index', icon: LayoutGrid, path: '/' },
@@ -30,7 +32,7 @@ export function BottomNavBar() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 24) }]}>
       <MotiView 
         from={{ translateY: 100 }}
         animate={{ translateY: 0 }}
@@ -94,7 +96,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    paddingBottom: 32,
     zIndex: 1000,
   },
   navBar: {

@@ -9,6 +9,7 @@ import { DynamicIsland } from '../components/DynamicIsland';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { MotiView, MotiText } from 'moti';
 import { Settings, TrendingUp, Calendar, Plus, FileText, ChevronRight, LogOut, LayoutGrid, Clock, Sparkles, User as UserIcon } from 'lucide-react-native';
+import { TaskService } from '../services/api';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
@@ -19,20 +20,17 @@ export default function HomeScreen() {
   const { tasks, isLoading, setTasks, setLoading } = useTaskStore();
   const { logout, user } = useAuthStore();
   const { t } = useLanguageStore();
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() ?? 'light';
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const mockTasks = [
-        { id: 1, title: 'Design Review', description: 'Review the new mobile UI tokens', isCompleted: false, priority: 'High', tags: ['design'], dueDate: new Date().toISOString() },
-        { id: 2, title: 'Coffee Break', description: 'Take a short break', isCompleted: true, priority: 'Low', tags: ['personal'], dueDate: new Date().toISOString() },
-      ];
-      setTasks(mockTasks);
+      const data = await TaskService.getTasks();
+      setTasks(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error(e);
+      console.error('fetchTasks error:', e);
     } finally {
       setLoading(false);
     }
@@ -46,15 +44,30 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }}>
         {/* Top Bar */}
-        <View style={styles.topBar}>
+        <MotiView 
+            from={{ opacity: 0, translateY: -20 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            style={styles.topBar}
+        >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <View style={[styles.avatarContainer, { borderColor: theme.primary + '20' }]}>
                     <Image 
-                        source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFZ3m28QnuLs5EMoE9_1uEJEmGY1pjB6T07vElwibKzCCpVmT7Cj8z7EgnfYMDQDtMJvo9Y2eBwLV5eLzVNiAKE1prmMLuaDhXoKFom_6YAbaPlLwzPuN8Tw5j7p94PHtyi4XOnUk0quau6M5yplmOzTMftU3d8F-TztimMktFyZT6-joWCyyLhLyh58s8OdWLzcfqcaXddyeQN380_dkJUKerJ58KvudT8WguZ15qhFDnhr9Uhjp5ww7HOGl1TixrnPJCRY4RGXA' }} 
+                        key={user?.id || 'guest'}
+                        source={{ 
+                            uri: user?.avatar || `https://api.dicebear.com/7.x/avataaars/png?seed=${user?.name || 'Tazq'}` 
+                        }} 
                         style={styles.avatar}
+                        defaultSource={{ uri: 'https://ui-avatars.com/api/?name=T&background=0058bb&color=fff' }}
                     />
                 </View>
-                <Text style={[styles.logoText, { color: theme.onSurface }]}>TAZQ</Text>
+                <MotiText 
+                    from={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 200 }}
+                    style={[styles.logoText, { color: theme.onSurface }]}
+                >
+                    TAZQ
+                </MotiText>
             </View>
             <TouchableOpacity 
                 onPress={() => router.push('/profile')}
@@ -62,27 +75,40 @@ export default function HomeScreen() {
             >
                 <Settings size={20} color={theme.onSurfaceVariant} />
             </TouchableOpacity>
-        </View>
+        </MotiView>
 
         <ScrollView 
           style={{ flex: 1 }} 
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchTasks} tintColor={theme.primary} />}
         >
           {/* Greeting */}
           <MotiView 
-            from={{ opacity: 0, translateY: 10 }}
-            animate={{ opacity: 1, translateY: 0 }}
+            from={{ opacity: 0, translateX: -20 }}
+            animate={{ opacity: 1, translateX: 0 }}
+            transition={{ type: 'spring', damping: 20 }}
             style={styles.greetingContainer}
           >
             <Text style={[styles.greetingTitle, { color: theme.onSurface }]}>{t.greeting}</Text>
-            <Text style={[styles.greetingSub, { color: theme.onSurfaceVariant }]}>{t.summary}</Text>
+            <MotiText 
+                key={tasks.length}
+                from={{ opacity: 0, translateY: 5 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                style={[styles.greetingSub, { color: theme.onSurfaceVariant }]}
+            >
+                {tasks.length > 0 ? t.summary.replace('{count}', tasks.length.toString()) : t.summary}
+            </MotiText>
           </MotiView>
 
-          <View style={styles.islandWrapper}>
+          <MotiView
+            from={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 300, type: 'spring' }}
+            style={styles.islandWrapper}
+          >
              <DynamicIsland />
-          </View>
+          </MotiView>
 
           <View style={styles.bentoGrid}>
             
@@ -99,20 +125,29 @@ export default function HomeScreen() {
                 </View>
               </View>
               
-              <View style={[styles.chartContainer, { backgroundColor: 'transparent' }]}>
+              <View style={styles.chartContainer}>
                  {[40, 65, 35, 85, 55, 30].map((h, i) => (
-                    <View key={i} style={[styles.chartBarWrapper, { backgroundColor: 'transparent' }]}>
+                    <View key={i} style={styles.chartBarWrapper}>
                         {i === 3 && (
-                            <View style={[styles.todayTooltip, { backgroundColor: theme.surfaceContainerHigh }]}>
+                            <MotiView 
+                                from={{ opacity: 0, scale: 0 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 800 + (i * 100) }}
+                                style={[styles.todayTooltip, { backgroundColor: theme.surfaceContainerHigh }]}
+                            >
                                 <Text style={[styles.todayText, { color: theme.onSurface }]}>Bugün</Text>
-                            </View>
+                            </MotiView>
                         )}
-                        <View 
+                        <MotiView 
+                            from={{ height: 0 }}
+                            animate={{ height: Math.max(h, 4) }} // Ensure at least 4px height
+                            transition={{ type: 'timing', duration: 1000, delay: 500 + (i * 100) }}
                             style={[
                                 styles.chartBar, 
                                 { 
-                                    height: `${h}%`, 
-                                    backgroundColor: i === 3 ? theme.primary : theme.primaryContainer + (colorScheme === 'dark' ? '40' : '60')
+                                    backgroundColor: i === 3 ? theme.primary : theme.primaryContainer + (colorScheme === 'dark' ? '40' : '60'),
+                                    width: 16,
+                                    minHeight: 4,
                                 }
                             ]} 
                         />
@@ -123,7 +158,7 @@ export default function HomeScreen() {
 
             <View style={styles.asymmetricRow}>
                 {/* Upcoming */}
-                <BentoCard index={2} style={{ width: '60%', backgroundColor: theme.surfaceContainerLow }} glass={Platform.OS === 'ios'}>
+                <BentoCard index={2} style={{ flex: 1.5 }} glass={Platform.OS === 'ios'}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, backgroundColor: 'transparent' }}>
                         <Calendar size={18} color={theme.secondary} />
                         <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>{t.upcoming}</Text>
@@ -146,8 +181,8 @@ export default function HomeScreen() {
 
             {/* Quick Actions */}
             <View style={styles.actionRow}>
-                <TouchableOpacity 
-                    onPress={() => Alert.alert(t.newTask, t.waitingForAction)}
+                <TouchableOpacity
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/tasks'); }}
                     style={[styles.actionBtn, { backgroundColor: theme.surfaceContainerLow }]}
                 >
                     <View style={[styles.actionIconWrapper, { backgroundColor: theme.primaryContainer }]}>

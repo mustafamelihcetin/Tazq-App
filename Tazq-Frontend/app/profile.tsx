@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MotiView } from 'moti';
+import { MotiView, MotiText } from 'moti';
 import { User, Bell, Moon, Languages, Shield, LogOut, ChevronRight, Award, Zap, Target } from 'lucide-react-native';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 export default function ProfileScreen() {
   const { width } = useWindowDimensions();
   const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { user, logout } = useAuthStore();
   const { t, language, setLanguage } = useLanguageStore();
   const router = useRouter();
@@ -45,18 +45,22 @@ export default function ProfileScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView 
             style={{ flex: 1 }} 
-            contentContainerStyle={{ paddingBottom: 120 }}
+            contentContainerStyle={{ paddingBottom: 140 }}
             showsVerticalScrollIndicator={false}
         >
           {/* Profile Header */}
           <View style={styles.header}>
             <MotiView 
-                from={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
+                from={{ scale: 0.5, opacity: 0, rotate: '-10deg' }}
+                animate={{ scale: 1, opacity: 1, rotate: '0deg' }}
+                transition={{ type: 'spring', damping: 15 }}
                 style={[styles.avatarLarge, { borderColor: theme.primary + '30' }]}
             >
                 <Image 
-                    source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFZ3m28QnuLs5EMoE9_1uEJEmGY1pjB6T07vElwibKzCCpVmT7Cj8z7EgnfYMDQDtMJvo9Y2eBwLV5eLzVNiAKE1prmMLuaDhXoKFom_6YAbaPlLwzPuN8Tw5j7p94PHtyi4XOnUk0quau6M5yplmOzTMftU3d8F-TztimMktFyZT6-joWCyyLhLyh58s8OdWLzcfqcaXddyeQN380_dkJUKerJ58KvudT8WguZ15qhFDnhr9Uhjp5ww7HOGl1TixrnPJCRY4RGXA' }} 
+                    key={user?.id || 'profile'}
+                    source={{ 
+                        uri: user?.avatar || `https://api.dicebear.com/7.x/avataaars/png?seed=${user?.name || 'Tazq'}` 
+                    }} 
                     style={styles.image}
                 />
             </MotiView>
@@ -79,17 +83,38 @@ export default function ProfileScreen() {
           <View style={styles.statsGrid}>
             <BentoCard index={1} style={{ flex: 1, alignItems: 'center' }}>
                 <Award size={24} color={theme.primary} />
-                <Text style={[styles.statValue, { color: theme.onSurface }]}>24</Text>
+                <MotiText 
+                    key={user?.totalFocusHours}
+                    from={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    style={[styles.statValue, { color: theme.onSurface }]}
+                >
+                    {user?.totalFocusHours || 0}
+                </MotiText>
                 <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.hours} Focus</Text>
             </BentoCard>
             <BentoCard index={2} style={{ flex: 1, alignItems: 'center' }}>
                 <Target size={24} color={theme.secondary} />
-                <Text style={[styles.statValue, { color: theme.onSurface }]}>12</Text>
+                <MotiText 
+                    key={user?.completedTasksCount}
+                    from={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    style={[styles.statValue, { color: theme.onSurface }]}
+                >
+                    {user?.completedTasksCount || 0}
+                </MotiText>
                 <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.completedTasks}</Text>
             </BentoCard>
             <BentoCard index={3} style={{ flex: 1, alignItems: 'center' }}>
                 <Zap size={24} color={theme.tertiary} />
-                <Text style={[styles.statValue, { color: theme.onSurface }]}>5</Text>
+                <MotiText 
+                    key={user?.activeStreak}
+                    from={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    style={[styles.statValue, { color: theme.onSurface }]}
+                >
+                    {user?.activeStreak || 0}
+                </MotiText>
                 <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.activeStreak}</Text>
             </BentoCard>
           </View>
@@ -98,7 +123,12 @@ export default function ProfileScreen() {
           <View style={styles.settingsSection}>
             <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant }]}>{t.settings}</Text>
             
-            <View style={[styles.settingsCard, { backgroundColor: theme.surfaceContainerLow }]}>
+            <MotiView 
+                from={{ opacity: 0, translateY: 20 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ delay: 400 }}
+                style={[styles.settingsCard, { backgroundColor: theme.surfaceContainerLow }]}
+            >
                 <SettingItem 
                     icon={<Bell size={20} color={theme.onSurfaceVariant} />} 
                     label={t.notifications} 
@@ -118,7 +148,7 @@ export default function ProfileScreen() {
                     label={t.security} 
                     theme={theme}
                 />
-            </View>
+            </MotiView>
 
             <TouchableOpacity 
                 onPress={handleLogout}
