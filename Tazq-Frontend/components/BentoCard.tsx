@@ -1,85 +1,67 @@
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { useColorScheme } from 'react-native';
-import { Colors } from '../constants/Colors';
+import { View, StyleSheet, Platform, ViewProps, useColorScheme } from 'react-native';
 import { MotiView } from 'moti';
+import { BlurView } from 'expo-blur';
+import { Colors } from '../constants/Colors';
 
-interface BentoCardProps {
+interface BentoCardProps extends ViewProps {
   children: React.ReactNode;
-  className?: string;
   index?: number;
   glass?: boolean;
 }
 
-export const BentoCard = ({ children, className = '', index = 0, glass = false }: BentoCardProps) => {
+export function BentoCard({ children, index = 0, glass, style, ...props }: BentoCardProps) {
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
 
   const content = (
-    <View 
-      className={`p-6 rounded-xl overflow-hidden ${className}`}
-      style={[
-        styles.cardBase,
-        !glass && { backgroundColor: theme.surfaceContainerLowest },
-        !glass && styles.clayShadow
-      ]}
-    >
-      {children}
-    </View>
-  );
-
-  return (
     <MotiView
-      from={{ opacity: 0, scale: 0.9, translateY: 20 }}
-      animate={{ opacity: 1, scale: 1, translateY: 0 }}
-      transition={{ 
-        type: 'spring',
-        delay: index * 100,
-        damping: 15,
-        stiffness: 100
-      }}
-      className="flex-1"
+      from={{ opacity: 0, translateY: 20 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ delay: index * 100, type: 'spring', damping: 15 }}
+      style={[
+        styles.card,
+        { 
+          backgroundColor: glass ? 'transparent' : theme.surfaceContainerLow,
+          borderColor: theme.outlineVariant + '20' 
+        },
+        style
+      ]}
+      {...props}
     >
-      {glass ? (
-        <BlurView 
-          intensity={colorScheme === 'dark' ? 30 : 50} 
-          tint={colorScheme}
-          className="rounded-xl overflow-hidden border border-white/10"
-          style={styles.glassContainer}
-        >
-          {content}
+      {glass && Platform.OS === 'ios' ? (
+        <BlurView intensity={30} tint={colorScheme} style={StyleSheet.absoluteFill}>
+          <View style={styles.contentPadding}>{children}</View>
         </BlurView>
       ) : (
-        content
+        <View style={styles.contentPadding}>{children}</View>
       )}
     </MotiView>
   );
-};
+
+  return content;
+}
 
 const styles = StyleSheet.create({
-  cardBase: {
-    minHeight: 180,
-  },
-  clayShadow: {
+  card: {
+    borderRadius: 32,
+    borderWidth: 1,
+    overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.03, // Extra soft
-        shadowRadius: 24,
+        shadowColor: '#2d2f31',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.05,
+        shadowRadius: 20,
       },
       android: {
-        elevation: 2,
+        elevation: 4,
       },
     }),
-    // Inner Glow (Hint for claymorphism)
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)', // Slightly more visible for the toy feel
   },
-  glassContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 40,
-    overflow: 'hidden',
-  },
+  contentPadding: {
+    padding: 24,
+    flex: 1,
+    backgroundColor: 'transparent',
+  }
 });

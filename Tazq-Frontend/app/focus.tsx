@@ -1,159 +1,121 @@
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MotiView, MotiText, AnimatePresence } from 'moti';
-import { BlurView } from 'expo-blur';
-import { X, Pause, Play, Sparkles, Timer as TimerIcon } from 'lucide-react-native';
+import { MotiView, AnimatePresence } from 'moti';
+import { Play, Pause, RotateCcw, X, Sparkles, Zap } from 'lucide-react-native';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusStore } from '../store/useFocusStore';
+import { useLanguageStore } from '../store/useLanguageStore';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 
 export default function FocusScreen() {
-  const { width, height } = useWindowDimensions();
+  const [seconds, setSeconds] = useState(25 * 60);
+  const [isActive, setIsActive] = useState(false);
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
   const router = useRouter();
-  
-  const { isActive, seconds, currentTask, setIsActive, setSeconds } = useFocusStore();
+  const { t } = useLanguageStore();
 
   useEffect(() => {
     let interval: any = null;
     if (isActive && seconds > 0) {
       interval = setInterval(() => {
-        setSeconds((s) => s - 1);
+        setSeconds((seconds) => seconds - 1);
       }, 1000);
-    } else {
-      clearInterval(interval);
+    } else if (seconds === 0) {
+      setIsActive(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     return () => clearInterval(interval);
   }, [isActive, seconds]);
 
-  const formatTime = (s: number) => {
-    const mins = Math.floor(s / 60);
-    const secs = s % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const toggleFocus = () => {
+  const toggleTimer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsActive(!isActive);
   };
 
-  const handleClose = () => {
+  const resetTimer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/');
-    }
+    setIsActive(false);
+    setSeconds(25 * 60);
   };
 
-  // Responsive scale
-  const timerSize = width * 0.75;
+  const formatTime = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      {/* Ambient Glows */}
-      <MotiView 
-        animate={{ 
-            scale: isActive ? [1, 1.2, 1] : 1,
-            opacity: isActive ? 0.4 : 0.2
-        }}
-        transition={{ loop: true, duration: 4000 }}
-        style={[styles.ambientOrb, { backgroundColor: theme.primary, top: -100, right: -100 }]}
-      />
-      
-      <SafeAreaView className="flex-1">
+      <SafeAreaView style={{ flex: 1 }}>
         {/* Header */}
-        <View className="px-8 py-6 flex-row justify-between items-center">
-          <TouchableOpacity 
-            onPress={handleClose}
-            className="w-12 h-12 rounded-full bg-white/5 items-center justify-center border border-white/10"
-          >
-            <X size={24} color={theme.onSurface} strokeWidth={2.5} />
-          </TouchableOpacity>
-          <Text className="text-xl font-black tracking-tighter" style={{ color: theme.primary }}>TAZQ</Text>
-          <View className="w-12 h-12" />
+        <View style={styles.header}>
+            <TouchableOpacity 
+                onPress={() => router.back()}
+                style={[styles.closeBtn, { backgroundColor: theme.surfaceContainerLow }]}
+            >
+                <X size={24} color={theme.onSurface} />
+            </TouchableOpacity>
+            <View style={[styles.badge, { backgroundColor: theme.tertiary + '15' }]}>
+                <Sparkles size={14} color={theme.tertiary} />
+                <Text style={[styles.badgeText, { color: theme.tertiary }]}>DEEP FOCUS</Text>
+            </View>
         </View>
 
-        <View className="flex-1 items-center justify-center -mt-10 px-8">
-          {/* Focus Headline */}
-          <MotiView 
-            from={{ opacity: 0, translateY: 20 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            className="items-center mb-16"
-          >
-            <View className="bg-primary/10 px-4 py-1.5 rounded-full mb-4 flex-row items-center gap-2">
-                <Sparkles size={14} color={theme.primary} />
-                <Text className="text-[10px] font-black uppercase tracking-widest" style={{ color: theme.primary }}>FOCUSING ON</Text>
-            </View>
-            <Text className="text-4xl font-black text-center tracking-tighter" style={{ color: theme.onSurface }}>
-              {currentTask}
-            </Text>
-          </MotiView>
-
-          {/* 3D Timer - Claymorphic Bubble */}
-          <MotiView
-            animate={{ 
-                scale: isActive ? [1, 1.02, 1] : 1,
-            }}
-            transition={{ loop: true, duration: 3000 }}
-            className="relative items-center justify-center"
-          >
-            <View 
-                style={[styles.timerBubble, { width: timerSize, height: timerSize, borderRadius: timerSize / 2 }]} 
-                className="bg-surface-container shadow-2xl items-center justify-center"
+        <View style={styles.content}>
+            {/* Sophisticated Timer Circle */}
+            <MotiView 
+                animate={{ 
+                    scale: isActive ? 1.05 : 1,
+                    rotate: isActive ? '2deg' : '0deg'
+                }}
+                transition={{ type: 'timing', duration: 2000, loop: true }}
+                style={[styles.timerOuter, { borderColor: theme.primary + '10' }]}
             >
-                {/* Decorative Rings */}
-                <View className="absolute inset-4 rounded-full border border-white/10" />
-                <View className="absolute inset-8 rounded-full border border-white/5" />
-
-                {/* Main Time Display */}
-                <MotiText 
-                    className="text-7xl font-black tracking-tighter"
-                    style={{ color: theme.primary }}
-                >
-                    {formatTime(seconds)}
-                </MotiText>
+                <View style={[styles.timerInner, { backgroundColor: theme.surfaceContainerLowest, shadowColor: theme.primary }]}>
+                    <Text style={[styles.timerText, { color: theme.primary }]}>
+                        {formatTime(seconds)}
+                    </Text>
+                    <Text style={[styles.taskLabel, { color: theme.onSurfaceVariant }]}>Design System Porting</Text>
+                </View>
                 
-                <AnimatePresence>
-                    {isActive && (
-                        <MotiView 
-                            from={{ opacity: 0, scale: 0 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0 }}
-                            className="absolute -bottom-2 bg-primary px-4 py-1.5 rounded-full"
-                        >
-                            <Text className="text-white text-[10px] font-black uppercase tracking-widest">Live session</Text>
-                        </MotiView>
-                    )}
-                </AnimatePresence>
-            </View>
-          </MotiView>
+                {/* Decorative Elements */}
+                <View style={[styles.decoCircle, { backgroundColor: theme.secondary + '10', top: -20, right: -20 }]} />
+                <View style={[styles.decoCircle, { backgroundColor: theme.tertiary + '10', bottom: 40, left: -30, width: 100, height: 100 }]} />
+            </MotiView>
 
-          {/* Controls */}
-          <View className="mt-20 flex-row items-center gap-10">
-             <TouchableOpacity 
-                onPress={toggleFocus}
-                activeOpacity={0.9}
-                style={[styles.playButton, { backgroundColor: isActive ? theme.secondary : theme.primary }]}
-                className="w-24 h-24 rounded-full items-center justify-center shadow-xl"
-             >
-                <LinearGradient
-                    colors={['rgba(255,255,255,0.2)', 'transparent']}
-                    className="absolute inset-0 rounded-full"
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                />
-                {isActive ? 
-                    <Pause size={36} color="white" fill="white" /> : 
-                    <Play size={36} color="white" fill="white" style={{ marginLeft: 4 }} />
-                }
-             </TouchableOpacity>
-          </View>
+            <MotiView 
+                from={{ opacity: 0, translateY: 20 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                style={styles.controls}
+            >
+                <TouchableOpacity 
+                    onPress={resetTimer}
+                    style={[styles.controlBtnSecondary, { backgroundColor: theme.surfaceContainerHigh }]}
+                >
+                    <RotateCcw size={24} color={theme.onSurface} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    onPress={toggleTimer}
+                    style={[styles.playBtn, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
+                >
+                    {isActive ? <Pause size={32} color="white" fill="white" /> : <Play size={32} color="white" fill="white" style={{ marginLeft: 4 }} />}
+                </TouchableOpacity>
+
+                <View style={styles.controlBtnSecondary}>
+                    <Zap size={24} color={theme.onSurfaceVariant} opacity={0.3} />
+                </View>
+            </MotiView>
+        </View>
+
+        <View style={styles.footer}>
+            <Text style={[styles.quote, { color: theme.onSurfaceVariant }]}>
+                "The secret of getting ahead is getting started."
+            </Text>
         </View>
       </SafeAreaView>
     </View>
@@ -161,29 +123,107 @@ export default function FocusScreen() {
 }
 
 const styles = StyleSheet.create({
-  timerBubble: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 25 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  closeBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 100,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timerOuter: {
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    borderWidth: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  timerInner: {
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.1,
-    shadowRadius: 50,
-    elevation: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  playButton: {
-    shadowColor: '#0058bb',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
+    shadowRadius: 30,
     elevation: 10,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.3)',
   },
-  ambientOrb: {
+  timerText: {
+    fontSize: 64,
+    fontWeight: '900',
+    letterSpacing: -2,
+  },
+  taskLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  decoCircle: {
     position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    filter: Platform.OS === 'ios' ? undefined : 'blur(60px)', // Android doesn't support blur on View
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    zIndex: -1,
+  },
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 32,
+    marginTop: 64,
+  },
+  playBtn: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  controlBtnSecondary: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  quote: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    opacity: 0.6,
   }
 });

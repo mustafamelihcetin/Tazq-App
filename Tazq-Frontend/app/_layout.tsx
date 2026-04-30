@@ -1,3 +1,7 @@
+import { Buffer } from 'buffer';
+global.Buffer = global.Buffer || Buffer;
+
+import '../global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -5,11 +9,10 @@ import { useColorScheme, View } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { useAuthStore } from '../store/useAuthStore';
 import { AuthService } from '../services/api';
-import '../global.css';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const { isLoggedIn, token, setUser, logout } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();

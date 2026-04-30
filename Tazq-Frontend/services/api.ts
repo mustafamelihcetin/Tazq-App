@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { useAuthStore } from '../store/useAuthStore';
 
 // Android emulators use 10.0.2.2 to access localhost of the host machine
-const BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:5200' : 'http://localhost:5200';
+const BASE_URL = 'http://192.168.0.122:5200';
 
 export const api = axios.create({
   baseURL: BASE_URL,

@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "scheme": "tazq-app",
     "plugins": [
       "expo-router",
@@ -16,9 +15,13 @@
           "ios": {
             "deploymentTarget": "15.1",
             "newArchEnabled": false
+          },
+          "android": {
+            "usesCleartextTraffic": true
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -37,7 +40,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.tazqapp.tazq"
     },
     "web": {
       "favicon": "./assets/favicon.png"

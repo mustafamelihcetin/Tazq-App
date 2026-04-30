@@ -1,13 +1,14 @@
 import React, { useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTaskStore } from '../store/useTaskStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useLanguageStore } from '../store/useLanguageStore';
 import { BentoCard } from '../components/BentoCard';
 import { DynamicIsland } from '../components/DynamicIsland';
 import { BottomNavBar } from '../components/BottomNavBar';
-import { MotiView } from 'moti';
-import { Settings, TrendingUp, Calendar, Plus, FileText, ChevronRight, LogOut } from 'lucide-react-native';
+import { MotiView, MotiText } from 'moti';
+import { Settings, TrendingUp, Calendar, Plus, FileText, ChevronRight, LogOut, LayoutGrid, Clock, Sparkles, User as UserIcon } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../constants/Colors';
 import { useColorScheme } from 'react-native';
@@ -17,8 +18,9 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const { tasks, isLoading, setTasks, setLoading } = useTaskStore();
   const { logout, user } = useAuthStore();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const { t } = useLanguageStore();
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
 
   const fetchTasks = async () => {
@@ -27,7 +29,6 @@ export default function HomeScreen() {
       const mockTasks = [
         { id: 1, title: 'Design Review', description: 'Review the new mobile UI tokens', isCompleted: false, priority: 'High', tags: ['design'], dueDate: new Date().toISOString() },
         { id: 2, title: 'Coffee Break', description: 'Take a short break', isCompleted: true, priority: 'Low', tags: ['personal'], dueDate: new Date().toISOString() },
-        { id: 3, title: 'Team Meeting', description: 'Weekly sync with the team', isCompleted: false, priority: 'Medium', tags: ['work'], dueDate: new Date().toISOString() },
       ];
       setTasks(mockTasks);
     } catch (e) {
@@ -41,144 +42,132 @@ export default function HomeScreen() {
     fetchTasks();
   }, []);
 
-  const handleLogout = () => {
-    Alert.alert(
-      "Oturumu Kapat",
-      "Çıkış yapmak istediğine emin misin?",
-      [
-        { text: "Vazgeç", style: "cancel" },
-        { text: "Çıkış Yap", style: "destructive", onPress: () => {
-             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-             logout();
-             router.replace('/login');
-        }}
-      ]
-    );
-  };
-
-  const handleNewTask = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert("Yeni Görev", "Görev ekleme modülü yakında burada olacak!");
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <SafeAreaView className="flex-1">
+      <SafeAreaView style={{ flex: 1 }}>
         {/* Top Bar */}
-        <View className="px-8 pt-4 pb-2 flex-row justify-between items-center">
-            <View className="flex-row items-center gap-3">
-                <View className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/20">
+        <View style={styles.topBar}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[styles.avatarContainer, { borderColor: theme.primary + '20' }]}>
                     <Image 
                         source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDFZ3m28QnuLs5EMoE9_1uEJEmGY1pjB6T07vElwibKzCCpVmT7Cj8z7EgnfYMDQDtMJvo9Y2eBwLV5eLzVNiAKE1prmMLuaDhXoKFom_6YAbaPlLwzPuN8Tw5j7p94PHtyi4XOnUk0quau6M5yplmOzTMftU3d8F-TztimMktFyZT6-joWCyyLhLyh58s8OdWLzcfqcaXddyeQN380_dkJUKerJ58KvudT8WguZ15qhFDnhr9Uhjp5ww7HOGl1TixrnPJCRY4RGXA' }} 
-                        className="w-full h-full"
+                        style={styles.avatar}
                     />
                 </View>
-                <Text className="text-xl font-black tracking-tighter" style={{ color: theme.onSurface }}>TAZQ</Text>
+                <Text style={[styles.logoText, { color: theme.onSurface }]}>TAZQ</Text>
             </View>
             <TouchableOpacity 
-                onPress={handleLogout}
-                className="w-10 h-10 rounded-full bg-surface-container-low items-center justify-center border border-white/10"
+                onPress={() => router.push('/profile')}
+                style={[styles.settingsBtn, { backgroundColor: theme.surfaceContainerLow }]}
             >
-                <LogOut size={18} color={theme.error || '#ff4444'} />
+                <Settings size={20} color={theme.onSurfaceVariant} />
             </TouchableOpacity>
         </View>
 
         <ScrollView 
-          className="flex-1" 
+          style={{ flex: 1 }} 
+          contentContainerStyle={{ paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchTasks} tintColor={theme.primary} />}
         >
           {/* Greeting */}
           <MotiView 
-            from={{ opacity: 0, translateX: -20 }}
-            animate={{ opacity: 1, translateX: 0 }}
-            className="px-8 mt-6"
+            from={{ opacity: 0, translateY: 10 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            style={styles.greetingContainer}
           >
-            <Text className="text-4xl font-black tracking-tighter" style={{ color: theme.onSurface }}>
-                Good Morning
-            </Text>
-            <Text className="text-sm mt-1 font-medium opacity-60" style={{ color: theme.onSurfaceVariant }}>
-                Hi {user?.name || 'there'}, ready to conquer the day?
-            </Text>
+            <Text style={[styles.greetingTitle, { color: theme.onSurface }]}>{t.greeting}</Text>
+            <Text style={[styles.greetingSub, { color: theme.onSurfaceVariant }]}>{t.summary}</Text>
           </MotiView>
 
-          {/* Dynamic Island Focus */}
-          <DynamicIsland />
+          <View style={styles.islandWrapper}>
+             <DynamicIsland />
+          </View>
 
-          {/* Bento Grid Layout - Refined Asymmetry */}
-          <View className="px-6 flex-row flex-wrap gap-4 mt-2 mb-10">
+          <View style={styles.bentoGrid}>
             
-            {/* Weekly Progress - Large (100% width) */}
-            <BentoCard index={1} className="w-full">
-              <View className="flex-row justify-between items-start mb-4">
-                <View>
-                  <Text className="text-lg font-bold" style={{ color: theme.onSurface }}>Weekly Growth</Text>
-                  <Text className="text-xs opacity-60" style={{ color: theme.onSurfaceVariant }}>You are 15% ahead of target.</Text>
+            {/* Weekly Progress */}
+            <BentoCard index={1} style={{ width: '100%', minHeight: 220 }}>
+              <View style={[styles.cardHeader, { backgroundColor: 'transparent' }]}>
+                <View style={{ backgroundColor: 'transparent' }}>
+                  <Text style={[styles.cardTitle, { color: theme.onSurface }]}>{t.weeklyProgress}</Text>
+                  <Text style={[styles.cardSub, { color: theme.onSurfaceVariant }]}>{t.aheadOfSchedule}</Text>
                 </View>
-                <View className="bg-tertiary/20 px-3 py-1.5 rounded-full flex-row items-center gap-1">
+                <View style={[styles.badge, { backgroundColor: theme.tertiary + '20' }]}>
                     <TrendingUp size={12} color={theme.tertiary} />
-                    <Text className="text-[10px] font-black uppercase" style={{ color: theme.tertiary }}>On Track</Text>
+                    <Text style={[styles.badgeText, { color: theme.tertiary }]}>{t.onTrack}</Text>
                 </View>
               </View>
-              <View className="flex-row items-end gap-2 h-24 mt-4">
-                {[4, 6, 3, 9, 5, 2, 7].map((val, i) => (
-                  <View 
-                    key={i} 
-                    className={`flex-1 rounded-t-xl ${i === 3 ? 'bg-primary' : 'bg-surface-container-high/50'}`} 
-                    style={{ height: `${val * 10}%` }} 
-                  />
-                ))}
-              </View>
-            </BentoCard>
-
-            {/* Upcoming Agenda - Asymmetric Split Left */}
-            <BentoCard index={2} className="w-[58%]" glass>
-              <View className="flex-row items-center gap-2 mb-4">
-                <Calendar size={18} color={theme.secondary} />
-                <Text className="text-base font-bold" style={{ color: theme.onSurface }}>Agenda</Text>
-              </View>
-              <View className="gap-3">
-                 <View className="flex-row items-center justify-between">
-                    <Text className="text-xs font-bold" style={{ color: theme.onSurface }}>Design Sync</Text>
-                    <ChevronRight size={14} color={theme.onSurfaceVariant} />
-                 </View>
-                 <Text className="text-[10px] opacity-60" style={{ color: theme.onSurfaceVariant }}>10:00 - 11:30 AM</Text>
-              </View>
-            </BentoCard>
-
-            {/* Task Count - Asymmetric Split Right */}
-            <BentoCard index={3} className="flex-1 items-center justify-center">
-                <Text className="text-3xl font-black" style={{ color: theme.primary }}>{tasks.length}</Text>
-                <Text className="text-[10px] font-black uppercase tracking-widest mt-1" style={{ color: theme.onSurfaceVariant }}>Tasks</Text>
-            </BentoCard>
-
-            {/* Quick Actions */}
-            <View className="w-full flex-row gap-4">
-                <TouchableOpacity 
-                    onPress={handleNewTask}
-                    activeOpacity={0.9}
-                    className="flex-1 bg-primary/5 rounded-[40px] px-6 py-8 items-center border border-primary/10"
-                >
-                    <View className="w-12 h-12 rounded-full bg-primary items-center justify-center mb-3 shadow-lg shadow-primary/20">
-                        <Plus size={24} color="white" />
+              
+              <View style={[styles.chartContainer, { backgroundColor: 'transparent' }]}>
+                 {[40, 65, 35, 85, 55, 30].map((h, i) => (
+                    <View key={i} style={[styles.chartBarWrapper, { backgroundColor: 'transparent' }]}>
+                        {i === 3 && (
+                            <View style={[styles.todayTooltip, { backgroundColor: theme.surfaceContainerHigh }]}>
+                                <Text style={[styles.todayText, { color: theme.onSurface }]}>Bugün</Text>
+                            </View>
+                        )}
+                        <View 
+                            style={[
+                                styles.chartBar, 
+                                { 
+                                    height: `${h}%`, 
+                                    backgroundColor: i === 3 ? theme.primary : theme.primaryContainer + (colorScheme === 'dark' ? '40' : '60')
+                                }
+                            ]} 
+                        />
                     </View>
-                    <Text className="text-xs font-bold" style={{ color: theme.primary }}>New Task</Text>
-                </TouchableOpacity>
+                 ))}
+              </View>
+            </BentoCard>
 
-                <TouchableOpacity 
-                    activeOpacity={0.9}
-                    className="flex-1 bg-secondary/5 rounded-[40px] px-6 py-8 items-center border border-secondary/10"
-                >
-                    <View className="w-12 h-12 rounded-full bg-secondary items-center justify-center mb-3 shadow-lg shadow-secondary/20">
-                        <FileText size={20} color="white" />
+            <View style={styles.asymmetricRow}>
+                {/* Upcoming */}
+                <BentoCard index={2} style={{ width: '60%', backgroundColor: theme.surfaceContainerLow }} glass={Platform.OS === 'ios'}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, backgroundColor: 'transparent' }}>
+                        <Calendar size={18} color={theme.secondary} />
+                        <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>{t.upcoming}</Text>
                     </View>
-                    <Text className="text-xs font-bold" style={{ color: theme.secondary }}>Draft Note</Text>
-                </TouchableOpacity>
+                    <View style={[styles.agendaItem, { backgroundColor: 'transparent' }]}>
+                        <View style={[styles.agendaIndicator, { backgroundColor: theme.secondary }]} />
+                        <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+                            <Text style={[styles.agendaName, { color: theme.onSurface }]} numberOfLines={1}>Design Sync</Text>
+                            <Text style={[styles.agendaTime, { color: theme.onSurfaceVariant }]}>10:00 - 11:30</Text>
+                        </View>
+                    </View>
+                </BentoCard>
+
+                {/* Tasks Count */}
+                <BentoCard index={3} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={[styles.countText, { color: theme.primary }]}>{tasks.length}</Text>
+                    <Text style={[styles.countLabel, { color: theme.onSurfaceVariant }]}>{t.tasks}</Text>
+                </BentoCard>
             </View>
 
+            {/* Quick Actions */}
+            <View style={styles.actionRow}>
+                <TouchableOpacity 
+                    onPress={() => Alert.alert(t.newTask, t.waitingForAction)}
+                    style={[styles.actionBtn, { backgroundColor: theme.surfaceContainerLow }]}
+                >
+                    <View style={[styles.actionIconWrapper, { backgroundColor: theme.primaryContainer }]}>
+                        <Plus size={24} color={colorScheme === 'dark' ? '#fff' : theme.primary} />
+                    </View>
+                    <Text style={[styles.actionText, { color: theme.onSurface }]}>{t.newTask}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                    onPress={() => Alert.alert(t.draftNote, t.waitingForAction)}
+                    style={[styles.actionBtn, { backgroundColor: theme.surfaceContainerLow }]}
+                >
+                    <View style={[styles.actionIconWrapper, { backgroundColor: theme.secondaryContainer }]}>
+                        <FileText size={22} color={colorScheme === 'dark' ? '#fff' : theme.secondary} />
+                    </View>
+                    <Text style={[styles.actionText, { color: theme.onSurface }]}>{t.draftNote}</Text>
+                </TouchableOpacity>
+            </View>
           </View>
           
-          <View className="h-24" />
         </ScrollView>
       </SafeAreaView>
 
@@ -186,3 +175,185 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  topBar: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    overflow: 'hidden',
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
+  },
+  logoText: {
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -1,
+  },
+  settingsBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  greetingContainer: {
+    paddingHorizontal: 28,
+    marginTop: 24,
+  },
+  greetingTitle: {
+    fontSize: 48,
+    fontWeight: '800',
+    letterSpacing: -2,
+    lineHeight: 52,
+  },
+  greetingSub: {
+    fontSize: 16,
+    marginTop: 8,
+    fontWeight: '500',
+    opacity: 0.8,
+  },
+  islandWrapper: {
+    paddingHorizontal: 24,
+    marginTop: 32,
+  },
+  bentoGrid: {
+    paddingHorizontal: 24,
+    marginTop: 12,
+    gap: 16,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  cardSub: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  chartContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    height: 120,
+    marginTop: 24,
+    paddingHorizontal: 8,
+  },
+  chartBarWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  chartBar: {
+    width: '100%',
+    borderRadius: 12,
+  },
+  todayTooltip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    marginBottom: 8,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 0, // ANDROID BEYAZ KUTU KATİLİ
+  },
+  todayText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  asymmetricRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  agendaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 4,
+  },
+  agendaIndicator: {
+    width: 3,
+    height: 32,
+    borderRadius: 3,
+  },
+  agendaName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  agendaTime: {
+    fontSize: 10,
+    marginTop: 2,
+    opacity: 0.6,
+  },
+  countText: {
+    fontSize: 42,
+    fontWeight: '900',
+  },
+  countLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  actionBtn: {
+    flex: 1,
+    borderRadius: 40,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  actionIconWrapper: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '700',
+  }
+});
