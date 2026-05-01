@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTaskStore } from '../store/useTaskStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -17,6 +17,7 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { TazqLogo } from '../components/TazqLogo';
 import { useFocusStore } from '../store/useFocusStore';
 import { LinearGradient } from 'expo-linear-gradient';
+import i18n from 'i18n-js';
 
 const AVATAR_MAP: Record<string, any> = {
     'm1': require('../assets/avatars/m1.png'),
@@ -38,7 +39,7 @@ const getAvatarSource = (avatar: string | null) => {
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { tasks, isLoading, setTasks, setLoading } = useTaskStore();
+  const { tasks, isLoading, setTasks, setLoading, addTask } = useTaskStore();
   const { user } = useAuthStore();
   const { t } = useLanguageStore();
   const { theme, colorScheme } = useAppTheme();
@@ -66,6 +67,10 @@ export default function HomeScreen() {
     router.push('/focus');
   };
 
+  const [quickDraftVisible, setQuickDraftVisible] = useState(false);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+
   const fetchTasks = async () => {
     setLoading(true);
     try {
@@ -77,6 +82,42 @@ export default function HomeScreen() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQuickSave = async () => {
+    if (!draftTitle.trim()) return;
+    setIsSavingDraft(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    try {
+        const payload = {
+            title: draftTitle.trim(),
+            description: '',
+            priority: 'Low',
+            isCompleted: false,
+            dueDate: new Date().toISOString(),
+            dueTime: null,
+            tags: ['Draft']
+        };
+        const created = await TaskService.createTask(payload as any);
+        addTask(created);
+        setDraftTitle('');
+        setQuickDraftVisible(false);
+        
+        // Şık bir yönlendirme seçeneği
+        Alert.alert(
+            "✍️ " + t.taskAdded,
+            `"${payload.title}" ${i18n.locale.startsWith('tr') ? 'taslaklara eklendi.' : 'added to drafts.'}`,
+            [
+                { text: t.cancel, style: 'cancel' },
+                { text: i18n.locale.startsWith('tr') ? 'Listeyi Aç' : 'View List', onPress: () => router.push('/tasks') }
+            ]
+        );
+    } catch (error) {
+        Alert.alert(t.errorTitle, t.saveError);
+    } finally {
+        setIsSavingDraft(false);
     }
   };
 
@@ -259,7 +300,7 @@ export default function HomeScreen() {
                 {/* Quick Actions */}
                 <View style={[styles.actionRow, { gap: isSmallDevice ? 12 : 16 }]}>
                     <TouchableOpacity
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/tasks'); }}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/tasks?action=add'); }}
                         style={[styles.actionBtn, { backgroundColor: theme.surfaceContainerLow, padding: isSmallDevice ? 12 : 16 }]}
                     >
                         <View style={[styles.actionIcon, { backgroundColor: theme.primaryContainer, width: isSmallDevice ? 36 : 44, height: isSmallDevice ? 36 : 44 }]}>
@@ -269,7 +310,7 @@ export default function HomeScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setQuickDraftVisible(true); }}
                         style={[styles.actionBtn, { backgroundColor: theme.surfaceContainerLow, padding: isSmallDevice ? 12 : 16 }]}
                     >
                         <View style={[styles.actionIcon, { backgroundColor: theme.secondaryContainer, width: isSmallDevice ? 36 : 44, height: isSmallDevice ? 36 : 44 }]}>
@@ -281,6 +322,55 @@ export default function HomeScreen() {
             </View>
         </ScrollView>
       </SafeAreaView>
+
+      {/* Quick Draft Bottom Sheet */}
+      <Modal visible={quickDraftVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.bottomSheetWrapper}>
+                <MotiView 
+                    from={{ translateY: 100, opacity: 0 }} 
+                    animate={{ translateY: 0, opacity: 1 }} 
+                    style={[styles.quickDraftSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
+                >
+                    <View style={styles.sheetHandle} />
+                    <View style={styles.sheetHeader}>
+                        <View style={[styles.sheetIcon, { backgroundColor: theme.primaryContainer }]}>
+                            <FileText size={20} color={theme.primary} />
+                        </View>
+                        <Text style={[styles.quickDraftTitle, { color: theme.onSurface, marginBottom: 0 }]}>{t.draftNote}</Text>
+                    </View>
+
+                    <View style={[styles.quickInputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', marginTop: 20 }]}>
+                        <TextInput 
+                            style={[styles.quickInput, { color: theme.onSurface, height: 60 }]}
+                            placeholder={i18n.locale.startsWith('tr') ? "Ne planlıyorsun?" : "What's on your mind?"}
+                            placeholderTextColor={theme.onSurfaceVariant + '60'}
+                            value={draftTitle}
+                            onChangeText={setDraftTitle}
+                            autoFocus
+                            returnKeyType="done"
+                            onSubmitEditing={handleQuickSave}
+                        />
+                    </View>
+
+                    <View style={styles.quickActions}>
+                        <TouchableOpacity 
+                            onPress={handleQuickSave} 
+                            disabled={isSavingDraft || !draftTitle.trim()} 
+                            style={[styles.quickSave, { backgroundColor: draftTitle.trim() ? theme.primary : theme.surfaceContainerHigh, flex: 1, borderRadius: 20 }]}
+                        >
+                            {isSavingDraft ? <ActivityIndicator color="white" /> : (
+                                <Text style={{ color: draftTitle.trim() ? 'white' : theme.onSurfaceVariant, fontWeight: '900', fontSize: 16 }}>
+                                    {t.save}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </MotiView>
+            </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
       <BottomNavBar />
     </View>
@@ -333,5 +423,30 @@ const styles = StyleSheet.create({
   startBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 100 },
   startBtnText: { color: 'white', fontWeight: '900', fontSize: 14 },
   seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  seeAllText: { fontSize: 12, fontWeight: '700' }
+  seeAllText: { fontSize: 12, fontWeight: '700' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  bottomSheetWrapper: { width: '100%' },
+  quickDraftSheet: { 
+    width: '100%', 
+    borderTopLeftRadius: 36, 
+    borderTopRightRadius: 36, 
+    padding: 24, 
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    borderWidth: 1, 
+    borderColor: 'rgba(255,255,255,0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 20
+  },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginBottom: 20 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  sheetIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  quickDraftTitle: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+  quickInputGroup: { borderRadius: 24, paddingHorizontal: 20, height: 64, justifyContent: 'center' },
+  quickInput: { fontWeight: '700', fontSize: 18 },
+  quickActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
+  quickCancel: { flex: 1, height: 56, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  quickSave: { flex: 1.5, height: 56, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
 });

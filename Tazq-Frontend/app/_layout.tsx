@@ -13,6 +13,7 @@ import { AuthService } from '../services/api';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { initIntelligence } from '../utils/taskIntelligence';
 
 // Susturulacak kütüphane uyarıları
 LogBox.ignoreLogs([
@@ -46,6 +47,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded) {
       sync();
+      initIntelligence();
     }
   }, [fontsLoaded]);
 
@@ -108,6 +110,7 @@ export default function RootLayout() {
           <Stack.Screen name="login" options={{ gestureEnabled: false }} />
           <Stack.Screen name="register" />
           <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="tasks" options={{ gestureEnabled: false }} />
         </Stack>
       </View>
     </SafeAreaProvider>

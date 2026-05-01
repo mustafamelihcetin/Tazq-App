@@ -124,7 +124,7 @@ export default function LoginScreen() {
                                 <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#141414' : theme.surfaceContainer, height: isSmallDevice ? 56 : 64 }]}>
                                     <Mail size={18} color={theme.outline} />
                                     <TextInput 
-                                        placeholder="hello@tazq.com"
+                                        placeholder={t.login.email}
                                         placeholderTextColor={theme.outlineVariant}
                                         style={[styles.input, { color: theme.onSurface }]}
                                         value={email}
@@ -183,7 +183,7 @@ export default function LoginScreen() {
                         {/* Divider */}
                         <View style={[styles.dividerRow, { marginVertical: isSmallDevice ? 20 : 32 }]}>
                             <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '30' }]} />
-                            <Text style={[styles.dividerText, { color: theme.outlineVariant }]}>OR</Text>
+                            <Text style={[styles.dividerText, { color: theme.outlineVariant }]}>{t.filterAll.toUpperCase() === 'HEPSİ' ? 'VEYA' : 'OR'}</Text>
                             <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '30' }]} />
                         </View>
 

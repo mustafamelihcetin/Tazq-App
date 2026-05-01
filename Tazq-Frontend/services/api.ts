@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/useAuthStore';
 
 import { Platform } from 'react-native';
 
-const LOCAL_IP = '192.168.0.122'; // Bilgisayarının Wi-Fi IP'si
+const LOCAL_IP = '192.168.0.122'; // Bilgisayarınızın Wi-Fi IP'si
 const BASE_URL = Platform.select({
   android: __DEV__ ? 'http://10.0.2.2:5200' : `http://${LOCAL_IP}:5200`,
   ios: `http://${LOCAL_IP}:5200`,
@@ -58,13 +58,15 @@ export const AuthService = {
   },
 };
 
+export type Priority = 'Low' | 'Medium' | 'High';
+
 export interface CreateTaskPayload {
   title: string;
   description: string;
-  dueDate?: string;
-  dueTime?: string;
+  dueDate?: string | null;
+  dueTime?: string | null;
   isCompleted: boolean;
-  priority: 'Low' | 'Medium' | 'High';
+  priority: Priority;
   tags: string[];
 }
 

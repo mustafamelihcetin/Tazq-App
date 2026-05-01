@@ -28,7 +28,7 @@ services:
       - JWT_AUDIENCE=TazqUsers
       - JWT_EXPIRATION=60
       - PORT=80
-      - APP_SIGNATURE=tazq-maui-frontend
+      - APP_SIGNATURE=tazq-expo-frontend
       - SMTP_SERVER=smtp.gmail.com
       - SMTP_PORT=587
       - SMTP_USERNAME=tazq.app@gmail.com
@@ -45,7 +45,7 @@ services:
     image: caddy:2-alpine
     container_name: tazq-proxy
     ports:
-      - "80:80"
+      - "5200:80"
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile

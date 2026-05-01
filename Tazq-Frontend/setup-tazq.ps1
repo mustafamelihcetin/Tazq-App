@@ -8,7 +8,7 @@ function Show-Header {
     Write-Host "==========================================" -ForegroundColor Cyan
 }
 
-function Run-Step($Message, $Command) {
+function Invoke-Step($Message, $Command) {
     Write-Host "`n[+] $Message..." -ForegroundColor Green
     Invoke-Expression $Command
 }
@@ -16,17 +16,17 @@ function Run-Step($Message, $Command) {
 Show-Header
 
 # 1. Dependency Alignment
-Run-Step "Aligning dependencies with SDK 55" "npx expo install --fix"
+Invoke-Step "Aligning dependencies with SDK 55" "npx expo install --fix"
 
 # 2. Cache Cleaning
 $choice = Read-Host "`nClear Metro cache? (y/n)"
 if ($choice -eq 'y') {
-    Run-Step "Cleaning Metro cache" "npx expo start --clear --tunnel"
+    Invoke-Step "Cleaning Metro cache" "npx expo start --clear --tunnel"
 }
 
 # 3. Android Emulator Bridge
 if (Get-Command adb -ErrorAction SilentlyContinue) {
-    Run-Step "Setting up Android Port Forwarding (8081)" "adb reverse tcp:8081 tcp:8081"
+    Invoke-Step "Setting up Android Port Forwarding (8081)" "adb reverse tcp:8081 tcp:8081"
 }
 
 # 4. Final Action

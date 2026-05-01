@@ -4,8 +4,8 @@ export interface Task {
   id: number;
   title: string;
   description: string;
-  dueDate?: string;
-  dueTime?: string;
+  dueDate?: string | null;
+  dueTime?: string | null;
   isCompleted: boolean;
   priority: string;
   tags: string[];

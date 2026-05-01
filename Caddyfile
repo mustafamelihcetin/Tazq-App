@@ -3,7 +3,7 @@
 }
 
 :80 {
-    reverse_proxy tazq-backend:80
+    reverse_proxy tazq-backend:8080
 }
 
 # Gelecekte bir domain eklediğinde burayı açabilirsin:

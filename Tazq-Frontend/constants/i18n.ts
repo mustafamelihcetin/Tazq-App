@@ -43,6 +43,9 @@ export const translations = {
     deepFocus: 'DEEP FOCUS',
     focusSession: 'Focus Session',
     activeTask: 'Active Mission',
+    activeFocus: 'ACTIVE FOCUS',
+    dailyGoal: 'DAILY GOAL',
+    start: 'START',
     focusQuote: 'Excellence is not an act, but a habit.',
     logout: 'Disconnect',
     confirmLogout: 'Are you sure you want to terminate the current session?',
@@ -75,7 +78,7 @@ export const translations = {
     taskDescription: 'Protocol Description',
     duration: 'Duration',
     priority: 'Priority',
-    save: 'Commit Changes',
+    save: 'Save',
     completed: 'COMPLETED',
     pending: 'PENDING',
     dueDate: 'Due Date',
@@ -84,7 +87,16 @@ export const translations = {
     selectTime: 'Select Time',
     common: {
       loading: 'Loading...',
-    }
+    },
+    day: 'DAY',
+    month: 'MONTH',
+    year: 'YEAR',
+    hour: 'HOUR',
+    minute: 'MINUTE',
+    errorTitle: 'System Alert',
+    saveError: 'Objective storage failed',
+    invalidDate: 'Temporal anomaly: Past dates are restricted',
+    titleRequired: 'Title protocol required'
   },
   tr: {
     welcome: {
@@ -126,6 +138,9 @@ export const translations = {
     deepFocus: 'DERİN ODAK',
     focusSession: 'Odaklanma Seansı',
     activeTask: 'Aktif Görev',
+    activeFocus: 'AKTİF ODAK',
+    dailyGoal: 'GÜNLÜK HEDEF',
+    start: 'BAŞLAT',
     focusQuote: 'Mükemmellik bir eylem değil, bir alışkanlıktır.',
     logout: 'Bağlantıyı Kes',
     confirmLogout: 'Mevcut oturumu sonlandırmak istediğinize emin misiniz?',
@@ -158,7 +173,7 @@ export const translations = {
     taskDescription: 'Protokol Açıklaması',
     duration: 'Süre',
     priority: 'Öncelik',
-    save: 'Değişiklikleri Kaydet',
+    save: 'Kaydet',
     completed: 'TAMAMLANDI',
     pending: 'BEKLEYEN',
     dueDate: 'Bitiş Tarihi',
@@ -167,7 +182,16 @@ export const translations = {
     selectTime: 'Saat Seç',
     common: {
       loading: 'Yükleniyor...',
-    }
+    },
+    day: 'GÜN',
+    month: 'AY',
+    year: 'YIL',
+    hour: 'SAAT',
+    minute: 'DAKİKA',
+    errorTitle: 'Sistem Uyarısı',
+    saveError: 'Hedef kaydedilemedi',
+    invalidDate: 'Zaman hatası: Geçmiş tarih seçilemez',
+    titleRequired: 'Başlık protokolü gerekli'
   }
 };
 

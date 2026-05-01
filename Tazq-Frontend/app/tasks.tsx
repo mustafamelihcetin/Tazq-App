@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, PanResponder, Animated as RNAnimated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
-import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell } from 'lucide-react-native';
+import Animated, { Layout, useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2 } from 'lucide-react-native';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useTaskStore } from '../store/useTaskStore';
@@ -11,13 +12,85 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
-import { TaskService } from '../services/api';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { TaskService, Priority } from '../services/api';
 import { parseTaskHint } from '../utils/taskParser';
+import { categorizeTask } from '../utils/taskIntelligence';
 import { useAppTheme } from '../hooks/useAppTheme';
+import i18n from 'i18n-js';
 
+const SWIPE_THRESHOLD = -80;
 
-type Priority = 'Low' | 'Medium' | 'High';
+const SwipeableItem = ({ children, onDelete, isDark, theme }: any) => {
+// ... existing SwipeableItem ...
+// I will just replace the import and add the effect inside ActionCenter
+  const translateX = useSharedValue(0);
+  const deleteOpacity = useSharedValue(0);
+  const startTranslateX = useSharedValue(0);
+
+  const panResponder = React.useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      },
+      onPanResponderGrant: () => {
+        startTranslateX.value = translateX.value;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const newX = Math.min(0, startTranslateX.value + gestureState.dx);
+        translateX.value = newX;
+        deleteOpacity.value = Math.min(Math.abs(newX) / 80, 1);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const totalTranslate = startTranslateX.value + gestureState.dx;
+        const isFastSwipe = gestureState.vx < -0.5;
+        const isOpening = totalTranslate < -40;
+
+        if (isFastSwipe || isOpening) {
+          translateX.value = withSpring(-80, { damping: 15, stiffness: 100 });
+          deleteOpacity.value = withTiming(1);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        } else {
+          translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
+          deleteOpacity.value = withTiming(0);
+        }
+      },
+      onPanResponderTerminate: () => {
+        translateX.value = withSpring(translateX.value < -40 ? -80 : 0);
+      }
+    })
+  ).current;
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const actionStyle = useAnimatedStyle(() => ({
+    opacity: deleteOpacity.value,
+    transform: [{ 
+      scale: withSpring(deleteOpacity.value > 0.5 ? 1 : 0.8) 
+    }],
+  }));
+
+  return (
+    <View style={{ position: 'relative', marginBottom: 12 }}>
+      <View style={[StyleSheet.absoluteFill, { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingRight: 20 }]}>
+        <Animated.View style={[actionStyle]}>
+          <TouchableOpacity 
+            onPress={onDelete}
+            style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: '#ff3b30', justifyContent: 'center', alignItems: 'center' }}
+          >
+            <Trash2 size={22} color="white" />
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+      <Animated.View {...panResponder.panHandlers} style={[animatedStyle]}>
+        {children}
+      </Animated.View>
+    </View>
+  );
+};
+
 type FilterType = 'all' | 'High' | 'Medium' | 'Low' | 'done';
 
 interface TaskForm {
@@ -26,9 +99,10 @@ interface TaskForm {
   priority: Priority;
   dueDate: string;
   dueTime: string;
+  tags?: string[];
 }
 
-const EMPTY_FORM: TaskForm = { title: '', description: '', priority: 'Medium', dueDate: '', dueTime: '' };
+const EMPTY_FORM: TaskForm = { title: '', description: '', priority: 'Medium', dueDate: '', dueTime: '', tags: [] };
 
 export default function ActionCenter() {
   const { theme, colorScheme } = useAppTheme();
@@ -37,6 +111,7 @@ export default function ActionCenter() {
   const { t } = useLanguageStore();
   const { width, height } = useWindowDimensions();
   const router = useRouter();
+  const { action } = useLocalSearchParams();
   const insets = useSafeAreaInsets();
 
   const isSmallDevice = width < 380;
@@ -70,6 +145,17 @@ export default function ActionCenter() {
     const { year, month, day } = pickerDate;
     const mm = String(month).padStart(2, '0');
     const dd = String(day).padStart(2, '0');
+    
+    // Validation: Don't allow past dates
+    const selected = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (selected < today) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return; 
+    }
+
     setForm(f => ({ ...f, dueDate: `${year}-${mm}-${dd}` }));
     setShowDatePicker(false);
   };
@@ -83,7 +169,12 @@ export default function ActionCenter() {
 
   const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
 
-  useEffect(() => { loadTasks(); }, []);
+  useEffect(() => { 
+    loadTasks();
+    if (action === 'add') {
+      setTimeout(() => openAdd(), 400);
+    }
+  }, [action]);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -102,30 +193,27 @@ export default function ActionCenter() {
   const handleTitleChange = (text: string) => {
     const hint = parseTaskHint(text);
     
-    // Combine state updates for better performance and reliability
-    setForm(f => ({
-        ...f,
+    setForm(f => ({ 
+        ...f, 
         title: text,
-        priority: hint.priority || 'Medium',
-        dueDate: hint.dueDate || '',
-        dueTime: hint.dueTime || '',
+        priority: hint.priority || f.priority,
+        dueDate: hint.dueDate || f.dueDate,
+        dueTime: hint.dueTime || f.dueTime,
     }));
     
-    setTitleError(false);
+    if (titleError) setTitleError(false);
 
-    const parts: string[] = [];
-    if (hint.priority) {
-      parts.push(hint.priority === 'High' ? '🔴 High' : hint.priority === 'Medium' ? '🟡 Medium' : '🟢 Low');
-    }
+    // UI Hint Parts
+    const parts = [];
     if (hint.dueDate) {
-      parts.push(`📅 ${hint.dueDate}`);
+      const dateStr = new Date(hint.dueDate).toLocaleDateString();
+      parts.push(`📅 ${dateStr}`);
     }
     if (hint.dueTime) {
       const timeStr = new Date(hint.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       parts.push(`⏰ ${timeStr}`);
     }
 
-    // Transparent Feedback: Show message AND extracted data
     const fullHint = [
       hint.wittyMessage,
       parts.length > 0 ? `(${parts.join('  ')})` : ''
@@ -134,20 +222,45 @@ export default function ActionCenter() {
     setNlpHint(fullHint);
   };
 
+  const formatSmartDate = (dateStr?: string | null) => {
+    if (!dateStr || dateStr.startsWith('0001-01-01')) return t.waitingForAction;
+    const date = new Date(dateStr);
+    const now = new Date();
+    const isCurrentYear = date.getFullYear() === now.getFullYear();
+    const locale = (i18n.locale && i18n.locale.startsWith('tr')) ? 'tr-TR' : 'en-US';
+    
+    const options: Intl.DateTimeFormatOptions = isCurrentYear 
+        ? { day: 'numeric', month: 'long' }
+        : { day: 'numeric', month: 'long', year: 'numeric' };
+        
+    return `📅 ${date.toLocaleDateString(locale, options)}`;
+  };
+
   const handleToggle = async (id: number) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const task = tasks.find((t) => t.id === id);
+    const task = tasks.find(t => t.id === id);
     if (!task) return;
+
     toggleTaskCompletion(id);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     try {
       await TaskService.updateTask(id, {
-        title: task.title, description: task.description,
-        isCompleted: !task.isCompleted, priority: task.priority as Priority,
-        tags: task.tags, dueDate: task.dueDate, dueTime: task.dueTime,
+        ...task,
+        priority: task.priority as any,
+        isCompleted: !task.isCompleted
       });
-    } catch {
+    } catch (error) {
+      // Rollback on failure
       toggleTaskCompletion(id);
+      console.warn('Completion toggle failed:', error);
     }
+  };
+
+  const [expandedId, setExpandedId] = React.useState<number | null>(null);
+
+  const handleToggleExpand = (id: number) => {
+    setExpandedId(expandedId === id ? null : id);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleDelete = (id: number) => {
@@ -189,31 +302,58 @@ export default function ActionCenter() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { setTitleError(true); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); return; }
+    if (!form.title.trim()) { 
+      setTitleError(true); 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); 
+      Alert.alert(t.errorTitle, t.titleRequired);
+      return; 
+    }
     setSaving(true);
+    
+    // Professional Enrichment: Run AI with a strict timeout
+    let finalTags = form.tags || [];
+    try {
+      // Create a timeout promise (1.5 seconds)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('AI Timeout')), 1500)
+      );
+
+      const aiMatch = await Promise.race([
+        categorizeTask(form.title.trim()),
+        timeoutPromise
+      ]) as any;
+
+      if (aiMatch && !finalTags.includes(aiMatch.label)) {
+        finalTags = [...finalTags, aiMatch.label];
+      }
+    } catch (e) { 
+      console.log('[AI] Enrichment skipped or timed out'); 
+    }
+
     const existingTask = editingId !== null ? tasks.find(t => t.id === editingId) : null;
     const payload = {
       title: form.title.trim(),
       description: form.description.trim(),
       isCompleted: existingTask ? existingTask.isCompleted : false,
       priority: form.priority,
-      dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
-      dueTime: form.dueTime || undefined,
-      tags: existingTask ? existingTask.tags : [],
+      dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
+      dueTime: form.dueTime || null,
+      tags: finalTags,
     };
+
     try {
       if (editingId !== null) {
         await TaskService.updateTask(editingId, payload);
-        updateTask(editingId, payload);
+        updateTask(editingId, { ...payload, id: editingId });
       } else {
         const created = await TaskService.createTask(payload);
-        addTask(created);
+        addTask({ ...created, title: form.title.trim() });
       }
       setModalVisible(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
       const serverMsg = err.response?.data?.message || err.response?.data?.Message || err.message;
-      Alert.alert('Error', `Save failed: ${serverMsg}`);
+      Alert.alert(t.errorTitle, `${t.saveError}: ${serverMsg}`);
     } finally {
       setSaving(false);
     }
@@ -314,62 +454,139 @@ export default function ActionCenter() {
             
             <AnimatePresence>
                 {filteredTasks.length === 0 ? (
-                    <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} style={styles.emptyState}>
+                    <MotiView key="empty" from={{ opacity: 0 }} animate={{ opacity: 1 }} style={styles.emptyState}>
                         <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>{t.noTasksHint}</Text>
                     </MotiView>
                 ) : (
                     filteredTasks.map((task, i) => (
-                        <MotiView 
+                        <SwipeableItem 
                             key={task.id} 
-                            from={{ opacity: 0, translateY: 10 }}
-                            animate={{ opacity: 1, translateY: 0 }}
-                            transition={{ delay: i * 50 }}
-                            style={{ marginBottom: 12 }}
+                            onDelete={() => handleDelete(task.id)}
+                            isDark={isDark}
+                            theme={theme}
                         >
-                            <TouchableOpacity 
-                                activeOpacity={0.8} 
-                                onPress={() => handleToggle(task.id)}
-                                onLongPress={() => handleDelete(task.id)}
-                                style={[
-                                    styles.taskCard, 
-                                    { 
-                                        backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest,
-                                        borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                                        padding: isSmallDevice ? 14 : 16
-                                    }
-                                ]}
+                            <MotiView 
+                                layout={Layout.duration(300)}
+                                from={{ opacity: 0, translateY: 10 }}
+                                animate={{ opacity: 1, translateY: 0 }}
+                                transition={{ 
+                                    type: 'timing',
+                                    duration: 300,
+                                }}
                             >
-                                <View style={[styles.priorityIndicator, { backgroundColor: priorityColor(task.priority), width: isSmallDevice ? 6 : 8, borderTopLeftRadius: 12, borderBottomLeftRadius: 12 }]} />
-                                <View style={styles.taskContent}>
-                                    <Text style={[
-                                        styles.taskTitleText, 
-                                        { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 15 },
-                                        task.isCompleted && { textDecorationLine: 'line-through', opacity: 0.4 }
-                                    ]} numberOfLines={1}>
-                                        {task.title}
-                                    </Text>
-                                    <View style={styles.taskMetaRow}>
-                                        <Text style={[styles.taskMetaText, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 10 : 11 }]}>
-                                            {task.dueDate ? `📅 ${task.dueDate.split('T')[0]}` : t.waitingForAction}
-                                        </Text>
+                                <TouchableOpacity 
+                                    activeOpacity={0.9} 
+                                    onPress={() => handleToggleExpand(task.id)}
+                                    onLongPress={() => openEdit(task.id)}
+                                    style={[
+                                        styles.taskCard, 
+                                        { 
+                                            backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest,
+                                            borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                                            padding: isSmallDevice ? 14 : 16,
+                                            flexDirection: 'column',
+                                            alignItems: 'stretch'
+                                        }
+                                    ]}
+                                >
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <View style={[styles.priorityIndicator, { backgroundColor: priorityColor(task.priority), width: isSmallDevice ? 4 : 6, height: '100%', borderRadius: 4, marginRight: 12 }]} />
+                                    
+                                    <View style={styles.taskContent}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <Text style={[
+                                                styles.taskTitleText, 
+                                                { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 15, flexShrink: 1 },
+                                                task.isCompleted && { textDecorationLine: 'line-through', opacity: 0.4 }
+                                            ]} numberOfLines={expandedId === task.id ? 0 : 1}>
+                                                {task.title}
+                                            </Text>
+                                            {task.tags?.length > 0 && (
+                                                <View style={[styles.categoryBadge, { backgroundColor: theme.primary + '20' }]}>
+                                                    <Text style={[styles.categoryBadgeText, { color: theme.primary, fontWeight: '900' }]}>
+                                                        #{task.tags[0].toUpperCase()}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                        <View style={styles.taskMetaRow}>
+                                            <Text style={[styles.taskMetaText, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 10 : 11 }]}>
+                                                {formatSmartDate(task.dueDate)}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    
+                                    <View style={[styles.taskActions, { marginLeft: 12 }]}>
+                                        <TouchableOpacity 
+                                            onPress={() => handleToggle(task.id)} 
+                                            style={[
+                                                styles.checkIcon, 
+                                                { 
+                                                    width: isSmallDevice ? 32 : 36, 
+                                                    height: isSmallDevice ? 32 : 36,
+                                                    backgroundColor: task.isCompleted ? theme.tertiary : theme.surfaceContainerHigh
+                                                }
+                                            ]}
+                                        >
+                                            <Check size={isSmallDevice ? 16 : 18} color={task.isCompleted ? 'white' : theme.onSurfaceVariant} strokeWidth={3} />
+                                        </TouchableOpacity>
                                     </View>
                                 </View>
-                                
-                                <View style={[styles.taskActions, { gap: isSmallDevice ? 8 : 12 }]}>
-                                    {!task.isCompleted && (
-                                        <TouchableOpacity onPress={() => openEdit(task.id)} style={[styles.editBtn, { width: isSmallDevice ? 28 : 32, height: isSmallDevice ? 28 : 32 }]}>
-                                            <Pencil size={isSmallDevice ? 12 : 14} color={theme.onSurfaceVariant} />
-                                        </TouchableOpacity>
+
+                                {/* Expanded Details */}
+                                <AnimatePresence>
+                                    {expandedId === task.id && (
+                                        <MotiView
+                                            from={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            transition={{ type: 'timing', duration: 300 }}
+                                            style={{ overflow: 'hidden', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }}
+                                        >
+                                            {task.description ? (
+                                                <Text style={{ color: theme.onSurface, fontSize: 13, lineHeight: 18, opacity: 0.8, marginBottom: 12 }}>
+                                                    {task.description}
+                                                </Text>
+                                            ) : (
+                                                <Text style={{ color: theme.onSurfaceVariant, fontSize: 12, fontStyle: 'italic', marginBottom: 12 }}>
+                                                    {i18n.locale && i18n.locale.startsWith('tr') ? 'Açıklama eklenmemiş' : 'No description'}
+                                                </Text>
+                                            )}
+                                            
+                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, opacity: 0.7 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                    <Calendar size={13} color={theme.onSurfaceVariant} />
+                                                    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.onSurfaceVariant }}>
+                                                        {formatSmartDate(task.dueDate).replace('📅 ', '')}
+                                                    </Text>
+                                                </View>
+
+                                                {task.dueTime && (
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                        <Clock size={13} color={theme.onSurfaceVariant} />
+                                                        <Text style={{ fontSize: 12, fontWeight: '600', color: theme.onSurfaceVariant }}>
+                                                            {task.dueTime.includes('T') 
+                                                                ? task.dueTime.split('T')[1].substring(0, 5) 
+                                                                : task.dueTime.substring(0, 5)}
+                                                        </Text>
+                                                    </View>
+                                                )}
+
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                    <TrendingUp size={13} color={priorityColor(task.priority)} />
+                                                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurfaceVariant }}>
+                                                        {task.priority === 'High' ? (i18n.locale.startsWith('tr') ? 'Yüksek' : 'High') :
+                                                         task.priority === 'Medium' ? (i18n.locale.startsWith('tr') ? 'Orta' : 'Medium') :
+                                                         (i18n.locale.startsWith('tr') ? 'Düşük' : 'Low')}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        </MotiView>
                                     )}
-                                    <MotiView 
-                                        animate={{ backgroundColor: task.isCompleted ? theme.tertiary : theme.surfaceContainerHigh }}
-                                        style={[styles.checkIcon, { width: isSmallDevice ? 28 : 32, height: isSmallDevice ? 28 : 32 }]}
-                                    >
-                                        <Check size={isSmallDevice ? 12 : 14} color={task.isCompleted ? 'white' : theme.onSurfaceVariant} strokeWidth={3} />
-                                    </MotiView>
-                                </View>
+                                </AnimatePresence>
                             </TouchableOpacity>
                         </MotiView>
+                    </SwipeableItem>
                     ))
                 )}
             </AnimatePresence>
@@ -491,27 +708,50 @@ export default function ActionCenter() {
                             <Text style={[styles.inlinePickerTitle, { color: theme.onSurface }]}>{t.dueDate}</Text>
                             <View style={styles.pickerRow}>
                               <View style={styles.pickerCol}>
-                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>GÜN</Text>
+                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.day}</Text>
                                 <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, day: Math.min(d.day + 1, daysInMonth(d.year, d.month)) }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
                                 <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.day).padStart(2, '0')}</Text>
-                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, day: Math.max(d.day - 1, 1) }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
+                                <TouchableOpacity 
+                                  onPress={() => setPickerDate(d => {
+                                    const now = new Date();
+                                    const minDay = (d.year === now.getFullYear() && d.month === (now.getMonth() + 1)) ? now.getDate() : 1;
+                                    return { ...d, day: Math.max(d.day - 1, minDay) };
+                                  })} 
+                                  style={styles.pickerArrow}
+                                >
+                                  <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
+                                </TouchableOpacity>
                               </View>
                               <View style={styles.pickerCol}>
-                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>AY</Text>
+                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.month}</Text>
                                 <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, month: d.month === 12 ? 1 : d.month + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
                                 <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.month).padStart(2, '0')}</Text>
-                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, month: d.month === 1 ? 12 : d.month - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
+                                <TouchableOpacity 
+                                  onPress={() => setPickerDate(d => {
+                                    const now = new Date();
+                                    const minMonth = d.year === now.getFullYear() ? (now.getMonth() + 1) : 1;
+                                    return { ...d, month: Math.max(d.month - 1, minMonth) };
+                                  })} 
+                                  style={styles.pickerArrow}
+                                >
+                                  <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
+                                </TouchableOpacity>
                               </View>
                               <View style={styles.pickerCol}>
-                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>YIL</Text>
+                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.year}</Text>
                                 <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, year: d.year + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
                                 <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{pickerDate.year}</Text>
-                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, year: Math.max(d.year - 1, 2020) }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
+                                <TouchableOpacity 
+                                  onPress={() => setPickerDate(d => ({ ...d, year: Math.max(d.year - 1, new Date().getFullYear()) }))} 
+                                  style={styles.pickerArrow}
+                                >
+                                  <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
+                                </TouchableOpacity>
                               </View>
                             </View>
                             <View style={styles.pickerActions}>
-                              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={{ color: theme.onSurfaceVariant, fontWeight: '700' }}>{t.cancel}</Text></TouchableOpacity>
-                              <TouchableOpacity onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={{ color: 'white', fontWeight: '900' }}>{t.save}</Text></TouchableOpacity>
+                              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></TouchableOpacity>
+                              <TouchableOpacity onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: 'white', fontWeight: '900' }]}>{t.save}</Text></TouchableOpacity>
                             </View>
                           </View>
                         )}
@@ -522,22 +762,22 @@ export default function ActionCenter() {
                             <Text style={[styles.inlinePickerTitle, { color: theme.onSurface }]}>{t.dueTime}</Text>
                             <View style={styles.pickerRow}>
                               <View style={styles.pickerCol}>
-                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>SAAT</Text>
+                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.hour}</Text>
                                 <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 23 ? 0 : pt.hour + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
                                 <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.hour).padStart(2, '0')}</Text>
                                 <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 0 ? 23 : pt.hour - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
                               </View>
                               <Text style={[styles.pickerColon, { color: theme.onSurface }]}>:</Text>
                               <View style={styles.pickerCol}>
-                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>DAKİKA</Text>
+                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.minute}</Text>
                                 <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 59 ? 0 : pt.minute + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
                                 <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.minute).padStart(2, '0')}</Text>
                                 <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 0 ? 59 : pt.minute - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
                               </View>
                             </View>
                             <View style={styles.pickerActions}>
-                              <TouchableOpacity onPress={() => setShowTimePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={{ color: theme.onSurfaceVariant, fontWeight: '700' }}>{t.cancel}</Text></TouchableOpacity>
-                              <TouchableOpacity onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={{ color: 'white', fontWeight: '900' }}>{t.save}</Text></TouchableOpacity>
+                              <TouchableOpacity onPress={() => setShowTimePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></TouchableOpacity>
+                              <TouchableOpacity onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: 'white', fontWeight: '900' }]}>{t.save}</Text></TouchableOpacity>
                             </View>
                           </View>
                         )}
@@ -573,12 +813,18 @@ export default function ActionCenter() {
                     </View>
 
                     <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.modalSaveBtn}>
-                        <LinearGradient colors={isDark ? [theme.primary, '#3367ff'] : [theme.primary, theme.primaryContainer]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.modalSaveGradient, { paddingVertical: isSmallDevice ? 14 : 18 }]}>
+                        <LinearGradient colors={isDark ? [theme.primary, '#3367ff'] : [theme.primary, theme.primaryContainer]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalSaveGradient}>
                             {saving ? <ActivityIndicator color="white" /> : (
-                                <>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 }}>
                                     <Check size={isSmallDevice ? 18 : 20} color="white" strokeWidth={3} />
-                                    <Text style={[styles.modalSaveText, { fontSize: isSmallDevice ? 15 : 17 }]}>{t.save}</Text>
-                                </>
+                                    <Text 
+                                        style={[styles.modalSaveText, { fontSize: isSmallDevice ? 15 : 17, flexShrink: 1 }]}
+                                        numberOfLines={1}
+                                        adjustsFontSizeToFit
+                                    >
+                                        {t.save}
+                                    </Text>
+                                </View>
                             )}
                         </LinearGradient>
                     </TouchableOpacity>
@@ -621,6 +867,17 @@ const styles = StyleSheet.create({
   fab: { position: 'absolute', alignItems: 'center', justifyContent: 'center', elevation: 10, zIndex: 100 },
   emptyState: { padding: 40, alignItems: 'center' },
   emptyText: { fontSize: 14, fontWeight: '600' },
+  deleteAction: {
+    width: 80,
+    marginBottom: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 24,
+    marginLeft: -24,
+    paddingLeft: 12,
+  },
+  categoryBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  categoryBadgeText: { fontSize: 10, fontWeight: '800', textTransform: 'lowercase' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: { width: '100%' },
   sheet: { borderTopLeftRadius: 40, borderTopRightRadius: 40, borderWidth: 1, borderBottomWidth: 0 },
@@ -628,8 +885,8 @@ const styles = StyleSheet.create({
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sheetTitle: { fontWeight: '900', letterSpacing: -0.5 },
   closeModalBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  formContainer: { paddingHorizontal: 10 },
-  section: { marginBottom: 16 },
+  formContainer: { paddingHorizontal: 4 },
+  section: { marginBottom: 20 },
   inputGroup: { borderRadius: 24, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20 },
   modalInput: { flex: 1, fontWeight: '600' },
   modalTextArea: { alignItems: 'flex-start' },
@@ -640,19 +897,20 @@ const styles = StyleSheet.create({
   priorityRow: { flexDirection: 'row' },
   priorityTab: { flex: 1, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   priorityTabText: { fontWeight: '800' },
-  modalSaveBtn: { borderRadius: 24, overflow: 'hidden', marginTop: 10 },
-  modalSaveGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
-  modalSaveText: { color: 'white', fontWeight: '900', letterSpacing: -0.5 },
-  inlinePicker: { borderRadius: 20, padding: 20, alignItems: 'center' },
-  inlinePickerTitle: { fontSize: 15, fontWeight: '900', marginBottom: 16, letterSpacing: -0.5 },
-  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 24, marginBottom: 28 },
-  pickerCol: { alignItems: 'center', minWidth: 64 },
-  pickerColLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, marginBottom: 12, opacity: 0.6 },
-  pickerArrow: { padding: 10 },
-  pickerArrowText: { fontSize: 18, fontWeight: '900' },
-  pickerValue: { fontSize: 40, fontWeight: '900', letterSpacing: -1, lineHeight: 48 },
-  pickerColon: { fontSize: 36, fontWeight: '900', marginTop: 16 },
-  pickerActions: { flexDirection: 'row', gap: 12, width: '100%' },
-  pickerCancelBtn: { flex: 1, borderRadius: 16, borderWidth: 1.5, paddingVertical: 14, alignItems: 'center' },
-  pickerConfirmBtn: { flex: 1, borderRadius: 16, paddingVertical: 14, alignItems: 'center' },
+  modalSaveBtn: { borderRadius: 24, overflow: 'hidden', marginTop: 24, marginBottom: 40 },
+  modalSaveGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, height: 56 },
+  modalSaveText: { color: 'white', fontWeight: '900', letterSpacing: -0.5, textAlign: 'center', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
+  inlinePicker: { borderRadius: 24, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  inlinePickerTitle: { fontSize: 13, fontWeight: '900', marginBottom: 16, letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
+  pickerCol: { alignItems: 'center', minWidth: 60 },
+  pickerColLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 1, marginBottom: 8, opacity: 0.5 },
+  pickerArrow: { padding: 8 },
+  pickerArrowText: { fontSize: 16, fontWeight: '900' },
+  pickerValue: { fontSize: 32, fontWeight: '900', letterSpacing: -1, lineHeight: 40 },
+  pickerColon: { fontSize: 28, fontWeight: '900', marginTop: 8 },
+  pickerActions: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 10 },
+  pickerCancelBtn: { flex: 1, borderRadius: 16, borderWidth: 1.5, height: 48, alignItems: 'center', justifyContent: 'center' },
+  pickerConfirmBtn: { flex: 1, borderRadius: 16, height: 48, alignItems: 'center', justifyContent: 'center' },
+  pickerBtnText: { fontWeight: '700', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
 });

@@ -1,5 +1,5 @@
 
-import { parseTaskHint } from './Tazq-Frontend/utils/taskParser';
+import { parseTaskHint } from './utils/taskParser';
 
 const test1 = parseTaskHint("Yarın spor yap");
 console.log("Test 1 (Yarın):", test1.dueDate);

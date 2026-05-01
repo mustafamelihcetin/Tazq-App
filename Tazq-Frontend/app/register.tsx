@@ -117,7 +117,7 @@ export default function RegisterScreen() {
                                 <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#141414' : '#E8E8E8', height: isSmallDevice ? 56 : 64 }]}>
                                     <User size={18} color={theme.outline} />
                                     <TextInput 
-                                        placeholder="John Doe"
+                                        placeholder={t.taskTitle}
                                         placeholderTextColor={theme.outlineVariant}
                                         style={[styles.input, { color: theme.onSurface }]}
                                         value={name}
@@ -132,7 +132,7 @@ export default function RegisterScreen() {
                                 <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#141414' : '#E8E8E8', height: isSmallDevice ? 56 : 64 }]}>
                                     <Mail size={18} color={theme.outline} />
                                     <TextInput 
-                                        placeholder="hello@example.com"
+                                        placeholder={t.login.email}
                                         placeholderTextColor={theme.outlineVariant}
                                         style={[styles.input, { color: theme.onSurface }]}
                                         value={email}

@@ -70,56 +70,85 @@ export function parseTaskHint(text: string): ParsedHint {
     hint.priority = 'High';
   }
 
-  // Due date
   const today = new Date();
-  if (lower.includes('bugün') || lower.includes('today')) {
-    hint.dueDate = toISO(today);
-  } else if (lower.includes('yarın') || lower.includes('tomorrow')) {
-    const tom = new Date(today);
-    tom.setDate(today.getDate() + 1);
-    hint.dueDate = toISO(tom);
-  } else if (lower.includes('öbür gün') || lower.includes('day after')) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + 2);
-    hint.dueDate = toISO(d);
-  } else if (lower.includes('üç gün sonra') || lower.includes('3 gün sonra')) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + 3);
-    hint.dueDate = toISO(d);
-  } else if (lower.includes('bu hafta') || lower.includes('this week')) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + (5 - today.getDay())); 
-    hint.dueDate = toISO(d);
-  } else if (lower.includes('gelecek hafta') || lower.includes('next week')) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + 7);
-    hint.dueDate = toISO(d);
-  } else {
-    for (const [keyword, dayNum] of Object.entries(WEEKDAY_MAP)) {
-      if (lower.includes(keyword)) {
-        hint.dueDate = toISO(nextWeekday(dayNum));
-        break;
+
+  // --- SMART DATE PARSING ---
+  // Support "ayın 15'inde", "ayın 5'i" (TR) and "on the 15th", "on the 5th" (EN)
+  const ayinMatch = lower.match(/ayın\s*(\d{1,2})(?:['’]?(?:i|ı|u|ü|nde|nda|si|sı))?/) || 
+                    lower.match(/on the\s*(\d{1,2})(?:st|nd|rd|th)?/);
+  if (ayinMatch) {
+    const day = parseInt(ayinMatch[1], 10);
+    if (day >= 1 && day <= 31) {
+      const d = new Date(today);
+      d.setDate(day);
+      hint.dueDate = toISO(d);
+    }
+  }
+
+  if (!hint.dueDate) {
+    if (lower.includes('bugün') || lower.includes('today')) {
+      hint.dueDate = toISO(today);
+    } else if (lower.includes('yarın') || lower.includes('tomorrow')) {
+      const tom = new Date(today);
+      tom.setDate(today.getDate() + 1);
+      hint.dueDate = toISO(tom);
+    } else if (lower.includes('öbür gün') || lower.includes('day after')) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + 2);
+      hint.dueDate = toISO(d);
+    } else if (lower.includes('bu hafta') || lower.includes('this week')) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + (5 - today.getDay())); 
+      hint.dueDate = toISO(d);
+    } else if (lower.includes('gelecek hafta') || lower.includes('next week')) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + 7);
+      hint.dueDate = toISO(d);
+    } else {
+      for (const [keyword, dayNum] of Object.entries(WEEKDAY_MAP)) {
+        if (lower.includes(keyword)) {
+          hint.dueDate = toISO(nextWeekday(dayNum));
+          break;
+        }
       }
     }
   }
 
-  // Time — support "saat 14", "14:30", "14'te", "14.00'de", "2pm", etc.
-  const timeMatch =
-    lower.match(/saat\s*(\d{1,2})(?:[:.\s](\d{2}))?/) ||
-    lower.match(/(\d{1,2})[:.](\d{2})/) ||
-    lower.match(/(\d{1,2})['’](?:te|de|ta|da|ten|dan|e|a)/) ||
-    lower.match(/(\d{1,2})\s*(?:pm|öğleden sonra)/) ||
-    lower.match(/at\s*(\d{1,2})(?:[:.](\d{2}))?/);
+  // --- SMART TIME PARSING ---
+  // Exclude numbers preceded by "masa", "no", "oda", "koltuk" (TR) or "table", "no", "room", "seat" (EN)
+  const ignoredContexts = ['masa', 'table', 'no', 'oda', 'room', 'numara', 'number', 'koltuk', 'seat', 'platform', 'peron'];
+  
+  const timeRegexes = [
+    /saat\s*(\d{1,2})(?:[:.\s](\d{2}))?/,
+    /(\d{1,2})[:.](\d{2})/,
+    /(\d{1,2})['’](?:te|de|ta|da|ten|dan|e|a)/,
+    /at\s*(\d{1,2})(?:[:.](\d{2}))?/
+  ];
 
-  if (timeMatch) {
-    let hour = parseInt(timeMatch[1], 10);
-    const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-    if (lower.includes('pm') && hour < 12) hour += 12;
-    
-    // Use Local Time to avoid timezone shifts in UI
-    const base = hint.dueDate ? new Date(hint.dueDate) : new Date();
-    base.setHours(hour, minute, 0, 0);
-    hint.dueTime = base.toISOString();
+  let timeFound = false;
+  for (const regex of timeRegexes) {
+    const match = lower.match(regex);
+    if (match) {
+      const fullMatch = match[0];
+      const matchIndex = match.index || 0;
+      const hour = parseInt(match[1], 10);
+      const minute = match[2] ? parseInt(match[2], 10) : 0;
+
+      // Check if preceded by ignored context
+      const beforeMatch = lower.substring(Math.max(0, matchIndex - 15), matchIndex).trim();
+      const isIgnored = ignoredContexts.some(ctx => beforeMatch.endsWith(ctx) || beforeMatch.includes(ctx + ' '));
+
+      // Check if this number was already used for "Ayın X'inde"
+      const isDayNumber = ayinMatch && match[1] === ayinMatch[1] && !lower.includes('saat ' + match[1]);
+
+      if (!isIgnored && !isDayNumber && hour <= 23 && minute <= 59) {
+        const base = hint.dueDate ? new Date(hint.dueDate) : new Date();
+        base.setHours(hour, minute, 0, 0);
+        hint.dueTime = base.toISOString();
+        timeFound = true;
+        break;
+      }
+    }
   }
 
   // Auto-tags
