@@ -45,6 +45,10 @@ export const AuthService = {
     const response = await api.get('/api/users/me', config);
     return response.data;
   },
+  updateProfile: async (data: { name?: string, avatar?: string }) => {
+    const response = await api.put('/api/users/profile', data);
+    return response.data;
+  },
 };
 
 export interface CreateTaskPayload {
@@ -76,5 +80,29 @@ export const TaskService = {
   },
   deleteTask: async (id: number) => {
     await api.delete(`/api/tasks/${id}`);
+  },
+};
+
+export const FocusService = {
+  saveSession: async (taskName: string, durationMinutes: number, completed: boolean) => {
+    const response = await api.post('/api/focus/save', { taskName, durationMinutes, completed });
+    return response.data;
+  },
+  getStats: async () => {
+    const response = await api.get('/api/focus/stats');
+    return response.data;
+  },
+};
+
+export const AiService = {
+  parseTasks: async (text: string) => {
+    const response = await api.post('/api/ai/parse-tasks', { text });
+    return response.data as Array<{
+      title: string;
+      description: string;
+      priority: 'Low' | 'Medium' | 'High';
+      dueDate?: string;
+      tags: string[];
+    }>;
   },
 };

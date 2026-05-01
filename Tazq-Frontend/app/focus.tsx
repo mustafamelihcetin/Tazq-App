@@ -1,20 +1,23 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
 import { Play, Pause, RotateCcw, X, Sparkles } from 'lucide-react-native';
 import { Colors } from '../constants/Colors';
-import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
+import { FocusService } from '../services/api';
+import { LinearGradient } from 'expo-linear-gradient';
+
+import { useAppTheme } from '../hooks/useAppTheme';
 
 const DURATIONS = [15, 25, 50, 90];
 
 export default function FocusScreen() {
-  const colorScheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
-  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { theme, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
   const router = useRouter();
   const { t } = useLanguageStore();
 
@@ -23,19 +26,18 @@ export default function FocusScreen() {
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
-
     if (isActive && seconds > 0) {
       completedRef.current = false;
       interval = setInterval(() => tick(), 1000);
     } else if (seconds === 0 && !completedRef.current) {
       completedRef.current = true;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Brief pause then navigate back
+      const minutes = Math.round(totalSeconds / 60);
+      FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
       setTimeout(() => {
         router.canGoBack() ? router.back() : router.replace('/');
       }, 1500);
     }
-
     return () => { if (interval) clearInterval(interval); };
   }, [isActive, seconds]);
 
@@ -50,11 +52,6 @@ export default function FocusScreen() {
     reset();
   };
 
-  const handleDuration = (minutes: number) => {
-    Haptics.selectionAsync();
-    setDuration(minutes);
-  };
-
   const formatTime = (sec: number) => {
     const mins = Math.floor(sec / 60);
     const s = sec % 60;
@@ -65,112 +62,94 @@ export default function FocusScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
-            style={[styles.closeBtn, { backgroundColor: theme.surfaceContainerLow }]}
+            style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
           >
             <X size={24} color={theme.onSurface} />
           </TouchableOpacity>
-          <View style={[styles.badge, { backgroundColor: theme.tertiary + '15' }]}>
-            <Sparkles size={14} color={theme.tertiary} />
-            <Text style={[styles.badgeText, { color: theme.tertiary }]}>DEEP FOCUS</Text>
+          <View style={[styles.badge, { backgroundColor: theme.primary + '10' }]}>
+            <Sparkles size={14} color={theme.primary} />
+            <Text style={[styles.badgeText, { color: theme.primary }]}>{t.deepFocus}</Text>
           </View>
         </View>
 
-        {/* Duration Selector */}
-        <View style={styles.durationRow}>
-          {DURATIONS.map((min) => {
-            const active = totalSeconds === min * 60;
-            return (
-              <TouchableOpacity
-                key={min}
-                onPress={() => handleDuration(min)}
-                disabled={isActive}
-                style={[
-                  styles.durationChip,
-                  {
-                    backgroundColor: active ? theme.primary : theme.surfaceContainerLow,
-                    opacity: isActive && !active ? 0.4 : 1,
-                  },
-                ]}
-              >
-                <Text style={[styles.durationText, { color: active ? 'white' : theme.onSurfaceVariant }]}>
-                  {min}m
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
         <View style={styles.content}>
-          {/* Timer Circle */}
+          <View style={styles.durationRow}>
+            {DURATIONS.map((min) => {
+              const active = totalSeconds === min * 60;
+              return (
+                <TouchableOpacity
+                  key={min}
+                  onPress={() => { Haptics.selectionAsync(); setDuration(min); }}
+                  disabled={isActive}
+                  style={[
+                    styles.durationChip,
+                    {
+                      backgroundColor: active ? theme.primary : (isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest),
+                      opacity: isActive && !active ? 0.3 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.durationText, { color: active ? '#fff' : theme.onSurfaceVariant }]}>
+                    {min}m
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Timer Visual */}
           <MotiView
-            animate={{
-              scale: isActive ? 1.04 : 1,
-            }}
-            transition={{ type: 'timing', duration: 1800, loop: isActive }}
-            style={[styles.timerOuter, { borderColor: theme.primary + '15' }]}
+            animate={{ scale: isActive ? 1.02 : 1 }}
+            transition={{ type: 'timing', duration: 1500, loop: isActive }}
+            style={styles.timerContainer}
           >
-            {/* Progress ring overlay */}
-            <View style={[
-              styles.progressRing,
-              {
-                borderColor: theme.primary,
-                // Simple visual — rotate based on progress
-                transform: [{ rotate: `${progress * 360}deg` }],
-                opacity: progress > 0 ? 0.6 : 0,
-              }
-            ]} />
-
-            <View style={[styles.timerInner, { backgroundColor: theme.surfaceContainerLow, shadowColor: theme.primary }]}>
-              <Text style={[styles.timerText, { color: theme.primary }]}>
-                {formatTime(seconds)}
-              </Text>
-              <Text style={[styles.taskLabel, { color: theme.onSurfaceVariant }]} numberOfLines={1}>
-                {currentTask || t.duration}
-              </Text>
+            <View style={[styles.timerCircle, { backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest, borderColor: isDark ? theme.primary + '30' : 'rgba(0,0,0,0.05)' }]}>
+                <Text style={[styles.timerText, { color: theme.onSurface }]}>{formatTime(seconds)}</Text>
+                <Text style={[styles.currentTaskText, { color: theme.onSurfaceVariant }]} numberOfLines={1}>
+                    {currentTask || t.focusSession}
+                </Text>
             </View>
-
-            <View style={[styles.decoCircle, { backgroundColor: theme.secondary + '10', top: -20, right: -20 }]} />
-            <View style={[styles.decoCircle, { backgroundColor: theme.tertiary + '10', bottom: 40, left: -30, width: 100, height: 100 }]} />
+            
+            {isActive && (
+                <MotiView 
+                    from={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 0.4, scale: 1.2 }}
+                    style={[styles.glowCircle, { backgroundColor: theme.primary }]}
+                />
+            )}
           </MotiView>
 
-          <MotiView
-            from={{ opacity: 0, translateY: 20 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            style={styles.controls}
-          >
-            <TouchableOpacity
-              onPress={resetTimer}
-              style={[styles.controlBtnSecondary, { backgroundColor: theme.surfaceContainerHigh }]}
-            >
-              <RotateCcw size={24} color={theme.onSurface} />
+          {/* Controls */}
+          <View style={styles.controlsRow}>
+            <TouchableOpacity onPress={resetTimer} style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow }]}>
+              <RotateCcw size={24} color={theme.onSurfaceVariant} />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={toggleTimer}
-              style={[styles.playBtn, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
+              style={[styles.playBtn, { backgroundColor: theme.primary, shadowColor: isDark ? theme.primary : '#000' }]}
             >
-              {isActive
-                ? <Pause size={32} color="white" fill="white" />
-                : <Play size={32} color="white" fill="white" style={{ marginLeft: 4 }} />}
+              <LinearGradient
+                colors={isDark ? [theme.primary, '#3367ff'] : [theme.primary, theme.primaryContainer]}
+                style={styles.btnGradient}
+              >
+                {isActive ? <Pause size={32} color="white" fill="white" /> : <Play size={32} color="white" fill="white" />}
+              </LinearGradient>
             </TouchableOpacity>
 
-            <View style={[styles.controlBtnSecondary, { backgroundColor: theme.surfaceContainerHigh }]}>
-              <Text style={[styles.progressText, { color: theme.onSurfaceVariant }]}>
-                {Math.round(progress * 100)}%
-              </Text>
+            <View style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow }]}>
+                <Text style={[styles.progressText, { color: theme.onSurfaceVariant }]}>{Math.round(progress * 100)}%</Text>
             </View>
-          </MotiView>
+          </View>
         </View>
 
         <View style={styles.footer}>
-          <Text style={[styles.quote, { color: theme.onSurfaceVariant }]}>
-            "The secret of getting ahead is getting started."
-          </Text>
+            <Text style={[styles.quote, { color: theme.onSurfaceVariant }]}>{t.focusQuote}</Text>
         </View>
       </SafeAreaView>
     </View>
@@ -178,67 +157,24 @@ export default function FocusScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-  },
-  closeBtn: {
-    width: 48, height: 48, borderRadius: 24,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  badge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100,
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 },
+  closeBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100 },
   badgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  durationRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: 24,
-    marginBottom: 8,
-  },
-  durationChip: {
-    paddingHorizontal: 18, paddingVertical: 8, borderRadius: 100,
-  },
-  durationText: { fontSize: 13, fontWeight: '800' },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  timerOuter: {
-    width: 320, height: 320, borderRadius: 160,
-    borderWidth: 20,
-    alignItems: 'center', justifyContent: 'center', position: 'relative',
-  },
-  progressRing: {
-    position: 'absolute',
-    width: 320, height: 320, borderRadius: 160,
-    borderWidth: 4,
-    borderLeftColor: 'transparent',
-    borderBottomColor: 'transparent',
-  },
-  timerInner: {
-    width: 260, height: 260, borderRadius: 130,
-    alignItems: 'center', justifyContent: 'center',
-    shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.1, shadowRadius: 30,
-    elevation: 10,
-  },
-  timerText: { fontSize: 64, fontWeight: '900', letterSpacing: -2 },
-  taskLabel: { fontSize: 14, fontWeight: '600', marginTop: 8, maxWidth: 200, textAlign: 'center' },
-  decoCircle: { position: 'absolute', width: 140, height: 140, borderRadius: 70, zIndex: -1 },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: 32, marginTop: 64 },
-  playBtn: {
-    width: 84, height: 84, borderRadius: 42,
-    alignItems: 'center', justifyContent: 'center',
-    shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20,
-    elevation: 8,
-  },
-  controlBtnSecondary: {
-    width: 56, height: 56, borderRadius: 28,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  durationRow: { flexDirection: 'row', gap: 10, marginBottom: 40 },
+  durationChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 100 },
+  durationText: { fontSize: 14, fontWeight: '800' },
+  timerContainer: { width: 280, height: 280, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  timerCircle: { width: '100%', height: '100%', borderRadius: 140, alignItems: 'center', justifyContent: 'center', borderWidth: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.1, shadowRadius: 30, elevation: 10 },
+  timerText: { fontSize: 56, fontWeight: '900', letterSpacing: -2 },
+  currentTaskText: { fontSize: 14, fontWeight: '600', marginTop: 8, maxWidth: 200, textAlign: 'center' },
+  glowCircle: { position: 'absolute', width: '100%', height: '100%', borderRadius: 140, zIndex: -1 },
+  controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 32, marginTop: 60 },
+  secondaryBtn: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  playBtn: { width: 84, height: 84, borderRadius: 42, overflow: 'hidden', elevation: 8, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
+  btnGradient: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   progressText: { fontSize: 12, fontWeight: '900' },
   footer: { padding: 40, alignItems: 'center' },
-  quote: { fontSize: 14, fontStyle: 'italic', textAlign: 'center', opacity: 0.6 },
+  quote: { fontSize: 14, fontStyle: 'italic', textAlign: 'center', opacity: 0.5 },
 });

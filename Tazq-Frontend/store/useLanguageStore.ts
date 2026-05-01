@@ -11,8 +11,10 @@ interface LanguageState {
 
 export const useLanguageStore = create<LanguageState>()(
   persist(
-    (set) => ({
-      language: 'tr', // Default to Turkish as requested
+    (set, get) => ({
+      language: 'tr',
+      // We still keep 't' in the state for easy access, 
+      // but we will ensure it stays synced with the language.
       t: translations.tr,
       setLanguage: (lang) => set({ 
         language: lang, 
@@ -22,6 +24,13 @@ export const useLanguageStore = create<LanguageState>()(
     {
       name: 'tazq-language-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      // On rehydrate, ensure 't' is updated to the latest translations
+      // even if the stored 't' was old.
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.t = translations[state.language];
+        }
+      },
     }
   )
 );

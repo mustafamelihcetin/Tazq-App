@@ -24,6 +24,7 @@ namespace Tazq_App.Data
 		public DbSet<User> Users { get; set; }
 		public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
 		public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+		public DbSet<FocusSession> FocusSessions { get; set; }
 
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -50,6 +51,12 @@ namespace Tazq_App.Data
 			modelBuilder.Entity<TaskItem>()
 				.Property(t => t.TagsJson)
 				.HasColumnType("text");
+
+			modelBuilder.Entity<FocusSession>()
+				.HasOne(f => f.User)
+				.WithMany()
+				.HasForeignKey(f => f.UserId)
+				.OnDelete(DeleteBehavior.Cascade);
 		}
 
 	}

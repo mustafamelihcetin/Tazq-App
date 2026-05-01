@@ -1,142 +1,132 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, useWindowDimensions, Platform } from 'react-native';
-import { useRouter, useSegments } from 'expo-router';
 import { LayoutGrid, CheckSquare, Sparkles, User } from 'lucide-react-native';
-import { Colors } from '../constants/Colors';
-import { useColorScheme } from 'react-native';
+import { useRouter, usePathname } from 'expo-router';
+import { BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
-import { BlurView } from 'expo-blur';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppTheme } from '../hooks/useAppTheme';
 
-export function BottomNavBar() {
-  const router = useRouter();
-  const segments = useSegments();
-  const colorScheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
-  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+export const BottomNavBar = () => {
   const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const router = useRouter();
+  const { theme, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
 
   const tabs = [
-    { name: 'index', icon: LayoutGrid, path: '/' },
-    { name: 'tasks', icon: CheckSquare, path: '/tasks' },
-    { name: 'focus', icon: Sparkles, path: '/focus' },
-    { name: 'profile', icon: User, path: '/profile' },
+    { id: 'home', path: '/', icon: LayoutGrid },
+    { id: 'tasks', path: '/tasks', icon: CheckSquare },
+    { id: 'focus', path: '/focus', icon: Sparkles },
+    { id: 'profile', path: '/profile', icon: User },
   ];
 
-  const currentSegment = segments[segments.length - 1] || 'index';
-
   const handlePress = (path: string) => {
+    if (pathname === path) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.replace(path as any);
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-      <MotiView 
+    <View style={styles.container}>
+      <MotiView
         from={{ translateY: 100 }}
         animate={{ translateY: 0 }}
         style={[
-            styles.navBar, 
-            { 
-                backgroundColor: colorScheme === 'dark' ? 'rgba(45, 47, 49, 0.8)' : 'rgba(255, 255, 255, 0.8)',
-                width: width - 48,
-                borderColor: theme.outlineVariant + '15'
+            styles.bar,
+            {
+                width: width * 0.9,
+                backgroundColor: isDark ? 'rgba(26,26,26,0.85)' : 'rgba(255,255,255,0.85)',
+                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+                shadowColor: '#000',
+                shadowOpacity: isDark ? 0.5 : 0.1,
             }
         ]}
       >
-        <BlurView intensity={40} tint={colorScheme} style={StyleSheet.absoluteFill} />
-        {tabs.map((tab) => {
-          const isActive = (tab.name === 'index' && (currentSegment === 'index' || currentSegment === '(tabs)')) || currentSegment === tab.name;
-          const Icon = tab.icon;
+        <BlurView intensity={isDark ? 30 : 50} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        
+        <View style={styles.tabsContainer}>
+          {tabs.map((tab) => {
+            const isActive = pathname === tab.path || (tab.path === '/' && pathname === '/index');
+            const Icon = tab.icon;
 
-          return (
-            <TouchableOpacity
-              key={tab.name}
-              onPress={() => handlePress(tab.path)}
-              style={styles.tab}
-              activeOpacity={0.7}
-            >
-              <MotiView
-                animate={{
-                  scale: isActive ? 1.1 : 1,
-                  backgroundColor: isActive ? theme.primary : 'transparent',
-                }}
-                style={[
-                    styles.iconWrapper,
-                    isActive && { shadowColor: theme.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 }
-                ]}
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                onPress={() => handlePress(tab.path)}
+                activeOpacity={0.7}
+                style={styles.tab}
               >
-                <Icon
-                  size={24}
-                  color={isActive ? 'white' : theme.onSurfaceVariant}
-                  strokeWidth={isActive ? 2.5 : 2}
+                {isActive && (
+                    <MotiView
+                        from={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        style={[styles.activeIndicator, { backgroundColor: theme.primary + '15' }]}
+                    />
+                )}
+                <Icon 
+                    size={24} 
+                    color={isActive ? theme.primary : theme.onSurfaceVariant} 
+                    strokeWidth={isActive ? 2.5 : 2}
                 />
-              </MotiView>
-              {isActive && (
-                <MotiView 
-                  layout={Platform.OS === 'ios' ? undefined : undefined}
-                  from={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  style={[styles.activeDot, { backgroundColor: theme.primary }]} 
-                />
-              )}
-            </TouchableOpacity>
-          );
-        })}
+                {isActive && (
+                    <MotiView 
+                        from={{ scale: 0 }} 
+                        animate={{ scale: 1 }} 
+                        style={[styles.dot, { backgroundColor: theme.primary }]} 
+                    />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </MotiView>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 30,
     left: 0,
     right: 0,
     alignItems: 'center',
     zIndex: 1000,
   },
-  navBar: {
-    flexDirection: 'row',
+  bar: {
     height: 72,
     borderRadius: 36,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    borderWidth: 1,
+    borderWidth: 1.2,
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 10,
-      },
-    }),
+    shadowOffset: { width: 0, height: 15 },
+    shadowRadius: 30,
+    elevation: 10,
+  },
+  tabsContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 10,
   },
   tab: {
-    flex: 1,
-    height: '100%',
+    width: 60,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+  activeIndicator: {
+    position: 'absolute',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
-  activeDot: {
+  dot: {
+    position: 'absolute',
+    bottom: -4,
     width: 4,
     height: 4,
     borderRadius: 2,
-    position: 'absolute',
-    bottom: 8,
   }
 });

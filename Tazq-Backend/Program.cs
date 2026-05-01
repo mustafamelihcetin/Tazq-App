@@ -123,7 +123,8 @@ if (string.IsNullOrWhiteSpace(pgHost) || string.IsNullOrWhiteSpace(pgDb))
 var pgConnectionString = $"Host={pgHost};Port={pgPort};Database={pgDb};Username={pgUser};Password={pgPassword};SslMode=Prefer;Trust Server Certificate=true;";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(pgConnectionString));
+    options.UseNpgsql(pgConnectionString)
+           .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -154,6 +155,9 @@ builder.Services.Configure<SmtpSettings>(opt =>
 builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IFocusSessionService, FocusSessionService>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IGroqService, GroqService>();
 builder.Services.AddHostedService<ScheduledEmailService>();
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5200";

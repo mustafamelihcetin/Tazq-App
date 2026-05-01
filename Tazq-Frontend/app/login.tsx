@@ -25,7 +25,7 @@ import { AuthService } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 
 export default function LoginScreen() {
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const colorScheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
   const router = useRouter();
@@ -36,9 +36,6 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const paddingHorizontal = width * 0.08;
-  const logoSize = width * 0.22;
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -59,11 +56,7 @@ export default function LoginScreen() {
     } catch (err: any) {
       console.error(err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (err.response?.status === 401) {
-        setError('Invalid email or password');
-      } else {
-        setError('Unable to connect. Please try again.');
-      }
+      setError('Invalid credentials or connection issue.');
     } finally {
       setIsLoading(false);
     }
@@ -71,137 +64,98 @@ export default function LoginScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Background Orbs */}
+      {/* Dynamic Background Orbs (Stitch UI Style) */}
       <MotiView
-        from={{ opacity: 0, scale: 0.5, translateX: -100 }}
-        animate={{ opacity: 0.4, scale: 1, translateX: 0 }}
-        transition={{ type: 'timing', duration: 3000, loop: true, repeatReverse: true }}
-        style={[styles.orb, { backgroundColor: theme.primary, top: -50, left: -50, width: width * 0.8, height: width * 0.8 }]}
+        from={{ opacity: 0, scale: 0.5 }}
+        animate={{ opacity: colorScheme === 'dark' ? 0.2 : 0.05, scale: 1.5 }}
+        transition={{ type: 'timing', duration: 4000, loop: true, repeatReverse: true }}
+        style={[styles.orb, { backgroundColor: theme.primary, top: -100, right: -50, width: 300, height: 300 }]}
       />
-      <MotiView
-        from={{ opacity: 0, scale: 0.5, translateX: 100 }}
-        animate={{ opacity: 0.3, scale: 1.2, translateX: 50 }}
-        transition={{ type: 'timing', duration: 4000, loop: true, repeatReverse: true, delay: 500 }}
-        style={[styles.orb, { backgroundColor: theme.secondary, bottom: -100, right: -100, width: width * 0.9, height: width * 0.9 }]}
-      />
-
+      
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          <ScrollView 
-            contentContainerStyle={[styles.scrollContent, { paddingHorizontal }]}
-            showsVerticalScrollIndicator={false}
-          >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            
             <MotiView 
-              from={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', damping: 12 }}
-              style={styles.logoContainer}
+                from={{ opacity: 0, translateY: -20 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                style={styles.header}
             >
-              <View 
-                style={[styles.logoBubble, { width: logoSize, height: logoSize, borderRadius: logoSize * 0.4, backgroundColor: theme.primary }]}
-              >
-                  <LinearGradient
-                    colors={['rgba(255,255,255,0.3)', 'transparent']}
-                    style={[StyleSheet.absoluteFill, { borderRadius: logoSize * 0.4 }]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  />
-                  <Text style={[styles.logoText, { fontSize: logoSize * 0.45 }]}>T</Text>
-              </View>
-              
-              <MotiText 
-                style={[styles.welcomeTitle, { color: theme.onSurface }]}
-              >
-                Welcome Back
-              </MotiText>
+                <View style={[styles.logoBubble, { backgroundColor: theme.primary }]}>
+                    <Text style={styles.logoText}>T</Text>
+                </View>
+                <Text style={[styles.welcomeTitle, { color: theme.onSurface }]}>Welcome Back</Text>
+                <Text style={[styles.welcomeSub, { color: theme.onSurfaceVariant }]}>Sign in to continue your flow</Text>
             </MotiView>
 
-            <MotiView 
-             from={{ opacity: 0, translateY: 30 }}
-             animate={{ opacity: 1, translateY: 0 }}
-             transition={{ delay: 200, type: 'spring' }}
-             style={[styles.glassCard, { borderColor: 'rgba(255,255,255,0.2)' }]}
-            >
-                <BlurView intensity={Platform.OS === 'ios' ? 40 : 100} tint={colorScheme} style={styles.blurContent}>
-                    <View style={styles.formGap}>
-                        {error && (
-                            <MotiView 
-                                from={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                style={[styles.errorBox, { backgroundColor: theme.error + '15', borderColor: theme.error + '30' }]}
-                            >
-                                <AlertCircle size={18} color={theme.error} />
-                                <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
-                            </MotiView>
-                        )}
+            <View style={styles.formContainer}>
+                {error && (
+                    <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} style={styles.errorContainer}>
+                        <AlertCircle size={16} color={theme.error} />
+                        <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
+                    </MotiView>
+                )}
 
-                        <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerHigh + '60' }]}>
-                            <Mail size={18} color={theme.primary} />
-                            <TextInput 
-                                placeholder="Email Address" 
-                                placeholderTextColor={theme.onSurfaceVariant + '80'}
-                                style={[styles.input, { color: theme.onSurface }]}
-                                value={email}
-                                onChangeText={(val) => { setEmail(val); setError(null); }}
-                                autoCapitalize="none"
-                                returnKeyType="next"
-                            />
-                        </View>
+                <View style={styles.inputGroup}>
+                    <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant + '30' }]}>
+                        <Mail size={18} color={theme.onSurfaceVariant} />
+                        <TextInput 
+                            placeholder="Email Address" 
+                            placeholderTextColor={theme.onSurfaceVariant + '80'}
+                            style={[styles.input, { color: theme.onSurface }]}
+                            value={email}
+                            onChangeText={setEmail}
+                            autoCapitalize="none"
+                        />
+                    </View>
 
-                        <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerHigh + '60' }]}>
-                            <Lock size={18} color={theme.primary} />
-                            <TextInput 
-                                placeholder="Password" 
-                                placeholderTextColor={theme.onSurfaceVariant + '80'}
-                                style={[styles.input, { color: theme.onSurface }]}
-                                secureTextEntry={!showPassword}
-                                value={password}
-                                onChangeText={(val) => { setPassword(val); setError(null); }}
-                                returnKeyType="done"
-                                onSubmitEditing={handleLogin}
-                            />
-                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                <Text style={{ fontSize: 12, fontWeight: '800', color: theme.primary }}>
-                                    {showPassword ? 'HIDE' : 'SHOW'}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        <TouchableOpacity 
-                            onPress={handleLogin}
-                            disabled={isLoading}
-                            activeOpacity={0.8}
-                            style={[styles.ctaButton, { backgroundColor: theme.secondary, shadowColor: theme.secondary }]}
-                        >
-                            <LinearGradient
-                                colors={[theme.secondary, theme.secondaryContainer || theme.secondary]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={styles.gradientBtn}
-                            >
-                                {isLoading ? (
-                                    <ActivityIndicator color="white" />
-                                ) : (
-                                    <View style={styles.btnContent}>
-                                        <LogIn size={20} color="white" strokeWidth={2.5} />
-                                        <Text style={styles.ctaText}>Login Now</Text>
-                                    </View>
-                                )}
-                            </LinearGradient>
+                    <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant + '30' }]}>
+                        <Lock size={18} color={theme.onSurfaceVariant} />
+                        <TextInput 
+                            placeholder="Password" 
+                            placeholderTextColor={theme.onSurfaceVariant + '80'}
+                            style={[styles.input, { color: theme.onSurface }]}
+                            secureTextEntry={!showPassword}
+                            value={password}
+                            onChangeText={setPassword}
+                        />
+                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                            <Text style={[styles.showText, { color: theme.primary }]}>{showPassword ? 'HIDE' : 'SHOW'}</Text>
                         </TouchableOpacity>
                     </View>
-                </BlurView>
-            </MotiView>
+                </View>
 
-            <View style={styles.footer}>
-                <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>Don't have an account?</Text>
-                <TouchableOpacity onPress={() => router.push('/register')}>
-                    <Text style={[styles.signUpText, { color: theme.primary }]}>Sign Up</Text>
+                <TouchableOpacity 
+                    onPress={handleLogin}
+                    disabled={isLoading}
+                    activeOpacity={0.9}
+                    style={styles.loginBtnWrapper}
+                >
+                    <LinearGradient
+                        colors={[theme.primary, theme.primaryContainer]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.loginBtn}
+                    >
+                        {isLoading ? (
+                            <ActivityIndicator color={theme.onPrimary} />
+                        ) : (
+                            <>
+                                <Text style={[styles.loginBtnText, { color: theme.onPrimary }]}>Login Now</Text>
+                                <LogIn size={20} color={theme.onPrimary} strokeWidth={3} />
+                            </>
+                        )}
+                    </LinearGradient>
                 </TouchableOpacity>
+
+                <View style={styles.footer}>
+                    <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>New to Tazq?</Text>
+                    <TouchableOpacity onPress={() => router.push('/register')}>
+                        <Text style={[styles.signUpText, { color: theme.primary }]}> Create Account</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
+
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -215,7 +169,7 @@ const styles = StyleSheet.create({
   },
   orb: {
     position: 'absolute',
-    borderRadius: 1000,
+    borderRadius: 150,
   },
   safeArea: {
     flex: 1,
@@ -225,68 +179,56 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: 32,
     justifyContent: 'center',
+    paddingBottom: 40,
   },
-  logoContainer: {
+  header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 40,
   },
   logoBubble: {
+    width: 80,
+    height: 80,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 24,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 8,
   },
   logoText: {
     color: 'white',
+    fontSize: 40,
     fontWeight: '900',
     fontStyle: 'italic',
-    letterSpacing: -2,
   },
   welcomeTitle: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '900',
-    marginTop: 24,
-    letterSpacing: -1.5,
+    letterSpacing: -1,
   },
-  glassCard: {
-    borderRadius: 40,
-    overflow: 'hidden',
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.1,
-    shadowRadius: 30,
-    elevation: 5,
+  welcomeSub: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: 8,
   },
-  blurContent: {
-    padding: 32,
+  formContainer: {
+    gap: 24,
   },
-  formGap: {
-    gap: 20,
-  },
-  errorBox: {
-    padding: 16,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-  },
-  errorText: {
-    fontSize: 12,
-    fontWeight: '700',
+  inputGroup: {
+    gap: 16,
   },
   inputWrapper: {
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    height: 64,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    borderWidth: 1.2,
   },
   input: {
     flex: 1,
@@ -295,38 +237,48 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     height: '100%',
   },
-  ctaButton: {
-    borderRadius: 24,
+  showText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  loginBtnWrapper: {
+    borderRadius: 22,
     overflow: 'hidden',
-    marginTop: 8,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.2,
     shadowRadius: 20,
-    elevation: 5,
+    elevation: 10,
   },
-  gradientBtn: {
-    paddingVertical: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnContent: {
+  loginBtn: {
+    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
   },
-  ctaText: {
-    color: 'white',
+  loginBtnText: {
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: -0.5,
   },
-  footer: {
-    marginTop: 32,
+  errorContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
+    backgroundColor: 'rgba(255,68,68,0.1)',
+    padding: 12,
+    borderRadius: 12,
+  },
+  errorText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 16,
   },
   footerText: {
     fontSize: 14,
@@ -334,6 +286,6 @@ const styles = StyleSheet.create({
   },
   signUpText: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '800',
   }
 });

@@ -6,6 +6,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../constants/Colors';
 import { useAuthStore } from '../store/useAuthStore';
 import { AuthService } from '../services/api';
@@ -19,11 +20,17 @@ export default function RootLayout() {
 
   // Auth Guard & Initialization
   useEffect(() => {
-    // Small delay to ensure segments and router are fully ready
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       const inAuthGroup = segments[0] === 'login' || segments[0] === 'register';
+      const inOnboarding = segments[0] === 'onboarding';
 
-      if (!isLoggedIn && !inAuthGroup) {
+      const onboardingDone = await AsyncStorage.getItem('tazq-onboarding-done');
+      if (!onboardingDone && !inOnboarding) {
+        router.replace('/onboarding');
+        return;
+      }
+
+      if (!isLoggedIn && !inAuthGroup && !inOnboarding) {
         router.replace('/login');
       } else if (isLoggedIn && inAuthGroup) {
         router.replace('/');
@@ -40,8 +47,10 @@ export default function RootLayout() {
         try {
           const userData = await AuthService.getCurrentUser();
           if (userData) setUser(userData);
-        } catch (error) {
-          console.error('Session sync failed:', error);
+        } catch (error: any) {
+          if (error.response?.status !== 401) {
+            console.warn('Session sync failed:', error.message);
+          }
           logout();
         }
       }
@@ -60,6 +69,7 @@ export default function RootLayout() {
           animation: 'fade_from_bottom',
         }}
       >
+        <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
         <Stack.Screen name="login" options={{ gestureEnabled: false }} />
         <Stack.Screen name="register" />
         <Stack.Screen name="index" options={{ gestureEnabled: false }} />

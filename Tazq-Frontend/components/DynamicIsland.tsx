@@ -10,10 +10,13 @@ import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useAppTheme } from '../hooks/useAppTheme';
+import { useLanguageStore } from '../store/useLanguageStore';
+
 export const DynamicIsland = () => {
   const { width } = useWindowDimensions();
-  const colorScheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
-  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { theme, colorScheme } = useAppTheme();
+  const { t } = useLanguageStore();
   const router = useRouter();
   const { isActive, seconds, currentTask } = useFocusStore();
 
@@ -28,11 +31,13 @@ export const DynamicIsland = () => {
     router.push('/focus');
   };
 
+  const isDark = colorScheme === 'dark';
+
   return (
     <MotiView
-      from={{ opacity: 0, scale: 0.9 }}
+      from={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="mx-6 my-4"
+      style={styles.container}
     >
       <TouchableOpacity 
         onPress={handlePress}
@@ -40,136 +45,111 @@ export const DynamicIsland = () => {
         style={[
             styles.wrapper, 
             { 
-                borderColor: isActive ? theme.primary + '40' : theme.outlineVariant + '15',
-                backgroundColor: theme.surfaceContainerLow,
-                shadowColor: isActive ? theme.primary : '#000',
+                backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerLowest,
+                borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
             }
         ]}
       >
-        <BlurView
-          intensity={Platform.OS === 'ios' ? 40 : 100}
-          tint={colorScheme}
-          style={styles.blurContainer}
-        >
-          {isActive && (
-              <LinearGradient
-                colors={[theme.primary + '10', 'transparent']}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              />
-          )}
-
-          <View className="flex-row items-center flex-1">
-            <MotiView 
-              animate={{ 
-                scale: isActive ? [1, 1.15, 1] : 1,
-                rotate: isActive ? ['0deg', '15deg', '-15deg', '0deg'] : '0deg',
-                backgroundColor: isActive ? theme.primary : theme.surfaceContainerHigh
-              }}
-              transition={{ loop: true, duration: 2500, type: 'timing' }}
-              style={styles.iconCircle}
-            >
-              {isActive ? (
-                <TimerIcon size={20} color="white" />
-              ) : (
-                <Sparkles size={20} color={theme.onSurfaceVariant} />
-              )}
-            </MotiView>
-
-            <View className="flex-1">
-              <Text style={[styles.statusText, { color: isActive ? theme.primary : theme.onSurfaceVariant }]}>
-                {isActive ? 'Ongoing Focus' : 'Next Up'}
-              </Text>
-              <MotiText 
-                key={currentTask}
-                from={{ opacity: 0, translateX: -5 }}
-                animate={{ opacity: 1, translateX: 0 }}
-                style={[styles.taskText, { color: theme.onSurface }]} 
-                numberOfLines={1}
-              >
-                {currentTask}
-              </MotiText>
+        <View style={styles.content}>
+            <View style={[styles.iconCircle, { backgroundColor: isActive ? theme.primaryContainer : theme.surfaceContainerHigh }]}>
+                <Zap size={20} color={isActive ? theme.onPrimaryContainer : theme.onSurfaceVariant} fill={isActive ? theme.onPrimaryContainer : 'none'} />
             </View>
-          </View>
-
-          <View className="flex-row items-center gap-3">
-             <AnimatePresence>
-                {isActive && (
-                    <MotiText 
-                        from={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        style={[styles.timeText, { color: theme.primary }]}
-                    >
-                        {formatTime(seconds)}
-                    </MotiText>
-                )}
-             </AnimatePresence>
-             <View style={[styles.badge, { backgroundColor: isActive ? theme.primary + '15' : theme.surfaceContainerHigh }]}>
-                <Text style={[styles.badgeText, { color: isActive ? theme.primary : theme.onSurface }]}>
-                  {isActive ? 'Live' : 'Ready'}
+            
+            <View style={styles.textContainer}>
+                <Text style={[styles.label, { color: isDark ? theme.secondary : theme.onSurfaceVariant }]}>
+                    {isActive ? t.activeFocus : t.dailyGoal}
                 </Text>
-             </View>
-          </View>
-        </BlurView>
+                <Text style={[styles.title, { color: theme.onSurface }]} numberOfLines={1}>
+                    {isActive ? currentTask : 'Finalize Design System'}
+                </Text>
+            </View>
+
+            <TouchableOpacity 
+                onPress={handlePress}
+                style={[
+                    styles.actionButton, 
+                    { 
+                        backgroundColor: theme.primary,
+                        shadowColor: isDark ? theme.primary : '#000',
+                    }
+                ]}
+            >
+                <LinearGradient
+                    colors={isDark ? [theme.primary, '#3367ff'] : [theme.primary, theme.primaryContainer]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.btnGradient}
+                >
+                    <Text style={[styles.actionText, { color: theme.onPrimary }]}>
+                        {isActive ? formatTime(seconds) : t.start}
+                    </Text>
+                </LinearGradient>
+            </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     </MotiView>
   );
 };
 
 const styles = StyleSheet.create({
-  wrapper: {
-    borderRadius: 40,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 4,
-  },
-  blurContainer: {
+  container: {
     paddingHorizontal: 24,
-    paddingVertical: 18,
+    marginVertical: 12,
+  },
+  wrapper: {
+    borderRadius: 48,
+    padding: 12,
+    borderWidth: 1.2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.1,
+    shadowRadius: 30,
+    elevation: 6,
+  },
+  content: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
   },
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
   },
-  statusText: {
+  textContainer: {
+    flex: 1,
+  },
+  label: {
     fontSize: 9,
-    textTransform: 'uppercase',
     fontWeight: '900',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
     marginBottom: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Plus Jakarta Sans' : 'sans-serif',
   },
-  taskText: {
+  title: {
     fontSize: 15,
     fontWeight: '800',
-    paddingRight: 16,
+    fontFamily: Platform.OS === 'ios' ? 'Plus Jakarta Sans' : 'sans-serif',
   },
-  timeText: {
-    fontWeight: '900',
-    fontSize: 16,
-    letterSpacing: -0.5,
-    fontVariant: ['tabular-nums'],
-  },
-  badge: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+  actionButton: {
     borderRadius: 100,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 5,
+    overflow: 'hidden',
   },
-  badgeText: {
-    fontSize: 9,
+  btnGradient: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: {
+    fontSize: 13,
     fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: -0.2,
   }
 });

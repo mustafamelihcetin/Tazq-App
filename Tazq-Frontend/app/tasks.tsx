@@ -1,13 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Animated,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, useColorScheme, ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
-import { Check, Timer, Trash2, Plus, X } from 'lucide-react-native';
+import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell } from 'lucide-react-native';
 import { Colors } from '../constants/Colors';
-import { useColorScheme } from 'react-native';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useTaskStore } from '../store/useTaskStore';
@@ -16,62 +13,89 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { TaskService } from '../services/api';
+import { TaskService, AiService } from '../services/api';
+import { parseTaskHint } from '../utils/taskParser';
+
+import { useAppTheme } from '../hooks/useAppTheme';
 
 type Priority = 'Low' | 'Medium' | 'High';
+type FilterType = 'all' | 'High' | 'Medium' | 'Low' | 'done';
+
+interface TaskForm {
+  title: string;
+  description: string;
+  priority: Priority;
+  dueDate: string;
+}
+
+const EMPTY_FORM: TaskForm = { title: '', description: '', priority: 'Medium', dueDate: '' };
 
 export default function ActionCenter() {
-  const colorScheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
-  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { theme, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
   const { user } = useAuthStore();
-  const { tasks, toggleTaskCompletion, addTask, removeTask, setTasks, setLoading, isLoading } = useTaskStore();
+  const { tasks, toggleTaskCompletion, addTask, removeTask, updateTask, setTasks, setLoading, isLoading } = useTaskStore();
   const { t } = useLanguageStore();
   const { setCurrentTask } = useFocusStore();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
+  const [filter, setFilter] = useState<FilterType>('all');
   const [modalVisible, setModalVisible] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<Priority>('Medium');
-  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
   const [titleError, setTitleError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [nlpHint, setNlpHint] = useState('');
+  const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [aiText, setAiText] = useState('');
+  const [aiParsing, setAiParsing] = useState(false);
 
-  useEffect(() => {
-    loadTasks();
-  }, []);
+  useEffect(() => { loadTasks(); }, []);
 
   const loadTasks = async () => {
     setLoading(true);
     try {
       const data = await TaskService.getTasks();
       setTasks(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error('loadTasks error:', e);
+    } catch (e: any) {
+      if (e.response?.status !== 401) {
+        console.warn('loadTasks error:', e.message);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTitleChange = (text: string) => {
+    setForm((f) => ({ ...f, title: text }));
+    setTitleError(false);
+    const hint = parseTaskHint(text);
+    const parts: string[] = [];
+    if (hint.priority) {
+      setForm((f) => ({ ...f, priority: hint.priority! }));
+      parts.push(hint.priority === 'High' ? '🔴 High' : hint.priority === 'Medium' ? '🟡 Medium' : '🟢 Low');
+    }
+    if (hint.dueDate) {
+      setForm((f) => ({ ...f, dueDate: hint.dueDate! }));
+      parts.push(`📅 ${hint.dueDate}`);
+    }
+    setNlpHint(parts.join('  '));
   };
 
   const handleToggle = async (id: number) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
-    // Optimistic update
     toggleTaskCompletion(id);
     try {
       await TaskService.updateTask(id, {
-        title: task.title,
-        description: task.description,
-        isCompleted: !task.isCompleted,
-        priority: task.priority as Priority,
-        tags: task.tags,
-        dueDate: task.dueDate,
-        dueTime: task.dueTime,
+        title: task.title, description: task.description,
+        isCompleted: !task.isCompleted, priority: task.priority as Priority,
+        tags: task.tags, dueDate: task.dueDate, dueTime: task.dueTime,
       });
-    } catch (e) {
-      // Revert on failure
+    } catch {
       toggleTaskCompletion(id);
-      console.error('toggle error:', e);
     }
   };
 
@@ -82,56 +106,54 @@ export default function ActionCenter() {
       {
         text: t.delete, style: 'destructive', onPress: async () => {
           removeTask(id);
-          try {
-            await TaskService.deleteTask(id);
-          } catch (e) {
-            console.error('delete error:', e);
-            loadTasks(); // re-sync on failure
-          }
+          try { await TaskService.deleteTask(id); }
+          catch { loadTasks(); }
         }
       },
     ]);
   };
 
-  const handleStartTimer = (taskName: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    setCurrentTask(taskName);
-    router.push('/focus');
-  };
-
-  const openModal = () => {
-    setTitle('');
-    setDescription('');
-    setPriority('Medium');
+  const openAdd = () => {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setNlpHint('');
     setTitleError(false);
     setModalVisible(true);
   };
 
-  const closeModal = () => {
-    setModalVisible(false);
+  const openEdit = (id: number) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    setEditingId(id);
+    setForm({ title: task.title, description: task.description, priority: task.priority as Priority, dueDate: task.dueDate?.split('T')[0] ?? '' });
+    setNlpHint('');
+    setTitleError(false);
+    setModalVisible(true);
   };
 
   const handleSave = async () => {
-    if (!title.trim()) {
-      setTitleError(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      return;
-    }
+    if (!form.title.trim()) { setTitleError(true); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); return; }
     setSaving(true);
+    const payload = {
+      title: form.title.trim(),
+      description: form.description.trim(),
+      isCompleted: false,
+      priority: form.priority,
+      dueDate: form.dueDate || undefined,
+      tags: [], // Added missing tags property
+    };
     try {
-      const created = await TaskService.createTask({
-        title: title.trim(),
-        description: description.trim(),
-        isCompleted: false,
-        priority,
-        tags: [],
-      });
-      addTask(created);
+      if (editingId !== null) {
+        await TaskService.updateTask(editingId, payload);
+        updateTask(editingId, payload);
+      } else {
+        const created = await TaskService.createTask(payload);
+        addTask(created);
+      }
+      setModalVisible(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      closeModal();
-    } catch (e) {
-      console.error('createTask error:', e);
-      Alert.alert('Hata', 'Görev oluşturulamadı.');
+    } catch {
+      Alert.alert('Error', 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -143,364 +165,359 @@ export default function ActionCenter() {
     return theme.tertiary;
   };
 
+  const filteredTasks = tasks.filter((task) => {
+    if (filter === 'done') return task.isCompleted;
+    if (filter === 'all') return true;
+    return task.priority === filter && !task.isCompleted;
+  });
+
+  const filters: { key: FilterType; label: string }[] = [
+    { key: 'all', label: t.filterAll },
+    { key: 'High', label: t.filterHigh },
+    { key: 'Medium', label: t.filterMedium },
+    { key: 'Low', label: t.filterLow },
+    { key: 'done', label: t.filterDone },
+  ];
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
-        <MotiView
-          from={{ opacity: 0, translateY: -20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          style={styles.headerContainer}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={[styles.avatarContainer, { borderColor: theme.primary + '20' }]}>
-              <Image
-                key={user?.id || 'tasks'}
-                source={{ 
-                    uri: user?.avatar || `https://api.dicebear.com/7.x/avataaars/png?seed=${user?.name || 'Tazq'}` 
-                }}
-                style={styles.avatar}
-              />
-            </View>
-            <Text style={[styles.logoText, { color: theme.onSurface }]}>TAZQ</Text>
-          </View>
-          <TouchableOpacity
-            onPress={openModal}
-            style={[styles.plusBtn, { backgroundColor: theme.primary }]}
-          >
-            <Plus size={22} color="white" />
-          </TouchableOpacity>
+        <MotiView from={{ opacity: 0, translateY: -10 }} animate={{ opacity: 1, translateY: 0 }} style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: theme.surfaceContainerLow }]}>
+                <X size={20} color={theme.onSurface} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: theme.onSurface }]}>{t.actionCenter}</Text>
+            <TouchableOpacity onPress={() => setAiModalVisible(true)} style={[styles.aiBtn, { backgroundColor: theme.tertiary + '15' }]}>
+                <Sparkles size={18} color={theme.tertiary} fill={theme.tertiary} />
+            </TouchableOpacity>
         </MotiView>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingTop: 20, paddingBottom: 160, paddingHorizontal: 24 }}
+        <ScrollView 
+            style={{ flex: 1 }} 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingTop: 10, paddingBottom: 140, paddingHorizontal: 24 }}
         >
-          {/* Headline */}
-          <MotiView
-            from={{ opacity: 0, translateX: -20 }}
-            animate={{ opacity: 1, translateX: 0 }}
-            transition={{ type: 'spring', damping: 20 }}
-            style={{ marginBottom: 32 }}
-          >
-            <Text style={[styles.headlineTitle, { color: theme.primary }]}>{t.actionCenter}</Text>
-            <MotiText
-              key={tasks.length}
-              from={{ opacity: 0, translateY: 5 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              style={[styles.headlineSub, { color: theme.onSurfaceVariant }]}
-            >
-              {tasks.length > 0
-                ? t.allTasksReady.replace('{count}', tasks.length.toString())
-                : t.allTasksReady}
-            </MotiText>
+          <MotiView from={{ opacity: 0, translateX: -20 }} animate={{ opacity: 1, translateX: 0 }} style={{ marginBottom: 24 }}>
+            <Text style={[styles.headline, { color: theme.onSurface }]}>{t.actionCenter}</Text>
+            <Text style={[styles.subHeadline, { color: theme.onSurfaceVariant }]}>{t.allTasksReady}</Text>
           </MotiView>
 
-          {/* Stats */}
-          <View style={{ flexDirection: 'row', gap: 16, marginBottom: 40 }}>
-            <BentoCard style={{ flex: 2 }} index={1}>
-              <View style={{ flex: 1, justifyContent: 'space-between' }}>
-                <View>
-                  <Text style={[styles.statCategory, { color: theme.primary }]}>{t.activeStreak}</Text>
-                  <Text style={[styles.statName, { color: theme.onSurface }]} numberOfLines={1}>
-                    {tasks.find((t) => !t.isCompleted)?.title || '—'}
-                  </Text>
+          {/* Stats Bento Section */}
+          <View style={styles.statsGrid}>
+            <BentoCard index={0} style={{ flex: 1.4 }}>
+                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>COMPLETED</Text>
+                <View style={styles.statValueRow}>
+                    <Text style={[styles.statValue, { color: theme.onSurface }]}>{tasks.filter(t => t.isCompleted).length}</Text>
+                    <View style={[styles.trendBadge, { backgroundColor: theme.tertiary + '15' }]}>
+                        <TrendingUp size={12} color={theme.tertiary} />
+                    </View>
                 </View>
-                {tasks.find((t) => !t.isCompleted) && (
-                  <TouchableOpacity
-                    onPress={() => handleStartTimer(tasks.find((t) => !t.isCompleted)!.title)}
-                    style={[styles.timerBtn, { backgroundColor: theme.primary }]}
-                  >
-                    <Text style={styles.timerBtnText}>{t.startTimer}</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+                <Text style={[styles.statSub, { color: theme.onSurfaceVariant }]}>{t.completedTasks}</Text>
             </BentoCard>
 
-            <BentoCard style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} index={2} glass>
-              <View style={[styles.checkCircle, { backgroundColor: theme.tertiary + '15' }]}>
-                <Check size={24} color={theme.tertiary} />
-              </View>
-              <MotiText
-                key={tasks.filter((t) => t.isCompleted).length}
-                from={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                style={[styles.statValue, { color: theme.onSurface }]}
-              >
-                {tasks.filter((t) => t.isCompleted).length}
-              </MotiText>
-              <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.completedTasks}</Text>
+            <BentoCard index={1} style={{ flex: 1 }}>
+                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>PENDING</Text>
+                <Text style={[styles.statValue, { color: theme.primary }]}>{tasks.filter(t => !t.isCompleted).length}</Text>
+                <Text style={[styles.statSub, { color: theme.onSurfaceVariant }]}>{t.activeStreak}</Text>
             </BentoCard>
           </View>
 
-          {/* Task List */}
-          <View>
-            <Text style={[styles.listTitle, { color: theme.onSurface }]}>{t.upcoming}</Text>
-
-            {tasks.length === 0 && !isLoading && (
-              <MotiView
-                from={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                style={[styles.emptyState, { backgroundColor: theme.surfaceContainerLow }]}
+          {/* Filter Pills */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ gap: 10 }}>
+            {filters.map((f) => (
+              <TouchableOpacity 
+                key={f.key} 
+                onPress={() => { setFilter(f.key); Haptics.selectionAsync(); }}
+                style={[
+                    styles.filterChip, 
+                    { backgroundColor: filter === f.key ? theme.primary : theme.surfaceContainerLow }
+                ]}
               >
-                <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>{t.noTasks}</Text>
-                <Text style={[styles.emptyHint, { color: theme.onSurfaceVariant }]}>{t.noTasksHint}</Text>
-              </MotiView>
-            )}
+                <Text style={[styles.filterChipText, { color: filter === f.key ? 'white' : theme.onSurfaceVariant }]}>
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
+          {/* Task List */}
+          <View style={styles.listSection}>
+            <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>{t.upcoming}</Text>
+            
             <AnimatePresence>
-              {tasks.map((task, i) => (
-                <MotiView
-                  key={task.id}
-                  from={{ opacity: 0, scale: 0.9, translateY: 10 }}
-                  animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: i * 50, type: 'spring', damping: 15 }}
-                  style={{ marginBottom: 16 }}
-                >
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={() => handleToggle(task.id)}
-                    onLongPress={() => handleDelete(task.id)}
-                    style={[
-                      styles.taskItem,
-                      {
-                        backgroundColor: theme.surfaceContainerLow,
-                        borderColor: task.isCompleted ? theme.primary + '20' : theme.outlineVariant + '15',
-                      },
-                    ]}
-                  >
-                    <View style={[styles.priorityIndicator, { backgroundColor: priorityColor(task.priority) }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.taskTitle,
-                          { color: theme.onSurface },
-                          task.isCompleted && { textDecorationLine: 'line-through', opacity: 0.4 },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {task.title}
-                      </Text>
-                      <Text style={[styles.taskStatus, { color: theme.onSurfaceVariant }]}>
-                        {task.isCompleted ? t.taskCompleted : t.waitingForAction}
-                      </Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      {task.priority === 'High' && !task.isCompleted && (
-                        <MotiView
-                          from={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          style={[styles.highPriorityBadge, { backgroundColor: theme.error + '15' }]}
+                {filteredTasks.length === 0 ? (
+                    <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} style={styles.emptyState}>
+                        <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>{t.noTasksHint}</Text>
+                    </MotiView>
+                ) : (
+                    filteredTasks.map((task, i) => (
+                        <MotiView 
+                            key={task.id} 
+                            from={{ opacity: 0, translateY: 10 }}
+                            animate={{ opacity: 1, translateY: 0 }}
+                            transition={{ delay: i * 50 }}
+                            style={{ marginBottom: 12 }}
                         >
-                          <Text style={[styles.highPriorityText, { color: theme.error }]}>HIGH</Text>
+                            <TouchableOpacity 
+                                activeOpacity={0.8} 
+                                onPress={() => handleToggle(task.id)}
+                                onLongPress={() => handleDelete(task.id)}
+                                style={[
+                                    styles.taskCard, 
+                                    { 
+                                        backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest,
+                                        borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                                    }
+                                ]}
+                            >
+                                <View style={[styles.priorityIndicator, { backgroundColor: priorityColor(task.priority) }]} />
+                                <View style={styles.taskContent}>
+                                    <Text style={[
+                                        styles.taskTitleText, 
+                                        { color: theme.onSurface },
+                                        task.isCompleted && { textDecorationLine: 'line-through', opacity: 0.4 }
+                                    ]} numberOfLines={1}>
+                                        {task.title}
+                                    </Text>
+                                    <View style={styles.taskMetaRow}>
+                                        <Text style={[styles.taskMetaText, { color: theme.onSurfaceVariant }]}>
+                                            {task.dueDate ? `📅 ${task.dueDate.split('T')[0]}` : t.waitingForAction}
+                                        </Text>
+                                    </View>
+                                </View>
+                                
+                                <View style={styles.taskActions}>
+                                    {!task.isCompleted && (
+                                        <TouchableOpacity onPress={() => openEdit(task.id)} style={styles.editBtn}>
+                                            <Pencil size={14} color={theme.onSurfaceVariant} />
+                                        </TouchableOpacity>
+                                    )}
+                                    <MotiView 
+                                        animate={{ 
+                                            backgroundColor: task.isCompleted ? theme.tertiary : theme.surfaceContainerHigh 
+                                        }}
+                                        style={styles.checkIcon}
+                                    >
+                                        <Check size={14} color={task.isCompleted ? 'white' : theme.onSurfaceVariant} strokeWidth={3} />
+                                    </MotiView>
+                                </View>
+                            </TouchableOpacity>
                         </MotiView>
-                      )}
-                      {!task.isCompleted && (
-                        <TouchableOpacity
-                          onPress={() => handleStartTimer(task.title)}
-                          style={[styles.timerIcon, { backgroundColor: theme.surfaceContainerHigh }]}
-                        >
-                          <Timer size={16} color={theme.primary} />
-                        </TouchableOpacity>
-                      )}
-                      <MotiView
-                        animate={{
-                          backgroundColor: task.isCompleted ? theme.tertiary : theme.surfaceContainerHigh,
-                          scale: task.isCompleted ? [1, 1.2, 1] : 1,
-                        }}
-                        style={styles.checkContainer}
-                      >
-                        <Check size={16} color={task.isCompleted ? 'white' : theme.onSurfaceVariant} strokeWidth={3} />
-                      </MotiView>
-                    </View>
-                  </TouchableOpacity>
-                </MotiView>
-              ))}
+                    ))
+                )}
             </AnimatePresence>
           </View>
         </ScrollView>
       </SafeAreaView>
 
-      {/* FAB */}
-      <TouchableOpacity
-        onPress={openModal}
-        style={[styles.fab, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
+      <TouchableOpacity 
+        onPress={openAdd}
+        style={[
+            styles.fab, 
+            { backgroundColor: theme.primary, shadowColor: isDark ? theme.primary : '#000' }
+        ]}
       >
         <Plus size={32} color="white" />
       </TouchableOpacity>
 
       <BottomNavBar />
 
-      {/* Add Task Modal */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={closeModal}
-      >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeModal} />
-          <View style={[styles.modalSheet, { backgroundColor: theme.surfaceContainerLow }]}>
-            {/* Handle */}
-            <View style={[styles.sheetHandle, { backgroundColor: theme.outlineVariant + '40' }]} />
-
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.onSurface }]}>{t.addTask}</Text>
-              <TouchableOpacity onPress={closeModal} style={[styles.modalClose, { backgroundColor: theme.surfaceContainerHigh }]}>
-                <X size={18} color={theme.onSurfaceVariant} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Title */}
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: theme.surfaceContainerHigh,
-                  color: theme.onSurface,
-                  borderColor: titleError ? theme.error : 'transparent',
-                  borderWidth: titleError ? 1 : 0,
-                },
-              ]}
-              placeholder={t.taskTitle}
-              placeholderTextColor={theme.onSurfaceVariant + '80'}
-              value={title}
-              onChangeText={(v) => { setTitle(v); setTitleError(false); }}
-              autoFocus
-              returnKeyType="next"
-            />
-            {titleError && (
-              <Text style={[styles.errorText, { color: theme.error }]}>{t.titleRequired}</Text>
-            )}
-
-            {/* Description */}
-            <TextInput
-              style={[
-                styles.input,
-                styles.inputMulti,
-                { backgroundColor: theme.surfaceContainerHigh, color: theme.onSurface },
-              ]}
-              placeholder={t.taskDescription}
-              placeholderTextColor={theme.onSurfaceVariant + '80'}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={3}
-            />
-
-            {/* Priority */}
-            <Text style={[styles.priorityLabel, { color: theme.onSurfaceVariant }]}>{t.priority}</Text>
-            <View style={styles.priorityRow}>
-              {(['Low', 'Medium', 'High'] as Priority[]).map((p) => (
-                <TouchableOpacity
-                  key={p}
-                  onPress={() => { setPriority(p); Haptics.selectionAsync(); }}
-                  style={[
-                    styles.priorityChip,
-                    {
-                      backgroundColor: priority === p ? priorityColor(p) : theme.surfaceContainerHigh,
-                    },
-                  ]}
-                >
-                  <Text style={[
-                    styles.priorityChipText,
-                    { color: priority === p ? 'white' : theme.onSurfaceVariant },
-                  ]}>
-                    {p === 'Low' ? t.low : p === 'Medium' ? t.medium : t.high}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Save */}
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={saving}
-              style={[styles.saveBtn, { backgroundColor: theme.primary, opacity: saving ? 0.7 : 1 }]}
+      {/* Modern Stitch Modal - Deep Focus Edition */}
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && setModalVisible(false)} />
+          
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.sheetContainer}
+          >
+            <MotiView 
+                from={{ translateY: 300 }}
+                animate={{ translateY: 0 }}
+                style={[styles.sheet, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}
             >
-              <Text style={styles.saveBtnText}>{saving ? '...' : t.save}</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
+                <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
+                
+                <View style={styles.sheetHeader}>
+                    <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
+                        {editingId ? t.editTask : t.addTask}
+                    </Text>
+                    <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeModalBtn}>
+                        <X size={24} color={theme.onSurfaceVariant} />
+                    </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+                    {/* Main Info */}
+                    <View style={styles.section}>
+                        <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
+                            <TextInput 
+                                style={[styles.modalInput, { color: theme.onSurface }]}
+                                placeholder={t.taskTitle}
+                                placeholderTextColor={theme.onSurfaceVariant + '60'}
+                                value={form.title}
+                                onChangeText={handleTitleChange}
+                            />
+                            <Sparkles size={18} color={theme.primary} />
+                        </View>
+
+                        <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, marginTop: 12 }]}>
+                            <TextInput 
+                                style={[styles.modalInput, { color: theme.onSurface, paddingTop: 14 }]}
+                                placeholder={t.taskDescription + '...'}
+                                placeholderTextColor={theme.onSurfaceVariant + '60'}
+                                value={form.description}
+                                onChangeText={v => setForm(f => ({ ...f, description: v }))}
+                                multiline
+                                numberOfLines={3}
+                            />
+                        </View>
+                    </View>
+
+                    {/* Date & Time Section */}
+                    <View style={styles.section}>
+                        <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant }]}>{t.duration.toUpperCase()}</Text>
+                        <View style={styles.dateTimeRow}>
+                            <TouchableOpacity style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
+                                <Timer size={16} color={theme.primary} />
+                                <TextInput 
+                                    placeholder="Tarih"
+                                    placeholderTextColor={theme.onSurfaceVariant + '60'}
+                                    style={[styles.chipInput, { color: theme.onSurface }]}
+                                    value={form.dueDate}
+                                    onChangeText={v => setForm(f => ({ ...f, dueDate: v }))}
+                                />
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
+                                <Sparkles size={16} color={theme.secondary} />
+                                <TextInput 
+                                    placeholder="Saat"
+                                    placeholderTextColor={theme.onSurfaceVariant + '60'}
+                                    style={[styles.chipInput, { color: theme.onSurface }]}
+                                />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    {/* Priority Selection */}
+                    <View style={styles.section}>
+                        <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant }]}>{t.priority.toUpperCase()}</Text>
+                        <View style={styles.priorityRow}>
+                            {([
+                                { key: 'Low', label: t.filterLow },
+                                { key: 'Medium', label: t.filterMedium },
+                                { key: 'High', label: t.filterHigh }
+                            ] as { key: Priority, label: string }[]).map((p) => (
+                                <TouchableOpacity 
+                                    key={p.key}
+                                    onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, priority: p.key })); }}
+                                    style={[
+                                        styles.priorityTab,
+                                        { 
+                                            backgroundColor: form.priority === p.key ? priorityColor(p.key) : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow),
+                                        }
+                                    ]}
+                                >
+                                    <Text style={[styles.priorityTabText, { color: form.priority === p.key ? 'white' : theme.onSurfaceVariant }]}>{p.label}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+
+                    {/* Reminder Bar */}
+                    <View style={[styles.reminderBar, { backgroundColor: isDark ? theme.surfaceContainerHigh + '50' : theme.surfaceContainerLow }]}>
+                        <View style={styles.reminderContent}>
+                            <Bell size={18} color={theme.primary} />
+                            <Text style={[styles.reminderText, { color: theme.onSurface }]}>Hatırlatıcı</Text>
+                        </View>
+                        <View style={[styles.toggleTrack, { backgroundColor: theme.primary }]}>
+                            <View style={styles.toggleThumb} />
+                        </View>
+                    </View>
+
+                    <TouchableOpacity 
+                        onPress={handleSave} 
+                        disabled={saving}
+                        style={[styles.modalSaveBtn, { shadowColor: theme.primary }]}
+                    >
+                        <LinearGradient
+                            colors={isDark ? [theme.primary, '#3367ff'] : [theme.primary, theme.primaryContainer]}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                            style={styles.modalSaveGradient}
+                        >
+                            {saving ? <ActivityIndicator color="white" /> : (
+                                <>
+                                    <Check size={20} color="white" strokeWidth={3} />
+                                    <Text style={styles.modalSaveText}>{t.save}</Text>
+                                </>
+                            )}
+                        </LinearGradient>
+                    </TouchableOpacity>
+                </ScrollView>
+            </MotiView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 50,
-  },
-  avatarContainer: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, overflow: 'hidden' },
-  avatar: { width: '100%', height: '100%' },
-  logoText: { fontSize: 22, fontWeight: '900', letterSpacing: -1 },
-  plusBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headlineTitle: { fontSize: 48, fontWeight: '900', letterSpacing: -2, lineHeight: 52 },
-  headlineSub: { fontSize: 14, marginTop: 8, fontWeight: '600', opacity: 0.6 },
-  statCategory: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 },
-  statName: { fontSize: 16, fontWeight: '700', marginTop: 4 },
-  timerBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, alignSelf: 'flex-start', marginTop: 16 },
-  timerBtnText: { color: 'white', fontSize: 12, fontWeight: '800' },
-  checkCircle: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  statValue: { fontSize: 24, fontWeight: '900' },
-  statLabel: { fontSize: 8, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 },
-  listTitle: { fontSize: 20, fontWeight: '900', marginBottom: 20, letterSpacing: -0.5 },
-  emptyState: { borderRadius: 24, padding: 40, alignItems: 'center' },
-  emptyTitle: { fontSize: 18, fontWeight: '800' },
-  emptyHint: { fontSize: 14, marginTop: 8, opacity: 0.6 },
-  taskItem: {
-    borderRadius: 24, padding: 20,
-    flexDirection: 'row', alignItems: 'center', borderWidth: 1,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
-  },
-  priorityIndicator: { width: 3, height: 32, borderRadius: 3, marginRight: 16 },
-  taskTitle: { fontSize: 16, fontWeight: '700' },
-  taskStatus: { fontSize: 10, fontWeight: '600', marginTop: 2, opacity: 0.5 },
-  highPriorityBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 100 },
-  highPriorityText: { fontSize: 8, fontWeight: '900' },
-  timerIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  checkContainer: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  fab: {
-    position: 'absolute', bottom: 32, right: 24,
-    width: 64, height: 64, borderRadius: 32,
-    alignItems: 'center', justifyContent: 'center',
-    shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20,
-    elevation: 10, zIndex: 100,
-  },
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalSheet: {
-    borderTopLeftRadius: 32, borderTopRightRadius: 32,
-    padding: 24, paddingBottom: 40,
-  },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-  modalClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  input: {
-    borderRadius: 16, padding: 16, fontSize: 16, fontWeight: '500',
-    marginBottom: 12,
-  },
-  inputMulti: { height: 80, textAlignVertical: 'top' },
-  errorText: { fontSize: 12, fontWeight: '600', marginTop: -8, marginBottom: 8, marginLeft: 4 },
-  priorityLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
-  priorityRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  priorityChip: { flex: 1, paddingVertical: 10, borderRadius: 100, alignItems: 'center' },
-  priorityChipText: { fontSize: 13, fontWeight: '800' },
-  saveBtn: { borderRadius: 100, padding: 18, alignItems: 'center' },
-  saveBtnText: { color: 'white', fontSize: 16, fontWeight: '900' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 12 },
+  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
+  aiBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  headline: { fontSize: 36, fontWeight: '900', letterSpacing: -1.5 },
+  subHeadline: { fontSize: 14, fontWeight: '600', opacity: 0.7, marginTop: 4 },
+  statsGrid: { flexDirection: 'row', gap: 16, marginBottom: 24 },
+  statLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  statValueRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 4 },
+  statValue: { fontSize: 32, fontWeight: '900', letterSpacing: -1 },
+  trendBadge: { padding: 4, borderRadius: 8 },
+  statSub: { fontSize: 10, fontWeight: '700' },
+  filterScroll: { marginBottom: 24 },
+  filterChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 100 },
+  filterChipText: { fontSize: 13, fontWeight: '800' },
+  listSection: { flex: 1 },
+  sectionTitle: { fontSize: 18, fontWeight: '900', marginBottom: 16 },
+  taskCard: { borderRadius: 24, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1.2 },
+  priorityIndicator: { width: 4, height: 32, borderRadius: 2, marginRight: 16 },
+  taskContent: { flex: 1 },
+  taskTitleText: { fontSize: 15, fontWeight: '700' },
+  taskMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  taskMetaText: { fontSize: 11, fontWeight: '600' },
+  taskActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  editBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  checkIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  fab: { position: 'absolute', bottom: 120, right: 24, width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', elevation: 10, zIndex: 100 },
+  emptyState: { padding: 40, alignItems: 'center' },
+  emptyText: { fontSize: 14, fontWeight: '600' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheetContainer: { width: '100%' },
+  sheet: { borderTopLeftRadius: 40, borderTopRightRadius: 40, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, borderWidth: 1, borderBottomWidth: 0 },
+  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  sheetTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
+  closeModalBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  formContainer: { paddingHorizontal: 24, paddingTop: 10 },
+  section: { marginBottom: 20 },
+  inputGroup: { borderRadius: 24, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, height: 60 },
+  modalInput: { flex: 1, fontSize: 16, fontWeight: '600' },
+  modalTextArea: { height: 100, alignItems: 'flex-start' },
+  dateTimeRow: { flexDirection: 'row', gap: 12 },
+  dateTimeChip: { flex: 1, height: 52, borderRadius: 18, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 10 },
+  chipInput: { flex: 1, fontSize: 13, fontWeight: '700' },
+  optionLabel: { fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginBottom: 12, marginLeft: 4, opacity: 0.6 },
+  priorityRow: { flexDirection: 'row', gap: 10 },
+  priorityTab: { flex: 1, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  priorityTabText: { fontSize: 13, fontWeight: '800' },
+  reminderBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 24, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  reminderContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  reminderText: { fontSize: 14, fontWeight: '800' },
+  toggleTrack: { width: 44, height: 24, borderRadius: 12, padding: 2, alignItems: 'flex-end' },
+  toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'white', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2 },
+  modalSaveBtn: { borderRadius: 24, overflow: 'hidden', marginTop: 10, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 8 },
+  modalSaveGradient: { paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  modalSaveText: { color: 'white', fontSize: 17, fontWeight: '900', letterSpacing: -0.5 },
 });
