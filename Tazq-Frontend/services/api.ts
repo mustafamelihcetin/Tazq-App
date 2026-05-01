@@ -1,7 +1,14 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
 
-const BASE_URL = 'http://192.168.0.122:5200';
+import { Platform } from 'react-native';
+
+const LOCAL_IP = '192.168.0.122'; // Bilgisayarının Wi-Fi IP'si
+const BASE_URL = Platform.select({
+  android: __DEV__ ? 'http://10.0.2.2:5200' : `http://${LOCAL_IP}:5200`,
+  ios: `http://${LOCAL_IP}:5200`,
+  default: `http://${LOCAL_IP}:5200`,
+});
 
 export const api = axios.create({
   baseURL: BASE_URL,

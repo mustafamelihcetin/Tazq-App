@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Alert, Modal, ActivityIndicator, useColorScheme, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Alert, Modal, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
 import { Bell, Moon, Languages, LogOut, ChevronRight, Award, Zap, Target } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AuthService, FocusService } from '../services/api';
-import { Colors } from '../constants/Colors';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useAuthStore } from '../store/useAuthStore';
@@ -45,11 +44,14 @@ export default function ProfileScreen() {
   const { theme, colorScheme, setTheme, currentSetting } = useAppTheme();
   const { user, setUser, logout } = useAuthStore();
   const { t, language, setLanguage } = useLanguageStore();
+  const { width, height } = useWindowDimensions();
   const router = useRouter();
   const isDark = colorScheme === 'dark';
 
+  const isSmallDevice = width < 380;
+  const isShortDevice = height < 750;
+
   const [avatarModalVisible, setAvatarModalVisible] = React.useState(false);
-  const [isUpdating, setIsUpdating] = React.useState(false);
   const [stats, setStats] = useState({ totalFocusHours: 0, completedTasksCount: 0, activeStreak: 0 });
 
   useEffect(() => {
@@ -80,70 +82,62 @@ export default function ProfileScreen() {
 
   const selectAvatar = async (name: string) => {
     if (!user) return;
-    
-    // Optimistic Update: Arayüzü anında güncelle
-    const oldAvatar = user.avatar;
     setUser({ ...user, avatar: name });
     setAvatarModalVisible(false);
-    
     try {
         await AuthService.updateProfile({ avatar: name });
     } catch (e) {
-        console.log('Avatar update failed on backend, but keeping local change:', e);
+        console.log('Avatar update failed:', e);
     }
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: 24 }} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { borderColor: isDark ? theme.primary + '40' : 'rgba(0,0,0,0.05)' }]}>
-                <Image 
-                    key={user?.avatar} 
-                    source={getAvatarSource(user?.avatar || null)} 
-                    style={styles.image} 
-                />
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: isSmallDevice ? 20 : 24 }} showsVerticalScrollIndicator={false}>
+          <View style={[styles.header, { marginTop: isShortDevice ? 20 : 32 }]}>
+            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { borderColor: isDark ? theme.primary + '40' : 'rgba(0,0,0,0.05)', width: isSmallDevice ? 90 : 110, height: isSmallDevice ? 90 : 110, borderRadius: isSmallDevice ? 45 : 55 }]}>
+                <Image key={user?.avatar} source={getAvatarSource(user?.avatar || null)} style={[styles.image, { borderRadius: isSmallDevice ? 40 : 50 }]} />
             </MotiView>
-            <View style={{ alignItems: 'center', marginTop: 16 }}>
-                <Text style={[styles.name, { color: theme.onSurface }]}>{user?.name || 'Alex'}</Text>
-                <Text style={[styles.email, { color: theme.onSurfaceVariant }]}>{user?.email || 'user@tazq.com'}</Text>
-                <TouchableOpacity onPress={() => setAvatarModalVisible(true)} style={[styles.editBtn, { backgroundColor: theme.primary }]}>
-                    <Text style={styles.editBtnText}>{t.editProfile}</Text>
+            <View style={{ alignItems: 'center', marginTop: isSmallDevice ? 12 : 16 }}>
+                <Text style={[styles.name, { color: theme.onSurface, fontSize: isSmallDevice ? 22 : 28 }]}>{user?.name || 'Alex'}</Text>
+                <Text style={[styles.email, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 12 : 14 }]}>{user?.email || 'user@tazq.com'}</Text>
+                <TouchableOpacity onPress={() => setAvatarModalVisible(true)} style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: isSmallDevice ? 8 : 10 }]}>
+                    <Text style={[styles.editBtnText, { fontSize: isSmallDevice ? 11 : 13 }]}>{t.editProfile}</Text>
                 </TouchableOpacity>
             </View>
           </View>
 
-          <View style={styles.statsGrid}>
-            <BentoCard index={1} style={{ flex: 1, alignItems: 'center' }}>
-                <Award size={22} color={theme.primary} />
-                <Text style={[styles.statValue, { color: theme.onSurface }]}>{stats.totalFocusHours}</Text>
-                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.hours}</Text>
+          <View style={[styles.statsGrid, { gap: isSmallDevice ? 8 : 12, marginTop: isShortDevice ? 24 : 40 }]}>
+            <BentoCard index={1} style={{ flex: 1, alignItems: 'center', padding: isSmallDevice ? 12 : 16 }}>
+                <Award size={isSmallDevice ? 18 : 22} color={theme.primary} />
+                <Text style={[styles.statValue, { color: theme.onSurface, fontSize: isSmallDevice ? 18 : 22 }]}>{stats.totalFocusHours}</Text>
+                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>{t.hours}</Text>
             </BentoCard>
-            <BentoCard index={2} style={{ flex: 1, alignItems: 'center' }}>
-                <Target size={22} color={theme.secondary} />
-                <Text style={[styles.statValue, { color: theme.onSurface }]}>{stats.completedTasksCount}</Text>
-                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.tasks}</Text>
+            <BentoCard index={2} style={{ flex: 1, alignItems: 'center', padding: isSmallDevice ? 12 : 16 }}>
+                <Target size={isSmallDevice ? 18 : 22} color={theme.secondary} />
+                <Text style={[styles.statValue, { color: theme.onSurface, fontSize: isSmallDevice ? 18 : 22 }]}>{stats.completedTasksCount}</Text>
+                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>{t.tasks}</Text>
             </BentoCard>
-            <BentoCard index={3} style={{ flex: 1, alignItems: 'center' }}>
-                <Zap size={22} color={theme.tertiary} />
-                <Text style={[styles.statValue, { color: theme.onSurface }]}>{stats.activeStreak}</Text>
-                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.streak}</Text>
+            <BentoCard index={3} style={{ flex: 1, alignItems: 'center', padding: isSmallDevice ? 12 : 16 }}>
+                <Zap size={isSmallDevice ? 18 : 22} color={theme.tertiary} />
+                <Text style={[styles.statValue, { color: theme.onSurface, fontSize: isSmallDevice ? 18 : 22 }]}>{stats.activeStreak}</Text>
+                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>{t.streak}</Text>
             </BentoCard>
           </View>
 
-          <View style={styles.settingsSection}>
+          <View style={[styles.settingsSection, { marginTop: isShortDevice ? 24 : 40 }]}>
             <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant }]}>{t.settings}</Text>
             <View style={[styles.settingsCard, { backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderWidth: 1.2 }]}>
-                <SettingItem icon={<Bell size={20} color={theme.onSurfaceVariant} />} label={t.notifications} theme={theme} />
+                <SettingItem icon={<Bell size={18} color={theme.onSurfaceVariant} />} label={t.notifications} theme={theme} isSmall={isSmallDevice} />
                 <Divider theme={theme} />
-                <SettingItem icon={<Moon size={20} color={theme.onSurfaceVariant} />} label={t.appearance} right={<Text style={{ color: theme.primary, fontWeight: '800' }}>{currentSetting.toUpperCase()}</Text>} onPress={toggleTheme} theme={theme} />
+                <SettingItem icon={<Moon size={18} color={theme.onSurfaceVariant} />} label={t.appearance} right={<Text style={{ color: theme.primary, fontWeight: '800', fontSize: isSmallDevice ? 11 : 13 }}>{currentSetting.toUpperCase()}</Text>} onPress={toggleTheme} theme={theme} isSmall={isSmallDevice} />
                 <Divider theme={theme} />
-                <SettingItem icon={<Languages size={20} color={theme.onSurfaceVariant} />} label={t.language} right={<Text style={{ color: theme.primary, fontWeight: '800' }}>{language.toUpperCase()}</Text>} onPress={toggleLanguage} theme={theme} />
+                <SettingItem icon={<Languages size={18} color={theme.onSurfaceVariant} />} label={t.language} right={<Text style={{ color: theme.primary, fontWeight: '800', fontSize: isSmallDevice ? 11 : 13 }}>{language.toUpperCase()}</Text>} onPress={toggleLanguage} theme={theme} isSmall={isSmallDevice} />
             </View>
-            <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10' }]}>
-                <LogOut size={20} color={theme.error} />
-                <Text style={[styles.logoutText, { color: theme.error }]}>{t.logout}</Text>
+            <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: isShortDevice ? 20 : 32, padding: isSmallDevice ? 16 : 20 }]}>
+                <LogOut size={18} color={theme.error} />
+                <Text style={[styles.logoutText, { color: theme.error, fontSize: isSmallDevice ? 14 : 15 }]}>{t.logout}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -152,15 +146,15 @@ export default function ProfileScreen() {
       <Modal visible={avatarModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
             <TouchableOpacity style={{ flex: 1 }} onPress={() => setAvatarModalVisible(false)} />
-            <View style={[styles.modalContent, { backgroundColor: theme.surfaceContainerLow }]}>
+            <View style={[styles.modalContent, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', paddingBottom: Platform.OS === 'ios' ? 48 : 24 }]}>
                 <View style={[styles.modalHandle, { backgroundColor: theme.outlineVariant + '40' }]} />
-                <Text style={[styles.modalTitle, { color: theme.onSurface }]}>{t.chooseAvatar}</Text>
-                <View style={styles.avatarGrid}>
+                <Text style={[styles.modalTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 18 : 20 }]}>{t.chooseAvatar}</Text>
+                <View style={[styles.avatarGrid, { gap: isSmallDevice ? 12 : 16 }]}>
                     {AVATAR_CONFIGS.map((config) => (
                         <TouchableOpacity 
                             key={config.id} 
                             onPress={() => selectAvatar(config.key)} 
-                            style={[styles.avatarOption, { borderColor: theme.primary + '30' }]}
+                            style={[styles.avatarOption, { borderColor: theme.primary + '30', width: isSmallDevice ? 60 : 70, height: isSmallDevice ? 60 : 70, borderRadius: isSmallDevice ? 30 : 35 }]}
                         >
                             <Image source={config.image} style={styles.image} />
                         </TouchableOpacity>
@@ -174,14 +168,14 @@ export default function ProfileScreen() {
   );
 }
 
-function SettingItem({ icon, label, right, onPress, theme }: any) {
+function SettingItem({ icon, label, right, onPress, theme, isSmall }: any) {
     return (
-        <TouchableOpacity style={styles.settingItem} onPress={onPress}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <TouchableOpacity style={[styles.settingItem, { padding: isSmall ? 14 : 18 }]} onPress={onPress}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: isSmall ? 10 : 12 }}>
                 <View style={styles.iconBox}>{icon}</View>
-                <Text style={[styles.settingLabel, { color: theme.onSurface }]}>{label}</Text>
+                <Text style={[styles.settingLabel, { color: theme.onSurface, fontSize: isSmall ? 14 : 15 }]}>{label}</Text>
             </View>
-            {right || <ChevronRight size={18} color={theme.onSurfaceVariant} opacity={0.3} />}
+            {right || <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.3} />}
         </TouchableOpacity>
     );
 }
@@ -191,28 +185,28 @@ function Divider({ theme }: any) {
 }
 
 const styles = StyleSheet.create({
-  header: { alignItems: 'center', marginTop: 32 },
-  avatarLarge: { width: 110, height: 110, borderRadius: 55, borderWidth: 3, padding: 4 },
-  image: { width: '100%', height: '100%', borderRadius: 50 },
-  name: { fontSize: 28, fontWeight: '900', letterSpacing: -1 },
-  email: { fontSize: 14, opacity: 0.6, marginTop: 4 },
-  editBtn: { marginTop: 20, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 100 },
-  editBtnText: { color: 'white', fontWeight: '800', fontSize: 13 },
-  statsGrid: { flexDirection: 'row', gap: 12, marginTop: 40 },
-  statValue: { fontSize: 22, fontWeight: '900', marginTop: 8 },
-  statLabel: { fontSize: 10, fontWeight: '800', opacity: 0.6, marginTop: 2 },
-  settingsSection: { marginTop: 40 },
+  header: { alignItems: 'center' },
+  avatarLarge: { borderWidth: 3, padding: 4 },
+  image: { width: '100%', height: '100%' },
+  name: { fontWeight: '900', letterSpacing: -1 },
+  email: { opacity: 0.6, marginTop: 4 },
+  editBtn: { marginTop: 20, paddingHorizontal: 24, borderRadius: 100 },
+  editBtnText: { color: 'white', fontWeight: '800' },
+  statsGrid: { flexDirection: 'row' },
+  statValue: { fontWeight: '900', marginTop: 8 },
+  statLabel: { fontWeight: '800', opacity: 0.6, marginTop: 2 },
+  settingsSection: { },
   sectionTitle: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 },
   settingsCard: { borderRadius: 24, overflow: 'hidden' },
-  settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 18 },
+  settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   iconBox: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  settingLabel: { fontSize: 15, fontWeight: '700' },
-  logoutBtn: { marginTop: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 20, borderRadius: 24 },
-  logoutText: { fontSize: 15, fontWeight: '800' },
+  settingLabel: { fontWeight: '700' },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, borderRadius: 24 },
+  logoutText: { fontWeight: '800' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 48 },
+  modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24 },
   modalHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '900', marginBottom: 24, textAlign: 'center' },
-  avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, justifyContent: 'center' },
-  avatarOption: { width: 70, height: 70, borderRadius: 35, borderWidth: 2, padding: 4 },
+  modalTitle: { fontWeight: '900', marginBottom: 24, textAlign: 'center' },
+  avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
+  avatarOption: { borderWidth: 2, padding: 4 },
 });

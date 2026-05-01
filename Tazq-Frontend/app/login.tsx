@@ -8,38 +8,38 @@ import {
   useWindowDimensions, 
   KeyboardAvoidingView, 
   Platform,
-  ScrollView,
-  Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { Colors } from '../constants/Colors';
-import { useColorScheme } from 'react-native';
-import { LogIn, Fingerprint, Mail, Lock, AlertCircle } from 'lucide-react-native';
+import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
+import { useAppTheme } from '../hooks/useAppTheme';
+import { useLanguageStore } from '../store/useLanguageStore';
 
 export default function LoginScreen() {
-  const { width } = useWindowDimensions();
-  const colorScheme = (useColorScheme() ?? 'light') as 'light' | 'dark';
-  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  const { theme, isDark } = useAppTheme();
+  const { t } = useLanguageStore();
   const router = useRouter();
-  const setAuth = useAuthStore((state) => state.setAuth);
-  
+  const { height, width } = useWindowDimensions();
+  const setAuth = useAuthStore(state => state.setAuth);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isSmallDevice = height < 750;
+
   const handleLogin = async () => {
     if (!email || !password) {
-      setError('Please fill in all fields');
+      setError(t.login.error);
       return;
     }
 
@@ -56,236 +56,201 @@ export default function LoginScreen() {
     } catch (err: any) {
       console.error(err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError('Invalid credentials or connection issue.');
+      setError(t.login.error);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Dynamic Background Orbs (Stitch UI Style) */}
-      <MotiView
-        from={{ opacity: 0, scale: 0.5 }}
-        animate={{ opacity: colorScheme === 'dark' ? 0.2 : 0.05, scale: 1.5 }}
-        transition={{ type: 'timing', duration: 4000, loop: true, repeatReverse: true }}
-        style={[styles.orb, { backgroundColor: theme.primary, top: -100, right: -50, width: 300, height: 300 }]}
-      />
-      
-      <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            
-            <MotiView 
-                from={{ opacity: 0, translateY: -20 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                style={styles.header}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
+        {/* 🎭 Ambient Background Gradients */}
+        <View style={StyleSheet.absoluteFill}>
+            <View style={[styles.blob, { backgroundColor: theme.primaryDim, top: '-10%', left: '-10%', opacity: isDark ? 0.1 : 0.05 }]} />
+            <View style={[styles.blob, { backgroundColor: theme.secondary, bottom: '-10%', right: '-10%', opacity: isDark ? 0.1 : 0.05 }]} />
+        </View>
+
+        <SafeAreaView style={{ flex: 1 }}>
+            <KeyboardAvoidingView 
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
             >
-                <View style={[styles.logoBubble, { backgroundColor: theme.primary }]}>
-                    <Text style={styles.logoText}>T</Text>
-                </View>
-                <Text style={[styles.welcomeTitle, { color: theme.onSurface }]}>Welcome Back</Text>
-                <Text style={[styles.welcomeSub, { color: theme.onSurfaceVariant }]}>Sign in to continue your flow</Text>
-            </MotiView>
-
-            <View style={styles.formContainer}>
-                {error && (
-                    <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} style={styles.errorContainer}>
-                        <AlertCircle size={16} color={theme.error} />
-                        <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
-                    </MotiView>
-                )}
-
-                <View style={styles.inputGroup}>
-                    <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant + '30' }]}>
-                        <Mail size={18} color={theme.onSurfaceVariant} />
-                        <TextInput 
-                            placeholder="Email Address" 
-                            placeholderTextColor={theme.onSurfaceVariant + '80'}
-                            style={[styles.input, { color: theme.onSurface }]}
-                            value={email}
-                            onChangeText={setEmail}
-                            autoCapitalize="none"
-                        />
+                <View style={styles.content}>
+                    {/* Header / Brand */}
+                    <View style={[styles.header, { marginBottom: isSmallDevice ? 24 : 48 }]}>
+                        <MotiText 
+                            from={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            style={[styles.brand, { color: theme.onSurface, fontSize: isSmallDevice ? 48 : 64 }]}
+                        >
+                            TAZQ
+                        </MotiText>
+                        <MotiText 
+                            from={{ opacity: 0, translateY: 10 }}
+                            animate={{ opacity: 1, translateY: 0 }}
+                            transition={{ delay: 200 }}
+                            style={[styles.subTitle, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 16 : 20 }]}
+                        >
+                            {t.login.sub}
+                        </MotiText>
                     </View>
 
-                    <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant + '30' }]}>
-                        <Lock size={18} color={theme.onSurfaceVariant} />
-                        <TextInput 
-                            placeholder="Password" 
-                            placeholderTextColor={theme.onSurfaceVariant + '80'}
-                            style={[styles.input, { color: theme.onSurface }]}
-                            secureTextEntry={!showPassword}
-                            value={password}
-                            onChangeText={setPassword}
-                        />
-                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                            <Text style={[styles.showText, { color: theme.primary }]}>{showPassword ? 'HIDE' : 'SHOW'}</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                <TouchableOpacity 
-                    onPress={handleLogin}
-                    disabled={isLoading}
-                    activeOpacity={0.9}
-                    style={styles.loginBtnWrapper}
-                >
-                    <LinearGradient
-                        colors={[theme.primary, theme.primaryContainer]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.loginBtn}
+                    {/* Login Card */}
+                    <MotiView 
+                        from={{ opacity: 0, translateY: 20 }}
+                        animate={{ opacity: 1, translateY: 0 }}
+                        transition={{ delay: 400 }}
+                        style={[
+                            styles.card, 
+                            { 
+                                backgroundColor: isDark ? 'rgba(18, 18, 18, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+                                borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+                                padding: isSmallDevice ? 24 : 32
+                            }
+                        ]}
                     >
-                        {isLoading ? (
-                            <ActivityIndicator color={theme.onPrimary} />
-                        ) : (
-                            <>
-                                <Text style={[styles.loginBtnText, { color: theme.onPrimary }]}>Login Now</Text>
-                                <LogIn size={20} color={theme.onPrimary} strokeWidth={3} />
-                            </>
+                        {error && (
+                            <View style={[styles.errorBox, { backgroundColor: theme.error + '15' }]}>
+                                <AlertCircle size={16} color={theme.error} />
+                                <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
+                            </View>
                         )}
-                    </LinearGradient>
-                </TouchableOpacity>
 
-                <View style={styles.footer}>
-                    <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>New to Tazq?</Text>
-                    <TouchableOpacity onPress={() => router.push('/register')}>
-                        <Text style={[styles.signUpText, { color: theme.primary }]}> Create Account</Text>
-                    </TouchableOpacity>
+                        <View style={[styles.form, { gap: isSmallDevice ? 16 : 24 }]}>
+                            {/* Email Field */}
+                            <View style={styles.inputGroup}>
+                                <Text style={[styles.label, { color: theme.secondary, fontSize: isSmallDevice ? 14 : 16 }]}>{t.login.email}</Text>
+                                <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#141414' : theme.surfaceContainer, height: isSmallDevice ? 56 : 64 }]}>
+                                    <Mail size={18} color={theme.outline} />
+                                    <TextInput 
+                                        placeholder="hello@tazq.com"
+                                        placeholderTextColor={theme.outlineVariant}
+                                        style={[styles.input, { color: theme.onSurface }]}
+                                        value={email}
+                                        onChangeText={setEmail}
+                                        autoCapitalize="none"
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Password Field */}
+                            <View style={styles.inputGroup}>
+                                <View style={styles.labelRow}>
+                                    <Text style={[styles.label, { color: theme.tertiary, fontSize: isSmallDevice ? 14 : 16 }]}>{t.login.password}</Text>
+                                    <TouchableOpacity>
+                                        <Text style={[styles.forgotText, { color: theme.primary }]}>{t.cancel}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#141414' : theme.surfaceContainer, height: isSmallDevice ? 56 : 64 }]}>
+                                    <Lock size={18} color={theme.outline} />
+                                    <TextInput 
+                                        placeholder="••••••••"
+                                        placeholderTextColor={theme.outlineVariant}
+                                        style={[styles.input, { color: theme.onSurface }]}
+                                        value={password}
+                                        onChangeText={setPassword}
+                                        secureTextEntry
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Action Button */}
+                            <TouchableOpacity 
+                                onPress={handleLogin}
+                                disabled={isLoading}
+                                style={styles.primaryBtnWrapper}
+                            >
+                                <MotiView 
+                                    animate={{ 
+                                        scale: isLoading ? 0.98 : 1,
+                                        backgroundColor: theme.primary
+                                    }}
+                                    style={[styles.primaryBtn, isDark && styles.neonGlow, { height: isSmallDevice ? 64 : 72 }]}
+                                >
+                                    {isLoading ? (
+                                        <ActivityIndicator color={theme.onPrimary} />
+                                    ) : (
+                                        <>
+                                            <Text style={[styles.primaryBtnText, { color: theme.onPrimary, fontSize: isSmallDevice ? 18 : 20 }]}>{t.login.button}</Text>
+                                            <ArrowRight size={22} color={theme.onPrimary} strokeWidth={3} />
+                                        </>
+                                    )}
+                                </MotiView>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Divider */}
+                        <View style={[styles.dividerRow, { marginVertical: isSmallDevice ? 20 : 32 }]}>
+                            <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '30' }]} />
+                            <Text style={[styles.dividerText, { color: theme.outlineVariant }]}>OR</Text>
+                            <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '30' }]} />
+                        </View>
+
+                        {/* Social Actions */}
+                        <View style={styles.socialRow}>
+                            <TouchableOpacity style={[styles.socialBtn, { backgroundColor: isDark ? '#1a1a1a' : theme.surfaceContainerHighest, width: isSmallDevice ? 64 : 80, height: isSmallDevice ? 64 : 80 }]}>
+                                <Svg width={24} height={24} viewBox="0 0 24 24" fill={isDark ? "white" : "black"}>
+                                    <Path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z" />
+                                </Svg>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.socialBtn, { backgroundColor: isDark ? '#1a1a1a' : theme.surfaceContainerHighest, width: isSmallDevice ? 64 : 80, height: isSmallDevice ? 64 : 80 }]}>
+                                <Svg width={24} height={24} viewBox="0 0 24 24" fill={isDark ? "white" : "black"}>
+                                    <Path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.78 1.18-.19 2.31-.88 3.5-.84 1.58.11 2.81.7 3.56 1.81-3.33 1.94-2.76 6.5.42 7.79-.81 1.6-1.57 3.12-2.56 3.43zM12.03 7.25C11.83 4.2 14.16 1.5 17 1c.29 3.22-2.51 5.92-4.97 6.25z" />
+                                </Svg>
+                            </TouchableOpacity>
+                        </View>
+                    </MotiView>
+
+                    {/* Footer */}
+                    <View style={[styles.footer, { marginTop: isSmallDevice ? 20 : 40 }]}>
+                        <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
+                            {t.login.footer} 
+                            <TouchableOpacity onPress={() => router.push('/register')}>
+                                <Text style={{ color: theme.secondary, fontWeight: '700' }}> {t.login.signUp}</Text>
+                            </TouchableOpacity>
+                        </Text>
+                    </View>
                 </View>
-            </View>
-
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
+        </View>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  orb: {
-    position: 'absolute',
-    borderRadius: 150,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 32,
-    justifyContent: 'center',
-    paddingBottom: 40,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoBubble: {
-    width: 80,
-    height: 80,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
+  container: { flex: 1 },
+  blob: { position: 'absolute', width: '100%', height: '100%', borderRadius: 1000, filter: 'blur(100px)' },
+  content: { flex: 1, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center' },
+  header: { alignItems: 'center' },
+  brand: { fontFamily: 'Jakarta-ExtraBold', letterSpacing: -4, marginBottom: 4 },
+  subTitle: { fontWeight: '500', opacity: 0.8 },
+  card: { width: '100%', borderRadius: 48, borderWidth: 1 },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 16, marginBottom: 16 },
+  errorText: { fontSize: 12, fontWeight: '600' },
+  form: { width: '100%' },
+  inputGroup: { gap: 8 },
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  label: { fontWeight: '700' },
+  forgotText: { fontSize: 13, fontWeight: '600' },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, borderRadius: 24, gap: 12 },
+  input: { flex: 1, fontSize: 16, fontWeight: '500' },
+  primaryBtnWrapper: { marginTop: 8 },
+  primaryBtn: { borderRadius: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  neonGlow: {
+    shadowColor: '#3367ff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
     shadowRadius: 15,
     elevation: 8,
   },
-  logoText: {
-    color: 'white',
-    fontSize: 40,
-    fontWeight: '900',
-    fontStyle: 'italic',
-  },
-  welcomeTitle: {
-    fontSize: 32,
-    fontWeight: '900',
-    letterSpacing: -1,
-  },
-  welcomeSub: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: 8,
-  },
-  formContainer: {
-    gap: 24,
-  },
-  inputGroup: {
-    gap: 16,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 64,
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    borderWidth: 1.2,
-  },
-  input: {
-    flex: 1,
-    marginLeft: 16,
-    fontSize: 16,
-    fontWeight: '600',
-    height: '100%',
-  },
-  showText: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  loginBtnWrapper: {
-    borderRadius: 22,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  loginBtn: {
-    height: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  loginBtnText: {
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,68,68,0.1)',
-    padding: 12,
-    borderRadius: 12,
-  },
-  errorText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  footerText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  signUpText: {
-    fontSize: 14,
-    fontWeight: '800',
-  }
+  primaryBtnText: { fontWeight: '800' },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  divider: { flex: 1, height: 1 },
+  dividerText: { fontSize: 13, fontWeight: '700', letterSpacing: 2 },
+  socialRow: { flexDirection: 'row', justifyContent: 'center', gap: 20 },
+  socialBtn: { borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
+  footer: { alignItems: 'center' },
+  footerText: { fontSize: 15, fontWeight: '500' },
 });

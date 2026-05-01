@@ -4,7 +4,7 @@
     "slug": "Tazq-Frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/tazq_icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "tazq-app",
     "plugins": [
@@ -21,12 +21,13 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-localization"
     ],
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/images/tazq_splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0F0F0F"
     },
     "ios": {
       "supportsTablet": true,
@@ -37,7 +38,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/images/tazq_icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.tazqapp.tazq"

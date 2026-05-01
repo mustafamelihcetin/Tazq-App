@@ -1,9 +1,7 @@
 import React from 'react';
-import { StyleSheet, ViewStyle, useColorScheme, Platform } from 'react-native';
+import { StyleSheet, ViewStyle, useWindowDimensions } from 'react-native';
 import { MotiView } from 'moti';
 import { BlurView } from 'expo-blur';
-import { Colors } from '../constants/Colors';
-
 import { useAppTheme } from '../hooks/useAppTheme';
 
 interface BentoCardProps {
@@ -16,6 +14,8 @@ interface BentoCardProps {
 export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0, glass = false }) => {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
+  const { width } = useWindowDimensions();
+  const isSmallDevice = width < 380;
 
   return (
     <MotiView
@@ -29,6 +29,8 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
           borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
           shadowColor: '#000',
           shadowOpacity: isDark ? 0.4 : 0.04,
+          padding: isSmallDevice ? 16 : 24,
+          borderRadius: isSmallDevice ? 28 : 36,
         },
         style,
       ]}
@@ -47,8 +49,6 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 36,
-    padding: 24,
     borderWidth: 1.2,
     overflow: 'hidden',
     shadowOffset: { width: 0, height: 10 },
