@@ -1,12 +1,12 @@
 import React from 'react';
-import { StyleSheet, ViewStyle, useWindowDimensions } from 'react-native';
+import { StyleSheet, ViewStyle, StyleProp, useWindowDimensions } from 'react-native';
 import { MotiView } from 'moti';
 import { BlurView } from 'expo-blur';
 import { useAppTheme } from '../hooks/useAppTheme';
 
 interface BentoCardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   index?: number;
   glass?: boolean;
 }

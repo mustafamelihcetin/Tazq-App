@@ -3,11 +3,14 @@ export interface ParsedHint {
   dueDate?: string;    // ISO date string
   dueTime?: string;    // ISO time string
   tags?: string[];
+  wittyMessage?: string; // Conversational feedback
 }
 
-const HIGH_PRIORITY_TR = ['acil', 'kritik', 'önemli', 'urgent', 'asap', 'hemen', 'ivedi'];
+const HIGH_PRIORITY_TR = ['acil', 'kritik', 'önemli', 'urgent', 'asap', 'hemen', 'ivedi', 'hayati', 'kritik'];
 const MEDIUM_PRIORITY_TR = ['normal', 'orta', 'bu hafta', 'this week'];
 const LOW_PRIORITY_TR = ['düşük', 'lazy', 'zamanında', 'sonra', 'later', 'low'];
+
+const URGENT_TOPICS = ['sınav', 'exam', 'mülakat', 'interview', 'sunum', 'presentation', 'rapor', 'report', 'fatura', 'bill'];
 
 const TAG_MAP: Record<string, string> = {
   toplantı: 'toplantı', meeting: 'toplantı',
@@ -49,6 +52,7 @@ function toISO(date: Date): string {
 }
 
 export function parseTaskHint(text: string): ParsedHint {
+  if (!text.trim()) return {};
   const lower = text.toLowerCase();
   const hint: ParsedHint = {};
 
@@ -59,6 +63,11 @@ export function parseTaskHint(text: string): ParsedHint {
     hint.priority = 'Medium';
   } else if (LOW_PRIORITY_TR.some((w) => lower.includes(w))) {
     hint.priority = 'Low';
+  }
+
+  // Auto-upgrade priority for urgent topics
+  if (!hint.priority && URGENT_TOPICS.some(w => lower.includes(w))) {
+    hint.priority = 'High';
   }
 
   // Due date
@@ -73,9 +82,13 @@ export function parseTaskHint(text: string): ParsedHint {
     const d = new Date(today);
     d.setDate(today.getDate() + 2);
     hint.dueDate = toISO(d);
+  } else if (lower.includes('üç gün sonra') || lower.includes('3 gün sonra')) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + 3);
+    hint.dueDate = toISO(d);
   } else if (lower.includes('bu hafta') || lower.includes('this week')) {
     const d = new Date(today);
-    d.setDate(today.getDate() + (5 - today.getDay())); // Friday of this week
+    d.setDate(today.getDate() + (5 - today.getDay())); 
     hint.dueDate = toISO(d);
   } else if (lower.includes('gelecek hafta') || lower.includes('next week')) {
     const d = new Date(today);
@@ -90,19 +103,22 @@ export function parseTaskHint(text: string): ParsedHint {
     }
   }
 
-  // Time — "saat 15", "15:00", "3pm", "3 pm"
+  // Time — support "saat 14", "14:30", "14'te", "14.00'de", "2pm", etc.
   const timeMatch =
-    lower.match(/saat\s*(\d{1,2})(?::(\d{2}))?/) ||
-    lower.match(/(\d{1,2}):(\d{2})/) ||
-    lower.match(/(\d{1,2})\s*pm/) ||
-    lower.match(/at\s*(\d{1,2})(?::(\d{2}))?/);
+    lower.match(/saat\s*(\d{1,2})(?:[:.\s](\d{2}))?/) ||
+    lower.match(/(\d{1,2})[:.](\d{2})/) ||
+    lower.match(/(\d{1,2})['’](?:te|de|ta|da|ten|dan|e|a)/) ||
+    lower.match(/(\d{1,2})\s*(?:pm|öğleden sonra)/) ||
+    lower.match(/at\s*(\d{1,2})(?:[:.](\d{2}))?/);
 
   if (timeMatch) {
     let hour = parseInt(timeMatch[1], 10);
     const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
     if (lower.includes('pm') && hour < 12) hour += 12;
+    
+    // Use Local Time to avoid timezone shifts in UI
     const base = hint.dueDate ? new Date(hint.dueDate) : new Date();
-    base.setUTCHours(hour, minute, 0, 0);
+    base.setHours(hour, minute, 0, 0);
     hint.dueTime = base.toISOString();
   }
 
@@ -114,6 +130,26 @@ export function parseTaskHint(text: string): ParsedHint {
     }
   }
   if (tags.length > 0) hint.tags = tags;
+
+  // Witty Message Logic (Contextual Intelligence)
+  const isUrgent = URGENT_TOPICS.some(w => lower.includes(w));
+  const isTomorrow = lower.includes('yarın') || lower.includes('tomorrow');
+  const isToday = lower.includes('bugün') || lower.includes('today');
+  const isFuture = !!hint.dueDate && !isToday && !isTomorrow;
+
+  if (isUrgent && isTomorrow) {
+    hint.wittyMessage = "Yarın büyük gün! Bugünden hazırlıklara başla derim. 🔥";
+  } else if (isUrgent && isToday) {
+    hint.wittyMessage = "Kritik görev! Hemen odak moduna geçmelisin. ⚡";
+  } else if (isUrgent && isFuture) {
+    hint.wittyMessage = `${hint.dueDate} tarihindeki bu önemli görev için zamanın var ama gardını düşürme! 🚀`;
+  } else if (isTomorrow) {
+    hint.wittyMessage = "Yarınki sen sana teşekkür edecek. Planlandı! ✅";
+  } else if (isToday) {
+    hint.wittyMessage = "Bugünün listesine eklendi. Hadi bitirelim! 💪";
+  } else if (isFuture) {
+    hint.wittyMessage = "Uzak bir hedef ama radarımızda. Kaydedildi! 📡";
+  }
 
   return hint;
 }

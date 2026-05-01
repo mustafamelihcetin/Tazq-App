@@ -76,6 +76,12 @@ namespace Tazq_App.Services
             task.UserId = userId;
             task.Tags = task.Tags ?? new List<string>();
 
+            // Ensure UTC for Postgres timestamptz compatibility
+            if (task.DueDate.HasValue && task.DueDate.Value.Kind == DateTimeKind.Unspecified)
+                task.DueDate = DateTime.SpecifyKind(task.DueDate.Value, DateTimeKind.Utc);
+            if (task.DueTime.HasValue && task.DueTime.Value.Kind == DateTimeKind.Unspecified)
+                task.DueTime = DateTime.SpecifyKind(task.DueTime.Value, DateTimeKind.Utc);
+
             var key = _cryptoService.GetKeyForUser(userId)!;
             EncryptTask(task, key);
 
@@ -112,8 +118,18 @@ namespace Tazq_App.Services
 
             task.Title = updatedTask.Title;
             task.Description = updatedTask.Description;
-            task.DueDate = updatedTask.DueDate;
-            task.DueTime = updatedTask.DueTime;
+            
+            // Ensure UTC for Postgres timestamptz compatibility
+            var finalDueDate = updatedTask.DueDate;
+            if (finalDueDate.HasValue && finalDueDate.Value.Kind == DateTimeKind.Unspecified)
+                finalDueDate = DateTime.SpecifyKind(finalDueDate.Value, DateTimeKind.Utc);
+            
+            var finalDueTime = updatedTask.DueTime;
+            if (finalDueTime.HasValue && finalDueTime.Value.Kind == DateTimeKind.Unspecified)
+                finalDueTime = DateTime.SpecifyKind(finalDueTime.Value, DateTimeKind.Utc);
+
+            task.DueDate = finalDueDate;
+            task.DueTime = finalDueTime;
             task.IsCompleted = updatedTask.IsCompleted;
             task.Priority = updatedTask.Priority;
             task.Tags = updatedTask.Tags ?? new List<string>();

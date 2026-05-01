@@ -20,7 +20,7 @@ namespace Tazq_App.Validators
                 .MaximumLength(100).WithMessage("Görev başlığı en fazla 100 karakter olabilir.");
 
             RuleFor(x => x.DueDate)
-                .GreaterThanOrEqualTo(DateTime.Today.AddDays(-1)).WithMessage("Bitiş tarihi geçmişte olamaz.");
+                .GreaterThanOrEqualTo(DateTime.Today.AddDays(-1)).When(x => x.DueDate.HasValue).WithMessage("Bitiş tarihi geçmişte olamaz.");
         }
     }
 }

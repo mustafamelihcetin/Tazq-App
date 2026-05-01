@@ -42,6 +42,7 @@ export const translations = {
     next: 'Proceed',
     deepFocus: 'DEEP FOCUS',
     focusSession: 'Focus Session',
+    activeTask: 'Active Mission',
     focusQuote: 'Excellence is not an act, but a habit.',
     logout: 'Disconnect',
     confirmLogout: 'Are you sure you want to terminate the current session?',
@@ -77,6 +78,10 @@ export const translations = {
     save: 'Commit Changes',
     completed: 'COMPLETED',
     pending: 'PENDING',
+    dueDate: 'Due Date',
+    dueTime: 'Due Time',
+    selectDate: 'Select Date',
+    selectTime: 'Select Time',
     common: {
       loading: 'Loading...',
     }
@@ -120,6 +125,7 @@ export const translations = {
     next: 'Devam Et',
     deepFocus: 'DERİN ODAK',
     focusSession: 'Odaklanma Seansı',
+    activeTask: 'Aktif Görev',
     focusQuote: 'Mükemmellik bir eylem değil, bir alışkanlıktır.',
     logout: 'Bağlantıyı Kes',
     confirmLogout: 'Mevcut oturumu sonlandırmak istediğinize emin misiniz?',
@@ -155,6 +161,10 @@ export const translations = {
     save: 'Değişiklikleri Kaydet',
     completed: 'TAMAMLANDI',
     pending: 'BEKLEYEN',
+    dueDate: 'Bitiş Tarihi',
+    dueTime: 'Bitiş Saati',
+    selectDate: 'Tarih Seç',
+    selectTime: 'Saat Seç',
     common: {
       loading: 'Yükleniyor...',
     }

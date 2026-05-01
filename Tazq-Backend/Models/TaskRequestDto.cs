@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace Tazq_App.Models
@@ -16,7 +16,7 @@ namespace Tazq_App.Models
 		public string Title { get; set; } = string.Empty;
 
         public string Description { get; set; } = string.Empty;
-        public DateTime DueDate { get; set; }
+        public DateTime? DueDate { get; set; }
         public DateTime? DueTime { get; set; }
         public bool IsCompleted { get; set; } = false;
 

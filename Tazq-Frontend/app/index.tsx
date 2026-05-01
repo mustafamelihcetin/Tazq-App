@@ -8,13 +8,15 @@ import { BentoCard } from '../components/BentoCard';
 import { DynamicIsland } from '../components/DynamicIsland';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { MotiView, MotiText } from 'moti';
-import { TrendingUp, Calendar, Plus, FileText, Zap } from 'lucide-react-native';
+import { TrendingUp, Calendar, Plus, FileText, Zap, Play, Rocket, ChevronRight } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { TaskService } from '../services/api';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { TazqLogo } from '../components/TazqLogo';
+import { useFocusStore } from '../store/useFocusStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const AVATAR_MAP: Record<string, any> = {
     'm1': require('../assets/avatars/m1.png'),
@@ -45,6 +47,24 @@ export default function HomeScreen() {
 
   const isSmallDevice = width < 380;
   const isShortDevice = height < 750;
+
+  const { setCurrentTask, setDuration, setIsActive } = useFocusStore();
+
+  const topTask = tasks.find(t => !t.isCompleted);
+
+  const priorityColor = (p: string) => {
+    if (p === 'High') return '#ff3b30';
+    if (p === 'Medium') return '#ff9f0a';
+    return '#34c759';
+  };
+
+  const startFocus = (taskTitle: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setCurrentTask(taskTitle);
+    setDuration(25); // Default 25m
+    setIsActive(true); // Auto-start the mission
+    router.push('/focus');
+  };
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -129,55 +149,110 @@ export default function HomeScreen() {
             {/* Focus Widget */}
             <DynamicIsland />
 
-            {/* Bento Grid */}
-            <View style={[styles.bentoGrid, { paddingHorizontal: isSmallDevice ? 20 : 24, gap: isSmallDevice ? 12 : 16 }]}>
-                {/* Weekly Progress */}
-                <BentoCard index={1} style={{ width: '100%', minHeight: isShortDevice ? 180 : 200 }}>
-                    <View style={styles.cardHeader}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.cardTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 16 : 18 }]}>{t.weeklyProgress}</Text>
-                            <Text style={[styles.cardSub, { color: theme.onSurfaceVariant }]}>{t.aheadOfSchedule}</Text>
+            {/* Next Mission / Highway Widget */}
+            <View style={{ paddingHorizontal: isSmallDevice ? 20 : 24, marginBottom: isSmallDevice ? 20 : 24 }}>
+                <MotiView
+                    from={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ type: 'spring', damping: 15 }}
+                >
+                    <BentoCard index={0} style={[styles.nextMissionCard, { minHeight: isShortDevice ? 160 : 180 }]}>
+                        <LinearGradient
+                            colors={topTask?.priority === 'High' 
+                                ? ['#ff3b30', '#1a1a1a'] 
+                                : topTask?.priority === 'Medium' 
+                                ? ['#ff9f0a', '#1a1a1a'] 
+                                : ['#34c759', '#1a1a1a']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.25 : 0.12 }]}
+                        />
+                        <View style={styles.missionHeader}>
+                            <View style={[styles.missionBadge, { backgroundColor: (topTask ? priorityColor(topTask.priority) : theme.primary) + '20' }]}>
+                                <Rocket size={12} color={topTask ? priorityColor(topTask.priority) : theme.primary} />
+                                <Text style={[styles.missionBadgeText, { color: topTask ? priorityColor(topTask.priority) : theme.primary }]}>{t.activeTask.toUpperCase()}</Text>
+                            </View>
+                            {topTask?.priority === 'High' && (
+                                <View style={[styles.missionBadge, { backgroundColor: theme.error + '20' }]}>
+                                    <Zap size={12} color={theme.error} fill={theme.error} />
+                                    <Text style={[styles.missionBadgeText, { color: theme.error }]}>URGENT</Text>
+                                </View>
+                            )}
                         </View>
-                        <View style={[styles.badge, { backgroundColor: theme.tertiary + '15' }]}>
-                            <TrendingUp size={12} color={theme.tertiary} />
-                            <Text style={[styles.badgeText, { color: theme.tertiary }]}>{t.onTrack}</Text>
-                        </View>
-                    </View>
-                    
-                    <View style={[styles.chartContainer, { height: isShortDevice ? 80 : 100 }]}>
-                        {[40, 60, 30, 80, 50, 20].map((h, i) => (
-                            <View key={i} style={[styles.chartBar, { height: `${h}%`, backgroundColor: i === 3 ? theme.primary : theme.surfaceContainerHigh, width: isSmallDevice ? 10 : 14 }]} />
-                        ))}
-                    </View>
-                </BentoCard>
 
-                <View style={[styles.bentoRow, { gap: isSmallDevice ? 12 : 16 }]}>
-                    {/* Upcoming */}
-                    <BentoCard index={2} style={{ flex: 1.6 }}>
-                        <View style={[styles.sectionHeader, { marginBottom: isSmallDevice ? 12 : 16 }]}>
-                            <Calendar size={isSmallDevice ? 16 : 18} color={theme.secondary} />
-                            <Text 
-                                style={[styles.sectionTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 16, flex: 1 }]}
-                                numberOfLines={1}
-                                adjustsFontSizeToFit
-                                minimumFontScale={0.7}
-                            >
-                                {t.upcoming}
+                        <View style={styles.missionContent}>
+                            <Text style={[styles.missionTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 20 : 24 }]} numberOfLines={2}>
+                                {topTask ? topTask.title : t.noTasksHint}
+                            </Text>
+                            <Text style={[styles.missionSub, { color: theme.onSurfaceVariant }]}>
+                                {topTask ? (topTask.description || t.waitingForAction) : t.allTasksReady}
                             </Text>
                         </View>
-                        <View style={styles.agendaItem}>
-                            <View style={[styles.indicator, { backgroundColor: theme.secondary, height: isSmallDevice ? 24 : 30 }]} />
-                            <View>
-                                <Text style={[styles.agendaName, { color: theme.onSurface, fontSize: isSmallDevice ? 13 : 15 }]}>Design Sync</Text>
-                                <Text style={[styles.agendaTime, { color: theme.onSurfaceVariant, fontSize: 10 }]}>10:00 - 11:30</Text>
-                            </View>
+
+                        <View style={styles.missionFooter}>
+                            {topTask ? (
+                                <TouchableOpacity 
+                                    onPress={() => startFocus(topTask.title)}
+                                    style={[styles.startBtn, { backgroundColor: theme.primary }]}
+                                >
+                                    <Play size={18} color="white" fill="white" />
+                                    <Text style={styles.startBtnText}>{t.deepFocus}</Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity 
+                                    onPress={() => router.push('/tasks')}
+                                    style={[styles.startBtn, { backgroundColor: theme.surfaceContainerHigh }]}
+                                >
+                                    <Plus size={18} color={theme.onSurface} />
+                                    <Text style={[styles.startBtnText, { color: theme.onSurface }]}>{t.addTask}</Text>
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity onPress={() => router.push('/tasks')} style={styles.seeAllBtn}>
+                                <Text style={[styles.seeAllText, { color: theme.onSurfaceVariant }]}>{t.filterAll}</Text>
+                                <ChevronRight size={14} color={theme.onSurfaceVariant} />
+                            </TouchableOpacity>
+                        </View>
+                    </BentoCard>
+                </MotiView>
+            </View>
+
+            {/* Bento Grid */}
+            <View style={[styles.bentoGrid, { paddingHorizontal: isSmallDevice ? 20 : 24, gap: isSmallDevice ? 12 : 16 }]}>
+                <View style={[styles.bentoRow, { gap: isSmallDevice ? 12 : 16 }]}>
+                    {/* Weekly Progress */}
+                    <BentoCard index={1} style={{ flex: 1.5, minHeight: isShortDevice ? 140 : 160 }}>
+                        <View style={styles.cardHeader}>
+                            <Text style={[styles.cardTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 16 }]}>{t.weeklyProgress}</Text>
+                        </View>
+                        <View style={[styles.chartContainer, { height: isShortDevice ? 60 : 80, marginTop: 10 }]}>
+                            {[30, 45, 25, 60, 40, 15].map((h, i) => (
+                                <View key={i} style={[styles.chartBar, { height: `${h}%`, backgroundColor: i === 3 ? theme.primary : theme.surfaceContainerHigh, width: isSmallDevice ? 8 : 10 }]} />
+                            ))}
                         </View>
                     </BentoCard>
 
                     {/* Stats Counter */}
-                    <BentoCard index={3} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                    <BentoCard index={2} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={[styles.countText, { color: theme.primary, fontSize: isSmallDevice ? 32 : 42 }]}>{tasks.length}</Text>
                         <Text style={[styles.countLabel, { color: theme.onSurfaceVariant }]}>{t.tasks}</Text>
+                    </BentoCard>
+                </View>
+
+                <View style={[styles.bentoRow, { gap: isSmallDevice ? 12 : 16 }]}>
+                     {/* Upcoming */}
+                     <BentoCard index={3} style={{ flex: 1 }}>
+                        <View style={[styles.sectionHeader, { marginBottom: isSmallDevice ? 8 : 12 }]}>
+                            <Calendar size={isSmallDevice ? 16 : 18} color={theme.secondary} />
+                            <Text style={[styles.sectionTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 13 : 15 }]}>{t.upcoming}</Text>
+                        </View>
+                        <View style={styles.agendaItem}>
+                            <View style={[styles.indicator, { backgroundColor: tasks.filter(t => !t.isCompleted)[1] ? priorityColor(tasks.filter(t => !t.isCompleted)[1].priority) : theme.secondary, height: isSmallDevice ? 20 : 24 }]} />
+                            <View>
+                                <Text style={[styles.agendaName, { color: theme.onSurface, fontSize: isSmallDevice ? 12 : 14 }]} numberOfLines={1}>
+                                    {tasks.filter(t => !t.isCompleted)[1]?.title || 'Next Up'}
+                                </Text>
+                            </View>
+                        </View>
                     </BentoCard>
                 </View>
 
@@ -246,5 +321,17 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row' },
   actionBtn: { flex: 1, borderRadius: 24, alignItems: 'center', gap: 8 },
   actionIcon: { borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  actionLabel: { fontWeight: '800' }
+  actionLabel: { fontWeight: '800' },
+  nextMissionCard: { padding: 24, justifyContent: 'space-between', overflow: 'hidden' },
+  missionHeader: { flexDirection: 'row', gap: 8 },
+  missionBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  missionBadgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+  missionContent: { marginTop: 12 },
+  missionTitle: { fontWeight: '900', letterSpacing: -0.5 },
+  missionSub: { fontSize: 13, fontWeight: '500', marginTop: 4, opacity: 0.8 },
+  missionFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 },
+  startBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 100 },
+  startBtnText: { color: 'white', fontWeight: '900', fontSize: 14 },
+  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  seeAllText: { fontSize: 12, fontWeight: '700' }
 });

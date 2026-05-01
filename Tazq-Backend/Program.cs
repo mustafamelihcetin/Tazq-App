@@ -178,6 +178,15 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 
+    // Emergency Schema Patch: Ensure columns are nullable to match model changes
+    try {
+        db.Database.ExecuteSqlRaw("ALTER TABLE \"Tasks\" ALTER COLUMN \"DueDate\" DROP NOT NULL;");
+        db.Database.ExecuteSqlRaw("ALTER TABLE \"Tasks\" ALTER COLUMN \"Description\" DROP NOT NULL;");
+        Console.WriteLine(">>> Database schema patched: DueDate is now nullable.");
+    } catch (Exception ex) {
+        Console.WriteLine($">>> Schema patch warning: {ex.Message}");
+    }
+
     // Seeding: Create or Update Admin user
     var adminEmail = "admin@tazq.com";
     var adminPassword = "admin123";

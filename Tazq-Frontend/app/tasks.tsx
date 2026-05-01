@@ -16,6 +16,7 @@ import { TaskService } from '../services/api';
 import { parseTaskHint } from '../utils/taskParser';
 import { useAppTheme } from '../hooks/useAppTheme';
 
+
 type Priority = 'Low' | 'Medium' | 'High';
 type FilterType = 'all' | 'High' | 'Medium' | 'Low' | 'done';
 
@@ -24,9 +25,10 @@ interface TaskForm {
   description: string;
   priority: Priority;
   dueDate: string;
+  dueTime: string;
 }
 
-const EMPTY_FORM: TaskForm = { title: '', description: '', priority: 'Medium', dueDate: '' };
+const EMPTY_FORM: TaskForm = { title: '', description: '', priority: 'Medium', dueDate: '', dueTime: '' };
 
 export default function ActionCenter() {
   const { theme, colorScheme } = useAppTheme();
@@ -47,6 +49,39 @@ export default function ActionCenter() {
   const [titleError, setTitleError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [nlpHint, setNlpHint] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, day: new Date().getDate() });
+  const [pickerTime, setPickerTime] = useState({ hour: new Date().getHours(), minute: new Date().getMinutes() });
+
+  const openDatePicker = () => {
+    const base = form.dueDate ? new Date(form.dueDate) : new Date();
+    setPickerDate({ year: base.getFullYear(), month: base.getMonth() + 1, day: base.getDate() });
+    setShowDatePicker(true);
+  };
+
+  const openTimePicker = () => {
+    const base = form.dueTime ? new Date(form.dueTime) : new Date();
+    setPickerTime({ hour: base.getHours(), minute: base.getMinutes() });
+    setShowTimePicker(true);
+  };
+
+  const confirmDate = () => {
+    const { year, month, day } = pickerDate;
+    const mm = String(month).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    setForm(f => ({ ...f, dueDate: `${year}-${mm}-${dd}` }));
+    setShowDatePicker(false);
+  };
+
+  const confirmTime = () => {
+    const base = new Date();
+    base.setHours(pickerTime.hour, pickerTime.minute, 0, 0);
+    setForm(f => ({ ...f, dueTime: base.toISOString() }));
+    setShowTimePicker(false);
+  };
+
+  const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
 
   useEffect(() => { loadTasks(); }, []);
 
@@ -65,19 +100,38 @@ export default function ActionCenter() {
   };
 
   const handleTitleChange = (text: string) => {
-    setForm((f) => ({ ...f, title: text }));
-    setTitleError(false);
     const hint = parseTaskHint(text);
+    
+    // Combine state updates for better performance and reliability
+    setForm(f => ({
+        ...f,
+        title: text,
+        priority: hint.priority || 'Medium',
+        dueDate: hint.dueDate || '',
+        dueTime: hint.dueTime || '',
+    }));
+    
+    setTitleError(false);
+
     const parts: string[] = [];
     if (hint.priority) {
-      setForm((f) => ({ ...f, priority: hint.priority! }));
       parts.push(hint.priority === 'High' ? '🔴 High' : hint.priority === 'Medium' ? '🟡 Medium' : '🟢 Low');
     }
     if (hint.dueDate) {
-      setForm((f) => ({ ...f, dueDate: hint.dueDate! }));
       parts.push(`📅 ${hint.dueDate}`);
     }
-    setNlpHint(parts.join('  '));
+    if (hint.dueTime) {
+      const timeStr = new Date(hint.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      parts.push(`⏰ ${timeStr}`);
+    }
+
+    // Transparent Feedback: Show message AND extracted data
+    const fullHint = [
+      hint.wittyMessage,
+      parts.length > 0 ? `(${parts.join('  ')})` : ''
+    ].filter(Boolean).join(' ');
+
+    setNlpHint(fullHint);
   };
 
   const handleToggle = async (id: number) => {
@@ -122,7 +176,13 @@ export default function ActionCenter() {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     setEditingId(id);
-    setForm({ title: task.title, description: task.description, priority: task.priority as Priority, dueDate: task.dueDate?.split('T')[0] ?? '' });
+    setForm({ 
+      title: task.title, 
+      description: task.description || '', 
+      priority: task.priority as Priority, 
+      dueDate: task.dueDate?.split('T')[0] ?? '',
+      dueTime: task.dueTime || ''
+    });
     setNlpHint('');
     setTitleError(false);
     setModalVisible(true);
@@ -137,7 +197,8 @@ export default function ActionCenter() {
       description: form.description.trim(),
       isCompleted: existingTask ? existingTask.isCompleted : false,
       priority: form.priority,
-      dueDate: form.dueDate || undefined,
+      dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
+      dueTime: form.dueTime || undefined,
       tags: existingTask ? existingTask.tags : [],
     };
     try {
@@ -150,17 +211,18 @@ export default function ActionCenter() {
       }
       setModalVisible(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Alert.alert('Error', 'Save failed');
+    } catch (err: any) {
+      const serverMsg = err.response?.data?.message || err.response?.data?.Message || err.message;
+      Alert.alert('Error', `Save failed: ${serverMsg}`);
     } finally {
       setSaving(false);
     }
   };
 
   const priorityColor = (p: string) => {
-    if (p === 'High') return theme.error;
-    if (p === 'Medium') return theme.secondary;
-    return theme.tertiary;
+    if (p === 'High') return '#ff3b30';   // Signal Red
+    if (p === 'Medium') return '#ff9f0a'; // Warning Orange
+    return '#34c759';                    // Success Green
   };
 
   const filteredTasks = tasks.filter((task) => {
@@ -182,7 +244,7 @@ export default function ActionCenter() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
         <MotiView from={{ opacity: 0, translateY: -10 }} animate={{ opacity: 1, translateY: 0 }} style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: theme.surfaceContainerLow }]}>
+            <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={[styles.backBtn, { backgroundColor: theme.surfaceContainerLow }]}>
                 <X size={20} color={theme.onSurface} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 16 }]}>{t.actionCenter}</Text>
@@ -277,7 +339,7 @@ export default function ActionCenter() {
                                     }
                                 ]}
                             >
-                                <View style={[styles.priorityIndicator, { backgroundColor: priorityColor(task.priority), width: isSmallDevice ? 3 : 4 }]} />
+                                <View style={[styles.priorityIndicator, { backgroundColor: priorityColor(task.priority), width: isSmallDevice ? 6 : 8, borderTopLeftRadius: 12, borderBottomLeftRadius: 12 }]} />
                                 <View style={styles.taskContent}>
                                     <Text style={[
                                         styles.taskTitleText, 
@@ -369,6 +431,15 @@ export default function ActionCenter() {
                             />
                             <Sparkles size={16} color={theme.primary} />
                         </View>
+                        {nlpHint ? (
+                            <MotiText 
+                                from={{ opacity: 0, translateY: -5 }} 
+                                animate={{ opacity: 1, translateY: 0 }} 
+                                style={{ color: theme.primary, fontSize: 11, marginTop: 8, marginLeft: 16, fontWeight: '800', letterSpacing: 0.5 }}
+                            >
+                                {nlpHint}
+                            </MotiText>
+                        ) : null}
 
                         <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, marginTop: 12, height: isSmallDevice ? 80 : 100 }]}>
                             <TextInput 
@@ -384,23 +455,92 @@ export default function ActionCenter() {
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.duration.toUpperCase()}</Text>
-                        <View style={styles.dateTimeRow}>
-                            <TouchableOpacity style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: isSmallDevice ? 48 : 52 }]}>
-                                <Timer size={14} color={theme.primary} />
-                                <TextInput 
-                                    placeholder="Tarih"
-                                    placeholderTextColor={theme.onSurfaceVariant + '60'}
-                                    style={[styles.chipInput, { color: theme.onSurface, fontSize: 12 }]}
-                                    value={form.dueDate}
-                                    onChangeText={v => setForm(f => ({ ...f, dueDate: v }))}
-                                />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: isSmallDevice ? 48 : 52 }]}>
-                                <Sparkles size={14} color={theme.secondary} />
-                                <TextInput placeholder="Saat" placeholderTextColor={theme.onSurfaceVariant + '60'} style={[styles.chipInput, { color: theme.onSurface, fontSize: 12 }]} />
-                            </TouchableOpacity>
-                        </View>
+                        {/* Date & Time Chips */}
+                        {!showDatePicker && !showTimePicker && (
+                          <View style={styles.dateTimeRow}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10, marginBottom: 6 }]}>{t.dueDate.toUpperCase()}</Text>
+                                <TouchableOpacity
+                                    onPress={openDatePicker}
+                                    style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: isSmallDevice ? 48 : 52 }]}
+                                >
+                                    <Timer size={14} color={theme.primary} />
+                                    <Text style={[styles.chipText, { color: form.dueDate ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]}>
+                                        {form.dueDate || t.selectDate}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10, marginBottom: 6 }]}>{t.dueTime.toUpperCase()}</Text>
+                                <TouchableOpacity
+                                    onPress={openTimePicker}
+                                    style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: isSmallDevice ? 48 : 52 }]}
+                                >
+                                    <Sparkles size={14} color={theme.secondary} />
+                                    <Text style={[styles.chipText, { color: form.dueTime ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]}>
+                                        {form.dueTime ? new Date(form.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t.selectTime}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Inline Date Picker */}
+                        {showDatePicker && (
+                          <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
+                            <Text style={[styles.inlinePickerTitle, { color: theme.onSurface }]}>{t.dueDate}</Text>
+                            <View style={styles.pickerRow}>
+                              <View style={styles.pickerCol}>
+                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>GÜN</Text>
+                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, day: Math.min(d.day + 1, daysInMonth(d.year, d.month)) }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
+                                <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.day).padStart(2, '0')}</Text>
+                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, day: Math.max(d.day - 1, 1) }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
+                              </View>
+                              <View style={styles.pickerCol}>
+                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>AY</Text>
+                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, month: d.month === 12 ? 1 : d.month + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
+                                <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.month).padStart(2, '0')}</Text>
+                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, month: d.month === 1 ? 12 : d.month - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
+                              </View>
+                              <View style={styles.pickerCol}>
+                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>YIL</Text>
+                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, year: d.year + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
+                                <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{pickerDate.year}</Text>
+                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, year: Math.max(d.year - 1, 2020) }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
+                              </View>
+                            </View>
+                            <View style={styles.pickerActions}>
+                              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={{ color: theme.onSurfaceVariant, fontWeight: '700' }}>{t.cancel}</Text></TouchableOpacity>
+                              <TouchableOpacity onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={{ color: 'white', fontWeight: '900' }}>{t.save}</Text></TouchableOpacity>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Inline Time Picker */}
+                        {showTimePicker && (
+                          <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
+                            <Text style={[styles.inlinePickerTitle, { color: theme.onSurface }]}>{t.dueTime}</Text>
+                            <View style={styles.pickerRow}>
+                              <View style={styles.pickerCol}>
+                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>SAAT</Text>
+                                <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 23 ? 0 : pt.hour + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
+                                <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.hour).padStart(2, '0')}</Text>
+                                <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 0 ? 23 : pt.hour - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
+                              </View>
+                              <Text style={[styles.pickerColon, { color: theme.onSurface }]}>:</Text>
+                              <View style={styles.pickerCol}>
+                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>DAKİKA</Text>
+                                <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 59 ? 0 : pt.minute + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
+                                <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.minute).padStart(2, '0')}</Text>
+                                <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 0 ? 59 : pt.minute - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
+                              </View>
+                            </View>
+                            <View style={styles.pickerActions}>
+                              <TouchableOpacity onPress={() => setShowTimePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={{ color: theme.onSurfaceVariant, fontWeight: '700' }}>{t.cancel}</Text></TouchableOpacity>
+                              <TouchableOpacity onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={{ color: 'white', fontWeight: '900' }}>{t.save}</Text></TouchableOpacity>
+                            </View>
+                          </View>
+                        )}
                     </View>
 
                     <View style={styles.section}>
@@ -416,7 +556,17 @@ export default function ActionCenter() {
                                     onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, priority: p.key })); }}
                                     style={[styles.priorityTab, { backgroundColor: form.priority === p.key ? priorityColor(p.key) : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: isSmallDevice ? 40 : 48 }]}
                                 >
-                                    <Text style={[styles.priorityTabText, { color: form.priority === p.key ? 'white' : theme.onSurfaceVariant, fontSize: isSmallDevice ? 11 : 13 }]}>{p.label}</Text>
+                                    <Text style={[
+                                        styles.priorityTabText, 
+                                        { 
+                                            color: form.priority === p.key 
+                                                ? (p.key === 'Low' ? theme.onTertiary : p.key === 'High' ? 'white' : 'white') 
+                                                : theme.onSurfaceVariant, 
+                                            fontSize: isSmallDevice ? 11 : 13 
+                                        }
+                                    ]}>
+                                        {p.label}
+                                    </Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -485,7 +635,7 @@ const styles = StyleSheet.create({
   modalTextArea: { alignItems: 'flex-start' },
   dateTimeRow: { flexDirection: 'row', gap: 12 },
   dateTimeChip: { flex: 1, borderRadius: 18, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 10 },
-  chipInput: { flex: 1, fontWeight: '700' },
+  chipText: { flex: 1, fontWeight: '700' },
   optionLabel: { fontWeight: '900', letterSpacing: 1.2, marginBottom: 12, marginLeft: 4, opacity: 0.6 },
   priorityRow: { flexDirection: 'row' },
   priorityTab: { flex: 1, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
@@ -493,4 +643,16 @@ const styles = StyleSheet.create({
   modalSaveBtn: { borderRadius: 24, overflow: 'hidden', marginTop: 10 },
   modalSaveGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
   modalSaveText: { color: 'white', fontWeight: '900', letterSpacing: -0.5 },
+  inlinePicker: { borderRadius: 20, padding: 20, alignItems: 'center' },
+  inlinePickerTitle: { fontSize: 15, fontWeight: '900', marginBottom: 16, letterSpacing: -0.5 },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 24, marginBottom: 28 },
+  pickerCol: { alignItems: 'center', minWidth: 64 },
+  pickerColLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, marginBottom: 12, opacity: 0.6 },
+  pickerArrow: { padding: 10 },
+  pickerArrowText: { fontSize: 18, fontWeight: '900' },
+  pickerValue: { fontSize: 40, fontWeight: '900', letterSpacing: -1, lineHeight: 48 },
+  pickerColon: { fontSize: 36, fontWeight: '900', marginTop: 16 },
+  pickerActions: { flexDirection: 'row', gap: 12, width: '100%' },
+  pickerCancelBtn: { flex: 1, borderRadius: 16, borderWidth: 1.5, paddingVertical: 14, alignItems: 'center' },
+  pickerConfirmBtn: { flex: 1, borderRadius: 16, paddingVertical: 14, alignItems: 'center' },
 });

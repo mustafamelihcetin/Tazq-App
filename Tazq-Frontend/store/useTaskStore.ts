@@ -29,7 +29,26 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   dailyProgressText: 'Bugün için harika bir gün!',
 
   setTasks: (tasks) => {
-    const todayTasks = tasks.filter((t) => {
+    // Smart Sort: 
+    // 1. Uncompleted first
+    // 2. Priority (High > Medium > Low)
+    // 3. Due Date (Earliest first, nulls at bottom)
+    const sorted = [...tasks].sort((a, b) => {
+      if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
+      
+      const priorityMap: Record<string, number> = { 'High': 3, 'Medium': 2, 'Low': 1 };
+      const pA = priorityMap[a.priority] || 0;
+      const pB = priorityMap[b.priority] || 0;
+      if (pA !== pB) return pB - pA;
+
+      if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      if (a.dueDate) return -1;
+      if (b.dueDate) return 1;
+      
+      return b.id - a.id; // Newest first as tie-breaker
+    });
+
+    const todayTasks = sorted.filter((t) => {
       if (!t.dueDate) return false;
       return new Date(t.dueDate).toDateString() === new Date().toDateString();
     });
@@ -38,7 +57,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       todayTasks.length > 0
         ? `${todayTasks.length} görevden ${completedToday} tanesi tamamlandı.`
         : 'Bugün için planlanan görev yok.';
-    set({ tasks, dailyProgressText: progressText });
+    set({ tasks: sorted, dailyProgressText: progressText });
   },
 
   addTask: (task) => {
