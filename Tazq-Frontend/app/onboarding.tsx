@@ -235,7 +235,13 @@ export default function OnboardingScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
             <Text style={[styles.logoTop, { color: theme.onSurface }]}>TAZQ</Text>
-            <TouchableOpacity onPress={() => router.push('/login')} style={styles.skipBtn}>
+            <TouchableOpacity 
+                onPress={async () => {
+                    try { await AsyncStorage.setItem('tazq-onboarding-done', 'true'); } catch {}
+                    router.replace('/login');
+                }} 
+                style={styles.skipBtn}
+            >
                 <Text style={[styles.skipText, { color: theme.onSurfaceVariant }]}>{t.skip}</Text>
             </TouchableOpacity>
         </View>

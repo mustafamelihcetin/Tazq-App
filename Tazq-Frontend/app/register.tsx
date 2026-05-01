@@ -175,7 +175,7 @@ export default function RegisterScreen() {
                                         <ActivityIndicator color={theme.onPrimary} />
                                     ) : (
                                         <>
-                                            <Text style={[styles.primaryBtnText, { color: theme.onPrimary, fontSize: isSmallDevice ? 18 : 20 }]}>{t.addTask}</Text>
+                                            <Text style={[styles.primaryBtnText, { color: theme.onPrimary, fontSize: isSmallDevice ? 18 : 20 }]}>{t.login.signUp}</Text>
                                             <ArrowRight size={22} color={theme.onPrimary} strokeWidth={3} />
                                         </>
                                     )}
@@ -187,7 +187,7 @@ export default function RegisterScreen() {
                     {/* Footer */}
                     <View style={[styles.footer, { marginTop: isSmallDevice ? 20 : 40 }]}>
                         <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
-                            {t.footer} 
+                            {t.login.footer} 
                             <TouchableOpacity onPress={() => router.push('/login')}>
                                 <Text style={{ color: theme.secondary, fontWeight: '700' }}> {t.login.title}</Text>
                             </TouchableOpacity>

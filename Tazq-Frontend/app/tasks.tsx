@@ -131,13 +131,14 @@ export default function ActionCenter() {
   const handleSave = async () => {
     if (!form.title.trim()) { setTitleError(true); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); return; }
     setSaving(true);
+    const existingTask = editingId !== null ? tasks.find(t => t.id === editingId) : null;
     const payload = {
       title: form.title.trim(),
       description: form.description.trim(),
-      isCompleted: false,
+      isCompleted: existingTask ? existingTask.isCompleted : false,
       priority: form.priority,
       dueDate: form.dueDate || undefined,
-      tags: [],
+      tags: existingTask ? existingTask.tags : [],
     };
     try {
       if (editingId !== null) {
@@ -203,7 +204,7 @@ export default function ActionCenter() {
           {/* Stats Bento Section */}
           <View style={[styles.statsGrid, { gap: isSmallDevice ? 12 : 16, marginBottom: isSmallDevice ? 20 : 24 }]}>
             <BentoCard index={0} style={{ flex: 1.4, padding: isSmallDevice ? 16 : 20 }}>
-                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>COMPLETED</Text>
+                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.completed}</Text>
                 <View style={styles.statValueRow}>
                     <Text style={[styles.statValue, { color: theme.onSurface, fontSize: isSmallDevice ? 24 : 32 }]}>{tasks.filter(t => t.isCompleted).length}</Text>
                     <View style={[styles.trendBadge, { backgroundColor: theme.tertiary + '15' }]}>
@@ -214,7 +215,7 @@ export default function ActionCenter() {
             </BentoCard>
 
             <BentoCard index={1} style={{ flex: 1, padding: isSmallDevice ? 16 : 20 }}>
-                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>PENDING</Text>
+                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.pending}</Text>
                 <Text style={[styles.statValue, { color: theme.primary, fontSize: isSmallDevice ? 24 : 32 }]}>{tasks.filter(t => !t.isCompleted).length}</Text>
                 <Text style={[styles.statSub, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>{t.streak}</Text>
             </BentoCard>
@@ -324,7 +325,8 @@ export default function ActionCenter() {
                 width: isSmallDevice ? 56 : 64,
                 height: isSmallDevice ? 56 : 64,
                 borderRadius: isSmallDevice ? 28 : 32,
-                bottom: isShortDevice ? 100 : 120
+                bottom: isShortDevice ? 100 : 120,
+                right: isSmallDevice ? 20 : 24
             }
         ]}
       >

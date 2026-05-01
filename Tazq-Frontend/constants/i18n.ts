@@ -75,6 +75,8 @@ export const translations = {
     duration: 'Duration',
     priority: 'Priority',
     save: 'Commit Changes',
+    completed: 'COMPLETED',
+    pending: 'PENDING',
     common: {
       loading: 'Loading...',
     }
@@ -151,6 +153,8 @@ export const translations = {
     duration: 'Süre',
     priority: 'Öncelik',
     save: 'Değişiklikleri Kaydet',
+    completed: 'TAMAMLANDI',
+    pending: 'BEKLEYEN',
     common: {
       loading: 'Yükleniyor...',
     }
