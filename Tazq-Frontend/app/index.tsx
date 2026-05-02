@@ -73,6 +73,7 @@ export default function HomeScreen() {
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [weeklyFocus, setWeeklyFocus] = useState<DailyFocusData[]>([]);
   const [streak, setStreak] = useState(0);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   // Compute daily goal from real data
   const todayTasks = tasks.filter(t => {
@@ -97,6 +98,7 @@ export default function HomeScreen() {
   };
 
   const fetchStats = async () => {
+    setStatsLoading(true);
     try {
       const stats = await FocusService.getStats();
       setWeeklyFocus(stats.weeklyFocus || []);
@@ -105,6 +107,8 @@ export default function HomeScreen() {
       if (e.response?.status !== 401) {
         console.warn('fetchStats error:', e.message);
       }
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -150,17 +154,28 @@ export default function HomeScreen() {
     fetchStats();
   }, []);
 
+  const [currentHour, setCurrentHour] = useState(new Date().getHours());
+  useEffect(() => {
+    const now = new Date();
+    const msUntilNextHour = (60 - now.getMinutes()) * 60000 - now.getSeconds() * 1000;
+    const timeout = setTimeout(() => {
+      setCurrentHour(new Date().getHours());
+      const interval = setInterval(() => setCurrentHour(new Date().getHours()), 3600000);
+      return () => clearInterval(interval);
+    }, msUntilNextHour);
+    return () => clearTimeout(timeout);
+  }, []);
+
   const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return t.greetingMorning;
-    if (hour >= 12 && hour < 18) return t.greetingAfternoon;
-    if (hour >= 18 && hour < 23) return t.greetingEvening;
+    if (currentHour >= 5 && currentHour < 13) return t.greetingMorning;
+    if (currentHour >= 13 && currentHour < 18) return t.greetingAfternoon;
+    if (currentHour >= 18 && currentHour < 23) return t.greetingEvening;
     return t.greetingNight;
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         
         {/* Floating TopBar */}
         <View style={[styles.topBarWrapper, { top: Math.max(insets.top, 16) }]}>
@@ -174,7 +189,7 @@ export default function HomeScreen() {
                         borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
                         maxWidth: width - 48
                     },
-                    isDark ? styles.darkTopBarShadow : styles.lightTopBarShadow
+                    isDark ? { shadowColor: theme.primaryDim, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 } : styles.lightTopBarShadow
                 ]}
             >
                 <BlurView 
@@ -261,27 +276,30 @@ export default function HomeScreen() {
                             </Text>
                         </View>
 
-                        <View style={styles.missionFooter}>
+                        <View style={[styles.missionFooter, { gap: 12 }]}>
                             {topTask ? (
                                 <TouchableOpacity 
-                                    onPress={() => startFocus(topTask.title)}
-                                    style={[styles.startBtn, { backgroundColor: theme.primary }]}
+                                    onPress={() => router.push({ pathname: '/tasks', params: { action: 'focus', taskId: topTask.id } })}
+                                    style={[styles.startBtn, { backgroundColor: theme.primary, flex: 2, height: 52, justifyContent: 'center' }]}
                                 >
-                                    <Play size={18} color="white" fill="white" />
-                                    <Text style={styles.startBtnText}>{t.deepFocus}</Text>
+                                    <Play size={18} color={theme.onPrimary} fill={theme.onPrimary} />
+                                    <Text style={[styles.startBtnText, { color: theme.onPrimary, fontSize: 15, fontWeight: '900' }]}>{t.deepFocus.toUpperCase()}</Text>
                                 </TouchableOpacity>
                             ) : (
                                 <TouchableOpacity 
                                     onPress={() => router.push('/tasks')}
-                                    style={[styles.startBtn, { backgroundColor: theme.surfaceContainerHigh }]}
+                                    style={[styles.startBtn, { backgroundColor: theme.surfaceContainerHigh, flex: 2, height: 52, justifyContent: 'center' }]}
                                 >
                                     <Plus size={18} color={theme.onSurface} />
-                                    <Text style={[styles.startBtnText, { color: theme.onSurface }]}>{t.addTask}</Text>
+                                    <Text style={[styles.startBtnText, { color: theme.onSurface, fontSize: 15, fontWeight: '900' }]}>{t.addTask.toUpperCase()}</Text>
                                 </TouchableOpacity>
                             )}
-                            <TouchableOpacity onPress={() => router.push('/tasks')} style={styles.seeAllBtn}>
-                                <Text style={[styles.seeAllText, { color: theme.onSurfaceVariant }]}>{t.filterAll}</Text>
-                                <ChevronRight size={14} color={theme.onSurfaceVariant} />
+                            <TouchableOpacity 
+                                onPress={() => router.push('/tasks')} 
+                                style={[styles.seeAllBtn, { flex: 1, height: 52, justifyContent: 'flex-end', paddingRight: 4 }]}
+                            >
+                                <Text style={[styles.seeAllText, { color: theme.onSurfaceVariant, fontSize: 13 }]}>{t.filterAll}</Text>
+                                <ChevronRight size={16} color={theme.onSurfaceVariant} />
                             </TouchableOpacity>
                         </View>
                     </BentoCard>
@@ -296,20 +314,30 @@ export default function HomeScreen() {
                         <View style={styles.cardHeader}>
                             <Text style={[styles.cardTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 16 }]}>{t.weeklyProgress}</Text>
                         </View>
-                        <View style={[styles.chartContainer, { height: isShortDevice ? 60 : 80, marginTop: 10 }]}>
-                            {(weeklyFocus.length > 0 ? weeklyFocus : [{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0}]).map((d: any, i: number) => {
-                                const maxMin = Math.max(...(weeklyFocus.length > 0 ? weeklyFocus.map(w => w.minutes) : [1]));
-                                const pct = maxMin > 0 ? Math.max((d.minutes / maxMin) * 100, 5) : 5;
-                                const isToday = i === (weeklyFocus.length > 0 ? weeklyFocus.length - 1 : 6);
-                                return <View key={i} style={[styles.chartBar, { height: `${pct}%`, backgroundColor: isToday ? theme.primary : theme.surfaceContainerHigh, width: isSmallDevice ? 8 : 10 }]} />;
-                            })}
-                        </View>
-                        {weeklyFocus.length > 0 && (
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 10 }}>
-                                {weeklyFocus.map((d, i) => (
-                                    <Text key={i} style={{ fontSize: 8, color: theme.onSurfaceVariant, fontWeight: '700', opacity: 0.5 }}>{d.day}</Text>
+                        {statsLoading ? (
+                            <View style={[styles.chartContainer, { height: isShortDevice ? 60 : 80, marginTop: 10 }]}>
+                                {[0,1,2,3,4,5,6].map((i) => (
+                                    <MotiView key={i} animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: i * 80 }} style={[styles.chartBar, { height: `${20 + i * 10}%`, backgroundColor: theme.surfaceContainerHigh, width: isSmallDevice ? 8 : 10 }]} />
                                 ))}
                             </View>
+                        ) : (
+                            <>
+                                <View style={[styles.chartContainer, { height: isShortDevice ? 60 : 80, marginTop: 10 }]}>
+                                    {(weeklyFocus.length > 0 ? weeklyFocus : [{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0}]).map((d: any, i: number) => {
+                                        const maxMin = Math.max(...(weeklyFocus.length > 0 ? weeklyFocus.map(w => w.minutes) : [1]));
+                                        const pct = maxMin > 0 ? Math.max((d.minutes / maxMin) * 100, 5) : 5;
+                                        const isToday = i === (weeklyFocus.length > 0 ? weeklyFocus.length - 1 : 6);
+                                        return <View key={i} style={[styles.chartBar, { height: `${pct}%`, backgroundColor: isToday ? theme.primary : theme.surfaceContainerHigh, width: isSmallDevice ? 8 : 10 }]} />;
+                                    })}
+                                </View>
+                                {weeklyFocus.length > 0 && (
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 10 }}>
+                                        {weeklyFocus.map((d, i) => (
+                                            <Text key={i} style={{ fontSize: 8, color: theme.onSurfaceVariant, fontWeight: '700', opacity: 0.5 }}>{d.day}</Text>
+                                        ))}
+                                    </View>
+                                )}
+                            </>
                         )}
                     </BentoCard>
 
@@ -318,7 +346,6 @@ export default function HomeScreen() {
                         <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1, color: theme.onSurfaceVariant, opacity: 0.5 }}>{t.dailyGoalTitle.toUpperCase()}</Text>
                         <Text style={[styles.countText, { color: theme.primary, fontSize: isSmallDevice ? 28 : 36 }]}>{todayCompleted}<Text style={{ fontSize: isSmallDevice ? 14 : 18, color: theme.onSurfaceVariant }}>/{dailyGoal}</Text></Text>
                         <Text style={[styles.countLabel, { color: theme.onSurfaceVariant }]}>{t.tasks}</Text>
-                        {/* Mini progress bar */}
                         <View style={{ width: '80%', height: 4, borderRadius: 2, backgroundColor: theme.surfaceContainerHigh, marginTop: 8, overflow: 'hidden' }}>
                             <View style={{ width: `${Math.min((todayCompleted / dailyGoal) * 100, 100)}%`, height: '100%', borderRadius: 2, backgroundColor: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary }} />
                         </View>
@@ -326,15 +353,56 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={[styles.bentoRow, { gap: isSmallDevice ? 12 : 16 }]}>
+                     {/* Momentum Score */}
+                     {(() => {
+                       const completedCount = tasks.filter(t => t.isCompleted).length;
+                       const totalCount = tasks.length || 1;
+                       const completionRate = completedCount / totalCount;
+                       const weeklyMinutes = weeklyFocus.reduce((s: number, d: any) => s + (d.minutes || 0), 0);
+                       const focusScore = Math.min(weeklyMinutes / 300, 1); // 300 min/week = max
+                       const streakScore = Math.min(streak / 14, 1); // 14-day streak = max
+                       const momentum = Math.round((completionRate * 40 + focusScore * 35 + streakScore * 25));
+                       const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? '#ff9f0a' : theme.primary;
+                       return (
+                         <BentoCard index={3} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: isSmallDevice ? 16 : 20 }}>
+                           <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1, color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                             {i18n.locale.startsWith('tr') ? 'MOMENTUM' : 'MOMENTUM'}
+                           </Text>
+                           <MotiView animate={{ opacity: [0.7, 1, 0.7] }} transition={{ loop: true, duration: 2500 }}>
+                             <Text style={{ fontSize: isSmallDevice ? 32 : 40, fontWeight: '900', color: momentumColor, letterSpacing: -1, marginTop: 4 }}>
+                               {statsLoading ? '--' : momentum}
+                             </Text>
+                           </MotiView>
+                           <Text style={{ color: theme.onSurfaceVariant, marginTop: 4, fontWeight: '500' }}>{t.waitingForAction}</Text>
+                           <View style={{ width: '80%', height: 3, borderRadius: 2, backgroundColor: theme.surfaceContainerHigh, marginTop: 8, overflow: 'hidden' }}>
+                             <MotiView
+                               animate={{ width: `${statsLoading ? 0 : momentum}%` as any }}
+                               transition={{ type: 'timing', duration: 800 }}
+                               style={{ height: '100%', borderRadius: 2, backgroundColor: momentumColor }}
+                             />
+                           </View>
+                         </BentoCard>
+                       );
+                     })()}
+
                      {/* Streak */}
-                     <BentoCard index={3} style={{ flex: 1 }}>
-                        <View style={[styles.sectionHeader, { marginBottom: isSmallDevice ? 8 : 12 }]}>
-                            <Zap size={isSmallDevice ? 16 : 18} color={streak > 0 ? '#ff9f0a' : theme.onSurfaceVariant} fill={streak > 0 ? '#ff9f0a' : 'none'} />
-                            <Text style={[styles.sectionTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 13 : 15 }]}>🔥 {streak > 0 ? `${streak} ${t.streakFire}` : t.streak}</Text>
-                        </View>
-                        <Text style={{ fontSize: 12, color: theme.onSurfaceVariant, fontWeight: '600', opacity: 0.7 }}>
-                            {streak > 0 ? t.streakMotivation : t.streakNone}
-                        </Text>
+                     <BentoCard index={4} style={{ flex: 1 }}>
+                        {statsLoading ? (
+                            <View style={{ gap: 10 }}>
+                                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200 }} style={{ height: 14, width: '60%', borderRadius: 7, backgroundColor: theme.surfaceContainerHigh }} />
+                                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: 150 }} style={{ height: 10, width: '80%', borderRadius: 5, backgroundColor: theme.surfaceContainerHigh }} />
+                            </View>
+                        ) : (
+                            <>
+                                <View style={[styles.sectionHeader, { marginBottom: isSmallDevice ? 8 : 12 }]}>
+                                    <Zap size={isSmallDevice ? 16 : 18} color={streak > 0 ? '#ff9f0a' : theme.onSurfaceVariant} fill={streak > 0 ? '#ff9f0a' : 'none'} />
+                                    <Text style={[styles.sectionTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 13 : 15 }]}>🔥 {streak > 0 ? `${streak} ${t.streakFire}` : t.streak}</Text>
+                                </View>
+                                <Text style={{ fontSize: 12, color: theme.onSurfaceVariant, fontWeight: '600', opacity: 0.7 }}>
+                                    {streak > 0 ? t.streakMotivation : t.streakNone}
+                                </Text>
+                            </>
+                        )}
                     </BentoCard>
                 </View>
 

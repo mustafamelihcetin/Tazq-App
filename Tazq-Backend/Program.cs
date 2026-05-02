@@ -138,10 +138,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         opt.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            ValidateIssuer = true,
+            ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(keyBytes)
         };
     });
@@ -240,24 +242,17 @@ app.UseExceptionHandler(errorApp =>
 
 app.Use(async (context, next) =>
 {
-    Console.WriteLine($">>> İstek Geldi: {context.Request.Method} {context.Request.Path}");
     if (app.Environment.IsDevelopment())
     {
         await next();
         return;
     }
 
-    if (!context.Request.Headers.TryGetValue("X-App-Signature", out var signature))
+    if (!context.Request.Headers.TryGetValue("X-App-Signature", out var signature) ||
+        !string.Equals(signature.ToString(), appSignature, StringComparison.OrdinalIgnoreCase))
     {
         context.Response.StatusCode = 403;
-        await context.Response.WriteAsync("Signature missing.");
-        return;
-    }
-    
-    if (!string.Equals(signature.ToString(), appSignature, StringComparison.OrdinalIgnoreCase))
-    {
-        context.Response.StatusCode = 403;
-        await context.Response.WriteAsync("Signature mismatch.");
+        await context.Response.WriteAsync("Forbidden.");
         return;
     }
 

@@ -75,6 +75,10 @@ export const AuthService = {
     const response = await api.put('/api/users/profile', data);
     return response.data;
   },
+  forgotPassword: async (email: string) => {
+    const response = await api.post('/api/users/forgot-password', { email });
+    return response.data;
+  },
 };
 
 export type Priority = 'Low' | 'Medium' | 'High';

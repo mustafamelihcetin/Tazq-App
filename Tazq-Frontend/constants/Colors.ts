@@ -34,31 +34,31 @@ const lightPalette = {
 };
 
 const darkPalette = {
-  primary: '#94aaff',
-  primaryDim: '#3367ff',
-  primaryContainer: '#809bff',
-  onPrimary: '#00257b',
-  onPrimaryContainer: '#d9e2ff',
-  secondary: '#ff6c95',
-  secondaryContainer: '#bb0054',
-  onSecondary: '#48001c',
-  tertiary: '#b5ffc2',
-  tertiaryContainer: '#3fff8b',
-  onTertiary: '#006731',
-  error: '#ff6e84',
-  onBackground: '#ffffff',
-  onSurface: '#ffffff',
-  onSurfaceVariant: '#adaaaa',
-  background: '#0e0e0e',
-  surface: '#0e0e0e',
-  surfaceVariant: '#262626',
+  primary: '#FAFAFA', // Ice White - Premium & Bold
+  primaryDim: '#D4D4D8',
+  primaryContainer: '#27272A',
+  onPrimary: '#09090B', // Black text on white/silver buttons
+  onPrimaryContainer: '#FAFAFA',
+  secondary: '#3B82F6', // Refined Azure (Used sparingly)
+  secondaryContainer: '#1E3A8A',
+  onSecondary: '#EFF6FF',
+  tertiary: '#F59E0B', 
+  tertiaryContainer: '#451A03',
+  onTertiary: '#FEF3C7',
+  error: '#EF4444',
+  onBackground: '#F4F4F5',
+  onSurface: '#FAFAFA',
+  onSurfaceVariant: '#A1A1AA', // Perfect for secondary text
+  background: '#09090B', // Zinc 950
+  surface: '#09090B',
+  surfaceVariant: '#18181B', // Zinc 900
   surfaceContainerLowest: '#000000',
-  surfaceContainerLow: '#131313',
-  surfaceContainer: '#1a1a1a',
-  surfaceContainerHigh: '#20201f',
-  surfaceContainerHighest: '#262626',
-  outline: '#767575',
-  outlineVariant: '#484847',
+  surfaceContainerLow: '#0E0E11',
+  surfaceContainer: '#121217',
+  surfaceContainerHigh: '#18181B',
+  surfaceContainerHighest: '#27272A',
+  outline: 'rgba(255,255,255,0.08)', // The "Senior Designer" subtle border
+  outlineVariant: 'rgba(255,255,255,0.04)',
 };
 
 export const Colors = {

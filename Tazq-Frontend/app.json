@@ -23,13 +23,7 @@
       ],
       "expo-font",
       "expo-localization",
-      "@react-native-community/datetimepicker",
-      [
-        "expo-notifications",
-        {
-          "sounds": []
-        }
-      ]
+      "@react-native-community/datetimepicker"
     ],
     "splash": {
       "image": "./assets/images/tazq_splash.png",
@@ -48,7 +42,12 @@
         "foregroundImage": "./assets/images/tazq_icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.tazqapp.tazq"
+      "package": "com.tazqapp.tazq",
+      "backgroundColor": "#09090B",
+      "navigationBar": {
+        "backgroundColor": "#09090B",
+        "barStyle": "light-content"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

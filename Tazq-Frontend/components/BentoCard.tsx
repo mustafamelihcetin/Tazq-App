@@ -25,10 +25,10 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
       style={[
         styles.card,
         {
-          backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
-          borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+          backgroundColor: isDark ? '#18181B' : '#FFFFFF',
+          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
           shadowColor: '#000',
-          shadowOpacity: isDark ? 0.4 : 0.04,
+          shadowOpacity: isDark ? 0.3 : 0.04,
           padding: isSmallDevice ? 16 : 24,
           borderRadius: isSmallDevice ? 28 : 36,
         },

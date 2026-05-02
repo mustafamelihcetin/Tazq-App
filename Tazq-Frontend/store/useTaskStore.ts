@@ -32,7 +32,7 @@ interface TaskState {
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
   isLoading: false,
-  dailyProgressText: 'Bugün için harika bir gün!',
+  dailyProgressText: '',
 
   setTasks: (tasks) => {
     // Smart Sort: 
@@ -65,11 +65,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       return new Date(t.dueDate).toDateString() === new Date().toDateString();
     });
     const completedToday = todayTasks.filter((t) => t.isCompleted).length;
-    const progressText =
-      todayTasks.length > 0
-        ? `${todayTasks.length} görevden ${completedToday} tanesi tamamlandı.`
-        : 'Bugün için planlanan görev yok.';
-    set({ tasks: sorted, dailyProgressText: progressText });
+    set({ tasks: sorted, dailyProgressText: '' });
   },
 
   addTask: (task) => {

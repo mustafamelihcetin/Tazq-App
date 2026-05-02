@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, PanResponder, Animated as RNAnimated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import Animated, { Layout, useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle } from 'lucide-react-native';
+import { SubtaskProgressRing } from '../components/SubtaskProgressRing';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useTaskStore } from '../store/useTaskStore';
@@ -29,7 +30,7 @@ const SwipeableItem = ({ children, onDelete, isDark, theme }: any) => {
   const deleteOpacity = useSharedValue(0);
   const startTranslateX = useSharedValue(0);
 
-  const panResponder = React.useRef(
+  const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
@@ -92,7 +93,7 @@ const SwipeableItem = ({ children, onDelete, isDark, theme }: any) => {
   );
 };
 
-type FilterType = 'all' | 'High' | 'Medium' | 'Low' | 'done';
+type FilterType = 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done';
 
 interface TaskForm {
   title: string;
@@ -141,9 +142,10 @@ export default function ActionCenter() {
   const [pickerTime, setPickerTime] = useState({ hour: new Date().getHours(), minute: new Date().getMinutes() });
   const [newSubtaskText, setNewSubtaskText] = useState('');
   const [dateError, setDateError] = useState(false);
+  const subtaskSaveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   // Collect unique tags from all tasks for tag filter
-  const allTags = React.useMemo(() => {
+  const allTags = useMemo(() => {
     const tagSet = new Set<string>();
     tasks.forEach(t => (t.tags || []).forEach(tag => tagSet.add(tag)));
     return Array.from(tagSet);
@@ -205,6 +207,24 @@ export default function ActionCenter() {
     try {
       const data = await TaskService.getTasks();
       setTasks(Array.isArray(data) ? data : []);
+      // Auto-upgrade tasks due within 24h that aren't High priority
+      const now = new Date();
+      const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const toUpgrade = (Array.isArray(data) ? data : []).filter((task: any) =>
+        !task.isCompleted &&
+        task.priority !== 'High' &&
+        task.dueDate &&
+        !task.dueDate.startsWith('0001') &&
+        new Date(task.dueDate) <= in24h &&
+        new Date(task.dueDate) >= now
+      );
+      if (toUpgrade.length > 0) {
+        toUpgrade.forEach((task: any) => {
+          updateTask(task.id, { priority: 'High' });
+          TaskService.updateTask(task.id, { ...task, priority: 'High' }).catch(() => {});
+        });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      }
     } catch (e: any) {
       if (e.response?.status !== 401) {
         console.warn('loadTasks error:', e.message);
@@ -246,17 +266,55 @@ export default function ActionCenter() {
     setNlpHint(fullHint);
   };
 
+  const getDateColor = (dateStr: string | undefined | null, thm: typeof theme) => {
+    if (!dateStr || dateStr.startsWith('0001-01-01')) return thm.onSurfaceVariant;
+    const date = new Date(dateStr);
+    const now = new Date();
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const dateStart = new Date(date); dateStart.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((dateStart.getTime() - todayStart.getTime()) / 86400000);
+    if (diffDays < 0) return '#ff3b30';
+    if (diffDays === 0) return '#ff9f0a';
+    return thm.onSurfaceVariant;
+  };
+
+  const estimateDuration = (task: any) => {
+    const isTR = i18n.locale?.startsWith('tr');
+    let base = task.priority === 'High' ? 45 : task.priority === 'Medium' ? 20 : 10;
+    base += (task.subtasks || []).length * 5;
+    return isTR ? `~${base} dk` : `~${base} min`;
+  };
+
   const formatSmartDate = (dateStr?: string | null) => {
     if (!dateStr || dateStr.startsWith('0001-01-01')) return t.waitingForAction;
     const date = new Date(dateStr);
     const now = new Date();
+    const isTR = i18n.locale && i18n.locale.startsWith('tr');
+
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const dateStart = new Date(date); dateStart.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((dateStart.getTime() - todayStart.getTime()) / 86400000);
+
+    if (diffDays === 0) {
+      const diffMin = Math.round((date.getTime() - now.getTime()) / 60000);
+      if (diffMin > 0 && diffMin < 60) return isTR ? `⏰ ${diffMin} dk sonra` : `⏰ In ${diffMin}m`;
+      if (diffMin >= 60 && diffMin < 1440) {
+        const h = Math.round(diffMin / 60);
+        return isTR ? `⏰ ${h} saat sonra` : `⏰ In ${h}h`;
+      }
+      return isTR ? '📅 Bugün' : '📅 Today';
+    }
+    if (diffDays === 1) return isTR ? '📅 Yarın' : '📅 Tomorrow';
+    if (diffDays === -1) return isTR ? '📅 Dün' : '📅 Yesterday';
+    if (diffDays > 1 && diffDays <= 6) return isTR ? `📅 ${diffDays} gün sonra` : `📅 In ${diffDays} days`;
+    if (diffDays < -1 && diffDays >= -6) return isTR ? `📅 ${Math.abs(diffDays)} gün önce` : `📅 ${Math.abs(diffDays)} days ago`;
+    if (diffDays === 7) return isTR ? '📅 Gelecek hafta' : '📅 Next week';
+
+    const locale = isTR ? 'tr-TR' : 'en-US';
     const isCurrentYear = date.getFullYear() === now.getFullYear();
-    const locale = (i18n.locale && i18n.locale.startsWith('tr')) ? 'tr-TR' : 'en-US';
-    
-    const options: Intl.DateTimeFormatOptions = isCurrentYear 
-        ? { day: 'numeric', month: 'long' }
-        : { day: 'numeric', month: 'long', year: 'numeric' };
-        
+    const options: Intl.DateTimeFormatOptions = isCurrentYear
+      ? { day: 'numeric', month: 'long' }
+      : { day: 'numeric', month: 'long', year: 'numeric' };
     return `📅 ${date.toLocaleDateString(locale, options)}`;
   };
 
@@ -264,8 +322,13 @@ export default function ActionCenter() {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
 
+    if (!task.isCompleted) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    
     toggleTaskCompletion(id);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
       await TaskService.updateTask(id, {
@@ -402,48 +465,44 @@ export default function ActionCenter() {
   };
 
   const filteredTasks = tasks.filter((task) => {
-    // Priority/completion filter
     if (filter === 'done') { if (!task.isCompleted) return false; }
+    else if (filter === 'today') {
+      if (task.isCompleted) return false;
+      if (!task.dueDate || task.dueDate.startsWith('0001')) return false;
+      const d = new Date(task.dueDate);
+      const now = new Date();
+      const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+      if (d < todayStart || d > todayEnd) return false;
+    }
     else if (filter !== 'all') { if (task.priority !== filter || task.isCompleted) return false; }
-    // Tag filter
     if (tagFilter && !(task.tags || []).includes(tagFilter)) return false;
     return true;
   });
-
-  const filters: { key: FilterType; label: string }[] = [
-    { key: 'all', label: t.filterAll },
-    { key: 'High', label: t.filterHigh },
-    { key: 'Medium', label: t.filterMedium },
-    { key: 'Low', label: t.filterLow },
-    { key: 'done', label: t.filterDone },
-  ];
+  const filters: FilterType[] = ['all', 'today', 'High', 'Medium', 'Low', 'done'];
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        {/* Header */}
-        <MotiView from={{ opacity: 0, translateY: -10 }} animate={{ opacity: 1, translateY: 0 }} style={styles.header}>
-            <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={[styles.backBtn, { backgroundColor: theme.surfaceContainerLow }]}>
-                <X size={20} color={theme.onSurface} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 16 }]}>{t.actionCenter}</Text>
-            <TouchableOpacity style={[styles.aiBtn, { backgroundColor: theme.tertiary + '15' }]}>
-                <Sparkles size={18} color={theme.tertiary} fill={theme.tertiary} />
-            </TouchableOpacity>
-        </MotiView>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <X size={24} color={theme.onSurface} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.onSurface }]}>{t.actionCenter}</Text>
+          <TouchableOpacity style={styles.aiBtn}>
+            <Sparkles size={20} color={theme.primary} />
+          </TouchableOpacity>
+        </View>
 
         <ScrollView 
             style={{ flex: 1 }} 
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingTop: 10, paddingBottom: 140, paddingHorizontal: isSmallDevice ? 20 : 24 }}
+            contentContainerStyle={{ paddingTop: 10, paddingBottom: 140, paddingHorizontal: 24 }}
         >
-          <MotiView from={{ opacity: 0, translateX: -20 }} animate={{ opacity: 1, translateX: 0 }} style={{ marginBottom: isSmallDevice ? 16 : 24 }}>
-            <Text style={[styles.headline, { color: theme.onSurface, fontSize: isSmallDevice ? 28 : 36, lineHeight: isSmallDevice ? 34 : 42 }]}>{t.actionCenter}</Text>
-            <Text style={[styles.subHeadline, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 13 : 14 }]}>{t.allTasksReady}</Text>
-          </MotiView>
+          <Text style={[styles.subHeadline, { color: theme.onSurfaceVariant }]}>{t.allTasksReady}</Text>
 
           {/* Stats Bento Section */}
-          <View style={[styles.statsGrid, { gap: isSmallDevice ? 12 : 16, marginBottom: isSmallDevice ? 20 : 24 }]}>
+          <View style={[styles.statsGrid, { gap: isSmallDevice ? 12 : 16, marginTop: 24, marginBottom: isSmallDevice ? 20 : 24 }]}>
             <BentoCard index={0} style={{ flex: 1.4, padding: isSmallDevice ? 16 : 20 }}>
                 <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.completed}</Text>
                 <View style={styles.statValueRow}>
@@ -463,21 +522,35 @@ export default function ActionCenter() {
           </View>
 
           {/* Filter Pills */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ gap: isSmallDevice ? 8 : 10 }}>
-            {filters.map((f) => (
-              <TouchableOpacity 
-                key={f.key} 
-                onPress={() => { setFilter(f.key); Haptics.selectionAsync(); }}
-                style={[
-                    styles.filterChip, 
-                    { backgroundColor: filter === f.key ? theme.primary : theme.surfaceContainerLow, paddingVertical: isSmallDevice ? 8 : 10, paddingHorizontal: isSmallDevice ? 16 : 20 }
-                ]}
-              >
-                <Text style={[styles.filterChipText, { color: filter === f.key ? 'white' : theme.onSurfaceVariant, fontSize: isSmallDevice ? 12 : 13 }]}>
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ gap: 8 }}>
+            {filters.map((f) => {
+              const label = f === 'all' ? t.filterAll :
+                            f === 'today' ? (t as any).filterToday || 'Today' :
+                            f === 'High' ? t.filterHigh :
+                            f === 'Medium' ? t.filterMedium :
+                            f === 'Low' ? t.filterLow :
+                            f === 'done' ? t.filterDone : f;
+              return (
+                <TouchableOpacity 
+                  key={f} 
+                  onPress={() => { setFilter(f); Haptics.selectionAsync(); }}
+                  style={[
+                      styles.filterChip, 
+                      { 
+                          backgroundColor: filter === f ? 'rgba(250, 250, 250, 0.05)' : 'transparent',
+                          borderColor: filter === f ? theme.primary : theme.outline,
+                          borderWidth: 1,
+                          paddingVertical: isSmallDevice ? 8 : 10, 
+                          paddingHorizontal: isSmallDevice ? 16 : 20 
+                      }
+                  ]}
+                >
+                  <Text style={[styles.filterChipText, { color: filter === f ? theme.primary : theme.onSurfaceVariant, fontSize: isSmallDevice ? 12 : 13, fontWeight: filter === f ? '900' : '600' }]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           {/* Tag Filter Pills */}
@@ -485,9 +558,9 @@ export default function ActionCenter() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
               <TouchableOpacity 
                 onPress={() => { setTagFilter(null); Haptics.selectionAsync(); }}
-                style={[styles.filterChip, { backgroundColor: !tagFilter ? theme.secondary : theme.surfaceContainerLow, paddingVertical: 6, paddingHorizontal: 14 }]}
+                style={[styles.filterChip, { borderColor: !tagFilter ? theme.secondary : theme.outline, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 14 }]}
               >
-                <Text style={[styles.filterChipText, { color: !tagFilter ? 'white' : theme.onSurfaceVariant, fontSize: 11 }]}>
+                <Text style={[styles.filterChipText, { color: !tagFilter ? theme.secondary : theme.onSurfaceVariant, fontSize: 11 }]}>
                   {t.allTags}
                 </Text>
               </TouchableOpacity>
@@ -495,9 +568,9 @@ export default function ActionCenter() {
                 <TouchableOpacity 
                   key={tag}
                   onPress={() => { setTagFilter(tagFilter === tag ? null : tag); Haptics.selectionAsync(); }}
-                  style={[styles.filterChip, { backgroundColor: tagFilter === tag ? theme.secondary : theme.surfaceContainerLow, paddingVertical: 6, paddingHorizontal: 14 }]}
+                  style={[styles.filterChip, { borderColor: tagFilter === tag ? theme.secondary : theme.outline, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 14 }]}
                 >
-                  <Text style={[styles.filterChipText, { color: tagFilter === tag ? 'white' : theme.onSurfaceVariant, fontSize: 11 }]}>
+                  <Text style={[styles.filterChipText, { color: tagFilter === tag ? theme.secondary : theme.onSurfaceVariant, fontSize: 11 }]}>
                     #{tag}
                   </Text>
                 </TouchableOpacity>
@@ -540,10 +613,15 @@ export default function ActionCenter() {
                             <MotiView 
                                 layout={Layout.duration(300)}
                                 from={{ opacity: 0, translateY: 10 }}
-                                animate={{ opacity: 1, translateY: 0 }}
+                                animate={{ 
+                                    opacity: 1, 
+                                    translateY: 0,
+                                    scale: task.isCompleted ? [1, 1.03, 1] : 1 
+                                }}
                                 transition={{ 
-                                    type: 'timing',
-                                    duration: 300,
+                                    type: 'spring',
+                                    damping: 15,
+                                    stiffness: 150,
                                 }}
                             >
                                 <TouchableOpacity 
@@ -566,13 +644,19 @@ export default function ActionCenter() {
                                     
                                     <View style={styles.taskContent}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                            <Text style={[
-                                                styles.taskTitleText, 
-                                                { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 15, flexShrink: 1 },
-                                                task.isCompleted && { textDecorationLine: 'line-through', opacity: 0.4 }
-                                            ]} numberOfLines={expandedId === task.id ? 0 : 1}>
-                                                {task.title}
-                                            </Text>
+                                            <MotiView
+                                                animate={{ opacity: task.isCompleted ? 0.4 : 1, scale: task.isCompleted ? 0.97 : 1 }}
+                                                transition={{ type: 'timing', duration: 300 }}
+                                                style={{ flexShrink: 1 }}
+                                            >
+                                                <Text style={[
+                                                    styles.taskTitleText,
+                                                    { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 15, flexShrink: 1 },
+                                                    task.isCompleted && { textDecorationLine: 'line-through' }
+                                                ]} numberOfLines={expandedId === task.id ? 0 : 1}>
+                                                    {task.title}
+                                                </Text>
+                                            </MotiView>
                                             {task.recurrence && task.recurrence !== 'None' && (
                                                 <View style={[styles.categoryBadge, { backgroundColor: theme.secondary + '20' }]}>
                                                     <Repeat size={9} color={theme.secondary} />
@@ -587,21 +671,24 @@ export default function ActionCenter() {
                                             )}
                                         </View>
                                         <View style={styles.taskMetaRow}>
-                                            <Text style={[styles.taskMetaText, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 10 : 11 }]}>
+                                            <Text style={[styles.taskMetaText, { color: getDateColor(task.dueDate, theme), fontSize: isSmallDevice ? 10 : 11 }]}>
                                                 {formatSmartDate(task.dueDate)}
                                             </Text>
-                                            {(task.subtasks || []).length > 0 && (
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 10 }}>
-                                                    <ListChecks size={11} color={theme.onSurfaceVariant} />
-                                                    <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, fontWeight: '700' }}>
-                                                        {(task.subtasks || []).filter(s => s.done).length}/{(task.subtasks || []).length}
-                                                    </Text>
-                                                </View>
-                                            )}
+                                            <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.5, marginLeft: 10 }}>
+                                                {estimateDuration(task)}
+                                            </Text>
                                         </View>
                                     </View>
                                     
-                                    <View style={[styles.taskActions, { marginLeft: 12 }]}>
+                                    <View style={[styles.taskActions, { marginLeft: 12, width: isSmallDevice ? 32 : 36, height: isSmallDevice ? 32 : 36, justifyContent: 'center', alignItems: 'center' }]}>
+                                        <SubtaskProgressRing 
+                                            total={(task.subtasks || []).length} 
+                                            completed={(task.subtasks || []).filter(s => s.done).length}
+                                            size={isSmallDevice ? 40 : 44}
+                                            strokeWidth={1.5}
+                                            activeColor={theme.primary}
+                                            inactiveColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}
+                                        />
                                         <TouchableOpacity 
                                             onPress={() => handleToggle(task.id)} 
                                             style={[
@@ -672,15 +759,21 @@ export default function ActionCenter() {
                                                 <View style={{ marginTop: 12, gap: 6 }}>
                                                     <Text style={{ fontSize: 10, fontWeight: '900', color: theme.onSurfaceVariant, letterSpacing: 1, opacity: 0.5 }}>{t.subtasks.toUpperCase()}</Text>
                                                     {(task.subtasks || []).map((sub, si) => (
-                                                        <TouchableOpacity 
-                                                            key={si} 
+                                                        <TouchableOpacity
+                                                            key={si}
                                                             onPress={() => {
                                                                 toggleSubtask(task.id, si);
                                                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                                                // Persist subtask toggle to server
-                                                                const updatedSubs = [...(task.subtasks || [])];
-                                                                updatedSubs[si] = { ...updatedSubs[si], done: !updatedSubs[si].done };
-                                                                TaskService.updateTask(task.id, { ...task, priority: task.priority as any, subtasks: updatedSubs }).catch(() => {});
+                                                                // Debounce: batch rapid subtask toggles into a single API call
+                                                                if (subtaskSaveTimers.current[task.id]) {
+                                                                    clearTimeout(subtaskSaveTimers.current[task.id]);
+                                                                }
+                                                                subtaskSaveTimers.current[task.id] = setTimeout(() => {
+                                                                    const latest = useTaskStore.getState().tasks.find(t => t.id === task.id);
+                                                                    if (latest) {
+                                                                        TaskService.updateTask(task.id, { ...latest, priority: latest.priority as any, subtasks: latest.subtasks }).catch(() => {});
+                                                                    }
+                                                                }, 600);
                                                             }}
                                                             style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}
                                                         >
@@ -711,10 +804,10 @@ export default function ActionCenter() {
                                             )}
                                         </MotiView>
                                     )}
-                                </AnimatePresence>
+                                 </AnimatePresence>
                             </TouchableOpacity>
                         </MotiView>
-                    </SwipeableItem>
+                      </SwipeableItem>
                     ))
                 )}
             </AnimatePresence>
@@ -737,7 +830,7 @@ export default function ActionCenter() {
             }
         ]}
       >
-        <Plus size={isSmallDevice ? 28 : 32} color="white" />
+        <Plus size={isSmallDevice ? 28 : 32} color={theme.onPrimary} strokeWidth={3} />
       </TouchableOpacity>
 
       <BottomNavBar />
@@ -747,7 +840,11 @@ export default function ActionCenter() {
         <View style={styles.overlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && setModalVisible(false)} />
           
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.sheetContainer}>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            style={styles.sheetContainer}
+          >
             <MotiView 
                 from={{ translateY: 300 }}
                 animate={{ translateY: 0 }}
@@ -764,7 +861,12 @@ export default function ActionCenter() {
                     </TouchableOpacity>
                 </View>
 
-                <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: isShortDevice ? 10 : 20 }}>
+                <ScrollView 
+                    style={styles.formContainer} 
+                    showsVerticalScrollIndicator={false} 
+                    contentContainerStyle={{ paddingBottom: isShortDevice ? 10 : 20 }}
+                    keyboardShouldPersistTaps="handled"
+                >
                     <View style={styles.section}>
                         <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: isSmallDevice ? 52 : 60 }]}>
                             <TextInput 
@@ -884,7 +986,7 @@ export default function ActionCenter() {
                             )}
                             <View style={styles.pickerActions}>
                               <TouchableOpacity onPress={() => setShowDatePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></TouchableOpacity>
-                              <TouchableOpacity onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: 'white', fontWeight: '900' }]}>{t.save}</Text></TouchableOpacity>
+                              <TouchableOpacity onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '900' }]}>{t.save}</Text></TouchableOpacity>
                             </View>
                           </View>
                         )}
@@ -910,7 +1012,7 @@ export default function ActionCenter() {
                             </View>
                             <View style={styles.pickerActions}>
                               <TouchableOpacity onPress={() => setShowTimePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></TouchableOpacity>
-                              <TouchableOpacity onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: 'white', fontWeight: '900' }]}>{t.save}</Text></TouchableOpacity>
+                              <TouchableOpacity onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '900' }]}>{t.save}</Text></TouchableOpacity>
                             </View>
                           </View>
                         )}
@@ -1002,24 +1104,27 @@ export default function ActionCenter() {
                                     }
                                 }}
                             />
-                            <TouchableOpacity onPress={() => {
-                                if (newSubtaskText.trim()) {
-                                    setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));
-                                    setNewSubtaskText('');
-                                }
-                            }}>
+                            <TouchableOpacity 
+                                onPress={() => {
+                                    if (newSubtaskText.trim()) {
+                                        setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));
+                                        setNewSubtaskText('');
+                                    }
+                                }}
+                                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                            >
                                 <Plus size={18} color={theme.primary} />
                             </TouchableOpacity>
                         </View>
                     </View>
 
                     <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.modalSaveBtn}>
-                        <LinearGradient colors={isDark ? [theme.primary, '#3367ff'] : [theme.primary, theme.primaryContainer]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalSaveGradient}>
+                        <LinearGradient colors={isDark ? [theme.primary, theme.primaryDim] : [theme.primary, theme.primaryContainer]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalSaveGradient}>
                             {saving ? <ActivityIndicator color="white" /> : (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 }}>
-                                    <Check size={isSmallDevice ? 18 : 20} color="white" strokeWidth={3} />
+                                    <Check size={isSmallDevice ? 18 : 20} color={theme.onPrimary} strokeWidth={3} />
                                     <Text 
-                                        style={[styles.modalSaveText, { fontSize: isSmallDevice ? 15 : 17, flexShrink: 1 }]}
+                                        style={[styles.modalSaveText, { color: theme.onPrimary, fontSize: isSmallDevice ? 15 : 17, flexShrink: 1 }]}
                                         numberOfLines={1}
                                         adjustsFontSizeToFit
                                     >

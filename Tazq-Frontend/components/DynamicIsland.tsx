@@ -75,7 +75,7 @@ export const DynamicIsland = () => {
                 ]}
             >
                 <LinearGradient
-                    colors={isDark ? [theme.primary, '#3367ff'] : [theme.primary, theme.primaryContainer]}
+                    colors={isDark ? [theme.primary, theme.primaryDim] : [theme.primary, theme.primaryContainer]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.btnGradient}

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -12,12 +13,14 @@ namespace Tazq_App.Services
         private readonly AppDbContext _context;
         private readonly ICustomEmailService _emailService;
         private readonly IJwtService _jwtService;
+        private readonly ILogger<UserService> _logger;
 
-        public UserService(AppDbContext context, ICustomEmailService emailService, IJwtService jwtService)
+        public UserService(AppDbContext context, ICustomEmailService emailService, IJwtService jwtService, ILogger<UserService> logger)
         {
             _context = context;
             _emailService = emailService;
             _jwtService = jwtService;
+            _logger = logger;
         }
 
         public async Task<bool> RegisterAsync(UserRegisterDto userDto)
@@ -44,26 +47,15 @@ namespace Tazq_App.Services
 
         public async Task<string?> LoginAsync(UserLoginDto userDto, string? ipAddress)
         {
-            Console.WriteLine($">>> Login denemesi: {userDto.Email}");
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userDto.Email);
-            if (user == null) {
-                Console.WriteLine(">>> HATA: Kullanıcı bulunamadı!");
+            if (user == null || string.IsNullOrEmpty(user.PasswordSalt))
                 return null;
-            }
-            if (string.IsNullOrEmpty(user.PasswordSalt)) {
-                Console.WriteLine(">>> HATA: Kullanıcı Salt verisi boş!");
-                return null;
-            }
 
             using var pbkdf2 = new Rfc2898DeriveBytes(userDto.Password, Convert.FromBase64String(user.PasswordSalt), 100000, HashAlgorithmName.SHA256);
             var computedHash = Convert.ToBase64String(pbkdf2.GetBytes(32));
 
-            if (computedHash != user.PasswordHash) {
-                Console.WriteLine($">>> HATA: Şifre uyuşmuyor! Gelen: {userDto.Password}");
+            if (computedHash != user.PasswordHash)
                 return null;
-            }
-            
-            Console.WriteLine(">>> Login BAŞARILI!");
 
             if (!string.IsNullOrEmpty(ipAddress))
             {
