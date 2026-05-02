@@ -41,6 +41,4 @@ export const categorizeTask = async (title: string) => {
   return null;
 };
 
-export const initIntelligence = async () => {
-  console.log('[AI] High-Precision Engine Ready.');
-};
+export const initIntelligence = async () => {};

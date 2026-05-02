@@ -48,7 +48,8 @@ namespace Tazq_App.Services
 
             // Streak calculation in-memory
             var completedDates = allCompletedTasks
-                .Select(t => t.DueDate.Date)
+                .Where(t => t.DueDate.HasValue)
+                .Select(t => t.DueDate.Value.Date)
                 .Distinct()
                 .OrderByDescending(d => d)
                 .ToList();
@@ -78,7 +79,7 @@ namespace Tazq_App.Services
                     .Sum(s => s.DurationMinutes);
                 
                 var dayTasksCompleted = allCompletedTasks
-                    .Count(t => t.DueDate.Date == day);
+                    .Count(t => t.DueDate.HasValue && t.DueDate.Value.Date == day);
 
                 weeklyFocus.Add(new DailyFocusData
                 {

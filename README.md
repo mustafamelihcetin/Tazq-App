@@ -1,49 +1,62 @@
-![Project Logo](Tazq-Frontend/Resources/Images/tazq_white_logo.png)
+# Tazq-App
 
-**Tazq-App** is a full-featured cross-platform **To-Do List application** built with **ASP.NET Core 8.0** (Backend) and **.NET MAUI** (Frontend). It allows users to register, log in, and manage tasks easily with a modern and responsive UI.
+**Tazq** is a full-stack cross-platform productivity application combining intelligent task management with a Pomodoro-style focus timer. Built with **ASP.NET Core 8.0** (Backend) and **React Native + Expo** (Frontend).
 
-## 🔐 Backend Features (ASP.NET Core)
+## Backend Features (ASP.NET Core 8.0)
 
-- **User Authentication with JWT**
-- **Task Management (Create, Read, Update, Delete)**
-- **Task Filtering, Searching, and Sorting**
-- **Email Notifications**
-- **Phone Number Verification with OTP (Coming Soon)**
-- **Role-Based Access Control (Admin/User)**
-- **PostgreSQL Database Integration**
-- **Swagger API Documentation**
-- **Rate Limiting**
-- **Dependency Injection**
-- **Secure Password Hashing**
-- **Custom Error Handling**
+- JWT authentication with secure PBKDF2-SHA256 password hashing
+- Full task management (CRUD) with subtasks, tags, priority, recurrence, and sort order
+- AI-powered task parsing from natural language via Groq LLM
+- Focus session tracking with streak calculation and weekly stats
+- Email notifications (reminders, weekly summaries, exports)
+- Role-based access control (Admin/User)
+- PostgreSQL + Entity Framework Core 9
+- Rate limiting, Swagger docs, global error handling
+- Task data encryption per user (AES)
 
-## 📱 Frontend Features (.NET MAUI)
+## Frontend Features (React Native + Expo)
 
-- **Cross-Platform Support (Android, Windows)**
-- **Login, Registration, and Password Reset Screens**
-- **Modern UI/UX with Gradient Backgrounds**
-- **Task List View with Swipe-to-Delete and Priority Colors**
-- **Add/Edit Tasks with Tagging and Prioritization**
-- **Forgot Password Flow with Token**
-- **Loading Indicators and Smooth Transitions**
-- **Persistent JWT Token Handling**
-- **Platform-Specific Splash Screen and Icons**
-- **Dark Background with Gradient Support**
-- **Fully Responsive Layouts**
+- Cross-platform: Android & iOS via EAS Build
+- Expo Router file-based navigation
+- Zustand state management with AsyncStorage persistence
+- Animated UI with Moti + React Native Reanimated
+- Dark / Light / System theme support
+- Turkish and English localization (i18n-js)
+- Focus timer with 15/25/50/90 min presets
+- Drag-to-reorder tasks, swipe-to-delete
+- AI task parsing from free text input
+- Push notifications for task reminders
 
-## 🛠 Technologies Used
+## Tech Stack
 
-- **ASP.NET Core 8.0**
-- **Entity Framework Core**
-- **.NET MAUI**
-- **CommunityToolkit.Mvvm**
-- **PostgreSQL**
-- **JWT**
-- **SMTP for Emails**
-- **Swagger**
-- **SecureStorage**
-- **Android/iOS/Windows Support**
+| Layer    | Technology                                      |
+| -------- | ----------------------------------------------- |
+| Backend  | ASP.NET Core 8.0, EF Core 9, PostgreSQL 17      |
+| Frontend | React Native 0.83, Expo 55, Zustand, NativeWind |
+| Auth     | JWT Bearer, PBKDF2-SHA256                       |
+| AI       | Groq API (llama-3.1-8b-instant)                 |
+| Email    | NETCore.MailKit / Gmail SMTP                    |
+| Proxy    | Caddy 2                                         |
+| Container| Docker + Docker Compose                         |
+| Build    | EAS (Expo Application Services)                 |
 
----
+## Running Locally
 
-This app was built with scalability, modern UI principles, and platform compatibility in mind.
+**Backend:**
+
+```bash
+cp .env.example .env   # Fill in your credentials
+docker compose up --build
+```
+
+**Frontend:**
+
+```bash
+cd Tazq-Frontend
+npm install
+EXPO_PUBLIC_API_URL=http://<your-ip>:5200 npx expo start
+```
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in the values. Never commit `.env` to version control.

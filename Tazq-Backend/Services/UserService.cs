@@ -102,27 +102,6 @@ namespace Tazq_App.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
-        public async Task<string?> UploadProfilePictureAsync(int userId, IFormFile file)
-        {
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null || file == null || file.Length == 0) return null;
-
-            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "profile_pictures");
-            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-            var fileName = $"{userId}_{Path.GetFileName(file.FileName)}";
-            var filePath = Path.Combine(uploadsFolder, fileName);
-
-            using var stream = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(stream);
-
-            user.ProfilePicture = $"/profile_pictures/{fileName}";
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-
-            return user.ProfilePicture;
-        }
-
         public async Task<bool> SendForgotPasswordTokenAsync(string email)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);

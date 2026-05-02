@@ -5,6 +5,23 @@ using System.Text.Json.Serialization;
 
 namespace Tazq_App.Models
 {
+	[JsonConverter(typeof(JsonStringEnumConverter))]
+	public enum RecurrenceType
+	{
+		None,
+		Daily,
+		Weekly,
+		Monthly
+	}
+
+	public class SubtaskItem
+	{
+		[JsonPropertyName("text")]
+		public string Text { get; set; } = string.Empty;
+		[JsonPropertyName("done")]
+		public bool Done { get; set; } = false;
+	}
+
 	public class TaskItem
 	{
 		[Key]
@@ -23,6 +40,12 @@ namespace Tazq_App.Models
 
 		// Removed [JsonConverter] to accept integer from frontend
 		public TaskPriority Priority { get; set; } = TaskPriority.Medium;
+
+		// Recurring task support
+		public RecurrenceType Recurrence { get; set; } = RecurrenceType.None;
+
+		// Manual sort order (lower = higher in list)
+		public int SortOrder { get; set; } = 0;
 
 		[ForeignKey("User")]
 		public int UserId { get; set; }
@@ -43,7 +66,6 @@ namespace Tazq_App.Models
 			{
 				try
 				{
-					// Ensure empty JSON array is default
 					if (string.IsNullOrWhiteSpace(TagsJson))
 						TagsJson = "[]";
 
@@ -56,8 +78,34 @@ namespace Tazq_App.Models
 			}
 			set
 			{
-				// Ensure always valid JSON, even for null lists
 				TagsJson = JsonSerializer.Serialize(value ?? new List<string>());
+			}
+		}
+
+		[Column(TypeName = "TEXT")]
+		[JsonIgnore]
+		public string SubtasksJson { get; set; } = "[]";
+
+		[NotMapped]
+		[JsonPropertyName("subtasks")]
+		public List<SubtaskItem> Subtasks
+		{
+			get
+			{
+				try
+				{
+					if (string.IsNullOrWhiteSpace(SubtasksJson))
+						SubtasksJson = "[]";
+					return JsonSerializer.Deserialize<List<SubtaskItem>>(SubtasksJson) ?? new List<SubtaskItem>();
+				}
+				catch (JsonException)
+				{
+					return new List<SubtaskItem>();
+				}
+			}
+			set
+			{
+				SubtasksJson = JsonSerializer.Serialize(value ?? new List<SubtaskItem>());
 			}
 		}
 	}

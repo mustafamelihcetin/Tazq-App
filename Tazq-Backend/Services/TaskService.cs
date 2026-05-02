@@ -116,6 +116,8 @@ namespace Tazq_App.Services
 
             var key = _cryptoService.GetKeyForUser(userId)!;
 
+            var wasCompleted = task.IsCompleted;
+
             task.Title = updatedTask.Title;
             task.Description = updatedTask.Description;
             
@@ -133,11 +135,21 @@ namespace Tazq_App.Services
             task.IsCompleted = updatedTask.IsCompleted;
             task.Priority = updatedTask.Priority;
             task.Tags = updatedTask.Tags ?? new List<string>();
+            task.Subtasks = updatedTask.Subtasks ?? new List<SubtaskItem>();
+            task.Recurrence = updatedTask.Recurrence;
+            task.SortOrder = updatedTask.SortOrder;
 
             EncryptTask(task, key);
 
             _context.Tasks.Update(task);
             await _context.SaveChangesAsync();
+
+            // Auto-create next recurring task when completed
+            if (!wasCompleted && task.IsCompleted && task.Recurrence != RecurrenceType.None)
+            {
+                DecryptTask(task, key);
+                await CreateNextRecurrence(userId, task, key);
+            }
 
             DecryptTask(task, key);
             return task;
@@ -153,12 +165,48 @@ namespace Tazq_App.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
+        private async System.Threading.Tasks.Task CreateNextRecurrence(int userId, TaskItem source, byte[] key)
+        {
+            var nextDate = source.Recurrence switch
+            {
+                RecurrenceType.Daily => source.DueDate?.AddDays(1),
+                RecurrenceType.Weekly => source.DueDate?.AddDays(7),
+                RecurrenceType.Monthly => source.DueDate?.AddMonths(1),
+                _ => null
+            };
+
+            if (nextDate == null) return;
+
+            var newTask = new TaskItem
+            {
+                Title = source.Title,
+                Description = source.Description,
+                DueDate = nextDate.Value.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(nextDate.Value, DateTimeKind.Utc) : nextDate,
+                DueTime = source.DueTime,
+                IsCompleted = false,
+                Priority = source.Priority,
+                Tags = source.Tags ?? new List<string>(),
+                Subtasks = (source.Subtasks ?? new List<SubtaskItem>())
+                    .Select(s => new SubtaskItem { Text = s.Text, Done = false }).ToList(),
+                Recurrence = source.Recurrence,
+                SortOrder = source.SortOrder,
+                UserId = userId
+            };
+
+            EncryptTask(newTask, key);
+            _context.Tasks.Add(newTask);
+            await _context.SaveChangesAsync();
+        }
+
         private void EncryptTask(TaskItem task, byte[] key)
         {
             task.Title = _cryptoService.Encrypt(task.Title, key);
             task.Description = _cryptoService.Encrypt(task.Description ?? string.Empty, key);
             var jsonTags = JsonSerializer.Serialize(task.Tags ?? new List<string>());
             task.TagsJson = _cryptoService.Encrypt(jsonTags, key);
+            var jsonSubtasks = JsonSerializer.Serialize(task.Subtasks ?? new List<SubtaskItem>());
+            task.SubtasksJson = _cryptoService.Encrypt(jsonSubtasks, key);
         }
 
         private void DecryptTask(TaskItem task, byte[] key)
@@ -169,6 +217,11 @@ namespace Tazq_App.Services
             {
                 var decryptedJson = _cryptoService.Decrypt(task.TagsJson, key);
                 task.Tags = JsonSerializer.Deserialize<List<string>>(decryptedJson) ?? new List<string>();
+            }
+            if (!string.IsNullOrEmpty(task.SubtasksJson))
+            {
+                var decryptedSubs = _cryptoService.Decrypt(task.SubtasksJson, key);
+                task.Subtasks = JsonSerializer.Deserialize<List<SubtaskItem>>(decryptedSubs) ?? new List<SubtaskItem>();
             }
         }
     }

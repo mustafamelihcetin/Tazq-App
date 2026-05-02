@@ -23,11 +23,13 @@ export default function FocusScreen() {
   const isSmallDevice = width < 380;
   const isShortDevice = height < 750;
 
-  const { isActive, seconds, totalSeconds, setIsActive, tick, reset, setDuration, currentTask } = useFocusStore();
+  const { isActive, seconds, totalSeconds, setIsActive, tick, reset, setDuration, currentTask, rehydrateTimer } = useFocusStore();
   const completedRef = useRef(false);
 
-  // Dynamically calculate timer size
   const timerSize = Math.min(width * 0.72, height * 0.35);
+
+  // Adjust for time elapsed while app was backgrounded
+  useEffect(() => { rehydrateTimer(); }, []);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
@@ -120,6 +122,12 @@ export default function FocusScreen() {
                 <Text style={[styles.currentTaskText, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 12 : 14, maxWidth: timerSize * 0.75 }]} numberOfLines={1}>
                     {currentTask || t.focusSession}
                 </Text>
+                <View style={[styles.statusBadge, { backgroundColor: isActive ? theme.primary + '20' : theme.surfaceContainerHigh, marginTop: 12 }]}>
+                    <View style={[styles.statusDot, { backgroundColor: isActive ? theme.primary : theme.onSurfaceVariant }]} />
+                    <Text style={[styles.statusText, { color: isActive ? theme.primary : theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>
+                        {isActive ? 'RUNNING' : seconds === totalSeconds ? 'READY' : 'PAUSED'}
+                    </Text>
+                </View>
             </View>
             
             {isActive && (
@@ -177,6 +185,9 @@ const styles = StyleSheet.create({
   timerText: { fontWeight: '900', letterSpacing: -2 },
   currentTaskText: { fontWeight: '600', marginTop: 8, textAlign: 'center' },
   glowCircle: { position: 'absolute', width: '100%', height: '100%', zIndex: -1 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 100 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontWeight: '900', letterSpacing: 1.5 },
   controlsRow: { flexDirection: 'row', alignItems: 'center' },
   secondaryBtn: { alignItems: 'center', justifyContent: 'center' },
   playBtn: { overflow: 'hidden', elevation: 8, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },

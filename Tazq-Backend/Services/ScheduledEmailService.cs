@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Tazq_App.Data;
 using Tazq_App.Services;
@@ -32,7 +32,7 @@ public class ScheduledEmailService : BackgroundService
 					var usersWithReminders = await dbContext.UserNotificationPreferences
 						.Include(p => p.User)
 						.Where(p => p.ReceiveWeeklySummary ||
-									dbContext.Tasks.Any(t => t.UserId == p.UserId && t.DueDate.Date == now.AddDays(p.ReminderDaysBeforeDue)))
+									dbContext.Tasks.Any(t => t.UserId == p.UserId && t.DueDate.HasValue && t.DueDate.Value.Date == now.AddDays(p.ReminderDaysBeforeDue)))
 						.ToListAsync();
 
 					foreach (var userPref in usersWithReminders)
@@ -43,7 +43,7 @@ public class ScheduledEmailService : BackgroundService
 						try
 						{
 							var tasksDueSoon = await dbContext.Tasks
-								.Where(t => t.UserId == user.Id && t.DueDate.Date == now.AddDays(userPref.ReminderDaysBeforeDue))
+								.Where(t => t.UserId == user.Id && t.DueDate.HasValue && t.DueDate.Value.Date == now.AddDays(userPref.ReminderDaysBeforeDue))
 								.ToListAsync();
 
 							if (tasksDueSoon.Any())

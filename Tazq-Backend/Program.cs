@@ -73,12 +73,18 @@ builder.Services.Configure<IpRateLimitOptions>(opt =>
 
 builder.Services.AddHealthChecks();
 
+var allowedOrigins = (Environment.GetEnvironmentVariable("ALLOWED_ORIGINS") ?? "")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(opt =>
 {
-    opt.AddPolicy("TazqCorsPolicy",
-        policy => policy.AllowAnyOrigin()
-                        .AllowAnyMethod()
-                        .AllowAnyHeader());
+    opt.AddPolicy("TazqCorsPolicy", policy =>
+    {
+        if (allowedOrigins.Length > 0)
+            policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader();
+        else
+            policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+    });
 });
 
 builder.Services.AddSwaggerGen(opt =>
@@ -178,39 +184,30 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 
-    // Emergency Schema Patch: Ensure columns are nullable to match model changes
-    try {
-        db.Database.ExecuteSqlRaw("ALTER TABLE \"Tasks\" ALTER COLUMN \"DueDate\" DROP NOT NULL;");
-        db.Database.ExecuteSqlRaw("ALTER TABLE \"Tasks\" ALTER COLUMN \"Description\" DROP NOT NULL;");
-        Console.WriteLine(">>> Database schema patched: DueDate is now nullable.");
-    } catch (Exception ex) {
-        Console.WriteLine($">>> Schema patch warning: {ex.Message}");
-    }
+    var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL");
+    var adminPassword = Environment.GetEnvironmentVariable("ADMIN_PASSWORD");
 
-    // Seeding: Create or Update Admin user
-    var adminEmail = "admin@tazq.com";
-    var adminPassword = "admin123";
-    
-    var adminUser = db.Users.FirstOrDefault(u => u.Email == adminEmail);
-    var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
-    using var pbkdf2 = new System.Security.Cryptography.Rfc2898DeriveBytes(adminPassword, salt, 100000, System.Security.Cryptography.HashAlgorithmName.SHA256);
-    byte[] passwordHash = pbkdf2.GetBytes(32);
-
-    if (adminUser == null)
+    if (!string.IsNullOrEmpty(adminEmail) && !string.IsNullOrEmpty(adminPassword))
     {
-        adminUser = new Tazq_App.Models.User
+        var existing = db.Users.FirstOrDefault(u => u.Email == adminEmail);
+        if (existing == null)
         {
-            Name = "System Admin",
-            Email = adminEmail,
-            Role = "Admin"
-        };
-        db.Users.Add(adminUser);
+            var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
+            using var pbkdf2 = new System.Security.Cryptography.Rfc2898DeriveBytes(
+                adminPassword, salt, 100000, System.Security.Cryptography.HashAlgorithmName.SHA256);
+            var hash = pbkdf2.GetBytes(32);
+
+            db.Users.Add(new Tazq_App.Models.User
+            {
+                Name = "Admin",
+                Email = adminEmail,
+                PasswordHash = Convert.ToBase64String(hash),
+                PasswordSalt = Convert.ToBase64String(salt),
+                Role = "Admin"
+            });
+            db.SaveChanges();
+        }
     }
-    
-    adminUser.PasswordHash = Convert.ToBase64String(passwordHash);
-    adminUser.PasswordSalt = Convert.ToBase64String(salt);
-    db.SaveChanges();
-    Console.WriteLine($">>> Admin kullanıcısı güncellendi: {adminEmail} / {adminPassword}");
 }
 
 app.UseSwagger();

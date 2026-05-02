@@ -20,7 +20,9 @@ export const translations = {
       button: 'Connect Now',
       footer: 'New to Tazq?',
       signUp: 'Join our mission',
-      error: 'Check your credentials.',
+      forgotPassword: 'Forgot Password?',
+      error: 'Invalid email or password.',
+      networkError: 'Connection failed. Check your network.',
     },
     onboardingTitle1: 'Master Your Focus',
     onboardingBody1: 'A premium terminal for high-performance individuals.',
@@ -28,8 +30,14 @@ export const translations = {
     onboardingBody2: 'Every touch is intentional. Every view is essential.',
     onboardingTitle3: 'Sophisticated Play',
     onboardingBody3: 'The ultimate digital instrument for your daily flow.',
-    greetingEvening: 'Good Evening',
+    onboardingTitle4: 'Smart Analytics',
+    onboardingBody4: 'Your productivity is measured and optimized at every step.',
+    onboardingTitle5: 'Tomorrow Starts Now',
+    onboardingBody5: 'Join next-generation high-performance tools.',
     greetingMorning: 'Good Morning',
+    greetingAfternoon: 'Good Afternoon',
+    greetingEvening: 'Good Evening',
+    greetingNight: 'Good Night',
     executiveSummary: 'Your focus session is ready.',
     weeklyProgress: 'Weekly Momentum',
     aheadOfSchedule: 'Accelerating',
@@ -96,7 +104,38 @@ export const translations = {
     errorTitle: 'System Alert',
     saveError: 'Objective storage failed',
     invalidDate: 'Temporal anomaly: Past dates are restricted',
-    titleRequired: 'Title protocol required'
+    titleRequired: 'Title protocol required',
+    // Recurring Tasks
+    recurrence: 'Repeat',
+    recurrenceNone: 'None',
+    recurrenceDaily: 'Daily',
+    recurrenceWeekly: 'Weekly',
+    recurrenceMonthly: 'Monthly',
+    recurringBadge: 'RECURRING',
+    // Subtasks
+    subtasks: 'Subtasks',
+    addSubtask: 'Add step...',
+    subtaskProgress: 'completed',
+    // Daily Goal & Streak
+    dailyGoalTitle: 'Daily Goal',
+    dailyGoalOf: 'of',
+    streakFire: 'day streak!',
+    streakMotivation: 'Keep the fire burning!',
+    streakLost: 'Start a new streak today!',
+    streakNone: 'Complete a task to start your streak!',
+    // Insights
+    focusMinutes: 'FOCUS MIN',
+    tasksCompleted: 'COMPLETED',
+    mostProductiveDay: 'Best Day',
+    // Notifications
+    notificationTitle: 'Tazq Reminder',
+    notificationBody: 'is due now!',
+    notificationSoon: 'coming up in 15 minutes',
+    // Tag Filter
+    allTags: 'All Tags',
+    // Sort
+    holdToReorder: 'Hold to reorder',
+    taskAdded: 'Task Added',
   },
   tr: {
     welcome: {
@@ -115,7 +154,9 @@ export const translations = {
       button: 'Bağlan',
       footer: 'Tazq\'ta yeni misiniz?',
       signUp: 'Bize katılın',
-      error: 'Bilgilerinizi kontrol edin.',
+      forgotPassword: 'Şifremi Unuttum',
+      error: 'E-posta veya şifre hatalı.',
+      networkError: 'Bağlantı hatası. Ağınızı kontrol edin.',
     },
     onboardingTitle1: 'Odağına Hükmet',
     onboardingBody1: 'Yüksek performanslı bireyler için premium bir terminal.',
@@ -123,8 +164,14 @@ export const translations = {
     onboardingBody2: 'Her dokunuş bilinçli. Her görünüm temel.',
     onboardingTitle3: 'Sofistike Oyun',
     onboardingBody3: 'Günlük akışınız için en üst düzey dijital enstrüman.',
-    greetingEvening: 'İyi Akşamlar',
+    onboardingTitle4: 'Akıllı Analiz',
+    onboardingBody4: 'Verimliliğin her adımda ölçülür ve optimize edilir.',
+    onboardingTitle5: 'Yarın Başlıyor',
+    onboardingBody5: 'Yeni nesil yüksek performanslı araçlara katılın.',
     greetingMorning: 'Günaydın',
+    greetingAfternoon: 'İyi Öğleden Sonralar',
+    greetingEvening: 'İyi Akşamlar',
+    greetingNight: 'İyi Geceler',
     executiveSummary: 'Odaklanma seansınız hazır.',
     weeklyProgress: 'Haftalık Momentum',
     aheadOfSchedule: 'Hızlanıyor',
@@ -191,7 +238,38 @@ export const translations = {
     errorTitle: 'Sistem Uyarısı',
     saveError: 'Hedef kaydedilemedi',
     invalidDate: 'Zaman hatası: Geçmiş tarih seçilemez',
-    titleRequired: 'Başlık protokolü gerekli'
+    titleRequired: 'Başlık protokolü gerekli',
+    // Recurring Tasks
+    recurrence: 'Tekrar',
+    recurrenceNone: 'Yok',
+    recurrenceDaily: 'Her Gün',
+    recurrenceWeekly: 'Her Hafta',
+    recurrenceMonthly: 'Her Ay',
+    recurringBadge: 'TEKRARLI',
+    // Subtasks
+    subtasks: 'Alt Görevler',
+    addSubtask: 'Adım ekle...',
+    subtaskProgress: 'tamamlandı',
+    // Daily Goal & Streak
+    dailyGoalTitle: 'Günlük Hedef',
+    dailyGoalOf: '/',
+    streakFire: 'gün serisi!',
+    streakMotivation: 'Ateşi söndürme!',
+    streakLost: 'Bugün yeni bir seri başlat!',
+    streakNone: 'Serini başlatmak için bir görev tamamla!',
+    // Insights
+    focusMinutes: 'ODAK DAK',
+    tasksCompleted: 'TAMAMLANDI',
+    mostProductiveDay: 'En İyi Gün',
+    // Notifications
+    notificationTitle: 'Tazq Hatırlatma',
+    notificationBody: 'şimdi zamanı geldi!',
+    notificationSoon: '15 dakika içinde başlıyor',
+    // Tag Filter
+    allTags: 'Tüm Etiketler',
+    // Sort
+    holdToReorder: 'Sıralamak için basılı tut',
+    taskAdded: 'Görev Eklendi',
   }
 };
 

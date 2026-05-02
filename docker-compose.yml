@@ -2,44 +2,36 @@ services:
   tazq-db:
     image: postgres:17
     container_name: tazq-db
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: tazqdb
-      POSTGRES_USER: tazqadmin
-      POSTGRES_PASSWORD: wAL5dWMoBZ3KdHE9VHkuvSp3NXkUYIpE
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "65432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
-    restart: always
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tazqadmin -d tazqdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   tazq-backend:
     build:
       context: ./Tazq-Backend
       dockerfile: DockerFile
     container_name: tazq-backend
-    environment:
-      - DB_HOST=tazq-db
-      - DB_PORT=5432
-      - DB_NAME=tazqdb
-      - DB_USER=tazqadmin
-      - DB_PASSWORD=wAL5dWMoBZ3KdHE9VHkuvSp3NXkUYIpE
-      - JWT_KEY=MySuperUltraSecureSecretKey1234567890morethan32characters
-      - JWT_ISSUER=TazqApp
-      - JWT_AUDIENCE=TazqUsers
-      - JWT_EXPIRATION=60
-      - PORT=80
-      - APP_SIGNATURE=tazq-expo-frontend
-      - SMTP_SERVER=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_USERNAME=tazq.app@gmail.com
-      - SMTP_PASSWORD=tajyacayvveoczsj
-      - SMTP_FROM_EMAIL=tazq.app@gmail.com
-    # No longer exposed directly to host, Caddy will handle it
+    env_file:
+      - .env
     expose:
       - "80"
     depends_on:
-      - tazq-db
-    restart: on-failure
+      tazq-db:
+        condition: service_healthy
+    restart: unless-stopped
 
   caddy:
     image: caddy:2-alpine
@@ -53,7 +45,7 @@ services:
       - caddy_config:/config
     depends_on:
       - tazq-backend
-    restart: always
+    restart: unless-stopped
 
 volumes:
   postgres_data:

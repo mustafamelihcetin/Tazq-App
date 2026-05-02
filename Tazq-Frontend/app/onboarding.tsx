@@ -47,15 +47,15 @@ const SLIDES = [
   },
   {
     id: '4',
-    titleKey: 'Akıllı Analiz',
-    bodyKey: 'Verimliliğin her adımda ölçülür ve optimize edilir.',
+    titleKey: 'onboardingTitle4',
+    bodyKey: 'onboardingBody4',
     color: '#6200ee',
     type: 'stats'
   },
   {
     id: '5',
-    titleKey: 'Yarın Başlıyor',
-    bodyKey: 'Yeni nesil yüksek performanslı araçlara katılın.',
+    titleKey: 'onboardingTitle5',
+    bodyKey: 'onboardingBody5',
     image: "https://lh3.googleusercontent.com/aida-public/AB6AXuALtdMkm7GYoNuakWzR99utIollrCJCVYOVV7c8JNAoHwp9uNli3FD1KZwlWraR1nRMvilIe-qxN2KuSCZNFYDWqcUISH7B2R4kiojmpebKJD0XYYaADkTgBoGQcaTXSnXK-6XPzhkkLcy8eng_Lu8tesOVYNdsIbmy5GqcjgRWJI1S0sKVVBWe5tz8yp4uuGpQvgYlbdTEZ4DtkkChqy_dsrgTkm95MVd5xQoakNHkXgMaC054Ev0UGZUeqT_s464oEIdYfUO_Bck",
     color: '#ff9500',
     type: 'sculpture'

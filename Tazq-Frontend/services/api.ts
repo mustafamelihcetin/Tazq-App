@@ -1,10 +1,9 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
-
 import { Platform } from 'react-native';
 
-const LOCAL_IP = '192.168.0.122'; // Bilgisayarınızın Wi-Fi IP'si
-const BASE_URL = Platform.select({
+const LOCAL_IP = '192.168.0.122';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? Platform.select({
   android: __DEV__ ? 'http://10.0.2.2:5200' : `http://${LOCAL_IP}:5200`,
   ios: `http://${LOCAL_IP}:5200`,
   default: `http://${LOCAL_IP}:5200`,
@@ -12,6 +11,7 @@ const BASE_URL = Platform.select({
 
 export const api = axios.create({
   baseURL: BASE_URL,
+  timeout: 15000,
   headers: {
     'X-App-Signature': 'tazq-expo-frontend',
     'Content-Type': 'application/json',
@@ -27,13 +27,32 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Auto-logout on 401
+const RETRY_STATUS_CODES = [502, 503, 504];
+const MAX_RETRIES = 2;
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config as typeof error.config & { _retryCount?: number };
+
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();
+      return Promise.reject(error);
     }
+
+    const shouldRetry =
+      config &&
+      !config._retryCount &&
+      (RETRY_STATUS_CODES.includes(error.response?.status) || error.code === 'ECONNABORTED');
+
+    if (shouldRetry) {
+      config._retryCount = (config._retryCount ?? 0) + 1;
+      if (config._retryCount <= MAX_RETRIES) {
+        await new Promise((resolve) => setTimeout(resolve, 800 * config._retryCount!));
+        return api(config);
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -59,6 +78,12 @@ export const AuthService = {
 };
 
 export type Priority = 'Low' | 'Medium' | 'High';
+export type RecurrenceType = 'None' | 'Daily' | 'Weekly' | 'Monthly';
+
+export interface SubtaskItem {
+  text: string;
+  done: boolean;
+}
 
 export interface CreateTaskPayload {
   title: string;
@@ -68,6 +93,22 @@ export interface CreateTaskPayload {
   isCompleted: boolean;
   priority: Priority;
   tags: string[];
+  subtasks?: SubtaskItem[];
+  recurrence?: RecurrenceType;
+  sortOrder?: number;
+}
+
+export interface DailyFocusData {
+  day: string;
+  minutes: number;
+  tasksCompleted: number;
+}
+
+export interface UserStatsResponse {
+  totalFocusHours: number;
+  completedTasksCount: number;
+  activeStreak: number;
+  weeklyFocus: DailyFocusData[];
 }
 
 export const TaskService = {
@@ -97,7 +138,7 @@ export const FocusService = {
     const response = await api.post('/api/focus/save', { taskName, durationMinutes, completed });
     return response.data;
   },
-  getStats: async () => {
+  getStats: async (): Promise<UserStatsResponse> => {
     const response = await api.get('/api/focus/stats');
     return response.data;
   },
@@ -115,3 +156,4 @@ export const AiService = {
     }>;
   },
 };
+

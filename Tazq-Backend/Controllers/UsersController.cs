@@ -51,17 +51,6 @@ using Tazq_App.Services;
             return success ? Ok("Notification preferences updated.") : NotFound();
         }
 
-        [HttpPost("upload-profile-picture")]
-        [Authorize]
-        public async Task<IActionResult> UploadProfilePicture([FromForm] IFormFile file)
-        {
-            var userId = GetUserId();
-            if (userId == null) return Unauthorized();
-
-            var url = await _userService.UploadProfilePictureAsync(userId.Value, file);
-            return url != null ? Ok(new { message = "Profile picture uploaded.", url }) : BadRequest("Upload failed.");
-        }
-
         [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> GetCurrentUser()

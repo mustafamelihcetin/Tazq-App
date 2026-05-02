@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, User, ArrowRight, AlertCircle, Rocket } from 'lucide-react-native';
+import { Mail, Lock, User, ArrowRight, AlertCircle, Rocket, Eye, EyeOff } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { AuthService } from '../services/api';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -30,6 +30,7 @@ export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -147,14 +148,20 @@ export default function RegisterScreen() {
                                 <Text style={[styles.label, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 11 : 13 }]}>{t.login.password.toUpperCase()}</Text>
                                 <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#141414' : '#E8E8E8', height: isSmallDevice ? 56 : 64 }]}>
                                     <Lock size={18} color={theme.outline} />
-                                    <TextInput 
+                                    <TextInput
                                         placeholder="••••••••"
                                         placeholderTextColor={theme.outlineVariant}
                                         style={[styles.input, { color: theme.onSurface }]}
                                         value={password}
                                         onChangeText={setPassword}
-                                        secureTextEntry
+                                        secureTextEntry={!showPassword}
                                     />
+                                    <TouchableOpacity onPress={() => setShowPassword(p => !p)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                        {showPassword
+                                            ? <EyeOff size={18} color={theme.outline} />
+                                            : <Eye size={18} color={theme.outline} />
+                                        }
+                                    </TouchableOpacity>
                                 </View>
                             </View>
 

@@ -8,9 +8,9 @@ import { BentoCard } from '../components/BentoCard';
 import { DynamicIsland } from '../components/DynamicIsland';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { MotiView, MotiText } from 'moti';
-import { TrendingUp, Calendar, Plus, FileText, Zap, Play, Rocket, ChevronRight } from 'lucide-react-native';
+import { Plus, FileText, Zap, Play, Rocket, ChevronRight } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
-import { TaskService } from '../services/api';
+import { TaskService, FocusService, DailyFocusData } from '../services/api';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -18,6 +18,7 @@ import { TazqLogo } from '../components/TazqLogo';
 import { useFocusStore } from '../store/useFocusStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import i18n from 'i18n-js';
+import { parseTaskHint } from '../utils/taskParser';
 
 const AVATAR_MAP: Record<string, any> = {
     'm1': require('../assets/avatars/m1.png'),
@@ -70,6 +71,16 @@ export default function HomeScreen() {
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [weeklyFocus, setWeeklyFocus] = useState<DailyFocusData[]>([]);
+  const [streak, setStreak] = useState(0);
+
+  // Compute daily goal from real data
+  const todayTasks = tasks.filter(t => {
+    if (!t.dueDate) return false;
+    return new Date(t.dueDate).toDateString() === new Date().toDateString();
+  });
+  const todayCompleted = todayTasks.filter(t => t.isCompleted).length;
+  const dailyGoal = todayTasks.length || 1;
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -85,20 +96,33 @@ export default function HomeScreen() {
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      const stats = await FocusService.getStats();
+      setWeeklyFocus(stats.weeklyFocus || []);
+      setStreak(stats.activeStreak || 0);
+    } catch (e: any) {
+      if (e.response?.status !== 401) {
+        console.warn('fetchStats error:', e.message);
+      }
+    }
+  };
+
   const handleQuickSave = async () => {
     if (!draftTitle.trim()) return;
     setIsSavingDraft(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
     try {
+        const hint = parseTaskHint(draftTitle.trim());
         const payload = {
             title: draftTitle.trim(),
             description: '',
-            priority: 'Low',
+            priority: hint.priority || 'Low',
             isCompleted: false,
-            dueDate: new Date().toISOString(),
-            dueTime: null,
-            tags: ['Draft']
+            dueDate: hint.dueDate || new Date().toISOString(),
+            dueTime: hint.dueTime || null,
+            tags: hint.tags?.length ? hint.tags : ['Draft']
         };
         const created = await TaskService.createTask(payload as any);
         addTask(created);
@@ -123,7 +147,16 @@ export default function HomeScreen() {
 
   useEffect(() => {
     fetchTasks();
+    fetchStats();
   }, []);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return t.greetingMorning;
+    if (hour >= 12 && hour < 18) return t.greetingAfternoon;
+    if (hour >= 18 && hour < 23) return t.greetingEvening;
+    return t.greetingNight;
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -159,9 +192,7 @@ export default function HomeScreen() {
                     
                     <TazqLogo width={isSmallDevice ? 70 : 80} height={28} />
                     
-                    <TouchableOpacity style={styles.boltBtn}>
-                        <Zap size={isSmallDevice ? 18 : 20} color={isDark ? theme.primary : theme.onSurfaceVariant} fill={isDark ? theme.primary : 'none'} />
-                    </TouchableOpacity>
+                    <View style={styles.boltBtn} />
                 </View>
             </MotiView>
         </View>
@@ -179,7 +210,7 @@ export default function HomeScreen() {
                 style={[styles.heroSection, { paddingHorizontal: isSmallDevice ? 20 : 28 }]}
             >
                 <Text style={[styles.greeting, { color: theme.onSurface, fontSize: isSmallDevice ? 28 : 36, lineHeight: isSmallDevice ? 34 : 42 }]}>
-                    {isDark ? t.greetingEvening : t.greetingMorning}, 
+                    {getGreeting()},
                     <Text style={{ color: theme.primary }}> {user?.name?.split(' ')[0] || 'System'}</Text>
                 </Text>
                 <Text style={[styles.subGreeting, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 14 : 16 }]}>
@@ -266,34 +297,44 @@ export default function HomeScreen() {
                             <Text style={[styles.cardTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 16 }]}>{t.weeklyProgress}</Text>
                         </View>
                         <View style={[styles.chartContainer, { height: isShortDevice ? 60 : 80, marginTop: 10 }]}>
-                            {[30, 45, 25, 60, 40, 15].map((h, i) => (
-                                <View key={i} style={[styles.chartBar, { height: `${h}%`, backgroundColor: i === 3 ? theme.primary : theme.surfaceContainerHigh, width: isSmallDevice ? 8 : 10 }]} />
-                            ))}
+                            {(weeklyFocus.length > 0 ? weeklyFocus : [{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0}]).map((d: any, i: number) => {
+                                const maxMin = Math.max(...(weeklyFocus.length > 0 ? weeklyFocus.map(w => w.minutes) : [1]));
+                                const pct = maxMin > 0 ? Math.max((d.minutes / maxMin) * 100, 5) : 5;
+                                const isToday = i === (weeklyFocus.length > 0 ? weeklyFocus.length - 1 : 6);
+                                return <View key={i} style={[styles.chartBar, { height: `${pct}%`, backgroundColor: isToday ? theme.primary : theme.surfaceContainerHigh, width: isSmallDevice ? 8 : 10 }]} />;
+                            })}
                         </View>
+                        {weeklyFocus.length > 0 && (
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 10 }}>
+                                {weeklyFocus.map((d, i) => (
+                                    <Text key={i} style={{ fontSize: 8, color: theme.onSurfaceVariant, fontWeight: '700', opacity: 0.5 }}>{d.day}</Text>
+                                ))}
+                            </View>
+                        )}
                     </BentoCard>
 
-                    {/* Stats Counter */}
+                    {/* Daily Goal */}
                     <BentoCard index={2} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={[styles.countText, { color: theme.primary, fontSize: isSmallDevice ? 32 : 42 }]}>{tasks.length}</Text>
+                        <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1, color: theme.onSurfaceVariant, opacity: 0.5 }}>{t.dailyGoalTitle.toUpperCase()}</Text>
+                        <Text style={[styles.countText, { color: theme.primary, fontSize: isSmallDevice ? 28 : 36 }]}>{todayCompleted}<Text style={{ fontSize: isSmallDevice ? 14 : 18, color: theme.onSurfaceVariant }}>/{dailyGoal}</Text></Text>
                         <Text style={[styles.countLabel, { color: theme.onSurfaceVariant }]}>{t.tasks}</Text>
+                        {/* Mini progress bar */}
+                        <View style={{ width: '80%', height: 4, borderRadius: 2, backgroundColor: theme.surfaceContainerHigh, marginTop: 8, overflow: 'hidden' }}>
+                            <View style={{ width: `${Math.min((todayCompleted / dailyGoal) * 100, 100)}%`, height: '100%', borderRadius: 2, backgroundColor: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary }} />
+                        </View>
                     </BentoCard>
                 </View>
 
                 <View style={[styles.bentoRow, { gap: isSmallDevice ? 12 : 16 }]}>
-                     {/* Upcoming */}
+                     {/* Streak */}
                      <BentoCard index={3} style={{ flex: 1 }}>
                         <View style={[styles.sectionHeader, { marginBottom: isSmallDevice ? 8 : 12 }]}>
-                            <Calendar size={isSmallDevice ? 16 : 18} color={theme.secondary} />
-                            <Text style={[styles.sectionTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 13 : 15 }]}>{t.upcoming}</Text>
+                            <Zap size={isSmallDevice ? 16 : 18} color={streak > 0 ? '#ff9f0a' : theme.onSurfaceVariant} fill={streak > 0 ? '#ff9f0a' : 'none'} />
+                            <Text style={[styles.sectionTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 13 : 15 }]}>🔥 {streak > 0 ? `${streak} ${t.streakFire}` : t.streak}</Text>
                         </View>
-                        <View style={styles.agendaItem}>
-                            <View style={[styles.indicator, { backgroundColor: tasks.filter(t => !t.isCompleted)[1] ? priorityColor(tasks.filter(t => !t.isCompleted)[1].priority) : theme.secondary, height: isSmallDevice ? 20 : 24 }]} />
-                            <View>
-                                <Text style={[styles.agendaName, { color: theme.onSurface, fontSize: isSmallDevice ? 12 : 14 }]} numberOfLines={1}>
-                                    {tasks.filter(t => !t.isCompleted)[1]?.title || 'Next Up'}
-                                </Text>
-                            </View>
-                        </View>
+                        <Text style={{ fontSize: 12, color: theme.onSurfaceVariant, fontWeight: '600', opacity: 0.7 }}>
+                            {streak > 0 ? t.streakMotivation : t.streakNone}
+                        </Text>
                     </BentoCard>
                 </View>
 

@@ -103,7 +103,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.name, { color: theme.onSurface, fontSize: isSmallDevice ? 22 : 28 }]}>{user?.name || 'Alex'}</Text>
                 <Text style={[styles.email, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 12 : 14 }]}>{user?.email || 'user@tazq.com'}</Text>
                 <TouchableOpacity onPress={() => setAvatarModalVisible(true)} style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: isSmallDevice ? 8 : 10 }]}>
-                    <Text style={[styles.editBtnText, { fontSize: isSmallDevice ? 11 : 13 }]}>{t.editProfile}</Text>
+                    <Text style={[styles.editBtnText, { fontSize: isSmallDevice ? 11 : 13 }]}>{t.chooseAvatar}</Text>
                 </TouchableOpacity>
             </View>
           </View>
@@ -120,8 +120,8 @@ export default function ProfileScreen() {
                 <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>{t.tasks}</Text>
             </BentoCard>
             <BentoCard index={3} style={{ flex: 1, alignItems: 'center', padding: isSmallDevice ? 12 : 16 }}>
-                <Zap size={isSmallDevice ? 18 : 22} color={theme.tertiary} />
-                <Text style={[styles.statValue, { color: theme.onSurface, fontSize: isSmallDevice ? 18 : 22 }]}>{stats.activeStreak}</Text>
+                <Zap size={isSmallDevice ? 18 : 22} color={stats.activeStreak > 0 ? '#ff9f0a' : theme.tertiary} fill={stats.activeStreak > 0 ? '#ff9f0a' : 'none'} />
+                <Text style={[styles.statValue, { color: theme.onSurface, fontSize: isSmallDevice ? 18 : 22 }]}>{stats.activeStreak > 0 ? `🔥 ${stats.activeStreak}` : '0'}</Text>
                 <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>{t.streak}</Text>
             </BentoCard>
           </View>

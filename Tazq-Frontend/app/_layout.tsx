@@ -18,6 +18,7 @@ import { initIntelligence } from '../utils/taskIntelligence';
 // Susturulacak kütüphane uyarıları
 LogBox.ignoreLogs([
   'SafeAreaView has been deprecated',
+  'Sending `onAnimatedValueUpdate` with no listeners registered',
 ]);
 
 import { useFonts, PlusJakartaSans_800ExtraBold, PlusJakartaSans_700Bold, PlusJakartaSans_600SemiBold, PlusJakartaSans_800ExtraBold_Italic } from '@expo-google-fonts/plus-jakarta-sans';

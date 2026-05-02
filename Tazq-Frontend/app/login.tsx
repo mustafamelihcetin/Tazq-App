@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  useWindowDimensions, 
-  KeyboardAvoidingView, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  useWindowDimensions,
+  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   TouchableWithoutFeedback,
@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react-native';
+import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '../services/api';
@@ -27,11 +27,12 @@ export default function LoginScreen() {
   const { theme, isDark } = useAppTheme();
   const { t } = useLanguageStore();
   const router = useRouter();
-  const { height, width } = useWindowDimensions();
+  const { height } = useWindowDimensions();
   const setAuth = useAuthStore(state => state.setAuth);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,9 +55,12 @@ export default function LoginScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/');
     } catch (err: any) {
-      console.error(err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(t.login.error);
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout') || !err.response) {
+        setError(t.login.networkError);
+      } else {
+        setError(t.login.error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -65,28 +69,26 @@ export default function LoginScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={[styles.container, { backgroundColor: theme.background }]}>
-        {/* 🎭 Ambient Background Gradients */}
         <View style={StyleSheet.absoluteFill}>
             <View style={[styles.blob, { backgroundColor: theme.primaryDim, top: '-10%', left: '-10%', opacity: isDark ? 0.1 : 0.05 }]} />
             <View style={[styles.blob, { backgroundColor: theme.secondary, bottom: '-10%', right: '-10%', opacity: isDark ? 0.1 : 0.05 }]} />
         </View>
 
         <SafeAreaView style={{ flex: 1 }}>
-            <KeyboardAvoidingView 
+            <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
             >
                 <View style={styles.content}>
-                    {/* Header / Brand */}
                     <View style={[styles.header, { marginBottom: isSmallDevice ? 24 : 48 }]}>
-                        <MotiText 
+                        <MotiText
                             from={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             style={[styles.brand, { color: theme.onSurface, fontSize: isSmallDevice ? 48 : 64 }]}
                         >
                             TAZQ
                         </MotiText>
-                        <MotiText 
+                        <MotiText
                             from={{ opacity: 0, translateY: 10 }}
                             animate={{ opacity: 1, translateY: 0 }}
                             transition={{ delay: 200 }}
@@ -96,14 +98,13 @@ export default function LoginScreen() {
                         </MotiText>
                     </View>
 
-                    {/* Login Card */}
-                    <MotiView 
+                    <MotiView
                         from={{ opacity: 0, translateY: 20 }}
                         animate={{ opacity: 1, translateY: 0 }}
                         transition={{ delay: 400 }}
                         style={[
-                            styles.card, 
-                            { 
+                            styles.card,
+                            {
                                 backgroundColor: isDark ? 'rgba(18, 18, 18, 0.8)' : 'rgba(255, 255, 255, 0.8)',
                                 borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
                                 padding: isSmallDevice ? 24 : 32
@@ -118,54 +119,55 @@ export default function LoginScreen() {
                         )}
 
                         <View style={[styles.form, { gap: isSmallDevice ? 16 : 24 }]}>
-                            {/* Email Field */}
                             <View style={styles.inputGroup}>
                                 <Text style={[styles.label, { color: theme.secondary, fontSize: isSmallDevice ? 14 : 16 }]}>{t.login.email}</Text>
                                 <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#141414' : theme.surfaceContainer, height: isSmallDevice ? 56 : 64 }]}>
                                     <Mail size={18} color={theme.outline} />
-                                    <TextInput 
+                                    <TextInput
                                         placeholder={t.login.email}
                                         placeholderTextColor={theme.outlineVariant}
                                         style={[styles.input, { color: theme.onSurface }]}
                                         value={email}
-                                        onChangeText={setEmail}
+                                        onChangeText={(v) => { setEmail(v); setError(null); }}
                                         autoCapitalize="none"
+                                        keyboardType="email-address"
                                     />
                                 </View>
                             </View>
 
-                            {/* Password Field */}
                             <View style={styles.inputGroup}>
                                 <View style={styles.labelRow}>
                                     <Text style={[styles.label, { color: theme.tertiary, fontSize: isSmallDevice ? 14 : 16 }]}>{t.login.password}</Text>
                                     <TouchableOpacity>
-                                        <Text style={[styles.forgotText, { color: theme.primary }]}>{t.cancel}</Text>
+                                        <Text style={[styles.forgotText, { color: theme.primary }]}>{t.login.forgotPassword}</Text>
                                     </TouchableOpacity>
                                 </View>
                                 <View style={[styles.inputWrapper, { backgroundColor: isDark ? '#141414' : theme.surfaceContainer, height: isSmallDevice ? 56 : 64 }]}>
                                     <Lock size={18} color={theme.outline} />
-                                    <TextInput 
+                                    <TextInput
                                         placeholder="••••••••"
                                         placeholderTextColor={theme.outlineVariant}
                                         style={[styles.input, { color: theme.onSurface }]}
                                         value={password}
-                                        onChangeText={setPassword}
-                                        secureTextEntry
+                                        onChangeText={(v) => { setPassword(v); setError(null); }}
+                                        secureTextEntry={!showPassword}
                                     />
+                                    <TouchableOpacity onPress={() => setShowPassword(p => !p)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                        {showPassword
+                                            ? <EyeOff size={18} color={theme.outline} />
+                                            : <Eye size={18} color={theme.outline} />
+                                        }
+                                    </TouchableOpacity>
                                 </View>
                             </View>
 
-                            {/* Action Button */}
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 onPress={handleLogin}
                                 disabled={isLoading}
                                 style={styles.primaryBtnWrapper}
                             >
-                                <MotiView 
-                                    animate={{ 
-                                        scale: isLoading ? 0.98 : 1,
-                                        backgroundColor: theme.primary
-                                    }}
+                                <MotiView
+                                    animate={{ scale: isLoading ? 0.98 : 1, backgroundColor: theme.primary }}
                                     style={[styles.primaryBtn, isDark && styles.neonGlow, { height: isSmallDevice ? 64 : 72 }]}
                                 >
                                     {isLoading ? (
@@ -180,14 +182,12 @@ export default function LoginScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Divider */}
                         <View style={[styles.dividerRow, { marginVertical: isSmallDevice ? 20 : 32 }]}>
                             <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '30' }]} />
-                            <Text style={[styles.dividerText, { color: theme.outlineVariant }]}>{t.filterAll.toUpperCase() === 'HEPSİ' ? 'VEYA' : 'OR'}</Text>
+                            <Text style={[styles.dividerText, { color: theme.outlineVariant }]}>{t.login.email.startsWith('E-') ? 'VEYA' : 'OR'}</Text>
                             <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '30' }]} />
                         </View>
 
-                        {/* Social Actions */}
                         <View style={styles.socialRow}>
                             <TouchableOpacity style={[styles.socialBtn, { backgroundColor: isDark ? '#1a1a1a' : theme.surfaceContainerHighest, width: isSmallDevice ? 64 : 80, height: isSmallDevice ? 64 : 80 }]}>
                                 <Svg width={24} height={24} viewBox="0 0 24 24" fill={isDark ? "white" : "black"}>
@@ -202,10 +202,9 @@ export default function LoginScreen() {
                         </View>
                     </MotiView>
 
-                    {/* Footer */}
                     <View style={[styles.footer, { marginTop: isSmallDevice ? 20 : 40 }]}>
                         <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
-                            {t.login.footer} 
+                            {t.login.footer}
                             <TouchableOpacity onPress={() => router.push('/register')}>
                                 <Text style={{ color: theme.secondary, fontWeight: '700' }}> {t.login.signUp}</Text>
                             </TouchableOpacity>
@@ -228,7 +227,7 @@ const styles = StyleSheet.create({
   subTitle: { fontWeight: '500', opacity: 0.8 },
   card: { width: '100%', borderRadius: 48, borderWidth: 1 },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 16, marginBottom: 16 },
-  errorText: { fontSize: 12, fontWeight: '600' },
+  errorText: { fontSize: 12, fontWeight: '600', flex: 1 },
   form: { width: '100%' },
   inputGroup: { gap: 8 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -238,13 +237,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 16, fontWeight: '500' },
   primaryBtnWrapper: { marginTop: 8 },
   primaryBtn: { borderRadius: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
-  neonGlow: {
-    shadowColor: '#3367ff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 8,
-  },
+  neonGlow: { shadowColor: '#3367ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 15, elevation: 8 },
   primaryBtnText: { fontWeight: '800' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   divider: { flex: 1, height: 1 },
