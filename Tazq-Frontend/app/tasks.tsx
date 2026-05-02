@@ -20,6 +20,7 @@ import { categorizeTask } from '../utils/taskIntelligence';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
 import i18n from 'i18n-js';
+import { S, R, F } from '../constants/tokens';
 
 const SWIPE_THRESHOLD = -80;
 
@@ -75,12 +76,12 @@ const SwipeableItem = ({ children, onDelete, isDark, theme }: any) => {
   }));
 
   return (
-    <View style={{ position: 'relative', marginBottom: 12 }}>
-      <View style={[StyleSheet.absoluteFill, { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingRight: 20 }]}>
+    <View style={{ position: 'relative', marginBottom: S.sm }}>
+      <View style={[StyleSheet.absoluteFill, { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingRight: S.md }]}>
         <Animated.View style={[actionStyle]}>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={onDelete}
-            style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: '#ff3b30', justifyContent: 'center', alignItems: 'center' }}
+            style={{ width: 48, height: 48, borderRadius: R.full, backgroundColor: '#ff3b30', justifyContent: 'center', alignItems: 'center' }}
           >
             <Trash2 size={22} color="white" />
           </TouchableOpacity>
@@ -125,8 +126,7 @@ export default function ActionCenter() {
   const { action } = useLocalSearchParams();
   const insets = useSafeAreaInsets();
 
-  const isSmallDevice = width < 380;
-  const isShortDevice = height < 750;
+  // isSmallDevice / isShortDevice removed — design tokens used instead
 
   const [filter, setFilter] = useState<FilterType>('all');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -497,27 +497,27 @@ export default function ActionCenter() {
         <ScrollView 
             style={{ flex: 1 }} 
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingTop: 10, paddingBottom: 140, paddingHorizontal: 24 }}
+            contentContainerStyle={{ paddingTop: 10, paddingBottom: 140, paddingHorizontal: S.lg }}
         >
           <Text style={[styles.subHeadline, { color: theme.onSurfaceVariant }]}>{t.allTasksReady}</Text>
 
           {/* Stats Bento Section */}
-          <View style={[styles.statsGrid, { gap: isSmallDevice ? 12 : 16, marginTop: 24, marginBottom: isSmallDevice ? 20 : 24 }]}>
-            <BentoCard index={0} style={{ flex: 1.4, padding: isSmallDevice ? 16 : 20 }}>
+          <View style={[styles.statsGrid, { gap: S.md, marginTop: S.lg, marginBottom: S.lg }]}>
+            <BentoCard index={0} style={{ flex: 1.4, padding: S.md }}>
                 <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.completed}</Text>
                 <View style={styles.statValueRow}>
-                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: isSmallDevice ? 24 : 32 }]}>{tasks.filter(t => t.isCompleted).length}</Text>
+                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: F.hero }]}>{tasks.filter(t => t.isCompleted).length}</Text>
                     <View style={[styles.trendBadge, { backgroundColor: theme.tertiary + '15' }]}>
                         <TrendingUp size={12} color={theme.tertiary} />
                     </View>
                 </View>
-                <Text style={[styles.statSub, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>{t.completedTasks}</Text>
+                <Text style={[styles.statSub, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.completedTasks}</Text>
             </BentoCard>
 
-            <BentoCard index={1} style={{ flex: 1, padding: isSmallDevice ? 16 : 20 }}>
+            <BentoCard index={1} style={{ flex: 1, padding: S.md }}>
                 <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.pending}</Text>
-                <Text style={[styles.statValue, { color: theme.primary, fontSize: isSmallDevice ? 24 : 32 }]}>{tasks.filter(t => !t.isCompleted).length}</Text>
-                <Text style={[styles.statSub, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>{t.streak}</Text>
+                <Text style={[styles.statValue, { color: theme.primary, fontSize: F.hero }]}>{tasks.filter(t => !t.isCompleted).length}</Text>
+                <Text style={[styles.statSub, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.streak}</Text>
             </BentoCard>
           </View>
 
@@ -540,12 +540,12 @@ export default function ActionCenter() {
                           backgroundColor: filter === f ? 'rgba(250, 250, 250, 0.05)' : 'transparent',
                           borderColor: filter === f ? theme.primary : theme.outline,
                           borderWidth: 1,
-                          paddingVertical: isSmallDevice ? 8 : 10, 
-                          paddingHorizontal: isSmallDevice ? 16 : 20 
+                          paddingVertical: S.xs,
+                          paddingHorizontal: S.md
                       }
                   ]}
                 >
-                  <Text style={[styles.filterChipText, { color: filter === f ? theme.primary : theme.onSurfaceVariant, fontSize: isSmallDevice ? 12 : 13, fontWeight: filter === f ? '900' : '600' }]}>
+                  <Text style={[styles.filterChipText, { color: filter === f ? theme.primary : theme.onSurfaceVariant, fontSize: F.body, fontWeight: filter === f ? '900' : '600' }]}>
                     {label}
                   </Text>
                 </TouchableOpacity>
@@ -558,9 +558,9 @@ export default function ActionCenter() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
               <TouchableOpacity 
                 onPress={() => { setTagFilter(null); Haptics.selectionAsync(); }}
-                style={[styles.filterChip, { borderColor: !tagFilter ? theme.secondary : theme.outline, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 14 }]}
+                style={[styles.filterChip, { borderColor: !tagFilter ? theme.secondary : theme.outline, borderWidth: 1, paddingVertical: S.xs, paddingHorizontal: S.md }]}
               >
-                <Text style={[styles.filterChipText, { color: !tagFilter ? theme.secondary : theme.onSurfaceVariant, fontSize: 11 }]}>
+                <Text style={[styles.filterChipText, { color: !tagFilter ? theme.secondary : theme.onSurfaceVariant, fontSize: F.caption }]}>
                   {t.allTags}
                 </Text>
               </TouchableOpacity>
@@ -568,9 +568,9 @@ export default function ActionCenter() {
                 <TouchableOpacity 
                   key={tag}
                   onPress={() => { setTagFilter(tagFilter === tag ? null : tag); Haptics.selectionAsync(); }}
-                  style={[styles.filterChip, { borderColor: tagFilter === tag ? theme.secondary : theme.outline, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 14 }]}
+                  style={[styles.filterChip, { borderColor: tagFilter === tag ? theme.secondary : theme.outline, borderWidth: 1, paddingVertical: S.xs, paddingHorizontal: S.md }]}
                 >
-                  <Text style={[styles.filterChipText, { color: tagFilter === tag ? theme.secondary : theme.onSurfaceVariant, fontSize: 11 }]}>
+                  <Text style={[styles.filterChipText, { color: tagFilter === tag ? theme.secondary : theme.onSurfaceVariant, fontSize: F.caption }]}>
                     #{tag}
                   </Text>
                 </TouchableOpacity>
@@ -580,8 +580,8 @@ export default function ActionCenter() {
 
           {/* Task List */}
           <View style={styles.listSection}>
-            <Text 
-                style={[styles.sectionTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 16 : 18, flex: 1 }]}
+            <Text
+                style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, flex: 1 }]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.7}
@@ -633,14 +633,14 @@ export default function ActionCenter() {
                                         { 
                                             backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest,
                                             borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                                            padding: isSmallDevice ? 14 : 16,
+                                            padding: S.md,
                                             flexDirection: 'column',
                                             alignItems: 'stretch'
                                         }
                                     ]}
                                 >
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <View style={[styles.priorityIndicator, { backgroundColor: priorityColor(task.priority), width: isSmallDevice ? 4 : 6, height: '100%', borderRadius: 4, marginRight: 12 }]} />
+                                    <View style={[styles.priorityIndicator, { backgroundColor: priorityColor(task.priority), width: S.xs, height: '100%', borderRadius: R.sm, marginRight: S.sm }]} />
                                     
                                     <View style={styles.taskContent}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -651,7 +651,7 @@ export default function ActionCenter() {
                                             >
                                                 <Text style={[
                                                     styles.taskTitleText,
-                                                    { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 15, flexShrink: 1 },
+                                                    { color: theme.onSurface, fontSize: F.body, flexShrink: 1 },
                                                     task.isCompleted && { textDecorationLine: 'line-through' }
                                                 ]} numberOfLines={expandedId === task.id ? 0 : 1}>
                                                     {task.title}
@@ -671,7 +671,7 @@ export default function ActionCenter() {
                                             )}
                                         </View>
                                         <View style={styles.taskMetaRow}>
-                                            <Text style={[styles.taskMetaText, { color: getDateColor(task.dueDate, theme), fontSize: isSmallDevice ? 10 : 11 }]}>
+                                            <Text style={[styles.taskMetaText, { color: getDateColor(task.dueDate, theme), fontSize: F.caption }]}>
                                                 {formatSmartDate(task.dueDate)}
                                             </Text>
                                             <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.5, marginLeft: 10 }}>
@@ -680,11 +680,11 @@ export default function ActionCenter() {
                                         </View>
                                     </View>
                                     
-                                    <View style={[styles.taskActions, { marginLeft: 12, width: isSmallDevice ? 32 : 36, height: isSmallDevice ? 32 : 36, justifyContent: 'center', alignItems: 'center' }]}>
+                                    <View style={[styles.taskActions, { marginLeft: S.sm, width: 36, height: 36, justifyContent: 'center', alignItems: 'center' }]}>
                                         <SubtaskProgressRing 
-                                            total={(task.subtasks || []).length} 
+                                            total={(task.subtasks || []).length}
                                             completed={(task.subtasks || []).filter(s => s.done).length}
-                                            size={isSmallDevice ? 40 : 44}
+                                            size={44}
                                             strokeWidth={1.5}
                                             activeColor={theme.primary}
                                             inactiveColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}
@@ -692,15 +692,15 @@ export default function ActionCenter() {
                                         <TouchableOpacity 
                                             onPress={() => handleToggle(task.id)} 
                                             style={[
-                                                styles.checkIcon, 
-                                                { 
-                                                    width: isSmallDevice ? 32 : 36, 
-                                                    height: isSmallDevice ? 32 : 36,
+                                                styles.checkIcon,
+                                                {
+                                                    width: 36,
+                                                    height: 36,
                                                     backgroundColor: task.isCompleted ? theme.tertiary : theme.surfaceContainerHigh
                                                 }
                                             ]}
                                         >
-                                            <Check size={isSmallDevice ? 16 : 18} color={task.isCompleted ? 'white' : theme.onSurfaceVariant} strokeWidth={3} />
+                                            <Check size={18} color={task.isCompleted ? 'white' : theme.onSurfaceVariant} strokeWidth={3} />
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -713,30 +713,30 @@ export default function ActionCenter() {
                                             animate={{ opacity: 1, height: 'auto' }}
                                             exit={{ opacity: 0, height: 0 }}
                                             transition={{ type: 'timing', duration: 300 }}
-                                            style={{ overflow: 'hidden', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }}
+                                            style={{ overflow: 'hidden', marginTop: S.md, paddingTop: S.md, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }}
                                         >
                                             {task.description ? (
-                                                <Text style={{ color: theme.onSurface, fontSize: 13, lineHeight: 18, opacity: 0.8, marginBottom: 12 }}>
+                                                <Text style={{ color: theme.onSurface, fontSize: F.body, lineHeight: 20, opacity: 0.8, marginBottom: S.sm }}>
                                                     {task.description}
                                                 </Text>
                                             ) : (
-                                                <Text style={{ color: theme.onSurfaceVariant, fontSize: 12, fontStyle: 'italic', marginBottom: 12 }}>
+                                                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontStyle: 'italic', marginBottom: S.sm }}>
                                                     {i18n.locale && i18n.locale.startsWith('tr') ? 'Açıklama eklenmemiş' : 'No description'}
                                                 </Text>
                                             )}
                                             
-                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, opacity: 0.7 }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.md, opacity: 0.7 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                                                     <Calendar size={13} color={theme.onSurfaceVariant} />
-                                                    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.onSurfaceVariant }}>
+                                                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
                                                         {formatSmartDate(task.dueDate).replace('📅 ', '')}
                                                     </Text>
                                                 </View>
 
                                                 {task.dueTime && (
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                                                         <Clock size={13} color={theme.onSurfaceVariant} />
-                                                        <Text style={{ fontSize: 12, fontWeight: '600', color: theme.onSurfaceVariant }}>
+                                                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
                                                             {task.dueTime.includes('T') 
                                                                 ? task.dueTime.split('T')[1].substring(0, 5) 
                                                                 : task.dueTime.substring(0, 5)}
@@ -744,9 +744,9 @@ export default function ActionCenter() {
                                                     </View>
                                                 )}
 
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                                                     <TrendingUp size={13} color={priorityColor(task.priority)} />
-                                                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurfaceVariant }}>
+                                                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
                                                         {task.priority === 'High' ? (i18n.locale.startsWith('tr') ? 'Yüksek' : 'High') :
                                                          task.priority === 'Medium' ? (i18n.locale.startsWith('tr') ? 'Orta' : 'Medium') :
                                                          (i18n.locale.startsWith('tr') ? 'Düşük' : 'Low')}
@@ -756,8 +756,8 @@ export default function ActionCenter() {
 
                                             {/* Subtasks Checklist */}
                                             {(task.subtasks || []).length > 0 && (
-                                                <View style={{ marginTop: 12, gap: 6 }}>
-                                                    <Text style={{ fontSize: 10, fontWeight: '900', color: theme.onSurfaceVariant, letterSpacing: 1, opacity: 0.5 }}>{t.subtasks.toUpperCase()}</Text>
+                                                <View style={{ marginTop: S.sm, gap: S.xs }}>
+                                                    <Text style={{ fontSize: F.caption, fontWeight: '900', color: theme.onSurfaceVariant, letterSpacing: 1, opacity: 0.5 }}>{t.subtasks.toUpperCase()}</Text>
                                                     {(task.subtasks || []).map((sub, si) => (
                                                         <TouchableOpacity
                                                             key={si}
@@ -775,14 +775,14 @@ export default function ActionCenter() {
                                                                     }
                                                                 }, 600);
                                                             }}
-                                                            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 }}
+                                                            style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs }}
                                                         >
                                                             {sub.done 
                                                                 ? <CheckCircle2 size={16} color={theme.tertiary} />
                                                                 : <Circle size={16} color={theme.onSurfaceVariant} />
                                                             }
-                                                            <Text style={{ 
-                                                                fontSize: 13, fontWeight: '600', color: theme.onSurface,
+                                                            <Text style={{
+                                                                fontSize: F.body, fontWeight: '600', color: theme.onSurface,
                                                                 textDecorationLine: sub.done ? 'line-through' : 'none',
                                                                 opacity: sub.done ? 0.4 : 0.9
                                                             }}>
@@ -795,9 +795,9 @@ export default function ActionCenter() {
 
                                             {/* Recurrence Info */}
                                             {task.recurrence && task.recurrence !== 'None' && (
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm }}>
                                                     <Repeat size={12} color={theme.secondary} />
-                                                    <Text style={{ fontSize: 11, fontWeight: '700', color: theme.secondary }}>
+                                                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.secondary }}>
                                                         {(t as any)[`recurrence${task.recurrence}`] || task.recurrence}
                                                     </Text>
                                                 </View>
@@ -818,19 +818,19 @@ export default function ActionCenter() {
       <TouchableOpacity 
         onPress={openAdd}
         style={[
-            styles.fab, 
-            { 
-                backgroundColor: theme.primary, 
+            styles.fab,
+            {
+                backgroundColor: theme.primary,
                 shadowColor: isDark ? theme.primary : '#000',
-                width: isSmallDevice ? 56 : 64,
-                height: isSmallDevice ? 56 : 64,
-                borderRadius: isSmallDevice ? 28 : 32,
-                bottom: isShortDevice ? 100 : 120,
-                right: isSmallDevice ? 20 : 24
+                width: 64,
+                height: 64,
+                borderRadius: R.lg,
+                bottom: 120,
+                right: S.lg
             }
         ]}
       >
-        <Plus size={isSmallDevice ? 28 : 32} color={theme.onPrimary} strokeWidth={3} />
+        <Plus size={32} color={theme.onPrimary} strokeWidth={3} />
       </TouchableOpacity>
 
       <BottomNavBar />
@@ -848,12 +848,12 @@ export default function ActionCenter() {
             <MotiView 
                 from={{ translateY: 300 }}
                 animate={{ translateY: 0 }}
-                style={[styles.sheet, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', padding: isSmallDevice ? 20 : 24 }]}
+                style={[styles.sheet, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', padding: S.lg }]}
             >
                 <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
                 
-                <View style={[styles.sheetHeader, { marginBottom: isSmallDevice ? 16 : 24 }]}>
-                    <Text style={[styles.sheetTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 20 : 24 }]}>
+                <View style={[styles.sheetHeader, { marginBottom: S.lg }]}>
+                    <Text style={[styles.sheetTitle, { color: theme.onSurface, fontSize: F.title }]}>
                         {editingId ? t.editTask : t.addTask}
                     </Text>
                     <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeModalBtn}>
@@ -864,13 +864,13 @@ export default function ActionCenter() {
                 <ScrollView 
                     style={styles.formContainer} 
                     showsVerticalScrollIndicator={false} 
-                    contentContainerStyle={{ paddingBottom: isShortDevice ? 10 : 20 }}
+                    contentContainerStyle={{ paddingBottom: S.md }}
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={styles.section}>
-                        <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: isSmallDevice ? 52 : 60 }]}>
-                            <TextInput 
-                                style={[styles.modalInput, { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 16 }]}
+                        <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 60 }]}>
+                            <TextInput
+                                style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
                                 placeholder={t.taskTitle}
                                 placeholderTextColor={theme.onSurfaceVariant + '60'}
                                 value={form.title}
@@ -882,15 +882,15 @@ export default function ActionCenter() {
                             <MotiText 
                                 from={{ opacity: 0, translateY: -5 }} 
                                 animate={{ opacity: 1, translateY: 0 }} 
-                                style={{ color: theme.primary, fontSize: 11, marginTop: 8, marginLeft: 16, fontWeight: '800', letterSpacing: 0.5 }}
+                                style={{ color: theme.primary, fontSize: F.caption, marginTop: S.sm, marginLeft: S.md, fontWeight: '800', letterSpacing: 0.5 }}
                             >
                                 {nlpHint}
                             </MotiText>
                         ) : null}
 
-                        <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, marginTop: 12, height: isSmallDevice ? 80 : 100 }]}>
-                            <TextInput 
-                                style={[styles.modalInput, { color: theme.onSurface, paddingTop: 12, fontSize: isSmallDevice ? 14 : 16 }]}
+                        <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, marginTop: S.sm, height: 100 }]}>
+                            <TextInput
+                                style={[styles.modalInput, { color: theme.onSurface, paddingTop: S.sm, fontSize: F.body }]}
                                 placeholder={t.taskDescription + '...'}
                                 placeholderTextColor={theme.onSurfaceVariant + '60'}
                                 value={form.description}
@@ -906,10 +906,10 @@ export default function ActionCenter() {
                         {!showDatePicker && !showTimePicker && (
                           <View style={styles.dateTimeRow}>
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10, marginBottom: 6 }]}>{t.dueDate.toUpperCase()}</Text>
+                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }]}>{t.dueDate.toUpperCase()}</Text>
                                 <TouchableOpacity
                                     onPress={openDatePicker}
-                                    style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: isSmallDevice ? 48 : 52 }]}
+                                    style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
                                 >
                                     <Timer size={14} color={theme.primary} />
                                     <Text style={[styles.chipText, { color: form.dueDate ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]}>
@@ -918,10 +918,10 @@ export default function ActionCenter() {
                                 </TouchableOpacity>
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10, marginBottom: 6 }]}>{t.dueTime.toUpperCase()}</Text>
+                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }]}>{t.dueTime.toUpperCase()}</Text>
                                 <TouchableOpacity
                                     onPress={openTimePicker}
-                                    style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: isSmallDevice ? 48 : 52 }]}
+                                    style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
                                 >
                                     <Sparkles size={14} color={theme.secondary} />
                                     <Text style={[styles.chipText, { color: form.dueTime ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]}>
@@ -980,8 +980,8 @@ export default function ActionCenter() {
                               </View>
                             </View>
                             {dateError && (
-                              <MotiView from={{ opacity: 0, translateY: -4 }} animate={{ opacity: 1, translateY: 0 }} style={[{ backgroundColor: theme.error + '15', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
-                                <Text style={{ color: theme.error, fontSize: 12, fontWeight: '700' }}>{t.invalidDate}</Text>
+                              <MotiView from={{ opacity: 0, translateY: -4 }} animate={{ opacity: 1, translateY: 0 }} style={[{ backgroundColor: theme.error + '15', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, marginBottom: S.sm, flexDirection: 'row', alignItems: 'center', gap: S.sm }]}>
+                                <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '700' }}>{t.invalidDate}</Text>
                               </MotiView>
                             )}
                             <View style={styles.pickerActions}>
@@ -1020,24 +1020,24 @@ export default function ActionCenter() {
 
                     <View style={styles.section}>
                         <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.priority.toUpperCase()}</Text>
-                        <View style={[styles.priorityRow, { gap: isSmallDevice ? 8 : 10 }]}>
+                        <View style={[styles.priorityRow, { gap: S.sm }]}>
                             {([
                                 { key: 'Low', label: t.filterLow },
                                 { key: 'Medium', label: t.filterMedium },
                                 { key: 'High', label: t.filterHigh }
                             ] as { key: Priority, label: string }[]).map((p) => (
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     key={p.key}
                                     onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, priority: p.key })); }}
-                                    style={[styles.priorityTab, { backgroundColor: form.priority === p.key ? priorityColor(p.key) : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: isSmallDevice ? 40 : 48 }]}
+                                    style={[styles.priorityTab, { backgroundColor: form.priority === p.key ? priorityColor(p.key) : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 48 }]}
                                 >
                                     <Text style={[
-                                        styles.priorityTabText, 
-                                        { 
-                                            color: form.priority === p.key 
-                                                ? (p.key === 'Low' ? theme.onTertiary : p.key === 'High' ? 'white' : 'white') 
-                                                : theme.onSurfaceVariant, 
-                                            fontSize: isSmallDevice ? 11 : 13 
+                                        styles.priorityTabText,
+                                        {
+                                            color: form.priority === p.key
+                                                ? (p.key === 'Low' ? theme.onTertiary : p.key === 'High' ? 'white' : 'white')
+                                                : theme.onSurfaceVariant,
+                                            fontSize: F.body
                                         }
                                     ]}>
                                         {p.label}
@@ -1050,15 +1050,15 @@ export default function ActionCenter() {
                     {/* Recurrence Picker */}
                     <View style={styles.section}>
                         <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.recurrence.toUpperCase()}</Text>
-                        <View style={[styles.priorityRow, { gap: isSmallDevice ? 8 : 10 }]}>
+                        <View style={[styles.priorityRow, { gap: S.sm }]}>
                             {RECURRENCE_OPTIONS.map((r) => (
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     key={r.key}
                                     onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, recurrence: r.key })); }}
-                                    style={[styles.priorityTab, { backgroundColor: form.recurrence === r.key ? theme.secondary : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: isSmallDevice ? 36 : 42 }]}
+                                    style={[styles.priorityTab, { backgroundColor: form.recurrence === r.key ? theme.secondary : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 42 }]}
                                 >
                                     {r.key !== 'None' && <Repeat size={12} color={form.recurrence === r.key ? 'white' : theme.onSurfaceVariant} />}
-                                    <Text style={[styles.priorityTabText, { color: form.recurrence === r.key ? 'white' : theme.onSurfaceVariant, fontSize: isSmallDevice ? 10 : 11 }]}>
+                                    <Text style={[styles.priorityTabText, { color: form.recurrence === r.key ? 'white' : theme.onSurfaceVariant, fontSize: F.caption }]}>
                                         {(t as any)[r.labelKey]}
                                     </Text>
                                 </TouchableOpacity>
@@ -1070,7 +1070,7 @@ export default function ActionCenter() {
                     <View style={styles.section}>
                         <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.subtasks.toUpperCase()}</Text>
                         {form.subtasks.map((sub, i) => (
-                            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
                                 <TouchableOpacity onPress={() => {
                                     const subs = [...form.subtasks];
                                     subs[i] = { ...subs[i], done: !subs[i].done };
@@ -1081,7 +1081,7 @@ export default function ActionCenter() {
                                         : <Circle size={18} color={theme.onSurfaceVariant} />
                                     }
                                 </TouchableOpacity>
-                                <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: theme.onSurface, textDecorationLine: sub.done ? 'line-through' : 'none', opacity: sub.done ? 0.4 : 1 }}>{sub.text}</Text>
+                                <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: theme.onSurface, textDecorationLine: sub.done ? 'line-through' : 'none', opacity: sub.done ? 0.4 : 1 }}>{sub.text}</Text>
                                 <TouchableOpacity onPress={() => {
                                     setForm(f => ({ ...f, subtasks: f.subtasks.filter((_, idx) => idx !== i) }));
                                 }}>
@@ -1091,7 +1091,7 @@ export default function ActionCenter() {
                         ))}
                         <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 44 }]}>
                             <TextInput
-                                style={[styles.modalInput, { color: theme.onSurface, fontSize: 13 }]}
+                                style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
                                 placeholder={t.addSubtask}
                                 placeholderTextColor={theme.onSurfaceVariant + '60'}
                                 value={newSubtaskText}
@@ -1121,10 +1121,10 @@ export default function ActionCenter() {
                     <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.modalSaveBtn}>
                         <LinearGradient colors={isDark ? [theme.primary, theme.primaryDim] : [theme.primary, theme.primaryContainer]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalSaveGradient}>
                             {saving ? <ActivityIndicator color="white" /> : (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 }}>
-                                    <Check size={isSmallDevice ? 18 : 20} color={theme.onPrimary} strokeWidth={3} />
-                                    <Text 
-                                        style={[styles.modalSaveText, { color: theme.onPrimary, fontSize: isSmallDevice ? 15 : 17, flexShrink: 1 }]}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md }}>
+                                    <Check size={20} color={theme.onPrimary} strokeWidth={3} />
+                                    <Text
+                                        style={[styles.modalSaveText, { color: theme.onPrimary, fontSize: F.subhead, flexShrink: 1 }]}
                                         numberOfLines={1}
                                         adjustsFontSizeToFit
                                     >
@@ -1144,80 +1144,80 @@ export default function ActionCenter() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 12 },
-  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.lg, paddingVertical: S.sm },
+  backBtn: { width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontWeight: '900', letterSpacing: -0.5 },
-  aiBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  aiBtn: { width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   headline: { fontWeight: '900', letterSpacing: -1.5 },
-  subHeadline: { fontWeight: '600', opacity: 0.7, marginTop: 4 },
+  subHeadline: { fontWeight: '600', opacity: 0.7, marginTop: S.xs },
   statsGrid: { flexDirection: 'row' },
-  statLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  statValueRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 4 },
+  statLabel: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1 },
+  statValueRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginVertical: S.xs },
   statValue: { fontWeight: '900', letterSpacing: -1 },
-  trendBadge: { padding: 4, borderRadius: 8 },
+  trendBadge: { padding: S.xs, borderRadius: R.sm },
   statSub: { fontWeight: '700' },
-  filterScroll: { marginBottom: 24 },
+  filterScroll: { marginBottom: S.lg },
   filterChip: { borderRadius: 100 },
   filterChipText: { fontWeight: '800' },
   listSection: { flex: 1 },
-  sectionTitle: { fontWeight: '900', marginBottom: 16 },
-  taskCard: { borderRadius: 24, flexDirection: 'row', alignItems: 'center', borderWidth: 1.2 },
-  priorityIndicator: { height: 32, borderRadius: 2, marginRight: 16 },
+  sectionTitle: { fontWeight: '900', marginBottom: S.md },
+  taskCard: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', borderWidth: 1.2 },
+  priorityIndicator: { height: 32, borderRadius: R.sm, marginRight: S.md },
   taskContent: { flex: 1 },
   taskTitleText: { fontWeight: '700' },
   taskMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   taskMetaText: { fontWeight: '600' },
   taskActions: { flexDirection: 'row', alignItems: 'center' },
-  editBtn: { borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  checkIcon: { borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  editBtn: { borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
+  checkIcon: { borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
   fab: { position: 'absolute', alignItems: 'center', justifyContent: 'center', elevation: 10, zIndex: 100 },
-  emptyState: { padding: 40, alignItems: 'center', gap: 6 },
-  emptyTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
-  emptyText: { fontSize: 13, fontWeight: '500', opacity: 0.6, textAlign: 'center' },
+  emptyState: { padding: S.xl, alignItems: 'center', gap: 6 },
+  emptyTitle: { fontSize: F.subhead, fontWeight: '800', letterSpacing: -0.3 },
+  emptyText: { fontSize: F.body, fontWeight: '500', opacity: 0.6, textAlign: 'center' },
   deleteAction: {
     width: 80,
-    marginBottom: 12,
+    marginBottom: S.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 24,
+    borderRadius: R.lg,
     marginLeft: -24,
-    paddingLeft: 12,
+    paddingLeft: S.sm,
   },
-  categoryBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  categoryBadge: { paddingHorizontal: S.sm, paddingVertical: 2, borderRadius: R.sm },
   categoryBadgeText: { fontSize: 10, fontWeight: '800', textTransform: 'lowercase' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: { width: '100%' },
-  sheet: { borderTopLeftRadius: 40, borderTopRightRadius: 40, borderWidth: 1, borderBottomWidth: 0 },
-  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  sheet: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, borderWidth: 1, borderBottomWidth: 0 },
+  handle: { width: 40, height: 4, borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sheetTitle: { fontWeight: '900', letterSpacing: -0.5 },
-  closeModalBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  closeModalBtn: { width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   formContainer: { paddingHorizontal: 4 },
-  section: { marginBottom: 20 },
-  inputGroup: { borderRadius: 24, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20 },
+  section: { marginBottom: S.md },
+  inputGroup: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md },
   modalInput: { flex: 1, fontWeight: '600' },
   modalTextArea: { alignItems: 'flex-start' },
-  dateTimeRow: { flexDirection: 'row', gap: 12 },
-  dateTimeChip: { flex: 1, borderRadius: 18, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 10 },
+  dateTimeRow: { flexDirection: 'row', gap: S.sm },
+  dateTimeChip: { flex: 1, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, gap: 10 },
   chipText: { flex: 1, fontWeight: '700' },
-  optionLabel: { fontWeight: '900', letterSpacing: 1.2, marginBottom: 12, marginLeft: 4, opacity: 0.6 },
+  optionLabel: { fontWeight: '900', letterSpacing: 1.2, marginBottom: S.sm, marginLeft: S.xs, opacity: 0.6 },
   priorityRow: { flexDirection: 'row' },
-  priorityTab: { flex: 1, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  priorityTab: { flex: 1, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
   priorityTabText: { fontWeight: '800' },
-  modalSaveBtn: { borderRadius: 24, overflow: 'hidden', marginTop: 24, marginBottom: 40 },
-  modalSaveGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, height: 56 },
+  modalSaveBtn: { borderRadius: R.lg, overflow: 'hidden', marginTop: S.lg, marginBottom: S.xl },
+  modalSaveGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, height: 56 },
   modalSaveText: { color: 'white', fontWeight: '900', letterSpacing: -0.5, textAlign: 'center', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
-  inlinePicker: { borderRadius: 24, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
-  inlinePickerTitle: { fontSize: 13, fontWeight: '900', marginBottom: 16, letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 },
-  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
+  inlinePicker: { borderRadius: R.lg, padding: S.md, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  inlinePickerTitle: { fontSize: F.body, fontWeight: '900', marginBottom: S.md, letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.md },
   pickerCol: { alignItems: 'center', minWidth: 60 },
-  pickerColLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 1, marginBottom: 8, opacity: 0.5 },
-  pickerArrow: { padding: 8 },
-  pickerArrowText: { fontSize: 16, fontWeight: '900' },
+  pickerColLabel: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1, marginBottom: S.sm, opacity: 0.5 },
+  pickerArrow: { padding: S.sm },
+  pickerArrowText: { fontSize: F.body, fontWeight: '900' },
   pickerValue: { fontSize: 32, fontWeight: '900', letterSpacing: -1, lineHeight: 40 },
-  pickerColon: { fontSize: 28, fontWeight: '900', marginTop: 8 },
-  pickerActions: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 10 },
-  pickerCancelBtn: { flex: 1, borderRadius: 16, borderWidth: 1.5, height: 48, alignItems: 'center', justifyContent: 'center' },
-  pickerConfirmBtn: { flex: 1, borderRadius: 16, height: 48, alignItems: 'center', justifyContent: 'center' },
+  pickerColon: { fontSize: 28, fontWeight: '900', marginTop: S.sm },
+  pickerActions: { flexDirection: 'row', gap: S.sm, width: '100%', marginTop: S.sm },
+  pickerCancelBtn: { flex: 1, borderRadius: R.md, borderWidth: 1.5, height: 48, alignItems: 'center', justifyContent: 'center' },
+  pickerConfirmBtn: { flex: 1, borderRadius: R.md, height: 48, alignItems: 'center', justifyContent: 'center' },
   pickerBtnText: { fontWeight: '700', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
 });

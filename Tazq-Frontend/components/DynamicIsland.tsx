@@ -94,7 +94,7 @@ export const DynamicIsland = () => {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 24,
-    marginVertical: 12,
+    marginBottom: 16,
   },
   wrapper: {
     borderRadius: 48,

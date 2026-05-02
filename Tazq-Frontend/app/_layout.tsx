@@ -142,10 +142,12 @@ export default function RootLayout() {
           const userData = await AuthService.getCurrentUser();
           if (userData) setUser(userData);
         } catch (error: any) {
-          if (error.response?.status !== 401) {
-            console.warn('Session sync failed:', error.message);
+          if (error.response?.status === 401) {
+            logout();
+          } else {
+            // Network/server error — don't logout, keep local session
+            console.warn('Session sync failed (keeping session):', error.message);
           }
-          logout();
         }
       }
     };

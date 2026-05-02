@@ -19,6 +19,7 @@ import { useFocusStore } from '../store/useFocusStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import i18n from 'i18n-js';
 import { parseTaskHint } from '../utils/taskParser';
+import { S, R, F } from '../constants/tokens';
 
 const AVATAR_MAP: Record<string, any> = {
     'm1': require('../assets/avatars/m1.png'),
@@ -47,8 +48,6 @@ export default function HomeScreen() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
 
-  const isSmallDevice = width < 380;
-  const isShortDevice = height < 750;
 
   const { setCurrentTask, setDuration, setIsActive } = useFocusStore();
 
@@ -68,6 +67,7 @@ export default function HomeScreen() {
     router.push('/focus');
   };
 
+  const isTR = i18n.locale?.startsWith('tr') ?? true;
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -166,6 +166,22 @@ export default function HomeScreen() {
     return () => clearTimeout(timeout);
   }, []);
 
+  // Compute metrics at component level
+  const weeklyMinutes = weeklyFocus.reduce((s: number, d: any) => s + (d.minutes || 0), 0);
+  const completedCount = tasks.filter(t => t.isCompleted).length;
+  const totalCount = tasks.length || 1;
+  const completionRate = completedCount / totalCount;
+  const focusScore = Math.min(weeklyMinutes / 300, 1);
+  const streakScore = Math.min(streak / 14, 1);
+  const momentum = Math.round(completionRate * 40 + focusScore * 35 + streakScore * 25);
+  const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? '#ff9f0a' : theme.primary;
+  const momentumLabel = isTR
+    ? (momentum >= 75 ? 'Harika gidiyorsun' : momentum >= 40 ? 'İyi tempo' : 'Başlama vakti')
+    : (momentum >= 75 ? 'On a roll!' : momentum >= 40 ? 'Good pace' : 'Get started');
+  const DAY_LABELS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+  const DAY_LABELS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const dayLabels = isTR ? DAY_LABELS_TR : DAY_LABELS_EN;
+
   const getGreeting = () => {
     if (currentHour >= 5 && currentHour < 13) return t.greetingMorning;
     if (currentHour >= 13 && currentHour < 18) return t.greetingAfternoon;
@@ -176,9 +192,9 @@ export default function HomeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        
-        {/* Floating TopBar */}
-        <View style={[styles.topBarWrapper, { top: Math.max(insets.top, 16) }]}>
+
+        {/* TopBar — normal flow, ScrollView starts right below */}
+        <View style={[styles.topBarWrapper]}>
             <MotiView
                 from={{ translateY: -20, opacity: 0 }}
                 animate={{ translateY: 0, opacity: 1 }}
@@ -192,29 +208,29 @@ export default function HomeScreen() {
                     isDark ? { shadowColor: theme.primaryDim, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 } : styles.lightTopBarShadow
                 ]}
             >
-                <BlurView 
-                    intensity={isDark ? 50 : 30} 
-                    tint={colorScheme} 
-                    style={StyleSheet.absoluteFill} 
+                <BlurView
+                    intensity={isDark ? 50 : 30}
+                    tint={colorScheme}
+                    style={StyleSheet.absoluteFill}
                 />
-                <View style={[styles.topBarContent, { paddingHorizontal: isSmallDevice ? 12 : 16 }]}>
+                <View style={[styles.topBarContent, { paddingHorizontal: S.md }]}>
                     <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarContainer}>
-                        <Image 
-                            source={getAvatarSource(user?.avatar || null)} 
-                            style={styles.avatar} 
+                        <Image
+                            source={getAvatarSource(user?.avatar || null)}
+                            style={styles.avatar}
                         />
                     </TouchableOpacity>
-                    
-                    <TazqLogo width={isSmallDevice ? 70 : 80} height={28} />
-                    
+
+                    <TazqLogo width={80} height={28} />
+
                     <View style={styles.boltBtn} />
                 </View>
             </MotiView>
         </View>
 
-        <ScrollView 
+        <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={[styles.scrollContent, { paddingTop: isShortDevice ? 110 : 130, paddingBottom: 100 }]}
+            contentContainerStyle={[styles.scrollContent, { paddingTop: S.lg, paddingBottom: 120 }]}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchTasks} tintColor={theme.primary} />}
         >
@@ -222,13 +238,21 @@ export default function HomeScreen() {
             <MotiView
                 from={{ opacity: 0, translateY: 10 }}
                 animate={{ opacity: 1, translateY: 0 }}
-                style={[styles.heroSection, { paddingHorizontal: isSmallDevice ? 20 : 28 }]}
+                style={[styles.heroSection, { paddingHorizontal: S.lg }]}
             >
-                <Text style={[styles.greeting, { color: theme.onSurface, fontSize: isSmallDevice ? 28 : 36, lineHeight: isSmallDevice ? 34 : 42 }]}>
-                    {getGreeting()},
-                    <Text style={{ color: theme.primary }}> {user?.name?.split(' ')[0] || 'System'}</Text>
-                </Text>
-                <Text style={[styles.subGreeting, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 14 : 16 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', flexShrink: 1 }}>
+                    <Text style={[styles.greeting, { color: theme.onSurface, fontSize: 28, lineHeight: 34 }]} numberOfLines={1}>
+                        {getGreeting()},
+                    </Text>
+                    <Text
+                        style={[styles.greeting, { color: theme.primary, fontSize: 28, lineHeight: 34, flexShrink: 1 }]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                    >
+                        {` ${user?.name?.split(' ')[0] || 'System'}`}
+                    </Text>
+                </View>
+                <Text style={[styles.subGreeting, { color: theme.onSurfaceVariant, fontSize: F.subhead }]}>
                     {t.executiveSummary}
                 </Text>
             </MotiView>
@@ -237,13 +261,13 @@ export default function HomeScreen() {
             <DynamicIsland />
 
             {/* Next Mission / Highway Widget */}
-            <View style={{ paddingHorizontal: isSmallDevice ? 20 : 24, marginBottom: isSmallDevice ? 20 : 24 }}>
+            <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <MotiView
                     from={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ type: 'spring', damping: 15 }}
                 >
-                    <BentoCard index={0} style={[styles.nextMissionCard, { minHeight: isShortDevice ? 160 : 180 }]}>
+                    <BentoCard index={0} style={[styles.nextMissionCard, { minHeight: 180 }]}>
                         <LinearGradient
                             colors={topTask?.priority === 'High' 
                                 ? ['#ff3b30', '#1a1a1a'] 
@@ -268,7 +292,7 @@ export default function HomeScreen() {
                         </View>
 
                         <View style={styles.missionContent}>
-                            <Text style={[styles.missionTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 20 : 24 }]} numberOfLines={2}>
+                            <Text style={[styles.missionTitle, { color: theme.onSurface, fontSize: F.title }]} numberOfLines={1} ellipsizeMode="tail">
                                 {topTask ? topTask.title : t.noTasksHint}
                             </Text>
                             <Text style={[styles.missionSub, { color: theme.onSurfaceVariant }]}>
@@ -276,14 +300,14 @@ export default function HomeScreen() {
                             </Text>
                         </View>
 
-                        <View style={[styles.missionFooter, { gap: 12 }]}>
+                        <View style={[styles.missionFooter, { gap: S.sm }]}>
                             {topTask ? (
                                 <TouchableOpacity 
                                     onPress={() => router.push({ pathname: '/tasks', params: { action: 'focus', taskId: topTask.id } })}
                                     style={[styles.startBtn, { backgroundColor: theme.primary, flex: 2, height: 52, justifyContent: 'center' }]}
                                 >
                                     <Play size={18} color={theme.onPrimary} fill={theme.onPrimary} />
-                                    <Text style={[styles.startBtnText, { color: theme.onPrimary, fontSize: 15, fontWeight: '900' }]}>{t.deepFocus.toUpperCase()}</Text>
+                                    <Text style={[styles.startBtnText, { color: theme.onPrimary, fontSize: F.subhead, fontWeight: '900' }]}>{t.deepFocus.toUpperCase()}</Text>
                                 </TouchableOpacity>
                             ) : (
                                 <TouchableOpacity 
@@ -291,14 +315,14 @@ export default function HomeScreen() {
                                     style={[styles.startBtn, { backgroundColor: theme.surfaceContainerHigh, flex: 2, height: 52, justifyContent: 'center' }]}
                                 >
                                     <Plus size={18} color={theme.onSurface} />
-                                    <Text style={[styles.startBtnText, { color: theme.onSurface, fontSize: 15, fontWeight: '900' }]}>{t.addTask.toUpperCase()}</Text>
+                                    <Text style={[styles.startBtnText, { color: theme.onSurface, fontSize: F.subhead, fontWeight: '900' }]}>{t.addTask.toUpperCase()}</Text>
                                 </TouchableOpacity>
                             )}
                             <TouchableOpacity 
                                 onPress={() => router.push('/tasks')} 
                                 style={[styles.seeAllBtn, { flex: 1, height: 52, justifyContent: 'flex-end', paddingRight: 4 }]}
                             >
-                                <Text style={[styles.seeAllText, { color: theme.onSurfaceVariant, fontSize: 13 }]}>{t.filterAll}</Text>
+                                <Text style={[styles.seeAllText, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{t.filterAll}</Text>
                                 <ChevronRight size={16} color={theme.onSurfaceVariant} />
                             </TouchableOpacity>
                         </View>
@@ -306,126 +330,176 @@ export default function HomeScreen() {
                 </MotiView>
             </View>
 
-            {/* Bento Grid */}
-            <View style={[styles.bentoGrid, { paddingHorizontal: isSmallDevice ? 20 : 24, gap: isSmallDevice ? 12 : 16 }]}>
-                <View style={[styles.bentoRow, { gap: isSmallDevice ? 12 : 16 }]}>
-                    {/* Weekly Progress */}
-                    <BentoCard index={1} style={{ flex: 1.5, minHeight: isShortDevice ? 140 : 160 }}>
-                        <View style={styles.cardHeader}>
-                            <Text style={[styles.cardTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 14 : 16 }]}>{t.weeklyProgress}</Text>
-                        </View>
-                        {statsLoading ? (
-                            <View style={[styles.chartContainer, { height: isShortDevice ? 60 : 80, marginTop: 10 }]}>
-                                {[0,1,2,3,4,5,6].map((i) => (
-                                    <MotiView key={i} animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: i * 80 }} style={[styles.chartBar, { height: `${20 + i * 10}%`, backgroundColor: theme.surfaceContainerHigh, width: isSmallDevice ? 8 : 10 }]} />
-                                ))}
-                            </View>
-                        ) : (
-                            <>
-                                <View style={[styles.chartContainer, { height: isShortDevice ? 60 : 80, marginTop: 10 }]}>
-                                    {(weeklyFocus.length > 0 ? weeklyFocus : [{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0},{minutes:0}]).map((d: any, i: number) => {
-                                        const maxMin = Math.max(...(weeklyFocus.length > 0 ? weeklyFocus.map(w => w.minutes) : [1]));
-                                        const pct = maxMin > 0 ? Math.max((d.minutes / maxMin) * 100, 5) : 5;
-                                        const isToday = i === (weeklyFocus.length > 0 ? weeklyFocus.length - 1 : 6);
-                                        return <View key={i} style={[styles.chartBar, { height: `${pct}%`, backgroundColor: isToday ? theme.primary : theme.surfaceContainerHigh, width: isSmallDevice ? 8 : 10 }]} />;
-                                    })}
+            {/* Metrics Grid */}
+            <View style={{ paddingHorizontal: S.lg, gap: S.md }}>
+
+                {/* Full-width Weekly Focus Chart */}
+                <BentoCard index={1}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.sm }}>
+                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
+                            {isTR ? 'HAFTALIK ODAK' : 'WEEKLY FOCUS'}
+                        </Text>
+                        <Text style={{ fontSize: F.caption, fontWeight: '900', color: theme.primary }}>
+                            {weeklyMinutes >= 60
+                                ? `${Math.floor(weeklyMinutes / 60)}sa ${weeklyMinutes % 60}dk`
+                                : `${weeklyMinutes}dk`}
+                        </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 52, gap: S.xs }}>
+                        {(statsLoading
+                            ? Array(7).fill({ minutes: 0 })
+                            : weeklyFocus.length > 0 ? weeklyFocus : Array(7).fill({ minutes: 0 })
+                        ).map((d: any, i: number) => {
+                            const maxMin = Math.max(...(weeklyFocus.map(w => w.minutes)), 1);
+                            const pct = statsLoading ? (10 + i * 8) : Math.max((d.minutes / maxMin) * 100, 6);
+                            const isToday = !statsLoading && i === weeklyFocus.length - 1;
+                            return (
+                                <View key={i} style={{ flex: 1, height: '100%', justifyContent: 'flex-end' }}>
+                                    <MotiView
+                                        animate={{ opacity: statsLoading ? [0.2, 0.5, 0.2] : 1 }}
+                                        transition={{ loop: statsLoading, duration: 1000, delay: i * 80 }}
+                                        style={{
+                                            width: '100%',
+                                            height: `${pct}%`,
+                                            borderRadius: R.sm,
+                                            backgroundColor: isToday ? theme.primary : (isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh),
+                                        }}
+                                    />
                                 </View>
-                                {weeklyFocus.length > 0 && (
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, paddingHorizontal: 10 }}>
-                                        {weeklyFocus.map((d, i) => (
-                                            <Text key={i} style={{ fontSize: 8, color: theme.onSurfaceVariant, fontWeight: '700', opacity: 0.5 }}>{d.day}</Text>
-                                        ))}
-                                    </View>
-                                )}
-                            </>
-                        )}
+                            );
+                        })}
+                    </View>
+                    <View style={{ flexDirection: 'row', marginTop: S.xs }}>
+                        {dayLabels.map((day, i) => (
+                            <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 9, color: theme.onSurfaceVariant, fontWeight: '800', opacity: 0.4, letterSpacing: 0.3 }}>
+                                {day}
+                            </Text>
+                        ))}
+                    </View>
+                </BentoCard>
+
+                {/* Row 1: Bugün + Momentum */}
+                <View style={{ flexDirection: 'row', gap: S.md }}>
+                    {/* Today */}
+                    <BentoCard index={2} style={{ flex: 1, minHeight: 144 }}>
+                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
+                            {isTR ? 'BUGÜN' : 'TODAY'}
+                        </Text>
+                        <View style={{ flex: 1, justifyContent: 'center' }}>
+                            <Text style={[styles.metricValue, { color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary }]}>
+                                {todayCompleted}
+                                <Text style={{ fontSize: F.subhead, color: theme.onSurfaceVariant, fontWeight: '600' }}>/{dailyGoal}</Text>
+                            </Text>
+                            <Text style={[styles.metricSub, { color: theme.onSurfaceVariant }]}>{t.tasks}</Text>
+                        </View>
+                        <View style={{ width: '100%', height: 3, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh, overflow: 'hidden' }}>
+                            <MotiView
+                                animate={{ width: `${Math.min((todayCompleted / dailyGoal) * 100, 100)}%` as any }}
+                                transition={{ type: 'timing', duration: 800 }}
+                                style={{ height: '100%', borderRadius: R.sm, backgroundColor: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary }}
+                            />
+                        </View>
                     </BentoCard>
 
-                    {/* Daily Goal */}
-                    <BentoCard index={2} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1, color: theme.onSurfaceVariant, opacity: 0.5 }}>{t.dailyGoalTitle.toUpperCase()}</Text>
-                        <Text style={[styles.countText, { color: theme.primary, fontSize: isSmallDevice ? 28 : 36 }]}>{todayCompleted}<Text style={{ fontSize: isSmallDevice ? 14 : 18, color: theme.onSurfaceVariant }}>/{dailyGoal}</Text></Text>
-                        <Text style={[styles.countLabel, { color: theme.onSurfaceVariant }]}>{t.tasks}</Text>
-                        <View style={{ width: '80%', height: 4, borderRadius: 2, backgroundColor: theme.surfaceContainerHigh, marginTop: 8, overflow: 'hidden' }}>
-                            <View style={{ width: `${Math.min((todayCompleted / dailyGoal) * 100, 100)}%`, height: '100%', borderRadius: 2, backgroundColor: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary }} />
+                    {/* Momentum */}
+                    <BentoCard index={3} style={{ flex: 1, minHeight: 144 }}>
+                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>MOMENTUM</Text>
+                        <View style={{ flex: 1, justifyContent: 'center' }}>
+                            <MotiView animate={{ opacity: statsLoading ? [0.4, 0.9, 0.4] : 1 }} transition={{ loop: statsLoading, duration: 1400 }}>
+                                <Text style={[styles.metricValue, { color: momentumColor }]}>
+                                    {statsLoading ? '--' : momentum}
+                                </Text>
+                            </MotiView>
+                            <Text style={[styles.metricSub, { color: theme.onSurfaceVariant }]} numberOfLines={1}>
+                                {momentumLabel}
+                            </Text>
+                        </View>
+                        <View style={{ width: '100%', height: 3, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh, overflow: 'hidden' }}>
+                            <MotiView
+                                animate={{ width: `${statsLoading ? 0 : momentum}%` as any }}
+                                transition={{ type: 'timing', duration: 900 }}
+                                style={{ height: '100%', borderRadius: R.sm, backgroundColor: momentumColor }}
+                            />
                         </View>
                     </BentoCard>
                 </View>
 
-                <View style={[styles.bentoRow, { gap: isSmallDevice ? 12 : 16 }]}>
-                     {/* Momentum Score */}
-                     {(() => {
-                       const completedCount = tasks.filter(t => t.isCompleted).length;
-                       const totalCount = tasks.length || 1;
-                       const completionRate = completedCount / totalCount;
-                       const weeklyMinutes = weeklyFocus.reduce((s: number, d: any) => s + (d.minutes || 0), 0);
-                       const focusScore = Math.min(weeklyMinutes / 300, 1); // 300 min/week = max
-                       const streakScore = Math.min(streak / 14, 1); // 14-day streak = max
-                       const momentum = Math.round((completionRate * 40 + focusScore * 35 + streakScore * 25));
-                       const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? '#ff9f0a' : theme.primary;
-                       return (
-                         <BentoCard index={3} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: isSmallDevice ? 16 : 20 }}>
-                           <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1, color: theme.onSurfaceVariant, opacity: 0.5 }}>
-                             {i18n.locale.startsWith('tr') ? 'MOMENTUM' : 'MOMENTUM'}
-                           </Text>
-                           <MotiView animate={{ opacity: [0.7, 1, 0.7] }} transition={{ loop: true, duration: 2500 }}>
-                             <Text style={{ fontSize: isSmallDevice ? 32 : 40, fontWeight: '900', color: momentumColor, letterSpacing: -1, marginTop: 4 }}>
-                               {statsLoading ? '--' : momentum}
-                             </Text>
-                           </MotiView>
-                           <Text style={{ color: theme.onSurfaceVariant, marginTop: 4, fontWeight: '500' }}>{t.waitingForAction}</Text>
-                           <View style={{ width: '80%', height: 3, borderRadius: 2, backgroundColor: theme.surfaceContainerHigh, marginTop: 8, overflow: 'hidden' }}>
-                             <MotiView
-                               animate={{ width: `${statsLoading ? 0 : momentum}%` as any }}
-                               transition={{ type: 'timing', duration: 800 }}
-                               style={{ height: '100%', borderRadius: 2, backgroundColor: momentumColor }}
-                             />
-                           </View>
-                         </BentoCard>
-                       );
-                     })()}
-
-                     {/* Streak */}
-                     <BentoCard index={4} style={{ flex: 1 }}>
-                        {statsLoading ? (
-                            <View style={{ gap: 10 }}>
-                                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200 }} style={{ height: 14, width: '60%', borderRadius: 7, backgroundColor: theme.surfaceContainerHigh }} />
-                                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: 150 }} style={{ height: 10, width: '80%', borderRadius: 5, backgroundColor: theme.surfaceContainerHigh }} />
-                            </View>
-                        ) : (
-                            <>
-                                <View style={[styles.sectionHeader, { marginBottom: isSmallDevice ? 8 : 12 }]}>
-                                    <Zap size={isSmallDevice ? 16 : 18} color={streak > 0 ? '#ff9f0a' : theme.onSurfaceVariant} fill={streak > 0 ? '#ff9f0a' : 'none'} />
-                                    <Text style={[styles.sectionTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 13 : 15 }]}>🔥 {streak > 0 ? `${streak} ${t.streakFire}` : t.streak}</Text>
-                                </View>
-                                <Text style={{ fontSize: 12, color: theme.onSurfaceVariant, fontWeight: '600', opacity: 0.7 }}>
-                                    {streak > 0 ? t.streakMotivation : t.streakNone}
+                {/* Row 2: Odak + Seri */}
+                <View style={{ flexDirection: 'row', gap: S.md }}>
+                    {/* Weekly Focus Hours */}
+                    <BentoCard index={4} style={{ flex: 1, minHeight: 144 }}>
+                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
+                            {isTR ? 'ODAK' : 'FOCUS'}
+                        </Text>
+                        <View style={{ flex: 1, justifyContent: 'center' }}>
+                            <Text style={[styles.metricValue, { color: theme.secondary }]}>
+                                {Math.floor(weeklyMinutes / 60)}
+                                <Text style={{ fontSize: F.subhead, color: theme.onSurfaceVariant, fontWeight: '600' }}>
+                                    {isTR ? 'sa' : 'h'}
                                 </Text>
-                            </>
+                            </Text>
+                            <Text style={[styles.metricSub, { color: theme.onSurfaceVariant }]}>
+                                {isTR ? 'bu hafta' : 'this week'}
+                            </Text>
+                        </View>
+                        <View style={{ width: '100%', height: 3, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh, overflow: 'hidden' }}>
+                            <MotiView
+                                animate={{ width: `${Math.min((weeklyMinutes / 300) * 100, 100)}%` as any }}
+                                transition={{ type: 'timing', duration: 900 }}
+                                style={{ height: '100%', borderRadius: R.sm, backgroundColor: theme.secondary }}
+                            />
+                        </View>
+                    </BentoCard>
+
+                    {/* Streak */}
+                    <BentoCard index={5} style={{ flex: 1, minHeight: 144 }}>
+                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
+                            {isTR ? 'SERİ' : 'STREAK'}
+                        </Text>
+                        <View style={{ flex: 1, justifyContent: 'center' }}>
+                            <Text style={[styles.metricValue, { color: streak > 0 ? '#ff9f0a' : theme.onSurface }]}>
+                                {streak}
+                                <Text style={{ fontSize: F.subhead, color: theme.onSurfaceVariant, fontWeight: '600' }}>
+                                    {isTR ? 'g' : 'd'}
+                                </Text>
+                            </Text>
+                            <Text style={[styles.metricSub, { color: theme.onSurfaceVariant }]} numberOfLines={1}>
+                                {streak > 0 ? t.streakMotivation : t.streakNone}
+                            </Text>
+                        </View>
+                        {streak > 0 && (
+                            <View style={{ flexDirection: 'row', gap: 3 }}>
+                                {Array(Math.min(streak, 7)).fill(0).map((_, i) => (
+                                    <View key={i} style={{ flex: 1, height: 3, borderRadius: R.sm, backgroundColor: '#ff9f0a', opacity: 0.4 + (i / 7) * 0.6 }} />
+                                ))}
+                                {streak < 7 && Array(7 - Math.min(streak, 7)).fill(0).map((_, i) => (
+                                    <View key={`e${i}`} style={{ flex: 1, height: 3, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh }} />
+                                ))}
+                            </View>
                         )}
                     </BentoCard>
                 </View>
 
                 {/* Quick Actions */}
-                <View style={[styles.actionRow, { gap: isSmallDevice ? 12 : 16 }]}>
+                <View style={[styles.actionRow, { gap: S.md }]}>
                     <TouchableOpacity
                         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/tasks?action=add'); }}
-                        style={[styles.actionBtn, { backgroundColor: theme.surfaceContainerLow, padding: isSmallDevice ? 12 : 16 }]}
+                        style={[styles.actionBtn, { backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest, padding: S.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}
                     >
-                        <View style={[styles.actionIcon, { backgroundColor: theme.primaryContainer, width: isSmallDevice ? 36 : 44, height: isSmallDevice ? 36 : 44 }]}>
-                            <Plus size={isSmallDevice ? 20 : 24} color={isDark ? '#fff' : theme.primary} />
+                        <View style={[styles.actionIcon, { backgroundColor: theme.primaryContainer, width: 44, height: 44 }]}>
+                            <Plus size={22} color={isDark ? theme.primary : theme.primary} />
                         </View>
-                        <Text style={[styles.actionLabel, { color: theme.onSurface, fontSize: isSmallDevice ? 11 : 13 }]}>{t.newTask}</Text>
+                        <Text style={[styles.actionLabel, { color: theme.onSurface, fontSize: F.body }]}>{t.newTask}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setQuickDraftVisible(true); }}
-                        style={[styles.actionBtn, { backgroundColor: theme.surfaceContainerLow, padding: isSmallDevice ? 12 : 16 }]}
+                        style={[styles.actionBtn, { backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest, padding: S.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}
                     >
-                        <View style={[styles.actionIcon, { backgroundColor: theme.secondaryContainer, width: isSmallDevice ? 36 : 44, height: isSmallDevice ? 36 : 44 }]}>
-                            <FileText size={isSmallDevice ? 18 : 22} color={isDark ? '#fff' : theme.secondary} />
+                        <View style={[styles.actionIcon, { backgroundColor: theme.secondaryContainer, width: 44, height: 44 }]}>
+                            <FileText size={22} color={isDark ? theme.secondary : theme.secondary} />
                         </View>
-                        <Text style={[styles.actionLabel, { color: theme.onSurface, fontSize: isSmallDevice ? 11 : 13 }]}>{t.draftNote}</Text>
+                        <Text style={[styles.actionLabel, { color: theme.onSurface, fontSize: F.body }]}>{t.draftNote}</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -434,12 +508,17 @@ export default function HomeScreen() {
 
       {/* Quick Draft Bottom Sheet */}
       <Modal visible={quickDraftVisible} transparent animationType="slide">
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
         <View style={styles.modalOverlay}>
             <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.bottomSheetWrapper}>
-                <MotiView 
-                    from={{ translateY: 100, opacity: 0 }} 
-                    animate={{ translateY: 0, opacity: 1 }} 
+            <View style={styles.bottomSheetWrapper}>
+                <MotiView
+                    from={{ translateY: 100, opacity: 0 }}
+                    animate={{ translateY: 0, opacity: 1 }}
                     style={[styles.quickDraftSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
                 >
                     <View style={styles.sheetHandle} />
@@ -450,7 +529,7 @@ export default function HomeScreen() {
                         <Text style={[styles.quickDraftTitle, { color: theme.onSurface, marginBottom: 0 }]}>{t.draftNote}</Text>
                     </View>
 
-                    <View style={[styles.quickInputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', marginTop: 20 }]}>
+                    <View style={[styles.quickInputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', marginTop: S.md }]}>
                         <TextInput 
                             style={[styles.quickInput, { color: theme.onSurface, height: 60 }]}
                             placeholder={i18n.locale.startsWith('tr') ? "Ne planlıyorsun?" : "What's on your mind?"}
@@ -467,18 +546,19 @@ export default function HomeScreen() {
                         <TouchableOpacity 
                             onPress={handleQuickSave} 
                             disabled={isSavingDraft || !draftTitle.trim()} 
-                            style={[styles.quickSave, { backgroundColor: draftTitle.trim() ? theme.primary : theme.surfaceContainerHigh, flex: 1, borderRadius: 20 }]}
+                            style={[styles.quickSave, { backgroundColor: draftTitle.trim() ? theme.primary : theme.surfaceContainerHigh, flex: 1, borderRadius: R.full }]}
                         >
                             {isSavingDraft ? <ActivityIndicator color="white" /> : (
-                                <Text style={{ color: draftTitle.trim() ? 'white' : theme.onSurfaceVariant, fontWeight: '900', fontSize: 16 }}>
+                                <Text style={{ color: draftTitle.trim() ? 'white' : theme.onSurfaceVariant, fontWeight: '900', fontSize: F.subhead }}>
                                     {t.save}
                                 </Text>
                             )}
                         </TouchableOpacity>
                     </View>
                 </MotiView>
-            </KeyboardAvoidingView>
+            </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <BottomNavBar />
@@ -488,59 +568,48 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topBarWrapper: { position: 'absolute', left: 24, right: 24, zIndex: 100, alignItems: 'center' },
-  floatingTopBar: { width: '100%', borderRadius: 99, overflow: 'hidden', borderWidth: 1.2 },
+  topBarWrapper: { paddingHorizontal: S.lg, paddingVertical: S.sm, alignItems: 'center' },
+  floatingTopBar: { width: '100%', borderRadius: R.full, overflow: 'hidden', borderWidth: 1.2 },
   lightTopBarShadow: { shadowColor: '#2d2f31', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 8 },
   darkTopBarShadow: { shadowColor: '#3367ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 },
-  topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
-  avatarContainer: { width: 34, height: 34, borderRadius: 17, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
+  avatarContainer: { width: 34, height: 34, borderRadius: R.full, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   avatar: { width: '100%', height: '100%' },
-  boltBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  boltBtn: { width: 34, height: 34, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { flexGrow: 1 },
-  heroSection: { marginBottom: 24 },
+  heroSection: { marginBottom: S.lg },
   greeting: { fontWeight: '900', letterSpacing: -1.5, fontFamily: Platform.OS === 'ios' ? 'Plus Jakarta Sans' : 'sans-serif' },
-  subGreeting: { fontWeight: '500', marginTop: 4, opacity: 0.7 },
-  bentoGrid: { },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  cardTitle: { fontWeight: '800' },
-  cardSub: { fontSize: 12, marginTop: 2, opacity: 0.6 },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  badgeText: { fontSize: 10, fontWeight: '900' },
-  chartContainer: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 20, paddingHorizontal: 10 },
-  chartBar: { borderRadius: 7 },
+  subGreeting: { fontWeight: '500', marginTop: S.xs, opacity: 0.7 },
+  metricLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, opacity: 0.45, marginBottom: S.xs },
+  metricValue: { fontSize: F.title, fontWeight: '900', letterSpacing: -1 },
+  metricSub: { fontSize: F.caption, fontWeight: '600', opacity: 0.6, marginTop: 2 },
   bentoRow: { flexDirection: 'row' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   sectionTitle: { fontWeight: '800' },
-  agendaItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  indicator: { width: 3, borderRadius: 2 },
-  agendaName: { fontWeight: '700' },
-  agendaTime: { opacity: 0.6 },
-  countText: { fontWeight: '900', letterSpacing: -2 },
-  countLabel: { fontSize: 10, fontWeight: '900', opacity: 0.5, letterSpacing: 1, marginTop: -4 },
   actionRow: { flexDirection: 'row' },
-  actionBtn: { flex: 1, borderRadius: 24, alignItems: 'center', gap: 8 },
-  actionIcon: { borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  actionBtn: { flex: 1, borderRadius: R.lg, alignItems: 'center', gap: S.sm },
+  actionIcon: { borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' },
   actionLabel: { fontWeight: '800' },
-  nextMissionCard: { padding: 24, justifyContent: 'space-between', overflow: 'hidden' },
-  missionHeader: { flexDirection: 'row', gap: 8 },
-  missionBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  missionBadgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
-  missionContent: { marginTop: 12 },
+  nextMissionCard: { padding: S.lg, justifyContent: 'space-between', overflow: 'hidden' },
+  missionHeader: { flexDirection: 'row', gap: S.sm },
+  missionBadge: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.md },
+  missionBadgeText: { fontSize: F.caption, fontWeight: '900', letterSpacing: 0.5 },
+  missionContent: { marginTop: S.sm },
   missionTitle: { fontWeight: '900', letterSpacing: -0.5 },
-  missionSub: { fontSize: 13, fontWeight: '500', marginTop: 4, opacity: 0.8 },
-  missionFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 },
-  startBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 100 },
-  startBtnText: { color: 'white', fontWeight: '900', fontSize: 14 },
-  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  seeAllText: { fontSize: 12, fontWeight: '700' },
+  missionSub: { fontSize: F.body, fontWeight: '500', marginTop: S.xs, opacity: 0.8 },
+  missionFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: S.md },
+  startBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full },
+  startBtnText: { color: 'white', fontWeight: '900', fontSize: F.body },
+  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
+  seeAllText: { fontSize: F.body, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   bottomSheetWrapper: { width: '100%' },
-  quickDraftSheet: { 
-    width: '100%', 
-    borderTopLeftRadius: 36, 
-    borderTopRightRadius: 36, 
-    padding: 24, 
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  quickDraftSheet: {
+    width: '100%',
+    borderTopLeftRadius: R.lg,
+    borderTopRightRadius: R.lg,
+    padding: S.lg,
+    paddingBottom: Platform.OS === 'ios' ? S.xl : S.lg,
     borderWidth: 1, 
     borderColor: 'rgba(255,255,255,0.1)',
     shadowColor: '#000',
@@ -549,13 +618,13 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 20
   },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginBottom: 20 },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  sheetIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  quickDraftTitle: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
-  quickInputGroup: { borderRadius: 24, paddingHorizontal: 20, height: 64, justifyContent: 'center' },
-  quickInput: { fontWeight: '700', fontSize: 18 },
-  quickActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  quickCancel: { flex: 1, height: 56, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  quickSave: { flex: 1.5, height: 56, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  sheetHandle: { width: 40, height: 4, borderRadius: R.sm, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginBottom: S.md },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
+  sheetIcon: { width: 40, height: 40, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
+  quickDraftTitle: { fontSize: F.title, fontWeight: '900', letterSpacing: -0.5 },
+  quickInputGroup: { borderRadius: R.lg, paddingHorizontal: S.md, height: 64, justifyContent: 'center' },
+  quickInput: { fontWeight: '700', fontSize: F.subhead },
+  quickActions: { flexDirection: 'row', gap: S.sm, marginTop: S.lg },
+  quickCancel: { flex: 1, height: 56, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
+  quickSave: { flex: 1.5, height: 56, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
 });

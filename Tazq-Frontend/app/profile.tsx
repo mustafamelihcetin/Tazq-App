@@ -13,6 +13,7 @@ import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { requestNotificationPermissions } from '../utils/notifications';
+import { S, R, F } from '../constants/tokens';
 
 const AVATAR_CONFIGS = [
     { id: 1, key: 'm1', name: 'Oliver', image: require('../assets/avatars/m1.png') },
@@ -54,8 +55,7 @@ export default function ProfileScreen() {
 
   const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak } = useFocusStore();
 
-  const isSmallDevice = width < 380;
-  const isShortDevice = height < 750;
+  // isSmallDevice / isShortDevice removed — design tokens used instead
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(user?.avatar || 'm1');
@@ -147,90 +147,90 @@ export default function ProfileScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: isSmallDevice ? 20 : 24 }} showsVerticalScrollIndicator={false}>
-          <View style={[styles.header, { marginTop: isShortDevice ? 20 : 32 }]}>
-            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { borderColor: isDark ? theme.primary + '40' : 'rgba(0,0,0,0.05)', width: isSmallDevice ? 90 : 110, height: isSmallDevice ? 90 : 110, borderRadius: isSmallDevice ? 45 : 55 }]}>
-                <Image key={user?.avatar} source={getAvatarSource(user?.avatar || null)} style={[styles.image, { borderRadius: isSmallDevice ? 40 : 50 }]} />
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: S.lg }} showsVerticalScrollIndicator={false}>
+          <View style={[styles.header, { marginTop: S.xl }]}>
+            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { borderColor: isDark ? theme.primary + '40' : 'rgba(0,0,0,0.05)', width: 110, height: 110, borderRadius: 55 }]}>
+                <Image key={user?.avatar} source={getAvatarSource(user?.avatar || null)} style={[styles.image, { borderRadius: 50 }]} />
             </MotiView>
-            <View style={{ alignItems: 'center', marginTop: isSmallDevice ? 12 : 16 }}>
-                <Text style={[styles.name, { color: theme.onSurface, fontSize: isSmallDevice ? 22 : 28 }]}>{user?.name || 'Alex'}</Text>
-                <Text style={[styles.email, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 12 : 14 }]}>{user?.email || 'user@tazq.com'}</Text>
-                <TouchableOpacity onPress={openEditModal} style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: isSmallDevice ? 8 : 10 }]}>
-                    <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '900', fontSize: isSmallDevice ? 11 : 13 }]}>{(t as any).editProfile || t.editProfile}</Text>
+            <View style={{ alignItems: 'center', marginTop: S.md }}>
+                <Text style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{user?.name || 'Alex'}</Text>
+                <Text style={[styles.email, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{user?.email || 'user@tazq.com'}</Text>
+                <TouchableOpacity onPress={openEditModal} style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: S.sm }]}>
+                    <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '900', fontSize: F.caption }]}>{(t as any).editProfile || t.editProfile}</Text>
                 </TouchableOpacity>
             </View>
           </View>
 
           {statsLoading ? (
-            <View style={[styles.statsGrid, { gap: isSmallDevice ? 8 : 12, marginTop: isShortDevice ? 24 : 40 }]}>
-                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200 }} style={{ flex: 1, height: 100, borderRadius: 24, backgroundColor: theme.surfaceContainerHigh }} />
-                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: 100 }} style={{ flex: 1, height: 100, borderRadius: 24, backgroundColor: theme.surfaceContainerHigh }} />
-                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: 200 }} style={{ flex: 1, height: 100, borderRadius: 24, backgroundColor: theme.surfaceContainerHigh }} />
+            <View style={[styles.statsGrid, { gap: S.sm, marginTop: S.xl }]}>
+                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200 }} style={{ flex: 1, height: 100, borderRadius: R.lg, backgroundColor: theme.surfaceContainerHigh }} />
+                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: 100 }} style={{ flex: 1, height: 100, borderRadius: R.lg, backgroundColor: theme.surfaceContainerHigh }} />
+                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: 200 }} style={{ flex: 1, height: 100, borderRadius: R.lg, backgroundColor: theme.surfaceContainerHigh }} />
             </View>
           ) : (
             <>
-              <View style={[styles.statsGrid, { gap: isSmallDevice ? 8 : 12, marginTop: isShortDevice ? 24 : 40 }]}>
-                <BentoCard index={1} style={{ flex: 1, alignItems: 'center', padding: isSmallDevice ? 12 : 16 }}>
-                    <Zap size={isSmallDevice ? 18 : 22} color={theme.primary} fill={theme.primary + '30'} />
-                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: isSmallDevice ? 18 : 22 }]}>{stats.totalFocusHours}</Text>
-                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>{t.hours}</Text>
+              <View style={[styles.statsGrid, { gap: S.sm, marginTop: S.xl }]}>
+                <BentoCard index={1} style={{ flex: 1, alignItems: 'center', padding: S.md }}>
+                    <Zap size={22} color={theme.primary} fill={theme.primary + '30'} />
+                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: F.title }]}>{stats.totalFocusHours}</Text>
+                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.hours}</Text>
                 </BentoCard>
-                <BentoCard index={2} style={{ flex: 1, alignItems: 'center', padding: isSmallDevice ? 12 : 16 }}>
-                    <Target size={isSmallDevice ? 18 : 22} color={theme.secondary} />
-                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: isSmallDevice ? 18 : 22 }]}>{stats.completedTasksCount}</Text>
-                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>{t.tasks}</Text>
+                <BentoCard index={2} style={{ flex: 1, alignItems: 'center', padding: S.md }}>
+                    <Target size={22} color={theme.secondary} />
+                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: F.title }]}>{stats.completedTasksCount}</Text>
+                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.tasks}</Text>
                 </BentoCard>
-                <BentoCard index={3} style={{ flex: 1, alignItems: 'center', padding: isSmallDevice ? 12 : 16 }}>
-                    <Trophy size={isSmallDevice ? 18 : 22} color={'#ff9f0a'} />
-                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: isSmallDevice ? 18 : 22 }]}>{displayBestStreak}</Text>
-                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>{(t as any).bestStreak || 'BEST STREAK'}</Text>
+                <BentoCard index={3} style={{ flex: 1, alignItems: 'center', padding: S.md }}>
+                    <Trophy size={22} color={'#ff9f0a'} />
+                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: F.title }]}>{displayBestStreak}</Text>
+                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{(t as any).bestStreak || 'BEST STREAK'}</Text>
                 </BentoCard>
               </View>
             </>
           )}
 
-          <View style={[styles.settingsSection, { marginTop: isShortDevice ? 24 : 40 }]}>
-            <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '900', letterSpacing: 1.5, marginBottom: 12, marginLeft: 4 }]}>{t.settings.toUpperCase()}</Text>
-            <View style={[styles.settingsCard, { backgroundColor: isDark ? '#18181B' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', borderWidth: 1, borderRadius: 24, overflow: 'hidden' }]}>
+          <View style={[styles.settingsSection, { marginTop: S.xl }]}>
+            <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5, marginBottom: S.sm, marginLeft: S.xs }]}>{t.settings.toUpperCase()}</Text>
+            <View style={[styles.settingsCard, { backgroundColor: isDark ? '#18181B' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', borderWidth: 1, borderRadius: R.lg, overflow: 'hidden' }]}>
                 <SettingItem 
                     icon={<Bell size={18} color="#F59E0B" />} 
                     label={t.notifications} 
                     bg={isDark ? "rgba(245, 158, 11, 0.1)" : "#F59E0B15"}
-                    right={<Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: 13 }}>{notifEnabled ? t.notificationsEnabled : t.notificationsDisabled}</Text>} 
+                    right={<Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{notifEnabled ? t.notificationsEnabled : t.notificationsDisabled}</Text>}
                     onPress={toggleNotifications} 
                     theme={theme} 
                 />
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', marginHorizontal: 16 }} />
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', marginHorizontal: S.md }} />
                 <SettingItem 
                     icon={<Moon size={18} color="#818CF8" />} 
                     label={t.appearance} 
                     bg={isDark ? "rgba(129, 140, 248, 0.1)" : "#818CF815"}
-                    right={<Text style={{ color: theme.primary, fontWeight: '800', fontSize: 13 }}>{((t as any)[`theme${currentSetting.charAt(0).toUpperCase() + currentSetting.slice(1)}`] || currentSetting).toUpperCase()}</Text>} 
+                    right={<Text style={{ color: theme.primary, fontWeight: '800', fontSize: F.body }}>{((t as any)[`theme${currentSetting.charAt(0).toUpperCase() + currentSetting.slice(1)}`] || currentSetting).toUpperCase()}</Text>} 
                     onPress={toggleTheme} 
                     theme={theme} 
                 />
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', marginHorizontal: 16 }} />
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', marginHorizontal: S.md }} />
                 <SettingItem 
                     icon={<Languages size={18} color="#10B981" />} 
                     label={t.language} 
                     bg={isDark ? "rgba(16, 185, 129, 0.1)" : "#10B98115"}
-                    right={<Text style={{ color: theme.onSurface, fontWeight: '800', fontSize: 13 }}>{language.toUpperCase()}</Text>} 
+                    right={<Text style={{ color: theme.onSurface, fontWeight: '800', fontSize: F.body }}>{language.toUpperCase()}</Text>} 
                     onPress={toggleLanguage} 
                     theme={theme} 
                 />
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', marginHorizontal: 16 }} />
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', marginHorizontal: S.md }} />
                 <SettingItem 
                     icon={<Shield size={18} color="#2DD4BF" />} 
                     label={(t as any).streakFreeze || 'Streak Shield'} 
                     bg={isDark ? "rgba(45, 212, 191, 0.1)" : "#2DD4BF15"}
-                    right={<Text style={{ color: streakFreezeAvailable ? '#2DD4BF' : theme.onSurface, fontWeight: '800', fontSize: 13 }}>{streakFreezeAvailable ? (t as any).streakFreezeAvail || 'Ready' : (t as any).streakFreezeUsed || 'Used'}</Text>} 
+                    right={<Text style={{ color: streakFreezeAvailable ? '#2DD4BF' : theme.onSurface, fontWeight: '800', fontSize: F.body }}>{streakFreezeAvailable ? (t as any).streakFreezeAvail || 'Ready' : (t as any).streakFreezeUsed || 'Used'}</Text>} 
                     onPress={handleStreakFreeze} 
                     theme={theme} 
                 />
             </View>
-            <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: isShortDevice ? 20 : 32, padding: isSmallDevice ? 16 : 20 }]}>
+            <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
                 <LogOut size={18} color={theme.error} />
-                <Text style={[styles.logoutText, { color: theme.error, fontSize: isSmallDevice ? 14 : 15 }]}>{t.logout}</Text>
+                <Text style={[styles.logoutText, { color: theme.error, fontSize: F.body }]}>{t.logout}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -243,14 +243,14 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
             <TouchableOpacity style={{ flex: 1 }} onPress={() => setEditModalVisible(false)} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-              <View style={[styles.modalContent, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', paddingBottom: Platform.OS === 'ios' ? 48 : 24 }]}>
+              <View style={[styles.modalContent, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', paddingBottom: Platform.OS === 'ios' ? 48 : S.lg }]}>
                 <View style={[styles.modalHandle, { backgroundColor: theme.outlineVariant + '40' }]} />
-                <Text style={[styles.modalTitle, { color: theme.onSurface, fontSize: isSmallDevice ? 18 : 20 }]}>
+                <Text style={[styles.modalTitle, { color: theme.onSurface, fontSize: F.subhead }]}>
                   {(t as any).editProfile || 'Edit Profile'}
                 </Text>
 
                 {/* Name input */}
-                <View style={{ width: '100%', marginBottom: 20 }}>
+                <View style={{ width: '100%', marginBottom: S.md }}>
                   <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
                     {(t as any).editName || 'Display Name'}
                   </Text>
@@ -266,9 +266,9 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Avatar selection */}
-                <View style={{ width: '100%', marginBottom: 20 }}>
+                <View style={{ width: '100%', marginBottom: S.md }}>
                   <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>Avatar</Text>
-                  <View style={[styles.avatarGrid, { gap: isSmallDevice ? 12 : 16 }]}>
+                  <View style={[styles.avatarGrid, { gap: S.md }]}>
                     {AVATAR_CONFIGS.map((config) => (
                       <TouchableOpacity
                         key={config.id}
@@ -278,9 +278,9 @@ export default function ProfileScreen() {
                           {
                             borderColor: selectedAvatar === config.key ? theme.primary : theme.primary + '30',
                             borderWidth: selectedAvatar === config.key ? 3 : 2,
-                            width: isSmallDevice ? 56 : 64,
-                            height: isSmallDevice ? 56 : 64,
-                            borderRadius: isSmallDevice ? 28 : 32,
+                            width: 64,
+                            height: 64,
+                            borderRadius: R.full,
                           }
                         ]}
                       >
@@ -291,11 +291,11 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Daily focus goal */}
-                <View style={{ width: '100%', marginBottom: 24 }}>
+                <View style={{ width: '100%', marginBottom: S.lg }}>
                   <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
                     {(t as any).dailyFocusGoal || 'Daily Focus Goal'}
                   </Text>
-                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flexDirection: 'row', gap: S.sm }}>
                     {GOAL_OPTIONS.map((g) => (
                       <TouchableOpacity
                         key={g}
@@ -305,7 +305,7 @@ export default function ProfileScreen() {
                           { backgroundColor: selectedGoal === g ? theme.primary : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow) }
                         ]}
                       >
-                        <Text style={{ color: selectedGoal === g ? 'white' : theme.onSurfaceVariant, fontWeight: '800', fontSize: 12 }}>
+                        <Text style={{ color: selectedGoal === g ? 'white' : theme.onSurfaceVariant, fontWeight: '800', fontSize: F.body }}>
                           {g}m
                         </Text>
                       </TouchableOpacity>
@@ -321,7 +321,7 @@ export default function ProfileScreen() {
                 >
                   {savingProfile
                     ? <ActivityIndicator color="white" />
-                    : <Text style={{ color: 'white', fontWeight: '900', fontSize: 16 }}>{t.save}</Text>
+                    : <Text style={{ color: 'white', fontWeight: '900', fontSize: F.body }}>{t.save}</Text>
                   }
                 </TouchableOpacity>
               </View>
@@ -332,12 +332,12 @@ export default function ProfileScreen() {
   );
 }
 
-function SettingItem({ icon, label, right, onPress, theme, isSmall, bg }: any) {
+function SettingItem({ icon, label, right, onPress, theme, bg }: any) {
     return (
-        <TouchableOpacity style={[styles.settingItem, { padding: isSmall ? 14 : 18 }]} onPress={onPress}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: isSmall ? 10 : 12 }}>
+        <TouchableOpacity style={[styles.settingItem, { padding: S.md }]} onPress={onPress}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                 <View style={[styles.iconBox, { backgroundColor: bg || (theme.colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)') }]}>{icon}</View>
-                <Text style={[styles.settingLabel, { color: theme.onSurface, fontSize: isSmall ? 14 : 15 }]}>{label}</Text>
+                <Text style={[styles.settingLabel, { color: theme.onSurface, fontSize: F.body }]}>{label}</Text>
             </View>
             {right || <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.3} />}
         </TouchableOpacity>
@@ -345,39 +345,39 @@ function SettingItem({ icon, label, right, onPress, theme, isSmall, bg }: any) {
 }
 
 function Divider({ theme }: any) {
-    return <View style={{ height: 1, backgroundColor: theme.outlineVariant + '15', marginHorizontal: 16 }} />;
+    return <View style={{ height: 1, backgroundColor: theme.outlineVariant + '15', marginHorizontal: S.md }} />;
 }
 
 const styles = StyleSheet.create({
   header: { alignItems: 'center' },
-  avatarLarge: { borderWidth: 3, padding: 4 },
+  avatarLarge: { borderWidth: 3, padding: S.xs },
   image: { width: '100%', height: '100%' },
   name: { fontWeight: '900', letterSpacing: -1 },
-  email: { opacity: 0.6, marginTop: 4 },
-  editBtn: { marginTop: 20, paddingHorizontal: 24, borderRadius: 100 },
+  email: { opacity: 0.6, marginTop: S.xs },
+  editBtn: { marginTop: S.md, paddingHorizontal: S.lg, borderRadius: R.full },
   editBtnText: { color: 'white', fontWeight: '800' },
   statsGrid: { flexDirection: 'row' },
-  statValue: { fontWeight: '900', marginTop: 8 },
-  statLabel: { fontWeight: '800', opacity: 0.6, marginTop: 2 },
+  statValue: { fontWeight: '900', marginTop: S.sm },
+  statLabel: { fontWeight: '800', opacity: 0.6, marginTop: S.xs },
   settingsSection: { },
-  sectionTitle: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 },
-  sectionLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 10, textTransform: 'uppercase', opacity: 0.6 },
-  settingsCard: { borderRadius: 24, overflow: 'hidden' },
+  sectionTitle: { fontSize: F.caption, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginBottom: S.md },
+  sectionLabel: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1, marginBottom: S.sm, textTransform: 'uppercase', opacity: 0.6 },
+  settingsCard: { borderRadius: R.lg, overflow: 'hidden' },
   settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  iconBox: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  iconBox: { width: 32, height: 32, borderRadius: R.sm, alignItems: 'center', justifyContent: 'center' },
   settingLabel: { fontWeight: '700' },
-  skeletonCircle: { width: 24, height: 24, borderRadius: 12 },
-  skeletonLine: { height: 14, borderRadius: 7 },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, borderRadius: 24 },
+  skeletonCircle: { width: 24, height: 24, borderRadius: R.full },
+  skeletonLine: { height: 14, borderRadius: R.sm },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.lg },
   logoutText: { fontWeight: '800' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24 },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  modalTitle: { fontWeight: '900', marginBottom: 24, textAlign: 'center' },
+  modalContent: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, padding: S.lg },
+  modalHandle: { width: 40, height: 4, borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
+  modalTitle: { fontWeight: '900', marginBottom: S.lg, textAlign: 'center' },
   avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
-  avatarOption: { padding: 4, overflow: 'hidden' },
-  inputGroup: { borderRadius: 16, paddingHorizontal: 16, height: 48, justifyContent: 'center' },
-  nameInput: { fontSize: 15, fontWeight: '600' },
-  goalChip: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
-  saveBtn: { width: '100%', paddingVertical: 16, borderRadius: 100, alignItems: 'center' },
+  avatarOption: { padding: S.xs, overflow: 'hidden' },
+  inputGroup: { borderRadius: R.md, paddingHorizontal: S.md, height: 48, justifyContent: 'center' },
+  nameInput: { fontSize: F.body, fontWeight: '600' },
+  goalChip: { flex: 1, paddingVertical: S.sm, borderRadius: R.md, alignItems: 'center' },
+  saveBtn: { width: '100%', paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
 });

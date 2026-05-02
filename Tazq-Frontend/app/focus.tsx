@@ -11,6 +11,7 @@ import { FocusService } from '../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { getRandomQuote } from '../constants/Quotes';
+import { S, R, F } from '../constants/tokens';
 import i18n from 'i18n-js';
 
 const DURATIONS = [15, 25, 50, 90];
@@ -22,8 +23,6 @@ export default function FocusScreen() {
   const { width, height } = useWindowDimensions();
   const { t, language } = useLanguageStore();
   const isTR = i18n.locale?.startsWith('tr');
-
-  const isSmallDevice = width < 380;
 
   const { isActive, seconds, totalSeconds, setIsActive, tick, reset, setDuration, currentTask, rehydrateTimer } = useFocusStore();
   const completedRef = useRef(false);
@@ -99,7 +98,7 @@ export default function FocusScreen() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
-        <View style={[styles.header, { paddingVertical: isSmallDevice ? 12 : 16 }]}>
+        <View style={[styles.header, { paddingVertical: S.md }]}>
           <TouchableOpacity
             onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
             style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
@@ -108,13 +107,13 @@ export default function FocusScreen() {
           </TouchableOpacity>
           <View style={[styles.badge, { backgroundColor: theme.primary + '10' }]}>
             <Sparkles size={12} color={theme.primary} />
-            <Text style={[styles.badgeText, { color: theme.primary, fontSize: isSmallDevice ? 9 : 10 }]}>{t.deepFocus}</Text>
+            <Text style={[styles.badgeText, { color: theme.primary, fontSize: F.caption }]}>{t.deepFocus}</Text>
           </View>
         </View>
 
-        <View style={[styles.content, { paddingHorizontal: isSmallDevice ? 20 : 24 }]}>
+        <View style={[styles.content, { paddingHorizontal: S.lg }]}>
           {/* Duration chips */}
-          <View style={[styles.durationRow, { marginBottom: isSmallDevice ? 30 : 40, gap: isSmallDevice ? 8 : 10 }]}>
+          <View style={[styles.durationRow, { marginBottom: S.xl, gap: S.sm }]}>
             {DURATIONS.map((min) => {
               const active = totalSeconds === min * 60;
               return (
@@ -129,12 +128,12 @@ export default function FocusScreen() {
                       borderColor: active ? theme.primary : theme.outline,
                       borderWidth: 1,
                       opacity: isActive ? 0.35 : 1,
-                      paddingHorizontal: isSmallDevice ? 16 : 20,
-                      paddingVertical: isSmallDevice ? 8 : 10,
+                      paddingHorizontal: S.md,
+                      paddingVertical: S.sm,
                     },
                   ]}
                 >
-                  <Text style={[styles.durationText, { color: active ? theme.primary : theme.onSurfaceVariant, fontSize: isSmallDevice ? 12 : 14, fontWeight: active ? '900' : '600' }]}>
+                  <Text style={[styles.durationText, { color: active ? theme.primary : theme.onSurfaceVariant, fontSize: F.body, fontWeight: active ? '900' : '600' }]}>
                     {min}m
                   </Text>
                 </TouchableOpacity>
@@ -156,14 +155,14 @@ export default function FocusScreen() {
                     : theme.outline,
                   borderWidth: 1,
                   opacity: isActive ? 0.35 : 1,
-                  paddingHorizontal: isSmallDevice ? 14 : 18,
-                  paddingVertical: isSmallDevice ? 8 : 10,
+                  paddingHorizontal: S.md,
+                  paddingVertical: S.sm,
                 },
               ]}
             >
               <Text style={[styles.durationText, {
                 color: !DURATIONS.includes(Math.round(totalSeconds / 60)) && totalSeconds > 0 ? theme.primary : theme.onSurfaceVariant,
-                fontSize: isSmallDevice ? 13 : 15,
+                fontSize: F.subhead,
                 fontWeight: '900'
               }]}>···</Text>
             </TouchableOpacity>
@@ -190,17 +189,17 @@ export default function FocusScreen() {
                 ? theme.primary + (isDark ? '60' : '40')
                 : (isDark ? theme.primary + '30' : 'rgba(0,0,0,0.05)'),
               borderRadius: timerSize / 2,
-              borderWidth: isSmallDevice ? 6 : 8,
+              borderWidth: 8,
             }]}>
-              <Text style={[styles.timerText, { color: theme.onSurface, fontSize: isSmallDevice ? 44 : 56 }]}>
+              <Text style={[styles.timerText, { color: theme.onSurface, fontSize: 56 }]}>
                 {formatTime(seconds)}
               </Text>
-              <Text style={[styles.currentTaskText, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 12 : 14, maxWidth: timerSize * 0.75 }]} numberOfLines={1}>
+              <Text style={[styles.currentTaskText, { color: theme.onSurfaceVariant, fontSize: F.body, maxWidth: timerSize * 0.75 }]} numberOfLines={1}>
                 {currentTask || t.focusSession}
               </Text>
               <View style={[styles.statusBadge, { backgroundColor: isActive ? theme.primary + '20' : theme.surfaceContainerHigh, marginTop: 12 }]}>
                 <View style={[styles.statusDot, { backgroundColor: isActive ? theme.primary : theme.onSurfaceVariant }]} />
-                <Text style={[styles.statusText, { color: isActive ? theme.primary : theme.onSurfaceVariant, fontSize: isSmallDevice ? 9 : 10 }]}>
+                <Text style={[styles.statusText, { color: isActive ? theme.primary : theme.onSurfaceVariant, fontSize: F.caption }]}>
                   {isActive ? (isTR ? 'ÇALIŞIYOR' : 'RUNNING') : seconds === totalSeconds ? (isTR ? 'HAZIR' : 'READY') : (isTR ? 'DURAKLATILDI' : 'PAUSED')}
                 </Text>
               </View>
@@ -208,30 +207,30 @@ export default function FocusScreen() {
           </MotiView>
 
           {/* Controls */}
-          <View style={[styles.controlsRow, { marginTop: isSmallDevice ? 40 : 60, gap: isSmallDevice ? 24 : 32 }]}>
+          <View style={[styles.controlsRow, { marginTop: S.xl, gap: S.xl }]}>
             <TouchableOpacity
               onPress={resetTimer}
-              style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: isSmallDevice ? 48 : 56, height: isSmallDevice ? 48 : 56, borderRadius: isSmallDevice ? 24 : 28 }]}
+              style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg }]}
             >
-              <RotateCcw size={isSmallDevice ? 20 : 24} color={theme.onSurfaceVariant} />
+              <RotateCcw size={24} color={theme.onSurfaceVariant} />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={toggleTimer}
-              style={[styles.playBtn, { backgroundColor: theme.primary, shadowColor: isDark ? theme.primary : '#000', width: isSmallDevice ? 72 : 84, height: isSmallDevice ? 72 : 84, borderRadius: isSmallDevice ? 36 : 42 }]}
+              style={[styles.playBtn, { backgroundColor: theme.primary, shadowColor: isDark ? theme.primary : '#000', width: 84, height: 84, borderRadius: 42 }]}
             >
               <LinearGradient
                 colors={isDark ? [theme.primary, '#3367ff'] : [theme.primary, theme.primaryContainer]}
                 style={styles.btnGradient}
               >
                 {isActive
-                  ? <Pause size={isSmallDevice ? 28 : 32} color={theme.onPrimary} fill={theme.onPrimary} />
-                  : <Play size={isSmallDevice ? 28 : 32} color={theme.onPrimary} fill={theme.onPrimary} />}
+                  ? <Pause size={32} color={theme.onPrimary} fill={theme.onPrimary} />
+                  : <Play size={32} color={theme.onPrimary} fill={theme.onPrimary} />}
               </LinearGradient>
             </TouchableOpacity>
 
-            <View style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: isSmallDevice ? 48 : 56, height: isSmallDevice ? 48 : 56, borderRadius: isSmallDevice ? 24 : 28 }]}>
-              <Text style={[styles.progressText, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 10 : 12 }]}>
+            <View style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg }]}>
+              <Text style={[styles.progressText, { color: theme.onSurfaceVariant, fontSize: F.body }]}>
                 {Math.round(progress * 100)}%
               </Text>
             </View>
@@ -245,14 +244,14 @@ export default function FocusScreen() {
                 animate={{ opacity: 1, translateY: 0 }}
                 exit={{ opacity: 0, translateY: 10 }}
                 transition={{ type: 'timing', duration: 300 }}
-                style={{ marginTop: isSmallDevice ? 28 : 36, alignItems: 'center' }}
+                style={{ marginTop: S.lg, alignItems: 'center' }}
               >
                 <TouchableOpacity
                   onPress={finishEarly}
                   style={[styles.finishBtn, { borderColor: theme.tertiary + '50', backgroundColor: theme.tertiary + '12' }]}
                 >
                   <CheckCircle2 size={15} color={theme.tertiary} />
-                  <Text style={[styles.finishText, { color: theme.tertiary, fontSize: isSmallDevice ? 12 : 13 }]}>
+                  <Text style={[styles.finishText, { color: theme.tertiary, fontSize: F.body }]}>
                     {isTR ? 'Seansı Bitir' : 'End Session'}
                   </Text>
                 </TouchableOpacity>
@@ -261,8 +260,8 @@ export default function FocusScreen() {
           </AnimatePresence>
         </View>
 
-        <View style={[styles.footer, { padding: isSmallDevice ? 24 : 40 }]}>
-          <Text style={[styles.quote, { color: theme.onSurfaceVariant, fontSize: isSmallDevice ? 12 : 14 }]}>{quote}</Text>
+        <View style={[styles.footer, { padding: S.xl }]}>
+          <Text style={[styles.quote, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{quote}</Text>
         </View>
       </SafeAreaView>
 
@@ -313,9 +312,9 @@ export default function FocusScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24 },
-  closeBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.lg },
+  closeBtn: { width: 44, height: 44, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full },
   badgeText: { fontWeight: '900', letterSpacing: 1 },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   durationRow: { flexDirection: 'row' },
@@ -326,7 +325,7 @@ const styles = StyleSheet.create({
   timerText: { fontWeight: '900', letterSpacing: -2 },
   currentTaskText: { fontWeight: '600', marginTop: 8, textAlign: 'center' },
   breathGlow: { position: 'absolute', zIndex: -1 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 100 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontWeight: '900', letterSpacing: 1.5 },
   controlsRow: { flexDirection: 'row', alignItems: 'center' },
@@ -334,18 +333,18 @@ const styles = StyleSheet.create({
   playBtn: { overflow: 'hidden', elevation: 8, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
   btnGradient: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   progressText: { fontWeight: '900' },
-  finishBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 100, borderWidth: 1 },
+  finishBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, borderWidth: 1 },
   finishText: { fontWeight: '700', letterSpacing: 0.3 },
   footer: { alignItems: 'center' },
   quote: { fontStyle: 'italic', textAlign: 'center', opacity: 0.5 },
   modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  customSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 32, paddingBottom: 48, alignItems: 'center', gap: 12 },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, marginBottom: 8 },
-  sheetTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
-  sheetSub: { fontSize: 13, fontWeight: '600', opacity: 0.5, marginBottom: 8 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 18, paddingHorizontal: 24, paddingVertical: 4, gap: 8, marginBottom: 8 },
+  customSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, padding: S.lg, paddingBottom: S.xxl, alignItems: 'center', gap: S.sm },
+  sheetHandle: { width: 36, height: 4, borderRadius: R.sm, marginBottom: S.sm },
+  sheetTitle: { fontSize: F.title, fontWeight: '800', letterSpacing: -0.5 },
+  sheetSub: { fontSize: F.body, fontWeight: '600', opacity: 0.5, marginBottom: S.sm },
+  inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: S.xs, gap: S.sm, marginBottom: S.sm },
   customInput: { fontWeight: '900', letterSpacing: -1, minWidth: 80, textAlign: 'center' },
-  minLabel: { fontSize: 16, fontWeight: '700', opacity: 0.5 },
-  applyBtn: { width: '100%', paddingVertical: 16, borderRadius: 100, alignItems: 'center' },
-  applyBtnText: { color: 'white', fontWeight: '900', fontSize: 16, letterSpacing: 0.5 },
+  minLabel: { fontSize: F.subhead, fontWeight: '700', opacity: 0.5 },
+  applyBtn: { width: '100%', paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
+  applyBtnText: { color: 'white', fontWeight: '900', fontSize: F.subhead, letterSpacing: 0.5 },
 });
