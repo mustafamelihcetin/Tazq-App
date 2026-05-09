@@ -6,6 +6,11 @@
     reverse_proxy tazq-backend:5200
 }
 
+# Malthen Portfolio Routing
+malthen.dev, www.malthen.dev {
+    reverse_proxy malthen-app:8080
+}
+
 # Gelecekte bir domain eklediğinde burayı açabilirsin:
 # yourdomain.com {
 #     reverse_proxy tazq-backend:80

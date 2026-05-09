@@ -27,8 +27,34 @@ function Stop-PortProcess([int]$port) {
 }
 
 function Start-DockerDB {
-    Write-Host "-> Veritabani kontrol ediliyor (Docker)..." -ForegroundColor Cyan
-    docker-compose -f "$RootPath/docker-compose.yml" up -d tazq-db
+    Write-Host "-> Docker durumu kontrol ediliyor..." -ForegroundColor Cyan
+    docker info > $null 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "!!! HATA: Docker Desktop calismiyor! Lutfen Docker'i baslatin ve tekrar deneyin." -ForegroundColor Red
+        return $false
+    }
+    
+    Write-Host "-> Veritabani konteyneri baslatiliyor (Docker)..." -ForegroundColor Cyan
+    docker compose -f "$RootPath/docker-compose.yml" up -d tazq-db
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "!!! HATA: Docker Compose komutu basarisiz oldu." -ForegroundColor Red
+        return $false
+    }
+
+    Write-Host "-> Veritabani hazir olana kadar bekleniyor..." -ForegroundColor Cyan
+    $retries = 20
+    while ($retries -gt 0) {
+        $status = docker inspect --format='{{.State.Health.Status}}' tazq-db 2>$null
+        if ($status -eq "healthy") {
+            Write-Host "-> Veritabani hazir!" -ForegroundColor Green
+            return $true
+        }
+        Write-Host "-> Bekleniyor... ($retries)" -ForegroundColor Gray
+        Start-Sleep -Seconds 2
+        $retries--
+    }
+    Write-Host "!!! UYARI: Veritabani saglik kontrolu zaman asimina ugradi, yine de devam ediliyor..." -ForegroundColor Yellow
+    return $true
 }
 
 function Test-Frontend-Setup {
@@ -64,14 +90,20 @@ while ($true) {
 
     switch ($choice) {
         "1" {
-            Start-DockerDB
-            Write-Host "-> API baslatiliyor..." -ForegroundColor DarkCyan
-            Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$BackendPath'; dotnet watch run"
+            if (Start-DockerDB) {
+                Write-Host "-> API baslatiliyor..." -ForegroundColor DarkCyan
+                Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$BackendPath'; dotnet watch run"
+            } else {
+                Pause
+            }
         }
         "2" {
-            Start-DockerDB
-            Write-Host "-> API (No-Build) hizli baslatiliyor..." -ForegroundColor DarkCyan
-            Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$BackendPath'; dotnet run --no-build"
+            if (Start-DockerDB) {
+                Write-Host "-> API (No-Build) hizli baslatiliyor..." -ForegroundColor DarkCyan
+                Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$BackendPath'; dotnet run --no-build"
+            } else {
+                Pause
+            }
         }
         "3" {
             if (Test-Frontend-Setup) {
@@ -100,10 +132,13 @@ while ($true) {
         }
         "6" {
             if (Test-Frontend-Setup) {
-                Write-Host "-> Full Stack sistem ayaga kaldiriliyor..." -ForegroundColor Green
-                Start-DockerDB
-                Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$BackendPath'; dotnet watch run"
-                Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$FrontendPath'; npx expo start --web"
+                if (Start-DockerDB) {
+                    Write-Host "-> Full Stack sistem ayaga kaldiriliyor..." -ForegroundColor Green
+                    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$BackendPath'; dotnet watch run"
+                    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$FrontendPath'; npx expo start --web"
+                } else {
+                    Pause
+                }
             }
         }
         "7" {

@@ -184,7 +184,22 @@ if (app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    var maxRetries = 5;
+    var delay = 3000;
+    for (int i = 0; i < maxRetries; i++)
+    {
+        try
+        {
+            db.Database.Migrate();
+            break;
+        }
+        catch (Exception)
+        {
+            if (i == maxRetries - 1) throw;
+            Console.WriteLine($"Veritabanına bağlanılamadı, tekrar deneniyor... ({i + 1}/{maxRetries})");
+            Thread.Sleep(delay);
+        }
+    }
 
     var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL");
     var adminPassword = Environment.GetEnvironmentVariable("ADMIN_PASSWORD");
