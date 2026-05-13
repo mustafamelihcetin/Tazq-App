@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 
 public class ErrorHandlingMiddleware
@@ -34,7 +34,7 @@ public class ErrorHandlingMiddleware
 
 	private static Task HandleExceptionAsync(HttpContext context, Exception exception)
 	{
-		var response = new { status = 500, message = exception.Message, error = exception.GetType().Name };
+		var response = new { status = 500, message = "An unexpected error occurred.", error = "InternalServerError" };
 		var jsonResponse = JsonSerializer.Serialize(response);
 
 		context.Response.ContentType = "application/json";

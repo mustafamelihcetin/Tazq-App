@@ -16,7 +16,7 @@ namespace Tazq_App.Services
             _cryptoService = cryptoService;
         }
 
-        public async Task<List<TaskItem>> GetTasksAsync(int userId, string? tag, string? search, string? sortBy, bool? isCompleted, DateTime? startDate, DateTime? endDate)
+        public async Task<(List<TaskItem> Items, int TotalCount)> GetTasksAsync(int userId, string? tag, string? search, string? sortBy, bool? isCompleted, DateTime? startDate, DateTime? endDate, int page = 1, int pageSize = 50)
         {
             var query = _context.Tasks.Where(t => t.UserId == userId).AsQueryable();
             var key = _cryptoService.GetKeyForUser(userId)!;
@@ -51,13 +51,18 @@ namespace Tazq_App.Services
                 ).ToList();
             }
 
-            return sortBy?.ToLower() switch
+            var sorted = sortBy?.ToLower() switch
             {
                 "duedate" => taskList.OrderBy(t => t.DueDate).ToList(),
                 "priority" => taskList.OrderByDescending(t => t.Priority).ToList(),
                 "title" => taskList.OrderBy(t => t.Title).ToList(),
                 _ => taskList
             };
+
+            var totalCount = sorted.Count;
+            var paginated = sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            return (paginated, totalCount);
         }
 
         public async Task<TaskItem?> GetTaskByIdAsync(int userId, int taskId)

@@ -79,6 +79,20 @@ namespace Tazq_App.Services
                     PropertyNameCaseInsensitive = true
                 }) ?? new List<ParsedTask>();
 
+                // Validate and sanitize LLM output
+                var validPriorities = new[] { "Low", "Medium", "High" };
+                tasks = tasks
+                    .Where(t => !string.IsNullOrWhiteSpace(t.Title))
+                    .Select(t =>
+                    {
+                        t.Title = t.Title.Trim();
+                        t.Description = t.Description?.Trim() ?? string.Empty;
+                        if (string.IsNullOrEmpty(t.Priority) || !validPriorities.Contains(t.Priority))
+                            t.Priority = "Medium";
+                        return t;
+                    })
+                    .ToList();
+
                 return tasks;
             });
         }

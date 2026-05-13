@@ -1,8 +1,10 @@
-﻿using System;
+using System;
 using System.Net;
 using System.Net.Mail;
+using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using System.Threading.Tasks;
+using Tazq_App.Data;
 using Tazq_App.Models;
 
 namespace Tazq_App.Services
@@ -10,10 +12,12 @@ namespace Tazq_App.Services
 	public class CustomEmailService : ICustomEmailService
 	{
 		private readonly SmtpSettings _smtpSettings;
+		private readonly IServiceProvider _serviceProvider;
 
-		public CustomEmailService(IOptions<SmtpSettings> smtpSettings)
+		public CustomEmailService(IOptions<SmtpSettings> smtpSettings, IServiceProvider serviceProvider)
 		{
 			_smtpSettings = smtpSettings.Value ?? throw new ArgumentNullException(nameof(smtpSettings), "SMTP settings cannot be null.");
+			_serviceProvider = serviceProvider;
 		}
 
 		public async Task SendEmailAsync(string toEmail, string subject, string body)
@@ -27,14 +31,6 @@ namespace Tazq_App.Services
 			{
 				smtpPort = _smtpSettings.Port;
 			}
-
-			// DEBUG LOGS FOR RENDER ENVIRONMENT
-			Console.WriteLine("======= SMTP DEBUG START =======");
-			Console.WriteLine($"SMTP_HOST: {smtpHost}");
-			Console.WriteLine($"SMTP_USERNAME: {smtpUser}");
-			Console.WriteLine($"SMTP_FROM: {smtpFrom}");
-			Console.WriteLine($"SMTP_PORT: {smtpPort}");
-			Console.WriteLine("======= SMTP DEBUG END ========");
 
 			if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(smtpUser) ||
 				string.IsNullOrWhiteSpace(smtpPass) || string.IsNullOrWhiteSpace(smtpFrom))
@@ -66,6 +62,63 @@ namespace Tazq_App.Services
 			{
 				throw new Exception($"Failed to send email: {ex.Message}");
 			}
+		}
+
+		public async Task SendReminderEmailAsync(int userId, List<int> taskIds)
+		{
+			using var scope = _serviceProvider.CreateScope();
+			var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+			var user = await context.Users.FindAsync(userId);
+			if (user == null) throw new KeyNotFoundException("User not found.");
+
+			var tasks = await context.Tasks.Where(t => taskIds.Contains(t.Id) && t.UserId == userId).ToListAsync();
+			if (!tasks.Any()) throw new ArgumentException("No valid tasks found for this reminder.");
+
+			string subject = "Task Reminder";
+			string body = FormatTaskList("You have upcoming tasks to complete:", tasks);
+			await SendEmailAsync(user.Email, subject, body);
+		}
+
+		public async Task SendWeeklySummaryEmailAsync(int userId)
+		{
+			using var scope = _serviceProvider.CreateScope();
+			var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+			var user = await context.Users.FindAsync(userId);
+			if (user == null) throw new KeyNotFoundException("User not found.");
+
+			var pendingTasks = await context.Tasks.Where(t => t.UserId == userId && !t.IsCompleted).ToListAsync();
+			string subject = "Weekly Summary - Your Pending Tasks";
+			string body = pendingTasks.Any()
+				? FormatTaskList("Here are your pending tasks:", pendingTasks)
+				: "You have completed all your tasks for this week.";
+			await SendEmailAsync(user.Email, subject, body);
+		}
+
+		public async Task SendExportEmailAsync(int userId)
+		{
+			using var scope = _serviceProvider.CreateScope();
+			var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+			var user = await context.Users.FindAsync(userId);
+			if (user == null) throw new KeyNotFoundException("User not found.");
+
+			var allTasks = await context.Tasks.Where(t => t.UserId == userId).ToListAsync();
+			string subject = "Exported Task List";
+			string body = allTasks.Any()
+				? FormatTaskList("Your complete task list:", allTasks)
+				: "You have no tasks in your list.";
+			await SendEmailAsync(user.Email, subject, body);
+		}
+
+		private static string FormatTaskList(string title, List<TaskItem> tasks)
+		{
+			StringBuilder sb = new();
+			sb.AppendLine(title);
+			foreach (var task in tasks)
+				sb.AppendLine($"- {task.Title} (Due: {task.DueDate:yyyy-MM-dd}) - {(task.IsCompleted ? "Completed" : "Pending")}");
+			return sb.ToString();
 		}
 	}
 }

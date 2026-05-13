@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Tazq_App.Data;
 using Tazq_App.Models;
@@ -11,6 +12,7 @@ namespace Tazq_Backend.Tests
         private readonly AppDbContext _context;
         private readonly Mock<ICustomEmailService> _emailMock;
         private readonly Mock<IJwtService> _jwtMock;
+        private readonly Mock<ILogger<UserService>> _loggerMock;
         private readonly UserService _userService;
 
         public UserServiceAdditionalTests()
@@ -21,7 +23,8 @@ namespace Tazq_Backend.Tests
             _context = new AppDbContext(options);
             _emailMock = new Mock<ICustomEmailService>();
             _jwtMock = new Mock<IJwtService>();
-            _userService = new UserService(_context, _emailMock.Object, _jwtMock.Object);
+            _loggerMock = new Mock<ILogger<UserService>>();
+            _userService = new UserService(_context, _emailMock.Object, _jwtMock.Object, _loggerMock.Object);
         }
 
         [Fact]

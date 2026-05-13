@@ -118,7 +118,7 @@ export interface UserStatsResponse {
 export const TaskService = {
   getTasks: async () => {
     const response = await api.get('/api/tasks');
-    return response.data;
+    return response.data.items ?? response.data;
   },
   getTask: async (id: number) => {
     const response = await api.get(`/api/tasks/${id}`);

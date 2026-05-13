@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
@@ -9,6 +8,8 @@ using Tazq_App.Data;
 using Tazq_App.Models;
 using Tazq_App.Services;
 
+namespace Tazq_App.Controllers
+{
     [Route("api/users")]
     [ApiController]
     public class UsersController : ControllerBase
@@ -24,7 +25,7 @@ using Tazq_App.Services;
         [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] UserRegisterDto userDto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+
 
             var success = await _userService.RegisterAsync(userDto);
             return success ? Ok("Kullanıcı başarıyla kaydedildi.") : BadRequest("E-posta adresi zaten kullanımda.");
@@ -34,7 +35,7 @@ using Tazq_App.Services;
         [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] UserLoginDto userDto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+
 
             var token = await _userService.LoginAsync(userDto, HttpContext.Connection.RemoteIpAddress?.ToString());
             return token != null ? Ok(new { token }) : Unauthorized("Geçersiz e-posta veya şifre.");
@@ -127,3 +128,4 @@ using Tazq_App.Services;
         public class ForgotPasswordRequest { public string Email { get; set; } = string.Empty; }
         public class ResetPasswordRequest { public string Token { get; set; } = string.Empty; public string NewPassword { get; set; } = string.Empty; }
     }
+}

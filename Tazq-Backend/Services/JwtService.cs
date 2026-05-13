@@ -22,11 +22,8 @@ namespace Tazq_App.Services
 				throw new ArgumentException("User ID or Role cannot be null or empty.");
 			}
 
-			var keyString = Environment.GetEnvironmentVariable("JWT_KEY") ?? "tazq-super-secret-key-1234567890123456";
-			if (string.IsNullOrEmpty(keyString) || keyString.Length < 32)
-			{
-				keyString = "tazq-super-secret-key-1234567890123456";
-			}
+			var keyString = Environment.GetEnvironmentVariable("JWT_KEY")
+				?? throw new InvalidOperationException("JWT_KEY environment variable is required.");
 
 			var key = Encoding.UTF8.GetBytes(keyString);
 			var issuer = "TazqServer";

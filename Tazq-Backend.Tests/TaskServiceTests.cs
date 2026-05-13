@@ -75,12 +75,13 @@ namespace Tazq_Backend.Tests
             await _context.SaveChangesAsync();
 
             // Act
-            var tasks = await _taskService.GetTasksAsync(userId, null, null, null, null, null, null);
+            var (items, totalCount) = await _taskService.GetTasksAsync(userId, null, null, null, null, null, null);
 
             // Assert
-            Assert.Single(tasks);
-            Assert.Equal("Task 1", tasks[0].Title);
-            Assert.Equal("Desc", tasks[0].Description);
+            Assert.Single(items);
+            Assert.Equal(1, totalCount);
+            Assert.Equal("Task 1", items[0].Title);
+            Assert.Equal("Desc", items[0].Description);
         }
     }
 }

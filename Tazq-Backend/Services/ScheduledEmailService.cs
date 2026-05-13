@@ -23,16 +23,17 @@ public class ScheduledEmailService : BackgroundService
 			using (var scope = _serviceProvider.CreateScope())
 			{
 				var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-				var now = DateTime.UtcNow.Date;
+				var now = DateTime.UtcNow;
+				var currentHour = now.Hour;
 
 				try
 				{
-					_logger.LogInformation("Fetching user notification preferences...");
+					_logger.LogInformation("Checking notification schedules (Hour: {Hour})...", currentHour);
 
 					var usersWithReminders = await dbContext.UserNotificationPreferences
 						.Include(p => p.User)
 						.Where(p => p.ReceiveWeeklySummary ||
-									dbContext.Tasks.Any(t => t.UserId == p.UserId && t.DueDate.HasValue && t.DueDate.Value.Date == now.AddDays(p.ReminderDaysBeforeDue)))
+									dbContext.Tasks.Any(t => t.UserId == p.UserId && t.DueDate.HasValue && t.DueDate.Value.Date == now.Date.AddDays(p.ReminderDaysBeforeDue)))
 						.ToListAsync();
 
 					foreach (var userPref in usersWithReminders)
@@ -40,10 +41,14 @@ public class ScheduledEmailService : BackgroundService
 						var user = userPref.User;
 						if (user == null) continue;
 
+						// Only send at the user's preferred notification time
+						if (userPref.NotificationTimeOfDay.Hours != currentHour)
+							continue;
+
 						try
 						{
 							var tasksDueSoon = await dbContext.Tasks
-								.Where(t => t.UserId == user.Id && t.DueDate.HasValue && t.DueDate.Value.Date == now.AddDays(userPref.ReminderDaysBeforeDue))
+								.Where(t => t.UserId == user.Id && t.DueDate.HasValue && t.DueDate.Value.Date == now.Date.AddDays(userPref.ReminderDaysBeforeDue))
 								.ToListAsync();
 
 							if (tasksDueSoon.Any())
@@ -54,7 +59,7 @@ public class ScheduledEmailService : BackgroundService
 								await _emailService.SendEmailAsync(user.Email, subject, body);
 							}
 
-							if (userPref.ReceiveWeeklySummary && DateTime.UtcNow.DayOfWeek == userPref.WeeklySummaryDay)
+							if (userPref.ReceiveWeeklySummary && now.DayOfWeek == userPref.WeeklySummaryDay)
 							{
 								var allTasks = await dbContext.Tasks.Where(t => t.UserId == user.Id).ToListAsync();
 								var summaryBody = $"Hello {user.Name},\n\nHere is your weekly summary:\n\n" +
@@ -65,17 +70,17 @@ public class ScheduledEmailService : BackgroundService
 						}
 						catch (Exception ex)
 						{
-							_logger.LogError($"Error processing notifications for user {user.Email}: {ex.Message}");
+							_logger.LogError("Error processing notifications for user {Email}: {Message}", user.Email, ex.Message);
 						}
 					}
 				}
 				catch (Exception ex)
 				{
-					_logger.LogError($"Database error in ScheduledEmailService: {ex.Message}");
+					_logger.LogError("Database error in ScheduledEmailService: {Message}", ex.Message);
 				}
 			}
 
-			await Task.Delay(TimeSpan.FromHours(24), stoppingToken);
+			await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
 		}
 	}
 }

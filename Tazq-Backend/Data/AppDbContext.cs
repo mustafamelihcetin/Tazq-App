@@ -1,24 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Tazq_App.Models;
 
 namespace Tazq_App.Data
 {
 	public class AppDbContext : DbContext
 	{
-		public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
-		{
-			try
-			{
-				Console.WriteLine("Veritabanı başlatılıyor...");
-				//Database.Migrate();
-				Console.WriteLine("Veritabanı kontrolü tamamlandı.");
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine($"Veritabanı başlatılamadı: {ex.Message}");
-			}
-		}
-
+		public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
 		public DbSet<TaskItem> Tasks { get; set; }
 		public DbSet<User> Users { get; set; }
@@ -48,6 +35,7 @@ namespace Tazq_App.Data
 				.WithMany()
 				.HasForeignKey(t => t.UserId)
 				.OnDelete(DeleteBehavior.Cascade);
+
 			modelBuilder.Entity<TaskItem>()
 				.Property(t => t.TagsJson)
 				.HasColumnType("text");
@@ -57,7 +45,12 @@ namespace Tazq_App.Data
 				.WithMany()
 				.HasForeignKey(f => f.UserId)
 				.OnDelete(DeleteBehavior.Cascade);
-		}
 
+			// Explicit indexes for query performance
+			modelBuilder.Entity<TaskItem>().HasIndex(t => t.UserId);
+			modelBuilder.Entity<FocusSession>().HasIndex(f => f.UserId);
+			modelBuilder.Entity<FocusSession>().HasIndex(f => f.StartedAt);
+			modelBuilder.Entity<PasswordResetToken>().HasIndex(t => t.Token).IsUnique();
+		}
 	}
 }

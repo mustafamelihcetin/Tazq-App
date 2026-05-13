@@ -2,16 +2,22 @@
     email tazq.app@gmail.com
 }
 
+# ─────────────────────────────────────────────
+# Malthen Ecosystem — Reverse Proxy Configuration
+# All Malthen products share this Caddy instance
+# ─────────────────────────────────────────────
+
+# Tazq — AI-Powered Productivity App
 :80 {
-    reverse_proxy tazq-backend:5200
+    reverse_proxy tazq-backend:80
 }
 
-# Malthen Portfolio Routing
+# Malthen Portfolio & Corporate
 malthen.dev, www.malthen.dev {
     reverse_proxy malthen-app:8080
 }
 
-# Gelecekte bir domain eklediğinde burayı açabilirsin:
-# yourdomain.com {
+# Future sub-domain routing:
+# tazq.malthen.dev {
 #     reverse_proxy tazq-backend:80
 # }

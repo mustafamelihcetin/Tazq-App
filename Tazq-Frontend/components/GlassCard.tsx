@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
 
@@ -10,15 +9,15 @@ interface GlassCardProps {
 }
 
 export const GlassCard = ({ children, style }: GlassCardProps) => {
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const scheme = useColorScheme();
+  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   return (
     <View className="overflow-hidden rounded-3xl" style={[
       {
-        backgroundColor: theme.card,
+        backgroundColor: theme.surfaceContainerLow,
         borderWidth: 1,
-        borderColor: theme.border,
+        borderColor: theme.outline,
       },
       style
     ]}>

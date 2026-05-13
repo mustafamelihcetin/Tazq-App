@@ -1,103 +1,65 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
 using Tazq_App.Services;
-using Tazq_App.Data;
 using Tazq_App.Models;
 
-[Route("api/email")]
-[ApiController]
-[Authorize]
-public class EmailController : ControllerBase
+namespace Tazq_App.Controllers
 {
-	private readonly ICustomEmailService _emailService;
-	private readonly AppDbContext _context;
-
-	public EmailController(ICustomEmailService emailService, AppDbContext context)
+	[Route("api/email")]
+	[ApiController]
+	[Authorize]
+	public class EmailController : ControllerBase
 	{
-		_emailService = emailService;
-		_context = context;
-	}
+		private readonly ICustomEmailService _emailService;
 
-	[HttpPost("send")]
-	public async Task<IActionResult> SendEmail([FromBody] EmailRequestDto request)
-	{
-		var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-		int userId = 0;
-		if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out userId))
+		public EmailController(ICustomEmailService emailService)
 		{
-			return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
+			_emailService = emailService;
 		}
 
-		var user = await _context.Users.FindAsync(userId);
-		if (user == null)
+		[HttpPost("send")]
+		public async Task<IActionResult> SendEmail([FromBody] EmailRequestDto request)
 		{
-			return NotFound(new { status = 404, message = "User not found." });
+			var userId = GetUserId();
+			if (userId == null)
+				return Unauthorized(new { status = 401, message = "Invalid user ID in token." });
+
+			try
+			{
+				switch (request.EmailType.ToLower())
+				{
+					case "reminder":
+						if (request.TaskIds == null || !request.TaskIds.Any())
+							return BadRequest("Task IDs are required for reminders.");
+						await _emailService.SendReminderEmailAsync(userId.Value, request.TaskIds);
+						break;
+					case "weekly-summary":
+						await _emailService.SendWeeklySummaryEmailAsync(userId.Value);
+						break;
+					case "export":
+						await _emailService.SendExportEmailAsync(userId.Value);
+						break;
+					default:
+						return BadRequest(new { status = 400, message = "Invalid email type." });
+				}
+
+				return Ok(new { message = "Email successfully sent." });
+			}
+			catch (KeyNotFoundException ex)
+			{
+				return NotFound(new { status = 404, message = ex.Message });
+			}
+			catch (ArgumentException ex)
+			{
+				return BadRequest(new { status = 400, message = ex.Message });
+			}
 		}
 
-		return request.EmailType.ToLower() switch
+		private int? GetUserId()
 		{
-			"reminder" => await SendReminderEmail(userId, user.Email, request.TaskIds),
-			"weekly-summary" => await SendWeeklySummaryEmail(userId, user.Email),
-			"export" => await SendExportEmail(userId, user.Email),
-			_ => BadRequest(new { status = 400, message = "Invalid email type." })
-		};
-	}
-
-
-	private async Task<IActionResult> SendReminderEmail(int userId, string email, List<int>? taskIds)
-	{
-		if (taskIds == null || !taskIds.Any())
-			return BadRequest("Task IDs are required for reminders.");
-
-		var tasks = await _context.Tasks.Where(t => taskIds.Contains(t.Id) && t.UserId == userId).ToListAsync();
-		if (!tasks.Any())
-			return BadRequest("No valid tasks found for this reminder.");
-
-		string subject = "Task Reminder";
-		string body = FormatTaskList("You have upcoming tasks to complete:", tasks);
-
-		return await SendEmailInternal(email, subject, body);
-	}
-
-	private async Task<IActionResult> SendWeeklySummaryEmail(int userId, string email)
-	{
-		var pendingTasks = await _context.Tasks.Where(t => t.UserId == userId && !t.IsCompleted).ToListAsync();
-		string subject = "Weekly Summary - Your Pending Tasks";
-		string body = pendingTasks.Any()
-			? FormatTaskList("Here are your pending tasks:", pendingTasks)
-			: "You have completed all your tasks for this week.";
-
-		return await SendEmailInternal(email, subject, body);
-	}
-
-	private async Task<IActionResult> SendExportEmail(int userId, string email)
-	{
-		var allTasks = await _context.Tasks.Where(t => t.UserId == userId).ToListAsync();
-		string subject = "Exported Task List";
-		string body = allTasks.Any()
-			? FormatTaskList("Your complete task list:", allTasks)
-			: "You have no tasks in your list.";
-
-		return await SendEmailInternal(email, subject, body);
-	}
-
-	private static string FormatTaskList(string title, List<TaskItem> tasks)
-	{
-		StringBuilder sb = new();
-		sb.AppendLine(title);
-		foreach (var task in tasks)
-			sb.AppendLine($"- {task.Title} (Due: {task.DueDate:yyyy-MM-dd}) - {(task.IsCompleted ? "Completed" : "Pending")}");
-		return sb.ToString();
-	}
-
-	private async Task<IActionResult> SendEmailInternal(string email, string subject, string body)
-	{
-		await _emailService.SendEmailAsync(email, subject, body);
-		return Ok(new { message = $"Email successfully sent to {email}." });
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+			return int.TryParse(userIdClaim, out int userId) ? userId : null;
+		}
 	}
 }

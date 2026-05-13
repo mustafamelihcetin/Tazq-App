@@ -28,11 +28,10 @@ Env.Load();
 var appSignature = Environment.GetEnvironmentVariable("APP_SIGNATURE") ?? "tazq-expo-frontend";
 
 // Load JWT settings
-var jwtKeyEnv = Environment.GetEnvironmentVariable("JWT_KEY") ?? "tazq-super-secret-key-1234567890123456";
-if (string.IsNullOrEmpty(jwtKeyEnv) || jwtKeyEnv.Length < 32)
-    jwtKeyEnv = "tazq-super-secret-key-1234567890123456"; // Ensure length
-
-var jwtKey = jwtKeyEnv;
+var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
+    ?? throw new InvalidOperationException("JWT_KEY environment variable is required and must be at least 32 characters.");
+if (jwtKey.Length < 32)
+    throw new InvalidOperationException("JWT_KEY must be at least 32 characters long.");
 var jwtIssuer = "TazqServer";
 var jwtAudience = "TazqApp";
 
@@ -213,8 +212,8 @@ if (app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var maxRetries = 5;
-    var delay = 3000;
+    var maxRetries = 10;
+    var delay = 5000;
     for (int i = 0; i < maxRetries; i++)
     {
         try
@@ -260,8 +259,11 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseExceptionHandler(errorApp =>
 {

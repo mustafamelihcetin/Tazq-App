@@ -36,14 +36,23 @@ namespace Tazq_App.Controllers
             [FromQuery] string? sortBy,
             [FromQuery] bool? isCompleted,
             [FromQuery] DateTime? startDate,
-            [FromQuery] DateTime? endDate)
+            [FromQuery] DateTime? endDate,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50)
         {
             var userId = GetUserId();
             if (userId == null)
                 return Unauthorized(new { status = 401, message = "Invalid or missing user ID in token." });
 
-            var taskList = await _taskService.GetTasksAsync(userId.Value, tag, search, sortBy, isCompleted, startDate, endDate);
-            return Ok(taskList);
+            var (items, totalCount) = await _taskService.GetTasksAsync(userId.Value, tag, search, sortBy, isCompleted, startDate, endDate, page, pageSize);
+            return Ok(new
+            {
+                items,
+                totalCount,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+            });
         }
 
         [HttpGet("{id}")]
