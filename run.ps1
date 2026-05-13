@@ -27,33 +27,17 @@ function Stop-PortProcess([int]$port) {
 }
 
 function Start-DockerDB {
-    Write-Host "-> Docker durumu kontrol ediliyor..." -ForegroundColor Cyan
-    docker info > $null 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "!!! HATA: Docker Desktop calismiyor! Lutfen Docker'i baslatin ve tekrar deneyin." -ForegroundColor Red
-        return $false
-    }
+    Write-Host "-> Docker motoru hazirlaniyor..." -ForegroundColor Cyan
     
-    Write-Host "-> Veritabani konteyneri baslatiliyor (Docker)..." -ForegroundColor Cyan
-    docker compose -f "$RootPath/docker-compose.yml" up -d tazq-db
+    Write-Host "-> Veritabani ve Redis konteynerleri baslatiliyor (Docker)..." -ForegroundColor Cyan
+    docker compose -f "$RootPath/docker-compose.yml" up -d tazq-db tazq-redis
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "!!! HATA: Docker Compose komutu basarisiz oldu." -ForegroundColor Red
-        return $false
+        Write-Host "!!! UYARI: Docker Compose komutu basarisiz oldu. Ancak konteynerler halihazirda arka planda calisiyor olabilir, devam ediliyor..." -ForegroundColor Yellow
+        return $true
     }
 
-    Write-Host "-> Veritabani hazir olana kadar bekleniyor..." -ForegroundColor Cyan
-    $retries = 20
-    while ($retries -gt 0) {
-        $status = docker inspect --format='{{.State.Health.Status}}' tazq-db 2>$null
-        if ($status -eq "healthy") {
-            Write-Host "-> Veritabani hazir!" -ForegroundColor Green
-            return $true
-        }
-        Write-Host "-> Bekleniyor... ($retries)" -ForegroundColor Gray
-        Start-Sleep -Seconds 2
-        $retries--
-    }
-    Write-Host "!!! UYARI: Veritabani saglik kontrolu zaman asimina ugradi, yine de devam ediliyor..." -ForegroundColor Yellow
+    Write-Host "-> Veritabani hazir olana kadar bekleniyor (kisa kontrol)..." -ForegroundColor Cyan
+    Start-Sleep -Seconds 3
     return $true
 }
 
@@ -81,7 +65,7 @@ while ($true) {
     Write-Host "10. [iOS/Build] EAS ile Profesyonel Build Al (IPA)" -ForegroundColor DarkCyan
     Write-Host ""
     Write-Host "--- SISTEM ---" -ForegroundColor Gray
-    Write-Host "6. [FULL STACK] Her Seyi Baslat (DB + API + Web App)" -ForegroundColor Green
+    Write-Host "6. [FULL STACK] Her Seyi Baslat (DB + API + Mobil App)" -ForegroundColor Green
     Write-Host "7. [TEMIZLIK] Gecici Dosyalari Temizle" -ForegroundColor Magenta
     Write-Host "8. Cikis" -ForegroundColor Red
     Write-Host ""
@@ -133,9 +117,12 @@ while ($true) {
         "6" {
             if (Test-Frontend-Setup) {
                 if (Start-DockerDB) {
-                    Write-Host "-> Full Stack sistem ayaga kaldiriliyor..." -ForegroundColor Green
-                    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$BackendPath'; dotnet watch run"
-                    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$FrontendPath'; npx expo start --web"
+                    Write-Host "-> Full Stack sistem VS Code terminalinde birlesik olarak baslatiliyor..." -ForegroundColor Green
+                    
+                    # Use 'npx concurrently' to run both elegantly in the exact same terminal tab
+                    Set-Location $RootPath
+                    $cmd = "npx concurrently -n `"BACKEND,FRONTEND`" -c `"cyan,green`" `"cd Tazq-Backend && dotnet watch run`" `"cd Tazq-Frontend && npx expo start`""
+                    Invoke-Expression $cmd
                 } else {
                     Pause
                 }

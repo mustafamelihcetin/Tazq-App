@@ -16,6 +16,8 @@ using FluentValidation.AspNetCore;
 using Tazq_App.Validators;
 using Microsoft.AspNetCore.HttpOverrides;
 using AspNetCoreRateLimit;
+using AspNetCoreRateLimit.Redis;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,9 +50,29 @@ builder.Services.AddValidatorsFromAssemblyContaining<UserRegisterDtoValidator>()
 
 builder.Services.AddEndpointsApiExplorer();
 
-// Rate Limiting Services
-builder.Services.AddMemoryCache();
-builder.Services.AddInMemoryRateLimiting();
+// Rate Limiting Services with Redis
+var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "localhost:6379,abortConnect=false";
+
+var isContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+
+if (isContainer)
+{
+    // Add IDistributedCache backed by Redis (Required by AspNetCoreRateLimit.Redis)
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisUrl;
+        options.InstanceName = "TazqRateLimit_";
+    });
+    builder.Services.AddSingleton<IConnectionMultiplexer>(provider => ConnectionMultiplexer.Connect(redisUrl));
+    builder.Services.AddRedisRateLimiting();
+}
+else
+{
+    // Local dev: use InMemory cache to prevent crashes when Docker Redis fails
+    builder.Services.AddMemoryCache();
+    builder.Services.AddInMemoryRateLimiting();
+}
+
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 builder.Services.Configure<IpRateLimitOptions>(opt =>
 {
@@ -123,6 +145,13 @@ var pgDb = Environment.GetEnvironmentVariable("DB_NAME");
 var pgUser = Environment.GetEnvironmentVariable("DB_USER");
 var pgPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
+// Auto-route for local development (not in Docker)
+if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") != "true")
+{
+    if (pgHost == "tazq-db") pgHost = "localhost";
+    if (pgPort == "5432") pgPort = "65432";
+}
+
 if (string.IsNullOrWhiteSpace(pgHost) || string.IsNullOrWhiteSpace(pgDb))
     throw new Exception("PostgreSQL environment variables are missing!");
 
@@ -168,7 +197,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IGroqService, GroqService>();
 builder.Services.AddHostedService<ScheduledEmailService>();
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5200";
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5201";
 builder.WebHost.UseUrls($"http://*:{port}");
 
 var app = builder.Build();
@@ -195,7 +224,11 @@ using (var scope = app.Services.CreateScope())
         }
         catch (Exception)
         {
-            if (i == maxRetries - 1) throw;
+            if (i == maxRetries - 1)
+            {
+                Console.WriteLine("!!! UYARI: Veritabanina baglanilamadi. Sistem veritabani olmadan baslatiliyor. API cagrilarinda 500 hatasi alabilirsiniz.");
+                break;
+            }
             Console.WriteLine($"Veritabanına bağlanılamadı, tekrar deneniyor... ({i + 1}/{maxRetries})");
             Thread.Sleep(delay);
         }

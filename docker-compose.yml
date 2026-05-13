@@ -19,6 +19,20 @@ services:
       timeout: 5s
       retries: 5
 
+  tazq-redis:
+    image: redis:alpine
+    container_name: tazq-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   tazq-backend:
     build:
       context: ./Tazq-Backend
@@ -26,10 +40,14 @@ services:
     container_name: tazq-backend
     env_file:
       - .env
+    environment:
+      - REDIS_URL=tazq-redis:6379
     expose:
       - "80"
     depends_on:
       tazq-db:
+        condition: service_healthy
+      tazq-redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -49,5 +67,6 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   caddy_data:
   caddy_config:
