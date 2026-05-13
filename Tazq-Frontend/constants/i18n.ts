@@ -13,6 +13,7 @@ export const translations = {
     login: {
       title: 'Sign In',
       sub: 'Authenticate to your focus terminal',
+      name: 'Full Name',
       email: 'Email Address',
       password: 'Password',
       show: 'SHOW',
@@ -20,6 +21,7 @@ export const translations = {
       button: 'Connect Now',
       footer: 'New to Tazq?',
       signUp: 'Join our mission',
+      alreadyHaveAccount: 'Already have an account?',
       forgotPassword: 'Forgot Password?',
       error: 'Invalid email or password.',
       networkError: 'Connection failed. Check your network.',
@@ -183,6 +185,7 @@ export const translations = {
     login: {
       title: 'Giriş Yap',
       sub: 'Odak terminalinize bağlanın',
+      name: 'Ad Soyad',
       email: 'E-posta Adresi',
       password: 'Şifre',
       show: 'GÖSTER',
@@ -190,6 +193,7 @@ export const translations = {
       button: 'Bağlan',
       footer: 'Tazq\'ta yeni misiniz?',
       signUp: 'Bize katılın',
+      alreadyHaveAccount: 'Zaten bir hesabınız var mı?',
       forgotPassword: 'Şifremi Unuttum',
       error: 'E-posta veya şifre hatalı.',
       networkError: 'Bağlantı hatası. Ağınızı kontrol edin.',

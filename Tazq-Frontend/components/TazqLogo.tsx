@@ -3,15 +3,14 @@ import { View, Text, StyleSheet, Image } from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 
 interface TazqLogoProps {
-  width?: number;
-  height?: number;
+  size?: number;
   style?: any;
   color?: string;
   showIcon?: boolean;
 }
 
 export const TazqLogo: React.FC<TazqLogoProps> = ({ 
-  height = 40,
+  size = 40,
   style,
   color,
   showIcon = false
@@ -26,10 +25,10 @@ export const TazqLogo: React.FC<TazqLogoProps> = ({
         <Image 
           source={require('../assets/images/tazq_icon.png')} 
           style={{ 
-            width: height * 1.6, 
-            height: height * 1.6, 
+            width: size * 1.6, 
+            height: size * 1.6, 
             marginBottom: 6,
-            borderRadius: 14
+            borderRadius: size * 0.4
           }} 
           resizeMode="contain"
         />
@@ -37,7 +36,7 @@ export const TazqLogo: React.FC<TazqLogoProps> = ({
       <Text 
         style={[
             styles.logoText, 
-            { color: brandColor },
+            { color: brandColor, fontSize: size },
             isDark && { textShadowColor: theme.primary + '60', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10 }
         ]}
       >
