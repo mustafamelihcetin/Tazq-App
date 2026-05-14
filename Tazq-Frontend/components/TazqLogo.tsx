@@ -4,13 +4,17 @@ import { useAppTheme } from '../hooks/useAppTheme';
 
 interface TazqLogoProps {
   size?: number;
+  height?: number;
+  width?: number;
   style?: any;
   color?: string;
   showIcon?: boolean;
 }
 
 export const TazqLogo: React.FC<TazqLogoProps> = ({ 
-  size = 40,
+  size,
+  height = 24,
+  width,
   style,
   color,
   showIcon = false
@@ -19,16 +23,19 @@ export const TazqLogo: React.FC<TazqLogoProps> = ({
   const isDark = colorScheme === 'dark';
   const brandColor = color || theme.onSurface;
   
+  // Use size if provided, otherwise fallback to height
+  const effectiveSize = size || height;
+  
   return (
     <View style={[styles.container, style]}>
       {showIcon && (
         <Image 
           source={require('../assets/images/tazq_icon.png')} 
           style={{ 
-            width: size * 1.6, 
-            height: size * 1.6, 
+            width: effectiveSize * 1.6, 
+            height: effectiveSize * 1.6, 
             marginBottom: 6,
-            borderRadius: size * 0.4
+            borderRadius: effectiveSize * 0.4
           }} 
           resizeMode="contain"
         />
@@ -36,7 +43,7 @@ export const TazqLogo: React.FC<TazqLogoProps> = ({
       <Text 
         style={[
             styles.logoText, 
-            { color: brandColor, fontSize: size },
+            { color: brandColor, fontSize: effectiveSize },
             isDark && { textShadowColor: theme.primary + '60', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10 }
         ]}
       >

@@ -99,15 +99,26 @@ type FilterType = 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done';
 interface TaskForm {
   title: string;
   description: string;
-  priority: Priority;
   dueDate: string;
-  dueTime: string;
-  tags?: string[];
+  dueTime: string | null;
+  priority: 'Low' | 'Medium' | 'High';
+  tags: string[];
   subtasks: SubtaskItem[];
   recurrence: RecurrenceType;
+  reminderEnabled: boolean;
 }
 
-const EMPTY_FORM: TaskForm = { title: '', description: '', priority: 'Medium', dueDate: '', dueTime: '', tags: [], subtasks: [], recurrence: 'None' };
+const EMPTY_FORM: TaskForm = { 
+  title: '', 
+  description: '', 
+  priority: 'Medium', 
+  dueDate: '', 
+  dueTime: null, 
+  tags: [], 
+  subtasks: [], 
+  recurrence: 'None',
+  reminderEnabled: false 
+};
 
 const RECURRENCE_OPTIONS: { key: RecurrenceType; labelKey: string }[] = [
   { key: 'None', labelKey: 'recurrenceNone' },
@@ -207,24 +218,6 @@ export default function ActionCenter() {
     try {
       const data = await TaskService.getTasks();
       setTasks(Array.isArray(data) ? data : []);
-      // Auto-upgrade tasks due within 24h that aren't High priority
-      const now = new Date();
-      const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      const toUpgrade = (Array.isArray(data) ? data : []).filter((task: any) =>
-        !task.isCompleted &&
-        task.priority !== 'High' &&
-        task.dueDate &&
-        !task.dueDate.startsWith('0001') &&
-        new Date(task.dueDate) <= in24h &&
-        new Date(task.dueDate) >= now
-      );
-      if (toUpgrade.length > 0) {
-        toUpgrade.forEach((task: any) => {
-          updateTask(task.id, { priority: 'High' });
-          TaskService.updateTask(task.id, { ...task, priority: 'High' }).catch(() => {});
-        });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      }
     } catch (e: any) {
       if (e.response?.status !== 401) {
         console.warn('loadTasks error:', e.message);
@@ -236,6 +229,7 @@ export default function ActionCenter() {
 
   const handleTitleChange = (text: string) => {
     const hint = parseTaskHint(text);
+    const hasReminderWord = text.toLowerCase().includes('hatırlat') || text.toLowerCase().includes('remind');
     
     setForm(f => ({ 
         ...f, 
@@ -243,6 +237,8 @@ export default function ActionCenter() {
         priority: hint.priority || f.priority,
         dueDate: hint.dueDate || f.dueDate,
         dueTime: hint.dueTime || f.dueTime,
+        reminderEnabled: hasReminderWord ? true : f.reminderEnabled,
+        tags: hasReminderWord ? (f.tags.includes('hatırlatıcı') ? f.tags : [...f.tags, 'hatırlatıcı']) : f.tags
     }));
     
     if (titleError) setTitleError(false);
@@ -322,8 +318,11 @@ export default function ActionCenter() {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
 
-    if (!task.isCompleted) {
+    const isCompleting = !task.isCompleted;
+
+    if (isCompleting) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await cancelTaskNotification(id);
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -334,7 +333,7 @@ export default function ActionCenter() {
       await TaskService.updateTask(id, {
         ...task,
         priority: task.priority as any,
-        isCompleted: !task.isCompleted
+        isCompleted: isCompleting
       });
     } catch (error) {
       // Rollback on failure
@@ -383,8 +382,10 @@ export default function ActionCenter() {
       priority: task.priority as Priority, 
       dueDate: task.dueDate?.split('T')[0] ?? '',
       dueTime: task.dueTime || '',
+      tags: task.tags || [],
       subtasks: task.subtasks || [],
       recurrence: (task.recurrence as RecurrenceType) || 'None',
+      reminderEnabled: task.tags?.includes('hatırlatıcı') || task.tags?.includes('reminder') || false
     });
     setNlpHint('');
     setTitleError(false);
@@ -420,7 +421,37 @@ export default function ActionCenter() {
       console.log('[AI] Enrichment skipped or timed out'); 
     }
 
+    const isTR = language === 'tr';
     const existingTask = editingId !== null ? tasks.find(t => t.id === editingId) : null;
+
+    // Sync reminder tag with toggle
+    let finalTagsWithReminder = [...finalTags];
+    if (form.reminderEnabled && !finalTagsWithReminder.includes('hatırlatıcı')) {
+        finalTagsWithReminder.push('hatırlatıcı');
+    } else if (!form.reminderEnabled) {
+        finalTagsWithReminder = finalTagsWithReminder.filter(t => t !== 'hatırlatıcı' && t !== 'reminder');
+    }
+
+    // Smart Validation: Reminder without time or past time
+    if (form.reminderEnabled) {
+        if (!form.dueTime) {
+            Alert.alert(t.warningTitle || 'Warning', isTR ? "Hatırlatıcı için saat seçmelisiniz." : "Please select a time for the reminder.");
+            setSaving(false);
+            return;
+        }
+        
+        // Past time check
+        const target = new Date(form.dueDate || new Date());
+        const timeParts = new Date(form.dueTime);
+        target.setHours(timeParts.getHours(), timeParts.getMinutes(), 0, 0);
+        
+        if (target < new Date()) {
+            Alert.alert(t.warningTitle || 'Warning', isTR ? "Geçmiş bir saate hatırlatıcı kurulamaz." : "Cannot set a reminder for a past time.");
+            setSaving(false);
+            return;
+        }
+    }
+
     const payload = {
       title: form.title.trim(),
       description: form.description.trim(),
@@ -428,7 +459,7 @@ export default function ActionCenter() {
       priority: form.priority,
       dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
       dueTime: form.dueTime || null,
-      tags: finalTags,
+      tags: finalTagsWithReminder,
       subtasks: form.subtasks,
       recurrence: form.recurrence,
     };
@@ -437,13 +468,17 @@ export default function ActionCenter() {
       if (editingId !== null) {
         await TaskService.updateTask(editingId, payload);
         updateTask(editingId, { ...payload, id: editingId });
-        // Reschedule notification
-        await scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language);
+        
+        if (form.reminderEnabled && !payload.isCompleted) {
+            await scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language);
+        } else {
+            await cancelTaskNotification(editingId);
+        }
       } else {
         const created = await TaskService.createTask(payload);
         addTask({ ...created, title: form.title.trim() });
-        // Schedule notification for new task
-        if (created.id) {
+        
+        if (created.id && form.reminderEnabled) {
           await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
         }
       }
@@ -489,9 +524,7 @@ export default function ActionCenter() {
             <X size={24} color={theme.onSurface} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.onSurface }]}>{t.actionCenter}</Text>
-          <TouchableOpacity style={styles.aiBtn}>
-            <Sparkles size={20} color={theme.primary} />
-          </TouchableOpacity>
+          <View style={{ width: 44 }} />
         </View>
 
         <ScrollView 
@@ -580,14 +613,38 @@ export default function ActionCenter() {
 
           {/* Task List */}
           <View style={styles.listSection}>
-            <Text
-                style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, flex: 1 }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-            >
-                {t.upcoming}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: S.md }}>
+                <Text
+                    style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, flex: 1 }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                >
+                    {t.upcoming}
+                </Text>
+                <TouchableOpacity 
+                    onPress={() => {
+                        const doneCount = tasks.filter(t => t.isCompleted).length;
+                        if (doneCount === 0) return;
+                        const isTR = language === 'tr';
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        Alert.alert(t.clearCompleted || 'Clear Done', isTR ? `${doneCount} adet tamamlanmış görev temizlensin mi?` : `Clear ${doneCount} completed tasks?`, [
+                            { text: t.cancel, style: 'cancel' },
+                            { text: t.delete, style: 'destructive', onPress: async () => {
+                                const doneTasks = tasks.filter(t => t.isCompleted);
+                                for (const dt of doneTasks) {
+                                    removeTask(dt.id);
+                                    await cancelTaskNotification(dt.id);
+                                    TaskService.deleteTask(dt.id).catch(() => {});
+                                }
+                            }}
+                        ]);
+                    }}
+                    style={{ padding: 4 }}
+                >
+                    <Trash2 size={16} color={theme.onSurfaceVariant + '80'} />
+                </TouchableOpacity>
+            </View>
             
             <AnimatePresence>
                 {filteredTasks.length === 0 ? (
@@ -662,6 +719,21 @@ export default function ActionCenter() {
                                                     <Repeat size={9} color={theme.secondary} />
                                                 </View>
                                             )}
+                                            {(task.tags?.includes('hatırlatıcı') || task.tags?.includes('reminder')) && (
+                                                <View style={[styles.categoryBadge, { backgroundColor: '#ff9f0a' + '20' }]}>
+                                                    <Bell size={10} color="#ff9f0a" />
+                                                </View>
+                                            )}
+                                            {(task.tags?.includes('etkinlik') || task.tags?.includes('event')) && (
+                                                <View style={[styles.categoryBadge, { backgroundColor: theme.secondary + '20' }]}>
+                                                    <Calendar size={10} color={theme.secondary} />
+                                                </View>
+                                            )}
+                                            {(task.tags?.includes('not') || task.tags?.includes('note')) && (
+                                                <View style={[styles.categoryBadge, { backgroundColor: '#4fc3f7' + '20' }]}>
+                                                    <Tag size={10} color="#4fc3f7" />
+                                                </View>
+                                            )}
                                             {task.tags?.length > 0 && (
                                                 <View style={[styles.categoryBadge, { backgroundColor: theme.primary + '20' }]}>
                                                     <Text style={[styles.categoryBadgeText, { color: theme.primary, fontWeight: '900' }]}>
@@ -674,21 +746,25 @@ export default function ActionCenter() {
                                             <Text style={[styles.taskMetaText, { color: getDateColor(task.dueDate, theme), fontSize: F.caption }]}>
                                                 {formatSmartDate(task.dueDate)}
                                             </Text>
-                                            <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.5, marginLeft: 10 }}>
-                                                {estimateDuration(task)}
-                                            </Text>
+                                            {!(task.tags?.includes('etkinlik') || task.tags?.includes('event') || task.tags?.includes('not') || task.tags?.includes('note')) && (
+                                                <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.6, marginLeft: 10, fontWeight: '600' }}>
+                                                    ⏱️ {estimateDuration(task)}
+                                                </Text>
+                                            )}
                                         </View>
                                     </View>
                                     
                                     <View style={[styles.taskActions, { marginLeft: S.sm, width: 36, height: 36, justifyContent: 'center', alignItems: 'center' }]}>
-                                        <SubtaskProgressRing 
-                                            total={(task.subtasks || []).length}
-                                            completed={(task.subtasks || []).filter(s => s.done).length}
-                                            size={44}
-                                            strokeWidth={1.5}
-                                            activeColor={theme.primary}
-                                            inactiveColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}
-                                        />
+                                        {!(task.tags?.includes('not') || task.tags?.includes('note')) && (
+                                            <SubtaskProgressRing 
+                                                total={(task.subtasks || []).length}
+                                                completed={(task.subtasks || []).filter(s => s.done).length}
+                                                size={44}
+                                                strokeWidth={1.5}
+                                                activeColor={theme.primary}
+                                                inactiveColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}
+                                            />
+                                        )}
                                         <TouchableOpacity 
                                             onPress={() => handleToggle(task.id)} 
                                             style={[
@@ -696,11 +772,15 @@ export default function ActionCenter() {
                                                 {
                                                     width: 36,
                                                     height: 36,
-                                                    backgroundColor: task.isCompleted ? theme.tertiary : theme.surfaceContainerHigh
+                                                    backgroundColor: task.isCompleted ? theme.tertiary : (task.tags?.includes('not') || task.tags?.includes('note') ? '#4fc3f720' : theme.surfaceContainerHigh)
                                                 }
                                             ]}
                                         >
-                                            <Check size={18} color={task.isCompleted ? 'white' : theme.onSurfaceVariant} strokeWidth={3} />
+                                            {task.tags?.includes('not') || task.tags?.includes('note') ? (
+                                                <Tag size={18} color={task.isCompleted ? 'white' : '#4fc3f7'} strokeWidth={3} />
+                                            ) : (
+                                                <Check size={18} color={task.isCompleted ? 'white' : theme.onSurfaceVariant} strokeWidth={3} />
+                                            )}
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -737,9 +817,7 @@ export default function ActionCenter() {
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                                                         <Clock size={13} color={theme.onSurfaceVariant} />
                                                         <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
-                                                            {task.dueTime.includes('T') 
-                                                                ? task.dueTime.split('T')[1].substring(0, 5) 
-                                                                : task.dueTime.substring(0, 5)}
+                                                            {new Date(task.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </Text>
                                                     </View>
                                                 )}
@@ -869,36 +947,38 @@ export default function ActionCenter() {
                 >
                     <View style={styles.section}>
                         <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 60 }]}>
-                            <TextInput
-                                style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
-                                placeholder={t.taskTitle}
-                                placeholderTextColor={theme.onSurfaceVariant + '60'}
-                                value={form.title}
-                                onChangeText={handleTitleChange}
-                            />
-                            <Sparkles size={16} color={theme.primary} />
-                        </View>
-                        {nlpHint ? (
-                            <MotiText 
-                                from={{ opacity: 0, translateY: -5 }} 
-                                animate={{ opacity: 1, translateY: 0 }} 
-                                style={{ color: theme.primary, fontSize: F.caption, marginTop: S.sm, marginLeft: S.md, fontWeight: '800', letterSpacing: 0.5 }}
-                            >
-                                {nlpHint}
-                            </MotiText>
-                        ) : null}
+                                <TextInput
+                                    style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
+                                    placeholder={t.taskTitle}
+                                    placeholderTextColor={theme.onSurfaceVariant + '60'}
+                                    value={form.title}
+                                    onChangeText={handleTitleChange}
+                                    maxLength={200}
+                                />
+                                {nlpHint ? <Sparkles size={16} color={theme.primary} /> : null}
+                            </View>
+                            {nlpHint ? (
+                                <MotiText 
+                                    from={{ opacity: 0, translateY: -5 }} 
+                                    animate={{ opacity: 1, translateY: 0 }} 
+                                    style={{ color: theme.primary, fontSize: F.caption, marginTop: S.sm, marginLeft: S.md, fontWeight: '800', letterSpacing: 0.5 }}
+                                >
+                                    {nlpHint}
+                                </MotiText>
+                            ) : null}
 
-                        <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, marginTop: S.sm, height: 100 }]}>
-                            <TextInput
-                                style={[styles.modalInput, { color: theme.onSurface, paddingTop: S.sm, fontSize: F.body }]}
-                                placeholder={t.taskDescription + '...'}
-                                placeholderTextColor={theme.onSurfaceVariant + '60'}
-                                value={form.description}
-                                onChangeText={v => setForm(f => ({ ...f, description: v }))}
-                                multiline
-                                numberOfLines={3}
-                            />
-                        </View>
+                            <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, marginTop: S.sm, height: 100 }]}>
+                                <TextInput
+                                    style={[styles.modalInput, { color: theme.onSurface, paddingTop: S.sm, fontSize: F.body }]}
+                                    placeholder={t.taskDescription + '...'}
+                                    placeholderTextColor={theme.onSurfaceVariant + '60'}
+                                    value={form.description}
+                                    onChangeText={v => setForm(f => ({ ...f, description: v }))}
+                                    multiline
+                                    numberOfLines={3}
+                                    maxLength={500}
+                                />
+                            </View>
                     </View>
 
                     <View style={styles.section}>

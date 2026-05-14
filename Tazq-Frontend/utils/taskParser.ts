@@ -1,183 +1,194 @@
+import { SEMANTIC_DICTIONARY } from './semanticDictionary';
+
 export interface ParsedHint {
   priority?: 'Low' | 'Medium' | 'High';
-  dueDate?: string;    // ISO date string
-  dueTime?: string;    // ISO time string
+  dueDate?: string;
+  dueTime?: string;
   tags?: string[];
-  wittyMessage?: string; // Conversational feedback
+  wittyMessage?: string;
+  context?: 'sensitive' | 'joyful' | 'stressful' | 'normal';
 }
 
-const HIGH_PRIORITY_TR = ['acil', 'kritik', 'önemli', 'urgent', 'asap', 'hemen', 'ivedi', 'hayati', 'kritik'];
-const MEDIUM_PRIORITY_TR = ['normal', 'orta', 'bu hafta', 'this week'];
-const LOW_PRIORITY_TR = ['düşük', 'lazy', 'zamanında', 'sonra', 'later', 'low'];
+/**
+ * TAZQ LOCAL SEMANTIC ENGINE V3 (Dictionary-Powered)
+ * Uses the Global Semantic Dictionary for high-accuracy local NLP.
+ */
 
-const URGENT_TOPICS = ['sınav', 'exam', 'mülakat', 'interview', 'sunum', 'presentation', 'rapor', 'report', 'fatura', 'bill'];
+type ContextType = 'sensitive' | 'joyful' | 'stressful' | 'urgent' | 'social' | 'health' | 'work' | 'finance' | 'education' | 'shopping' | 'home';
 
-const TAG_MAP: Record<string, string> = {
-  toplantı: 'toplantı', meeting: 'toplantı',
-  alışveriş: 'alışveriş', shopping: 'alışveriş',
-  rapor: 'iş', report: 'iş',
-  sunum: 'iş', presentation: 'iş',
-  tasarım: 'tasarım', design: 'tasarım',
-  kod: 'geliştirme', code: 'geliştirme', coding: 'geliştirme',
-  test: 'geliştirme',
-  egzersiz: 'sağlık', exercise: 'sağlık', spor: 'sağlık',
-  doktor: 'sağlık', doctor: 'sağlık',
-  fatura: 'finans', bill: 'finans', ödeme: 'finans', payment: 'finans',
-  aile: 'kişisel', family: 'kişisel',
-  arkadaş: 'kişisel', friend: 'kişisel',
+const CLUSTER_TO_TAG: Record<ContextType, string> = {
+  sensitive: 'önemli', joyful: 'sosyal', stressful: 'iş', urgent: 'acil',
+  social: 'sosyal', health: 'sağlık', work: 'iş', finance: 'finans', 
+  education: 'eğitim', shopping: 'alışveriş', home: 'ev'
 };
-
-const WEEKDAY_MAP: Record<string, number> = {
-  pazartesi: 1, monday: 1,
-  salı: 2, tuesday: 2,
-  çarşamba: 3, wednesday: 3,
-  perşembe: 4, thursday: 4,
-  cuma: 5, friday: 5,
-  cumartesi: 6, saturday: 6,
-  pazar: 0, sunday: 0,
-};
-
-function nextWeekday(targetDay: number): Date {
-  const today = new Date();
-  const current = today.getDay();
-  let diff = targetDay - current;
-  if (diff <= 0) diff += 7;
-  const result = new Date(today);
-  result.setDate(today.getDate() + diff);
-  return result;
-}
 
 function toISO(date: Date): string {
-  return date.toISOString().split('T')[0];
+  // Use local date components to avoid UTC timezone shifts
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
+
+const WEEKDAY_MAP: Record<string, number> = {
+  pazartesi: 1, monday: 1, salı: 2, tuesday: 2, çarşamba: 3, wednesday: 3,
+  perşembe: 4, thursday: 4, cuma: 5, friday: 5, cumartesi: 6, saturday: 6, pazar: 0, sunday: 0,
+};
 
 export function parseTaskHint(text: string): ParsedHint {
   if (!text.trim()) return {};
   const lower = text.toLowerCase();
+  const words = lower.split(/[\s,.;!?]+/);
   const hint: ParsedHint = {};
-
-  // Priority
-  if (HIGH_PRIORITY_TR.some((w) => lower.includes(w))) {
-    hint.priority = 'High';
-  } else if (MEDIUM_PRIORITY_TR.some((w) => lower.includes(w))) {
-    hint.priority = 'Medium';
-  } else if (LOW_PRIORITY_TR.some((w) => lower.includes(w))) {
-    hint.priority = 'Low';
-  }
-
-  // Auto-upgrade priority for urgent topics
-  if (!hint.priority && URGENT_TOPICS.some(w => lower.includes(w))) {
-    hint.priority = 'High';
-  }
-
   const today = new Date();
+  
+  // 1. Semantic Intent Calculation using the Global Dictionary
+  const scores: Record<ContextType, number> = {
+    sensitive: 0, joyful: 0, stressful: 0, urgent: 0, social: 0, health: 0, work: 0, finance: 0, education: 0, shopping: 0, home: 0
+  };
+  
+  words.forEach(word => {
+    // Advanced Stemming (Removing Turkish suffixes)
+    const stems = [
+      word, 
+      word.replace(/[ıieaouüö]$/i, ''), 
+      word.slice(0, -1), 
+      word.slice(0, -2), 
+      word.slice(0, -3),
+      word.replace(/lar$|ler$|da$|de$|ta$|te$|in$|ın$|un$|ün$/i, '') // Extra TR suffixes
+    ];
+    const seenCluster = new Set<string>();
+    
+    stems.forEach(s => {
+      const entry = SEMANTIC_DICTIONARY[s];
+      if (entry && !seenCluster.has(s)) {
+        Object.keys(entry).forEach((key) => {
+           if (key in scores) {
+              scores[key as ContextType] += entry[key] || 0;
+           }
+        });
+        seenCluster.add(s);
+      }
+    });
+  });
 
-  // --- SMART DATE PARSING ---
-  // Support "ayın 15'inde", "ayın 5'i" (TR) and "on the 15th", "on the 5th" (EN)
-  const ayinMatch = lower.match(/ayın\s*(\d{1,2})(?:['’]?(?:i|ı|u|ü|nde|nda|si|sı))?/) || 
-                    lower.match(/on the\s*(\d{1,2})(?:st|nd|rd|th)?/);
-  if (ayinMatch) {
-    const day = parseInt(ayinMatch[1], 10);
-    if (day >= 1 && day <= 31) {
-      const d = new Date(today);
-      d.setDate(day);
-      hint.dueDate = toISO(d);
-    }
-  }
+  // 2. Context Determination
+  const emotionalContexts: ContextType[] = ['sensitive', 'joyful', 'stressful'];
+  let maxScore = 0;
+  hint.context = 'normal';
 
-  if (!hint.dueDate) {
-    if (lower.includes('bugün') || lower.includes('today')) {
-      hint.dueDate = toISO(today);
-    } else if (lower.includes('yarın') || lower.includes('tomorrow')) {
-      const tom = new Date(today);
-      tom.setDate(today.getDate() + 1);
-      hint.dueDate = toISO(tom);
-    } else if (lower.includes('öbür gün') || lower.includes('day after')) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + 2);
-      hint.dueDate = toISO(d);
-    } else if (lower.includes('bu hafta') || lower.includes('this week')) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + (5 - today.getDay())); 
-      hint.dueDate = toISO(d);
-    } else if (lower.includes('gelecek hafta') || lower.includes('next week')) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + 7);
-      hint.dueDate = toISO(d);
-    } else {
-      for (const [keyword, dayNum] of Object.entries(WEEKDAY_MAP)) {
-        if (lower.includes(keyword)) {
-          hint.dueDate = toISO(nextWeekday(dayNum));
-          break;
-        }
+  emotionalContexts.forEach(c => {
+    if (scores[c] > maxScore && scores[c] >= 5) {
+      maxScore = scores[c];
+      if (c === 'sensitive' || c === 'joyful' || c === 'stressful') {
+        hint.context = c;
       }
     }
-  }
+  });
 
-  // --- SMART TIME PARSING ---
-  // Exclude numbers preceded by "masa", "no", "oda", "koltuk" (TR) or "table", "no", "room", "seat" (EN)
-  const ignoredContexts = ['masa', 'table', 'no', 'oda', 'room', 'numara', 'number', 'koltuk', 'seat', 'platform', 'peron'];
-  
-  const timeRegexes = [
-    /saat\s*(\d{1,2})(?:[:.\s](\d{2}))?/,
-    /(\d{1,2})[:.](\d{2})/,
-    /(\d{1,2})['’](?:te|de|ta|da|ten|dan|e|a)/,
-    /at\s*(\d{1,2})(?:[:.](\d{2}))?/
-  ];
+  // 3. Priority Calculation
+  if (scores.urgent >= 10 || scores.stressful >= 15) hint.priority = 'High';
+  else if (scores.urgent >= 5 || scores.stressful >= 8) hint.priority = 'Medium';
+  else hint.priority = 'Low';
 
-  let timeFound = false;
-  for (const regex of timeRegexes) {
-    const match = lower.match(regex);
-    if (match) {
-      const fullMatch = match[0];
-      const matchIndex = match.index || 0;
-      const hour = parseInt(match[1], 10);
-      const minute = match[2] ? parseInt(match[2], 10) : 0;
+  // 4. Auto-Tagging
+  const tagsSet = new Set<string>();
+  Object.keys(scores).forEach(c => {
+    if (scores[c as ContextType] >= 5) {
+       tagsSet.add(CLUSTER_TO_TAG[c as ContextType]);
+    }
+  });
+  if (tagsSet.size > 0) hint.tags = Array.from(tagsSet);
 
-      // Check if preceded by ignored context
-      const beforeMatch = lower.substring(Math.max(0, matchIndex - 15), matchIndex).trim();
-      const isIgnored = ignoredContexts.some(ctx => beforeMatch.endsWith(ctx) || beforeMatch.includes(ctx + ' '));
-
-      // Check if this number was already used for "Ayın X'inde"
-      const isDayNumber = ayinMatch && match[1] === ayinMatch[1] && !lower.includes('saat ' + match[1]);
-
-      if (!isIgnored && !isDayNumber && hour <= 23 && minute <= 59) {
-        const base = hint.dueDate ? new Date(hint.dueDate) : new Date();
-        base.setHours(hour, minute, 0, 0);
-        hint.dueTime = base.toISOString();
-        timeFound = true;
+  // 5. Smart Date & Time
+  if (lower.includes('bugün') || lower.includes('today')) {
+    hint.dueDate = toISO(today);
+  } else if (lower.includes('yarın') || lower.includes('tomorrow')) {
+    const d = new Date(today); d.setDate(today.getDate() + 1);
+    hint.dueDate = toISO(d);
+  } else {
+    for (const [kw, dayNum] of Object.entries(WEEKDAY_MAP)) {
+      if (lower.includes(kw)) {
+        let diff = dayNum - today.getDay();
+        if (diff <= 0) diff += 7;
+        const d = new Date(today); d.setDate(today.getDate() + diff);
+        hint.dueDate = toISO(d);
         break;
       }
     }
   }
 
-  // Auto-tags
-  const tags: string[] = [];
-  for (const [keyword, tag] of Object.entries(TAG_MAP)) {
-    if (lower.includes(keyword) && !tags.includes(tag)) {
-      tags.push(tag);
+  const timeMatch = 
+    lower.match(/saat\s*(\d{1,2})(?:[:.\s](\d{2}))?/) || 
+    lower.match(/(\d{1,2})[:.](\d{2})/) ||
+    lower.match(/(\d{1,2})['’]?(?:da|de|ta|te|ye|ya|e|a)/); // Turkish time suffixes like 15'te, 3'te
+
+  if (timeMatch) {
+    const hour = parseInt(timeMatch[1], 10);
+    const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+    if (hour <= 23 && minute <= 59) {
+      const d = new Date();
+      if (hint.dueDate) {
+        const [y, m, day] = hint.dueDate.split('-').map(Number);
+        d.setFullYear(y, m - 1, day);
+      }
+      d.setHours(hour, minute, 0, 0);
+      hint.dueTime = d.toISOString();
     }
   }
-  if (tags.length > 0) hint.tags = tags;
 
-  // Witty Message Logic (Contextual Intelligence)
-  const isUrgent = URGENT_TOPICS.some(w => lower.includes(w));
-  const isTomorrow = lower.includes('yarın') || lower.includes('tomorrow');
-  const isToday = lower.includes('bugün') || lower.includes('today');
-  const isFuture = !!hint.dueDate && !isToday && !isTomorrow;
+  // 6. Witty Message Generation & Reminder/Event Intent
+  const isTR = /[ıİğĞüÜşŞöÖçÇ]/.test(text) || lower.includes('yarın') || lower.includes('bugün') || lower.includes('hatırlat');
+  const hasReminderIntent = lower.includes('hatırlat') || lower.includes('remind') || lower.includes('unutturma') || lower.includes('alarm');
+  const hasGuestIntent = lower.includes('misafir') || lower.includes('davet') || lower.includes('konuk');
+  
+  // Event vs Task vs Note detection
+  const taskVerbs = ['yap', 'hazırla', 'yaz', 'bitir', 'kodla', 'oku', 'al', 'götür', 'ara', 'check', 'fix', 'düzelt'];
+  const eventKeywords = ['buluşma', 'toplantı', 'randevu', 'konser', 'sinema', 'maç', 'düğün', 'nişan', 'gelecek', 'başlıyor', 'meeting', 'appointment'];
+  
+  const hasTaskVerb = taskVerbs.some(v => lower.includes(v));
+  const isEvent = eventKeywords.some(kw => lower.includes(kw)) || hasGuestIntent;
+  const isExplicitNote = lower.startsWith('not:') || lower.startsWith('bilgi:');
+  
+  // A "Note" is something without a date, without a time, and without an obvious task verb/reminder intent
+  const isNote = isExplicitNote || (!hint.dueDate && !hint.dueTime && !hasTaskVerb && !hasReminderIntent && !isEvent);
 
-  if (isUrgent && isTomorrow) {
-    hint.wittyMessage = "Yarın büyük gün! Bugünden hazırlıklara başla derim. 🔥";
-  } else if (isUrgent && isToday) {
-    hint.wittyMessage = "Kritik görev! Hemen odak moduna geçmelisin. ⚡";
-  } else if (isUrgent && isFuture) {
-    hint.wittyMessage = `${hint.dueDate} tarihindeki bu önemli görev için zamanın var ama gardını düşürme! 🚀`;
-  } else if (isTomorrow) {
-    hint.wittyMessage = "Yarınki sen sana teşekkür edecek. Planlandı! ✅";
-  } else if (isToday) {
-    hint.wittyMessage = "Bugünün listesine eklendi. Hadi bitirelim! 💪";
-  } else if (isFuture) {
-    hint.wittyMessage = "Uzak bir hedef ama radarımızda. Kaydedildi! 📡";
+  const finalContext = (hint.context || 'normal') as string;
+  
+  if (isExplicitNote || isNote) {
+    hint.wittyMessage = isTR ? "Bu önemli bilgiyi not defterime kaydettim. 📝" : "I've saved this important info to my notebook. 📝";
+    if (!hint.tags) hint.tags = [];
+    hint.tags.push(isTR ? 'not' : 'note');
+    // Truncate long notes for DB/UI stability (max 200 chars for title part)
+    if (text.length > 200) {
+        // We'll keep the full text but maybe flag it or handle it in UI
+    }
+  } else if (hasReminderIntent) {
+    hint.wittyMessage = isTR ? "Not aldım, vakti gelince hatırlatacağım. Merak etme! 🔔" : "Noted, I'll remind you when the time comes. Don't worry! 🔔";
+    hint.priority = hint.priority === 'Low' ? 'Medium' : hint.priority;
+    if (!hint.tags) hint.tags = [];
+    hint.tags.push(isTR ? 'hatırlatıcı' : 'reminder');
+  } else if (hasGuestIntent) {
+    hint.wittyMessage = isTR ? "Misafirlerin başımın üstünde yeri var! Hazırlıklara başlayalım. ☕" : "Guests are always welcome! Let's get ready for them. ☕";
+    hint.context = 'joyful';
+    if (!hint.tags) hint.tags = [];
+    hint.tags.push(isTR ? 'sosyal' : 'social');
+  } else if (isEvent) {
+    hint.wittyMessage = isTR ? "Ajandana bir etkinlik ekliyorum. Vaktinde orada olalım! 📅" : "Adding an event to your agenda. Let's be there on time! 📅";
+    if (!hint.tags) hint.tags = [];
+    hint.tags.push(isTR ? 'etkinlik' : 'event');
+  } else if (finalContext === 'sensitive') {
+    if (scores.sensitive >= 10) {
+        hint.wittyMessage = isTR ? "Başınız sağ olsun. Tazq bu süreçte ajandanızı sadeleştirecek. 🙏" : "My condolences. Tazq will simplify your agenda during this time. 🙏";
+    } else {
+        hint.wittyMessage = isTR ? "Geçmiş olsun, sağlığınız her şeyden önemli. Kaydedildi. 🙏" : "Get well soon, your health is priority #1. Noted. 🙏";
+    }
+  } else if (finalContext === 'joyful') {
+    hint.wittyMessage = isTR ? "Harika bir plan! Tazq kutlama moduna hazır. 🎉" : "Great plan! Tazq is ready for celebration mode. 🎉";
+  } else if (finalContext === 'stressful') {
+    hint.wittyMessage = isTR ? "Zorlu bir görev ama üstesinden gelebilirsin. Odaklanalım! 💪" : "A tough task, but you can handle it. Let's focus! 💪";
+  } else {
+    hint.wittyMessage = isTR ? "Planlandı. Adım adım hedefe ilerliyoruz. ✅" : "Scheduled. Moving towards the goal step by step. ✅";
   }
 
   return hint;

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTaskStore } from '../store/useTaskStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -8,7 +8,7 @@ import { BentoCard } from '../components/BentoCard';
 import { DynamicIsland } from '../components/DynamicIsland';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { MotiView, MotiText } from 'moti';
-import { Plus, FileText, Zap, Play, Rocket, ChevronRight } from 'lucide-react-native';
+import { Plus, FileText, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { TaskService, FocusService, DailyFocusData } from '../services/api';
 import * as Haptics from 'expo-haptics';
@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { TazqLogo } from '../components/TazqLogo';
 import { useFocusStore } from '../store/useFocusStore';
+import { StatusHub } from '../components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import i18n from 'i18n-js';
 import { parseTaskHint } from '../utils/taskParser';
@@ -39,8 +40,7 @@ const getAvatarSource = (avatar: string | null) => {
 };
 
 export default function HomeScreen() {
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { tasks, isLoading, setTasks, setLoading, addTask } = useTaskStore();
   const { user } = useAuthStore();
   const { t } = useLanguageStore();
@@ -48,32 +48,20 @@ export default function HomeScreen() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
 
+  // Focus Store
+  const { isActive, seconds, setCurrentTask, setDuration, setIsActive } = useFocusStore();
 
-  const { setCurrentTask, setDuration, setIsActive } = useFocusStore();
-
-  const topTask = tasks.find(t => !t.isCompleted);
-
-  const priorityColor = (p: string) => {
-    if (p === 'High') return '#ff3b30';
-    if (p === 'Medium') return '#ff9f0a';
-    return '#34c759';
-  };
-
-  const startFocus = (taskTitle: string) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setCurrentTask(taskTitle);
-    setDuration(25); // Default 25m
-    setIsActive(true); // Auto-start the mission
-    router.push('/focus');
-  };
-
-  const isTR = i18n.locale?.startsWith('tr') ?? true;
+  // State
+  const [statusHubVisible, setStatusHubVisible] = useState(false);
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [weeklyFocus, setWeeklyFocus] = useState<DailyFocusData[]>([]);
   const [streak, setStreak] = useState(0);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [currentHour, setCurrentHour] = useState(new Date().getHours());
+
+  const isTR = i18n.locale?.startsWith('tr') ?? true;
 
   // Compute daily goal from real data
   const todayTasks = tasks.filter(t => {
@@ -112,6 +100,22 @@ export default function HomeScreen() {
     }
   };
 
+  useEffect(() => {
+    fetchTasks();
+    fetchStats();
+  }, []);
+
+  useEffect(() => {
+    const now = new Date();
+    const msUntilNextHour = (60 - now.getMinutes()) * 60000 - now.getSeconds() * 1000;
+    const timeout = setTimeout(() => {
+      setCurrentHour(new Date().getHours());
+      const interval = setInterval(() => setCurrentHour(new Date().getHours()), 3600000);
+      return () => clearInterval(interval);
+    }, msUntilNextHour);
+    return () => clearTimeout(timeout);
+  }, []);
+
   const handleQuickSave = async () => {
     if (!draftTitle.trim()) return;
     setIsSavingDraft(true);
@@ -119,24 +123,33 @@ export default function HomeScreen() {
     
     try {
         const hint = parseTaskHint(draftTitle.trim());
+        const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
+        
         const payload = {
             title: draftTitle.trim(),
             description: '',
-            priority: hint.priority || 'Low',
+            priority: hint.priority || 'Medium',
             isCompleted: false,
-            dueDate: hint.dueDate || new Date().toISOString(),
+            dueDate: hint.dueDate || (isReminder ? new Date().toISOString() : null),
             dueTime: hint.dueTime || null,
             tags: hint.tags?.length ? hint.tags : ['Draft']
         };
+
         const created = await TaskService.createTask(payload as any);
         addTask(created);
+
+        // Schedule notification if it's a reminder
+        if (created.id && isReminder) {
+            const { scheduleTaskNotification } = require('../utils/notifications');
+            await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
+        }
+
         setDraftTitle('');
         setQuickDraftVisible(false);
         
-        // Şık bir yönlendirme seçeneği
         Alert.alert(
             "✍️ " + t.taskAdded,
-            `"${payload.title}" ${i18n.locale.startsWith('tr') ? 'taslaklara eklendi.' : 'added to drafts.'}`,
+            `"${payload.title}" ${i18n.locale.startsWith('tr') ? 'başarıyla eklendi.' : 'added successfully.'}`,
             [
                 { text: t.cancel, style: 'cancel' },
                 { text: i18n.locale.startsWith('tr') ? 'Listeyi Aç' : 'View List', onPress: () => router.push('/tasks') }
@@ -149,24 +162,7 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchTasks();
-    fetchStats();
-  }, []);
-
-  const [currentHour, setCurrentHour] = useState(new Date().getHours());
-  useEffect(() => {
-    const now = new Date();
-    const msUntilNextHour = (60 - now.getMinutes()) * 60000 - now.getSeconds() * 1000;
-    const timeout = setTimeout(() => {
-      setCurrentHour(new Date().getHours());
-      const interval = setInterval(() => setCurrentHour(new Date().getHours()), 3600000);
-      return () => clearInterval(interval);
-    }, msUntilNextHour);
-    return () => clearTimeout(timeout);
-  }, []);
-
-  // Compute metrics at component level
+  // Compute metrics
   const weeklyMinutes = weeklyFocus.reduce((s: number, d: any) => s + (d.minutes || 0), 0);
   const completedCount = tasks.filter(t => t.isCompleted).length;
   const totalCount = tasks.length || 1;
@@ -175,12 +171,115 @@ export default function HomeScreen() {
   const streakScore = Math.min(streak / 14, 1);
   const momentum = Math.round(completionRate * 40 + focusScore * 35 + streakScore * 25);
   const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? '#ff9f0a' : theme.primary;
+  
+  // Smart Logic: Prioritize Today's Tasks
+  const todayDateString = new Date().toDateString();
+  const todayTasksIncomplete = tasks.filter(t => !t.isCompleted && t.dueDate && new Date(t.dueDate).toDateString() === todayDateString);
+  const futureTasksIncomplete = tasks.filter(t => !t.isCompleted && (!t.dueDate || new Date(t.dueDate).toDateString() !== todayDateString));
+
+  const topTaskToday = todayTasksIncomplete[0];
+  const highPriorityToday = todayTasksIncomplete.find(t => t.priority === 'High');
+  const topTask = topTaskToday || futureTasksIncomplete[0];
+
+  const getSmartInsight = () => {
+    if (isActive) return isTR ? "Odak modu aktif. Akışını bozma, harika gidiyorsun." : "Focus mode active. Stay in the zone, you're doing great.";
+    
+    // Sentiment Analysis (Local Heuristics)
+    const getSentiment = (t: any) => {
+        const title = t.title.toLowerCase();
+        if (['cenaze', 'vefat', 'taziye', 'hastane', 'ameliyat', 'vefat', 'başsağlığı', 'mevlit', 'ilaç', 'tedavi', 'klinik'].some(kw => title.includes(kw))) return 'sensitive';
+        if (['doğum günü', 'kutlama', 'parti', 'düğün', 'tatil', 'bayram', 'tebrik', 'yıl dönümü', 'nişan', 'eğlence'].some(kw => title.includes(kw))) return 'joyful';
+        if (['sınav', 'mülakat', 'sunum', 'teslim', 'deadline', 'acil', 'vize', 'final', 'proje', 'toplantı'].some(kw => title.includes(kw))) return 'stressful';
+        return 'normal';
+    };
+
+    const isActuallyToday = (t: any) => {
+        const title = t.title.toLowerCase();
+        const tomorrowKeywords = ['yarın', 'tomorrow', 'öbür gün', 'next day'];
+        return !tomorrowKeywords.some(kw => title.includes(kw));
+    };
+
+    if (highPriorityToday && isActuallyToday(highPriorityToday)) {
+        const sentiment = getSentiment(highPriorityToday);
+        const title = highPriorityToday.title.toLowerCase();
+        
+        if (sentiment === 'sensitive') {
+            if (['cenaze', 'vefat', 'taziye', 'başsağlığı', 'mevlit'].some(kw => title.includes(kw))) {
+                return isTR ? `Başınız sağ olsun. "${highPriorityToday.title}" için metanet diliyorum. 🙏` : `My condolences. Stay strong for "${highPriorityToday.title}". 🙏`;
+            }
+            return isTR ? `Geçmiş olsun. "${highPriorityToday.title}" sürecinde kendine dikkat et. 🙏` : `Get well soon. Take care of yourself during "${highPriorityToday.title}". 🙏`;
+        }
+        if (sentiment === 'joyful') return isTR ? `Harika! "${highPriorityToday.title}" günü geldi. Tadını çıkar! 🎉` : `Awesome! "${highPriorityToday.title}" is today. Enjoy! 🎉`;
+        
+        return isTR 
+            ? `Bugünün en kritik işi: "${highPriorityToday.title}". Hemen bitirip rahatlamaya ne dersin?` 
+            : `Today's priority: "${highPriorityToday.title}". How about finishing it now to relax?`;
+    }
+
+    if (topTaskToday && isActuallyToday(topTaskToday)) {
+        const sentiment = getSentiment(topTaskToday);
+        const title = topTaskToday.title.toLowerCase();
+
+        if (sentiment === 'sensitive') {
+            if (['cenaze', 'vefat', 'taziye', 'başsağlığı', 'mevlit'].some(kw => title.includes(kw))) {
+                return isTR ? `Zor bir görev: "${topTaskToday.title}". Sabır dilerim. 🙏` : `A difficult task: "${topTaskToday.title}". Wishing you patience. 🙏`;
+            }
+            return isTR ? `"${topTaskToday.title}" konusuna odaklanalım. Sağlık her şeyden önemli. 🙏` : `Let's focus on "${topTaskToday.title}". Health comes first. 🙏`;
+        }
+        if (sentiment === 'joyful') return isTR ? `Hadi "${topTaskToday.title}" hazırlıklarına başlayalım! ✨` : `Let's start prep for "${topTaskToday.title}"! ✨`;
+
+        return isTR 
+            ? `Sıradaki bugünün görevi: "${topTaskToday.title}". Küçük bir adımla başlamak ivmeni artırır.` 
+            : `Next for today: "${topTaskToday.title}". A small step now will boost your momentum.`;
+    }
+
+    // If we have tomorrow's tasks or no tasks for today
+    if (futureTasksIncomplete.length > 0 || (topTaskToday && !isActuallyToday(topTaskToday))) {
+        const nextTask = (topTaskToday && !isActuallyToday(topTaskToday)) ? topTaskToday : futureTasksIncomplete[0];
+        const title = nextTask.title.toLowerCase();
+        const sentiment = getSentiment(nextTask);
+        const isTomorrow = title.includes('yarın') || title.includes('tomorrow');
+        
+        if (isTomorrow) {
+            if (sentiment === 'sensitive') {
+                if (['cenaze', 'vefat', 'taziye', 'başsağlığı', 'mevlit'].some(kw => title.includes(kw))) {
+                    return isTR ? `Yarın zor bir gün olacak. Metanetini koru, bugün sadece dinlen. 🙏` : `Tomorrow will be difficult. Stay strong, just rest today. 🙏`;
+                }
+                return isTR ? `Yarınki "${nextTask.title}" için şimdiden hazırlıklı ol. Geçmiş olsun. 🙏` : `Be prepared for tomorrow's "${nextTask.title}". Get well soon. 🙏`;
+            }
+            if (sentiment === 'joyful') return isTR ? `Yarın harika bir gün olacak! "${nextTask.title}" seni bekliyor. 🎈` : `Tomorrow will be great! "${nextTask.title}" awaits you. 🎈`;
+
+            return isTR 
+                ? `Bugünlük işler tamam gibi. Yarınki "${nextTask.title}" görevin için şimdiden plan yapabilirsin.` 
+                : `Today seems clear. You can start planning for tomorrow's "${nextTask.title}" task.`;
+        }
+        
+        return isTR 
+            ? `Sıradaki hedefin: "${nextTask.title}". Zamanı geldiğinde seni uyaracağım.` 
+            : `Next target: "${nextTask.title}". I'll alert you when the time comes.`;
+    }
+
+    if (momentum > 75) return isTR ? "Zirvedesin! Bugün durdurulamaz bir tempoya ulaştın." : "You're at peak performance! Unstoppable pace today.";
+    
+    return isTR ? "Tüm sistemler hazır. Yeni bir hedef belirleme vakti." : "All systems ready. Time to set a new target.";
+  };
+
+  const startQuickFocus = () => {
+    const target = topTaskToday || futureTasksIncomplete[0];
+    if (!target) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setCurrentTask(target.title);
+    setDuration(25);
+    setIsActive(true);
+    setStatusHubVisible(false);
+    router.push('/focus');
+  };
+
   const momentumLabel = isTR
     ? (momentum >= 75 ? 'Harika gidiyorsun' : momentum >= 40 ? 'İyi tempo' : 'Başlama vakti')
     : (momentum >= 75 ? 'On a roll!' : momentum >= 40 ? 'Good pace' : 'Get started');
-  const DAY_LABELS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-  const DAY_LABELS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const dayLabels = isTR ? DAY_LABELS_TR : DAY_LABELS_EN;
+  
+  const dayLabels = isTR ? ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   const getGreeting = () => {
     if (currentHour >= 5 && currentHour < 13) return t.greetingMorning;
@@ -189,11 +288,17 @@ export default function HomeScreen() {
     return t.greetingNight;
   };
 
+  const priorityColor = (p: string) => {
+    if (p === 'High') return '#ff3b30';
+    if (p === 'Medium') return '#ff9f0a';
+    return '#34c759';
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
 
-        {/* TopBar — normal flow, ScrollView starts right below */}
+        {/* TopBar */}
         <View style={[styles.topBarWrapper]}>
             <MotiView
                 from={{ translateY: -20, opacity: 0 }}
@@ -203,9 +308,8 @@ export default function HomeScreen() {
                     {
                         backgroundColor: isDark ? 'rgba(14,14,14,0.6)' : 'rgba(255,255,255,0.7)',
                         borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                        maxWidth: width - 48
                     },
-                    isDark ? { shadowColor: theme.primaryDim, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 } : styles.lightTopBarShadow
+                    isDark ? styles.darkTopBarShadow : styles.lightTopBarShadow
                 ]}
             >
                 <BlurView
@@ -214,6 +318,12 @@ export default function HomeScreen() {
                     style={StyleSheet.absoluteFill}
                 />
                 <View style={[styles.topBarContent, { paddingHorizontal: S.md }]}>
+                    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                            <TazqLogo height={24} />
+                        </View>
+                    </View>
+
                     <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarContainer}>
                         <Image
                             source={getAvatarSource(user?.avatar || null)}
@@ -221,12 +331,76 @@ export default function HomeScreen() {
                         />
                     </TouchableOpacity>
 
-                    <TazqLogo width={80} height={28} />
-
-                    <View style={styles.boltBtn} />
+                    <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStatusHubVisible(true); }} />
                 </View>
             </MotiView>
         </View>
+
+        {/* Smart Cockpit Modal */}
+        <Modal visible={statusHubVisible} transparent animationType="fade">
+            <View style={styles.modalOverlay}>
+                <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setStatusHubVisible(false)} />
+                <MotiView 
+                    from={{ translateY: 100, opacity: 0 }}
+                    animate={{ translateY: 0, opacity: 1 }}
+                    style={[styles.insightCard, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant + '40' }]}
+                >
+                    <View style={styles.insightHeader}>
+                        <View style={[styles.insightIcon, { backgroundColor: theme.primary + '15' }]}>
+                            <BrainCircuit size={20} color={theme.primary} />
+                        </View>
+                        <Text style={[styles.insightHeaderTitle, { color: theme.onSurface }]}>TAZQ INSIGHTS</Text>
+                    </View>
+                    
+                    <View style={styles.insightBody}>
+                        <View style={[styles.bentoMini, { backgroundColor: theme.surfaceContainerLow }]}>
+                            <Text style={[styles.insightMainText, { color: theme.onSurface }]}>
+                                {getSmartInsight()}
+                            </Text>
+                        </View>
+
+                        <View style={styles.insightStats}>
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1 }]}>
+                                    <Zap size={16} color={momentumColor} fill={momentumColor} />
+                                    <Text style={[styles.statValue, { color: theme.onSurface }]}>{momentum}%</Text>
+                                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>Momentum</Text>
+                                </View>
+                                <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1 }]}>
+                                    <Target size={16} color={theme.secondary} />
+                                    <Text style={[styles.statValue, { color: theme.onSurface }]}>{todayCompleted}/{dailyGoal}</Text>
+                                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{isTR ? 'Hedef' : 'Target'}</Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+
+                    <View style={styles.cockpitActions}>
+                        <TouchableOpacity 
+                            onPress={startQuickFocus}
+                            disabled={(!topTaskToday && futureTasksIncomplete.length === 0) || isActive}
+                            style={[styles.actionButtonMain, { backgroundColor: theme.primary }]}
+                        >
+                            <Play size={20} color={theme.onPrimary} fill={theme.onPrimary} />
+                            <Text style={[styles.actionButtonText, { color: theme.onPrimary }]}>
+                                {isActive ? (isTR ? 'ODAK AKTİF' : 'FOCUS ACTIVE') : 
+                                 (!topTaskToday && futureTasksIncomplete.length > 0 ? (isTR ? 'YARINA HAZIRLAN' : 'PREP FOR TOMORROW') : 
+                                 (isTR ? 'ŞİMDİ ODAKLAN' : 'FOCUS NOW'))}
+                            </Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                            onPress={() => setStatusHubVisible(false)}
+                            style={[styles.actionButtonSecondary, { backgroundColor: theme.surfaceContainerHigh }]}
+                        >
+                            <Text style={[styles.actionButtonTextSecondary, { color: theme.onSurfaceVariant }]}>
+                                {isTR ? 'KAPAT' : 'CLOSE'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </MotiView>
+            </View>
+        </Modal>
 
         <ScrollView
             style={{ flex: 1 }}
@@ -260,7 +434,7 @@ export default function HomeScreen() {
             {/* Focus Widget */}
             <DynamicIsland />
 
-            {/* Next Mission / Highway Widget */}
+            {/* Next Mission Widget */}
             <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <MotiView
                     from={{ opacity: 0, scale: 0.95 }}
@@ -332,8 +506,7 @@ export default function HomeScreen() {
 
             {/* Metrics Grid */}
             <View style={{ paddingHorizontal: S.lg, gap: S.md }}>
-
-                {/* Full-width Weekly Focus Chart */}
+                {/* Weekly Focus Chart */}
                 <BentoCard index={1}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.sm }}>
                         <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
@@ -378,9 +551,7 @@ export default function HomeScreen() {
                     </View>
                 </BentoCard>
 
-                {/* Row 1: Bugün + Momentum */}
                 <View style={{ flexDirection: 'row', gap: S.md }}>
-                    {/* Today */}
                     <BentoCard index={2} style={{ flex: 1, minHeight: 144 }}>
                         <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
                             {isTR ? 'BUGÜN' : 'TODAY'}
@@ -401,7 +572,6 @@ export default function HomeScreen() {
                         </View>
                     </BentoCard>
 
-                    {/* Momentum */}
                     <BentoCard index={3} style={{ flex: 1, minHeight: 144 }}>
                         <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>MOMENTUM</Text>
                         <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -423,144 +593,59 @@ export default function HomeScreen() {
                         </View>
                     </BentoCard>
                 </View>
-
-                {/* Row 2: Odak + Seri */}
-                <View style={{ flexDirection: 'row', gap: S.md }}>
-                    {/* Weekly Focus Hours */}
-                    <BentoCard index={4} style={{ flex: 1, minHeight: 144 }}>
-                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
-                            {isTR ? 'ODAK' : 'FOCUS'}
-                        </Text>
-                        <View style={{ flex: 1, justifyContent: 'center' }}>
-                            <Text style={[styles.metricValue, { color: theme.secondary }]}>
-                                {Math.floor(weeklyMinutes / 60)}
-                                <Text style={{ fontSize: F.subhead, color: theme.onSurfaceVariant, fontWeight: '600' }}>
-                                    {isTR ? 'sa' : 'h'}
-                                </Text>
-                            </Text>
-                            <Text style={[styles.metricSub, { color: theme.onSurfaceVariant }]}>
-                                {isTR ? 'bu hafta' : 'this week'}
-                            </Text>
-                        </View>
-                        <View style={{ width: '100%', height: 3, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh, overflow: 'hidden' }}>
-                            <MotiView
-                                animate={{ width: `${Math.min((weeklyMinutes / 300) * 100, 100)}%` as any }}
-                                transition={{ type: 'timing', duration: 900 }}
-                                style={{ height: '100%', borderRadius: R.sm, backgroundColor: theme.secondary }}
-                            />
-                        </View>
-                    </BentoCard>
-
-                    {/* Streak */}
-                    <BentoCard index={5} style={{ flex: 1, minHeight: 144 }}>
-                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
-                            {isTR ? 'SERİ' : 'STREAK'}
-                        </Text>
-                        <View style={{ flex: 1, justifyContent: 'center' }}>
-                            <Text style={[styles.metricValue, { color: streak > 0 ? '#ff9f0a' : theme.onSurface }]}>
-                                {streak}
-                                <Text style={{ fontSize: F.subhead, color: theme.onSurfaceVariant, fontWeight: '600' }}>
-                                    {isTR ? 'g' : 'd'}
-                                </Text>
-                            </Text>
-                            <Text style={[styles.metricSub, { color: theme.onSurfaceVariant }]} numberOfLines={1}>
-                                {streak > 0 ? t.streakMotivation : t.streakNone}
-                            </Text>
-                        </View>
-                        {streak > 0 && (
-                            <View style={{ flexDirection: 'row', gap: 3 }}>
-                                {Array(Math.min(streak, 7)).fill(0).map((_, i) => (
-                                    <View key={i} style={{ flex: 1, height: 3, borderRadius: R.sm, backgroundColor: '#ff9f0a', opacity: 0.4 + (i / 7) * 0.6 }} />
-                                ))}
-                                {streak < 7 && Array(7 - Math.min(streak, 7)).fill(0).map((_, i) => (
-                                    <View key={`e${i}`} style={{ flex: 1, height: 3, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh }} />
-                                ))}
-                            </View>
-                        )}
-                    </BentoCard>
-                </View>
-
-                {/* Quick Actions */}
-                <View style={[styles.actionRow, { gap: S.md }]}>
-                    <TouchableOpacity
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/tasks?action=add'); }}
-                        style={[styles.actionBtn, { backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest, padding: S.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}
-                    >
-                        <View style={[styles.actionIcon, { backgroundColor: theme.primaryContainer, width: 44, height: 44 }]}>
-                            <Plus size={22} color={isDark ? theme.primary : theme.primary} />
-                        </View>
-                        <Text style={[styles.actionLabel, { color: theme.onSurface, fontSize: F.body }]}>{t.newTask}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setQuickDraftVisible(true); }}
-                        style={[styles.actionBtn, { backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest, padding: S.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}
-                    >
-                        <View style={[styles.actionIcon, { backgroundColor: theme.secondaryContainer, width: 44, height: 44 }]}>
-                            <FileText size={22} color={isDark ? theme.secondary : theme.secondary} />
-                        </View>
-                        <Text style={[styles.actionLabel, { color: theme.onSurface, fontSize: F.body }]}>{t.draftNote}</Text>
-                    </TouchableOpacity>
-                </View>
             </View>
         </ScrollView>
-      </SafeAreaView>
 
-      {/* Quick Draft Bottom Sheet */}
-      <Modal visible={quickDraftVisible} transparent animationType="slide">
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={0}
-        >
-        <View style={styles.modalOverlay}>
-            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
-            <View style={styles.bottomSheetWrapper}>
-                <MotiView
-                    from={{ translateY: 100, opacity: 0 }}
-                    animate={{ translateY: 0, opacity: 1 }}
-                    style={[styles.quickDraftSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
-                >
-                    <View style={styles.sheetHandle} />
-                    <View style={styles.sheetHeader}>
-                        <View style={[styles.sheetIcon, { backgroundColor: theme.primaryContainer }]}>
-                            <FileText size={20} color={theme.primary} />
+        {/* Quick Draft Modal */}
+        <Modal visible={quickDraftVisible} transparent animationType="slide">
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <View style={styles.modalOverlay}>
+                <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
+                <View style={styles.bottomSheetWrapper}>
+                    <MotiView
+                        from={{ translateY: 100, opacity: 0 }}
+                        animate={{ translateY: 0, opacity: 1 }}
+                        style={[styles.quickDraftSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
+                    >
+                        <View style={styles.sheetHandle} />
+                        <View style={styles.sheetHeader}>
+                            <View style={[styles.sheetIcon, { backgroundColor: theme.primaryContainer }]}>
+                                <FileText size={20} color={theme.primary} />
+                            </View>
+                            <Text style={[styles.quickDraftTitle, { color: theme.onSurface }]}>{t.draftNote}</Text>
                         </View>
-                        <Text style={[styles.quickDraftTitle, { color: theme.onSurface, marginBottom: 0 }]}>{t.draftNote}</Text>
-                    </View>
 
-                    <View style={[styles.quickInputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', marginTop: S.md }]}>
-                        <TextInput 
-                            style={[styles.quickInput, { color: theme.onSurface, height: 60 }]}
-                            placeholder={i18n.locale.startsWith('tr') ? "Ne planlıyorsun?" : "What's on your mind?"}
-                            placeholderTextColor={theme.onSurfaceVariant + '60'}
-                            value={draftTitle}
-                            onChangeText={setDraftTitle}
-                            autoFocus
-                            returnKeyType="done"
-                            onSubmitEditing={handleQuickSave}
-                        />
-                    </View>
+                        <View style={[styles.quickInputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', marginTop: S.md }]}>
+                            <TextInput 
+                                style={[styles.quickInput, { color: theme.onSurface, height: 60 }]}
+                                placeholder={isTR ? "Ne planlıyorsun?" : "What's on your mind?"}
+                                placeholderTextColor={theme.onSurfaceVariant + '60'}
+                                value={draftTitle}
+                                onChangeText={setDraftTitle}
+                                autoFocus
+                                returnKeyType="done"
+                                onSubmitEditing={handleQuickSave}
+                            />
+                        </View>
 
-                    <View style={styles.quickActions}>
-                        <TouchableOpacity 
-                            onPress={handleQuickSave} 
-                            disabled={isSavingDraft || !draftTitle.trim()} 
-                            style={[styles.quickSave, { backgroundColor: draftTitle.trim() ? theme.primary : theme.surfaceContainerHigh, flex: 1, borderRadius: R.full }]}
-                        >
-                            {isSavingDraft ? <ActivityIndicator color="white" /> : (
-                                <Text style={{ color: draftTitle.trim() ? 'white' : theme.onSurfaceVariant, fontWeight: '900', fontSize: F.subhead }}>
-                                    {t.save}
-                                </Text>
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                </MotiView>
+                        <View style={styles.quickActions}>
+                            <TouchableOpacity 
+                                onPress={handleQuickSave} 
+                                disabled={isSavingDraft || !draftTitle.trim()} 
+                                style={[styles.quickSave, { backgroundColor: draftTitle.trim() ? theme.primary : theme.surfaceContainerHigh, flex: 1 }]}
+                            >
+                                {isSavingDraft ? <ActivityIndicator color="white" /> : (
+                                    <Text style={{ color: draftTitle.trim() ? 'white' : theme.onSurfaceVariant, fontWeight: '900' }}>{t.save}</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </MotiView>
+                </View>
             </View>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          </KeyboardAvoidingView>
+        </Modal>
 
+      </SafeAreaView>
       <BottomNavBar />
     </View>
   );
@@ -575,21 +660,13 @@ const styles = StyleSheet.create({
   topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
   avatarContainer: { width: 34, height: 34, borderRadius: R.full, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   avatar: { width: '100%', height: '100%' },
-  boltBtn: { width: 34, height: 34, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { flexGrow: 1 },
   heroSection: { marginBottom: S.lg },
-  greeting: { fontWeight: '900', letterSpacing: -1.5, fontFamily: Platform.OS === 'ios' ? 'Plus Jakarta Sans' : 'sans-serif' },
+  greeting: { fontWeight: '900', letterSpacing: -1.5 },
   subGreeting: { fontWeight: '500', marginTop: S.xs, opacity: 0.7 },
   metricLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, opacity: 0.45, marginBottom: S.xs },
   metricValue: { fontSize: F.title, fontWeight: '900', letterSpacing: -1 },
   metricSub: { fontSize: F.caption, fontWeight: '600', opacity: 0.6, marginTop: 2 },
-  bentoRow: { flexDirection: 'row' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
-  sectionTitle: { fontWeight: '800' },
-  actionRow: { flexDirection: 'row' },
-  actionBtn: { flex: 1, borderRadius: R.lg, alignItems: 'center', gap: S.sm },
-  actionIcon: { borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' },
-  actionLabel: { fontWeight: '800' },
   nextMissionCard: { padding: S.lg, justifyContent: 'space-between', overflow: 'hidden' },
   missionHeader: { flexDirection: 'row', gap: S.sm },
   missionBadge: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.md },
@@ -602,7 +679,23 @@ const styles = StyleSheet.create({
   startBtnText: { color: 'white', fontWeight: '900', fontSize: F.body },
   seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
   seeAllText: { fontSize: F.body, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  insightCard: { width: '100%', borderRadius: 32, padding: 24, borderWidth: 1, gap: 24 },
+  insightHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  insightIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  insightHeaderTitle: { fontSize: 13, fontWeight: '900', letterSpacing: 1, opacity: 0.6 },
+  insightBody: { gap: 16 },
+  bentoMini: { padding: 16, borderRadius: 20 },
+  insightMainText: { fontSize: 16, fontWeight: '800', lineHeight: 24, letterSpacing: -0.3 },
+  insightStats: { gap: 12 },
+  statBento: { padding: 16, borderRadius: 20, alignItems: 'center', gap: 4 },
+  statValue: { fontSize: 18, fontWeight: '900' },
+  statLabel: { fontSize: 10, fontWeight: '800', opacity: 0.5, letterSpacing: 0.5 },
+  cockpitActions: { gap: 12 },
+  actionButtonMain: { height: 60, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  actionButtonText: { fontSize: 16, fontWeight: '900', letterSpacing: 0.5 },
+  actionButtonSecondary: { height: 52, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  actionButtonTextSecondary: { fontSize: 14, fontWeight: '800' },
   bottomSheetWrapper: { width: '100%' },
   quickDraftSheet: {
     width: '100%',
@@ -612,11 +705,6 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? S.xl : S.lg,
     borderWidth: 1, 
     borderColor: 'rgba(255,255,255,0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 20
   },
   sheetHandle: { width: 40, height: 4, borderRadius: R.sm, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginBottom: S.md },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
@@ -625,6 +713,8 @@ const styles = StyleSheet.create({
   quickInputGroup: { borderRadius: R.lg, paddingHorizontal: S.md, height: 64, justifyContent: 'center' },
   quickInput: { fontWeight: '700', fontSize: F.subhead },
   quickActions: { flexDirection: 'row', gap: S.sm, marginTop: S.lg },
-  quickCancel: { flex: 1, height: 56, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
-  quickSave: { flex: 1.5, height: 56, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
+  quickSave: { flex: 1, height: 56, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
+  actionRow: { flexDirection: 'row', paddingHorizontal: S.lg, gap: S.md, marginTop: S.md },
+  actionBtn: { flex: 1, borderRadius: R.lg, alignItems: 'center', gap: S.sm },
+  actionLabel: { fontWeight: '800' },
 });
