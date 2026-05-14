@@ -23,7 +23,14 @@
       ],
       "expo-font",
       "expo-localization",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "@react-native-voice/voice",
+        {
+          "microphonePermission": "Tazq needs access to the microphone to record your tasks.",
+          "speechRecognitionPermission": "Tazq needs access to speech recognition to convert your voice to text."
+        }
+      ]
     ],
     "splash": {
       "image": "./assets/images/tazq_splash.png",
@@ -34,7 +41,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.tazqapp.tazq",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Tazq needs access to the microphone to record your tasks.",
+        "NSSpeechRecognitionUsageDescription": "Tazq needs access to speech recognition to convert your voice to text."
       }
     },
     "android": {

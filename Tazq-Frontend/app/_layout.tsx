@@ -9,7 +9,7 @@ import { useColorScheme, View, LogBox } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../constants/Colors';
 import { useAuthStore } from '../store/useAuthStore';
-import { AuthService } from '../services/api';
+import { AuthService, api } from '../services/api';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useLanguageStore } from '../store/useLanguageStore';

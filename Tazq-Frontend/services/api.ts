@@ -2,12 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
 import { Platform } from 'react-native';
 
-const LOCAL_IP = '192.168.0.122';
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? Platform.select({
-  android: __DEV__ ? 'http://10.0.2.2:5200' : `http://${LOCAL_IP}:5200`,
-  ios: `http://${LOCAL_IP}:5200`,
-  default: `http://${LOCAL_IP}:5200`,
-});
+const BASE_URL = 'https://api.tazqapp.com';
 
 export const api = axios.create({
   baseURL: BASE_URL,

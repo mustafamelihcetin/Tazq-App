@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import Animated, { Layout, useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
-import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle } from 'lucide-react-native';
+import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic } from 'lucide-react-native';
 import { SubtaskProgressRing } from '../components/SubtaskProgressRing';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
@@ -21,12 +21,27 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
 import i18n from 'i18n-js';
 import { S, R, F } from '../constants/tokens';
+import VoiceService from '../utils/voice';
 
 const SWIPE_THRESHOLD = -80;
 
+const VoiceWave = ({ active, theme }: { active: boolean; theme: any }) => (
+    <MotiView
+        from={{ scale: 1, opacity: 0 }}
+        animate={active ? { scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] } : { scale: 1, opacity: 0 }}
+        transition={{ loop: true, duration: 1500 }}
+        style={{
+            position: 'absolute',
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: theme.primary,
+            zIndex: -1,
+        }}
+    />
+);
+
 const SwipeableItem = ({ children, onDelete, isDark, theme }: any) => {
-// ... existing SwipeableItem ...
-// I will just replace the import and add the effect inside ActionCenter
   const translateX = useSharedValue(0);
   const deleteOpacity = useSharedValue(0);
   const startTranslateX = useSharedValue(0);
@@ -153,6 +168,53 @@ export default function ActionCenter() {
   const [pickerTime, setPickerTime] = useState({ hour: new Date().getHours(), minute: new Date().getMinutes() });
   const [newSubtaskText, setNewSubtaskText] = useState('');
   const [dateError, setDateError] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [isListeningTitle, setIsListeningTitle] = useState(false);
+  const [isListeningDesc, setIsListeningDesc] = useState(false);
+
+  const toggleVoice = async (field: 'title' | 'description') => {
+    const isActive = field === 'title' ? isListeningTitle : isListeningDesc;
+    
+    if (isActive) {
+      await VoiceService.stop();
+      field === 'title' ? setIsListeningTitle(false) : setIsListeningDesc(false);
+      return;
+    }
+
+    if (isListeningTitle || isListeningDesc) {
+      await VoiceService.stop();
+      setIsListeningTitle(false);
+      setIsListeningDesc(false);
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    field === 'title' ? setIsListeningTitle(true) : setIsListeningDesc(true);
+
+    await VoiceService.start({
+      language: language === 'tr' ? 'tr-TR' : 'en-US',
+      onResults: (results: string[]) => {
+        if (results.length > 0) {
+          const text = results[0];
+          if (field === 'title') {
+            handleTitleChange(text);
+          } else {
+            setForm(f => ({ ...f, description: text }));
+          }
+        }
+      },
+      onError: (err: any) => {
+        const msg = err.message || err;
+        console.warn('Voice error:', msg);
+        if (typeof msg === 'string' && msg.includes('not supported')) {
+          Alert.alert(t.warningTitle || 'Uyarı', language === 'tr' ? 'Mikrofon özelliği bu ortamda (Expo Go) desteklenmiyor.' : 'Microphone feature is not supported in this environment (Expo Go).');
+        }
+        field === 'title' ? setIsListeningTitle(false) : setIsListeningDesc(false);
+      },
+      onEnded: () => {
+        field === 'title' ? setIsListeningTitle(false) : setIsListeningDesc(false);
+      }
+    });
+  };
   const subtaskSaveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   // Collect unique tags from all tasks for tag filter
@@ -211,6 +273,9 @@ export default function ActionCenter() {
     if (action === 'add') {
       setTimeout(() => openAdd(), 400);
     }
+    return () => {
+      VoiceService.destroy();
+    };
   }, [action]);
 
   const loadTasks = async () => {
@@ -342,7 +407,7 @@ export default function ActionCenter() {
     }
   };
 
-  const [expandedId, setExpandedId] = React.useState<number | null>(null);
+
 
   const handleToggleExpand = (id: number) => {
     setExpandedId(expandedId === id ? null : id);
@@ -949,13 +1014,19 @@ export default function ActionCenter() {
                         <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 60 }]}>
                                 <TextInput
                                     style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
-                                    placeholder={t.taskTitle}
+                                    placeholder={isListeningTitle ? (language === 'tr' ? "Dinliyorum..." : "Listening...") : t.taskTitle}
                                     placeholderTextColor={theme.onSurfaceVariant + '60'}
                                     value={form.title}
                                     onChangeText={handleTitleChange}
                                     maxLength={200}
                                 />
-                                {nlpHint ? <Sparkles size={16} color={theme.primary} /> : null}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                                    {nlpHint ? <Sparkles size={16} color={theme.primary} /> : null}
+                                    <TouchableOpacity onPress={() => toggleVoice('title')} style={{ padding: S.xs, alignItems: 'center', justifyContent: 'center' }}>
+                                        <VoiceWave active={isListeningTitle} theme={theme} />
+                                        <Mic size={18} color={isListeningTitle ? theme.primary : theme.onSurfaceVariant} />
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                             {nlpHint ? (
                                 <MotiText 
@@ -970,7 +1041,7 @@ export default function ActionCenter() {
                             <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, marginTop: S.sm, height: 100 }]}>
                                 <TextInput
                                     style={[styles.modalInput, { color: theme.onSurface, paddingTop: S.sm, fontSize: F.body }]}
-                                    placeholder={t.taskDescription + '...'}
+                                    placeholder={isListeningDesc ? (language === 'tr' ? "Dinliyorum..." : "Listening...") : t.taskDescription + '...'}
                                     placeholderTextColor={theme.onSurfaceVariant + '60'}
                                     value={form.description}
                                     onChangeText={v => setForm(f => ({ ...f, description: v }))}
@@ -978,6 +1049,10 @@ export default function ActionCenter() {
                                     numberOfLines={3}
                                     maxLength={500}
                                 />
+                                <TouchableOpacity onPress={() => toggleVoice('description')} style={{ position: 'absolute', right: S.md, top: 14, padding: S.xs, alignItems: 'center', justifyContent: 'center' }}>
+                                    <VoiceWave active={isListeningDesc} theme={theme} />
+                                    <Mic size={18} color={isListeningDesc ? theme.primary : theme.onSurfaceVariant} />
+                                </TouchableOpacity>
                             </View>
                     </View>
 

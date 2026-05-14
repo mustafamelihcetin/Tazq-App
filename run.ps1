@@ -65,9 +65,10 @@ while ($true) {
     Write-Host "10. [iOS/Build] EAS ile Profesyonel Build Al (IPA)" -ForegroundColor DarkCyan
     Write-Host ""
     Write-Host "--- SISTEM ---" -ForegroundColor Gray
-    Write-Host "6. [FULL STACK] Her Seyi Baslat (DB + API + Mobil App)" -ForegroundColor Green
-    Write-Host "7. [TEMIZLIK] Gecici Dosyalari Temizle" -ForegroundColor Magenta
-    Write-Host "8. Cikis" -ForegroundColor Red
+    Write-Host "6. [FULL STACK] Her Seyi Baslat (DB + API + Mobil App - Expo Go)" -ForegroundColor Green
+    Write-Host "7. [FULL STACK NATIVE] Her Seyi Baslat (DB + API + Android Build - Mikrofon Icin)" -ForegroundColor DarkGreen
+    Write-Host "8. [TEMIZLIK] Gecici Dosyalari Temizle" -ForegroundColor Magenta
+    Write-Host "9. Cikis" -ForegroundColor Red
     Write-Host ""
     
     $choice = Read-Host "Seciminiz"
@@ -129,13 +130,25 @@ while ($true) {
             }
         }
         "7" {
+            if (Test-Frontend-Setup) {
+                if (Start-DockerDB) {
+                    Write-Host "-> Full Stack sistem (Android Native Build) baslatiliyor (Ilk derleme uzun surebilir)..." -ForegroundColor Green
+                    Set-Location $RootPath
+                    $cmd = "npx concurrently -n `"BACKEND,FRONTEND`" -c `"cyan,green`" `"cd Tazq-Backend && dotnet watch run`" `"cd Tazq-Frontend && npm run android`""
+                    Invoke-Expression $cmd
+                } else {
+                    Pause
+                }
+            }
+        }
+        "8" {
             Write-Host "-> Tum gecici dosyalar siliniyor..." -ForegroundColor Yellow
             Get-ChildItem -Path $RootPath -Include bin,obj -Recurse | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
             if (Test-Path "$FrontendPath/.expo") { Remove-Item -Recurse -Force "$FrontendPath/.expo" }
             Write-Host "-> Temizlik tamamlandi." -ForegroundColor Green
             Pause
         }
-        "8" {
+        "9" {
             exit
         }
     }

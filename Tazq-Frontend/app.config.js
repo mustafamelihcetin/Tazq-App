@@ -5,7 +5,7 @@ module.exports = {
     ...baseJson.expo,
     extra: {
       ...baseJson.expo.extra,
-      apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:5200',
+      apiUrl: 'https://api.tazqapp.com',
     },
   },
 };

@@ -43,7 +43,7 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const { tasks, isLoading, setTasks, setLoading, addTask } = useTaskStore();
   const { user } = useAuthStore();
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
