@@ -21,12 +21,7 @@ namespace Tazq_App.Services
             var query = _context.Tasks.Where(t => t.UserId == userId).AsQueryable();
             var key = _cryptoService.GetKeyForUser(userId)!;
 
-            if (!string.IsNullOrEmpty(tag))
-            {
-                var encryptedTag = _cryptoService.Encrypt(tag, key);
-                query = query.Where(t => t.TagsJson.Contains(encryptedTag));
-            }
-
+            // Apply filters that can be done at DB level
             if (isCompleted.HasValue)
                 query = query.Where(t => t.IsCompleted == isCompleted.Value);
 
@@ -36,34 +31,62 @@ namespace Tazq_App.Services
             if (endDate.HasValue)
                 query = query.Where(t => t.DueDate <= endDate.Value);
 
-            var taskList = await query.ToListAsync();
-
-            foreach (var task in taskList)
+            // If we have a search or tag filter, we must pull and decrypt (or implement blind indexing)
+            // For now, let's optimize the non-search path which is 90% of usage
+            if (string.IsNullOrEmpty(search) && string.IsNullOrEmpty(tag))
             {
-                DecryptTask(task, key);
+                var totalCount = await query.CountAsync();
+                
+                // Sort at DB level on non-encrypted fields
+                query = sortBy?.ToLower() switch
+                {
+                    "duedate" => query.OrderBy(t => t.DueDate),
+                    "priority" => query.OrderByDescending(t => t.Priority),
+                    _ => query.OrderByDescending(t => t.CreatedAt)
+                };
+
+                var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+                foreach (var item in items) DecryptTask(item, key);
+                
+                return (items, totalCount);
             }
-
-            if (!string.IsNullOrEmpty(search))
+            else
             {
-                taskList = taskList.Where(t =>
-                    (!string.IsNullOrEmpty(t.Title) && t.Title.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrEmpty(t.Description) && t.Description.Contains(search, StringComparison.OrdinalIgnoreCase))
-                ).ToList();
+                // Fallback for search/tag (requires decryption in memory for now)
+                var allTasks = await query.ToListAsync();
+                foreach (var task in allTasks) DecryptTask(task, key);
+
+                var filtered = allTasks.AsEnumerable();
+
+                if (!string.IsNullOrEmpty(tag))
+                {
+                    filtered = filtered.Where(t => t.Tags != null && t.Tags.Contains(tag, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (!string.IsNullOrEmpty(search))
+                {
+                    filtered = filtered.Where(t =>
+                        (!string.IsNullOrEmpty(t.Title) && t.Title.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrEmpty(t.Description) && t.Description.Contains(search, StringComparison.OrdinalIgnoreCase))
+                    );
+                }
+
+                // Final sorting and pagination in memory
+                var sorted = sortBy?.ToLower() switch
+                {
+                    "duedate" => filtered.OrderBy(t => t.DueDate),
+                    "priority" => filtered.OrderByDescending(t => t.Priority),
+                    "title" => filtered.OrderBy(t => t.Title),
+                    _ => filtered.OrderByDescending(t => t.CreatedAt)
+                };
+
+                var finalCount = sorted.Count();
+                var result = sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+                return (result, finalCount);
             }
-
-            var sorted = sortBy?.ToLower() switch
-            {
-                "duedate" => taskList.OrderBy(t => t.DueDate).ToList(),
-                "priority" => taskList.OrderByDescending(t => t.Priority).ToList(),
-                "title" => taskList.OrderBy(t => t.Title).ToList(),
-                _ => taskList
-            };
-
-            var totalCount = sorted.Count;
-            var paginated = sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-
-            return (paginated, totalCount);
         }
+
 
         public async Task<TaskItem?> GetTaskByIdAsync(int userId, int taskId)
         {

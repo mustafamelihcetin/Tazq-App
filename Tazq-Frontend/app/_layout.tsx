@@ -21,6 +21,12 @@ import { useTaskStore } from '../store/useTaskStore';
 import i18n from 'i18n-js';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import * as SplashScreen from 'expo-splash-screen';
+import { AnimatedSplash } from '../components/AnimatedSplash';
+import { Asset } from 'expo-asset';
+
+// Prevent the native splash screen from auto-hiding
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Defensive native module loader to prevent Expo Go crashes
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -80,17 +86,38 @@ export default function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
   const [isInitialized, setIsInitialized] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+  const [assetsLoaded, setAssetsLoaded] = useState(false);
 
   const { sync } = useLanguageStore();
   const { tasks } = useTaskStore();
 
-  // Wait for fonts to load and sync language
+  // Preload all critical assets
   useEffect(() => {
-    if (fontsLoaded) {
+    async function prepare() {
+      try {
+        // Preload logo images to prevent flashing
+        await Asset.loadAsync([
+          require('../assets/images/tazq_icon.png'),
+          require('../assets/images/tazq_logo_v2_white.png'),
+        ]);
+        setAssetsLoaded(true);
+      } catch (e) {
+        console.warn('Asset preloading failed:', e);
+        setAssetsLoaded(true); // Proceed anyway
+      }
+    }
+    prepare();
+  }, []);
+
+  // Sync language and intelligence when fonts are ready
+  useEffect(() => {
+    if (fontsLoaded && assetsLoaded) {
       sync();
       initIntelligence();
+      // We don't hide the splash here anymore, we wait for AnimatedSplash to mount
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, assetsLoaded]);
 
   // Schedule daily shutdown notification when user is logged in
   useEffect(() => {
@@ -169,6 +196,18 @@ export default function RootLayout() {
     safeNavigationBar(backgroundColor, navStyle);
     */
   }, [colorScheme]);
+
+  if (showSplash || !fontsLoaded || !assetsLoaded) {
+    return (
+      <AnimatedSplash 
+        onFinish={() => setShowSplash(false)} 
+        onReady={() => {
+          // This ensures the native splash only hides when our custom splash is visible
+          SplashScreen.hideAsync().catch(() => {});
+        }} 
+      />
+    );
+  }
 
   return (
     <ErrorBoundary>

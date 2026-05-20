@@ -2,6 +2,7 @@
   "expo": {
     "name": "Tazq",
     "slug": "Tazq-Frontend",
+    "owner": "melihctn",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/tazq_icon.png",
@@ -17,7 +18,10 @@
             "newArchEnabled": false
           },
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0"
           }
         }
       ],
@@ -35,7 +39,7 @@
     "splash": {
       "image": "./assets/images/tazq_splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0F0F0F"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
@@ -43,18 +47,20 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSMicrophoneUsageDescription": "Tazq needs access to the microphone to record your tasks.",
-        "NSSpeechRecognitionUsageDescription": "Tazq needs access to speech recognition to convert your voice to text."
+        "NSSpeechRecognitionUsageDescription": "Tazq needs access to speech recognition to convert your voice to text.",
+        "NSPhotoLibraryUsageDescription": "Tazq needs access to your photo library if you want to attach images to your tasks.",
+        "NSCameraUsageDescription": "Tazq needs access to your camera if you want to take photos for your tasks."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/tazq_icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
       "package": "com.tazqapp.tazq",
-      "backgroundColor": "#09090B",
+      "backgroundColor": "#000000",
       "navigationBar": {
-        "backgroundColor": "#09090B",
+        "backgroundColor": "#000000",
         "barStyle": "light-content"
       }
     },

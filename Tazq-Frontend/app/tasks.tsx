@@ -195,8 +195,21 @@ export default function ActionCenter() {
       onResults: (results: string[]) => {
         if (results.length > 0) {
           const text = results[0];
+          // Use a special internal flag or just set the form directly to avoid trigger loop
           if (field === 'title') {
-            handleTitleChange(text);
+            const hint = parseTaskHint(text);
+            const hasReminderWord = text.toLowerCase().includes('hatırlat') || text.toLowerCase().includes('remind');
+            setForm(f => ({ 
+                ...f, 
+                title: text,
+                dueDate: hint.dueDate || f.dueDate,
+                dueTime: hint.dueTime || f.dueTime,
+                priority: hint.priority || f.priority,
+                reminderEnabled: hasReminderWord ? true : f.reminderEnabled
+            }));
+            if (hint.dueDate || hint.dueTime || hint.priority) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
           } else {
             setForm(f => ({ ...f, description: text }));
           }
@@ -292,7 +305,22 @@ export default function ActionCenter() {
     }
   };
 
+  const handleDescriptionChange = (text: string) => {
+    // If user is manually typing, stop voice recognition
+    if (isListeningDesc) {
+      VoiceService.stop().catch(() => {});
+      setIsListeningDesc(false);
+    }
+    setForm(f => ({ ...f, description: text }));
+  };
+
   const handleTitleChange = (text: string) => {
+    // If user is manually typing, stop voice recognition to prevent conflicts
+    if (isListeningTitle) {
+      VoiceService.stop().catch(() => {});
+      setIsListeningTitle(false);
+    }
+
     const hint = parseTaskHint(text);
     const hasReminderWord = text.toLowerCase().includes('hatırlat') || text.toLowerCase().includes('remind');
     
@@ -1044,7 +1072,7 @@ export default function ActionCenter() {
                                     placeholder={isListeningDesc ? (language === 'tr' ? "Dinliyorum..." : "Listening...") : t.taskDescription + '...'}
                                     placeholderTextColor={theme.onSurfaceVariant + '60'}
                                     value={form.description}
-                                    onChangeText={v => setForm(f => ({ ...f, description: v }))}
+                                    onChangeText={handleDescriptionChange}
                                     multiline
                                     numberOfLines={3}
                                     maxLength={500}
