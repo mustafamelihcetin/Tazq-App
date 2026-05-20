@@ -22,8 +22,6 @@ services:
   tazq-redis:
     image: redis:alpine
     container_name: tazq-redis
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     restart: unless-stopped
