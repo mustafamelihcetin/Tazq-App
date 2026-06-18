@@ -5,14 +5,11 @@ import { TazqLogo } from './TazqLogo';
 
 export const AnimatedSplash = ({ onFinish, onReady }: { onFinish: () => void, onReady: () => void }) => {
   useEffect(() => {
-    // Notify that we are ready to take over the screen
     onReady();
-
-    const timer = setTimeout(() => {
-      onFinish();
-    }, 2000);
+    const timer = setTimeout(onFinish, 2000);
     return () => clearTimeout(timer);
-  }, [onFinish, onReady]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <View style={styles.container}>

@@ -33,6 +33,7 @@ interface FocusState {
   togglePomodoroMode: () => void;
   nextPomodoroPhase: () => void;
   useStreakFreeze: () => void;
+  checkStreakFreezeReset: () => void;
 }
 
 const getISODate = () => new Date().toISOString().split('T')[0];
@@ -147,6 +148,14 @@ export const useFocusStore = create<FocusState>()(
 
       useStreakFreeze: () => {
         set({ streakFreezeAvailable: false, streakFreezeUsedWeek: getISOWeek() });
+      },
+
+      checkStreakFreezeReset: () => {
+        const { streakFreezeUsedWeek } = get();
+        const currentWeek = getISOWeek();
+        if (streakFreezeUsedWeek && streakFreezeUsedWeek !== currentWeek) {
+          set({ streakFreezeAvailable: true, streakFreezeUsedWeek: '' });
+        }
       },
     }),
     {

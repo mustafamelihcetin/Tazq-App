@@ -16,13 +16,16 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { initIntelligence } from '../utils/taskIntelligence';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { scheduleShutdownNotification, requestNotificationPermissions } from '../utils/notifications';
+import { scheduleShutdownNotification, requestNotificationPermissions, showFocusNotification, cancelFocusNotification } from '../utils/notifications';
 import { useTaskStore } from '../store/useTaskStore';
-import i18n from 'i18n-js';
+import { useFocusStore } from '../store/useFocusStore';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
 import { AnimatedSplash } from '../components/AnimatedSplash';
+import { OfflineBanner } from '../components/OfflineBanner';
+import { FocusIsland } from '../components/FocusIsland';
+import { Toast } from '../components/Toast';
 import { Asset } from 'expo-asset';
 
 // Prevent the native splash screen from auto-hiding
@@ -89,8 +92,9 @@ export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
   const [assetsLoaded, setAssetsLoaded] = useState(false);
 
-  const { sync } = useLanguageStore();
+  const { sync, language } = useLanguageStore();
   const { tasks } = useTaskStore();
+  const focusActive = useFocusStore((s) => s.isActive);
 
   // Preload all critical assets
   useEffect(() => {
@@ -119,13 +123,40 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, assetsLoaded]);
 
+  // Global focus timer — keeps ticking across all screens without re-rendering layout
+  useEffect(() => {
+    if (!focusActive) {
+      cancelFocusNotification();
+      return;
+    }
+
+    // Show notification immediately when focus starts
+    const { seconds: initSecs, currentTask } = useFocusStore.getState();
+    showFocusNotification(currentTask, initSecs, language || 'en');
+
+    const interval = setInterval(() => {
+      const { seconds, tick, currentTask: task, isActive } = useFocusStore.getState();
+      if (!isActive || seconds <= 0) return;
+      tick();
+      // Update notification every 15 seconds
+      if (seconds % 15 === 0) {
+        showFocusNotification(task, seconds, language || 'en');
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      cancelFocusNotification();
+    };
+  }, [focusActive]);
+
   // Schedule daily shutdown notification when user is logged in
   useEffect(() => {
     if (!isLoggedIn) return;
     requestNotificationPermissions().then((granted) => {
       if (!granted) return;
       const pending = tasks.filter(t => !t.isCompleted).length;
-      scheduleShutdownNotification(pending, i18n.locale || 'en');
+      scheduleShutdownNotification(pending, language || 'en');
     });
   }, [isLoggedIn]);
 
@@ -137,8 +168,12 @@ export default function RootLayout() {
       const Notifications = require('expo-notifications');
       sub = Notifications.addNotificationResponseReceivedListener((response: any) => {
         const taskId = response?.notification?.request?.content?.data?.taskId;
-        if (taskId && isLoggedIn) {
-          router.push({ pathname: '/tasks', params: { action: 'add' } });
+        if (isLoggedIn) {
+          if (taskId) {
+            router.push({ pathname: '/tasks', params: { highlightId: String(taskId) } });
+          } else {
+            router.push('/tasks');
+          }
         }
       });
     } catch (_) {}
@@ -230,7 +265,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <View style={{ flex: 1, backgroundColor: theme.background }}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        
+
         <Stack
           screenOptions={{
             headerShown: false,
@@ -244,6 +279,10 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ gestureEnabled: false }} />
           <Stack.Screen name="tasks" options={{ gestureEnabled: false }} />
         </Stack>
+
+        <OfflineBanner />
+        <FocusIsland />
+        <Toast />
       </View>
     </SafeAreaProvider>
     </ErrorBoundary>

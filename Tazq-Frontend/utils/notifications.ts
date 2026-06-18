@@ -116,3 +116,41 @@ export async function cancelAllNotifications(): Promise<void> {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch (_) {}
 }
+
+const FOCUS_NOTIF_ID = 'tazq-focus-live';
+
+export async function showFocusNotification(
+  taskName: string,
+  secondsRemaining: number,
+  locale: string = 'en'
+): Promise<void> {
+  if (!Notifications) return;
+  try {
+    const isTR = locale === 'tr';
+    const m = Math.floor(secondsRemaining / 60);
+    const s = secondsRemaining % 60;
+    const timeStr = `${m}:${s.toString().padStart(2, '0')}`;
+    const label = taskName || (isTR ? 'Odak' : 'Focus');
+
+    await Notifications.dismissNotificationAsync(FOCUS_NOTIF_ID).catch(() => {});
+    await Notifications.scheduleNotificationAsync({
+      identifier: FOCUS_NOTIF_ID,
+      content: {
+        title: isTR ? '🎯 Derin Odak Aktif' : '🎯 Deep Focus Active',
+        body: `${label} · ${timeStr} ${isTR ? 'kaldı' : 'remaining'}`,
+        sound: false,
+        sticky: true,
+        data: { type: 'focus' },
+      },
+      trigger: null,
+    });
+  } catch (_) {}
+}
+
+export async function cancelFocusNotification(): Promise<void> {
+  if (!Notifications) return;
+  try {
+    await Notifications.dismissNotificationAsync(FOCUS_NOTIF_ID).catch(() => {});
+    await Notifications.cancelScheduledNotificationAsync(FOCUS_NOTIF_ID).catch(() => {});
+  } catch (_) {}
+}

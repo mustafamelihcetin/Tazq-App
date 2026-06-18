@@ -290,15 +290,25 @@ export default function OnboardingScreen() {
         <View style={styles.footer}>
           <View style={styles.indicatorContainer}>
             {SLIDES.map((_, index) => (
-              <MotiView 
+              <MotiView
                 key={index}
-                animate={{ 
-                    width: currentIndex === index ? 32 : 8,
-                    backgroundColor: currentIndex === index ? theme.primary : theme.outlineVariant 
+                animate={{
+                    width: currentIndex === index ? 28 : 8,
+                    opacity: currentIndex === index ? 1 : 0.35,
+                    backgroundColor: currentIndex === index ? theme.primary : theme.onSurfaceVariant,
                 }}
                 style={styles.indicator}
               />
             ))}
+            {currentIndex < SLIDES.length - 1 && (
+              <MotiView
+                animate={{ translateX: [0, 6, 0], opacity: [0.5, 1, 0.5] }}
+                transition={{ loop: true, duration: 1600 }}
+                style={{ position: 'absolute', right: -28 }}
+              >
+                <ChevronRight size={16} color={theme.onSurfaceVariant} />
+              </MotiView>
+            )}
           </View>
 
           <TouchableOpacity 
@@ -351,7 +361,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: 'Jakarta-ExtraBold', textAlign: 'center', letterSpacing: -2.5 },
   sub: { fontWeight: '500', textAlign: 'center', lineHeight: 22, paddingHorizontal: 4 },
   footer: { paddingHorizontal: 32, paddingBottom: Platform.OS === 'ios' ? 16 : 24, gap: 16 },
-  indicatorContainer: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  indicatorContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, position: 'relative', paddingRight: 16 },
   indicator: { height: 8, borderRadius: 4 },
   nextBtn: { borderRadius: 28, width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   clayShadow: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 15 },

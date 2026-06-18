@@ -15,7 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { requestNotificationPermissions } from '../utils/notifications';
 import { S, R, F } from '../constants/tokens';
-
+import { useToastStore } from '../store/useToastStore';
 import { AVATAR_CONFIGS, getAvatarSource } from '../utils/avatars';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
@@ -27,8 +27,9 @@ export default function ProfileScreen() {
   const { width, height } = useWindowDimensions();
   const router = useRouter();
   const isDark = colorScheme === 'dark';
+  const { show: showToast } = useToastStore();
 
-  const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak } = useFocusStore();
+  const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset } = useFocusStore();
 
   // isSmallDevice / isShortDevice removed — design tokens used instead
 
@@ -50,6 +51,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     const show = Keyboard.addListener('keyboardWillShow', e => setKbHeight(e.endCoordinates.height));
     const hide = Keyboard.addListener('keyboardWillHide', () => setKbHeight(0));
+    checkStreakFreezeReset();
     return () => { show.remove(); hide.remove(); };
   }, []);
 
@@ -86,8 +88,13 @@ export default function ProfileScreen() {
       setUser({ ...user, avatar: selectedAvatar, name: newName });
       setDailyGoal(selectedGoal);
       setEditModalVisible(false);
-    } catch (e) {
-      console.log('Profile update failed:', e);
+      showToast(t.toastProfileUpdated, 'success');
+    } catch (e: any) {
+      if (!e.response) {
+        showToast(t.toastProfileNoConn, 'error');
+      } else {
+        showToast(t.toastProfileFailed, 'error');
+      }
     } finally {
       setSavingProfile(false);
     }
@@ -96,29 +103,19 @@ export default function ProfileScreen() {
   const toggleNotifications = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (notifEnabled) {
-      Alert.alert(
-        t.notifications,
-        language === 'tr' ? 'Bildirimleri kapatmak için sistem ayarlarını aç.' : 'Open system settings to disable notifications.',
-        [
-          { text: t.cancel, style: 'cancel' },
-          { text: language === 'tr' ? 'Ayarları Aç' : 'Open Settings', onPress: () => Linking.openSettings() },
-        ]
-      );
+      Alert.alert(t.notifications, t.notifDisableHint, [
+        { text: t.cancel, style: 'cancel' },
+        { text: t.openSettings, onPress: () => Linking.openSettings() },
+      ]);
     } else {
       const granted = await requestNotificationPermissions();
       if (granted) {
         setNotifEnabled(true);
       } else {
-        Alert.alert(
-          t.notifications,
-          language === 'tr'
-            ? 'Bildirimlere izin vermek için sistem ayarlarını açın.'
-            : 'Please enable notifications in system settings.',
-          [
-            { text: t.cancel, style: 'cancel' },
-            { text: language === 'tr' ? 'Ayarları Aç' : 'Open Settings', onPress: () => Linking.openSettings() },
-          ]
-        );
+        Alert.alert(t.notifications, t.notifEnableHint, [
+          { text: t.cancel, style: 'cancel' },
+          { text: t.openSettings, onPress: () => Linking.openSettings() },
+        ]);
       }
     }
   };
@@ -143,14 +140,10 @@ export default function ProfileScreen() {
 
   const handleStreakFreeze = () => {
     if (!streakFreezeAvailable) return;
-    Alert.alert(
-      t.streakFreeze || 'Streak Shield',
-      language === 'tr' ? 'Serisini korumak için Seri Kalkanı kullan?' : 'Use streak freeze to protect your streak?',
-      [
-        { text: t.cancel, style: 'cancel' },
-        { text: language === 'tr' ? 'Kullan' : 'Use', onPress: () => { useStreakFreeze(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } }
-      ]
-    );
+    Alert.alert(t.streakFreeze, t.streakFreezeConfirm, [
+      { text: t.cancel, style: 'cancel' },
+      { text: t.streakFreezeUse, onPress: () => { useStreakFreeze(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } }
+    ]);
   };
 
   const displayBestStreak = Math.max(bestStreak, stats.activeStreak);

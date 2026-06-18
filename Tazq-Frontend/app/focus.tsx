@@ -75,12 +75,10 @@ export default function FocusScreen() {
     return () => sub.remove();
   }, [currentTask]);
 
+  // Timer is managed globally in _layout.tsx so it keeps running across screens.
+  // Here we only handle session completion logic.
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    if (isActive && seconds > 0) {
-      completedRef.current = false;
-      interval = setInterval(() => tick(), 1000);
-    } else if (seconds === 0 && totalSeconds > 0 && !completedRef.current) {
+    if (seconds === 0 && totalSeconds > 0 && !completedRef.current) {
       completedRef.current = true;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 300);
@@ -92,7 +90,7 @@ export default function FocusScreen() {
       setSummaryCompleted(true);
       setSummaryVisible(true);
     }
-    return () => { if (interval) clearInterval(interval); };
+    if (isActive) completedRef.current = false;
   }, [isActive, seconds]);
 
   const toggleTimer = () => {
@@ -150,9 +148,9 @@ export default function FocusScreen() {
           >
             <X size={20} color={theme.onSurface} />
           </TouchableOpacity>
-          <View style={[styles.badge, { backgroundColor: theme.primary + '10' }]}>
-            <Sparkles size={12} color={theme.primary} />
-            <Text style={[styles.badgeText, { color: theme.primary, fontSize: F.caption }]}>{t.deepFocus}</Text>
+          <View style={[styles.badge, { backgroundColor: theme.primary + '15', borderWidth: 0 }]}>
+            <Sparkles size={11} color={theme.primary} />
+            <Text style={[styles.badgeText, { color: theme.primary, fontSize: F.caption, letterSpacing: 1 }]}>{t.focusLabel || t.deepFocus}</Text>
           </View>
         </View>
 
@@ -443,6 +441,18 @@ export default function FocusScreen() {
                 {currentTask}
               </Text>
             )}
+
+            {/* Coaching message */}
+            <View style={{ width: '100%', backgroundColor: (summaryCompleted ? theme.primaryContainer : theme.secondaryContainer) + '60', borderRadius: R.md, padding: S.md, gap: 4 }}>
+              <Text style={{ fontSize: F.body, fontWeight: '700', color: summaryCompleted ? theme.primary : theme.secondary, lineHeight: 20 }}>
+                {summaryCompleted ? t.summaryCoachCompleted : t.summaryCoachGoodStart}
+              </Text>
+              {summaryCompleted && (
+                <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.7 }}>
+                  {t.summaryBreakSuggestion}
+                </Text>
+              )}
+            </View>
 
             {/* Divider */}
             <View style={{ width: '100%', height: 1, backgroundColor: theme.onSurface + '12', marginVertical: S.xs }} />

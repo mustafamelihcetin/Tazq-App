@@ -23,6 +23,7 @@ import { parseTaskHint } from '../utils/taskParser';
 import { getSmartInsight } from '../utils/insights';
 import { S, R, F } from '../constants/tokens';
 import { getAvatarSource } from '../utils/avatars';
+import { useToastStore } from '../store/useToastStore';
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { show: showToast } = useToastStore();
 
   // Focus Store
   const { isActive, seconds, setCurrentTask, setDuration, setIsActive, dailyFocusMinutes, dailyGoalMinutes, updateBestStreak } = useFocusStore();
@@ -142,17 +144,13 @@ export default function HomeScreen() {
 
         setDraftTitle('');
         setQuickDraftVisible(false);
-        
-        Alert.alert(
-            "✍️ " + t.taskAdded,
-            `"${payload.title}" ${language === 'tr' ? 'başarıyla eklendi.' : 'added successfully.'}`,
-            [
-                { text: t.cancel, style: 'cancel' },
-                { text: language === 'tr' ? 'Listeyi Aç' : 'View List', onPress: () => router.push('/tasks') }
-            ]
-        );
-    } catch (error) {
-        Alert.alert(t.errorTitle, t.saveError);
+        showToast(`"${payload.title}" ${t.toastTaskAdded}`, 'success');
+    } catch (error: any) {
+        if (!error.response) {
+          showToast(t.toastNoConnection, 'error');
+        } else {
+          showToast(t.saveError, 'error');
+        }
     } finally {
         setIsSavingDraft(false);
     }
@@ -160,6 +158,16 @@ export default function HomeScreen() {
 
   // Compute metrics
   const weeklyMinutes = weeklyFocus.reduce((s: number, d: any) => s + (d.minutes || 0), 0);
+
+  // Trend: compare second half of week vs first half as a proxy for week-over-week direction
+  const weekTrend = (() => {
+    if (weeklyFocus.length < 4) return null;
+    const half = Math.floor(weeklyFocus.length / 2);
+    const firstHalf = weeklyFocus.slice(0, half).reduce((s: number, d: any) => s + (d.minutes || 0), 0);
+    const secondHalf = weeklyFocus.slice(half).reduce((s: number, d: any) => s + (d.minutes || 0), 0);
+    if (firstHalf === 0) return null;
+    return Math.round(((secondHalf - firstHalf) / firstHalf) * 100);
+  })();
   const completedCount = tasks.filter(t => t.isCompleted).length;
   const totalCount = tasks.length || 1;
   const completionRate = completedCount / totalCount;
@@ -439,11 +447,20 @@ export default function HomeScreen() {
                         <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
                             {t.weeklyFocusLabel}
                         </Text>
-                        <Text style={{ fontSize: F.caption, fontWeight: '900', color: theme.primary }}>
-                            {weeklyMinutes >= 60
-                                ? `${Math.floor(weeklyMinutes / 60)}sa ${weeklyMinutes % 60}dk`
-                                : `${weeklyMinutes}dk`}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            {weekTrend !== null && (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: weekTrend >= 0 ? theme.tertiary + '18' : '#ff3b3018', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+                                    <Text style={{ fontSize: 10, fontWeight: '900', color: weekTrend >= 0 ? theme.tertiary : '#ff3b30' }}>
+                                        {weekTrend >= 0 ? '↑' : '↓'}{Math.abs(weekTrend)}%
+                                    </Text>
+                                </View>
+                            )}
+                            <Text style={{ fontSize: F.caption, fontWeight: '900', color: theme.primary }}>
+                                {weeklyMinutes >= 60
+                                    ? `${Math.floor(weeklyMinutes / 60)}sa ${weeklyMinutes % 60}dk`
+                                    : `${weeklyMinutes}dk`}
+                            </Text>
+                        </View>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 52, gap: S.xs }}>
                         {(statsLoading
@@ -511,7 +528,7 @@ export default function HomeScreen() {
                         </View>
                     </BentoCard>
 
-                    <BentoCard index={3} style={{ flex: 1, minHeight: 144 }} onPress={() => Alert.alert('Momentum', language === 'tr' ? 'Görev tamamlama (%40) + haftalık odak (%35) + seri uzunluğu (%25) kombinasyonuyla hesaplanır.' : 'Calculated from task completion (40%) + weekly focus (35%) + streak length (25%).')}>
+                    <BentoCard index={3} style={{ flex: 1, minHeight: 144 }} onPress={() => Alert.alert('Momentum', t.momentumTooltip)}>
                         <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>MOMENTUM</Text>
                         <View style={{ flex: 1, justifyContent: 'center' }}>
                             <MotiView animate={{ opacity: statsLoading ? [0.4, 0.9, 0.4] : 1 }} transition={{ loop: statsLoading, duration: 1400 }}>

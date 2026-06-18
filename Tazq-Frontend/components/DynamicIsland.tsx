@@ -39,48 +39,58 @@ export const DynamicIsland = () => {
       animate={{ opacity: 1, scale: 1 }}
       style={styles.container}
     >
-      <TouchableOpacity 
+      <TouchableOpacity
         onPress={handlePress}
         activeOpacity={0.9}
         style={[
-            styles.wrapper, 
-            { 
+            styles.wrapper,
+            {
                 backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerLowest,
-                borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                borderColor: isActive ? theme.primary + '40' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                borderWidth: isActive ? 1.5 : 1.2,
             }
         ]}
       >
         <View style={styles.content}>
             <View style={[styles.iconCircle, { backgroundColor: isActive ? theme.primaryContainer : theme.surfaceContainerHigh }]}>
-                <Zap size={20} color={isActive ? theme.onPrimaryContainer : theme.onSurfaceVariant} fill={isActive ? theme.onPrimaryContainer : 'none'} />
+                {isActive ? (
+                  <MotiView
+                    animate={{ scale: [1, 1.15, 1] }}
+                    transition={{ loop: true, duration: 1800 }}
+                  >
+                    <Zap size={20} color={theme.onPrimaryContainer} fill={theme.onPrimaryContainer} />
+                  </MotiView>
+                ) : (
+                  <Zap size={20} color={theme.onSurfaceVariant} />
+                )}
             </View>
-            
+
             <View style={styles.textContainer}>
-                <Text style={[styles.label, { color: isDark ? theme.secondary : theme.onSurfaceVariant }]}>
+                <Text style={[styles.label, { color: isActive ? theme.primary : (isDark ? theme.secondary : theme.onSurfaceVariant) }]}>
                     {isActive ? t.activeFocus : t.dailyGoal}
                 </Text>
                 <Text style={[styles.title, { color: theme.onSurface }]} numberOfLines={1}>
-                    {isActive ? currentTask : 'Finalize Design System'}
+                    {isActive ? (currentTask || t.focusSession) : t.focusReady}
                 </Text>
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
                 onPress={handlePress}
                 style={[
-                    styles.actionButton, 
-                    { 
-                        backgroundColor: theme.primary,
-                        shadowColor: isDark ? theme.primary : '#000',
+                    styles.actionButton,
+                    {
+                        backgroundColor: isActive ? '#34c759' : theme.primary,
+                        shadowColor: isActive ? '#34c759' : (isDark ? theme.primary : '#000'),
                     }
                 ]}
             >
                 <LinearGradient
-                    colors={isDark ? [theme.primary, theme.primaryDim] : [theme.primary, theme.primaryContainer]}
+                    colors={isActive ? ['#34c759', '#30d158'] : (isDark ? [theme.primary, theme.primaryDim] : [theme.primary, theme.primaryContainer])}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.btnGradient}
                 >
-                    <Text style={[styles.actionText, { color: theme.onPrimary }]}>
+                    <Text style={[styles.actionText, { color: '#fff' }]}>
                         {isActive ? formatTime(seconds) : t.start}
                     </Text>
                 </LinearGradient>

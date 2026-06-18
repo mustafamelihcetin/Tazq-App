@@ -1,9 +1,9 @@
 ﻿import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, PanResponder, Animated as RNAnimated, AppState, Keyboard } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
-import Animated, { Layout, useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Layout } from 'react-native-reanimated';
 import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, ArrowLeft, Search, SlidersHorizontal, CheckSquare } from 'lucide-react-native';
 import { SubtaskProgressRing } from '../components/SubtaskProgressRing';
 import { BentoCard } from '../components/BentoCard';
@@ -17,6 +17,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '../services/api';
 import { parseTaskHint } from '../utils/taskParser';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import { SwipeableItem } from '../components/SwipeableItem';
+import { useToastStore } from '../store/useToastStore';
 import { categorizeTask } from '../utils/taskIntelligence';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
@@ -48,73 +50,6 @@ const VoiceWave = ({ active, theme }: { active: boolean; theme: any }) => (
     />
 );
 
-const SwipeableItem = ({ children, onDelete, isDark, theme }: any) => {
-  const translateX = useSharedValue(0);
-  const deleteOpacity = useSharedValue(0);
-  const startTranslateX = useSharedValue(0);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
-      },
-      onPanResponderGrant: () => {
-        startTranslateX.value = translateX.value;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        const newX = Math.min(0, startTranslateX.value + gestureState.dx);
-        translateX.value = newX;
-        deleteOpacity.value = Math.min(Math.abs(newX) / 80, 1);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const totalTranslate = startTranslateX.value + gestureState.dx;
-        const isFastSwipe = gestureState.vx < -0.5;
-        const isOpening = totalTranslate < -40;
-
-        if (isFastSwipe || isOpening) {
-          translateX.value = withSpring(-80, { damping: 15, stiffness: 100 });
-          deleteOpacity.value = withTiming(1);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        } else {
-          translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
-          deleteOpacity.value = withTiming(0);
-        }
-      },
-      onPanResponderTerminate: () => {
-        translateX.value = withSpring(translateX.value < -40 ? -80 : 0);
-      }
-    })
-  ).current;
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-
-  const actionStyle = useAnimatedStyle(() => ({
-    opacity: deleteOpacity.value,
-    transform: [{ 
-      scale: withSpring(deleteOpacity.value > 0.5 ? 1 : 0.8) 
-    }],
-  }));
-
-  return (
-    <View style={{ position: 'relative', marginBottom: S.sm }}>
-      <View style={[StyleSheet.absoluteFill, { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingRight: S.md }]}>
-        <Animated.View style={[actionStyle]}>
-          <TouchableOpacity
-            onPress={onDelete}
-            style={{ width: 48, height: 48, borderRadius: R.full, backgroundColor: '#ff3b30', justifyContent: 'center', alignItems: 'center' }}
-          >
-            <Trash2 size={22} color="white" />
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-      <Animated.View {...panResponder.panHandlers} style={[animatedStyle]}>
-        {children}
-      </Animated.View>
-    </View>
-  );
-};
 
 type FilterType = 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done';
 
@@ -154,10 +89,13 @@ export default function ActionCenter() {
   const isDark = colorScheme === 'dark';
   const { tasks, toggleTaskCompletion, addTask, removeTask, updateTask, setTasks, setLoading, isLoading, toggleSubtask } = useTaskStore();
   const { t, language } = useLanguageStore();
+  const { show: showToast } = useToastStore();
   const { width, height } = useWindowDimensions();
   const router = useRouter();
-  const { action } = useLocalSearchParams();
+  const { action, highlightId } = useLocalSearchParams<{ action?: string; highlightId?: string }>();
   const insets = useSafeAreaInsets();
+  const [highlightedId, setHighlightedId] = useState<number | null>(null);
+  const scrollViewRef = useRef<any>(null);
 
   // isSmallDevice / isShortDevice removed — design tokens used instead
 
@@ -304,10 +242,17 @@ export default function ActionCenter() {
     if (action === 'add') {
       setTimeout(() => openAdd(), 400);
     }
+    if (highlightId) {
+      const id = Number(highlightId);
+      setHighlightedId(id);
+      setExpandedId(id);
+      // Clear highlight after 3 seconds
+      setTimeout(() => setHighlightedId(null), 3000);
+    }
     return () => {
       VoiceService.destroy();
     };
-  }, [action]);
+  }, [action, highlightId]);
 
   // Refresh tasks when returning from background (keeps "today" filter accurate after midnight)
   useEffect(() => {
@@ -467,10 +412,10 @@ export default function ActionCenter() {
         priority: task.priority as any,
         isCompleted: isCompleting
       });
-    } catch (error) {
-      // Rollback on failure
+    } catch (error: any) {
       toggleTaskCompletion(id);
-      console.warn('Completion toggle failed:', error);
+      const isNetwork = !error.response;
+      showToast(isNetwork ? t.toastChangeReverted : t.toastUpdateFailed, 'error');
     }
   };
 
@@ -621,8 +566,12 @@ export default function ActionCenter() {
       setNewSubtaskText('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
-      const serverMsg = err.response?.data?.message || err.response?.data?.Message || err.message;
-      Alert.alert(t.errorTitle, `${t.saveError}: ${serverMsg}`);
+      if (!err.response) {
+        showToast(t.toastSaveFailed, 'error');
+      } else {
+        const serverMsg = err.response?.data?.message || err.response?.data?.Message || err.message;
+        Alert.alert(t.errorTitle, `${t.saveError}: ${serverMsg}`);
+      }
     } finally {
       setSaving(false);
     }
@@ -679,7 +628,7 @@ export default function ActionCenter() {
     if (selectedIds.size === 0) return;
     Alert.alert(
       t.deleteTask,
-      language === 'tr' ? `${selectedIds.size} görev silinsin mi?` : `Delete ${selectedIds.size} tasks?`,
+      `${selectedIds.size} ${t.bulkDeleteConfirm}`,
       [
         { text: t.cancel, style: 'cancel' },
         { text: t.delete, style: 'destructive', onPress: async () => {
@@ -711,7 +660,7 @@ export default function ActionCenter() {
     if (completedTasks.length === 0) return;
     Alert.alert(
       t.clearCompleted,
-      language === 'tr' ? `${completedTasks.length} tamamlanan görev silinsin mi?` : `Delete ${completedTasks.length} completed tasks?`,
+      `${completedTasks.length} ${t.clearCompletedConfirm}`,
       [
         { text: t.cancel, style: 'cancel' },
         { text: t.delete, style: 'destructive', onPress: async () => {
@@ -734,7 +683,7 @@ export default function ActionCenter() {
                 <X size={22} color={theme.onSurface} />
               </TouchableOpacity>
               <Text style={[styles.headerTitle, { color: theme.onSurface }]}>
-                {selectedIds.size > 0 ? `${selectedIds.size} ${language === 'tr' ? 'seçildi' : 'selected'}` : t.cancelSelection}
+                {selectedIds.size > 0 ? `${selectedIds.size} ${t.selectedCount}` : t.cancelSelection}
               </Text>
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 <TouchableOpacity onPress={() => setSelectedIds(new Set(filteredTasks.map(t => t.id)))} style={styles.headerIconBtn}>
@@ -815,8 +764,9 @@ export default function ActionCenter() {
           )}
         </AnimatePresence>
 
-        <ScrollView 
-            style={{ flex: 1 }} 
+        <ScrollView
+            ref={scrollViewRef}
+            style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingTop: 10, paddingBottom: 140, paddingHorizontal: S.lg }}
         >
@@ -910,24 +860,8 @@ export default function ActionCenter() {
                 >
                     {t.upcoming}
                 </Text>
-                <TouchableOpacity 
-                    onPress={() => {
-                        const doneCount = tasks.filter(t => t.isCompleted).length;
-                        if (doneCount === 0) return;
-                        const isTR = language === 'tr';
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        Alert.alert(t.clearCompleted || 'Clear Done', isTR ? `${doneCount} adet tamamlanmış görev temizlensin mi?` : `Clear ${doneCount} completed tasks?`, [
-                            { text: t.cancel, style: 'cancel' },
-                            { text: t.delete, style: 'destructive', onPress: async () => {
-                                const doneTasks = tasks.filter(t => t.isCompleted);
-                                for (const dt of doneTasks) {
-                                    removeTask(dt.id);
-                                    await cancelTaskNotification(dt.id);
-                                    TaskService.deleteTask(dt.id).catch(() => {});
-                                }
-                            }}
-                        ]);
-                    }}
+                <TouchableOpacity
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleClearCompleted(); }}
                     style={{ padding: 4 }}
                 >
                     <Trash2 size={16} color={theme.onSurfaceVariant + '80'} />
@@ -951,9 +885,8 @@ export default function ActionCenter() {
                     filteredTasks.map((task, i) => (
                         <SwipeableItem
                             key={task.id}
-                            onDelete={isBulkMode ? () => {} : () => handleDelete(task.id)}
-                            isDark={isDark}
-                            theme={theme}
+                            onDelete={() => handleDelete(task.id)}
+                            disabled={isBulkMode}
                         >
                             <MotiView 
                                 layout={Layout.duration(300)}
@@ -996,8 +929,8 @@ export default function ActionCenter() {
                                         styles.taskCard,
                                         {
                                             backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest,
-                                            borderColor: isBulkMode && selectedIds.has(task.id) ? theme.primary : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)'),
-                                            borderWidth: isBulkMode && selectedIds.has(task.id) ? 2 : 1,
+                                            borderColor: highlightedId === task.id ? theme.secondary : (isBulkMode && selectedIds.has(task.id) ? theme.primary : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)')),
+                                            borderWidth: (highlightedId === task.id || (isBulkMode && selectedIds.has(task.id))) ? 2 : 1,
                                             padding: S.md,
                                             flexDirection: 'column',
                                             alignItems: 'stretch'
@@ -1132,7 +1065,7 @@ export default function ActionCenter() {
                                                 </Text>
                                             ) : (
                                                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontStyle: 'italic', marginBottom: S.sm }}>
-                                                    {language === 'tr' ? 'Açıklama eklenmemiş' : 'No description'}
+                                                    {t.noDescription}
                                                 </Text>
                                             )}
                                             
@@ -1156,9 +1089,16 @@ export default function ActionCenter() {
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                                                     <TrendingUp size={13} color={priorityColor(task.priority)} />
                                                     <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
-                                                        {task.priority === 'High' ? (language === 'tr' ? 'Yüksek' : 'High') :
-                                                         task.priority === 'Medium' ? (language === 'tr' ? 'Orta' : 'Medium') :
-                                                         (language === 'tr' ? 'Düşük' : 'Low')}
+                                                        {task.priority === 'High' ? t.priorityHigh :
+                                                         task.priority === 'Medium' ? t.priorityMedium :
+                                                         t.priorityLow}
+                                                    </Text>
+                                                </View>
+
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                                                    <Timer size={13} color={theme.tertiary} />
+                                                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.tertiary }}>
+                                                        {estimateDuration(task)}
                                                     </Text>
                                                 </View>
                                             </View>
@@ -1223,7 +1163,7 @@ export default function ActionCenter() {
 
             {filteredTasks.length > 0 && !isBulkMode && (
               <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: isDark ? 0.5 : 0.35, textAlign: 'center', marginTop: S.md, fontWeight: '600', letterSpacing: 0.3 }}>
-                {language === 'tr' ? 'Düzenlemek için uzun bas · Silmek için sola kaydır' : 'Long press to select · Swipe left to delete'}
+                {t.swipeHint}
               </Text>
             )}
           </View>
@@ -1317,7 +1257,7 @@ export default function ActionCenter() {
                         <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 60 }]}>
                                 <TextInput
                                     style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
-                                    placeholder={isListeningTitle ? (language === 'tr' ? "Dinliyorum..." : "Listening...") : t.taskTitle}
+                                    placeholder={isListeningTitle ? t.listeningLabel : t.taskTitle}
                                     placeholderTextColor={theme.onSurfaceVariant + '60'}
                                     value={form.title}
                                     onChangeText={handleTitleChange}
@@ -1345,7 +1285,7 @@ export default function ActionCenter() {
                             <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, marginTop: S.sm, height: 100 }]}>
                                 <TextInput
                                     style={[styles.modalInput, { color: theme.onSurface, paddingTop: S.sm, fontSize: F.body }]}
-                                    placeholder={isListeningDesc ? (language === 'tr' ? "Dinliyorum..." : "Listening...") : t.taskDescription + '...'}
+                                    placeholder={isListeningDesc ? t.listeningLabel : t.taskDescription + '...'}
                                     placeholderTextColor={theme.onSurfaceVariant + '60'}
                                     value={form.description}
                                     onChangeText={handleDescriptionChange}
@@ -1538,7 +1478,7 @@ export default function ActionCenter() {
                         >
                             <Bell size={18} color={form.reminderEnabled ? '#ff9f0a' : theme.onSurfaceVariant} />
                             <Text style={{ flex: 1, fontSize: F.body, fontWeight: '700', color: form.reminderEnabled ? '#ff9f0a' : theme.onSurfaceVariant, marginLeft: S.sm }}>
-                                {language === 'tr' ? 'Hatırlatıcı' : 'Reminder'}
+                                {t.reminderLabel}
                             </Text>
                             <View style={{
                                 width: 44, height: 26, borderRadius: 13,

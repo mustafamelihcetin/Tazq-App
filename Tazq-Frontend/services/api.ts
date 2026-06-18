@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
+import { useNetworkStore } from '../store/useNetworkStore';
 import { Platform } from 'react-native';
 
 const BASE_URL = 'https://api.tazqapp.com';
@@ -26,9 +27,19 @@ const RETRY_STATUS_CODES = [502, 503, 504];
 const MAX_RETRIES = 2;
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    useNetworkStore.getState().setOnline(true);
+    return response;
+  },
   async (error) => {
     const config = error.config as typeof error.config & { _retryCount?: number };
+
+    // Network failure (no response at all) → mark offline
+    if (!error.response) {
+      useNetworkStore.getState().setOnline(false);
+    } else {
+      useNetworkStore.getState().setOnline(true);
+    }
 
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();
