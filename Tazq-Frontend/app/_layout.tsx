@@ -5,7 +5,7 @@ import '../global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { useColorScheme, View, LogBox } from 'react-native';
+import { useColorScheme, View, LogBox, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../constants/Colors';
 import { useAuthStore } from '../store/useAuthStore';
@@ -130,22 +130,37 @@ export default function RootLayout() {
       return;
     }
 
-    // Show notification immediately when focus starts
-    const { seconds: initSecs, currentTask } = useFocusStore.getState();
-    showFocusNotification(currentTask, initSecs, language || 'en');
+    // Show notification only when app is already in background at focus start
+    if (AppState.currentState !== 'active') {
+      const { seconds: initSecs, currentTask } = useFocusStore.getState();
+      showFocusNotification(currentTask, initSecs, language || 'en');
+    }
 
     const interval = setInterval(() => {
       const { seconds, tick, currentTask: task, isActive } = useFocusStore.getState();
       if (!isActive || seconds <= 0) return;
       tick();
-      // Update notification every 15 seconds
-      if (seconds % 15 === 0) {
+      // Update notification once per minute, only when backgrounded
+      if (seconds % 60 === 0 && AppState.currentState !== 'active') {
         showFocusNotification(task, seconds, language || 'en');
       }
     }, 1000);
 
+    // Show notification when app goes to background; dismiss when it returns
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        const { seconds, currentTask } = useFocusStore.getState();
+        if (useFocusStore.getState().isActive) {
+          showFocusNotification(currentTask, seconds, language || 'en');
+        }
+      } else if (nextState === 'active') {
+        cancelFocusNotification();
+      }
+    });
+
     return () => {
       clearInterval(interval);
+      appStateSub.remove();
       cancelFocusNotification();
     };
   }, [focusActive]);
@@ -278,6 +293,7 @@ export default function RootLayout() {
           <Stack.Screen name="register" />
           <Stack.Screen name="index" options={{ gestureEnabled: false }} />
           <Stack.Screen name="tasks" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="cockpit" />
         </Stack>
 
         <OfflineBanner />

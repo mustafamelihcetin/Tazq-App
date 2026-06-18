@@ -43,7 +43,7 @@ export default function HomeScreen() {
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
 
-  const { panResponder: draftPan, animatedStyle: draftSlide, resetPosition: resetDraftPos } = useSwipeToDismiss({
+  const { panResponder: draftPan, animatedStyle: draftSlide, resetPosition: resetDraftPos, slideIn: draftSlideIn } = useSwipeToDismiss({
     onDismiss: () => setQuickDraftVisible(false),
   });
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -188,14 +188,15 @@ export default function HomeScreen() {
   const insight = getSmartInsight(language as 'tr' | 'en', isActive, momentum, highPriorityToday, topTaskToday, futureTasksIncomplete);
 
   const startQuickFocus = () => {
-    const target = topTaskToday || futureTasksIncomplete[0];
-    if (!target) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    setCurrentTask(target.title);
-    setDuration(25);
-    setIsActive(true);
+    const target = topTaskToday || futureTasksIncomplete[0];
+    // Pre-fill task name if available, otherwise let user set it on focus screen
+    if (target) setCurrentTask(target.title);
+    // setDuration resets isActive to false internally — set both together after
+    const secs = 25 * 60;
+    useFocusStore.setState({ totalSeconds: secs, seconds: secs, isActive: true, lastActiveAt: Date.now() });
     setStatusHubVisible(false);
-    router.push('/focus');
+    router.replace('/focus');
   };
 
   const momentumLabel = momentum >= 75 ? t.momentumHigh : momentum >= 40 ? t.momentumMid : t.momentumLow;
@@ -244,7 +245,7 @@ export default function HomeScreen() {
                         </View>
                     </View>
 
-                    <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarContainer}>
+                    <TouchableOpacity onPress={() => router.push('/cockpit')} style={styles.avatarContainer}>
                         <Image
                             source={getAvatarSource(user?.avatar || null)}
                             style={styles.avatar}
@@ -300,12 +301,11 @@ export default function HomeScreen() {
                             onPress={() => {
                                 if (isActive) {
                                     setStatusHubVisible(false);
-                                    router.push('/focus');
+                                    router.replace('/focus');
                                 } else {
                                     startQuickFocus();
                                 }
                             }}
-                            disabled={!isActive && (!topTaskToday && futureTasksIncomplete.length === 0)}
                             style={[styles.actionButtonMain, { backgroundColor: isActive ? theme.tertiary : theme.primary }]}
                         >
                             <Play size={20} color={theme.onPrimary} fill={theme.onPrimary} />
@@ -409,9 +409,9 @@ export default function HomeScreen() {
                                     onPress={() => {
                                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                                         setCurrentTask(topTask.title);
-                                        setDuration(25);
-                                        setIsActive(false);
-                                        router.push('/focus');
+                                        const secs = 25 * 60;
+                                        useFocusStore.setState({ totalSeconds: secs, seconds: secs, isActive: false, lastActiveAt: null });
+                                        router.replace('/focus');
                                     }}
                                     style={[styles.startBtn, { backgroundColor: theme.primary, flex: 2, height: 52, justifyContent: 'center' }]}
                                 >
@@ -519,7 +519,7 @@ export default function HomeScreen() {
                                 <MotiView
                                     animate={{ width: `${Math.min((dailyFocusMinutes / Math.max(dailyGoalMinutes, 1)) * 100, 100)}%` as any }}
                                     transition={{ type: 'timing', duration: 900 }}
-                                    style={{ height: '100%', borderRadius: R.sm, backgroundColor: theme.secondary }}
+                                    style={{ height: '100%', borderRadius: R.sm, backgroundColor: theme.primary }}
                                 />
                             </View>
                             <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.45, letterSpacing: 0.3 }}>
@@ -553,22 +553,17 @@ export default function HomeScreen() {
         </ScrollView>
 
         {/* Quick Draft Modal */}
-        <Modal visible={quickDraftVisible} transparent animationType="slide">
+        <Modal visible={quickDraftVisible} transparent animationType="none" onShow={() => draftSlideIn()}>
           <View style={styles.draftOverlay}>
             <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
                 <View style={[styles.bottomSheetWrapper, { marginBottom: keyboardHeight }]}>
-                    <Animated.View style={draftSlide}>
-                    <MotiView
-                        from={{ translateY: 100, opacity: 0 }}
-                        animate={{ translateY: 0, opacity: 1 }}
-                        style={[styles.quickDraftSheet, {
+                    <Animated.View style={[draftSlide, styles.quickDraftSheet, {
                           backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
                           paddingBottom: keyboardHeight > 0 ? S.md : S.xl,
                           borderBottomLeftRadius: keyboardHeight > 0 ? R.lg : 0,
                           borderBottomRightRadius: keyboardHeight > 0 ? R.lg : 0,
-                        }]}
-                    >
-                        <View {...draftPan.panHandlers} style={{ paddingBottom: S.xs, alignItems: 'center' }}>
+                        }]}>
+                        <View {...draftPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
                           <View style={styles.sheetHandle} />
                         </View>
                         <View style={styles.sheetHeader}>
@@ -582,7 +577,7 @@ export default function HomeScreen() {
                             <TextInput 
                                 style={[styles.quickInput, { color: theme.onSurface, height: 60 }]}
                                 placeholder={t.draftPlaceholder}
-                                placeholderTextColor={theme.onSurfaceVariant + '60'}
+                                placeholderTextColor={theme.onSurfaceVariant + '99'}
                                 value={draftTitle}
                                 onChangeText={setDraftTitle}
                                 autoFocus
@@ -602,7 +597,6 @@ export default function HomeScreen() {
                                 )}
                             </TouchableOpacity>
                         </View>
-                    </MotiView>
                     </Animated.View>
                 </View>
           </View>
@@ -612,7 +606,7 @@ export default function HomeScreen() {
 
       {/* Quick Draft FAB */}
       <TouchableOpacity
-        onPress={() => { resetDraftPos(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setQuickDraftVisible(true); }}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setQuickDraftVisible(true); }}
         style={[styles.fab, { backgroundColor: theme.primary, shadowColor: isDark ? theme.primary : '#000' }]}
       >
         <Plus size={32} color={theme.onPrimary} strokeWidth={3} />

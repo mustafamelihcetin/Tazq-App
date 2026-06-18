@@ -31,7 +31,7 @@ export default function FocusScreen() {
   const [customInput, setCustomInput] = useState('');
   const [customError, setCustomError] = useState(false);
 
-  const { panResponder: customPan, animatedStyle: customSlide, resetPosition: resetCustomPos } = useSwipeToDismiss({
+  const { panResponder: customPan, animatedStyle: customSlide, resetPosition: resetCustomPos, slideIn: customSlideIn } = useSwipeToDismiss({
     onDismiss: () => setCustomVisible(false),
   });
 
@@ -341,17 +341,17 @@ export default function FocusScreen() {
       </SafeAreaView>
 
       {/* Custom Duration Modal */}
-      <Modal visible={customVisible} transparent animationType="fade">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <Modal visible={customVisible} transparent animationType="none" onShow={() => customSlideIn()}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCustomVisible(false)} />
-          <Animated.View style={customSlide}>
-          <MotiView
-            from={{ translateY: 60, opacity: 0 }}
-            animate={{ translateY: 0, opacity: 1 }}
-            transition={{ type: 'spring', damping: 18 }}
-            style={[styles.customSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : S.xxl, borderBottomLeftRadius: kbHeight > 0 ? R.lg : 0, borderBottomRightRadius: kbHeight > 0 ? R.lg : 0 }]}
+          <Animated.View
+            style={[
+              customSlide,
+              styles.customSheet,
+              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : S.xxl, borderBottomLeftRadius: kbHeight > 0 ? R.lg : 0, borderBottomRightRadius: kbHeight > 0 ? R.lg : 0 },
+            ]}
           >
-            <View {...customPan.panHandlers} style={{ paddingBottom: S.xs, alignItems: 'center' }}>
+            <View {...customPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
             </View>
             <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
@@ -392,7 +392,6 @@ export default function FocusScreen() {
             >
               <Text style={[styles.applyBtnText, { color: theme.onPrimary }]}>{t.focusCustomApply}</Text>
             </TouchableOpacity>
-          </MotiView>
           </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
@@ -517,8 +516,8 @@ const styles = StyleSheet.create({
   finishText: { fontWeight: '700', letterSpacing: 0.3 },
   footer: { alignItems: 'center' },
   quote: { fontStyle: 'italic', textAlign: 'center', opacity: 0.5 },
-  modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  customSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, padding: S.lg, alignItems: 'center', gap: S.sm },
+  modalOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
+  customSheet: { borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, padding: S.lg, alignItems: 'center', gap: S.sm },
   sheetHandle: { width: 36, height: 4, borderRadius: R.sm, marginBottom: S.sm },
   sheetTitle: { fontSize: F.title, fontWeight: '800', letterSpacing: -0.5 },
   sheetSub: { fontSize: F.body, fontWeight: '600', opacity: 0.5, marginBottom: S.sm },

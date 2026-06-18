@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import Animated, { Layout } from 'react-native-reanimated';
@@ -105,6 +106,7 @@ export default function ActionCenter() {
   const [showSearch, setShowSearch] = useState(false);
   const [sortBy, setSortBy] = useState<'priority' | 'date' | 'creation'>('creation');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [hideCompleted, setHideCompleted] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -124,9 +126,16 @@ export default function ActionCenter() {
   const [isListeningTitle, setIsListeningTitle] = useState(false);
   const [isListeningDesc, setIsListeningDesc] = useState(false);
 
-  const { panResponder: taskPan, animatedStyle: taskSlide, resetPosition: resetTaskPos } = useSwipeToDismiss({
+  const { panResponder: taskPan, animatedStyle: taskSlide, resetPosition: resetTaskPos, slideIn: taskSlideIn } = useSwipeToDismiss({
     onDismiss: () => !saving && setModalVisible(false),
   });
+
+  // Auto-exit bulk mode when all items are deselected
+  useEffect(() => {
+    if (isBulkMode && selectedIds.size === 0) {
+      setIsBulkMode(false);
+    }
+  }, [selectedIds, isBulkMode]);
 
   const toggleVoice = async (field: 'title' | 'description') => {
     const isActive = field === 'title' ? isListeningTitle : isListeningDesc;
@@ -426,19 +435,35 @@ export default function ActionCenter() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const pendingDeleteRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleDelete = (id: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Alert.alert(t.deleteTask, t.confirmDelete, [
-      { text: t.cancel, style: 'cancel' },
-      {
-        text: t.delete, style: 'destructive', onPress: async () => {
-          removeTask(id);
-          cancelTaskNotification(id);
-          try { await TaskService.deleteTask(id); }
-          catch { loadTasks(); }
-        }
+    // Snapshot task before removing for undo
+    const snapshot = tasks.find((t) => t.id === id);
+    if (!snapshot) return;
+    removeTask(id);
+    cancelTaskNotification(id);
+
+    const isTR = language === 'tr';
+    const undoLabel = isTR ? 'Geri Al' : 'Undo';
+    const deleteMsg = isTR ? `"${snapshot.title.slice(0, 28)}" silindi` : `"${snapshot.title.slice(0, 28)}" deleted`;
+
+    // Delay the API call so undo can intercept it
+    if (pendingDeleteRef.current) clearTimeout(pendingDeleteRef.current);
+    pendingDeleteRef.current = setTimeout(async () => {
+      try { await TaskService.deleteTask(id); }
+      catch { loadTasks(); }
+    }, 4200);
+
+    showToast(deleteMsg, 'info', {
+      label: undoLabel,
+      onAction: () => {
+        if (pendingDeleteRef.current) clearTimeout(pendingDeleteRef.current);
+        // Restore task to local store — backend still has it
+        addTask(snapshot);
       },
-    ]);
+    });
   };
 
   const openAdd = () => {
@@ -587,6 +612,8 @@ export default function ActionCenter() {
 
   const filteredAndSortedTasks = useMemo(() => {
     let result = tasks.filter((task) => {
+      // Global hide-completed toggle (skip when "done" filter is explicitly chosen)
+      if (hideCompleted && filter !== 'done' && task.isCompleted) return false;
       if (filter === 'done') { if (!task.isCompleted) return false; }
       else if (filter === 'today') {
         if (task.isCompleted) return false;
@@ -619,7 +646,7 @@ export default function ActionCenter() {
       });
     }
     return result;
-  }, [tasks, filter, tagFilter, searchQuery, sortBy]);
+  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted]);
 
   const filteredTasks = filteredAndSortedTasks;
   const filters: FilterType[] = ['all', 'today', 'High', 'Medium', 'Low', 'done'];
@@ -682,14 +709,26 @@ export default function ActionCenter() {
               <TouchableOpacity onPress={() => { setIsBulkMode(false); setSelectedIds(new Set()); }} style={styles.backBtn}>
                 <X size={22} color={theme.onSurface} />
               </TouchableOpacity>
-              <Text style={[styles.headerTitle, { color: theme.onSurface }]}>
-                {selectedIds.size > 0 ? `${selectedIds.size} ${t.selectedCount}` : t.cancelSelection}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: S.sm }}>
-                <TouchableOpacity onPress={() => setSelectedIds(new Set(filteredTasks.map(t => t.id)))} style={styles.headerIconBtn}>
-                  <CheckSquare size={20} color={theme.primary} />
-                </TouchableOpacity>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                <Text style={[styles.headerTitle, { color: theme.onSurface }]}>
+                  {language === 'tr' ? 'Seçim' : 'Select'}
+                </Text>
+                {selectedIds.size > 0 && (
+                  <View style={[styles.selBadge, { backgroundColor: theme.primary }]}>
+                    <Text style={{ color: theme.onPrimary, fontSize: 11, fontWeight: '900' }}>{selectedIds.size}</Text>
+                  </View>
+                )}
               </View>
+              <TouchableOpacity
+                onPress={() => {
+                  const allSelected = filteredTasks.every(task => selectedIds.has(task.id));
+                  setSelectedIds(allSelected ? new Set() : new Set(filteredTasks.map(task => task.id)));
+                  Haptics.selectionAsync();
+                }}
+                style={styles.headerIconBtn}
+              >
+                <CheckSquare size={20} color={filteredTasks.every(task => selectedIds.has(task.id)) ? theme.primary : theme.onSurface} />
+              </TouchableOpacity>
             </>
           ) : (
             <>
@@ -701,8 +740,20 @@ export default function ActionCenter() {
                 <TouchableOpacity onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.headerIconBtn}>
                   <Search size={20} color={showSearch ? theme.primary : theme.onSurface} />
                 </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => { setHideCompleted(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  style={[styles.headerIconBtn, hideCompleted && { backgroundColor: theme.primary + '18', borderRadius: 10 }]}
+                  accessibilityLabel={hideCompleted ? (language === 'tr' ? 'Tamamlananları göster' : 'Show completed') : (language === 'tr' ? 'Tamamlananları gizle' : 'Hide completed')}
+                >
+                  <CheckCircle2 size={20} color={hideCompleted ? theme.primary : theme.onSurface} />
+                </TouchableOpacity>
                 <TouchableOpacity onPress={() => { setShowSortMenu(!showSortMenu); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.headerIconBtn}>
-                  <SlidersHorizontal size={20} color={sortBy !== 'creation' ? theme.primary : theme.onSurface} />
+                  <View>
+                    <SlidersHorizontal size={20} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter) ? theme.primary : theme.onSurface} />
+                    {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter) && (
+                      <View style={{ position: 'absolute', top: -2, right: -2, width: 7, height: 7, borderRadius: 4, backgroundColor: theme.primary }} />
+                    )}
+                  </View>
                 </TouchableOpacity>
               </View>
             </>
@@ -921,8 +972,6 @@ export default function ActionCenter() {
                                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                                         setIsBulkMode(true);
                                         setSelectedIds(new Set([task.id]));
-                                      } else {
-                                        openEdit(task.id);
                                       }
                                     }}
                                     style={[
@@ -1103,6 +1152,18 @@ export default function ActionCenter() {
                                                 </View>
                                             </View>
 
+                                            {/* Edit button */}
+                                            <TouchableOpacity
+                                                onPress={() => openEdit(task.id)}
+                                                style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, alignSelf: 'flex-start', marginTop: S.sm, paddingVertical: 6, paddingHorizontal: S.md, borderRadius: R.full, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
+                                                accessibilityLabel={language === 'tr' ? 'Görevi düzenle' : 'Edit task'}
+                                            >
+                                                <Pencil size={12} color={theme.onSurfaceVariant} />
+                                                <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
+                                                    {language === 'tr' ? 'Düzenle' : 'Edit'}
+                                                </Text>
+                                            </TouchableOpacity>
+
                                             {/* Subtasks Checklist */}
                                             {(task.subtasks || []).length > 0 && (
                                                 <View style={{ marginTop: S.sm, gap: S.xs }}>
@@ -1170,30 +1231,80 @@ export default function ActionCenter() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* Bulk Action Bar */}
+      {/* Bulk Action Bar — floating pill */}
       <AnimatePresence>
         {isBulkMode && (
           <MotiView
-            from={{ translateY: 120, opacity: 0 }}
-            animate={{ translateY: 0, opacity: 1 }}
-            exit={{ translateY: 120, opacity: 0 }}
-            style={[styles.bulkBar, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderTopColor: theme.outline, bottom: 80 + insets.bottom }]}
+            from={{ translateY: 80, opacity: 0, scale: 0.95 }}
+            animate={{ translateY: 0, opacity: 1, scale: 1 }}
+            exit={{ translateY: 80, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 22, stiffness: 260 }}
+            style={[
+              styles.bulkPill,
+              {
+                bottom: 90 + insets.bottom,
+                borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)',
+                shadowColor: isDark ? theme.primary : '#000',
+              },
+            ]}
           >
+            <BlurView
+              intensity={isDark ? 50 : 70}
+              tint={isDark ? 'dark' : 'light'}
+              style={StyleSheet.absoluteFill}
+            />
+
+            {/* Count */}
+            <View style={styles.bulkCountRow}>
+              <View style={[styles.bulkDot, { backgroundColor: selectedIds.size > 0 ? theme.primary : theme.onSurfaceVariant }]} />
+              <Text style={[styles.bulkCountText, { color: theme.onSurface }]}>
+                {selectedIds.size > 0
+                  ? `${selectedIds.size} ${language === 'tr' ? 'seçildi' : 'selected'}`
+                  : (language === 'tr' ? 'Seç' : 'Select')}
+              </Text>
+            </View>
+
+            <View style={[styles.bulkSep, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }]} />
+
+            {/* Edit — only active when exactly 1 selected */}
+            <TouchableOpacity
+              onPress={() => {
+                if (selectedIds.size !== 1) return;
+                const id = Array.from(selectedIds)[0];
+                setIsBulkMode(false);
+                setSelectedIds(new Set());
+                openEdit(id);
+              }}
+              style={[
+                styles.bulkIconBtn,
+                { backgroundColor: selectedIds.size === 1 ? theme.primary + '1A' : 'transparent' },
+              ]}
+            >
+              <Pencil size={17} color={selectedIds.size === 1 ? theme.primary : theme.onSurfaceVariant + '55'} />
+            </TouchableOpacity>
+
+            {/* Complete */}
             <TouchableOpacity
               onPress={handleBulkComplete}
               disabled={selectedIds.size === 0}
-              style={[styles.bulkBtn, { backgroundColor: '#34c759' + (selectedIds.size === 0 ? '40' : ''), opacity: selectedIds.size === 0 ? 0.5 : 1 }]}
+              style={[
+                styles.bulkIconBtn,
+                { backgroundColor: selectedIds.size > 0 ? '#34C7591A' : 'transparent' },
+              ]}
             >
-              <CheckCircle2 size={18} color={selectedIds.size > 0 ? '#fff' : theme.onSurfaceVariant} />
-              <Text style={{ color: selectedIds.size > 0 ? '#fff' : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', marginLeft: 6 }}>{t.bulkComplete}</Text>
+              <CheckCircle2 size={17} color={selectedIds.size > 0 ? '#34C759' : theme.onSurfaceVariant + '55'} />
             </TouchableOpacity>
+
+            {/* Delete */}
             <TouchableOpacity
               onPress={handleBulkDelete}
               disabled={selectedIds.size === 0}
-              style={[styles.bulkBtn, { backgroundColor: '#ff3b30' + (selectedIds.size === 0 ? '40' : ''), opacity: selectedIds.size === 0 ? 0.5 : 1 }]}
+              style={[
+                styles.bulkIconBtn,
+                { backgroundColor: selectedIds.size > 0 ? '#FF3B301A' : 'transparent' },
+              ]}
             >
-              <Trash2 size={18} color={selectedIds.size > 0 ? '#fff' : theme.onSurfaceVariant} />
-              <Text style={{ color: selectedIds.size > 0 ? '#fff' : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', marginLeft: 6 }}>{t.bulkDelete}</Text>
+              <Trash2 size={17} color={selectedIds.size > 0 ? '#FF3B30' : theme.onSurfaceVariant + '55'} />
             </TouchableOpacity>
           </MotiView>
         )}
@@ -1222,18 +1333,13 @@ export default function ActionCenter() {
       <BottomNavBar />
 
       {/* Modern Stitch Modal */}
-      <Modal visible={modalVisible} transparent animationType="fade">
+      <Modal visible={modalVisible} transparent animationType="none" onShow={() => taskSlideIn()}>
         <View style={styles.overlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && setModalVisible(false)} />
-          
+
           <View style={styles.sheetContainer}>
-            <RNAnimated.View style={taskSlide}>
-            <MotiView
-                from={{ translateY: 300 }}
-                animate={{ translateY: 0 }}
-                style={[styles.sheet, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', padding: S.lg, borderBottomLeftRadius: kbHeight > 0 ? S.xl : 0, borderBottomRightRadius: kbHeight > 0 ? S.xl : 0 }]}
-            >
-                <View {...taskPan.panHandlers} style={{ paddingBottom: S.xs, alignItems: 'center' }}>
+            <RNAnimated.View style={[styles.sheet, taskSlide, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', padding: S.lg, borderBottomLeftRadius: kbHeight > 0 ? S.xl : 0, borderBottomRightRadius: kbHeight > 0 ? S.xl : 0 }]}>
+                <View {...taskPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
                   <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
                 </View>
                 
@@ -1258,7 +1364,7 @@ export default function ActionCenter() {
                                 <TextInput
                                     style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
                                     placeholder={isListeningTitle ? t.listeningLabel : t.taskTitle}
-                                    placeholderTextColor={theme.onSurfaceVariant + '60'}
+                                    placeholderTextColor={theme.onSurfaceVariant + '99'}
                                     value={form.title}
                                     onChangeText={handleTitleChange}
                                     maxLength={200}
@@ -1286,7 +1392,7 @@ export default function ActionCenter() {
                                 <TextInput
                                     style={[styles.modalInput, { color: theme.onSurface, paddingTop: S.sm, fontSize: F.body }]}
                                     placeholder={isListeningDesc ? t.listeningLabel : t.taskDescription + '...'}
-                                    placeholderTextColor={theme.onSurfaceVariant + '60'}
+                                    placeholderTextColor={theme.onSurfaceVariant + '99'}
                                     value={form.description}
                                     onChangeText={handleDescriptionChange}
                                     multiline
@@ -1521,7 +1627,7 @@ export default function ActionCenter() {
                             <TextInput
                                 style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
                                 placeholder={t.addSubtask}
-                                placeholderTextColor={theme.onSurfaceVariant + '60'}
+                                placeholderTextColor={theme.onSurfaceVariant + '99'}
                                 value={newSubtaskText}
                                 onChangeText={setNewSubtaskText}
                                 returnKeyType="done"
@@ -1565,7 +1671,6 @@ export default function ActionCenter() {
                         )}
                     </LinearGradient>
                 </TouchableOpacity>
-            </MotiView>
             </RNAnimated.View>
           </View>
         </View>
@@ -1579,13 +1684,26 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontWeight: '900', letterSpacing: -0.5, flex: 1, textAlign: 'center' },
   headerIconBtn: { width: 36, height: 36, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  selBadge: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   aiBtn: { width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: R.lg, borderWidth: 1, paddingHorizontal: S.md, gap: S.sm, height: 44 },
   searchInput: { flex: 1, fontWeight: '600', fontSize: F.body },
   sortMenu: { position: 'absolute', top: 56, right: S.lg, zIndex: 200, borderRadius: R.lg, borderWidth: 1, overflow: 'hidden', minWidth: 180, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
   sortOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth },
-  bulkBar: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', paddingHorizontal: S.lg, paddingVertical: S.md, gap: S.md, borderTopWidth: StyleSheet.hairlineWidth, zIndex: 100 },
-  bulkBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: R.lg, paddingVertical: S.sm + 2, paddingHorizontal: S.md },
+  bulkPill: {
+    position: 'absolute', left: S.xl, right: S.xl,
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: R.full, overflow: 'hidden',
+    paddingHorizontal: S.lg, paddingVertical: 10,
+    borderWidth: 1, zIndex: 100,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18, shadowRadius: 20, elevation: 14,
+  },
+  bulkCountRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 },
+  bulkDot: { width: 7, height: 7, borderRadius: 4 },
+  bulkCountText: { fontSize: F.body, fontWeight: '800' },
+  bulkSep: { width: 1, height: 22, marginHorizontal: S.sm },
+  bulkIconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   headline: { fontWeight: '900', letterSpacing: -1.5 },
   subHeadline: { fontWeight: '600', opacity: 0.7, marginTop: S.xs },
   statsGrid: { flexDirection: 'row' },

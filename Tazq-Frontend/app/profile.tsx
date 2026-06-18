@@ -1,9 +1,9 @@
 ﻿import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Alert, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Award, Zap, Target, Trophy, Shield } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Award, Zap, Target, Trophy, Shield, CalendarDays } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AuthService, FocusService } from '../services/api';
 import { BentoCard } from '../components/BentoCard';
@@ -28,6 +28,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const isDark = colorScheme === 'dark';
   const { show: showToast } = useToastStore();
+  const insets = useSafeAreaInsets();
 
   const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset } = useFocusStore();
 
@@ -39,7 +40,7 @@ export default function ProfileScreen() {
   const [selectedGoal, setSelectedGoal] = useState(dailyGoalMinutes);
   const [savingProfile, setSavingProfile] = useState(false);
 
-  const { panResponder: editPan, animatedStyle: editSlide, resetPosition: resetEditPos } = useSwipeToDismiss({
+  const { panResponder: editPan, animatedStyle: editSlide, resetPosition: resetEditPos, slideIn: editSlideIn } = useSwipeToDismiss({
     onDismiss: () => setEditModalVisible(false),
   });
 
@@ -151,8 +152,8 @@ export default function ProfileScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: S.lg }} showsVerticalScrollIndicator={false}>
-          <View style={[styles.header, { marginTop: S.xl }]}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: S.lg, paddingTop: Math.max(insets.top, S.xl) }} showsVerticalScrollIndicator={false}>
+          <View style={[styles.header, { marginTop: S.md }]}>
             <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { borderColor: isDark ? theme.primary + '40' : 'rgba(0,0,0,0.05)', width: 110, height: 110, borderRadius: 55 }]}>
                 <Image key={user?.avatar} source={getAvatarSource(user?.avatar || null)} style={[styles.image, { borderRadius: 50 }]} />
             </MotiView>
@@ -223,13 +224,21 @@ export default function ProfileScreen() {
                     theme={theme} 
                 />
                 <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
-                <SettingItem 
-                    icon={<Shield size={18} color="#2DD4BF" />} 
-                    label={t.streakFreeze || 'Streak Shield'} 
-                    bg={isDark ? "rgba(45, 212, 191, 0.1)" : "#2DD4BF15"}
-                    right={<Text style={{ color: streakFreezeAvailable ? '#2DD4BF' : theme.onSurface, fontWeight: '800', fontSize: F.body }}>{streakFreezeAvailable ? t.streakFreezeAvail || 'Ready' : t.streakFreezeUsed || 'Used'}</Text>} 
-                    onPress={handleStreakFreeze} 
-                    theme={theme} 
+                <SettingItem
+                    icon={<Shield size={18} color={isDark ? "#2DD4BF" : "#0D9488"} />}
+                    label={t.streakFreeze || 'Streak Shield'}
+                    bg={isDark ? "rgba(45, 212, 191, 0.12)" : "rgba(13, 148, 136, 0.12)"}
+                    right={<Text style={{ color: streakFreezeAvailable ? (isDark ? '#2DD4BF' : '#0D9488') : theme.onSurface, fontWeight: '800', fontSize: F.body }}>{streakFreezeAvailable ? t.streakFreezeAvail || 'Ready' : t.streakFreezeUsed || 'Used'}</Text>}
+                    onPress={handleStreakFreeze}
+                    theme={theme}
+                />
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
+                <SettingItem
+                    icon={<CalendarDays size={18} color={theme.primary} />}
+                    label={language === 'tr' ? 'Haftalık Merkez' : 'Weekly Hub'}
+                    bg={theme.primary + '15'}
+                    onPress={() => router.push('/cockpit')}
+                    theme={theme}
                 />
             </View>
             <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
@@ -243,13 +252,11 @@ export default function ProfileScreen() {
       <BottomNavBar />
 
       {/* Edit Profile Modal */}
-      <Modal visible={editModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-            <TouchableOpacity style={{ flex: 1 }} onPress={() => setEditModalVisible(false)} />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-              <Animated.View style={editSlide}>
-              <View style={[styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : (Platform.OS === 'ios' ? 48 : S.lg) }]}>
-                <View {...editPan.panHandlers} style={{ paddingBottom: S.sm, alignItems: 'center' }}>
+      <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} />
+              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : (Platform.OS === 'ios' ? 48 : S.lg) }]}>
+                <View {...editPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
                   <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
                 </View>
                 <Text style={[styles.modalTitle, { color: theme.onSurface, fontSize: F.subhead }]}>
@@ -266,7 +273,7 @@ export default function ProfileScreen() {
                       value={newName}
                       onChangeText={setNewName}
                       placeholder={t.namePlaceholder || 'Your name'}
-                      placeholderTextColor={theme.onSurfaceVariant + '60'}
+                      placeholderTextColor={theme.onSurfaceVariant + '99'}
                       style={[styles.nameInput, { color: theme.onSurface }]}
                     />
                   </View>
@@ -331,10 +338,8 @@ export default function ProfileScreen() {
                     : <Text style={{ color: 'white', fontWeight: '900', fontSize: F.body }}>{t.save}</Text>
                   }
                 </TouchableOpacity>
-              </View>
               </Animated.View>
-            </KeyboardAvoidingView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

@@ -1,18 +1,24 @@
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import Constants from 'expo-constants';
 
 const isExpoGo = Constants.appOwnership === 'expo';
+const FOCUS_NOTIF_ID = 'tazq-focus-live';
 
 let Notifications: any = null;
 try {
   Notifications = require('expo-notifications');
   if (Notifications?.setNotificationHandler) {
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
+      handleNotification: async (notification: any) => {
+        const isFocusNotif = notification?.request?.identifier === FOCUS_NOTIF_ID;
+        const isBackground = AppState.currentState !== 'active';
+        return {
+          // Focus notifications only banner when app is backgrounded
+          shouldShowAlert: isFocusNotif ? isBackground : true,
+          shouldPlaySound: isFocusNotif ? false : true,
+          shouldSetBadge: false,
+        };
+      },
     });
   }
 } catch (_) {}
@@ -116,8 +122,6 @@ export async function cancelAllNotifications(): Promise<void> {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch (_) {}
 }
-
-const FOCUS_NOTIF_ID = 'tazq-focus-live';
 
 export async function showFocusNotification(
   taskName: string,

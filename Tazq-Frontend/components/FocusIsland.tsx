@@ -17,8 +17,10 @@ export const FocusIsland = () => {
   const isDark = colorScheme === 'dark';
 
   const isOnFocusScreen = pathname === '/focus';
+  const isOnDashboard = pathname === '/' || pathname === '/index';
 
-  if (!isActive || isOnFocusScreen) return null;
+  // Dashboard has its own focus indicator (StatusHub); skip here to avoid covering the logo
+  if (!isActive || isOnFocusScreen || isOnDashboard) return null;
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);

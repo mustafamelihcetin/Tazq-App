@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react-native';
 import { useToastStore } from '../store/useToastStore';
@@ -12,10 +12,15 @@ const COLORS = {
 };
 
 export const Toast = () => {
-  const { visible, message, type, hide } = useToastStore();
+  const { visible, message, type, hide, actionLabel, onAction } = useToastStore();
   const insets = useSafeAreaInsets();
   const config = COLORS[type];
   const Icon = config.icon;
+
+  const handleAction = () => {
+    onAction?.();
+    hide();
+  };
 
   return (
     <AnimatePresence>
@@ -29,6 +34,11 @@ export const Toast = () => {
         >
           <Icon size={18} color="#fff" />
           <Text style={styles.text} numberOfLines={2}>{message}</Text>
+          {actionLabel && onAction && (
+            <TouchableOpacity onPress={handleAction} style={styles.actionBtn}>
+              <Text style={styles.actionText}>{actionLabel}</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={hide} style={styles.close}>
             <X size={16} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
@@ -61,6 +71,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     flex: 1,
+  },
+  actionBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  actionText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '900',
   },
   close: {
     padding: 4,
