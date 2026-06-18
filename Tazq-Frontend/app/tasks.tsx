@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, PanResponder, Animated as RNAnimated } from 'react-native';
+﻿import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, PanResponder, Animated as RNAnimated, AppState, Keyboard } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import Animated, { Layout, useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
-import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic } from 'lucide-react-native';
+import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, ArrowLeft, Search, SlidersHorizontal, CheckSquare } from 'lucide-react-native';
 import { SubtaskProgressRing } from '../components/SubtaskProgressRing';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
@@ -16,14 +16,21 @@ import * as Haptics from 'expo-haptics';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '../services/api';
 import { parseTaskHint } from '../utils/taskParser';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { categorizeTask } from '../utils/taskIntelligence';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
-import i18n from 'i18n-js';
 import { S, R, F } from '../constants/tokens';
 import VoiceService from '../utils/voice';
 
 const SWIPE_THRESHOLD = -80;
+const TAG_COLORS_PALETTE = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4','#F97316'];
+const PRIORITY_ORDER: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
+const getTagColorStatic = (tag: string): string => {
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+  return TAG_COLORS_PALETTE[Math.abs(hash) % TAG_COLORS_PALETTE.length];
+};
 
 const VoiceWave = ({ active, theme }: { active: boolean; theme: any }) => (
     <MotiView
@@ -156,11 +163,18 @@ export default function ActionCenter() {
 
   const [filter, setFilter] = useState<FilterType>('all');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [sortBy, setSortBy] = useState<'priority' | 'date' | 'creation'>('creation');
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isBulkMode, setIsBulkMode] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
   const [titleError, setTitleError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [kbHeight, setKbHeight] = useState(0);
   const [nlpHint, setNlpHint] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -171,6 +185,10 @@ export default function ActionCenter() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [isListeningTitle, setIsListeningTitle] = useState(false);
   const [isListeningDesc, setIsListeningDesc] = useState(false);
+
+  const { panResponder: taskPan, animatedStyle: taskSlide, resetPosition: resetTaskPos } = useSwipeToDismiss({
+    onDismiss: () => !saving && setModalVisible(false),
+  });
 
   const toggleVoice = async (field: 'title' | 'description') => {
     const isActive = field === 'title' ? isListeningTitle : isListeningDesc;
@@ -280,7 +298,7 @@ export default function ActionCenter() {
 
   const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
 
-  useEffect(() => { 
+  useEffect(() => {
     loadTasks();
     requestNotificationPermissions();
     if (action === 'add') {
@@ -290,6 +308,20 @@ export default function ActionCenter() {
       VoiceService.destroy();
     };
   }, [action]);
+
+  // Refresh tasks when returning from background (keeps "today" filter accurate after midnight)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') loadTasks();
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', e => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKbHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -321,11 +353,19 @@ export default function ActionCenter() {
       setIsListeningTitle(false);
     }
 
+    // When title is fully cleared on a new task, reset all NLP-derived state
+    if (!text.trim() && editingId === null) {
+      setForm(f => ({ ...f, title: '', priority: 'Medium', tags: [], dueDate: '', dueTime: null }));
+      setNlpHint('');
+      if (titleError) setTitleError(false);
+      return;
+    }
+
     const hint = parseTaskHint(text);
     const hasReminderWord = text.toLowerCase().includes('hatırlat') || text.toLowerCase().includes('remind');
-    
-    setForm(f => ({ 
-        ...f, 
+
+    setForm(f => ({
+        ...f,
         title: text,
         priority: hint.priority || f.priority,
         dueDate: hint.dueDate || f.dueDate,
@@ -333,7 +373,7 @@ export default function ActionCenter() {
         reminderEnabled: hasReminderWord ? true : f.reminderEnabled,
         tags: hasReminderWord ? (f.tags.includes('hatırlatıcı') ? f.tags : [...f.tags, 'hatırlatıcı']) : f.tags
     }));
-    
+
     if (titleError) setTitleError(false);
 
     // UI Hint Parts
@@ -368,17 +408,16 @@ export default function ActionCenter() {
   };
 
   const estimateDuration = (task: any) => {
-    const isTR = i18n.locale?.startsWith('tr');
     let base = task.priority === 'High' ? 45 : task.priority === 'Medium' ? 20 : 10;
     base += (task.subtasks || []).length * 5;
-    return isTR ? `~${base} dk` : `~${base} min`;
+    return language === 'tr' ? `~${base} dk` : `~${base} min`;
   };
 
   const formatSmartDate = (dateStr?: string | null) => {
     if (!dateStr || dateStr.startsWith('0001-01-01')) return t.waitingForAction;
     const date = new Date(dateStr);
     const now = new Date();
-    const isTR = i18n.locale && i18n.locale.startsWith('tr');
+    const isTR = language === 'tr';
 
     const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
     const dateStart = new Date(date); dateStart.setHours(0, 0, 0, 0);
@@ -458,6 +497,7 @@ export default function ActionCenter() {
   };
 
   const openAdd = () => {
+    resetTaskPos();
     setEditingId(null);
     setForm(EMPTY_FORM);
     setNlpHint('');
@@ -466,6 +506,8 @@ export default function ActionCenter() {
   };
 
   const openEdit = (id: number) => {
+    resetTaskPos();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     setEditingId(id);
@@ -592,33 +634,186 @@ export default function ActionCenter() {
     return '#34c759';                    // Success Green
   };
 
-  const filteredTasks = tasks.filter((task) => {
-    if (filter === 'done') { if (!task.isCompleted) return false; }
-    else if (filter === 'today') {
-      if (task.isCompleted) return false;
-      if (!task.dueDate || task.dueDate.startsWith('0001')) return false;
-      const d = new Date(task.dueDate);
-      const now = new Date();
-      const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
-      if (d < todayStart || d > todayEnd) return false;
+  const getTagColor = getTagColorStatic;
+
+  const filteredAndSortedTasks = useMemo(() => {
+    let result = tasks.filter((task) => {
+      if (filter === 'done') { if (!task.isCompleted) return false; }
+      else if (filter === 'today') {
+        if (task.isCompleted) return false;
+        if (!task.dueDate || task.dueDate.startsWith('0001')) return false;
+        const d = new Date(task.dueDate);
+        const now = new Date();
+        const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+        if (d < todayStart || d > todayEnd) return false;
+      }
+      else if (filter !== 'all') { if (task.priority !== filter || task.isCompleted) return false; }
+      if (tagFilter && !(task.tags || []).includes(tagFilter)) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const inTitle = task.title.toLowerCase().includes(q);
+        const inDesc = (task.description || '').toLowerCase().includes(q);
+        const inTags = (task.tags || []).some(tag => tag.toLowerCase().includes(q));
+        if (!inTitle && !inDesc && !inTags) return false;
+      }
+      return true;
+    });
+
+    if (sortBy === 'priority') {
+      result = [...result].sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2));
+    } else if (sortBy === 'date') {
+      result = [...result].sort((a, b) => {
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
     }
-    else if (filter !== 'all') { if (task.priority !== filter || task.isCompleted) return false; }
-    if (tagFilter && !(task.tags || []).includes(tagFilter)) return false;
-    return true;
-  });
+    return result;
+  }, [tasks, filter, tagFilter, searchQuery, sortBy]);
+
+  const filteredTasks = filteredAndSortedTasks;
   const filters: FilterType[] = ['all', 'today', 'High', 'Medium', 'Low', 'done'];
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    Alert.alert(
+      t.deleteTask,
+      language === 'tr' ? `${selectedIds.size} görev silinsin mi?` : `Delete ${selectedIds.size} tasks?`,
+      [
+        { text: t.cancel, style: 'cancel' },
+        { text: t.delete, style: 'destructive', onPress: async () => {
+          for (const id of Array.from(selectedIds)) {
+            try { await TaskService.deleteTask(id); removeTask(id); } catch {}
+          }
+          setSelectedIds(new Set());
+          setIsBulkMode(false);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }},
+      ]
+    );
+  };
+
+  const handleBulkComplete = async () => {
+    for (const id of Array.from(selectedIds)) {
+      try {
+        await TaskService.updateTask(id, { isCompleted: true });
+        toggleTaskCompletion(id);
+      } catch {}
+    }
+    setSelectedIds(new Set());
+    setIsBulkMode(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const handleClearCompleted = () => {
+    const completedTasks = tasks.filter(t => t.isCompleted);
+    if (completedTasks.length === 0) return;
+    Alert.alert(
+      t.clearCompleted,
+      language === 'tr' ? `${completedTasks.length} tamamlanan görev silinsin mi?` : `Delete ${completedTasks.length} completed tasks?`,
+      [
+        { text: t.cancel, style: 'cancel' },
+        { text: t.delete, style: 'destructive', onPress: async () => {
+          for (const task of completedTasks) {
+            try { await TaskService.deleteTask(task.id); removeTask(task.id); } catch {}
+          }
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }},
+      ]
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <X size={24} color={theme.onSurface} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.onSurface }]}>{t.actionCenter}</Text>
-          <View style={{ width: 44 }} />
+          {isBulkMode ? (
+            <>
+              <TouchableOpacity onPress={() => { setIsBulkMode(false); setSelectedIds(new Set()); }} style={styles.backBtn}>
+                <X size={22} color={theme.onSurface} />
+              </TouchableOpacity>
+              <Text style={[styles.headerTitle, { color: theme.onSurface }]}>
+                {selectedIds.size > 0 ? `${selectedIds.size} ${language === 'tr' ? 'seçildi' : 'selected'}` : t.cancelSelection}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: S.sm }}>
+                <TouchableOpacity onPress={() => setSelectedIds(new Set(filteredTasks.map(t => t.id)))} style={styles.headerIconBtn}>
+                  <CheckSquare size={20} color={theme.primary} />
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <ArrowLeft size={24} color={theme.onSurface} />
+              </TouchableOpacity>
+              <Text style={[styles.headerTitle, { color: theme.onSurface }]}>{t.actionCenter}</Text>
+              <View style={{ flexDirection: 'row', gap: S.xs }}>
+                <TouchableOpacity onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.headerIconBtn}>
+                  <Search size={20} color={showSearch ? theme.primary : theme.onSurface} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setShowSortMenu(!showSortMenu); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.headerIconBtn}>
+                  <SlidersHorizontal size={20} color={sortBy !== 'creation' ? theme.primary : theme.onSurface} />
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
+
+        {/* Search Bar */}
+        <AnimatePresence>
+          {showSearch && (
+            <MotiView
+              from={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 52 }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{ paddingHorizontal: S.lg, marginBottom: S.xs, overflow: 'hidden' }}
+            >
+              <View style={[styles.searchBar, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: theme.outline }]}>
+                <Search size={16} color={theme.onSurfaceVariant} />
+                <TextInput
+                  autoFocus
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder={t.searchPlaceholder}
+                  placeholderTextColor={theme.onSurfaceVariant}
+                  style={[styles.searchInput, { color: theme.onSurface }]}
+                  returnKeyType="search"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')}>
+                    <X size={16} color={theme.onSurfaceVariant} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </MotiView>
+          )}
+        </AnimatePresence>
+
+        {/* Sort Menu */}
+        <AnimatePresence>
+          {showSortMenu && (
+            <MotiView
+              from={{ opacity: 0, translateY: -8 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              exit={{ opacity: 0, translateY: -8 }}
+              style={[styles.sortMenu, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: theme.outline }]}
+            >
+              {([['creation', t.sortByCreation], ['priority', t.sortByPriority], ['date', t.sortByDate]] as const).map(([key, label]) => (
+                <TouchableOpacity
+                  key={key}
+                  onPress={() => { setSortBy(key); setShowSortMenu(false); Haptics.selectionAsync(); }}
+                  style={[styles.sortOption, { borderBottomColor: theme.outline }]}
+                >
+                  <Text style={[{ color: sortBy === key ? theme.primary : theme.onSurface, fontSize: F.body, fontWeight: sortBy === key ? '700' : '400' }]}>
+                    {label}
+                  </Text>
+                  {sortBy === key && <Check size={16} color={theme.primary} />}
+                </TouchableOpacity>
+              ))}
+            </MotiView>
+          )}
+        </AnimatePresence>
 
         <ScrollView 
             style={{ flex: 1 }} 
@@ -643,7 +838,7 @@ export default function ActionCenter() {
             <BentoCard index={1} style={{ flex: 1, padding: S.md }}>
                 <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.pending}</Text>
                 <Text style={[styles.statValue, { color: theme.primary, fontSize: F.hero }]}>{tasks.filter(t => !t.isCompleted).length}</Text>
-                <Text style={[styles.statSub, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.streak}</Text>
+                <Text style={[styles.statSub, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.pendingTasks}</Text>
             </BentoCard>
           </View>
 
@@ -651,7 +846,7 @@ export default function ActionCenter() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ gap: 8 }}>
             {filters.map((f) => {
               const label = f === 'all' ? t.filterAll :
-                            f === 'today' ? (t as any).filterToday || 'Today' :
+                            f === 'today' ? t.filterToday :
                             f === 'High' ? t.filterHigh :
                             f === 'Medium' ? t.filterMedium :
                             f === 'Low' ? t.filterLow :
@@ -663,7 +858,7 @@ export default function ActionCenter() {
                   style={[
                       styles.filterChip, 
                       { 
-                          backgroundColor: filter === f ? 'rgba(250, 250, 250, 0.05)' : 'transparent',
+                          backgroundColor: filter === f ? (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)') : 'transparent',
                           borderColor: filter === f ? theme.primary : theme.outline,
                           borderWidth: 1,
                           paddingVertical: S.xs,
@@ -749,14 +944,14 @@ export default function ActionCenter() {
                         >
                             <Sparkles size={40} color={theme.primary} />
                         </MotiView>
-                        <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>{t.allTasksReady}</Text>
-                        <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>{t.noTasksHint}</Text>
+                        <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>{searchQuery.trim() ? t.noResults : t.allTasksReady}</Text>
+                        <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>{searchQuery.trim() ? (language === 'tr' ? `"${searchQuery}" için sonuç bulunamadı` : `No results for "${searchQuery}"`) : t.noTasksHint}</Text>
                     </MotiView>
                 ) : (
                     filteredTasks.map((task, i) => (
-                        <SwipeableItem 
-                            key={task.id} 
-                            onDelete={() => handleDelete(task.id)}
+                        <SwipeableItem
+                            key={task.id}
+                            onDelete={isBulkMode ? () => {} : () => handleDelete(task.id)}
                             isDark={isDark}
                             theme={theme}
                         >
@@ -774,15 +969,35 @@ export default function ActionCenter() {
                                     stiffness: 150,
                                 }}
                             >
-                                <TouchableOpacity 
-                                    activeOpacity={0.9} 
-                                    onPress={() => handleToggleExpand(task.id)}
-                                    onLongPress={() => openEdit(task.id)}
+                                <TouchableOpacity
+                                    activeOpacity={0.9}
+                                    onPress={() => {
+                                      if (isBulkMode) {
+                                        Haptics.selectionAsync();
+                                        setSelectedIds(prev => {
+                                          const next = new Set(prev);
+                                          next.has(task.id) ? next.delete(task.id) : next.add(task.id);
+                                          return next;
+                                        });
+                                      } else {
+                                        handleToggleExpand(task.id);
+                                      }
+                                    }}
+                                    onLongPress={() => {
+                                      if (!isBulkMode) {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                        setIsBulkMode(true);
+                                        setSelectedIds(new Set([task.id]));
+                                      } else {
+                                        openEdit(task.id);
+                                      }
+                                    }}
                                     style={[
-                                        styles.taskCard, 
-                                        { 
+                                        styles.taskCard,
+                                        {
                                             backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest,
-                                            borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                                            borderColor: isBulkMode && selectedIds.has(task.id) ? theme.primary : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)'),
+                                            borderWidth: isBulkMode && selectedIds.has(task.id) ? 2 : 1,
                                             padding: S.md,
                                             flexDirection: 'column',
                                             alignItems: 'stretch'
@@ -790,6 +1005,11 @@ export default function ActionCenter() {
                                     ]}
                                 >
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    {isBulkMode && (
+                                      <View style={[{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: selectedIds.has(task.id) ? theme.primary : theme.outline, backgroundColor: selectedIds.has(task.id) ? theme.primary : 'transparent', justifyContent: 'center', alignItems: 'center', marginRight: S.sm }]}>
+                                        {selectedIds.has(task.id) && <Check size={12} color={theme.onPrimary || '#fff'} />}
+                                      </View>
+                                    )}
                                     <View style={[styles.priorityIndicator, { backgroundColor: priorityColor(task.priority), width: S.xs, height: '100%', borderRadius: R.sm, marginRight: S.sm }]} />
                                     
                                     <View style={styles.taskContent}>
@@ -827,13 +1047,31 @@ export default function ActionCenter() {
                                                     <Tag size={10} color="#4fc3f7" />
                                                 </View>
                                             )}
-                                            {task.tags?.length > 0 && (
-                                                <View style={[styles.categoryBadge, { backgroundColor: theme.primary + '20' }]}>
-                                                    <Text style={[styles.categoryBadgeText, { color: theme.primary, fontWeight: '900' }]}>
-                                                        #{task.tags[0].toUpperCase()}
-                                                    </Text>
-                                                </View>
-                                            )}
+                                            {(() => {
+                                                const ICON_TAGS = ['hatırlatıcı', 'reminder', 'etkinlik', 'event', 'not', 'note'];
+                                                const textTags = (task.tags || []).filter(tag => !ICON_TAGS.includes(tag));
+                                                const shown = textTags.slice(0, 2);
+                                                const overflow = textTags.length - shown.length;
+                                                return (
+                                                    <>
+                                                        {shown.map((tag, ti) => {
+                                                            const tc = getTagColor(tag);
+                                                            return (
+                                                              <View key={ti} style={[styles.categoryBadge, { backgroundColor: tc + '25' }]}>
+                                                                <Text style={[styles.categoryBadgeText, { color: tc, fontWeight: '900' }]}>
+                                                                    #{tag.toUpperCase()}
+                                                                </Text>
+                                                              </View>
+                                                            );
+                                                        })}
+                                                        {overflow > 0 && (
+                                                            <View style={[styles.categoryBadge, { backgroundColor: theme.onSurfaceVariant + '20' }]}>
+                                                                <Text style={[styles.categoryBadgeText, { color: theme.onSurfaceVariant }]}>+{overflow}</Text>
+                                                            </View>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
                                         </View>
                                         <View style={styles.taskMetaRow}>
                                             <Text style={[styles.taskMetaText, { color: getDateColor(task.dueDate, theme), fontSize: F.caption }]}>
@@ -886,7 +1124,7 @@ export default function ActionCenter() {
                                             animate={{ opacity: 1, height: 'auto' }}
                                             exit={{ opacity: 0, height: 0 }}
                                             transition={{ type: 'timing', duration: 300 }}
-                                            style={{ overflow: 'hidden', marginTop: S.md, paddingTop: S.md, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }}
+                                            style={{ overflow: 'hidden', marginTop: S.md, paddingTop: S.md, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)' }}
                                         >
                                             {task.description ? (
                                                 <Text style={{ color: theme.onSurface, fontSize: F.body, lineHeight: 20, opacity: 0.8, marginBottom: S.sm }}>
@@ -894,7 +1132,7 @@ export default function ActionCenter() {
                                                 </Text>
                                             ) : (
                                                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontStyle: 'italic', marginBottom: S.sm }}>
-                                                    {i18n.locale && i18n.locale.startsWith('tr') ? 'Açıklama eklenmemiş' : 'No description'}
+                                                    {language === 'tr' ? 'Açıklama eklenmemiş' : 'No description'}
                                                 </Text>
                                             )}
                                             
@@ -918,9 +1156,9 @@ export default function ActionCenter() {
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                                                     <TrendingUp size={13} color={priorityColor(task.priority)} />
                                                     <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
-                                                        {task.priority === 'High' ? (i18n.locale.startsWith('tr') ? 'Yüksek' : 'High') :
-                                                         task.priority === 'Medium' ? (i18n.locale.startsWith('tr') ? 'Orta' : 'Medium') :
-                                                         (i18n.locale.startsWith('tr') ? 'Düşük' : 'Low')}
+                                                        {task.priority === 'High' ? (language === 'tr' ? 'Yüksek' : 'High') :
+                                                         task.priority === 'Medium' ? (language === 'tr' ? 'Orta' : 'Medium') :
+                                                         (language === 'tr' ? 'Düşük' : 'Low')}
                                                     </Text>
                                                 </View>
                                             </View>
@@ -982,27 +1220,64 @@ export default function ActionCenter() {
                     ))
                 )}
             </AnimatePresence>
+
+            {filteredTasks.length > 0 && !isBulkMode && (
+              <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: isDark ? 0.5 : 0.35, textAlign: 'center', marginTop: S.md, fontWeight: '600', letterSpacing: 0.3 }}>
+                {language === 'tr' ? 'Düzenlemek için uzun bas · Silmek için sola kaydır' : 'Long press to select · Swipe left to delete'}
+              </Text>
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>
 
-      <TouchableOpacity 
-        onPress={openAdd}
-        style={[
-            styles.fab,
-            {
-                backgroundColor: theme.primary,
-                shadowColor: isDark ? theme.primary : '#000',
-                width: 64,
-                height: 64,
-                borderRadius: R.lg,
-                bottom: 120,
-                right: S.lg
-            }
-        ]}
-      >
-        <Plus size={32} color={theme.onPrimary} strokeWidth={3} />
-      </TouchableOpacity>
+      {/* Bulk Action Bar */}
+      <AnimatePresence>
+        {isBulkMode && (
+          <MotiView
+            from={{ translateY: 120, opacity: 0 }}
+            animate={{ translateY: 0, opacity: 1 }}
+            exit={{ translateY: 120, opacity: 0 }}
+            style={[styles.bulkBar, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderTopColor: theme.outline, bottom: 80 + insets.bottom }]}
+          >
+            <TouchableOpacity
+              onPress={handleBulkComplete}
+              disabled={selectedIds.size === 0}
+              style={[styles.bulkBtn, { backgroundColor: '#34c759' + (selectedIds.size === 0 ? '40' : ''), opacity: selectedIds.size === 0 ? 0.5 : 1 }]}
+            >
+              <CheckCircle2 size={18} color={selectedIds.size > 0 ? '#fff' : theme.onSurfaceVariant} />
+              <Text style={{ color: selectedIds.size > 0 ? '#fff' : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', marginLeft: 6 }}>{t.bulkComplete}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleBulkDelete}
+              disabled={selectedIds.size === 0}
+              style={[styles.bulkBtn, { backgroundColor: '#ff3b30' + (selectedIds.size === 0 ? '40' : ''), opacity: selectedIds.size === 0 ? 0.5 : 1 }]}
+            >
+              <Trash2 size={18} color={selectedIds.size > 0 ? '#fff' : theme.onSurfaceVariant} />
+              <Text style={{ color: selectedIds.size > 0 ? '#fff' : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', marginLeft: 6 }}>{t.bulkDelete}</Text>
+            </TouchableOpacity>
+          </MotiView>
+        )}
+      </AnimatePresence>
+
+      {!isBulkMode && (
+        <TouchableOpacity
+          onPress={openAdd}
+          style={[
+              styles.fab,
+              {
+                  backgroundColor: theme.primary,
+                  shadowColor: isDark ? theme.primary : '#000',
+                  width: 64,
+                  height: 64,
+                  borderRadius: R.lg,
+                  bottom: 120,
+                  right: S.lg
+              }
+          ]}
+        >
+          <Plus size={32} color={theme.onPrimary} strokeWidth={3} />
+        </TouchableOpacity>
+      )}
 
       <BottomNavBar />
 
@@ -1011,17 +1286,16 @@ export default function ActionCenter() {
         <View style={styles.overlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && setModalVisible(false)} />
           
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-            style={styles.sheetContainer}
-          >
-            <MotiView 
+          <View style={styles.sheetContainer}>
+            <RNAnimated.View style={taskSlide}>
+            <MotiView
                 from={{ translateY: 300 }}
                 animate={{ translateY: 0 }}
-                style={[styles.sheet, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', padding: S.lg }]}
+                style={[styles.sheet, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', padding: S.lg, borderBottomLeftRadius: kbHeight > 0 ? S.xl : 0, borderBottomRightRadius: kbHeight > 0 ? S.xl : 0 }]}
             >
-                <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
+                <View {...taskPan.panHandlers} style={{ paddingBottom: S.xs, alignItems: 'center' }}>
+                  <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
+                </View>
                 
                 <View style={[styles.sheetHeader, { marginBottom: S.lg }]}>
                     <Text style={[styles.sheetTitle, { color: theme.onSurface, fontSize: F.title }]}>
@@ -1032,11 +1306,12 @@ export default function ActionCenter() {
                     </TouchableOpacity>
                 </View>
 
-                <ScrollView 
-                    style={styles.formContainer} 
-                    showsVerticalScrollIndicator={false} 
-                    contentContainerStyle={{ paddingBottom: S.md }}
+                <ScrollView
+                    style={styles.formContainer}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: S.lg }}
                     keyboardShouldPersistTaps="handled"
+                    automaticallyAdjustKeyboardInsets={true}
                 >
                     <View style={styles.section}>
                         <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 60 }]}>
@@ -1047,6 +1322,7 @@ export default function ActionCenter() {
                                     value={form.title}
                                     onChangeText={handleTitleChange}
                                     maxLength={200}
+                                    autoFocus
                                 />
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                                     {nlpHint ? <Sparkles size={16} color={theme.primary} /> : null}
@@ -1117,7 +1393,7 @@ export default function ActionCenter() {
 
                         {/* Inline Date Picker */}
                         {showDatePicker && (
-                          <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
+                          <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]}>
                             <Text style={[styles.inlinePickerTitle, { color: theme.onSurface }]}>{t.dueDate}</Text>
                             <View style={styles.pickerRow}>
                               <View style={styles.pickerCol}>
@@ -1176,7 +1452,7 @@ export default function ActionCenter() {
 
                         {/* Inline Time Picker */}
                         {showTimePicker && (
-                          <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
+                          <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]}>
                             <Text style={[styles.inlinePickerTitle, { color: theme.onSurface }]}>{t.dueTime}</Text>
                             <View style={styles.pickerRow}>
                               <View style={styles.pickerCol}>
@@ -1249,6 +1525,35 @@ export default function ActionCenter() {
                         </View>
                     </View>
 
+                    {/* Reminder Toggle */}
+                    <View style={styles.section}>
+                        <TouchableOpacity
+                            onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, reminderEnabled: !f.reminderEnabled })); }}
+                            style={[styles.inputGroup, {
+                                backgroundColor: form.reminderEnabled
+                                    ? (isDark ? 'rgba(255,159,10,0.12)' : 'rgba(255,159,10,0.08)')
+                                    : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow),
+                                height: 52,
+                            }]}
+                        >
+                            <Bell size={18} color={form.reminderEnabled ? '#ff9f0a' : theme.onSurfaceVariant} />
+                            <Text style={{ flex: 1, fontSize: F.body, fontWeight: '700', color: form.reminderEnabled ? '#ff9f0a' : theme.onSurfaceVariant, marginLeft: S.sm }}>
+                                {language === 'tr' ? 'Hatırlatıcı' : 'Reminder'}
+                            </Text>
+                            <View style={{
+                                width: 44, height: 26, borderRadius: 13,
+                                backgroundColor: form.reminderEnabled ? '#ff9f0a' : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'),
+                                justifyContent: 'center', paddingHorizontal: 2,
+                            }}>
+                                <MotiView
+                                    animate={{ translateX: form.reminderEnabled ? 18 : 0 }}
+                                    transition={{ type: 'spring', damping: 15 }}
+                                    style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'white' }}
+                                />
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+
                     {/* Subtasks Editor */}
                     <View style={styles.section}>
                         <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.subtasks.toUpperCase()}</Text>
@@ -1301,25 +1606,28 @@ export default function ActionCenter() {
                         </View>
                     </View>
 
-                    <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.modalSaveBtn}>
-                        <LinearGradient colors={isDark ? [theme.primary, theme.primaryDim] : [theme.primary, theme.primaryContainer]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalSaveGradient}>
-                            {saving ? <ActivityIndicator color="white" /> : (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md }}>
-                                    <Check size={20} color={theme.onPrimary} strokeWidth={3} />
-                                    <Text
-                                        style={[styles.modalSaveText, { color: theme.onPrimary, fontSize: F.subhead, flexShrink: 1 }]}
-                                        numberOfLines={1}
-                                        adjustsFontSizeToFit
-                                    >
-                                        {t.save}
-                                    </Text>
-                                </View>
-                            )}
-                        </LinearGradient>
-                    </TouchableOpacity>
                 </ScrollView>
+
+                {/* Sticky save — always visible outside the scroll area */}
+                <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.modalSaveBtn, { marginTop: S.sm, marginBottom: 0 }]}>
+                    <LinearGradient colors={isDark ? [theme.primary, theme.primaryDim] : [theme.primary, theme.primaryContainer]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalSaveGradient}>
+                        {saving ? <ActivityIndicator color="white" /> : (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md }}>
+                                <Check size={20} color={theme.onPrimary} strokeWidth={3} />
+                                <Text
+                                    style={[styles.modalSaveText, { color: theme.onPrimary, fontSize: F.subhead, flexShrink: 1 }]}
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                >
+                                    {t.save}
+                                </Text>
+                            </View>
+                        )}
+                    </LinearGradient>
+                </TouchableOpacity>
             </MotiView>
-          </KeyboardAvoidingView>
+            </RNAnimated.View>
+          </View>
         </View>
       </Modal>
     </View>
@@ -1329,8 +1637,15 @@ export default function ActionCenter() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.lg, paddingVertical: S.sm },
   backBtn: { width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontWeight: '900', letterSpacing: -0.5 },
+  headerTitle: { fontWeight: '900', letterSpacing: -0.5, flex: 1, textAlign: 'center' },
+  headerIconBtn: { width: 36, height: 36, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   aiBtn: { width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: R.lg, borderWidth: 1, paddingHorizontal: S.md, gap: S.sm, height: 44 },
+  searchInput: { flex: 1, fontWeight: '600', fontSize: F.body },
+  sortMenu: { position: 'absolute', top: 56, right: S.lg, zIndex: 200, borderRadius: R.lg, borderWidth: 1, overflow: 'hidden', minWidth: 180, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
+  sortOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth },
+  bulkBar: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', paddingHorizontal: S.lg, paddingVertical: S.md, gap: S.md, borderTopWidth: StyleSheet.hairlineWidth, zIndex: 100 },
+  bulkBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: R.lg, paddingVertical: S.sm + 2, paddingHorizontal: S.md },
   headline: { fontWeight: '900', letterSpacing: -1.5 },
   subHeadline: { fontWeight: '600', opacity: 0.7, marginTop: S.xs },
   statsGrid: { flexDirection: 'row' },
@@ -1390,7 +1705,7 @@ const styles = StyleSheet.create({
   modalSaveBtn: { borderRadius: R.lg, overflow: 'hidden', marginTop: S.lg, marginBottom: S.xl },
   modalSaveGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, height: 56 },
   modalSaveText: { color: 'white', fontWeight: '900', letterSpacing: -0.5, textAlign: 'center', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
-  inlinePicker: { borderRadius: R.lg, padding: S.md, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  inlinePicker: { borderRadius: R.lg, padding: S.md, alignItems: 'center', borderWidth: 1 },
   inlinePickerTitle: { fontSize: F.body, fontWeight: '900', marginBottom: S.md, letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 },
   pickerRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.md },
   pickerCol: { alignItems: 'center', minWidth: 60 },
@@ -1404,3 +1719,4 @@ const styles = StyleSheet.create({
   pickerConfirmBtn: { flex: 1, borderRadius: R.md, height: 48, alignItems: 'center', justifyContent: 'center' },
   pickerBtnText: { fontWeight: '700', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
 });
+

@@ -30,10 +30,7 @@ export const BottomNavBar = () => {
 
   return (
     <View style={styles.container}>
-      <MotiView
-        from={{ translateY: 100 }}
-        animate={{ translateY: 0 }}
-        transition={{ type: 'spring', damping: 20 }}
+      <View
         style={[
           styles.bar,
           {
@@ -81,7 +78,7 @@ export const BottomNavBar = () => {
             );
           })}
         </View>
-      </MotiView>
+      </View>
     </View>
   );
 };

@@ -8,4 +8,5 @@ config.resolver.extraNodeModules = {
   'react-native-fs': require.resolve('expo-file-system'),
 };
 
+
 module.exports = withNativeWind(config, { input: "./global.css" });

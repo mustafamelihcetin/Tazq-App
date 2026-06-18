@@ -35,13 +35,14 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    const retryCount = config?._retryCount ?? 0;
     const shouldRetry =
       config &&
-      !config._retryCount &&
+      retryCount < MAX_RETRIES &&
       (RETRY_STATUS_CODES.includes(error.response?.status) || error.code === 'ECONNABORTED');
 
     if (shouldRetry) {
-      config._retryCount = (config._retryCount ?? 0) + 1;
+      config._retryCount = retryCount + 1;
       if (config._retryCount <= MAX_RETRIES) {
         await new Promise((resolve) => setTimeout(resolve, 800 * config._retryCount!));
         return api(config);

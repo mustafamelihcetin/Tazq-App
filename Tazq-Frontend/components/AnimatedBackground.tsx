@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAppTheme } from '../hooks/useAppTheme';
 
-const Blob = ({ color, size, duration, delay = 0 }: { color: string, size: number, duration: number, delay?: number }) => {
+const Blob = ({ color, size, duration, delay = 0, isDark = false }: { color: string, size: number, duration: number, delay?: number, isDark?: boolean }) => {
   const { width, height } = useWindowDimensions();
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
@@ -53,11 +53,11 @@ const Blob = ({ color, size, duration, delay = 0 }: { color: string, size: numbe
       style={[
         styles.blob, 
         { 
-          backgroundColor: color, 
-          width: size, 
-          height: size, 
+          backgroundColor: color,
+          width: size,
+          height: size,
           borderRadius: size / 2,
-          opacity: 0.15,
+          opacity: isDark ? 0.22 : 0.13,
           left: Math.random() * width * 0.5,
           top: Math.random() * height * 0.5,
         },
@@ -73,9 +73,9 @@ export const AnimatedBackground = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Blob color={theme.primary} size={width * 0.8} duration={15000} />
-      <Blob color={theme.secondary} size={width * 0.9} duration={20000} />
-      <Blob color={theme.tertiary} size={width * 0.7} duration={18000} />
+      <Blob color={theme.primary} size={width * 0.8} duration={15000} isDark={isDark} />
+      <Blob color={theme.secondary} size={width * 0.9} duration={20000} isDark={isDark} />
+      <Blob color={theme.tertiary} size={width * 0.7} duration={18000} isDark={isDark} />
     </View>
   );
 };

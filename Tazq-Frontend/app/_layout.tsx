@@ -1,4 +1,4 @@
-import { Buffer } from 'buffer';
+﻿import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
 
 import '../global.css';
@@ -129,6 +129,22 @@ export default function RootLayout() {
     });
   }, [isLoggedIn]);
 
+  // Notification tap → deep link (skipped in Expo Go, active in dev/prod builds)
+  useEffect(() => {
+    if (isExpoGo) return;
+    let sub: any;
+    try {
+      const Notifications = require('expo-notifications');
+      sub = Notifications.addNotificationResponseReceivedListener((response: any) => {
+        const taskId = response?.notification?.request?.content?.data?.taskId;
+        if (taskId && isLoggedIn) {
+          router.push({ pathname: '/tasks', params: { action: 'add' } });
+        }
+      });
+    } catch (_) {}
+    return () => { try { sub?.remove?.(); } catch (_) {} };
+  }, [isLoggedIn]);
+
   // Auth Guard & Initialization
   useEffect(() => {
     if (!_hasHydrated) return;
@@ -233,3 +249,4 @@ export default function RootLayout() {
     </ErrorBoundary>
   );
 }
+

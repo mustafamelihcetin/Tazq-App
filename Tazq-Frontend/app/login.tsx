@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Keyboard,
-  Modal
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
@@ -87,6 +88,12 @@ export default function LoginScreen() {
     }
   };
 
+  const closeForgotModal = () => {
+    setForgotVisible(false);
+    setForgotEmail('');
+    setForgotMsg(null);
+  };
+
   const handleForgotPassword = async () => {
     if (!forgotEmail.trim()) return;
     setForgotLoading(true);
@@ -106,9 +113,12 @@ export default function LoginScreen() {
         <AnimatedBackground />
         
         <SafeAreaView style={styles.safeArea}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          <ScrollView
             style={styles.keyboardView}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
+            showsVerticalScrollIndicator={false}
           >
             <View style={styles.content}>
               <MotiView
@@ -151,17 +161,22 @@ export default function LoginScreen() {
                   <View style={styles.form}>
                     <View style={styles.inputGroup}>
                       <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>{t.login.email.toUpperCase()}</Text>
-                      <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
-                        <Mail size={18} color={theme.outline} />
+                      <View style={[styles.inputWrapper, {
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                      }]}>
+                        <Mail size={18} color={isDark ? 'rgba(255,255,255,0.45)' : theme.outline} />
                         <TextInput
                           ref={emailRef}
                           placeholder={t.login.email}
-                          placeholderTextColor={theme.outlineVariant}
+                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : theme.outlineVariant}
                           style={[styles.input, { color: theme.onSurface }]}
                           value={email}
                           onChangeText={setEmail}
                           autoCapitalize="none"
                           keyboardType="email-address"
+                          returnKeyType="next"
+                          onSubmitEditing={() => passwordRef.current?.focus()}
                         />
                       </View>
                     </View>
@@ -173,19 +188,24 @@ export default function LoginScreen() {
                           <Text style={[styles.forgotText, { color: theme.primary }]}>{t.login.forgotPassword}</Text>
                         </TouchableOpacity>
                       </View>
-                      <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
-                        <Lock size={18} color={theme.outline} />
+                      <View style={[styles.inputWrapper, {
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                      }]}>
+                        <Lock size={18} color={isDark ? 'rgba(255,255,255,0.45)' : theme.outline} />
                         <TextInput
                           ref={passwordRef}
                           placeholder="••••••••"
-                          placeholderTextColor={theme.outlineVariant}
+                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : theme.outlineVariant}
                           style={[styles.input, { color: theme.onSurface }]}
                           value={password}
                           onChangeText={setPassword}
                           secureTextEntry={!showPassword}
                         />
                         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                          {showPassword ? <EyeOff size={18} color={theme.outline} /> : <Eye size={18} color={theme.outline} />}
+                          {showPassword
+                            ? <EyeOff size={18} color={isDark ? 'rgba(255,255,255,0.45)' : theme.outline} />
+                            : <Eye size={18} color={isDark ? 'rgba(255,255,255,0.45)' : theme.outline} />}
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -249,10 +269,15 @@ export default function LoginScreen() {
                 </View>
               </MotiView>
             </View>
-          </KeyboardAvoidingView>
+          </ScrollView>
         </SafeAreaView>
 
         <Modal visible={forgotVisible} transparent animationType="fade">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+          >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
             <GlassCard style={styles.modalCard}>
               <Text style={[styles.modalTitle, { color: theme.onSurface }]}>{t.login.forgotTitle}</Text>
@@ -260,23 +285,35 @@ export default function LoginScreen() {
               
               <TextInput
                 placeholder={t.login.email}
-                placeholderTextColor={theme.outlineVariant}
-                style={[styles.modalInput, { backgroundColor: theme.surfaceContainerLow, color: theme.onSurface, borderColor: theme.outlineVariant }]}
+                placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : theme.outlineVariant}
+                style={[styles.modalInput, {
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
+                  color: theme.onSurface,
+                  borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                }]}
                 value={forgotEmail}
                 onChangeText={setForgotEmail}
                 autoCapitalize="none"
               />
 
+              {forgotMsg && (
+                <Text style={{ fontSize: 13, fontWeight: '600', color: forgotMsg.success ? theme.tertiary : theme.error, textAlign: 'center' }}>
+                  {forgotMsg.text}
+                </Text>
+              )}
+
               <View style={styles.modalActions}>
-                <TouchableOpacity onPress={() => setForgotVisible(false)} style={styles.modalCancel}>
+                <TouchableOpacity onPress={closeForgotModal} style={styles.modalCancel}>
                   <Text style={{ color: theme.onSurfaceVariant }}>{t.cancel}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleForgotPassword} style={[styles.modalSend, { backgroundColor: theme.primary }]}>
-                  <Text style={{ color: theme.onPrimary }}>{t.login.forgotSend}</Text>
+                <TouchableOpacity onPress={handleForgotPassword} disabled={forgotLoading} style={[styles.modalSend, { backgroundColor: theme.primary }]}>
+                  {forgotLoading ? <ActivityIndicator color={theme.onPrimary} size="small" /> : <Text style={{ color: theme.onPrimary }}>{t.login.forgotSend}</Text>}
                 </TouchableOpacity>
               </View>
             </GlassCard>
           </View>
+          </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
         </Modal>
       </View>
     </TouchableWithoutFeedback>
@@ -287,16 +324,17 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   keyboardView: { flex: 1 },
-  content: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
-  header: { alignItems: 'center', marginBottom: 40 },
-  title: { fontSize: 32, fontFamily: 'Jakarta-ExtraBold', marginTop: 16, letterSpacing: -1 },
-  subtitle: { fontSize: 16, fontWeight: '500', marginTop: 4, opacity: 0.7 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center' },
+  content: { paddingHorizontal: 28, paddingVertical: 32, gap: 0 },
+  header: { alignItems: 'center', marginBottom: 32 },
+  title: { fontSize: 34, fontFamily: 'Jakarta-ExtraBold', marginTop: 20, letterSpacing: -1.2 },
+  subtitle: { fontSize: 15, fontWeight: '500', marginTop: 6, opacity: 0.6, letterSpacing: 0.1 },
   cardContainer: { width: '100%' },
-  glassCard: { width: '100%', padding: 24 },
+  glassCard: { width: '100%', padding: 28 },
   errorContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, marginBottom: 16 },
   errorText: { fontSize: 13, fontWeight: '600' },
-  form: { gap: 16 },
-  inputGroup: { gap: 8 },
+  form: { gap: 14 },
+  inputGroup: { gap: 7 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
   forgotText: { fontSize: 12, fontWeight: '700' },
@@ -311,7 +349,7 @@ const styles = StyleSheet.create({
   socialRow: { flexDirection: 'row', gap: 12 },
   socialButton: { flex: 1, height: 56, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1 },
   socialText: { fontSize: 15, fontWeight: '700' },
-  footer: { alignItems: 'center', marginTop: 32 },
+  footer: { alignItems: 'center', marginTop: 28 },
   footerRow: { flexDirection: 'row', alignItems: 'center' },
   footerText: { fontSize: 15, fontWeight: '500' },
   link: { fontSize: 15, fontWeight: '800' },
@@ -324,3 +362,4 @@ const styles = StyleSheet.create({
   modalCancel: { flex: 1, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   modalSend: { flex: 2, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });
+

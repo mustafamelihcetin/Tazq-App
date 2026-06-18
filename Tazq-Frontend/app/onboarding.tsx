@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -357,3 +357,4 @@ const styles = StyleSheet.create({
   clayShadow: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 15 },
   nextBtnText: { fontWeight: '900' },
 });
+

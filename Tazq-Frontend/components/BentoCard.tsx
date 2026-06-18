@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import { StyleSheet, ViewStyle, StyleProp, TouchableOpacity } from 'react-native';
 import { MotiView } from 'moti';
 import { BlurView } from 'expo-blur';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -10,13 +10,14 @@ interface BentoCardProps {
   style?: StyleProp<ViewStyle>;
   index?: number;
   glass?: boolean;
+  onPress?: () => void;
 }
 
-export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0, glass = false }) => {
+export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0, glass = false, onPress }) => {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
 
-  return (
+  const card = (
     <MotiView
       from={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -44,6 +45,11 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
       {children}
     </MotiView>
   );
+
+  if (onPress) {
+    return <TouchableOpacity onPress={onPress} activeOpacity={0.85}>{card}</TouchableOpacity>;
+  }
+  return card;
 };
 
 const styles = StyleSheet.create({

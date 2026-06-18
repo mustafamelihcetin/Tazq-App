@@ -89,7 +89,7 @@ export function parseTaskHint(text: string): ParsedHint {
   // 3. Priority Calculation
   if (scores.urgent >= 10 || scores.stressful >= 15) hint.priority = 'High';
   else if (scores.urgent >= 5 || scores.stressful >= 8) hint.priority = 'Medium';
-  else hint.priority = 'Low';
+  else if (scores.urgent > 0 || scores.stressful > 0) hint.priority = 'Low';
 
   // 4. Auto-Tagging
   const tagsSet = new Set<string>();
@@ -98,6 +98,15 @@ export function parseTaskHint(text: string): ParsedHint {
        tagsSet.add(CLUSTER_TO_TAG[c as ContextType]);
     }
   });
+
+  const KEYWORD_TAGS: Array<{ keywords: string[], tag: string }> = [
+    { keywords: ['toplantı', 'meeting'], tag: 'toplantı' },
+    { keywords: ['kod', 'kodla', 'kodlama', 'geliştir', 'develop', 'code', 'program', 'backend', 'frontend'], tag: 'geliştirme' },
+  ];
+  KEYWORD_TAGS.forEach(({ keywords, tag }) => {
+    if (keywords.some(kw => lower.includes(kw))) tagsSet.add(tag);
+  });
+
   if (tagsSet.size > 0) hint.tags = Array.from(tagsSet);
 
   // 5. Smart Date & Time
@@ -157,8 +166,10 @@ export function parseTaskHint(text: string): ParsedHint {
   
   if (isExplicitNote || isNote) {
     hint.wittyMessage = isTR ? "Bu önemli bilgiyi not defterime kaydettim. 📝" : "I've saved this important info to my notebook. 📝";
-    if (!hint.tags) hint.tags = [];
-    hint.tags.push(isTR ? 'not' : 'note');
+    if (isExplicitNote) {
+      if (!hint.tags) hint.tags = [];
+      hint.tags.push(isTR ? 'not' : 'note');
+    }
     // Truncate long notes for DB/UI stability (max 200 chars for title part)
     if (text.length > 200) {
         // We'll keep the full text but maybe flag it or handle it in UI

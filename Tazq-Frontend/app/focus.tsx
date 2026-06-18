@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
+﻿import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView, AppState, Keyboard, Animated } from 'react-native';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import Svg, { Circle, G } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
 import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2 } from 'lucide-react-native';
@@ -12,7 +14,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { getRandomQuote } from '../constants/Quotes';
 import { S, R, F } from '../constants/tokens';
-import i18n from 'i18n-js';
 
 const DURATIONS = [15, 25, 50, 90];
 
@@ -22,12 +23,22 @@ export default function FocusScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const { t, language } = useLanguageStore();
-  const isTR = i18n.locale?.startsWith('tr');
 
-  const { isActive, seconds, totalSeconds, setIsActive, tick, reset, setDuration, currentTask, rehydrateTimer } = useFocusStore();
+
+  const { isActive, seconds, totalSeconds, setIsActive, tick, reset, setDuration, currentTask, rehydrateTimer, addFocusMinutes } = useFocusStore();
   const completedRef = useRef(false);
   const [customVisible, setCustomVisible] = useState(false);
   const [customInput, setCustomInput] = useState('');
+  const [customError, setCustomError] = useState(false);
+
+  const { panResponder: customPan, animatedStyle: customSlide, resetPosition: resetCustomPos } = useSwipeToDismiss({
+    onDismiss: () => setCustomVisible(false),
+  });
+
+  // Session summary
+  const [summaryVisible, setSummaryVisible] = useState(false);
+  const [summaryMinutes, setSummaryMinutes] = useState(0);
+  const [summaryCompleted, setSummaryCompleted] = useState(false);
 
   const timerSize = Math.min(width * 0.72, height * 0.35);
   const elapsed = totalSeconds - seconds;
@@ -35,25 +46,51 @@ export default function FocusScreen() {
   const sessionStarted = elapsed > 0;
 
   const [quote, setQuote] = useState('');
+  const [kbHeight, setKbHeight] = useState(0);
 
-  useEffect(() => { 
-    rehydrateTimer(); 
+  useEffect(() => {
+    rehydrateTimer();
     setQuote(getRandomQuote(language));
   }, []);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', e => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKbHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  // Re-sync timer when returning from background; save partial session on background
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') {
+        rehydrateTimer();
+      } else if (next === 'background') {
+        const { isActive: active, seconds: secs, totalSeconds: total } = useFocusStore.getState();
+        if (active && total > 0) {
+          const elapsed = Math.max(1, Math.round((total - secs) / 60));
+          FocusService.saveSession(currentTask || 'Focus', elapsed, false).catch(() => {});
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [currentTask]);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
     if (isActive && seconds > 0) {
       completedRef.current = false;
       interval = setInterval(() => tick(), 1000);
-    } else if (seconds === 0 && !completedRef.current) {
+    } else if (seconds === 0 && totalSeconds > 0 && !completedRef.current) {
       completedRef.current = true;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 300);
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 600);
       const minutes = Math.round(totalSeconds / 60);
       FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
-      setTimeout(() => {
-        router.canGoBack() ? router.back() : router.replace('/');
-      }, 1500);
+      addFocusMinutes(minutes);
+      setSummaryMinutes(minutes);
+      setSummaryCompleted(true);
+      setSummaryVisible(true);
     }
     return () => { if (interval) clearInterval(interval); };
   }, [isActive, seconds]);
@@ -75,7 +112,10 @@ export default function FocusScreen() {
     completedRef.current = true;
     const minutesDone = Math.max(1, Math.round(elapsed / 60));
     FocusService.saveSession(currentTask || 'Focus', minutesDone, false).catch(() => {});
-    router.canGoBack() ? router.back() : router.replace('/');
+    addFocusMinutes(minutesDone);
+    setSummaryMinutes(minutesDone);
+    setSummaryCompleted(false);
+    setSummaryVisible(true);
   };
 
   const applyCustomDuration = () => {
@@ -85,6 +125,11 @@ export default function FocusScreen() {
       setDuration(mins);
       setCustomInput('');
       setCustomVisible(false);
+      setCustomError(false);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setCustomError(true);
+      setTimeout(() => setCustomError(false), 700);
     }
   };
 
@@ -142,7 +187,7 @@ export default function FocusScreen() {
 
             {/* Custom duration chip */}
             <TouchableOpacity
-              onPress={() => { if (!isActive) { Haptics.selectionAsync(); setCustomVisible(true); } }}
+              onPress={() => { if (!isActive) { resetCustomPos(); Haptics.selectionAsync(); setCustomVisible(true); } }}
               disabled={isActive}
               style={[
                 styles.durationChip,
@@ -183,13 +228,45 @@ export default function FocusScreen() {
               }]}
             />
 
+            {/* SVG Progress Ring */}
+            {(() => {
+              const r = (timerSize / 2) - 6;
+              const circumference = 2 * Math.PI * r;
+              const offset = circumference * (1 - progress);
+              return (
+                <Svg width={timerSize} height={timerSize} style={{ position: 'absolute', zIndex: 2 }}>
+                  <G rotation={-90} origin={`${timerSize / 2}, ${timerSize / 2}`}>
+                    <Circle
+                      cx={timerSize / 2}
+                      cy={timerSize / 2}
+                      r={r}
+                      fill="none"
+                      stroke={isDark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.08)'}
+                      strokeWidth={8}
+                    />
+                    {progress > 0 && (
+                      <Circle
+                        cx={timerSize / 2}
+                        cy={timerSize / 2}
+                        r={r}
+                        fill="none"
+                        stroke={theme.primary}
+                        strokeWidth={8}
+                        strokeDasharray={`${circumference}`}
+                        strokeDashoffset={`${offset}`}
+                        strokeLinecap="round"
+                      />
+                    )}
+                  </G>
+                </Svg>
+              );
+            })()}
+
             <View style={[styles.timerCircle, {
               backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest,
-              borderColor: progress > 0
-                ? theme.primary + (isDark ? '60' : '40')
-                : (isDark ? theme.primary + '30' : 'rgba(0,0,0,0.05)'),
+              borderColor: 'transparent',
               borderRadius: timerSize / 2,
-              borderWidth: 8,
+              borderWidth: 0,
             }]}>
               <Text style={[styles.timerText, { color: theme.onSurface, fontSize: 56 }]}>
                 {formatTime(seconds)}
@@ -200,7 +277,7 @@ export default function FocusScreen() {
               <View style={[styles.statusBadge, { backgroundColor: isActive ? theme.primary + '20' : theme.surfaceContainerHigh, marginTop: 12 }]}>
                 <View style={[styles.statusDot, { backgroundColor: isActive ? theme.primary : theme.onSurfaceVariant }]} />
                 <Text style={[styles.statusText, { color: isActive ? theme.primary : theme.onSurfaceVariant, fontSize: F.caption }]}>
-                  {isActive ? (isTR ? 'ÇALIŞIYOR' : 'RUNNING') : seconds === totalSeconds ? (isTR ? 'HAZIR' : 'READY') : (isTR ? 'DURAKLATILDI' : 'PAUSED')}
+                  {isActive ? t.focusRunning : seconds === totalSeconds ? t.focusReady : t.focusPaused}
                 </Text>
               </View>
             </View>
@@ -230,7 +307,7 @@ export default function FocusScreen() {
             </TouchableOpacity>
 
             <View style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg }]}>
-              <Text style={[styles.progressText, { color: theme.onSurfaceVariant, fontSize: F.body }]}>
+              <Text style={[styles.progressText, { color: progress > 0 ? theme.primary : theme.onSurfaceVariant, fontSize: 13 }]}>
                 {Math.round(progress * 100)}%
               </Text>
             </View>
@@ -252,7 +329,7 @@ export default function FocusScreen() {
                 >
                   <CheckCircle2 size={15} color={theme.tertiary} />
                   <Text style={[styles.finishText, { color: theme.tertiary, fontSize: F.body }]}>
-                    {isTR ? 'Seansı Bitir' : 'End Session'}
+                    {t.focusEndSession}
                   </Text>
                 </TouchableOpacity>
               </MotiView>
@@ -269,43 +346,136 @@ export default function FocusScreen() {
       <Modal visible={customVisible} transparent animationType="fade">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCustomVisible(false)} />
+          <Animated.View style={customSlide}>
           <MotiView
             from={{ translateY: 60, opacity: 0 }}
             animate={{ translateY: 0, opacity: 1 }}
             transition={{ type: 'spring', damping: 18 }}
-            style={[styles.customSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
+            style={[styles.customSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : S.xxl, borderBottomLeftRadius: kbHeight > 0 ? R.lg : 0, borderBottomRightRadius: kbHeight > 0 ? R.lg : 0 }]}
           >
-            <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
+            <View {...customPan.panHandlers} style={{ paddingBottom: S.xs, alignItems: 'center' }}>
+              <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
+            </View>
             <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
-              {isTR ? 'Özel Süre' : 'Custom Duration'}
+              {t.focusCustomDuration}
             </Text>
             <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>
-              {isTR ? '1 – 480 dakika arası' : '1 – 480 minutes'}
+              {t.focusCustomRange}
             </Text>
 
-            <View style={[styles.inputRow, { borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
-              <TextInput
-                value={customInput}
-                onChangeText={setCustomInput}
-                keyboardType="number-pad"
-                maxLength={3}
-                placeholder={isTR ? 'dakika' : 'minutes'}
-                placeholderTextColor={theme.onSurfaceVariant + '80'}
-                style={[styles.customInput, { color: theme.onSurface, fontSize: 32 }]}
-                autoFocus
-                onSubmitEditing={applyCustomDuration}
-              />
-              <Text style={[styles.minLabel, { color: theme.onSurfaceVariant }]}>min</Text>
-            </View>
+            <MotiView
+              animate={customError ? { translateX: [-8, 8, -6, 6, -3, 3, 0] } : { translateX: 0 }}
+              transition={{ type: 'timing', duration: 350 }}
+            >
+              <View style={[styles.inputRow, { borderColor: customError ? theme.error : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'), backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
+                <TextInput
+                  value={customInput}
+                  onChangeText={(v) => { setCustomInput(v); if (customError) setCustomError(false); }}
+                  keyboardType="number-pad"
+                  maxLength={3}
+                  placeholder={t.focusCustomPlaceholder}
+                  placeholderTextColor={customError ? theme.error + '80' : theme.onSurfaceVariant + '80'}
+                  style={[styles.customInput, { color: customError ? theme.error : theme.onSurface, fontSize: 32 }]}
+                  autoFocus
+                  onSubmitEditing={applyCustomDuration}
+                />
+                <Text style={[styles.minLabel, { color: customError ? theme.error : theme.onSurfaceVariant }]}>min</Text>
+              </View>
+            </MotiView>
+            {customError && (
+              <Text style={{ fontSize: F.caption, color: theme.error, fontWeight: '700' }}>
+                {t.focusCustomError}
+              </Text>
+            )}
 
             <TouchableOpacity
               onPress={applyCustomDuration}
               style={[styles.applyBtn, { backgroundColor: theme.primary, opacity: customInput.length > 0 ? 1 : 0.4 }]}
             >
-              <Text style={[styles.applyBtnText, { color: theme.onPrimary }]}>{isTR ? 'Uygula' : 'Apply'}</Text>
+              <Text style={[styles.applyBtnText, { color: theme.onPrimary }]}>{t.focusCustomApply}</Text>
             </TouchableOpacity>
           </MotiView>
+          </Animated.View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Session Summary Modal */}
+      <Modal visible={summaryVisible} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: S.xl }}>
+          <MotiView
+            from={{ opacity: 0, scale: 0.88 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', damping: 18, stiffness: 280 }}
+            style={{ width: '100%', borderRadius: R.lg, backgroundColor: theme.surface, padding: S.xl, alignItems: 'center', gap: S.md }}
+          >
+            {/* Icon */}
+            <MotiView
+              from={{ scale: 0, rotate: '-20deg' }}
+              animate={{ scale: 1, rotate: '0deg' }}
+              transition={{ type: 'spring', damping: 14, stiffness: 300, delay: 120 }}
+              style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: summaryCompleted ? theme.primaryContainer : theme.secondaryContainer, alignItems: 'center', justifyContent: 'center' }}
+            >
+              {summaryCompleted
+                ? <CheckCircle2 size={36} color={theme.primary} strokeWidth={2.5} />
+                : <Sparkles size={36} color={theme.secondary} strokeWidth={2.5} />}
+            </MotiView>
+
+            {/* Headline */}
+            <Text style={{ fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}>
+              {summaryCompleted
+                ? t.summaryGreatWork
+                : t.summaryGoodStart}
+            </Text>
+
+            {/* Minutes */}
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+              <Text style={{ fontSize: 52, fontWeight: '900', color: theme.primary, letterSpacing: -2, lineHeight: 56 }}>
+                {summaryMinutes}
+              </Text>
+              <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: 4 }}>
+                {t.summaryMinFocused}
+              </Text>
+            </View>
+
+            {/* Task name */}
+            {!!currentTask && (
+              <Text style={{ fontSize: F.body, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center', opacity: 0.7 }} numberOfLines={2}>
+                {currentTask}
+              </Text>
+            )}
+
+            {/* Divider */}
+            <View style={{ width: '100%', height: 1, backgroundColor: theme.onSurface + '12', marginVertical: S.xs }} />
+
+            {/* Actions */}
+            <TouchableOpacity
+              onPress={() => {
+                setSummaryVisible(false);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                reset();
+                router.replace('/');
+              }}
+              style={{ width: '100%', paddingVertical: S.md, borderRadius: R.full, backgroundColor: theme.primary, alignItems: 'center' }}
+            >
+              <Text style={{ fontSize: F.subhead, fontWeight: '900', color: theme.onPrimary, letterSpacing: 0.5 }}>
+                {t.summaryBackHome}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setSummaryVisible(false);
+                completedRef.current = false;
+                reset();
+              }}
+              style={{ paddingVertical: S.sm }}
+            >
+              <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                {t.summaryNewSession}
+              </Text>
+            </TouchableOpacity>
+          </MotiView>
+        </View>
       </Modal>
     </View>
   );
@@ -338,7 +508,7 @@ const styles = StyleSheet.create({
   footer: { alignItems: 'center' },
   quote: { fontStyle: 'italic', textAlign: 'center', opacity: 0.5 },
   modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  customSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, padding: S.lg, paddingBottom: S.xxl, alignItems: 'center', gap: S.sm },
+  customSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, padding: S.lg, alignItems: 'center', gap: S.sm },
   sheetHandle: { width: 36, height: 4, borderRadius: R.sm, marginBottom: S.sm },
   sheetTitle: { fontSize: F.title, fontWeight: '800', letterSpacing: -0.5 },
   sheetSub: { fontSize: F.body, fontWeight: '600', opacity: 0.5, marginBottom: S.sm },
@@ -348,3 +518,4 @@ const styles = StyleSheet.create({
   applyBtn: { width: '100%', paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
   applyBtnText: { color: 'white', fontWeight: '900', fontSize: F.subhead, letterSpacing: 0.5 },
 });
+

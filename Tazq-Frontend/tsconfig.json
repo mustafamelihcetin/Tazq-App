@@ -4,7 +4,6 @@
     "strict": true,
     "skipLibCheck": true,
     "ignoreDeprecations": "5.0",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
     }

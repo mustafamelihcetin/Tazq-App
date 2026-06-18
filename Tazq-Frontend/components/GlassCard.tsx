@@ -15,9 +15,9 @@ export const GlassCard = ({ children, style }: GlassCardProps) => {
   return (
     <View className="overflow-hidden rounded-3xl" style={[
       {
-        backgroundColor: theme.surfaceContainerLow,
+        backgroundColor: scheme === 'dark' ? '#17171C' : theme.surfaceContainerLow,
         borderWidth: 1,
-        borderColor: theme.outline,
+        borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)',
       },
       style
     ]}>

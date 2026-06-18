@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Alert, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView } from 'react-native';
+﻿import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Alert, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated } from 'react-native';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
 import { Bell, Moon, Languages, LogOut, ChevronRight, Award, Zap, Target, Trophy, Shield } from 'lucide-react-native';
@@ -15,33 +16,7 @@ import { useRouter } from 'expo-router';
 import { requestNotificationPermissions } from '../utils/notifications';
 import { S, R, F } from '../constants/tokens';
 
-const AVATAR_CONFIGS = [
-    { id: 1, key: 'm1', name: 'Oliver', image: require('../assets/avatars/m1.png') },
-    { id: 2, key: 'm2', name: 'James', image: require('../assets/avatars/m2.png') },
-    { id: 3, key: 'm3', name: 'George', image: require('../assets/avatars/m3.png') },
-    { id: 4, key: 'm4', name: 'Jack', image: require('../assets/avatars/m4.png') },
-    { id: 5, key: 'f1', name: 'Aneka', image: require('../assets/avatars/f1.png') },
-    { id: 6, key: 'f2', name: 'Sasha', image: require('../assets/avatars/f2.png') },
-    { id: 7, key: 'f3', name: 'Lily', image: require('../assets/avatars/f3.png') },
-    { id: 8, key: 'f4', name: 'Sienna', image: require('../assets/avatars/f4.png') }
-];
-
-const AVATAR_MAP: Record<string, any> = {
-    'm1': require('../assets/avatars/m1.png'),
-    'm2': require('../assets/avatars/m2.png'),
-    'm3': require('../assets/avatars/m3.png'),
-    'm4': require('../assets/avatars/m4.png'),
-    'f1': require('../assets/avatars/f1.png'),
-    'f2': require('../assets/avatars/f2.png'),
-    'f3': require('../assets/avatars/f3.png'),
-    'f4': require('../assets/avatars/f4.png'),
-};
-
-const getAvatarSource = (avatar: string | null) => {
-    if (!avatar) return require('../assets/avatars/m1.png');
-    if (avatar.startsWith('http')) return { uri: avatar };
-    return AVATAR_MAP[avatar] || require('../assets/avatars/m1.png');
-};
+import { AVATAR_CONFIGS, getAvatarSource } from '../utils/avatars';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -63,9 +38,20 @@ export default function ProfileScreen() {
   const [selectedGoal, setSelectedGoal] = useState(dailyGoalMinutes);
   const [savingProfile, setSavingProfile] = useState(false);
 
+  const { panResponder: editPan, animatedStyle: editSlide, resetPosition: resetEditPos } = useSwipeToDismiss({
+    onDismiss: () => setEditModalVisible(false),
+  });
+
   const [stats, setStats] = useState({ totalFocusHours: 0, completedTasksCount: 0, activeStreak: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
   const [notifEnabled, setNotifEnabled] = useState(false);
+  const [kbHeight, setKbHeight] = useState(0);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', e => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKbHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   useEffect(() => {
     setStatsLoading(true);
@@ -81,6 +67,7 @@ export default function ProfileScreen() {
   }, []);
 
   const openEditModal = () => {
+    resetEditPos();
     setSelectedAvatar(user?.avatar || 'm1');
     setNewName(user?.name || '');
     setSelectedGoal(dailyGoalMinutes);
@@ -89,6 +76,10 @@ export default function ProfileScreen() {
 
   const handleSaveProfile = async () => {
     if (!user) return;
+    if (!newName.trim()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
     setSavingProfile(true);
     try {
       await AuthService.updateProfile({ avatar: selectedAvatar, name: newName });
@@ -105,10 +96,30 @@ export default function ProfileScreen() {
   const toggleNotifications = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (notifEnabled) {
-      Alert.alert(t.notifications, t.notificationsDisabled + ' — ' + (language === 'tr' ? 'Ayarlardan kapatabilirsin.' : 'Disable from device Settings.'));
+      Alert.alert(
+        t.notifications,
+        language === 'tr' ? 'Bildirimleri kapatmak için sistem ayarlarını aç.' : 'Open system settings to disable notifications.',
+        [
+          { text: t.cancel, style: 'cancel' },
+          { text: language === 'tr' ? 'Ayarları Aç' : 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
     } else {
       const granted = await requestNotificationPermissions();
-      setNotifEnabled(granted);
+      if (granted) {
+        setNotifEnabled(true);
+      } else {
+        Alert.alert(
+          t.notifications,
+          language === 'tr'
+            ? 'Bildirimlere izin vermek için sistem ayarlarını açın.'
+            : 'Please enable notifications in system settings.',
+          [
+            { text: t.cancel, style: 'cancel' },
+            { text: language === 'tr' ? 'Ayarları Aç' : 'Open Settings', onPress: () => Linking.openSettings() },
+          ]
+        );
+      }
     }
   };
 
@@ -133,7 +144,7 @@ export default function ProfileScreen() {
   const handleStreakFreeze = () => {
     if (!streakFreezeAvailable) return;
     Alert.alert(
-      (t as any).streakFreeze || 'Streak Shield',
+      t.streakFreeze || 'Streak Shield',
       language === 'tr' ? 'Serisini korumak için Seri Kalkanı kullan?' : 'Use streak freeze to protect your streak?',
       [
         { text: t.cancel, style: 'cancel' },
@@ -156,7 +167,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{user?.name || 'Alex'}</Text>
                 <Text style={[styles.email, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{user?.email || 'user@tazq.com'}</Text>
                 <TouchableOpacity onPress={openEditModal} style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: S.sm }]}>
-                    <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '900', fontSize: F.caption }]}>{(t as any).editProfile || t.editProfile}</Text>
+                    <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '900', fontSize: F.caption }]}>{t.editProfile || t.editProfile}</Text>
                 </TouchableOpacity>
             </View>
           </View>
@@ -183,7 +194,7 @@ export default function ProfileScreen() {
                 <BentoCard index={3} style={{ flex: 1, alignItems: 'center', padding: S.md }}>
                     <Trophy size={22} color={'#ff9f0a'} />
                     <Text style={[styles.statValue, { color: theme.onSurface, fontSize: F.title }]}>{displayBestStreak}</Text>
-                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{(t as any).bestStreak || 'BEST STREAK'}</Text>
+                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.bestStreak || 'BEST STREAK'}</Text>
                 </BentoCard>
               </View>
             </>
@@ -191,7 +202,7 @@ export default function ProfileScreen() {
 
           <View style={[styles.settingsSection, { marginTop: S.xl }]}>
             <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5, marginBottom: S.sm, marginLeft: S.xs }]}>{t.settings.toUpperCase()}</Text>
-            <View style={[styles.settingsCard, { backgroundColor: isDark ? '#18181B' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', borderWidth: 1, borderRadius: R.lg, overflow: 'hidden' }]}>
+            <View style={[styles.settingsCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', borderWidth: 1, borderRadius: R.lg, overflow: 'hidden' }]}>
                 <SettingItem 
                     icon={<Bell size={18} color="#F59E0B" />} 
                     label={t.notifications} 
@@ -200,7 +211,7 @@ export default function ProfileScreen() {
                     onPress={toggleNotifications} 
                     theme={theme} 
                 />
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', marginHorizontal: S.md }} />
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
                 <SettingItem 
                     icon={<Moon size={18} color="#818CF8" />} 
                     label={t.appearance} 
@@ -209,7 +220,7 @@ export default function ProfileScreen() {
                     onPress={toggleTheme} 
                     theme={theme} 
                 />
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', marginHorizontal: S.md }} />
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
                 <SettingItem 
                     icon={<Languages size={18} color="#10B981" />} 
                     label={t.language} 
@@ -218,12 +229,12 @@ export default function ProfileScreen() {
                     onPress={toggleLanguage} 
                     theme={theme} 
                 />
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)', marginHorizontal: S.md }} />
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
                 <SettingItem 
                     icon={<Shield size={18} color="#2DD4BF" />} 
-                    label={(t as any).streakFreeze || 'Streak Shield'} 
+                    label={t.streakFreeze || 'Streak Shield'} 
                     bg={isDark ? "rgba(45, 212, 191, 0.1)" : "#2DD4BF15"}
-                    right={<Text style={{ color: streakFreezeAvailable ? '#2DD4BF' : theme.onSurface, fontWeight: '800', fontSize: F.body }}>{streakFreezeAvailable ? (t as any).streakFreezeAvail || 'Ready' : (t as any).streakFreezeUsed || 'Used'}</Text>} 
+                    right={<Text style={{ color: streakFreezeAvailable ? '#2DD4BF' : theme.onSurface, fontWeight: '800', fontSize: F.body }}>{streakFreezeAvailable ? t.streakFreezeAvail || 'Ready' : t.streakFreezeUsed || 'Used'}</Text>} 
                     onPress={handleStreakFreeze} 
                     theme={theme} 
                 />
@@ -243,22 +254,25 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
             <TouchableOpacity style={{ flex: 1 }} onPress={() => setEditModalVisible(false)} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-              <View style={[styles.modalContent, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', paddingBottom: Platform.OS === 'ios' ? 48 : S.lg }]}>
-                <View style={[styles.modalHandle, { backgroundColor: theme.outlineVariant + '40' }]} />
+              <Animated.View style={editSlide}>
+              <View style={[styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : (Platform.OS === 'ios' ? 48 : S.lg) }]}>
+                <View {...editPan.panHandlers} style={{ paddingBottom: S.sm, alignItems: 'center' }}>
+                  <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
+                </View>
                 <Text style={[styles.modalTitle, { color: theme.onSurface, fontSize: F.subhead }]}>
-                  {(t as any).editProfile || 'Edit Profile'}
+                  {t.editProfile || 'Edit Profile'}
                 </Text>
 
                 {/* Name input */}
                 <View style={{ width: '100%', marginBottom: S.md }}>
                   <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
-                    {(t as any).editName || 'Display Name'}
+                    {t.editName || 'Display Name'}
                   </Text>
                   <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
                     <TextInput
                       value={newName}
                       onChangeText={setNewName}
-                      placeholder={(t as any).namePlaceholder || 'Your name'}
+                      placeholder={t.namePlaceholder || 'Your name'}
                       placeholderTextColor={theme.onSurfaceVariant + '60'}
                       style={[styles.nameInput, { color: theme.onSurface }]}
                     />
@@ -293,7 +307,7 @@ export default function ProfileScreen() {
                 {/* Daily focus goal */}
                 <View style={{ width: '100%', marginBottom: S.lg }}>
                   <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
-                    {(t as any).dailyFocusGoal || 'Daily Focus Goal'}
+                    {t.dailyFocusGoal || 'Daily Focus Goal'}
                   </Text>
                   <View style={{ flexDirection: 'row', gap: S.sm }}>
                     {GOAL_OPTIONS.map((g) => (
@@ -325,6 +339,7 @@ export default function ProfileScreen() {
                   }
                 </TouchableOpacity>
               </View>
+              </Animated.View>
             </KeyboardAvoidingView>
         </View>
       </Modal>
@@ -358,10 +373,10 @@ const styles = StyleSheet.create({
   editBtnText: { color: 'white', fontWeight: '800' },
   statsGrid: { flexDirection: 'row' },
   statValue: { fontWeight: '900', marginTop: S.sm },
-  statLabel: { fontWeight: '800', opacity: 0.6, marginTop: S.xs },
+  statLabel: { fontWeight: '800', opacity: 0.75, marginTop: S.xs },
   settingsSection: { },
   sectionTitle: { fontSize: F.caption, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginBottom: S.md },
-  sectionLabel: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1, marginBottom: S.sm, textTransform: 'uppercase', opacity: 0.6 },
+  sectionLabel: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1, marginBottom: S.sm, textTransform: 'uppercase', opacity: 0.75 },
   settingsCard: { borderRadius: R.lg, overflow: 'hidden' },
   settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   iconBox: { width: 32, height: 32, borderRadius: R.sm, alignItems: 'center', justifyContent: 'center' },
@@ -371,7 +386,7 @@ const styles = StyleSheet.create({
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.lg },
   logoutText: { fontWeight: '800' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, padding: S.lg },
+  modalContent: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, borderBottomLeftRadius: S.xl, borderBottomRightRadius: S.xl, padding: S.lg },
   modalHandle: { width: 40, height: 4, borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
   modalTitle: { fontWeight: '900', marginBottom: S.lg, textAlign: 'center' },
   avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
@@ -381,3 +396,4 @@ const styles = StyleSheet.create({
   goalChip: { flex: 1, paddingVertical: S.sm, borderRadius: R.md, alignItems: 'center' },
   saveBtn: { width: '100%', paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
 });
+

@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  useWindowDimensions, 
-  KeyboardAvoidingView, 
+﻿import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  useWindowDimensions,
   Platform,
   ActivityIndicator,
   TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
@@ -81,9 +81,12 @@ export default function RegisterScreen() {
         <AnimatedBackground />
 
         <SafeAreaView style={styles.safeArea}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          <ScrollView
             style={styles.keyboardView}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
+            showsVerticalScrollIndicator={false}
           >
             <View style={styles.content}>
               <MotiView
@@ -227,7 +230,7 @@ export default function RegisterScreen() {
                 </View>
               </MotiView>
             </View>
-          </KeyboardAvoidingView>
+          </ScrollView>
         </SafeAreaView>
       </View>
     </TouchableWithoutFeedback>
@@ -238,7 +241,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   keyboardView: { flex: 1 },
-  content: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
+  scrollContent: { flexGrow: 1, justifyContent: 'center' },
+  content: { paddingHorizontal: 24, paddingVertical: 32 },
   header: { alignItems: 'center', marginBottom: 32 },
   title: { fontSize: 28, fontFamily: 'Jakarta-ExtraBold', marginTop: 12, letterSpacing: -0.5 },
   subtitle: { fontSize: 14, fontWeight: '500', marginTop: 4, opacity: 0.7, textAlign: 'center' },
@@ -265,3 +269,4 @@ const styles = StyleSheet.create({
   footerText: { fontSize: 15, fontWeight: '500' },
   link: { fontSize: 15, fontWeight: '800' },
 });
+

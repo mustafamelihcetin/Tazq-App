@@ -42,7 +42,7 @@ namespace Tazq_App.Services
                 {
                     "duedate" => query.OrderBy(t => t.DueDate),
                     "priority" => query.OrderByDescending(t => t.Priority),
-                    _ => query.OrderByDescending(t => t.CreatedAt)
+                    _ => query.OrderByDescending(t => t.SortOrder)
                 };
 
                 var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
@@ -60,7 +60,7 @@ namespace Tazq_App.Services
 
                 if (!string.IsNullOrEmpty(tag))
                 {
-                    filtered = filtered.Where(t => t.Tags != null && t.Tags.Contains(tag, StringComparison.OrdinalIgnoreCase));
+                    filtered = filtered.Where(t => t.Tags != null && t.Tags.Any(tg => tg.Equals(tag, StringComparison.OrdinalIgnoreCase)));
                 }
 
                 if (!string.IsNullOrEmpty(search))
@@ -77,7 +77,7 @@ namespace Tazq_App.Services
                     "duedate" => filtered.OrderBy(t => t.DueDate),
                     "priority" => filtered.OrderByDescending(t => t.Priority),
                     "title" => filtered.OrderBy(t => t.Title),
-                    _ => filtered.OrderByDescending(t => t.CreatedAt)
+                    _ => filtered.OrderByDescending(t => t.SortOrder)
                 };
 
                 var finalCount = sorted.Count();

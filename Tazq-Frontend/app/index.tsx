@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, TouchableWithoutFeedback } from 'react-native';
+﻿import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTaskStore } from '../store/useTaskStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -18,26 +19,10 @@ import { TazqLogo } from '../components/TazqLogo';
 import { useFocusStore } from '../store/useFocusStore';
 import { StatusHub } from '../components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
-import i18n from 'i18n-js';
 import { parseTaskHint } from '../utils/taskParser';
+import { getSmartInsight } from '../utils/insights';
 import { S, R, F } from '../constants/tokens';
-
-const AVATAR_MAP: Record<string, any> = {
-    'm1': require('../assets/avatars/m1.png'),
-    'm2': require('../assets/avatars/m2.png'),
-    'm3': require('../assets/avatars/m3.png'),
-    'm4': require('../assets/avatars/m4.png'),
-    'f1': require('../assets/avatars/f1.png'),
-    'f2': require('../assets/avatars/f2.png'),
-    'f3': require('../assets/avatars/f3.png'),
-    'f4': require('../assets/avatars/f4.png'),
-};
-
-const getAvatarSource = (avatar: string | null) => {
-    if (!avatar) return require('../assets/avatars/m1.png');
-    if (avatar.startsWith('http')) return { uri: avatar };
-    return AVATAR_MAP[avatar] || require('../assets/avatars/m1.png');
-};
+import { getAvatarSource } from '../utils/avatars';
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
@@ -49,19 +34,22 @@ export default function HomeScreen() {
   const router = useRouter();
 
   // Focus Store
-  const { isActive, seconds, setCurrentTask, setDuration, setIsActive } = useFocusStore();
+  const { isActive, seconds, setCurrentTask, setDuration, setIsActive, dailyFocusMinutes, dailyGoalMinutes, updateBestStreak } = useFocusStore();
 
   // State
   const [statusHubVisible, setStatusHubVisible] = useState(false);
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
+
+  const { panResponder: draftPan, animatedStyle: draftSlide, resetPosition: resetDraftPos } = useSwipeToDismiss({
+    onDismiss: () => setQuickDraftVisible(false),
+  });
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [weeklyFocus, setWeeklyFocus] = useState<DailyFocusData[]>([]);
   const [streak, setStreak] = useState(0);
   const [statsLoading, setStatsLoading] = useState(true);
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
-
-  const isTR = i18n.locale?.startsWith('tr') ?? true;
 
   // Compute daily goal from real data
   const todayTasks = tasks.filter(t => {
@@ -90,7 +78,9 @@ export default function HomeScreen() {
     try {
       const stats = await FocusService.getStats();
       setWeeklyFocus(stats.weeklyFocus || []);
-      setStreak(stats.activeStreak || 0);
+      const active = stats.activeStreak || 0;
+      setStreak(active);
+      updateBestStreak(active);
     } catch (e: any) {
       if (e.response?.status !== 401) {
         console.warn('fetchStats error:', e.message);
@@ -106,14 +96,20 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', e => setKeyboardHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboardHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  useEffect(() => {
     const now = new Date();
     const msUntilNextHour = (60 - now.getMinutes()) * 60000 - now.getSeconds() * 1000;
+    let interval: ReturnType<typeof setInterval>;
     const timeout = setTimeout(() => {
       setCurrentHour(new Date().getHours());
-      const interval = setInterval(() => setCurrentHour(new Date().getHours()), 3600000);
-      return () => clearInterval(interval);
+      interval = setInterval(() => setCurrentHour(new Date().getHours()), 3600000);
     }, msUntilNextHour);
-    return () => clearTimeout(timeout);
+    return () => { clearTimeout(timeout); clearInterval(interval); };
   }, []);
 
   const handleQuickSave = async () => {
@@ -149,10 +145,10 @@ export default function HomeScreen() {
         
         Alert.alert(
             "✍️ " + t.taskAdded,
-            `"${payload.title}" ${i18n.locale.startsWith('tr') ? 'başarıyla eklendi.' : 'added successfully.'}`,
+            `"${payload.title}" ${language === 'tr' ? 'başarıyla eklendi.' : 'added successfully.'}`,
             [
                 { text: t.cancel, style: 'cancel' },
-                { text: i18n.locale.startsWith('tr') ? 'Listeyi Aç' : 'View List', onPress: () => router.push('/tasks') }
+                { text: language === 'tr' ? 'Listeyi Aç' : 'View List', onPress: () => router.push('/tasks') }
             ]
         );
     } catch (error) {
@@ -181,88 +177,7 @@ export default function HomeScreen() {
   const highPriorityToday = todayTasksIncomplete.find(t => t.priority === 'High');
   const topTask = topTaskToday || futureTasksIncomplete[0];
 
-  const getSmartInsight = () => {
-    if (isActive) return isTR ? "Odak modu aktif. Akışını bozma, harika gidiyorsun." : "Focus mode active. Stay in the zone, you're doing great.";
-    
-    // Sentiment Analysis (Local Heuristics)
-    const getSentiment = (t: any) => {
-        const title = t.title.toLowerCase();
-        if (['cenaze', 'vefat', 'taziye', 'hastane', 'ameliyat', 'vefat', 'başsağlığı', 'mevlit', 'ilaç', 'tedavi', 'klinik'].some(kw => title.includes(kw))) return 'sensitive';
-        if (['doğum günü', 'kutlama', 'parti', 'düğün', 'tatil', 'bayram', 'tebrik', 'yıl dönümü', 'nişan', 'eğlence'].some(kw => title.includes(kw))) return 'joyful';
-        if (['sınav', 'mülakat', 'sunum', 'teslim', 'deadline', 'acil', 'vize', 'final', 'proje', 'toplantı'].some(kw => title.includes(kw))) return 'stressful';
-        return 'normal';
-    };
-
-    const isActuallyToday = (t: any) => {
-        const title = t.title.toLowerCase();
-        const tomorrowKeywords = ['yarın', 'tomorrow', 'öbür gün', 'next day'];
-        return !tomorrowKeywords.some(kw => title.includes(kw));
-    };
-
-    if (highPriorityToday && isActuallyToday(highPriorityToday)) {
-        const sentiment = getSentiment(highPriorityToday);
-        const title = highPriorityToday.title.toLowerCase();
-        
-        if (sentiment === 'sensitive') {
-            if (['cenaze', 'vefat', 'taziye', 'başsağlığı', 'mevlit'].some(kw => title.includes(kw))) {
-                return isTR ? `Başınız sağ olsun. "${highPriorityToday.title}" için metanet diliyorum. 🙏` : `My condolences. Stay strong for "${highPriorityToday.title}". 🙏`;
-            }
-            return isTR ? `Geçmiş olsun. "${highPriorityToday.title}" sürecinde kendine dikkat et. 🙏` : `Get well soon. Take care of yourself during "${highPriorityToday.title}". 🙏`;
-        }
-        if (sentiment === 'joyful') return isTR ? `Harika! "${highPriorityToday.title}" günü geldi. Tadını çıkar! 🎉` : `Awesome! "${highPriorityToday.title}" is today. Enjoy! 🎉`;
-        
-        return isTR 
-            ? `Bugünün en kritik işi: "${highPriorityToday.title}". Hemen bitirip rahatlamaya ne dersin?` 
-            : `Today's priority: "${highPriorityToday.title}". How about finishing it now to relax?`;
-    }
-
-    if (topTaskToday && isActuallyToday(topTaskToday)) {
-        const sentiment = getSentiment(topTaskToday);
-        const title = topTaskToday.title.toLowerCase();
-
-        if (sentiment === 'sensitive') {
-            if (['cenaze', 'vefat', 'taziye', 'başsağlığı', 'mevlit'].some(kw => title.includes(kw))) {
-                return isTR ? `Zor bir görev: "${topTaskToday.title}". Sabır dilerim. 🙏` : `A difficult task: "${topTaskToday.title}". Wishing you patience. 🙏`;
-            }
-            return isTR ? `"${topTaskToday.title}" konusuna odaklanalım. Sağlık her şeyden önemli. 🙏` : `Let's focus on "${topTaskToday.title}". Health comes first. 🙏`;
-        }
-        if (sentiment === 'joyful') return isTR ? `Hadi "${topTaskToday.title}" hazırlıklarına başlayalım! ✨` : `Let's start prep for "${topTaskToday.title}"! ✨`;
-
-        return isTR 
-            ? `Sıradaki bugünün görevi: "${topTaskToday.title}". Küçük bir adımla başlamak ivmeni artırır.` 
-            : `Next for today: "${topTaskToday.title}". A small step now will boost your momentum.`;
-    }
-
-    // If we have tomorrow's tasks or no tasks for today
-    if (futureTasksIncomplete.length > 0 || (topTaskToday && !isActuallyToday(topTaskToday))) {
-        const nextTask = (topTaskToday && !isActuallyToday(topTaskToday)) ? topTaskToday : futureTasksIncomplete[0];
-        const title = nextTask.title.toLowerCase();
-        const sentiment = getSentiment(nextTask);
-        const isTomorrow = title.includes('yarın') || title.includes('tomorrow');
-        
-        if (isTomorrow) {
-            if (sentiment === 'sensitive') {
-                if (['cenaze', 'vefat', 'taziye', 'başsağlığı', 'mevlit'].some(kw => title.includes(kw))) {
-                    return isTR ? `Yarın zor bir gün olacak. Metanetini koru, bugün sadece dinlen. 🙏` : `Tomorrow will be difficult. Stay strong, just rest today. 🙏`;
-                }
-                return isTR ? `Yarınki "${nextTask.title}" için şimdiden hazırlıklı ol. Geçmiş olsun. 🙏` : `Be prepared for tomorrow's "${nextTask.title}". Get well soon. 🙏`;
-            }
-            if (sentiment === 'joyful') return isTR ? `Yarın harika bir gün olacak! "${nextTask.title}" seni bekliyor. 🎈` : `Tomorrow will be great! "${nextTask.title}" awaits you. 🎈`;
-
-            return isTR 
-                ? `Bugünlük işler tamam gibi. Yarınki "${nextTask.title}" görevin için şimdiden plan yapabilirsin.` 
-                : `Today seems clear. You can start planning for tomorrow's "${nextTask.title}" task.`;
-        }
-        
-        return isTR 
-            ? `Sıradaki hedefin: "${nextTask.title}". Zamanı geldiğinde seni uyaracağım.` 
-            : `Next target: "${nextTask.title}". I'll alert you when the time comes.`;
-    }
-
-    if (momentum > 75) return isTR ? "Zirvedesin! Bugün durdurulamaz bir tempoya ulaştın." : "You're at peak performance! Unstoppable pace today.";
-    
-    return isTR ? "Tüm sistemler hazır. Yeni bir hedef belirleme vakti." : "All systems ready. Time to set a new target.";
-  };
+  const insight = getSmartInsight(language as 'tr' | 'en', isActive, momentum, highPriorityToday, topTaskToday, futureTasksIncomplete);
 
   const startQuickFocus = () => {
     const target = topTaskToday || futureTasksIncomplete[0];
@@ -275,11 +190,8 @@ export default function HomeScreen() {
     router.push('/focus');
   };
 
-  const momentumLabel = isTR
-    ? (momentum >= 75 ? 'Harika gidiyorsun' : momentum >= 40 ? 'İyi tempo' : 'Başlama vakti')
-    : (momentum >= 75 ? 'On a roll!' : momentum >= 40 ? 'Good pace' : 'Get started');
-  
-  const dayLabels = isTR ? ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const momentumLabel = momentum >= 75 ? t.momentumHigh : momentum >= 40 ? t.momentumMid : t.momentumLow;
+  const dayLabels: string[] = t.dayLabels;
 
   const getGreeting = () => {
     if (currentHour >= 5 && currentHour < 13) return t.greetingMorning;
@@ -355,7 +267,7 @@ export default function HomeScreen() {
                     <View style={styles.insightBody}>
                         <View style={[styles.bentoMini, { backgroundColor: theme.surfaceContainerLow }]}>
                             <Text style={[styles.insightMainText, { color: theme.onSurface }]}>
-                                {getSmartInsight()}
+                                {insight}
                             </Text>
                         </View>
 
@@ -369,23 +281,30 @@ export default function HomeScreen() {
                                 <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1 }]}>
                                     <Target size={16} color={theme.secondary} />
                                     <Text style={[styles.statValue, { color: theme.onSurface }]}>{todayCompleted}/{dailyGoal}</Text>
-                                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{isTR ? 'Hedef' : 'Target'}</Text>
+                                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.cockpitTarget}</Text>
                                 </View>
                             </View>
                         </View>
                     </View>
 
                     <View style={styles.cockpitActions}>
-                        <TouchableOpacity 
-                            onPress={startQuickFocus}
-                            disabled={(!topTaskToday && futureTasksIncomplete.length === 0) || isActive}
-                            style={[styles.actionButtonMain, { backgroundColor: theme.primary }]}
+                        <TouchableOpacity
+                            onPress={() => {
+                                if (isActive) {
+                                    setStatusHubVisible(false);
+                                    router.push('/focus');
+                                } else {
+                                    startQuickFocus();
+                                }
+                            }}
+                            disabled={!isActive && (!topTaskToday && futureTasksIncomplete.length === 0)}
+                            style={[styles.actionButtonMain, { backgroundColor: isActive ? theme.tertiary : theme.primary }]}
                         >
                             <Play size={20} color={theme.onPrimary} fill={theme.onPrimary} />
                             <Text style={[styles.actionButtonText, { color: theme.onPrimary }]}>
-                                {isActive ? (isTR ? 'ODAK AKTİF' : 'FOCUS ACTIVE') : 
-                                 (!topTaskToday && futureTasksIncomplete.length > 0 ? (isTR ? 'YARINA HAZIRLAN' : 'PREP FOR TOMORROW') : 
-                                 (isTR ? 'ŞİMDİ ODAKLAN' : 'FOCUS NOW'))}
+                                {isActive ? t.cockpitGoToFocus :
+                                 (!topTaskToday && futureTasksIncomplete.length > 0 ? t.cockpitPrepTomorrow :
+                                 t.cockpitFocusNow)}
                             </Text>
                         </TouchableOpacity>
                         
@@ -394,7 +313,7 @@ export default function HomeScreen() {
                             style={[styles.actionButtonSecondary, { backgroundColor: theme.surfaceContainerHigh }]}
                         >
                             <Text style={[styles.actionButtonTextSecondary, { color: theme.onSurfaceVariant }]}>
-                                {isTR ? 'KAPAT' : 'CLOSE'}
+                                {t.cockpitClose}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -427,7 +346,7 @@ export default function HomeScreen() {
                     </Text>
                 </View>
                 <Text style={[styles.subGreeting, { color: theme.onSurfaceVariant, fontSize: F.subhead }]}>
-                    {t.executiveSummary}
+                    {isActive ? t.executiveSummaryActive : tasks.filter(x => !x.isCompleted).length > 0 ? t.executiveSummaryTasks : t.executiveSummaryEmpty}
                 </Text>
             </MotiView>
 
@@ -443,10 +362,12 @@ export default function HomeScreen() {
                 >
                     <BentoCard index={0} style={[styles.nextMissionCard, { minHeight: 180 }]}>
                         <LinearGradient
-                            colors={topTask?.priority === 'High' 
-                                ? ['#ff3b30', '#1a1a1a'] 
-                                : topTask?.priority === 'Medium' 
-                                ? ['#ff9f0a', '#1a1a1a'] 
+                            colors={!topTask
+                                ? ['#8e8e93', '#1a1a1a']
+                                : topTask.priority === 'High'
+                                ? ['#ff3b30', '#1a1a1a']
+                                : topTask.priority === 'Medium'
+                                ? ['#ff9f0a', '#1a1a1a']
                                 : ['#34c759', '#1a1a1a']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
@@ -476,8 +397,14 @@ export default function HomeScreen() {
 
                         <View style={[styles.missionFooter, { gap: S.sm }]}>
                             {topTask ? (
-                                <TouchableOpacity 
-                                    onPress={() => router.push({ pathname: '/tasks', params: { action: 'focus', taskId: topTask.id } })}
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                                        setCurrentTask(topTask.title);
+                                        setDuration(25);
+                                        setIsActive(false);
+                                        router.push('/focus');
+                                    }}
                                     style={[styles.startBtn, { backgroundColor: theme.primary, flex: 2, height: 52, justifyContent: 'center' }]}
                                 >
                                     <Play size={18} color={theme.onPrimary} fill={theme.onPrimary} />
@@ -510,7 +437,7 @@ export default function HomeScreen() {
                 <BentoCard index={1}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.sm }}>
                         <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
-                            {isTR ? 'HAFTALIK ODAK' : 'WEEKLY FOCUS'}
+                            {t.weeklyFocusLabel}
                         </Text>
                         <Text style={{ fontSize: F.caption, fontWeight: '900', color: theme.primary }}>
                             {weeklyMinutes >= 60
@@ -554,7 +481,7 @@ export default function HomeScreen() {
                 <View style={{ flexDirection: 'row', gap: S.md }}>
                     <BentoCard index={2} style={{ flex: 1, minHeight: 144 }}>
                         <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
-                            {isTR ? 'BUGÜN' : 'TODAY'}
+                            {t.todayLabel}
                         </Text>
                         <View style={{ flex: 1, justifyContent: 'center' }}>
                             <Text style={[styles.metricValue, { color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary }]}>
@@ -563,16 +490,28 @@ export default function HomeScreen() {
                             </Text>
                             <Text style={[styles.metricSub, { color: theme.onSurfaceVariant }]}>{t.tasks}</Text>
                         </View>
-                        <View style={{ width: '100%', height: 3, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh, overflow: 'hidden' }}>
+                        <View style={{ width: '100%', height: 3, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh, overflow: 'hidden', marginBottom: 4 }}>
                             <MotiView
                                 animate={{ width: `${Math.min((todayCompleted / dailyGoal) * 100, 100)}%` as any }}
                                 transition={{ type: 'timing', duration: 800 }}
                                 style={{ height: '100%', borderRadius: R.sm, backgroundColor: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary }}
                             />
                         </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <View style={{ flex: 1, height: 2, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh, overflow: 'hidden' }}>
+                                <MotiView
+                                    animate={{ width: `${Math.min((dailyFocusMinutes / Math.max(dailyGoalMinutes, 1)) * 100, 100)}%` as any }}
+                                    transition={{ type: 'timing', duration: 900 }}
+                                    style={{ height: '100%', borderRadius: R.sm, backgroundColor: theme.secondary }}
+                                />
+                            </View>
+                            <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.45, letterSpacing: 0.3 }}>
+                                {dailyFocusMinutes}/{dailyGoalMinutes}dk
+                            </Text>
+                        </View>
                     </BentoCard>
 
-                    <BentoCard index={3} style={{ flex: 1, minHeight: 144 }}>
+                    <BentoCard index={3} style={{ flex: 1, minHeight: 144 }} onPress={() => Alert.alert('Momentum', language === 'tr' ? 'Görev tamamlama (%40) + haftalık odak (%35) + seri uzunluğu (%25) kombinasyonuyla hesaplanır.' : 'Calculated from task completion (40%) + weekly focus (35%) + streak length (25%).')}>
                         <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>MOMENTUM</Text>
                         <View style={{ flex: 1, justifyContent: 'center' }}>
                             <MotiView animate={{ opacity: statsLoading ? [0.4, 0.9, 0.4] : 1 }} transition={{ loop: statsLoading, duration: 1400 }}>
@@ -598,16 +537,23 @@ export default function HomeScreen() {
 
         {/* Quick Draft Modal */}
         <Modal visible={quickDraftVisible} transparent animationType="slide">
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <View style={styles.modalOverlay}>
-                <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
-                <View style={styles.bottomSheetWrapper}>
+          <View style={styles.draftOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
+                <View style={[styles.bottomSheetWrapper, { marginBottom: keyboardHeight }]}>
+                    <Animated.View style={draftSlide}>
                     <MotiView
                         from={{ translateY: 100, opacity: 0 }}
                         animate={{ translateY: 0, opacity: 1 }}
-                        style={[styles.quickDraftSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
+                        style={[styles.quickDraftSheet, {
+                          backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                          paddingBottom: keyboardHeight > 0 ? S.md : S.xl,
+                          borderBottomLeftRadius: keyboardHeight > 0 ? R.lg : 0,
+                          borderBottomRightRadius: keyboardHeight > 0 ? R.lg : 0,
+                        }]}
                     >
-                        <View style={styles.sheetHandle} />
+                        <View {...draftPan.panHandlers} style={{ paddingBottom: S.xs, alignItems: 'center' }}>
+                          <View style={styles.sheetHandle} />
+                        </View>
                         <View style={styles.sheetHeader}>
                             <View style={[styles.sheetIcon, { backgroundColor: theme.primaryContainer }]}>
                                 <FileText size={20} color={theme.primary} />
@@ -618,7 +564,7 @@ export default function HomeScreen() {
                         <View style={[styles.quickInputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', marginTop: S.md }]}>
                             <TextInput 
                                 style={[styles.quickInput, { color: theme.onSurface, height: 60 }]}
-                                placeholder={isTR ? "Ne planlıyorsun?" : "What's on your mind?"}
+                                placeholder={t.draftPlaceholder}
                                 placeholderTextColor={theme.onSurfaceVariant + '60'}
                                 value={draftTitle}
                                 onChangeText={setDraftTitle}
@@ -640,12 +586,21 @@ export default function HomeScreen() {
                             </TouchableOpacity>
                         </View>
                     </MotiView>
+                    </Animated.View>
                 </View>
-            </View>
-          </KeyboardAvoidingView>
+          </View>
         </Modal>
 
       </SafeAreaView>
+
+      {/* Quick Draft FAB */}
+      <TouchableOpacity
+        onPress={() => { resetDraftPos(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setQuickDraftVisible(true); }}
+        style={[styles.fab, { backgroundColor: theme.primary, shadowColor: isDark ? theme.primary : '#000' }]}
+      >
+        <Plus size={32} color={theme.onPrimary} strokeWidth={3} />
+      </TouchableOpacity>
+
       <BottomNavBar />
     </View>
   );
@@ -696,14 +651,14 @@ const styles = StyleSheet.create({
   actionButtonText: { fontSize: 16, fontWeight: '900', letterSpacing: 0.5 },
   actionButtonSecondary: { height: 52, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   actionButtonTextSecondary: { fontSize: 14, fontWeight: '800' },
+  draftOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   bottomSheetWrapper: { width: '100%' },
   quickDraftSheet: {
     width: '100%',
     borderTopLeftRadius: R.lg,
     borderTopRightRadius: R.lg,
     padding: S.lg,
-    paddingBottom: Platform.OS === 'ios' ? S.xl : S.lg,
-    borderWidth: 1, 
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
   sheetHandle: { width: 40, height: 4, borderRadius: R.sm, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginBottom: S.md },
@@ -717,4 +672,6 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', paddingHorizontal: S.lg, gap: S.md, marginTop: S.md },
   actionBtn: { flex: 1, borderRadius: R.lg, alignItems: 'center', gap: S.sm },
   actionLabel: { fontWeight: '800' },
+  fab: { position: 'absolute', bottom: 120, right: S.lg, width: 64, height: 64, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center', elevation: 10, zIndex: 100, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16 },
 });
+
