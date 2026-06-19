@@ -19,8 +19,8 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
 
   const card = (
     <MotiView
-      from={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
+      from={{ opacity: 0, translateY: 6 }}
+      animate={{ opacity: 1, translateY: 0 }}
       transition={{ delay: index * 80, type: 'spring', damping: 22, stiffness: 200 }}
       style={[
         styles.card,

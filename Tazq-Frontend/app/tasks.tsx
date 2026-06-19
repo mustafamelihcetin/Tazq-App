@@ -14,7 +14,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '../services/api';
 import { parseTaskHint } from '../utils/taskParser';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
@@ -91,8 +91,10 @@ export default function ActionCenter() {
   const { tasks, toggleTaskCompletion, addTask, removeTask, updateTask, setTasks, setLoading, isLoading, toggleSubtask } = useTaskStore();
   const { t, language } = useLanguageStore();
   const { show: showToast } = useToastStore();
+  const { setCurrentTask } = useFocusStore();
   const { width, height } = useWindowDimensions();
   const router = useRouter();
+  const navigation = useNavigation();
   const { action, highlightId } = useLocalSearchParams<{ action?: string; highlightId?: string }>();
   const insets = useSafeAreaInsets();
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
@@ -732,7 +734,7 @@ export default function ActionCenter() {
             </>
           ) : (
             <>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <TouchableOpacity onPress={() => navigation.canGoBack() ? router.back() : router.replace('/')} style={styles.backBtn}>
                 <ArrowLeft size={24} color={theme.onSurface} />
               </TouchableOpacity>
               <Text style={[styles.headerTitle, { color: theme.onSurface }]}>{t.actionCenter}</Text>
@@ -939,19 +941,24 @@ export default function ActionCenter() {
                             onDelete={() => handleDelete(task.id)}
                             disabled={isBulkMode}
                         >
-                            <MotiView 
+                            <MotiView
                                 layout={Layout.duration(300)}
                                 from={{ opacity: 0, translateY: 10 }}
-                                animate={{ 
-                                    opacity: 1, 
+                                animate={{
+                                    opacity: 1,
                                     translateY: 0,
-                                    scale: task.isCompleted ? [1, 1.03, 1] : 1 
+                                    scale: task.isCompleted ? [1, 1.03, 1] : 1,
+                                    borderColor: highlightedId === task.id ? theme.secondary : (isBulkMode && selectedIds.has(task.id) ? theme.primary : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)')),
+                                    borderWidth: (highlightedId === task.id || (isBulkMode && selectedIds.has(task.id))) ? 2 : 1,
                                 }}
-                                transition={{ 
+                                transition={{
                                     type: 'spring',
                                     damping: 15,
                                     stiffness: 150,
+                                    borderColor: { type: 'timing', duration: 200 },
+                                    borderWidth: { type: 'timing', duration: 200 },
                                 }}
+                                style={[styles.taskCard, { backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest, flexDirection: 'column', alignItems: 'stretch' }]}
                             >
                                 <TouchableOpacity
                                     activeOpacity={0.9}
@@ -974,17 +981,7 @@ export default function ActionCenter() {
                                         setSelectedIds(new Set([task.id]));
                                       }
                                     }}
-                                    style={[
-                                        styles.taskCard,
-                                        {
-                                            backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest,
-                                            borderColor: highlightedId === task.id ? theme.secondary : (isBulkMode && selectedIds.has(task.id) ? theme.primary : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)')),
-                                            borderWidth: (highlightedId === task.id || (isBulkMode && selectedIds.has(task.id))) ? 2 : 1,
-                                            padding: S.md,
-                                            flexDirection: 'column',
-                                            alignItems: 'stretch'
-                                        }
-                                    ]}
+                                    style={{ padding: S.md, flexDirection: 'column', alignItems: 'stretch' }}
                                 >
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     {isBulkMode && (
@@ -1152,17 +1149,35 @@ export default function ActionCenter() {
                                                 </View>
                                             </View>
 
-                                            {/* Edit button */}
-                                            <TouchableOpacity
-                                                onPress={() => openEdit(task.id)}
-                                                style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, alignSelf: 'flex-start', marginTop: S.sm, paddingVertical: 6, paddingHorizontal: S.md, borderRadius: R.full, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
-                                                accessibilityLabel={language === 'tr' ? 'Görevi düzenle' : 'Edit task'}
-                                            >
-                                                <Pencil size={12} color={theme.onSurfaceVariant} />
-                                                <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
-                                                    {language === 'tr' ? 'Düzenle' : 'Edit'}
-                                                </Text>
-                                            </TouchableOpacity>
+                                            {/* Action row: Edit + Focus */}
+                                            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
+                                                <TouchableOpacity
+                                                    onPress={() => openEdit(task.id)}
+                                                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: 6, paddingHorizontal: S.md, borderRadius: R.full, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
+                                                    accessibilityLabel={language === 'tr' ? 'Görevi düzenle' : 'Edit task'}
+                                                >
+                                                    <Pencil size={12} color={theme.onSurfaceVariant} />
+                                                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
+                                                        {language === 'tr' ? 'Düzenle' : 'Edit'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                                {!task.isCompleted && (
+                                                    <TouchableOpacity
+                                                        onPress={() => {
+                                                            setCurrentTask(task.title);
+                                                            const secs = 25 * 60;
+                                                            useFocusStore.setState({ totalSeconds: secs, seconds: secs, isActive: true, lastActiveAt: Date.now() });
+                                                            router.replace('/focus');
+                                                        }}
+                                                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: 6, paddingHorizontal: S.md, borderRadius: R.full, backgroundColor: theme.primary + '18' }}
+                                                    >
+                                                        <Sparkles size={12} color={theme.primary} />
+                                                        <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
+                                                            {language === 'tr' ? 'Odaklan' : 'Focus'}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                )}
+                                            </View>
 
                                             {/* Subtasks Checklist */}
                                             {(task.subtasks || []).length > 0 && (
@@ -1183,7 +1198,7 @@ export default function ActionCenter() {
                                                                     if (latest) {
                                                                         TaskService.updateTask(task.id, { ...latest, priority: latest.priority as any, subtasks: latest.subtasks }).catch(() => {});
                                                                     }
-                                                                }, 600);
+                                                                }, 300);
                                                             }}
                                                             style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs }}
                                                         >
@@ -1269,7 +1284,10 @@ export default function ActionCenter() {
             {/* Edit — only active when exactly 1 selected */}
             <TouchableOpacity
               onPress={() => {
-                if (selectedIds.size !== 1) return;
+                if (selectedIds.size !== 1) {
+                  showToast(language === 'tr' ? 'Düzenleme için tek görev seçin' : 'Select one task to edit', 'info');
+                  return;
+                }
                 const id = Array.from(selectedIds)[0];
                 setIsBulkMode(false);
                 setSelectedIds(new Set());
@@ -1316,8 +1334,8 @@ export default function ActionCenter() {
           style={[
               styles.fab,
               {
-                  backgroundColor: theme.primary,
-                  shadowColor: isDark ? theme.primary : '#000',
+                  backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F',
+                  shadowColor: '#000',
                   width: 64,
                   height: 64,
                   borderRadius: R.lg,
@@ -1326,7 +1344,7 @@ export default function ActionCenter() {
               }
           ]}
         >
-          <Plus size={32} color={theme.onPrimary} strokeWidth={3} />
+          <Plus size={32} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={3} />
         </TouchableOpacity>
       )}
 

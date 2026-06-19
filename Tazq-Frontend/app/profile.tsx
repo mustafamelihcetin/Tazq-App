@@ -46,6 +46,7 @@ export default function ProfileScreen() {
 
   const [stats, setStats] = useState({ totalFocusHours: 0, completedTasksCount: 0, activeStreak: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [kbHeight, setKbHeight] = useState(0);
 
@@ -56,16 +57,23 @@ export default function ProfileScreen() {
     return () => { show.remove(); hide.remove(); };
   }, []);
 
-  useEffect(() => {
+  const loadStats = () => {
     setStatsLoading(true);
+    setStatsError(false);
     FocusService.getStats().then((s) => {
       const active = s.activeStreak ?? 0;
       setStats({ totalFocusHours: s.totalFocusHours ?? 0, completedTasksCount: s.completedTasksCount ?? 0, activeStreak: active });
       updateBestStreak(active);
     }).catch((e) => {
-        if (e.response?.status !== 401) console.warn('getStats error:', e.message);
+        if (e.response?.status !== 401) {
+          console.warn('getStats error:', e.message);
+          setStatsError(true);
+        }
     }).finally(() => setStatsLoading(false));
+  };
 
+  useEffect(() => {
+    loadStats();
     requestNotificationPermissions().then((granted) => setNotifEnabled(granted));
   }, []);
 
@@ -154,14 +162,14 @@ export default function ProfileScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: S.lg, paddingTop: Math.max(insets.top, S.xl) }} showsVerticalScrollIndicator={false}>
           <View style={[styles.header, { marginTop: S.md }]}>
-            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { borderColor: isDark ? theme.primary + '40' : 'rgba(0,0,0,0.05)', width: 110, height: 110, borderRadius: 55 }]}>
-                <Image key={user?.avatar} source={getAvatarSource(user?.avatar || null)} style={[styles.image, { borderRadius: 50 }]} />
+            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { borderColor: isDark ? theme.primary + '40' : 'rgba(0,0,0,0.05)', width: 110, height: 110, borderRadius: 55, overflow: 'hidden' }]}>
+                <Image source={getAvatarSource(user?.avatar || null)} style={{ width: 110, height: 110, borderRadius: 55 }} />
             </MotiView>
             <View style={{ alignItems: 'center', marginTop: S.md }}>
                 <Text style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{user?.name || 'Alex'}</Text>
                 <Text style={[styles.email, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{user?.email || 'user@tazq.com'}</Text>
                 <TouchableOpacity onPress={openEditModal} style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: S.sm }]}>
-                    <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '900', fontSize: F.caption }]}>{t.editProfile || t.editProfile}</Text>
+                    <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '900', fontSize: F.caption }]}>{t.editProfile || 'Edit Profile'}</Text>
                 </TouchableOpacity>
             </View>
           </View>
@@ -171,6 +179,20 @@ export default function ProfileScreen() {
                 <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200 }} style={{ flex: 1, height: 100, borderRadius: R.lg, backgroundColor: theme.surfaceContainerHigh }} />
                 <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: 100 }} style={{ flex: 1, height: 100, borderRadius: R.lg, backgroundColor: theme.surfaceContainerHigh }} />
                 <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: 200 }} style={{ flex: 1, height: 100, borderRadius: R.lg, backgroundColor: theme.surfaceContainerHigh }} />
+            </View>
+          ) : statsError ? (
+            <View style={{ marginTop: S.xl, alignItems: 'center', gap: S.md }}>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontWeight: '600', opacity: 0.6 }}>
+                {language === 'tr' ? 'İstatistikler yüklenemedi' : 'Could not load stats'}
+              </Text>
+              <TouchableOpacity
+                onPress={loadStats}
+                style={{ paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primary }}
+              >
+                <Text style={{ color: theme.onPrimary, fontWeight: '800', fontSize: F.body }}>
+                  {language === 'tr' ? 'Tekrar dene' : 'Retry'}
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <>
@@ -255,7 +277,7 @@ export default function ProfileScreen() {
       <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
             <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} />
-              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : (Platform.OS === 'ios' ? 48 : S.lg) }]}>
+              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : (insets.bottom > 0 ? insets.bottom + S.md : S.lg) }]}>
                 <View {...editPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
                   <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
                 </View>
@@ -282,25 +304,38 @@ export default function ProfileScreen() {
                 {/* Avatar selection */}
                 <View style={{ width: '100%', marginBottom: S.md }}>
                   <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>Avatar</Text>
-                  <View style={[styles.avatarGrid, { gap: S.md }]}>
-                    {AVATAR_CONFIGS.map((config) => (
-                      <TouchableOpacity
-                        key={config.id}
-                        onPress={() => { Haptics.selectionAsync(); setSelectedAvatar(config.key); }}
-                        style={[
-                          styles.avatarOption,
-                          {
-                            borderColor: selectedAvatar === config.key ? theme.primary : theme.primary + '30',
-                            borderWidth: selectedAvatar === config.key ? 3 : 2,
-                            width: 64,
-                            height: 64,
-                            borderRadius: R.full,
-                          }
-                        ]}
-                      >
-                        <Image source={config.image} style={styles.image} />
-                      </TouchableOpacity>
-                    ))}
+                  <View style={[styles.avatarGrid, { gap: S.sm }]}>
+                    {AVATAR_CONFIGS.map((config) => {
+                      const isSelected = selectedAvatar === config.key;
+                      return (
+                        <TouchableOpacity
+                          key={config.id}
+                          onPress={() => { Haptics.selectionAsync(); setSelectedAvatar(config.key); }}
+                          activeOpacity={0.75}
+                          style={{ alignItems: 'center', gap: 5 }}
+                        >
+                          <View style={{
+                            width: 64, height: 64, borderRadius: 32,
+                            borderWidth: isSelected ? 3 : 1.5,
+                            borderColor: isSelected ? theme.primary : theme.outline + '40',
+                            overflow: 'hidden',
+                          }}>
+                            <Image
+                              source={config.image}
+                              style={{ width: 64, height: 64 }}
+                              resizeMode="cover"
+                            />
+                          </View>
+                          <Text style={{
+                            fontSize: 9, fontWeight: '800', letterSpacing: 0.3,
+                            color: isSelected ? theme.primary : theme.onSurfaceVariant,
+                            opacity: isSelected ? 1 : 0.5,
+                          }}>
+                            {config.name.toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </View>
 
@@ -388,7 +423,6 @@ const styles = StyleSheet.create({
   modalHandle: { width: 40, height: 4, borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
   modalTitle: { fontWeight: '900', marginBottom: S.lg, textAlign: 'center' },
   avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
-  avatarOption: { padding: S.xs, overflow: 'hidden' },
   inputGroup: { borderRadius: R.md, paddingHorizontal: S.md, height: 48, justifyContent: 'center' },
   nameInput: { fontSize: F.body, fontWeight: '600' },
   goalChip: { flex: 1, paddingVertical: S.sm, borderRadius: R.md, alignItems: 'center' },

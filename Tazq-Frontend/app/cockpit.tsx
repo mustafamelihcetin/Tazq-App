@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Modal, KeyboardAvoidingView, Platform, Alert, Dimensions,
-  Animated,
+  Animated, LayoutAnimation,
 } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +11,7 @@ import {
   ArrowLeft, Plus, Check, Flame, Clock, Target,
   ChevronRight, Sparkles, CalendarDays, Trash2,
 } from 'lucide-react-native';
-import { useRouter, useNavigation } from 'expo-router';
+import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useTaskStore } from '../store/useTaskStore';
 import { useFocusStore } from '../store/useFocusStore';
@@ -19,6 +19,7 @@ import { useHabitStore, Habit, fmtDateKey } from '../store/useHabitStore';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { BentoCard } from '../components/BentoCard';
+import { BottomNavBar } from '../components/BottomNavBar';
 import { FocusService } from '../services/api';
 import { S, R, F } from '../constants/tokens';
 
@@ -32,16 +33,16 @@ const HABIT_EMOJIS = [
   '🎯', '🎨', '💊', '🌿', '🎵', '🧠', '🌅', '⚡',
 ];
 
-function getWeekDays(): Date[] {
+function getWeekDays(startDay: 0 | 1 = 1): Date[] {
   const today = new Date();
   const day = today.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() + diff);
-  monday.setHours(0, 0, 0, 0);
+  const diff = (day - startDay + 7) % 7;
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - diff);
+  weekStart.setHours(0, 0, 0, 0);
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
     return d;
   });
 }
@@ -55,7 +56,8 @@ function getLast28Days(): Date[] {
 }
 
 const DAY_LABELS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-const DAY_LABELS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_LABELS_EN_MON = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_LABELS_EN_SUN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function CockpitScreen() {
   const { theme, colorScheme } = useAppTheme();
@@ -68,7 +70,9 @@ export default function CockpitScreen() {
   const { habits, addHabit, removeHabit, toggleDate, weeklyGoal, setWeeklyGoal, getStreak } = useHabitStore();
 
   const todayKey = fmtDateKey();
-  const weekDays = useMemo(() => getWeekDays(), []);
+  const tr = language === 'tr';
+  const weekStart: 0 | 1 = tr ? 1 : 0;
+  const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
   const last28 = useMemo(() => getLast28Days(), []);
 
   const [selectedDay, setSelectedDay] = useState(todayKey);
@@ -88,7 +92,7 @@ export default function CockpitScreen() {
     onDismiss: () => setPlanVisible(false),
   });
 
-  useEffect(() => {
+  const fetchStats = useCallback(() => {
     FocusService.getStats()
       .then((s) => {
         const total = (s.weeklyFocus || []).reduce(
@@ -99,8 +103,18 @@ export default function CockpitScreen() {
       .catch(() => {});
   }, []);
 
-  const tr = language === 'tr';
-  const dayLabels = tr ? DAY_LABELS_TR : DAY_LABELS_EN;
+  useFocusEffect(fetchStats);
+
+  // Reset add-habit form when sheet closes
+  useEffect(() => {
+    if (!addVisible) {
+      setNewName('');
+      setNewEmoji('💪');
+      setNewColor(HABIT_COLORS[0]);
+    }
+  }, [addVisible]);
+
+  const dayLabels = tr ? DAY_LABELS_TR : (weekStart === 0 ? DAY_LABELS_EN_SUN : DAY_LABELS_EN_MON);
 
   // Week strip data
   const weekData = useMemo(() => {
@@ -163,6 +177,11 @@ export default function CockpitScreen() {
 
   const handleToggleHabit = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    LayoutAnimation.configureNext({
+      duration: 320,
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+    });
     toggleDate(id, todayKey);
   };
 
@@ -210,9 +229,9 @@ export default function CockpitScreen() {
           </View>
           <TouchableOpacity
             onPress={() => setAddVisible(true)}
-            style={[styles.addBtn, { backgroundColor: theme.primary }]}
+            style={[styles.addBtn, { backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F' }]}
           >
-            <Plus size={18} color={theme.onPrimary} />
+            <Plus size={18} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
 
@@ -308,7 +327,7 @@ export default function CockpitScreen() {
                 <Text style={[styles.dayTasksHeading, { color: theme.onSurfaceVariant }]}>
                   {selectedDayLabel}
                 </Text>
-                {selectedDayTasks.map((task, idx) => (
+                {selectedDayTasks.slice(0, 4).map((task, idx) => (
                   <TouchableOpacity
                     key={task.id}
                     onPress={() => {
@@ -356,6 +375,16 @@ export default function CockpitScreen() {
                     ]} />
                   </TouchableOpacity>
                 ))}
+                {selectedDayTasks.length > 4 && (
+                  <TouchableOpacity
+                    onPress={() => router.push({ pathname: '/tasks', params: { filter: 'today' } })}
+                    style={[styles.dayTaskRow, { borderTopColor: theme.outline + '20', borderTopWidth: 1, justifyContent: 'center' }]}
+                  >
+                    <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.primary }}>
+                      +{selectedDayTasks.length - 4} {tr ? 'daha' : 'more'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </MotiView>
             )}
           </AnimatePresence>
@@ -802,6 +831,7 @@ export default function CockpitScreen() {
           </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
+      <BottomNavBar />
     </View>
   );
 }

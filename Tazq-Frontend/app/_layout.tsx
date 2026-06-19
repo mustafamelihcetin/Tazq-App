@@ -70,8 +70,6 @@ LogBox.ignoreLogs([
 ]);
 
 import { useFonts, PlusJakartaSans_800ExtraBold, PlusJakartaSans_700Bold, PlusJakartaSans_600SemiBold, PlusJakartaSans_800ExtraBold_Italic } from '@expo-google-fonts/plus-jakarta-sans';
-import { Manrope_800ExtraBold } from '@expo-google-fonts/manrope';
-import { Syne_700Bold, Syne_800ExtraBold } from '@expo-google-fonts/syne';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -79,9 +77,6 @@ export default function RootLayout() {
     'Jakarta-Bold': PlusJakartaSans_700Bold,
     'Jakarta-SemiBold': PlusJakartaSans_600SemiBold,
     'Jakarta-BoldItalic': PlusJakartaSans_800ExtraBold_Italic,
-    'Manrope-ExtraBold': Manrope_800ExtraBold,
-    'Syne-Bold': Syne_700Bold,
-    'Syne-ExtraBold': Syne_800ExtraBold,
   });
 
   const { theme, colorScheme, isDark } = useAppTheme();

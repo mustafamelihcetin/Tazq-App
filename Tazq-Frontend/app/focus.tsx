@@ -1,11 +1,11 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView, AppState, Keyboard, Animated } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import Svg, { Circle, G } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2 } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil } from 'lucide-react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
@@ -25,11 +25,15 @@ export default function FocusScreen() {
   const { t, language } = useLanguageStore();
 
 
-  const { isActive, seconds, totalSeconds, setIsActive, tick, reset, setDuration, currentTask, rehydrateTimer, addFocusMinutes } = useFocusStore();
+  const { isActive, seconds, totalSeconds, setIsActive, tick, reset, setDuration, currentTask, setCurrentTask, rehydrateTimer, addFocusMinutes } = useFocusStore();
   const completedRef = useRef(false);
   const [customVisible, setCustomVisible] = useState(false);
   const [customInput, setCustomInput] = useState('');
   const [customError, setCustomError] = useState(false);
+  const [taskEditMode, setTaskEditMode] = useState(false);
+  const [taskEditInput, setTaskEditInput] = useState('');
+  const customInputRef = useRef<TextInput>(null);
+  const taskInputRef = useRef<TextInput>(null);
 
   const { panResponder: customPan, animatedStyle: customSlide, resetPosition: resetCustomPos, slideIn: customSlideIn } = useSwipeToDismiss({
     onDismiss: () => setCustomVisible(false),
@@ -50,8 +54,11 @@ export default function FocusScreen() {
 
   useEffect(() => {
     rehydrateTimer();
-    setQuote(getRandomQuote(language));
   }, []);
+
+  useFocusEffect(useCallback(() => {
+    setQuote(getRandomQuote(language));
+  }, [language]));
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardWillShow', e => setKbHeight(e.endCoordinates.height));
@@ -269,9 +276,30 @@ export default function FocusScreen() {
               <Text style={[styles.timerText, { color: theme.onSurface, fontSize: 56 }]}>
                 {formatTime(seconds)}
               </Text>
-              <Text style={[styles.currentTaskText, { color: theme.onSurfaceVariant, fontSize: F.body, maxWidth: timerSize * 0.75 }]} numberOfLines={1}>
-                {currentTask || t.focusSession}
-              </Text>
+              {taskEditMode ? (
+                <TextInput
+                  ref={taskInputRef}
+                  value={taskEditInput}
+                  onChangeText={setTaskEditInput}
+                  onSubmitEditing={() => { setCurrentTask(taskEditInput.trim() || ''); setTaskEditMode(false); }}
+                  onBlur={() => { setCurrentTask(taskEditInput.trim() || ''); setTaskEditMode(false); }}
+                  returnKeyType="done"
+                  style={[styles.currentTaskText, { color: theme.primary, fontSize: F.body, maxWidth: timerSize * 0.75, borderBottomWidth: 1, borderBottomColor: theme.primary + '60', paddingBottom: 2, minWidth: 120, textAlign: 'center' }]}
+                  autoCapitalize="none"
+                  selectTextOnFocus
+                />
+              ) : (
+                <TouchableOpacity
+                  onPress={() => { setTaskEditInput(currentTask || ''); setTaskEditMode(true); setTimeout(() => taskInputRef.current?.focus(), 80); }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: timerSize * 0.8 }}
+                  accessibilityLabel={language === 'tr' ? 'Odak konusunu değiştir' : 'Change focus task'}
+                >
+                  <Text style={[styles.currentTaskText, { color: theme.onSurfaceVariant, fontSize: F.body, maxWidth: timerSize * 0.7 }]} numberOfLines={1}>
+                    {currentTask || t.focusSession}
+                  </Text>
+                  <Pencil size={11} color={theme.onSurfaceVariant} style={{ opacity: 0.5 }} />
+                </TouchableOpacity>
+              )}
               <View style={[styles.statusBadge, { backgroundColor: isActive ? theme.primary + '20' : theme.surfaceContainerHigh, marginTop: 12 }]}>
                 <View style={[styles.statusDot, { backgroundColor: isActive ? theme.primary : theme.onSurfaceVariant }]} />
                 <Text style={[styles.statusText, { color: isActive ? theme.primary : theme.onSurfaceVariant, fontSize: F.caption }]}>
@@ -341,7 +369,7 @@ export default function FocusScreen() {
       </SafeAreaView>
 
       {/* Custom Duration Modal */}
-      <Modal visible={customVisible} transparent animationType="none" onShow={() => customSlideIn()}>
+      <Modal visible={customVisible} transparent animationType="none" onShow={() => { customSlideIn(); setTimeout(() => customInputRef.current?.focus(), 300); }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCustomVisible(false)} />
           <Animated.View
@@ -362,11 +390,12 @@ export default function FocusScreen() {
             </Text>
 
             <MotiView
-              animate={customError ? { translateX: [-8, 8, -6, 6, -3, 3, 0] } : { translateX: 0 }}
-              transition={{ type: 'timing', duration: 350 }}
+              animate={customError ? { translateX: [-8, 8, -6, 6, -4, 4, -2, 2, 0] } : { translateX: 0 }}
+              transition={{ type: 'timing', duration: 620 }}
             >
               <View style={[styles.inputRow, { borderColor: customError ? theme.error : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'), backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
                 <TextInput
+                  ref={customInputRef}
                   value={customInput}
                   onChangeText={(v) => { setCustomInput(v); if (customError) setCustomError(false); }}
                   keyboardType="number-pad"
@@ -374,7 +403,6 @@ export default function FocusScreen() {
                   placeholder={t.focusCustomPlaceholder}
                   placeholderTextColor={customError ? theme.error + '80' : theme.onSurfaceVariant + '80'}
                   style={[styles.customInput, { color: customError ? theme.error : theme.onSurface, fontSize: 32 }]}
-                  autoFocus
                   onSubmitEditing={applyCustomDuration}
                 />
                 <Text style={[styles.minLabel, { color: customError ? theme.error : theme.onSurfaceVariant }]}>min</Text>

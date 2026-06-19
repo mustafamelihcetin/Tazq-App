@@ -7,7 +7,8 @@ import { Zap, BrainCircuit, Activity } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 
 export const StatusHub = ({ onPress }: { onPress: () => void }) => {
-  const { theme, isDark } = useAppTheme();
+  const { theme, colorScheme } = useAppTheme();
+  const isDark = colorScheme === 'dark';
   const { isActive } = useFocusStore();
 
   return (

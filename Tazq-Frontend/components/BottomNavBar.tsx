@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, TouchableOpacity, StyleSheet, useWindowDimensions, Animated } from 'react-native';
 import { LayoutGrid, CheckSquare, Sparkles, User } from 'lucide-react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { BlurView } from 'expo-blur';
@@ -22,6 +22,31 @@ export const BottomNavBar = () => {
     { id: 'profile', path: '/profile', icon: User },
   ];
 
+  const activeIndex = tabs.findIndex(
+    tab => pathname === tab.path || (tab.path === '/' && pathname === '/index')
+  );
+
+  const barWidth = width * 0.88;
+  const segW = barWidth / 4;
+
+  const indicatorSlide = useRef(new Animated.Value(activeIndex >= 0 ? activeIndex : 0)).current;
+
+  useEffect(() => {
+    if (activeIndex >= 0) {
+      Animated.spring(indicatorSlide, {
+        toValue: activeIndex,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 220,
+      } as any).start();
+    }
+  }, [activeIndex]);
+
+  const indicatorTranslateX = indicatorSlide.interpolate({
+    inputRange: [0, 1, 2, 3],
+    outputRange: [0, segW, segW * 2, segW * 3],
+  });
+
   const handlePress = (path: string) => {
     if (pathname === path) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -34,7 +59,7 @@ export const BottomNavBar = () => {
         style={[
           styles.bar,
           {
-            width: width * 0.88,
+            width: barWidth,
             backgroundColor: isDark ? 'rgba(15,15,18,0.88)' : 'rgba(255,255,255,0.88)',
             borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
             shadowColor: '#000',
@@ -44,6 +69,20 @@ export const BottomNavBar = () => {
       >
         <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
         <View style={styles.tabsContainer}>
+          {/* Sliding active indicator */}
+          <Animated.View
+            style={[
+              styles.activeIndicator,
+              {
+                backgroundColor: theme.primary + '18',
+                position: 'absolute',
+                left: segW * 0.5 - 24,
+                top: '50%',
+                marginTop: -24,
+                transform: [{ translateX: indicatorTranslateX }],
+              }
+            ]}
+          />
           {tabs.map((tab) => {
             const isActive = pathname === tab.path || (tab.path === '/' && pathname === '/index');
             const Icon = tab.icon;
@@ -54,14 +93,6 @@ export const BottomNavBar = () => {
                 activeOpacity={0.7}
                 style={styles.tab}
               >
-                {isActive && (
-                  <MotiView
-                    from={{ opacity: 0, scale: 0.7 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ type: 'spring', damping: 18 }}
-                    style={[styles.activeIndicator, { backgroundColor: theme.primary + '18' }]}
-                  />
-                )}
                 <Icon
                   size={22}
                   color={isActive ? theme.primary : theme.onSurfaceVariant}
@@ -115,7 +146,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   activeIndicator: {
-    position: 'absolute',
     width: 48,
     height: 48,
     borderRadius: R.full,

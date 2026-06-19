@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +9,8 @@ import { BentoCard } from '../components/BentoCard';
 import { DynamicIsland } from '../components/DynamicIsland';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { MotiView, MotiText } from 'moti';
-import { Plus, FileText, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target } from 'lucide-react-native';
+import { Plus, FileText, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp, Flame, Check } from 'lucide-react-native';
+import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
 import { TaskService, FocusService, DailyFocusData } from '../services/api';
 import * as Haptics from 'expo-haptics';
@@ -42,9 +43,25 @@ export default function HomeScreen() {
   const [statusHubVisible, setStatusHubVisible] = useState(false);
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
+  const [chipHighlights, setChipHighlights] = useState([false, false, false]);
+  const [headerHighlight, setHeaderHighlight] = useState(false);
+  const [todayHighlight, setTodayHighlight] = useState(false);
+  const [momentumHighlight, setMomentumHighlight] = useState(false);
+  const [todayBurstKey, setTodayBurstKey] = useState(0);
+  const [momentumBurstKey, setMomentumBurstKey] = useState(0);
+  const chipTapTimes = useRef([0, 0, 0]);
+  const headerTapTime = useRef(0);
+  const todayTapTime = useRef(0);
+  const momentumTapTime = useRef(0);
+  const chipScales = useRef([new Animated.Value(1), new Animated.Value(1), new Animated.Value(1)]).current;
+  const headerScale = useRef(new Animated.Value(1)).current;
 
   const { panResponder: draftPan, animatedStyle: draftSlide, resetPosition: resetDraftPos, slideIn: draftSlideIn } = useSwipeToDismiss({
     onDismiss: () => setQuickDraftVisible(false),
+  });
+
+  const { panResponder: hubPan, animatedStyle: hubSlide, resetPosition: resetHubPos, slideIn: hubSlideIn } = useSwipeToDismiss({
+    onDismiss: () => setStatusHubVisible(false),
   });
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -174,7 +191,8 @@ export default function HomeScreen() {
   const focusScore = Math.min(weeklyMinutes / 300, 1);
   const streakScore = Math.min(streak / 14, 1);
   const momentum = Math.round(completionRate * 40 + focusScore * 35 + streakScore * 25);
-  const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? '#ff9f0a' : theme.primary;
+  const warningColor = isDark ? '#FFB340' : '#FF9500';
+  const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? warningColor : theme.primary;
   
   // Smart Logic: Prioritize Today's Tasks
   const todayDateString = new Date().toDateString();
@@ -201,6 +219,83 @@ export default function HomeScreen() {
 
   const momentumLabel = momentum >= 75 ? t.momentumHigh : momentum >= 40 ? t.momentumMid : t.momentumLow;
   const dayLabels: string[] = t.dayLabels;
+
+  const chipSurprises = language === 'tr'
+    ? [
+        { icon: '🔥', label: 'YAKIYORSUN!' },
+        { icon: '⚡', label: 'KONSANTRESSİN!' },
+        { icon: '✅', label: 'HARIKA İŞ!' },
+      ]
+    : [
+        { icon: '🔥', label: 'ON FIRE!' },
+        { icon: '⚡', label: 'FOCUSED!' },
+        { icon: '✅', label: 'GREAT JOB!' },
+      ];
+
+  const handleChipDoubleTap = (idx: number) => {
+    const now = Date.now();
+    if (now - chipTapTimes.current[idx] < 380) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Animated.sequence([
+        Animated.spring(chipScales[idx], { toValue: 1.2, useNativeDriver: true, damping: 4, stiffness: 400 } as any),
+        Animated.spring(chipScales[idx], { toValue: 0.9, useNativeDriver: true, damping: 8, stiffness: 400 } as any),
+        Animated.spring(chipScales[idx], { toValue: 1, useNativeDriver: true, damping: 12, stiffness: 300 } as any),
+      ]).start();
+      setChipHighlights(prev => prev.map((v, i) => i === idx ? true : v));
+      setTimeout(() => setChipHighlights(prev => prev.map((v, i) => i === idx ? false : v)), 1500);
+    }
+    chipTapTimes.current[idx] = now;
+  };
+
+  const todaySurprise = (() => {
+    if (todayCompleted >= dailyGoal) return language === 'tr' ? '🏆 MÜKEMMEL GÜN!' : '🏆 PERFECT DAY!';
+    const pct = todayCompleted / Math.max(dailyGoal, 1);
+    if (pct >= 0.5) return language === 'tr' ? '📈 YARIYA GELDİN!' : '📈 HALFWAY THERE!';
+    if (todayCompleted === 0) return language === 'tr' ? '💪 HAYDI BAKALIM!' : '💪 LET\'S GO!';
+    return language === 'tr' ? '⚡ DEVAM ET!' : '⚡ KEEP GOING!';
+  })();
+
+  const momentumSurprise = (() => {
+    if (momentum >= 75) return language === 'tr' ? '🚀 MUHTEŞEM!' : '🚀 INCREDIBLE!';
+    if (momentum >= 40) return language === 'tr' ? '📈 İVME KAZANIYORSUN!' : '📈 GAINING SPEED!';
+    return language === 'tr' ? '💡 HER GÜN BİR ADIM!' : '💡 ONE STEP AT A TIME!';
+  })();
+
+  const handleTodayDoubleTap = () => {
+    const now = Date.now();
+    if (now - todayTapTime.current < 380) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTodayBurstKey(k => k + 1);
+      setTodayHighlight(true);
+      setTimeout(() => setTodayHighlight(false), 1600);
+    }
+    todayTapTime.current = now;
+  };
+
+  const handleMomentumDoubleTap = () => {
+    const now = Date.now();
+    if (now - momentumTapTime.current < 380) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setMomentumBurstKey(k => k + 1);
+      setMomentumHighlight(true);
+      setTimeout(() => setMomentumHighlight(false), 1600);
+    }
+    momentumTapTime.current = now;
+  };
+
+  const handleHeaderDoubleTap = () => {
+    const now = Date.now();
+    if (now - headerTapTime.current < 380) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Animated.sequence([
+        Animated.spring(headerScale, { toValue: 1.06, useNativeDriver: true, damping: 5, stiffness: 300 } as any),
+        Animated.spring(headerScale, { toValue: 1, useNativeDriver: true, damping: 10, stiffness: 200 } as any),
+      ]).start();
+      setHeaderHighlight(true);
+      setTimeout(() => setHeaderHighlight(false), 1800);
+    }
+    headerTapTime.current = now;
+  };
 
   const getGreeting = () => {
     if (currentHour >= 5 && currentHour < 13) return t.greetingMorning;
@@ -257,22 +352,22 @@ export default function HomeScreen() {
             </MotiView>
         </View>
 
-        {/* Smart Cockpit Modal */}
-        <Modal visible={statusHubVisible} transparent animationType="fade">
-            <View style={styles.modalOverlay}>
-                <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setStatusHubVisible(false)} />
-                <MotiView 
-                    from={{ translateY: 100, opacity: 0 }}
-                    animate={{ translateY: 0, opacity: 1 }}
-                    style={[styles.insightCard, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant + '40' }]}
-                >
+        {/* Smart Cockpit Modal — bottom sheet */}
+        <Modal visible={statusHubVisible} transparent animationType="none" onShow={() => { resetHubPos(); hubSlideIn(); }}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
+                <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setStatusHubVisible(false)} />
+                <Animated.View style={[hubSlide, styles.insightCard, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant + '40', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderRadius: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+                    <View {...hubPan.panHandlers} style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}>
+                        <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }} />
+                    </View>
+
                     <View style={styles.insightHeader}>
                         <View style={[styles.insightIcon, { backgroundColor: theme.primary + '15' }]}>
                             <BrainCircuit size={20} color={theme.primary} />
                         </View>
                         <Text style={[styles.insightHeaderTitle, { color: theme.onSurface }]}>TAZQ INSIGHTS</Text>
                     </View>
-                    
+
                     <View style={styles.insightBody}>
                         <View style={[styles.bentoMini, { backgroundColor: theme.surfaceContainerLow }]}>
                             <Text style={[styles.insightMainText, { color: theme.onSurface }]}>
@@ -315,8 +410,8 @@ export default function HomeScreen() {
                                  t.cockpitFocusNow)}
                             </Text>
                         </TouchableOpacity>
-                        
-                        <TouchableOpacity 
+
+                        <TouchableOpacity
                             onPress={() => setStatusHubVisible(false)}
                             style={[styles.actionButtonSecondary, { backgroundColor: theme.surfaceContainerHigh }]}
                         >
@@ -325,7 +420,7 @@ export default function HomeScreen() {
                             </Text>
                         </TouchableOpacity>
                     </View>
-                </MotiView>
+                </Animated.View>
             </View>
         </Modal>
 
@@ -364,8 +459,8 @@ export default function HomeScreen() {
             {/* Next Mission Widget */}
             <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <MotiView
-                    from={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    from={{ opacity: 0, translateY: 8 }}
+                    animate={{ opacity: 1, translateY: 0 }}
                     transition={{ type: 'spring', damping: 15 }}
                 >
                     <BentoCard index={0} style={[styles.nextMissionCard, { minHeight: 180 }]}>
@@ -439,116 +534,360 @@ export default function HomeScreen() {
                 </MotiView>
             </View>
 
+            {/* ── Section Header ── */}
+            <TouchableOpacity onPress={handleHeaderDoubleTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
+                <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
+                    <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1.8, color: headerHighlight ? theme.primary : theme.onSurfaceVariant, opacity: headerHighlight ? 1 : 0.45 }}>
+                        {headerHighlight
+                            ? (language === 'tr' ? '✦ İYİ GİDİYOR' : '✦ LOOKING GOOD')
+                            : (language === 'tr' ? 'GENEL BAKIŞ' : 'OVERVIEW')}
+                    </Text>
+                    <Text style={{ fontSize: 9, fontWeight: '700', color: headerHighlight ? theme.primary : theme.onSurfaceVariant, opacity: headerHighlight ? 0.7 : 0.3 }}>
+                        {headerHighlight ? (language === 'tr' ? 'devam et →' : 'keep going →') : (language === 'tr' ? 'Bu Hafta' : 'This Week')}
+                    </Text>
+                </Animated.View>
+            </TouchableOpacity>
+
             {/* Metrics Grid */}
             <View style={{ paddingHorizontal: S.lg, gap: S.md }}>
-                {/* Weekly Focus Chart */}
-                <BentoCard index={1}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.sm }}>
-                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
-                            {t.weeklyFocusLabel}
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            {weekTrend !== null && (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: weekTrend >= 0 ? theme.tertiary + '18' : '#ff3b3018', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-                                    <Text style={{ fontSize: 10, fontWeight: '900', color: weekTrend >= 0 ? theme.tertiary : '#ff3b30' }}>
-                                        {weekTrend >= 0 ? '↑' : '↓'}{Math.abs(weekTrend)}%
-                                    </Text>
-                                </View>
-                            )}
-                            <Text style={{ fontSize: F.caption, fontWeight: '900', color: theme.primary }}>
-                                {weeklyMinutes >= 60
-                                    ? `${Math.floor(weeklyMinutes / 60)}sa ${weeklyMinutes % 60}dk`
+
+                {/* ── QUICK STATS STRIP ── */}
+                <View style={{ flexDirection: 'row', gap: S.sm }}>
+                    {[
+                        {
+                            icon: <Flame size={16} color="#FF6B35" />,
+                            value: statsLoading ? '--' : `${streak}`,
+                            label: language === 'tr' ? 'günlük seri' : 'day streak',
+                            color: '#FF6B35',
+                        },
+                        {
+                            icon: <Zap size={16} color={theme.primary} fill={theme.primary} />,
+                            value: statsLoading ? '--' : weeklyMinutes >= 60
+                                ? `${Math.floor(weeklyMinutes / 60)}${language === 'tr' ? 'sa' : 'h'}`
+                                : `${weeklyMinutes}${language === 'tr' ? 'dk' : 'm'}`,
+                            label: language === 'tr' ? 'haftalık odak' : 'weekly focus',
+                            color: theme.primary,
+                        },
+                        {
+                            icon: <Check size={16} color="#34C759" strokeWidth={3} />,
+                            value: `${Math.round(completionRate * 100)}%`,
+                            label: language === 'tr' ? 'tamamlanma' : 'completion',
+                            color: '#34C759',
+                        },
+                    ].map((stat, i) => {
+                        const isHighlighted = chipHighlights[i];
+                        return (
+                            <TouchableOpacity key={i} onPress={() => handleChipDoubleTap(i)} activeOpacity={0.85} style={{ flex: 1 }}>
+                                <MotiView
+                                    from={{ opacity: 0, translateY: 10 }}
+                                    animate={{ opacity: 1, translateY: 0 }}
+                                    transition={{ type: 'spring', damping: 18, delay: i * 70 }}
+                                >
+                                    <Animated.View style={{
+                                        transform: [{ scale: chipScales[i] }],
+                                        backgroundColor: isHighlighted
+                                            ? stat.color + '1C'
+                                            : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                                        borderRadius: R.md,
+                                        padding: S.md,
+                                        alignItems: 'center',
+                                        gap: 5,
+                                        borderWidth: 1,
+                                        borderColor: isHighlighted
+                                            ? stat.color + '55'
+                                            : (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)'),
+                                    }}>
+                                        {isHighlighted
+                                            ? <Text style={{ fontSize: 18, lineHeight: 20 }}>{chipSurprises[i].icon}</Text>
+                                            : stat.icon}
+                                        <Text style={{ fontSize: F.title, fontWeight: '900', letterSpacing: -1, color: stat.color, lineHeight: 26 }}>
+                                            {stat.value}
+                                        </Text>
+                                        <Text style={{
+                                            fontSize: 8, fontWeight: '800', letterSpacing: 0.4, textAlign: 'center',
+                                            color: isHighlighted ? stat.color : theme.onSurfaceVariant,
+                                            opacity: isHighlighted ? 1 : 0.55,
+                                        }}>
+                                            {isHighlighted ? chipSurprises[i].label : stat.label.toUpperCase()}
+                                        </Text>
+                                    </Animated.View>
+                                </MotiView>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+
+                {/* ── WEEKLY FOCUS CHART ── */}
+                <BentoCard index={1} style={{ padding: S.md, overflow: 'hidden' }}>
+                    <LinearGradient
+                        colors={isDark
+                            ? [theme.primary + '12', 'transparent']
+                            : [theme.primary + '0C', 'transparent']}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                    />
+
+                    {/* Header row */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: S.md }}>
+                        <View>
+                            <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1.5, color: theme.onSurfaceVariant, opacity: 0.5, marginBottom: 3 }}>
+                                {t.weeklyFocusLabel?.toUpperCase() ?? 'HAFTALIK ODAK'}
+                            </Text>
+                            <Text style={{ fontSize: F.title, fontWeight: '900', letterSpacing: -1.2, color: theme.onSurface, lineHeight: 26 }}>
+                                {statsLoading ? '--' : weeklyMinutes >= 60
+                                    ? `${Math.floor(weeklyMinutes / 60)}sa ${weeklyMinutes % 60 > 0 ? weeklyMinutes % 60 + 'dk' : ''}`
                                     : `${weeklyMinutes}dk`}
                             </Text>
                         </View>
+                        {weekTrend !== null && !statsLoading && (
+                            <View style={{
+                                flexDirection: 'row', alignItems: 'center', gap: 4,
+                                backgroundColor: weekTrend >= 0 ? theme.tertiary + '1C' : theme.error + '1C',
+                                borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 5,
+                            }}>
+                                <Text style={{ fontSize: 13, fontWeight: '900', color: weekTrend >= 0 ? theme.tertiary : theme.error }}>
+                                    {weekTrend >= 0 ? '↑' : '↓'} {Math.abs(weekTrend)}%
+                                </Text>
+                                <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.55 }}>
+                                    {language === 'tr' ? 'geçen hf' : 'vs last wk'}
+                                </Text>
+                            </View>
+                        )}
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 52, gap: S.xs }}>
+
+                    {/* Bars */}
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 100, gap: 5 }}>
                         {(statsLoading
                             ? Array(7).fill({ minutes: 0 })
                             : weeklyFocus.length > 0 ? weeklyFocus : Array(7).fill({ minutes: 0 })
                         ).map((d: any, i: number) => {
-                            const maxMin = Math.max(...(weeklyFocus.map(w => w.minutes)), 1);
-                            const pct = statsLoading ? (10 + i * 8) : Math.max((d.minutes / maxMin) * 100, 6);
+                            const maxMin = Math.max(...(weeklyFocus.map((w: any) => w.minutes)), 1);
+                            const pct = statsLoading ? (8 + i * 9) : Math.max((d.minutes / maxMin) * 100, 4);
                             const isToday = !statsLoading && i === weeklyFocus.length - 1;
+                            const hasData = d.minutes > 0;
                             return (
-                                <View key={i} style={{ flex: 1, height: '100%', justifyContent: 'flex-end' }}>
+                                <View key={i} style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                    {isToday && hasData && (
+                                        <Text style={{ fontSize: 8, fontWeight: '900', color: theme.primary, marginBottom: 3, letterSpacing: 0.1 }}>
+                                            {d.minutes}dk
+                                        </Text>
+                                    )}
                                     <MotiView
-                                        animate={{ opacity: statsLoading ? [0.2, 0.5, 0.2] : 1 }}
-                                        transition={{ loop: statsLoading, duration: 1000, delay: i * 80 }}
-                                        style={{
-                                            width: '100%',
-                                            height: `${pct}%`,
-                                            borderRadius: R.sm,
-                                            backgroundColor: isToday ? theme.primary : (isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh),
-                                        }}
-                                    />
+                                        from={{ height: '0%' }}
+                                        animate={{ height: `${pct}%`, opacity: statsLoading ? [0.2, 0.5, 0.2] : 1 }}
+                                        transition={{ type: 'timing', duration: 600, delay: i * 55, loop: statsLoading }}
+                                        style={{ width: '100%', borderTopLeftRadius: 5, borderTopRightRadius: 5, overflow: 'hidden' }}
+                                    >
+                                        {isToday ? (
+                                            <LinearGradient
+                                                colors={isDark
+                                                    ? [theme.secondary, theme.primary]
+                                                    : [theme.primary, theme.secondary]}
+                                                start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                                                style={{ flex: 1 }}
+                                            />
+                                        ) : (
+                                            <View style={{
+                                                flex: 1,
+                                                backgroundColor: hasData
+                                                    ? (isDark ? theme.primary + '35' : theme.primary + '28')
+                                                    : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                                            }} />
+                                        )}
+                                    </MotiView>
                                 </View>
                             );
                         })}
                     </View>
-                    <View style={{ flexDirection: 'row', marginTop: S.xs }}>
-                        {dayLabels.map((day, i) => (
-                            <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 9, color: theme.onSurfaceVariant, fontWeight: '800', opacity: 0.4, letterSpacing: 0.3 }}>
-                                {day}
-                            </Text>
-                        ))}
+
+                    {/* Day labels */}
+                    <View style={{ flexDirection: 'row', marginTop: S.sm }}>
+                        {dayLabels.map((day, i) => {
+                            const isToday = !statsLoading && i === (weeklyFocus.length - 1);
+                            return (
+                                <Text key={i} style={{
+                                    flex: 1, textAlign: 'center', fontSize: 9,
+                                    color: isToday ? theme.primary : theme.onSurfaceVariant,
+                                    fontWeight: isToday ? '900' : '700',
+                                    opacity: isToday ? 1 : 0.38,
+                                    letterSpacing: 0.3,
+                                }}>
+                                    {day}
+                                </Text>
+                            );
+                        })}
                     </View>
                 </BentoCard>
 
-                <View style={{ flexDirection: 'row', gap: S.md }}>
-                    <BentoCard index={2} style={{ flex: 1, minHeight: 144 }}>
-                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>
-                            {t.todayLabel}
-                        </Text>
-                        <View style={{ flex: 1, justifyContent: 'center' }}>
-                            <Text style={[styles.metricValue, { color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary }]}>
-                                {todayCompleted}
-                                <Text style={{ fontSize: F.subhead, color: theme.onSurfaceVariant, fontWeight: '600' }}>/{dailyGoal}</Text>
-                            </Text>
-                            <Text style={[styles.metricSub, { color: theme.onSurfaceVariant }]}>{t.tasks}</Text>
-                        </View>
-                        <View style={{ width: '100%', height: 3, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh, overflow: 'hidden', marginBottom: 4 }}>
-                            <MotiView
-                                animate={{ width: `${Math.min((todayCompleted / dailyGoal) * 100, 100)}%` as any }}
-                                transition={{ type: 'timing', duration: 800 }}
-                                style={{ height: '100%', borderRadius: R.sm, backgroundColor: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary }}
-                            />
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <View style={{ flex: 1, height: 2, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh, overflow: 'hidden' }}>
-                                <MotiView
-                                    animate={{ width: `${Math.min((dailyFocusMinutes / Math.max(dailyGoalMinutes, 1)) * 100, 100)}%` as any }}
-                                    transition={{ type: 'timing', duration: 900 }}
-                                    style={{ height: '100%', borderRadius: R.sm, backgroundColor: theme.primary }}
-                                />
+                {/* ── TODAY CARD — full width, horizontal ── */}
+                <TouchableOpacity onPress={handleTodayDoubleTap} activeOpacity={1}>
+                <BentoCard index={2} style={{ overflow: 'hidden', padding: S.md }}>
+                    <LinearGradient
+                        colors={todayHighlight
+                            ? (isDark ? [theme.tertiary + '45', 'transparent'] : [theme.tertiary + '30', 'transparent'])
+                            : todayCompleted >= dailyGoal
+                            ? (isDark ? [theme.tertiary + '30', 'transparent'] : [theme.tertiary + '20', 'transparent'])
+                            : (isDark ? [theme.primary + '28', 'transparent'] : [theme.primary + '18', 'transparent'])}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                    />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.lg }}>
+                        {/* Left: text stats */}
+                        <View style={{ flex: 1, gap: 6 }}>
+                            <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>{t.todayLabel}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
+                                <Text style={{ fontSize: 44, fontWeight: '900', letterSpacing: -2.5, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: 48 }}>
+                                    {todayCompleted}
+                                </Text>
+                                <Text style={{ fontSize: 18, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.45, letterSpacing: -0.5 }}>
+                                    /{dailyGoal}
+                                </Text>
                             </View>
-                            <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.45, letterSpacing: 0.3 }}>
-                                {dailyFocusMinutes}/{dailyGoalMinutes}dk
-                            </Text>
-                        </View>
-                    </BentoCard>
-
-                    <BentoCard index={3} style={{ flex: 1, minHeight: 144 }} onPress={() => Alert.alert('Momentum', t.momentumTooltip)}>
-                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>MOMENTUM</Text>
-                        <View style={{ flex: 1, justifyContent: 'center' }}>
-                            <MotiView animate={{ opacity: statsLoading ? [0.4, 0.9, 0.4] : 1 }} transition={{ loop: statsLoading, duration: 1400 }}>
-                                <Text style={[styles.metricValue, { color: momentumColor }]}>
-                                    {statsLoading ? '--' : momentum}
+                            <MotiView
+                                key={`today-sub-${todayBurstKey}`}
+                                from={{ scale: todayBurstKey > 0 ? 1.22 : 1, opacity: todayBurstKey > 0 ? 0 : 1 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ type: 'spring', damping: 11, stiffness: 220 }}
+                            >
+                                <Text style={{ fontSize: F.caption, fontWeight: '800', letterSpacing: 0.3,
+                                    color: todayHighlight ? (todayCompleted >= dailyGoal ? theme.tertiary : theme.primary) : theme.onSurfaceVariant,
+                                    opacity: todayHighlight ? 1 : 0.55 }}>
+                                    {todayHighlight
+                                        ? todaySurprise
+                                        : todayCompleted >= dailyGoal
+                                        ? (language === 'tr' ? 'Tümü tamamlandı 🎉' : 'All done 🎉')
+                                        : (language === 'tr' ? 'görev tamamlandı' : 'tasks completed')}
                                 </Text>
                             </MotiView>
-                            <Text style={[styles.metricSub, { color: theme.onSurfaceVariant }]} numberOfLines={1}>
-                                {momentumLabel}
-                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                                <Zap size={10} color={theme.primary} fill={theme.primary} />
+                                <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                                    <MotiView
+                                        animate={{ width: `${Math.min((dailyFocusMinutes / Math.max(dailyGoalMinutes, 1)) * 100, 100)}%` as any }}
+                                        transition={{ type: 'timing', duration: 900 }}
+                                        style={{ height: '100%', borderRadius: 2, backgroundColor: theme.primary }}
+                                    />
+                                </View>
+                                <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.4 }}>
+                                    {dailyFocusMinutes}{language === 'tr' ? 'dk' : 'm'}
+                                </Text>
+                            </View>
                         </View>
-                        <View style={{ width: '100%', height: 3, borderRadius: R.sm, backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerHigh, overflow: 'hidden' }}>
+                        {/* Right: ring */}
+                        <View style={{ width: 90, height: 90 }}>
+                            <Svg width={90} height={90}>
+                                <Defs>
+                                    <SvgLinearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                                        <Stop offset="0%" stopColor={todayCompleted >= dailyGoal ? theme.tertiary : theme.primary} stopOpacity="1" />
+                                        <Stop offset="100%" stopColor={todayCompleted >= dailyGoal
+                                            ? (isDark ? '#FB923C' : '#059669')
+                                            : theme.secondary} stopOpacity="1" />
+                                    </SvgLinearGradient>
+                                </Defs>
+                                <G rotation="-90" origin="45,45">
+                                    <Circle cx="45" cy="45" r="37" fill="none"
+                                        stroke={isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}
+                                        strokeWidth={9} />
+                                    <Circle cx="45" cy="45" r="37" fill="none"
+                                        stroke="url(#ringGrad)"
+                                        strokeWidth={9}
+                                        strokeLinecap="round"
+                                        strokeDasharray={`${2 * Math.PI * 37}`}
+                                        strokeDashoffset={`${2 * Math.PI * 37 * (1 - Math.min(dailyGoal > 0 ? todayCompleted / dailyGoal : 0, 1))}`}
+                                    />
+                                </G>
+                            </Svg>
+                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ fontSize: 22, fontWeight: '900', letterSpacing: -1.2, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: 24 }}>
+                                    {Math.round((todayCompleted / Math.max(dailyGoal, 1)) * 100)}
+                                </Text>
+                                <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.45 }}>%</Text>
+                            </View>
+                        </View>
+                    </View>
+                </BentoCard>
+                </TouchableOpacity>
+
+                {/* ── MOMENTUM CARD — full width, horizontal ── */}
+                <TouchableOpacity onPress={handleMomentumDoubleTap} activeOpacity={1}>
+                <BentoCard index={3} style={{ overflow: 'hidden', padding: S.md }}>
+                    <LinearGradient
+                        colors={statsLoading
+                            ? ['transparent', 'transparent']
+                            : isDark
+                                ? [momentumColor + '38', momentumColor + '0A']
+                                : [momentumColor + '28', momentumColor + '06']}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                    />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.lg }}>
+                        {/* Left: text stats */}
+                        <View style={{ flex: 1, gap: 6 }}>
+                            <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>MOMENTUM</Text>
+                            <MotiView animate={{ opacity: statsLoading ? [0.3, 0.8, 0.3] : 1 }} transition={{ loop: statsLoading, duration: 1400 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
+                                    <Text style={{ fontSize: 44, fontWeight: '900', letterSpacing: -2.5, color: momentumColor, lineHeight: 48 }}>
+                                        {statsLoading ? '--' : momentum}
+                                    </Text>
+                                    {!statsLoading && (
+                                        <Text style={{ fontSize: 18, fontWeight: '700', color: momentumColor, opacity: 0.55, letterSpacing: -0.5 }}>%</Text>
+                                    )}
+                                </View>
+                            </MotiView>
                             <MotiView
-                                animate={{ width: `${statsLoading ? 0 : momentum}%` as any }}
-                                transition={{ type: 'timing', duration: 900 }}
-                                style={{ height: '100%', borderRadius: R.sm, backgroundColor: momentumColor }}
-                            />
+                                key={`mom-sub-${momentumBurstKey}`}
+                                from={{ scale: momentumBurstKey > 0 ? 1.22 : 1, opacity: momentumBurstKey > 0 ? 0 : 1 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ type: 'spring', damping: 11, stiffness: 220 }}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                    <TrendingUp size={11} color={momentumColor} />
+                                    <Text style={{ fontSize: F.caption, fontWeight: '800', letterSpacing: 0.3,
+                                        color: momentumHighlight ? momentumColor : theme.onSurfaceVariant,
+                                        opacity: momentumHighlight ? 1 : 0.55 }}>
+                                        {momentumHighlight ? momentumSurprise : momentumLabel}
+                                    </Text>
+                                </View>
+                            </MotiView>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                                <Zap size={10} color={momentumColor} fill={momentumColor} />
+                                <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                                    <MotiView
+                                        animate={{ width: `${statsLoading ? 0 : momentum}%` as any }}
+                                        transition={{ type: 'timing', duration: 1000 }}
+                                        style={{ height: '100%', borderRadius: 2, backgroundColor: momentumColor }}
+                                    />
+                                </View>
+                                <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.4 }}>
+                                    {momentum}/100
+                                </Text>
+                            </View>
                         </View>
-                    </BentoCard>
-                </View>
+                        {/* Right: arc ring */}
+                        <View style={{ width: 90, height: 90 }}>
+                            <Svg width={90} height={90}>
+                                <G rotation="-90" origin="45,45">
+                                    <Circle cx="45" cy="45" r="37" fill="none"
+                                        stroke={isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}
+                                        strokeWidth={9} />
+                                    <Circle cx="45" cy="45" r="37" fill="none"
+                                        stroke={momentumColor}
+                                        strokeWidth={9}
+                                        strokeLinecap="round"
+                                        strokeDasharray={`${2 * Math.PI * 37}`}
+                                        strokeDashoffset={`${2 * Math.PI * 37 * (1 - (statsLoading ? 0 : momentum / 100))}`}
+                                        opacity={0.9}
+                                    />
+                                </G>
+                            </Svg>
+                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                                <TrendingUp size={20} color={momentumColor} strokeWidth={2.5} />
+                            </View>
+                        </View>
+                    </View>
+                </BentoCard>
+                </TouchableOpacity>
+
             </View>
         </ScrollView>
 
@@ -607,9 +946,9 @@ export default function HomeScreen() {
       {/* Quick Draft FAB */}
       <TouchableOpacity
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setQuickDraftVisible(true); }}
-        style={[styles.fab, { backgroundColor: theme.primary, shadowColor: isDark ? theme.primary : '#000' }]}
+        style={[styles.fab, { backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F', shadowColor: '#000' }]}
       >
-        <Plus size={32} color={theme.onPrimary} strokeWidth={3} />
+        <Plus size={32} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={3} />
       </TouchableOpacity>
 
       <BottomNavBar />
