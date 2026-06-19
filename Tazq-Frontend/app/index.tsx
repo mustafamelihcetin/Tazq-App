@@ -25,6 +25,12 @@ import { getSmartInsight } from '../utils/insights';
 import { S, R, F } from '../constants/tokens';
 import { getAvatarSource } from '../utils/avatars';
 import { useToastStore } from '../store/useToastStore';
+import { useMomentumStore } from '../store/useMomentumStore';
+import { usePrefsStore } from '../store/usePrefsStore';
+import { TurkishModeBanner } from '../components/TurkishModeBanner';
+import { MomentumPulse } from '../components/MomentumPulse';
+import { detectTurkishMode } from '../utils/turkishModes';
+import { scheduleWeeklySummary } from '../utils/notifications';
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
@@ -35,12 +41,15 @@ export default function HomeScreen() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
   const { show: showToast } = useToastStore();
+  const { recordScore, getLastNDays } = useMomentumStore();
+  const { seasonal, weeklyNotification } = usePrefsStore();
 
   // Focus Store
   const { isActive, seconds, setCurrentTask, setDuration, setIsActive, dailyFocusMinutes, dailyGoalMinutes, updateBestStreak } = useFocusStore();
 
   // State
   const [statusHubVisible, setStatusHubVisible] = useState(false);
+  const [modeDismissed, setModeDismissed] = useState(false);
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
   const [chipHighlights, setChipHighlights] = useState([false, false, false]);
@@ -193,7 +202,31 @@ export default function HomeScreen() {
   const momentum = Math.round(completionRate * 40 + focusScore * 35 + streakScore * 25);
   const warningColor = isDark ? '#FFB340' : '#FF9500';
   const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? warningColor : theme.primary;
-  
+
+  // Momentum history (last 7 days for sparkline)
+  const momentumHistory = getLastNDays(7);
+
+  // Daily target: how many tasks + minutes needed to hit 75
+  const targetTasks = Math.max(0, Math.ceil(((75 - momentum) / 40) * totalCount));
+  const targetFocusMin = Math.max(0, Math.ceil(((75 - momentum) / 35) * 300 - weeklyMinutes));
+  const alreadyAt75 = momentum >= 75;
+
+  // Turkish mode (only if user opted in)
+  const detectedMode = detectTurkishMode();
+  const activeMode = detectedMode
+    ? ((detectedMode.type === 'ramazan' && seasonal.ramazan) ||
+       ((detectedMode.type === 'yks' || detectedMode.type === 'kpss') && seasonal.examMode))
+      ? detectedMode : null
+    : null;
+
+  // Save daily momentum + reschedule weekly notification
+  useEffect(() => {
+    if (!statsLoading) {
+      recordScore(momentum);
+      if (weeklyNotification) scheduleWeeklySummary(momentum, streak, language);
+    }
+  }, [momentum, statsLoading]);
+
   // Smart Logic: Prioritize Today's Tasks
   const todayDateString = new Date().toDateString();
   const todayTasksIncomplete = tasks.filter(t => !t.isCompleted && t.dueDate && new Date(t.dueDate).toDateString() === todayDateString);
@@ -534,6 +567,21 @@ export default function HomeScreen() {
                 </MotiView>
             </View>
 
+            {/* ── Momentum Pulse ── */}
+            <MomentumPulse
+              score={momentum}
+              history={momentumHistory}
+              language={language}
+              loading={statsLoading}
+            />
+
+            {/* ── Turkish Mode Banner (opt-in) ── */}
+            {activeMode && !modeDismissed && (
+              <View style={{ paddingHorizontal: S.lg }}>
+                <TurkishModeBanner mode={activeMode} onDismiss={() => setModeDismissed(true)} />
+              </View>
+            )}
+
             {/* ── Section Header ── */}
             <TouchableOpacity onPress={handleHeaderDoubleTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
                 <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
@@ -808,85 +856,6 @@ export default function HomeScreen() {
                 </BentoCard>
                 </TouchableOpacity>
 
-                {/* ── MOMENTUM CARD — full width, horizontal ── */}
-                <TouchableOpacity onPress={handleMomentumDoubleTap} activeOpacity={1}>
-                <BentoCard index={3} style={{ overflow: 'hidden', padding: S.md }}>
-                    <LinearGradient
-                        colors={statsLoading
-                            ? ['transparent', 'transparent']
-                            : isDark
-                                ? [momentumColor + '38', momentumColor + '0A']
-                                : [momentumColor + '28', momentumColor + '06']}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFill}
-                    />
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.lg }}>
-                        {/* Left: text stats */}
-                        <View style={{ flex: 1, gap: 6 }}>
-                            <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>MOMENTUM</Text>
-                            <MotiView animate={{ opacity: statsLoading ? [0.3, 0.8, 0.3] : 1 }} transition={{ loop: statsLoading, duration: 1400 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
-                                    <Text style={{ fontSize: 44, fontWeight: '900', letterSpacing: -2.5, color: momentumColor, lineHeight: 48 }}>
-                                        {statsLoading ? '--' : momentum}
-                                    </Text>
-                                    {!statsLoading && (
-                                        <Text style={{ fontSize: 18, fontWeight: '700', color: momentumColor, opacity: 0.55, letterSpacing: -0.5 }}>%</Text>
-                                    )}
-                                </View>
-                            </MotiView>
-                            <MotiView
-                                key={`mom-sub-${momentumBurstKey}`}
-                                from={{ scale: momentumBurstKey > 0 ? 1.22 : 1, opacity: momentumBurstKey > 0 ? 0 : 1 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ type: 'spring', damping: 11, stiffness: 220 }}
-                            >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                    <TrendingUp size={11} color={momentumColor} />
-                                    <Text style={{ fontSize: F.caption, fontWeight: '800', letterSpacing: 0.3,
-                                        color: momentumHighlight ? momentumColor : theme.onSurfaceVariant,
-                                        opacity: momentumHighlight ? 1 : 0.55 }}>
-                                        {momentumHighlight ? momentumSurprise : momentumLabel}
-                                    </Text>
-                                </View>
-                            </MotiView>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                                <Zap size={10} color={momentumColor} fill={momentumColor} />
-                                <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                                    <MotiView
-                                        animate={{ width: `${statsLoading ? 0 : momentum}%` as any }}
-                                        transition={{ type: 'timing', duration: 1000 }}
-                                        style={{ height: '100%', borderRadius: 2, backgroundColor: momentumColor }}
-                                    />
-                                </View>
-                                <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.4 }}>
-                                    {momentum}/100
-                                </Text>
-                            </View>
-                        </View>
-                        {/* Right: arc ring */}
-                        <View style={{ width: 90, height: 90 }}>
-                            <Svg width={90} height={90}>
-                                <G rotation="-90" origin="45,45">
-                                    <Circle cx="45" cy="45" r="37" fill="none"
-                                        stroke={isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}
-                                        strokeWidth={9} />
-                                    <Circle cx="45" cy="45" r="37" fill="none"
-                                        stroke={momentumColor}
-                                        strokeWidth={9}
-                                        strokeLinecap="round"
-                                        strokeDasharray={`${2 * Math.PI * 37}`}
-                                        strokeDashoffset={`${2 * Math.PI * 37 * (1 - (statsLoading ? 0 : momentum / 100))}`}
-                                        opacity={0.9}
-                                    />
-                                </G>
-                            </Svg>
-                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-                                <TrendingUp size={20} color={momentumColor} strokeWidth={2.5} />
-                            </View>
-                        </View>
-                    </View>
-                </BentoCard>
-                </TouchableOpacity>
 
             </View>
         </ScrollView>

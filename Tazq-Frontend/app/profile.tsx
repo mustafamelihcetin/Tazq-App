@@ -1,9 +1,9 @@
 ﻿import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Alert, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Alert, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, Switch } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Award, Zap, Target, Trophy, Shield, CalendarDays } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Award, Zap, Target, Trophy, Shield, CalendarDays, BookOpen, Star } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AuthService, FocusService } from '../services/api';
 import { BentoCard } from '../components/BentoCard';
@@ -17,6 +17,8 @@ import { requestNotificationPermissions } from '../utils/notifications';
 import { S, R, F } from '../constants/tokens';
 import { useToastStore } from '../store/useToastStore';
 import { AVATAR_CONFIGS, getAvatarSource } from '../utils/avatars';
+import { usePrefsStore } from '../store/usePrefsStore';
+import { cancelWeeklySummary } from '../utils/notifications';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -31,6 +33,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
 
   const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset } = useFocusStore();
+  const { seasonal, setSeasonalPref, weeklyNotification, setWeeklyNotification } = usePrefsStore();
 
   // isSmallDevice / isShortDevice removed — design tokens used instead
 
@@ -263,6 +266,83 @@ export default function ProfileScreen() {
                     theme={theme}
                 />
             </View>
+            {/* Dönemsel Modlar */}
+            <View style={{ marginTop: S.xl }}>
+              <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5, marginBottom: S.sm, marginLeft: S.xs }]}>
+                {language === 'tr' ? 'DÖNEMSEL MODLAR' : 'SEASONAL MODES'}
+              </Text>
+              <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.55, marginBottom: S.md, marginLeft: S.xs }}>
+                {language === 'tr'
+                  ? 'Aktif ettiğin dönemlerde özel plan önerileri gelir.'
+                  : 'Get custom plan suggestions during enabled seasons.'}
+              </Text>
+              <View style={[styles.settingsCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', borderWidth: 1, borderRadius: R.lg, overflow: 'hidden' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#6366F115', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 18 }}>🌙</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
+                      {language === 'tr' ? 'Ramazan Modu' : 'Ramadan Mode'}
+                    </Text>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
+                      {language === 'tr' ? 'Ramazan alışkanlıkları & görevleri' : 'Ramadan habits & tasks'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={seasonal.ramazan}
+                    onValueChange={(v) => { Haptics.selectionAsync(); setSeasonalPref('ramazan', v); }}
+                    trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: theme.primary + '80' }}
+                    thumbColor={seasonal.ramazan ? theme.primary : (isDark ? '#636366' : '#fff')}
+                  />
+                </View>
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#3B82F615', alignItems: 'center', justifyContent: 'center' }}>
+                    <BookOpen size={18} color="#3B82F6" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
+                      {language === 'tr' ? 'Sınav Takibi (YKS / KPSS)' : 'Exam Mode (YKS / KPSS)'}
+                    </Text>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
+                      {language === 'tr' ? 'Sınav dönemi öncesi çalışma planı' : 'Study plan before exam season'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={seasonal.examMode}
+                    onValueChange={(v) => { Haptics.selectionAsync(); setSeasonalPref('examMode', v); }}
+                    trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: theme.primary + '80' }}
+                    thumbColor={seasonal.examMode ? theme.primary : (isDark ? '#636366' : '#fff')}
+                  />
+                </View>
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#F59E0B15', alignItems: 'center', justifyContent: 'center' }}>
+                    <Star size={18} color="#F59E0B" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
+                      {language === 'tr' ? 'Haftalık Özet Bildirimi' : 'Weekly Summary Notification'}
+                    </Text>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
+                      {language === 'tr' ? 'Her Pazar akşamı momentum özeti' : 'Momentum summary every Sunday'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={weeklyNotification}
+                    onValueChange={(v) => {
+                      Haptics.selectionAsync();
+                      setWeeklyNotification(v);
+                      if (!v) cancelWeeklySummary();
+                    }}
+                    trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: theme.primary + '80' }}
+                    thumbColor={weeklyNotification ? theme.primary : (isDark ? '#636366' : '#fff')}
+                  />
+                </View>
+              </View>
+            </View>
+
             <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
                 <LogOut size={18} color={theme.error} />
                 <Text style={[styles.logoutText, { color: theme.error, fontSize: F.body }]}>{t.logout}</Text>

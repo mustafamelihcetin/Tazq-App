@@ -158,3 +158,43 @@ export async function cancelFocusNotification(): Promise<void> {
     await Notifications.cancelScheduledNotificationAsync(FOCUS_NOTIF_ID).catch(() => {});
   } catch (_) {}
 }
+
+export async function scheduleWeeklySummary(
+  momentumScore: number,
+  streak: number,
+  locale: string = 'tr'
+): Promise<void> {
+  if (!Notifications || isExpoGo) return;
+  try {
+    const isTR = locale === 'tr';
+    const emoji = momentumScore >= 75 ? '🔥' : momentumScore >= 40 ? '⚡' : '💪';
+    const title = isTR ? `${emoji} Haftalık Momentum: ${momentumScore}` : `${emoji} Weekly Momentum: ${momentumScore}`;
+    const streakLine = streak > 0
+      ? (isTR ? ` · ${streak} günlük serin devam ediyor!` : ` · ${streak}-day streak going!`)
+      : '';
+    const body = isTR
+      ? `Bu hafta nasıl geçti? Tazq'ya bak ve yeni haftayı planla.${streakLine}`
+      : `How was your week? Check Tazq and plan the next one.${streakLine}`;
+
+    // Next Sunday at 20:00
+    const now = new Date();
+    const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
+    const trigger = new Date(now);
+    trigger.setDate(now.getDate() + daysUntilSunday);
+    trigger.setHours(20, 0, 0, 0);
+
+    await Notifications.cancelScheduledNotificationAsync('weekly-summary').catch(() => {});
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'weekly-summary',
+      content: { title, body, sound: true },
+      trigger: { type: 'date', date: trigger } as any,
+    });
+  } catch (_) {}
+}
+
+export async function cancelWeeklySummary(): Promise<void> {
+  if (!Notifications) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync('weekly-summary');
+  } catch (_) {}
+}
