@@ -16,7 +16,7 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { initIntelligence } from '../utils/taskIntelligence';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { scheduleShutdownNotification, requestNotificationPermissions, showFocusNotification, cancelFocusNotification } from '../utils/notifications';
+import { scheduleShutdownNotification, requestNotificationPermissions, showFocusNotification, cancelFocusNotification, registerNotificationCategories } from '../utils/notifications';
 import { useTaskStore } from '../store/useTaskStore';
 import { useFocusStore } from '../store/useFocusStore';
 import { Platform } from 'react-native';
@@ -26,6 +26,7 @@ import { AnimatedSplash } from '../components/AnimatedSplash';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { FocusIsland } from '../components/FocusIsland';
 import { Toast } from '../components/Toast';
+import { CelebrationOverlay } from '../components/CelebrationOverlay';
 import { Asset } from 'expo-asset';
 
 // Prevent the native splash screen from auto-hiding
@@ -70,6 +71,7 @@ LogBox.ignoreLogs([
 ]);
 
 import { useFonts, PlusJakartaSans_800ExtraBold, PlusJakartaSans_700Bold, PlusJakartaSans_600SemiBold, PlusJakartaSans_800ExtraBold_Italic } from '@expo-google-fonts/plus-jakarta-sans';
+import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -160,30 +162,63 @@ export default function RootLayout() {
     };
   }, [focusActive]);
 
-  // Schedule daily shutdown notification when user is logged in
+  // Schedule daily shutdown notification + register Watch-compatible categories
   useEffect(() => {
     if (!isLoggedIn) return;
     requestNotificationPermissions().then((granted) => {
       if (!granted) return;
+      // Register action categories — these appear as buttons on Apple Watch too
+      registerNotificationCategories();
       const pending = tasks.filter(t => !t.isCompleted).length;
       scheduleShutdownNotification(pending, language || 'en');
     });
   }, [isLoggedIn]);
 
-  // Notification tap → deep link (skipped in Expo Go, active in dev/prod builds)
+
+  // Notification response handler — covers tap, Watch action buttons, and Lock Screen actions
   useEffect(() => {
     if (isExpoGo) return;
     let sub: any;
     try {
-      const Notifications = require('expo-notifications');
-      sub = Notifications.addNotificationResponseReceivedListener((response: any) => {
-        const taskId = response?.notification?.request?.content?.data?.taskId;
-        if (isLoggedIn) {
-          if (taskId) {
-            router.push({ pathname: '/tasks', params: { highlightId: String(taskId) } });
-          } else {
-            router.push('/tasks');
+      const Notifs = require('expo-notifications');
+      sub = Notifs.addNotificationResponseReceivedListener((response: any) => {
+        const action = response?.actionIdentifier;
+        const data = response?.notification?.request?.content?.data ?? {};
+
+        // Watch: "✅ Tamamladım" on habit reminder
+        if (action === 'habit-complete' && data.habitId) {
+          const { toggleDate, habits: h } = useHabitStore.getState();
+          const habit = h.find((x: any) => x.id === data.habitId);
+          if (habit) {
+            const todayKey = fmtDateKey(new Date());
+            if (!(habit.completedDates ?? []).includes(todayKey)) {
+              toggleDate(data.habitId, todayKey);
+            }
           }
+          return;
+        }
+
+        // Watch: "⏹ Durdur" on focus notification
+        if (action === 'focus-stop') {
+          useFocusStore.getState().setIsActive(false);
+          return;
+        }
+
+        // Watch: "📋 Planı Görüntüle" on exam countdown
+        if (action === 'exam-open' && isLoggedIn) {
+          router.push('/profile');
+          return;
+        }
+
+        // Default tap → deep link
+        if (!isLoggedIn) return;
+        const taskId = data.taskId;
+        if (taskId) {
+          router.push({ pathname: '/tasks', params: { highlightId: String(taskId) } });
+        } else if (data.type === 'focus') {
+          router.push('/focus');
+        } else {
+          router.push('/tasks');
         }
       });
     } catch (_) {}
@@ -294,6 +329,7 @@ export default function RootLayout() {
         <OfflineBanner />
         <FocusIsland />
         <Toast />
+        <CelebrationOverlay />
       </View>
     </SafeAreaProvider>
     </ErrorBoundary>

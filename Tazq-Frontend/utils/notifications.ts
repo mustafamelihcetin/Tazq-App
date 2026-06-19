@@ -23,6 +23,54 @@ try {
   }
 } catch (_) {}
 
+// Call once on app start — registers actionable notification categories.
+// These buttons appear on both iPhone AND Apple Watch automatically.
+export async function registerNotificationCategories(): Promise<void> {
+  if (!Notifications?.setNotificationCategoryAsync) return;
+  try {
+    // Alışkanlık hatırlatıcısı: Tamamladım / Geç
+    await Notifications.setNotificationCategoryAsync('habit-reminder', [
+      {
+        identifier: 'habit-complete',
+        buttonTitle: '✅ Tamamladım',
+        options: { opensAppToForeground: false },
+      },
+      {
+        identifier: 'habit-skip',
+        buttonTitle: '⏭ Geç',
+        options: { opensAppToForeground: false, isDestructive: true },
+      },
+    ]);
+
+    // Odak aktif: Durdur
+    await Notifications.setNotificationCategoryAsync('focus-active', [
+      {
+        identifier: 'focus-stop',
+        buttonTitle: '⏹ Durdur',
+        options: { opensAppToForeground: false, isDestructive: true },
+      },
+    ]);
+
+    // Sınav geri sayımı: Planı Görüntüle
+    await Notifications.setNotificationCategoryAsync('exam-countdown', [
+      {
+        identifier: 'exam-open',
+        buttonTitle: '📋 Planı Görüntüle',
+        options: { opensAppToForeground: true },
+      },
+    ]);
+
+    // Günlük görev özeti: Görevleri Aç
+    await Notifications.setNotificationCategoryAsync('daily-summary', [
+      {
+        identifier: 'open-tasks',
+        buttonTitle: '📋 Görevleri Aç',
+        options: { opensAppToForeground: true },
+      },
+    ]);
+  } catch (_) {}
+}
+
 export async function requestNotificationPermissions(): Promise<boolean> {
   if (!Notifications) return false;
   try {
@@ -69,6 +117,7 @@ export async function scheduleTaskNotification(
         body: title,
         data: { taskId },
         sound: true,
+        categoryIdentifier: 'daily-summary',
       },
       trigger: {
         type: 'date',
@@ -145,6 +194,7 @@ export async function showFocusNotification(
         sound: false,
         sticky: true,
         data: { type: 'focus' },
+        categoryIdentifier: 'focus-active',
       },
       trigger: null,
     });
@@ -186,7 +236,7 @@ export async function scheduleWeeklySummary(
     await Notifications.cancelScheduledNotificationAsync('weekly-summary').catch(() => {});
     await Notifications.scheduleNotificationAsync({
       identifier: 'weekly-summary',
-      content: { title, body, sound: true },
+      content: { title, body, sound: true, categoryIdentifier: 'daily-summary' },
       trigger: { type: 'date', date: trigger } as any,
     });
   } catch (_) {}
@@ -197,4 +247,88 @@ export async function cancelWeeklySummary(): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync('weekly-summary');
   } catch (_) {}
+}
+
+export async function scheduleExamCountdownNotifs(
+  examName: string,
+  examDate: string,
+  locale: string = 'tr'
+): Promise<void> {
+  if (!Notifications || isExpoGo) return;
+  try {
+    const isTR = locale === 'tr';
+    const name = examName.trim() || (isTR ? 'Sınav' : 'Exam');
+    const targetDate = new Date(examDate);
+    targetDate.setHours(9, 0, 0, 0);
+
+    for (const daysBefore of [7, 3, 1]) {
+      const trigger = new Date(targetDate);
+      trigger.setDate(trigger.getDate() - daysBefore);
+      const id = `exam-countdown-${daysBefore}d`;
+      await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+      if (trigger > new Date()) {
+        await Notifications.scheduleNotificationAsync({
+          identifier: id,
+          content: {
+            title: isTR
+              ? `📅 ${name}'a ${daysBefore} gün kaldı`
+              : `📅 ${daysBefore} day${daysBefore > 1 ? 's' : ''} until ${name}`,
+            body: isTR
+              ? 'Planın güncel mi? Hızlıca kontrol et. 💪'
+              : 'Is your plan up to date? Quick check. 💪',
+            sound: true,
+            data: { type: 'exam-countdown', daysBefore },
+            categoryIdentifier: 'exam-countdown',
+          },
+          trigger: { type: 'date', date: trigger } as any,
+        });
+      }
+    }
+  } catch (_) {}
+}
+
+// Alışkanlık hatırlatıcısı — Watch'ta "✅ Tamamladım" ve "⏭ Geç" butonları çıkar
+export async function scheduleHabitReminder(
+  habitId: string,
+  habitName: string,
+  hour: number,
+  minute: number,
+  locale: string = 'tr'
+): Promise<void> {
+  if (!Notifications || isExpoGo) return;
+  try {
+    const isTR = locale === 'tr';
+    const id = `habit-reminder-${habitId}`;
+    await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+    await Notifications.scheduleNotificationAsync({
+      identifier: id,
+      content: {
+        title: isTR ? '💪 Alışkanlık Zamanı' : '💪 Habit Time',
+        body: habitName,
+        sound: true,
+        data: { type: 'habit-reminder', habitId },
+        categoryIdentifier: 'habit-reminder',
+      },
+      trigger: {
+        type: 'daily',
+        hour,
+        minute,
+        repeats: true,
+      } as any,
+    });
+  } catch (_) {}
+}
+
+export async function cancelHabitReminder(habitId: string): Promise<void> {
+  if (!Notifications) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(`habit-reminder-${habitId}`);
+  } catch (_) {}
+}
+
+export async function cancelExamCountdownNotifs(): Promise<void> {
+  if (!Notifications) return;
+  for (const d of [7, 3, 1]) {
+    try { await Notifications.cancelScheduledNotificationAsync(`exam-countdown-${d}d`); } catch (_) {}
+  }
 }

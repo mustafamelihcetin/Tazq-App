@@ -1,0 +1,12 @@
+{
+  "name": "expo-watch-connectivity",
+  "version": "1.0.0",
+  "description": "Apple Watch connectivity module for Tazq",
+  "main": "src/index",
+  "types": "src/index",
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

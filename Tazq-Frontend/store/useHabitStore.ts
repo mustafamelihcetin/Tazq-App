@@ -14,7 +14,7 @@ export interface Habit {
 interface HabitState {
   habits: Habit[];
   weeklyGoal: string;
-  addHabit: (name: string, emoji: string, color: string) => void;
+  addHabit: (name: string, emoji: string, color: string, id?: string) => void;
   removeHabit: (id: string) => void;
   toggleDate: (habitId: string, date: string) => void;
   setWeeklyGoal: (goal: string) => void;
@@ -25,8 +25,8 @@ export function fmtDateKey(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function computeStreak(completedDates: string[]): number {
-  if (!completedDates.length) return 0;
+function computeStreak(completedDates: string[] | undefined): number {
+  if (!completedDates?.length) return 0;
   const set = new Set(completedDates);
   let streak = 0;
   const d = new Date();
@@ -45,12 +45,12 @@ export const useHabitStore = create<HabitState>()(
     (set) => ({
       habits: [],
       weeklyGoal: '',
-      addHabit: (name, emoji, color) =>
+      addHabit: (name, emoji, color, id) =>
         set((s) => ({
           habits: [
             ...s.habits,
             {
-              id: `habit_${Date.now()}`,
+              id: id ?? `habit_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
               name,
               emoji,
               color,
@@ -65,12 +65,13 @@ export const useHabitStore = create<HabitState>()(
         set((s) => ({
           habits: s.habits.map((h) => {
             if (h.id !== habitId) return h;
-            const has = h.completedDates.includes(date);
+            const dates = h.completedDates ?? [];
+            const has = dates.includes(date);
             return {
               ...h,
               completedDates: has
-                ? h.completedDates.filter((d) => d !== date)
-                : [...h.completedDates, date],
+                ? dates.filter((d) => d !== date)
+                : [...dates, date],
             };
           }),
         })),
@@ -80,6 +81,25 @@ export const useHabitStore = create<HabitState>()(
     {
       name: 'tazq-habits',
       storage: createJSONStorage(() => AsyncStorage),
+      // Ensure persisted habits always have completedDates (guards against old data)
+      merge: (persisted: any, current) => {
+        const raw: any[] = ((persisted as any)?.habits ?? [])
+          .filter((h: any) => !!h && !!h.id)
+          .map((h: any) => ({
+            ...h,
+            completedDates: Array.isArray(h.completedDates) ? h.completedDates : [],
+            color: h.color ?? '#6366F1',
+            emoji: h.emoji ?? '📌',
+            name: h.name ?? '',
+          }));
+        const seen = new Set<string>();
+        const habits = raw.filter((h) => {
+          if (seen.has(h.id)) return false;
+          seen.add(h.id);
+          return true;
+        });
+        return { ...current, ...(persisted as any), habits };
+      },
     }
   )
 );

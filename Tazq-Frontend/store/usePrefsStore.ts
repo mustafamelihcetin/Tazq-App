@@ -5,27 +5,111 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 interface SeasonalPrefs {
   ramazan: boolean;
   examMode: boolean;
+  examName: string;
+  examDate: string | null;
+  exam2Name: string;
+  exam2Date: string | null;
+  tezMode: boolean;
+  tezName: string;
+  tezDate: string | null;
+  mulakatMode: boolean;
+  mulakatName: string;
+  mulakatDate: string | null;
 }
+
+type PlanMode = 'exam' | 'exam2' | 'ramazan' | 'tez' | 'mulakat';
 
 interface PrefsState {
   seasonal: SeasonalPrefs;
-  setSeasonalPref: (key: keyof SeasonalPrefs, value: boolean) => void;
+  setSeasonalPref: (key: keyof SeasonalPrefs, value: boolean | string | null) => void;
   weeklyNotification: boolean;
   setWeeklyNotification: (value: boolean) => void;
+  examPlanHabitIds: string[];
+  examPlanTaskIds: number[];
+  exam2PlanHabitIds: string[];
+  exam2PlanTaskIds: number[];
+  ramazanPlanHabitIds: string[];
+  ramazanPlanTaskIds: number[];
+  tezPlanHabitIds: string[];
+  tezPlanTaskIds: number[];
+  mulakatPlanHabitIds: string[];
+  mulakatPlanTaskIds: number[];
+  examReviewShown: boolean;
+  setExamReviewShown: (v: boolean) => void;
+  setPlanIds: (mode: PlanMode, habitIds: string[], taskIds: number[]) => void;
+  clearPlanIds: (mode: PlanMode) => void;
 }
 
 export const usePrefsStore = create<PrefsState>()(
   persist(
     (set) => ({
-      seasonal: { ramazan: false, examMode: false },
+      seasonal: {
+        ramazan: false,
+        examMode: false,
+        examName: '',
+        examDate: null,
+        exam2Name: '',
+        exam2Date: null,
+        tezMode: false,
+        tezName: '',
+        tezDate: null,
+        mulakatMode: false,
+        mulakatName: '',
+        mulakatDate: null,
+      },
       setSeasonalPref: (key, value) =>
         set((s) => ({ seasonal: { ...s.seasonal, [key]: value } })),
       weeklyNotification: true,
       setWeeklyNotification: (value) => set({ weeklyNotification: value }),
+      examPlanHabitIds: [],
+      examPlanTaskIds: [],
+      exam2PlanHabitIds: [],
+      exam2PlanTaskIds: [],
+      ramazanPlanHabitIds: [],
+      ramazanPlanTaskIds: [],
+      tezPlanHabitIds: [],
+      tezPlanTaskIds: [],
+      mulakatPlanHabitIds: [],
+      mulakatPlanTaskIds: [],
+      examReviewShown: false,
+      setExamReviewShown: (v) => set({ examReviewShown: v }),
+      setPlanIds: (mode, habitIds, taskIds) => {
+        if (mode === 'exam') return set({ examPlanHabitIds: habitIds, examPlanTaskIds: taskIds });
+        if (mode === 'exam2') return set({ exam2PlanHabitIds: habitIds, exam2PlanTaskIds: taskIds });
+        if (mode === 'tez') return set({ tezPlanHabitIds: habitIds, tezPlanTaskIds: taskIds });
+        if (mode === 'mulakat') return set({ mulakatPlanHabitIds: habitIds, mulakatPlanTaskIds: taskIds });
+        return set({ ramazanPlanHabitIds: habitIds, ramazanPlanTaskIds: taskIds });
+      },
+      clearPlanIds: (mode) => {
+        if (mode === 'exam') return set({ examPlanHabitIds: [], examPlanTaskIds: [] });
+        if (mode === 'exam2') return set({ exam2PlanHabitIds: [], exam2PlanTaskIds: [] });
+        if (mode === 'tez') return set({ tezPlanHabitIds: [], tezPlanTaskIds: [] });
+        if (mode === 'mulakat') return set({ mulakatPlanHabitIds: [], mulakatPlanTaskIds: [] });
+        return set({ ramazanPlanHabitIds: [], ramazanPlanTaskIds: [] });
+      },
     }),
     {
       name: 'tazq-prefs-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      merge: (persisted: any, current) => ({
+        ...current,
+        ...persisted,
+        seasonal: {
+          ramazan: false,
+          examMode: false,
+          examName: '',
+          examDate: null,
+          exam2Name: '',
+          exam2Date: null,
+          tezMode: false,
+          tezName: '',
+          tezDate: null,
+          mulakatMode: false,
+          mulakatName: '',
+          mulakatDate: null,
+          ...(persisted?.seasonal ?? {}),
+        },
+      }),
     }
   )
 );

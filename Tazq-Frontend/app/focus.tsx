@@ -10,6 +10,8 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
 import { FocusService } from '../services/api';
+import { useAchievementStore } from '../store/useAchievementStore';
+import { checkFocusAchievement } from '../utils/achievements';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { getRandomQuote } from '../constants/Quotes';
@@ -27,6 +29,7 @@ export default function FocusScreen() {
 
   const { isActive, seconds, totalSeconds, setIsActive, tick, reset, setDuration, currentTask, setCurrentTask, rehydrateTimer, addFocusMinutes } = useFocusStore();
   const completedRef = useRef(false);
+  const { trigger: triggerAchievement } = useAchievementStore();
   const [customVisible, setCustomVisible] = useState(false);
   const [customInput, setCustomInput] = useState('');
   const [customError, setCustomError] = useState(false);
@@ -93,6 +96,14 @@ export default function FocusScreen() {
       const minutes = Math.round(totalSeconds / 60);
       FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
       addFocusMinutes(minutes);
+      FocusService.getStats().then((s) => {
+        const totalMin = (s.weeklyFocus || []).reduce((a: number, d: any) => a + (d.minutes || 0), 0);
+        const ach = checkFocusAchievement(totalMin);
+        if (ach) triggerAchievement(ach);
+      }).catch(() => {
+        const ach = checkFocusAchievement(minutes);
+        if (ach) triggerAchievement(ach);
+      });
       setSummaryMinutes(minutes);
       setSummaryCompleted(true);
       setSummaryVisible(true);

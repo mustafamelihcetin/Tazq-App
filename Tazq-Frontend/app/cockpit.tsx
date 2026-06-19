@@ -156,7 +156,7 @@ export default function CockpitScreen() {
     const total = habits.length * 7;
     if (total === 0) return 0;
     const done = habits.reduce(
-      (acc, h) => acc + h.completedDates.filter((d) => weekKeys.has(d)).length,
+      (acc, h) => acc + (Array.isArray(h.completedDates) ? h.completedDates : []).filter((d) => weekKeys.has(d)).length,
       0
     );
     return Math.round((done / total) * 100);
@@ -428,16 +428,18 @@ export default function CockpitScreen() {
             </BentoCard>
           ) : (
             <View style={{ gap: S.sm, marginBottom: S.md }}>
-              {[...habits].sort((a, b) => getStreak(b) - getStreak(a)).map((habit, hIdx) => {
-                const streak = getStreak(habit);
-                const doneToday = habit.completedDates.includes(todayKey);
+              {[...habits].filter((h) => !!h && !!h.id).sort((a, b) => getStreak(b) - getStreak(a)).map((habit, hIdx) => {
+                const safeColor = habit.color ?? '#6366F1';
+                const safeDates = Array.isArray(habit.completedDates) ? habit.completedDates : [];
+                const streak = getStreak({ ...habit, completedDates: safeDates });
+                const doneToday = safeDates.includes(todayKey);
                 return (
-                  <BentoCard key={habit.id} index={hIdx + 1} style={{ padding: S.md }}>
+                  <View key={`${habit.id}-${hIdx}`} style={[styles.habitCard, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
                     <View style={styles.habitRow}>
                       {/* Emoji + name + streak */}
                       <View style={styles.habitLeft}>
-                        <View style={[styles.habitIcon, { backgroundColor: habit.color + '22' }]}>
-                          <Text style={{ fontSize: 20 }}>{habit.emoji}</Text>
+                        <View style={[styles.habitIcon, { backgroundColor: safeColor + '22' }]}>
+                          <Text style={{ fontSize: 20 }}>{habit.emoji ?? '📌'}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.habitName, { color: theme.onSurface }]} numberOfLines={1}>
@@ -466,7 +468,7 @@ export default function CockpitScreen() {
                               const d = last28[row * 7 + col];
                               if (!d) return <View key={col} style={styles.heatCell} />;
                               const k = fmtDateKey(d);
-                              const done = habit.completedDates.includes(k);
+                              const done = safeDates.includes(k);
                               const isToday = k === todayKey;
                               return (
                                 <View
@@ -475,10 +477,10 @@ export default function CockpitScreen() {
                                     styles.heatCell,
                                     {
                                       backgroundColor: done
-                                        ? habit.color
+                                        ? safeColor
                                         : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)',
                                       borderWidth: isToday ? 1.5 : 0,
-                                      borderColor: habit.color,
+                                      borderColor: safeColor,
                                     },
                                   ]}
                                 />
@@ -494,9 +496,9 @@ export default function CockpitScreen() {
                         style={[
                           styles.checkBtn,
                           {
-                            backgroundColor: doneToday ? habit.color : 'transparent',
+                            backgroundColor: doneToday ? safeColor : 'transparent',
                             borderColor: doneToday
-                              ? habit.color
+                              ? safeColor
                               : isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
                           },
                         ]}
@@ -523,7 +525,7 @@ export default function CockpitScreen() {
                         <Trash2 size={14} color={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)'} />
                       </TouchableOpacity>
                     </View>
-                  </BentoCard>
+                  </View>
                 );
               })}
 
@@ -885,6 +887,7 @@ const styles = StyleSheet.create({
   emptyAddText: { fontSize: F.body, fontWeight: '800' },
 
   // Habit row
+  habitCard: { borderRadius: R.lg, borderWidth: 1, padding: S.md, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 2 },
   habitRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   habitLeft: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 },
   habitIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },

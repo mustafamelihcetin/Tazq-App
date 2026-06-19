@@ -132,6 +132,15 @@ export default function ActionCenter() {
     onDismiss: () => !saving && setModalVisible(false),
   });
 
+  // Stop voice recognition whenever the modal is hidden
+  useEffect(() => {
+    if (!modalVisible && (isListeningTitle || isListeningDesc)) {
+      VoiceService.stop().catch(() => {});
+      setIsListeningTitle(false);
+      setIsListeningDesc(false);
+    }
+  }, [modalVisible]);
+
   // Auto-exit bulk mode when all items are deselected
   useEffect(() => {
     if (isBulkMode && selectedIds.size === 0) {

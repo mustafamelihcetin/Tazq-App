@@ -29,8 +29,10 @@ import { useMomentumStore } from '../store/useMomentumStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { TurkishModeBanner } from '../components/TurkishModeBanner';
 import { MomentumPulse } from '../components/MomentumPulse';
-import { detectTurkishMode } from '../utils/turkishModes';
+import { detectTurkishMode, getCustomExamMode } from '../utils/turkishModes';
 import { scheduleWeeklySummary } from '../utils/notifications';
+import { useAchievementStore } from '../store/useAchievementStore';
+import { checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS } from '../utils/achievements';
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
@@ -42,6 +44,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { show: showToast } = useToastStore();
   const { recordScore, getLastNDays } = useMomentumStore();
+  const { trigger: triggerAchievement } = useAchievementStore();
   const { seasonal, weeklyNotification } = usePrefsStore();
 
   // Focus Store
@@ -213,19 +216,37 @@ export default function HomeScreen() {
 
   // Turkish mode (only if user opted in)
   const detectedMode = detectTurkishMode();
-  const activeMode = detectedMode
-    ? ((detectedMode.type === 'ramazan' && seasonal.ramazan) ||
-       ((detectedMode.type === 'yks' || detectedMode.type === 'kpss') && seasonal.examMode))
-      ? detectedMode : null
-    : null;
-
-  // Save daily momentum + reschedule weekly notification
-  useEffect(() => {
-    if (!statsLoading) {
-      recordScore(momentum);
-      if (weeklyNotification) scheduleWeeklySummary(momentum, streak, language);
+  const activeMode = (() => {
+    if (seasonal.examMode && seasonal.examName && seasonal.examDate) {
+      return getCustomExamMode(seasonal.examName, seasonal.examDate);
     }
-  }, [momentum, statsLoading]);
+    if (!detectedMode) return null;
+    if (detectedMode.type === 'ramazan' && seasonal.ramazan) return detectedMode;
+    return null;
+  })();
+
+  // Save daily momentum + reschedule weekly notification + check achievements
+  useEffect(() => {
+    if (statsLoading) return;
+    recordScore(momentum);
+    if (weeklyNotification) scheduleWeeklySummary(momentum, streak, language);
+
+    // Streak achievements
+    const streakAch = checkStreakAchievement(streak);
+    if (streakAch) triggerAchievement(streakAch);
+
+    // Momentum achievements
+    const momAch = checkMomentumAchievement(momentum);
+    if (momAch) triggerAchievement(momAch);
+  }, [momentum, streak, statsLoading]);
+
+  // Daily perfect: all tasks completed
+  useEffect(() => {
+    if (statsLoading || tasks.length === 0) return;
+    if (tasks.every(t => t.isCompleted)) {
+      triggerAchievement(ACHIEVEMENTS.daily_perfect);
+    }
+  }, [tasks, statsLoading]);
 
   // Smart Logic: Prioritize Today's Tasks
   const todayDateString = new Date().toDateString();
