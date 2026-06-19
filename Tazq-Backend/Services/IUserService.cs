@@ -12,5 +12,6 @@ namespace Tazq_App.Services
         Task<bool> ResetPasswordAsync(string token, string newPassword);
         Task<string?> RefreshSessionAsync(string oldToken, string? currentIp);
         Task<bool> DeleteUserAsync(int userId);
+        Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar);
     }
 }

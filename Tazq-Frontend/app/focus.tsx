@@ -2,7 +2,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView, AppState, Keyboard, Animated } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import Svg, { Circle, G } from 'react-native-svg';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
 import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -24,6 +24,7 @@ export default function FocusScreen() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { t, language } = useLanguageStore();
 
 
@@ -38,7 +39,7 @@ export default function FocusScreen() {
   const customInputRef = useRef<TextInput>(null);
   const taskInputRef = useRef<TextInput>(null);
 
-  const { panResponder: customPan, animatedStyle: customSlide, resetPosition: resetCustomPos, slideIn: customSlideIn } = useSwipeToDismiss({
+  const { panResponder: customPan, animatedStyle: customSlide, prepare: prepareCustom, slideIn: customSlideIn } = useSwipeToDismiss({
     onDismiss: () => setCustomVisible(false),
   });
 
@@ -64,8 +65,10 @@ export default function FocusScreen() {
   }, [language]));
 
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardWillShow', e => setKbHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener('keyboardWillHide', () => setKbHeight(0));
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, e => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(hideEvent, () => setKbHeight(0));
     return () => { show.remove(); hide.remove(); };
   }, []);
 
@@ -203,7 +206,7 @@ export default function FocusScreen() {
 
             {/* Custom duration chip */}
             <TouchableOpacity
-              onPress={() => { if (!isActive) { resetCustomPos(); Haptics.selectionAsync(); setCustomVisible(true); } }}
+              onPress={() => { if (!isActive) { prepareCustom(); Haptics.selectionAsync(); setCustomVisible(true); } }}
               disabled={isActive}
               style={[
                 styles.durationChip,
@@ -380,14 +383,14 @@ export default function FocusScreen() {
       </SafeAreaView>
 
       {/* Custom Duration Modal */}
-      <Modal visible={customVisible} transparent animationType="none" onShow={() => { customSlideIn(); setTimeout(() => customInputRef.current?.focus(), 300); }}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <Modal visible={customVisible} transparent animationType="none" onShow={() => customSlideIn()}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCustomVisible(false)} />
           <Animated.View
             style={[
               customSlide,
               styles.customSheet,
-              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : S.xxl, borderBottomLeftRadius: kbHeight > 0 ? R.lg : 0, borderBottomRightRadius: kbHeight > 0 ? R.lg : 0 },
+              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : S.xxl, borderBottomLeftRadius: kbHeight > 0 ? R.lg : 0, borderBottomRightRadius: kbHeight > 0 ? R.lg : 0, maxHeight: height - insets.top - 16 },
             ]}
           >
             <View {...customPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
@@ -436,7 +439,7 @@ export default function FocusScreen() {
       </Modal>
 
       {/* Session Summary Modal */}
-      <Modal visible={summaryVisible} transparent animationType="fade">
+      <Modal visible={summaryVisible} transparent animationType="fade" onRequestClose={() => setSummaryVisible(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: S.xl }}>
           <MotiView
             from={{ opacity: 0, scale: 0.88 }}

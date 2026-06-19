@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react-native';
+import { Mail, Lock, User, ArrowRight, ArrowLeft, AlertCircle, Eye, EyeOff } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '../services/api';
@@ -81,6 +81,13 @@ export default function RegisterScreen() {
         <AnimatedBackground />
 
         <SafeAreaView style={styles.safeArea}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={22} color={theme.onSurface} />
+          </TouchableOpacity>
           <ScrollView
             style={styles.keyboardView}
             contentContainerStyle={styles.scrollContent}
@@ -137,6 +144,7 @@ export default function RegisterScreen() {
                           style={[styles.input, { color: theme.onSurface }]}
                           value={name}
                           onChangeText={setName}
+                          maxLength={50}
                         />
                       </View>
                     </View>
@@ -240,6 +248,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
+  backButton: { position: 'absolute', top: 16, left: 20, zIndex: 10, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
   content: { paddingHorizontal: 24, paddingVertical: 32 },

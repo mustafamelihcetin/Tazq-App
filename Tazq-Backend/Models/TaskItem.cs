@@ -29,8 +29,10 @@ namespace Tazq_App.Models
 		public int Id { get; set; }
 
 		[Required]
+		[MaxLength(150)]
 		public string Title { get; set; } = string.Empty;
 
+		[MaxLength(1000)]
 		public string Description { get; set; } = string.Empty;
 
 		public DateTime? DueDate { get; set; }

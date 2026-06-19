@@ -7,10 +7,12 @@ import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { R } from '../constants/tokens';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const BottomNavBar = () => {
   const { width } = useWindowDimensions();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -54,7 +56,7 @@ export const BottomNavBar = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { bottom: Math.max(insets.bottom, 16) + 4 }]}>
       <View
         style={[
           styles.bar,
@@ -70,19 +72,22 @@ export const BottomNavBar = () => {
         <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
         <View style={styles.tabsContainer}>
           {/* Sliding active indicator */}
-          <Animated.View
-            style={[
-              styles.activeIndicator,
-              {
-                backgroundColor: theme.primary + '18',
-                position: 'absolute',
-                left: segW * 0.5 - 24,
-                top: '50%',
-                marginTop: -24,
-                transform: [{ translateX: indicatorTranslateX }],
-              }
-            ]}
-          />
+          {activeIndex >= 0 && (
+            <Animated.View
+              style={[
+                styles.activeIndicator,
+                {
+                  backgroundColor: theme.primary + '18',
+                  position: 'absolute',
+                  // Each tab is flex:1 → exactly segW wide. Center = segW/2. Half indicator = 24.
+                  left: segW / 2 - 24,
+                  top: '50%',
+                  marginTop: -24,
+                  transform: [{ translateX: indicatorTranslateX }],
+                }
+              ]}
+            />
+          )}
           {tabs.map((tab) => {
             const isActive = pathname === tab.path || (tab.path === '/' && pathname === '/index');
             const Icon = tab.icon;
@@ -117,7 +122,6 @@ export const BottomNavBar = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 28,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -136,11 +140,9 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 8,
   },
   tab: {
-    width: 56,
+    flex: 1,
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',

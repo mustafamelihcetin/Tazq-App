@@ -8,26 +8,35 @@ interface Options {
 }
 
 export function useSwipeToDismiss({ onDismiss, threshold = 80, velocityThreshold = 0.5 }: Options) {
-  const translateY = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(900)).current;
+  // opacity=0 keeps the sheet invisible until slideIn() is called,
+  // preventing any native-thread race condition flash on open.
+  const opacity = useRef(new Animated.Value(0)).current;
 
-  // Call on Modal's onShow — slides the sheet up from off-screen
+  // Call synchronously before setVisible(true).
+  // Sets sheet off-screen AND invisible so no frame can show it prematurely.
+  const prepare = useCallback(() => {
+    translateY.setValue(900);
+    opacity.setValue(0);
+  }, [translateY, opacity]);
+
+  // Call in Modal's onShow — makes sheet visible then slides it in.
   const slideIn = useCallback(() => {
-    translateY.setValue(500);
-    Animated.spring(translateY, {
+    opacity.setValue(1);
+    Animated.timing(translateY, {
       toValue: 0,
+      duration: 300,
       useNativeDriver: true,
-      damping: 22,
-      stiffness: 180,
     }).start();
-  }, [translateY]);
+  }, [translateY, opacity]);
 
   const panResponder = useRef(
     PanResponder.create({
-      // Claim the gesture immediately on touch-start so Reanimated/MotiView can't steal it
+      // Only claim on the drag handle touch itself (not scroll content)
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      // Only claim movement when clearly dragging downward — lets child ScrollViews scroll freely
+      onMoveShouldSetPanResponder: (_, gs) => gs.dy > 6 && gs.dy > Math.abs(gs.dx) * 1.5,
       onPanResponderGrant: () => {
-        // Stop any in-flight spring before the user drags
         translateY.stopAnimation();
       },
       onPanResponderMove: (_, gs) => {
@@ -36,36 +45,40 @@ export function useSwipeToDismiss({ onDismiss, threshold = 80, velocityThreshold
       onPanResponderRelease: (_, gs) => {
         if (gs.dy > threshold || gs.vy > velocityThreshold) {
           Animated.timing(translateY, {
-            toValue: 600,
+            toValue: 900,
             duration: 220,
             useNativeDriver: true,
           }).start(() => {
-            translateY.setValue(0);
             onDismiss();
           });
         } else {
-          Animated.spring(translateY, {
+          Animated.timing(translateY, {
             toValue: 0,
+            duration: 200,
             useNativeDriver: true,
-            damping: 20,
-            stiffness: 200,
           }).start();
         }
       },
       onPanResponderTerminate: (_, gs) => {
         if (gs.dy > threshold) {
-          translateY.setValue(0);
-          onDismiss();
+          Animated.timing(translateY, {
+            toValue: 900,
+            duration: 150,
+            useNativeDriver: true,
+          }).start(() => {
+            onDismiss();
+          });
         } else {
-          Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+          Animated.timing(translateY, { toValue: 0, duration: 200, useNativeDriver: true }).start();
         }
       },
-      onShouldBlockNativeResponder: () => true,
+      // false = don't block native scroll responders (ScrollView inside sheet can scroll)
+      onShouldBlockNativeResponder: () => false,
     })
   ).current;
 
-  const animatedStyle = { transform: [{ translateY }] };
+  const animatedStyle = { transform: [{ translateY }], opacity };
   const resetPosition = () => translateY.setValue(0);
 
-  return { panResponder, animatedStyle, resetPosition, slideIn };
+  return { panResponder, animatedStyle, resetPosition, slideIn, prepare };
 }

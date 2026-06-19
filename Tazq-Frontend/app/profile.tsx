@@ -245,7 +245,7 @@ export default function ProfileScreen() {
   const [selectedGoal, setSelectedGoal] = useState(dailyGoalMinutes);
   const [savingProfile, setSavingProfile] = useState(false);
 
-  const { panResponder: editPan, animatedStyle: editSlide, resetPosition: resetEditPos, slideIn: editSlideIn } = useSwipeToDismiss({
+  const { panResponder: editPan, animatedStyle: editSlide, prepare: prepareEdit, slideIn: editSlideIn } = useSwipeToDismiss({
     onDismiss: () => setEditModalVisible(false),
   });
 
@@ -256,21 +256,25 @@ export default function ProfileScreen() {
   const [kbHeight, setKbHeight] = useState(0);
 
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardWillShow', (e) => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) => {
       const kh = e.endCoordinates.height;
       setKbHeight(kh);
-      examInputViewRef.current?.measureInWindow((x, y, w, h) => {
-        const screenH = Dimensions.get('screen').height;
-        const kbTop = screenH - kh;
-        const targetY = kbTop * 0.38;
-        const inputCenterY = y + h / 2;
-        const scrollDelta = inputCenterY - targetY;
-        if (scrollDelta > 0) {
-          scrollViewRef.current?.scrollTo({ y: scrollOffsetRef.current + scrollDelta, animated: true });
-        }
-      });
+      if (Platform.OS === 'ios') {
+        examInputViewRef.current?.measureInWindow((x, y, w, h) => {
+          const screenH = Dimensions.get('screen').height;
+          const kbTop = screenH - kh;
+          const targetY = kbTop * 0.38;
+          const inputCenterY = y + h / 2;
+          const scrollDelta = inputCenterY - targetY;
+          if (scrollDelta > 0) {
+            scrollViewRef.current?.scrollTo({ y: scrollOffsetRef.current + scrollDelta, animated: true });
+          }
+        });
+      }
     });
-    const hide = Keyboard.addListener('keyboardWillHide', () => setKbHeight(0));
+    const hide = Keyboard.addListener(hideEvent, () => setKbHeight(0));
     checkStreakFreezeReset();
     return () => { show.remove(); hide.remove(); };
   }, []);
@@ -302,7 +306,7 @@ export default function ProfileScreen() {
   }, []);
 
   const openEditModal = () => {
-    resetEditPos();
+    prepareEdit();
     setSelectedAvatar(user?.avatar || 'm1');
     setNewName(user?.name || '');
     setSelectedGoal(dailyGoalMinutes);
@@ -390,15 +394,15 @@ export default function ProfileScreen() {
         <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: S.lg, paddingTop: Math.max(insets.top, S.xl) }}
+          contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: S.lg, paddingTop: S.xl }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           scrollEventThrottle={16}
           onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
         >
           <View style={[styles.header, { marginTop: S.md }]}>
-            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { borderColor: isDark ? theme.primary + '40' : 'rgba(0,0,0,0.05)', width: 110, height: 110, borderRadius: 55, overflow: 'hidden' }]}>
-                <Image source={getAvatarSource(user?.avatar || null)} style={{ width: 110, height: 110, borderRadius: 55 }} />
+            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { borderColor: isDark ? theme.primary + '40' : 'rgba(0,0,0,0.05)', width: 110, height: 110, borderRadius: 55, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+                <Image source={getAvatarSource(user?.avatar || null)} style={{ width: 110, height: 110 }} resizeMode="cover" />
             </MotiView>
             <View style={{ alignItems: 'center', marginTop: S.md }}>
                 <Text style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{user?.name || 'Alex'}</Text>
@@ -1334,6 +1338,48 @@ export default function ProfileScreen() {
             setModePreview(null);
           }}
           showSheetImmediately
+          planApplied={(() => {
+            const t = modePreview.type;
+            if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanHabitIds.length > 0 || examPlanTaskIds.length > 0;
+            if (t === 'tez') return tezPlanHabitIds.length > 0 || tezPlanTaskIds.length > 0;
+            if (t === 'mulakat') return mulakatPlanHabitIds.length > 0 || mulakatPlanTaskIds.length > 0;
+            return ramazanPlanHabitIds.length > 0 || ramazanPlanTaskIds.length > 0;
+          })()}
+          planHabitIds={(() => {
+            const t = modePreview.type;
+            if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanHabitIds;
+            if (t === 'tez') return tezPlanHabitIds;
+            if (t === 'mulakat') return mulakatPlanHabitIds;
+            return ramazanPlanHabitIds;
+          })()}
+          planTaskIds={(() => {
+            const t = modePreview.type;
+            if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanTaskIds;
+            if (t === 'tez') return tezPlanTaskIds;
+            if (t === 'mulakat') return mulakatPlanTaskIds;
+            return ramazanPlanTaskIds;
+          })()}
+          onClearPlan={() => {
+            const t = modePreview.type;
+            if (t === 'exam' || t === 'yks' || t === 'kpss') {
+              examPlanHabitIds.forEach(id => removeHabit(id));
+              examPlanTaskIds.forEach(id => removeTask(id));
+              clearPlanIds('exam');
+            } else if (t === 'tez') {
+              tezPlanHabitIds.forEach(id => removeHabit(id));
+              tezPlanTaskIds.forEach(id => removeTask(id));
+              clearPlanIds('tez');
+            } else if (t === 'mulakat') {
+              mulakatPlanHabitIds.forEach(id => removeHabit(id));
+              mulakatPlanTaskIds.forEach(id => removeTask(id));
+              clearPlanIds('mulakat');
+            } else {
+              ramazanPlanHabitIds.forEach(id => removeHabit(id));
+              ramazanPlanTaskIds.forEach(id => removeTask(id));
+              clearPlanIds('ramazan');
+            }
+            setModePreview(null);
+          }}
           onApplied={(habitIds, taskIds) => {
             const t = modePreview.type;
             if (t === 'exam' || t === 'yks' || t === 'kpss') setPlanIds('exam', habitIds, taskIds);
@@ -1348,7 +1394,7 @@ export default function ProfileScreen() {
       <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
             <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} />
-              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : (insets.bottom > 0 ? insets.bottom + S.md : S.lg) }]}>
+              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : (insets.bottom > 0 ? insets.bottom + S.md : S.lg), maxHeight: height - insets.top - 16 }]}>
                 <View {...editPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
                   <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
                 </View>
@@ -1390,6 +1436,8 @@ export default function ProfileScreen() {
                             borderWidth: isSelected ? 3 : 1.5,
                             borderColor: isSelected ? theme.primary : theme.outline + '40',
                             overflow: 'hidden',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                           }}>
                             <Image
                               source={config.image}

@@ -41,11 +41,12 @@ export default function HomeScreen() {
   const { t, language } = useLanguageStore();
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { show: showToast } = useToastStore();
   const { recordScore, getLastNDays } = useMomentumStore();
   const { trigger: triggerAchievement } = useAchievementStore();
-  const { seasonal, weeklyNotification } = usePrefsStore();
+  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds } = usePrefsStore();
 
   // Focus Store
   const { isActive, seconds, setCurrentTask, setDuration, setIsActive, dailyFocusMinutes, dailyGoalMinutes, updateBestStreak } = useFocusStore();
@@ -68,11 +69,11 @@ export default function HomeScreen() {
   const chipScales = useRef([new Animated.Value(1), new Animated.Value(1), new Animated.Value(1)]).current;
   const headerScale = useRef(new Animated.Value(1)).current;
 
-  const { panResponder: draftPan, animatedStyle: draftSlide, resetPosition: resetDraftPos, slideIn: draftSlideIn } = useSwipeToDismiss({
+  const { panResponder: draftPan, animatedStyle: draftSlide, prepare: prepareDraft, slideIn: draftSlideIn } = useSwipeToDismiss({
     onDismiss: () => setQuickDraftVisible(false),
   });
 
-  const { panResponder: hubPan, animatedStyle: hubSlide, resetPosition: resetHubPos, slideIn: hubSlideIn } = useSwipeToDismiss({
+  const { panResponder: hubPan, animatedStyle: hubSlide, prepare: prepareHub, slideIn: hubSlideIn } = useSwipeToDismiss({
     onDismiss: () => setStatusHubVisible(false),
   });
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -127,8 +128,10 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardWillShow', e => setKeyboardHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboardHeight(0));
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, e => setKeyboardHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
     return () => { show.remove(); hide.remove(); };
   }, []);
 
@@ -223,6 +226,20 @@ export default function HomeScreen() {
     if (!detectedMode) return null;
     if (detectedMode.type === 'ramazan' && seasonal.ramazan) return detectedMode;
     return null;
+  })();
+
+  const activePlanApplied = (() => {
+    if (!activeMode) return false;
+    const t = activeMode.type;
+    if (t === 'exam' || t === 'yks' || t === 'kpss')
+      return examPlanHabitIds.length > 0 || examPlanTaskIds.length > 0;
+    if (t === 'ramazan')
+      return ramazanPlanHabitIds.length > 0 || ramazanPlanTaskIds.length > 0;
+    if (t === 'tez')
+      return tezPlanHabitIds.length > 0 || tezPlanTaskIds.length > 0;
+    if (t === 'mulakat')
+      return mulakatPlanHabitIds.length > 0 || mulakatPlanTaskIds.length > 0;
+    return false;
   })();
 
   // Save daily momentum + reschedule weekly notification + check achievements
@@ -401,13 +418,13 @@ export default function HomeScreen() {
                         />
                     </TouchableOpacity>
 
-                    <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStatusHubVisible(true); }} />
+                    <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareHub(); setStatusHubVisible(true); }} />
                 </View>
             </MotiView>
         </View>
 
         {/* Smart Cockpit Modal — bottom sheet */}
-        <Modal visible={statusHubVisible} transparent animationType="none" onShow={() => { resetHubPos(); hubSlideIn(); }}>
+        <Modal visible={statusHubVisible} transparent animationType="none" onRequestClose={() => setStatusHubVisible(false)} onShow={() => hubSlideIn()}>
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
                 <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setStatusHubVisible(false)} />
                 <Animated.View style={[hubSlide, styles.insightCard, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant + '40', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderRadius: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
@@ -520,12 +537,12 @@ export default function HomeScreen() {
                     <BentoCard index={0} style={[styles.nextMissionCard, { minHeight: 180 }]}>
                         <LinearGradient
                             colors={!topTask
-                                ? ['#8e8e93', '#1a1a1a']
+                                ? ['#8e8e93', 'transparent']
                                 : topTask.priority === 'High'
-                                ? ['#ff3b30', '#1a1a1a']
+                                ? ['#ff3b30', 'transparent']
                                 : topTask.priority === 'Medium'
-                                ? ['#ff9f0a', '#1a1a1a']
-                                : ['#34c759', '#1a1a1a']}
+                                ? ['#ff9f0a', 'transparent']
+                                : ['#34c759', 'transparent']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.25 : 0.12 }]}
@@ -599,7 +616,34 @@ export default function HomeScreen() {
             {/* ── Turkish Mode Banner (opt-in) ── */}
             {activeMode && !modeDismissed && (
               <View style={{ paddingHorizontal: S.lg }}>
-                <TurkishModeBanner mode={activeMode} onDismiss={() => setModeDismissed(true)} />
+                <TurkishModeBanner
+                mode={activeMode}
+                onDismiss={() => setModeDismissed(true)}
+                planApplied={activePlanApplied}
+                planHabitIds={(() => {
+                  const t = activeMode.type;
+                  if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanHabitIds;
+                  if (t === 'ramazan') return ramazanPlanHabitIds;
+                  if (t === 'tez') return tezPlanHabitIds;
+                  if (t === 'mulakat') return mulakatPlanHabitIds;
+                  return [];
+                })()}
+                planTaskIds={(() => {
+                  const t = activeMode.type;
+                  if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanTaskIds;
+                  if (t === 'ramazan') return ramazanPlanTaskIds;
+                  if (t === 'tez') return tezPlanTaskIds;
+                  if (t === 'mulakat') return mulakatPlanTaskIds;
+                  return [];
+                })()}
+                onApplied={(habitIds, taskIds) => {
+                  const t = activeMode.type;
+                  if (t === 'exam' || t === 'yks' || t === 'kpss') setPlanIds('exam', habitIds, taskIds);
+                  else if (t === 'ramazan') setPlanIds('ramazan', habitIds, taskIds);
+                  else if (t === 'tez') setPlanIds('tez', habitIds, taskIds);
+                  else if (t === 'mulakat') setPlanIds('mulakat', habitIds, taskIds);
+                }}
+              />
               </View>
             )}
 
@@ -882,7 +926,7 @@ export default function HomeScreen() {
         </ScrollView>
 
         {/* Quick Draft Modal */}
-        <Modal visible={quickDraftVisible} transparent animationType="none" onShow={() => draftSlideIn()}>
+        <Modal visible={quickDraftVisible} transparent animationType="none" onRequestClose={() => setQuickDraftVisible(false)} onShow={() => draftSlideIn()}>
           <View style={styles.draftOverlay}>
             <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
                 <View style={[styles.bottomSheetWrapper, { marginBottom: keyboardHeight }]}>
@@ -909,7 +953,6 @@ export default function HomeScreen() {
                                 placeholderTextColor={theme.onSurfaceVariant + '99'}
                                 value={draftTitle}
                                 onChangeText={setDraftTitle}
-                                autoFocus
                                 returnKeyType="done"
                                 onSubmitEditing={handleQuickSave}
                             />
@@ -935,8 +978,8 @@ export default function HomeScreen() {
 
       {/* Quick Draft FAB */}
       <TouchableOpacity
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setQuickDraftVisible(true); }}
-        style={[styles.fab, { backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F', shadowColor: '#000' }]}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareDraft(); setQuickDraftVisible(true); }}
+        style={[styles.fab, { backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F', shadowColor: '#000', bottom: Math.max(insets.bottom, 16) + 88 }]}
       >
         <Plus size={32} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={3} />
       </TouchableOpacity>
@@ -953,7 +996,7 @@ const styles = StyleSheet.create({
   lightTopBarShadow: { shadowColor: '#2d2f31', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 8 },
   darkTopBarShadow: { shadowColor: '#3367ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 },
   topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
-  avatarContainer: { width: 34, height: 34, borderRadius: R.full, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  avatarContainer: { width: 34, height: 34, borderRadius: R.full, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
   heroSection: { marginBottom: S.lg },
@@ -1012,6 +1055,6 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', paddingHorizontal: S.lg, gap: S.md, marginTop: S.md },
   actionBtn: { flex: 1, borderRadius: R.lg, alignItems: 'center', gap: S.sm },
   actionLabel: { fontWeight: '800' },
-  fab: { position: 'absolute', bottom: 120, right: S.lg, width: 64, height: 64, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center', elevation: 10, zIndex: 100, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16 },
+  fab: { position: 'absolute', right: S.lg, width: 64, height: 64, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center', elevation: 10, zIndex: 100, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16 },
 });
 

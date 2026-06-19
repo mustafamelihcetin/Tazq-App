@@ -168,5 +168,20 @@ namespace Tazq_App.Services
             _context.Users.Remove(user);
             return await _context.SaveChangesAsync() > 0;
         }
+
+        public async Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return false;
+
+            if (!string.IsNullOrWhiteSpace(name))
+                user.Name = name.Trim()[..Math.Min(name.Trim().Length, 50)];
+
+            if (avatar != null)
+                user.ProfilePicture = avatar;
+
+            _context.Users.Update(user);
+            return await _context.SaveChangesAsync() > 0;
+        }
     }
 }

@@ -2,7 +2,7 @@ import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Modal, KeyboardAvoidingView, Platform, Alert, Dimensions,
-  Animated, LayoutAnimation,
+  Animated, useWindowDimensions,
 } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,6 +65,7 @@ export default function CockpitScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const { language } = useLanguageStore();
   const { tasks } = useTaskStore();
   const { habits, addHabit, removeHabit, toggleDate, weeklyGoal, setWeeklyGoal, getStreak } = useHabitStore();
@@ -78,17 +79,19 @@ export default function CockpitScreen() {
   const [selectedDay, setSelectedDay] = useState(todayKey);
   const [addVisible, setAddVisible] = useState(false);
   const [planVisible, setPlanVisible] = useState(false);
+  const [completingHabitIds, setCompletingHabitIds] = useState<Set<string>>(new Set());
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('💪');
   const [newColor, setNewColor] = useState(HABIT_COLORS[0]);
   const [weeklyFocusMin, setWeeklyFocusMin] = useState(0);
   const [planGoal, setPlanGoal] = useState('');
   const nameInputRef = useRef<any>(null);
+  const habitExitAnimMap = useRef<Map<string, { opacity: Animated.Value; translateY: Animated.Value }>>(new Map());
 
-  const { panResponder: addPan, animatedStyle: addSlide, slideIn: addSlideIn } = useSwipeToDismiss({
+  const { panResponder: addPan, animatedStyle: addSlide, prepare: prepareAdd, slideIn: addSlideIn } = useSwipeToDismiss({
     onDismiss: () => setAddVisible(false),
   });
-  const { panResponder: planPan, animatedStyle: planSlide, slideIn: planSlideIn } = useSwipeToDismiss({
+  const { panResponder: planPan, animatedStyle: planSlide, prepare: preparePlan, slideIn: planSlideIn } = useSwipeToDismiss({
     onDismiss: () => setPlanVisible(false),
   });
 
@@ -176,13 +179,37 @@ export default function CockpitScreen() {
   };
 
   const handleToggleHabit = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    LayoutAnimation.configureNext({
-      duration: 320,
-      update: { type: LayoutAnimation.Types.easeInEaseOut },
-      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-    });
-    toggleDate(id, todayKey);
+    const habit = habits.find(h => h.id === id);
+    const doneToday = Array.isArray(habit?.completedDates) && habit!.completedDates.includes(todayKey);
+
+    if (!doneToday) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const opacity = new Animated.Value(1);
+      const translateY = new Animated.Value(0);
+      habitExitAnimMap.current.set(id, { opacity, translateY });
+      // Add to completingHabitIds → triggers re-render → Animated.View picks up the new style
+      setCompletingHabitIds(prev => new Set([...prev, id]));
+
+      Animated.sequence([
+        Animated.delay(260),
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 0, duration: 260, useNativeDriver: true }),
+          Animated.timing(translateY, { toValue: 36, duration: 260, useNativeDriver: true }),
+        ]),
+      ]).start(() => {
+        habitExitAnimMap.current.delete(id);
+        toggleDate(id, todayKey);
+        // Remove from completing set → re-render → habit now filtered out (doneToday=true, not completing)
+        setCompletingHabitIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      });
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      toggleDate(id, todayKey);
+    }
   };
 
   const handleDeleteHabit = (id: string, name: string) => {
@@ -228,7 +255,7 @@ export default function CockpitScreen() {
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() => setAddVisible(true)}
+            onPress={() => { prepareAdd(); setAddVisible(true); }}
             style={[styles.addBtn, { backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F' }]}
           >
             <Plus size={18} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={2.5} />
@@ -417,7 +444,7 @@ export default function CockpitScreen() {
                   : 'Small habits create big transformations.'}
               </Text>
               <TouchableOpacity
-                onPress={() => setAddVisible(true)}
+                onPress={() => { prepareAdd(); setAddVisible(true); }}
                 style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}
               >
                 <Plus size={15} color={theme.onPrimary} />
@@ -428,13 +455,40 @@ export default function CockpitScreen() {
             </BentoCard>
           ) : (
             <View style={{ gap: S.sm, marginBottom: S.md }}>
-              {[...habits].filter((h) => !!h && !!h.id).sort((a, b) => getStreak(b) - getStreak(a)).map((habit, hIdx) => {
+              {/* Tamamlanan alışkanlık sayacı */}
+              {(() => {
+                const doneCount = habits.filter(h => {
+                  const dates = Array.isArray(h.completedDates) ? h.completedDates : [];
+                  return dates.includes(todayKey);
+                }).length;
+                if (doneCount === 0) return null;
+                return (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: S.xs, paddingHorizontal: S.sm }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#34C759' }} />
+                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                      {tr ? `Bugün ${doneCount} alışkanlık tamamlandı` : `${doneCount} habit${doneCount > 1 ? 's' : ''} done today`}
+                    </Text>
+                  </View>
+                );
+              })()}
+              {[...habits]
+                .filter((h) => {
+                  if (!h || !h.id) return false;
+                  const safeDates = Array.isArray(h.completedDates) ? h.completedDates : [];
+                  const doneToday = safeDates.includes(todayKey);
+                  // Show: not done today, OR currently in exit animation
+                  return !doneToday || completingHabitIds.has(h.id);
+                })
+                .sort((a, b) => getStreak(b) - getStreak(a))
+                .map((habit, hIdx) => {
                 const safeColor = habit.color ?? '#6366F1';
                 const safeDates = Array.isArray(habit.completedDates) ? habit.completedDates : [];
                 const streak = getStreak({ ...habit, completedDates: safeDates });
                 const doneToday = safeDates.includes(todayKey);
+                const habitExitAnim = habitExitAnimMap.current.get(habit.id);
                 return (
-                  <View key={`${habit.id}-${hIdx}`} style={[styles.habitCard, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
+                  <Animated.View key={`${habit.id}-${hIdx}`} style={habitExitAnim ? { opacity: habitExitAnim.opacity, transform: [{ translateY: habitExitAnim.translateY }] } : undefined}>
+                  <View style={[styles.habitCard, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
                     <View style={styles.habitRow}>
                       {/* Emoji + name + streak */}
                       <View style={styles.habitLeft}>
@@ -526,11 +580,12 @@ export default function CockpitScreen() {
                       </TouchableOpacity>
                     </View>
                   </View>
+                  </Animated.View>
                 );
               })}
 
               <TouchableOpacity
-                onPress={() => setAddVisible(true)}
+                onPress={() => { prepareAdd(); setAddVisible(true); }}
                 style={[styles.addHabitRow, { borderColor: theme.outline + '50' }]}
               >
                 <Plus size={15} color={theme.onSurfaceVariant} />
@@ -604,7 +659,7 @@ export default function CockpitScreen() {
                 <Text style={[styles.goalText, { color: theme.primary }]} numberOfLines={2}>
                   {weeklyGoal}
                 </Text>
-                <TouchableOpacity onPress={() => { setPlanGoal(weeklyGoal); setPlanVisible(true); }}>
+                <TouchableOpacity onPress={() => { setPlanGoal(weeklyGoal); preparePlan(); setPlanVisible(true); }}>
                   <ChevronRight size={15} color={theme.primary} />
                 </TouchableOpacity>
               </View>
@@ -614,6 +669,7 @@ export default function CockpitScreen() {
             <TouchableOpacity
               onPress={() => {
                 setPlanGoal(weeklyGoal);
+                preparePlan();
                 setPlanVisible(true);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               }}
@@ -639,13 +695,11 @@ export default function CockpitScreen() {
         visible={addVisible}
         transparent
         animationType="none"
-        onShow={() => {
-          addSlideIn();
-          setTimeout(() => nameInputRef.current?.focus(), 300);
-        }}
+        onRequestClose={() => setAddVisible(false)}
+        onShow={() => addSlideIn()}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1, justifyContent: 'flex-end' }}
         >
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setAddVisible(false)} />
@@ -656,6 +710,7 @@ export default function CockpitScreen() {
               {
                 backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface,
                 paddingBottom: Math.max(insets.bottom, S.xl),
+                maxHeight: screenHeight - insets.top - 16,
               },
             ]}
           >
@@ -759,10 +814,11 @@ export default function CockpitScreen() {
         visible={planVisible}
         transparent
         animationType="none"
+        onRequestClose={() => setPlanVisible(false)}
         onShow={() => planSlideIn()}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1, justifyContent: 'flex-end' }}
         >
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setPlanVisible(false)} />
@@ -773,6 +829,7 @@ export default function CockpitScreen() {
               {
                 backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface,
                 paddingBottom: Math.max(insets.bottom, S.xl),
+                maxHeight: screenHeight - insets.top - 16,
               },
             ]}
           >

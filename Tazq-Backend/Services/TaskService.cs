@@ -99,10 +99,19 @@ namespace Tazq_App.Services
             return task;
         }
 
+        private const int MaxTasksPerUser = 200;
+        private const int MaxSubtasksPerTask = 15;
+        private const int MaxTagsPerTask = 8;
+
         public async Task<TaskItem> CreateTaskAsync(int userId, TaskItem task)
         {
+            var taskCount = await _context.Tasks.CountAsync(t => t.UserId == userId);
+            if (taskCount >= MaxTasksPerUser)
+                throw new InvalidOperationException($"TASK_LIMIT_REACHED:{MaxTasksPerUser}");
+
             task.UserId = userId;
-            task.Tags = task.Tags ?? new List<string>();
+            task.Tags = (task.Tags ?? new List<string>()).Take(MaxTagsPerTask).ToList();
+            task.Subtasks = (task.Subtasks ?? new List<SubtaskItem>()).Take(MaxSubtasksPerTask).ToList();
 
             // Ensure UTC for Postgres timestamptz compatibility
             if (task.DueDate.HasValue && task.DueDate.Value.Kind == DateTimeKind.Unspecified)
@@ -123,12 +132,19 @@ namespace Tazq_App.Services
 
         public async Task<bool> CreateTasksBulkAsync(int userId, List<TaskItem> tasks)
         {
+            var taskCount = await _context.Tasks.CountAsync(t => t.UserId == userId);
+            var allowed = MaxTasksPerUser - taskCount;
+            if (allowed <= 0)
+                return false;
+            tasks = tasks.Take(allowed).ToList();
+
             var key = _cryptoService.GetKeyForUser(userId)!;
 
             foreach (var t in tasks)
             {
                 t.UserId = userId;
-                t.Tags = t.Tags ?? new List<string>();
+                t.Tags = (t.Tags ?? new List<string>()).Take(MaxTagsPerTask).ToList();
+                t.Subtasks = (t.Subtasks ?? new List<SubtaskItem>()).Take(MaxSubtasksPerTask).ToList();
                 EncryptTask(t, key);
             }
 

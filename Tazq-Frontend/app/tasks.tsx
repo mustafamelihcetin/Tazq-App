@@ -127,8 +127,10 @@ export default function ActionCenter() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [isListeningTitle, setIsListeningTitle] = useState(false);
   const [isListeningDesc, setIsListeningDesc] = useState(false);
+  const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
+  const exitAnimMap = useRef<Map<number, { opacity: RNAnimated.Value; translateY: RNAnimated.Value }>>(new Map());
 
-  const { panResponder: taskPan, animatedStyle: taskSlide, resetPosition: resetTaskPos, slideIn: taskSlideIn } = useSwipeToDismiss({
+  const { panResponder: taskPan, animatedStyle: taskSlide, prepare: prepareTask, slideIn: taskSlideIn } = useSwipeToDismiss({
     onDismiss: () => !saving && setModalVisible(false),
   });
 
@@ -271,6 +273,7 @@ export default function ActionCenter() {
     }
     return () => {
       VoiceService.destroy();
+      Object.values(subtaskSaveTimers.current).forEach(clearTimeout);
     };
   }, [action, highlightId]);
 
@@ -283,8 +286,10 @@ export default function ActionCenter() {
   }, []);
 
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardWillShow', e => setKbHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener('keyboardWillHide', () => setKbHeight(0));
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, e => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(hideEvent, () => setKbHeight(0));
     return () => { show.remove(); hide.remove(); };
   }, []);
 
@@ -420,10 +425,42 @@ export default function ActionCenter() {
     if (isCompleting) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await cancelTaskNotification(id);
+
+      if (hideCompleted) {
+        // Optimistically mark as completing so it shows ✓ immediately
+        toggleTaskCompletion(id);
+        setCompletingIds(prev => new Set([...prev, id]));
+
+        const opacity = new RNAnimated.Value(1);
+        const translateY = new RNAnimated.Value(0);
+        exitAnimMap.current.set(id, { opacity, translateY });
+
+        RNAnimated.sequence([
+          RNAnimated.delay(380),
+          RNAnimated.parallel([
+            RNAnimated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+            RNAnimated.timing(translateY, { toValue: 50, duration: 300, useNativeDriver: true }),
+          ]),
+        ]).start(() => {
+          exitAnimMap.current.delete(id);
+          setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+        });
+
+        try {
+          await TaskService.updateTask(id, { ...task, priority: task.priority as any, isCompleted: true });
+        } catch (error: any) {
+          toggleTaskCompletion(id);
+          setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+          exitAnimMap.current.delete(id);
+          const isNetwork = !error.response;
+          showToast(isNetwork ? t.toastChangeReverted : t.toastUpdateFailed, 'error');
+        }
+        return;
+      }
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    
+
     toggleTaskCompletion(id);
 
     try {
@@ -478,7 +515,7 @@ export default function ActionCenter() {
   };
 
   const openAdd = () => {
-    resetTaskPos();
+    prepareTask();
     setEditingId(null);
     setForm(EMPTY_FORM);
     setNlpHint('');
@@ -487,15 +524,15 @@ export default function ActionCenter() {
   };
 
   const openEdit = (id: number) => {
-    resetTaskPos();
+    prepareTask();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     setEditingId(id);
-    setForm({ 
-      title: task.title, 
-      description: task.description || '', 
-      priority: task.priority as Priority, 
+    setForm({
+      title: task.title,
+      description: task.description || '',
+      priority: task.priority as Priority,
       dueDate: task.dueDate?.split('T')[0] ?? '',
       dueTime: task.dueTime || '',
       tags: task.tags || [],
@@ -604,6 +641,9 @@ export default function ActionCenter() {
     } catch (err: any) {
       if (!err.response) {
         showToast(t.toastSaveFailed, 'error');
+      } else if (err.response?.status === 429) {
+        const msg = language === 'tr' ? 'Maksimum görev sayısına ulaştın (200). Eski görevleri tamamla veya sil.' : 'Task limit reached (200). Complete or delete existing tasks.';
+        Alert.alert(language === 'tr' ? 'Limit Doldu' : 'Limit Reached', msg);
       } else {
         const serverMsg = err.response?.data?.message || err.response?.data?.Message || err.message;
         Alert.alert(t.errorTitle, `${t.saveError}: ${serverMsg}`);
@@ -623,8 +663,8 @@ export default function ActionCenter() {
 
   const filteredAndSortedTasks = useMemo(() => {
     let result = tasks.filter((task) => {
-      // Global hide-completed toggle (skip when "done" filter is explicitly chosen)
-      if (hideCompleted && filter !== 'done' && task.isCompleted) return false;
+      // Global hide-completed toggle (skip when "done" filter is active, or task is mid-exit animation)
+      if (hideCompleted && filter !== 'done' && task.isCompleted && !completingIds.has(task.id)) return false;
       if (filter === 'done') { if (!task.isCompleted) return false; }
       else if (filter === 'today') {
         if (task.isCompleted) return false;
@@ -657,7 +697,7 @@ export default function ActionCenter() {
       });
     }
     return result;
-  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted]);
+  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds]);
 
   const filteredTasks = filteredAndSortedTasks;
   const filters: FilterType[] = ['all', 'today', 'High', 'Medium', 'Low', 'done'];
@@ -944,14 +984,18 @@ export default function ActionCenter() {
                         <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>{searchQuery.trim() ? (language === 'tr' ? `"${searchQuery}" için sonuç bulunamadı` : `No results for "${searchQuery}"`) : t.noTasksHint}</Text>
                     </MotiView>
                 ) : (
-                    filteredTasks.map((task, i) => (
-                        <SwipeableItem
+                    filteredTasks.map((task, i) => {
+                        const exitAnim = exitAnimMap.current.get(task.id);
+                        return (
+                        <RNAnimated.View
                             key={task.id}
+                            style={exitAnim ? { opacity: exitAnim.opacity, transform: [{ translateY: exitAnim.translateY }] } : undefined}
+                        >
+                        <SwipeableItem
                             onDelete={() => handleDelete(task.id)}
                             disabled={isBulkMode}
                         >
                             <MotiView
-                                layout={Layout.duration(300)}
                                 from={{ opacity: 0, translateY: 10 }}
                                 animate={{
                                     opacity: 1,
@@ -1242,7 +1286,9 @@ export default function ActionCenter() {
                             </TouchableOpacity>
                         </MotiView>
                       </SwipeableItem>
-                    ))
+                        </RNAnimated.View>
+                        );
+                    })
                 )}
             </AnimatePresence>
 
@@ -1348,7 +1394,7 @@ export default function ActionCenter() {
                   width: 64,
                   height: 64,
                   borderRadius: R.lg,
-                  bottom: 120,
+                  bottom: Math.max(insets.bottom, 16) + 88,
                   right: S.lg
               }
           ]}
@@ -1360,12 +1406,12 @@ export default function ActionCenter() {
       <BottomNavBar />
 
       {/* Modern Stitch Modal */}
-      <Modal visible={modalVisible} transparent animationType="none" onShow={() => taskSlideIn()}>
+      <Modal visible={modalVisible} transparent animationType="none" onRequestClose={() => !saving && setModalVisible(false)} onShow={() => taskSlideIn()}>
         <View style={styles.overlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && setModalVisible(false)} />
 
           <View style={styles.sheetContainer}>
-            <RNAnimated.View style={[styles.sheet, taskSlide, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', padding: S.lg, borderBottomLeftRadius: kbHeight > 0 ? S.xl : 0, borderBottomRightRadius: kbHeight > 0 ? S.xl : 0 }]}>
+            <RNAnimated.View style={[styles.sheet, taskSlide, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', padding: S.lg, borderBottomLeftRadius: kbHeight > 0 ? S.xl : 0, borderBottomRightRadius: kbHeight > 0 ? S.xl : 0, maxHeight: height - insets.top - 16 }]}>
                 <View {...taskPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
                   <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
                 </View>
@@ -1394,8 +1440,7 @@ export default function ActionCenter() {
                                     placeholderTextColor={theme.onSurfaceVariant + '99'}
                                     value={form.title}
                                     onChangeText={handleTitleChange}
-                                    maxLength={200}
-                                    autoFocus
+                                    maxLength={150}
                                 />
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                                     {nlpHint ? <Sparkles size={16} color={theme.primary} /> : null}
@@ -1658,16 +1703,17 @@ export default function ActionCenter() {
                                 value={newSubtaskText}
                                 onChangeText={setNewSubtaskText}
                                 returnKeyType="done"
+                                maxLength={100}
                                 onSubmitEditing={() => {
-                                    if (newSubtaskText.trim()) {
+                                    if (newSubtaskText.trim() && form.subtasks.length < 15) {
                                         setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));
                                         setNewSubtaskText('');
                                     }
                                 }}
                             />
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 onPress={() => {
-                                    if (newSubtaskText.trim()) {
+                                    if (newSubtaskText.trim() && form.subtasks.length < 15) {
                                         setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));
                                         setNewSubtaskText('');
                                     }

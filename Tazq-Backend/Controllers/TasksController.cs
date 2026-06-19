@@ -81,6 +81,10 @@ namespace Tazq_App.Controllers
                 var createdTask = await _taskService.CreateTaskAsync(userId.Value, task);
                 return CreatedAtAction(nameof(GetTaskById), new { id = createdTask.Id }, createdTask);
             }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("TASK_LIMIT_REACHED"))
+            {
+                return StatusCode(429, new { StatusCode = 429, Message = ex.Message });
+            }
             catch (Exception ex)
             {
                 return StatusCode(500, new { StatusCode = 500, Message = ex.Message });
