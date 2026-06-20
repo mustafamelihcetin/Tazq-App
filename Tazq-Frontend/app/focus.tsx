@@ -97,11 +97,15 @@ export default function FocusScreen() {
   });
 
   // ── Ambient sound ────────────────────────────────────────────────────────
-  const playAmbientSound = async (type: AmbientSound) => {
+  const stopAmbientSound = () => {
     if (soundRef.current) {
-      try { soundRef.current.remove(); } catch {}
+      try { soundRef.current.pause(); soundRef.current.remove(); } catch {}
       soundRef.current = null;
     }
+  };
+
+  const playAmbientSound = async (type: AmbientSound) => {
+    stopAmbientSound();
     if (type === 'off') return;
     try {
       const sources: Record<string, any> = {
@@ -125,7 +129,7 @@ export default function FocusScreen() {
   };
 
   useEffect(() => {
-    return () => { try { soundRef.current?.remove(); } catch {} };
+    return () => { stopAmbientSound(); };
   }, []);
 
   // ── Init ──────────────────────────────────────────────────────────────────
@@ -200,6 +204,8 @@ export default function FocusScreen() {
         }
       } else {
         // Standard mode
+        stopAmbientSound();
+        setAmbientSound('off');
         setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 300);
         setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 600);
         const minutes = Math.round(totalSeconds / 60);
@@ -235,6 +241,8 @@ export default function FocusScreen() {
 
   const finishEarly = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    stopAmbientSound();
+    setAmbientSound('off');
     setIsActive(false);
     completedRef.current = true;
     const minutesDone = Math.max(1, Math.round(elapsed / 60));
