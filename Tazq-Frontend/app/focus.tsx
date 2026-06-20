@@ -4,7 +4,7 @@ import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import Svg, { Circle, G } from 'react-native-svg';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil, Timer, ChevronRight, Coffee, Wind, CloudRain } from 'lucide-react-native';
+import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil, Timer, ChevronRight, Coffee, Wind, CloudRain, Flame, Waves } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
@@ -25,13 +25,15 @@ const POMODORO_WORK_MINS = 25;
 const POMODORO_SHORT_BREAK = 5;
 const POMODORO_LONG_BREAK = 15;
 
-type AmbientSound = 'off' | 'rain' | 'cafe' | 'forest';
+type AmbientSound = 'off' | 'rain' | 'cafe' | 'forest' | 'ocean' | 'fireplace';
 
 const SOUND_LABELS: Record<AmbientSound, { icon: React.ComponentType<any> | null; labelTr: string; labelEn: string }> = {
-  off: { icon: null, labelTr: 'Sessiz', labelEn: 'Off' },
-  rain: { icon: CloudRain, labelTr: 'Yağmur', labelEn: 'Rain' },
-  cafe: { icon: Coffee, labelTr: 'Kafe', labelEn: 'Café' },
-  forest: { icon: Wind, labelTr: 'Orman', labelEn: 'Forest' },
+  off:       { icon: null,      labelTr: 'Sessiz',   labelEn: 'Off'       },
+  rain:      { icon: CloudRain, labelTr: 'Yağmur',   labelEn: 'Rain'      },
+  cafe:      { icon: Coffee,    labelTr: 'Kafe',      labelEn: 'Café'      },
+  forest:    { icon: Wind,      labelTr: 'Orman',     labelEn: 'Forest'    },
+  ocean:     { icon: Waves,     labelTr: 'Okyanus',   labelEn: 'Ocean'     },
+  fireplace: { icon: Flame,     labelTr: 'Şömine',   labelEn: 'Fireplace' },
 };
 
 export default function FocusScreen() {
@@ -109,9 +111,11 @@ export default function FocusScreen() {
     if (type === 'off') return;
     try {
       const sources: Record<string, any> = {
-        rain: require('../assets/sounds/rain.wav'),
-        cafe: require('../assets/sounds/cafe.wav'),
-        forest: require('../assets/sounds/forest.wav'),
+        rain:      require('../assets/sounds/rain.mp3'),
+        cafe:      require('../assets/sounds/cafe.mp3'),
+        forest:    require('../assets/sounds/forest.mp3'),
+        ocean:     require('../assets/sounds/ocean.mp3'),
+        fireplace: require('../assets/sounds/fireplace.mp3'),
       };
       await setAudioModeAsync({
         playsInSilentMode: true,
@@ -328,8 +332,8 @@ export default function FocusScreen() {
 
   // ── Ambient sound row ─────────────────────────────────────────────────────
   const AmbientRow = () => (
-    <View style={styles.ambientRow}>
-      {(['off', 'rain', 'cafe', 'forest'] as AmbientSound[]).map(type => {
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ambientRow}>
+      {(['off', 'rain', 'cafe', 'forest', 'ocean', 'fireplace'] as AmbientSound[]).map(type => {
         const active = ambientSound === type;
         const cfg = SOUND_LABELS[type];
         const IconComp = cfg.icon;
@@ -359,7 +363,7 @@ export default function FocusScreen() {
           </TouchableOpacity>
         );
       })}
-    </View>
+    </ScrollView>
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
