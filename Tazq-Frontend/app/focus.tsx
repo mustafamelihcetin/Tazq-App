@@ -60,7 +60,12 @@ export default function FocusScreen() {
 
   // Sound
   const soundRef = useRef<AudioPlayer | null>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [ambientSound, setAmbientSound] = useState<AmbientSound>('off');
+
+  // Breath cue phase — synced to glow animation (4s per half-cycle)
+  const [breathPhase, setBreathPhase] = useState<'in' | 'out'>('in');
 
   // Task picker
   const [taskPickerVisible, setTaskPickerVisible] = useState(false);
@@ -85,6 +90,7 @@ export default function FocusScreen() {
   const [summaryVisible, setSummaryVisible] = useState(false);
   const [summaryMinutes, setSummaryMinutes] = useState(0);
   const [summaryCompleted, setSummaryCompleted] = useState(false);
+  const [completionRitual, setCompletionRitual] = useState(false);
 
   const [quote, setQuote] = useState('');
   const [kbHeight, setKbHeight] = useState(0);
@@ -102,14 +108,40 @@ export default function FocusScreen() {
   });
 
   // ── Ambient sound ────────────────────────────────────────────────────────
+  const TARGET_VOL = 0.4;
+  const FADE_STEPS = 20;
+  const FADE_MS = 16; // ~300ms total
+
+  const clearFade = () => {
+    if (fadeIntervalRef.current) { clearInterval(fadeIntervalRef.current); fadeIntervalRef.current = null; }
+  };
+
   const stopAmbientSound = () => {
+    clearFade();
     if (soundRef.current) {
       try { soundRef.current.pause(); soundRef.current.remove(); } catch {}
       soundRef.current = null;
     }
   };
 
-  const playAmbientSound = async (type: AmbientSound) => {
+  const stopAmbientSoundFaded = () => {
+    clearFade();
+    const player = soundRef.current;
+    if (!player) return;
+    let vol = player.volume;
+    const stepVal = vol / FADE_STEPS;
+    fadeIntervalRef.current = setInterval(() => {
+      vol = Math.max(0, vol - stepVal);
+      try { player.volume = vol; } catch {}
+      if (vol <= 0) {
+        clearFade();
+        try { player.pause(); player.remove(); } catch {}
+        soundRef.current = null;
+      }
+    }, FADE_MS);
+  };
+
+  const playAmbientSound = async (type: AmbientSound, fadeIn = false) => {
     stopAmbientSound();
     if (type === 'off') return;
     try {
@@ -127,25 +159,50 @@ export default function FocusScreen() {
       });
       const player = createAudioPlayer(sources[type]);
       player.loop = true;
-      player.volume = 0.4;
-      player.play();
-      soundRef.current = player;
+      if (fadeIn) {
+        player.volume = 0;
+        player.play();
+        soundRef.current = player;
+        let vol = 0;
+        const stepVal = TARGET_VOL / FADE_STEPS;
+        fadeIntervalRef.current = setInterval(() => {
+          vol = Math.min(vol + stepVal, TARGET_VOL);
+          try { if (soundRef.current) soundRef.current.volume = vol; } catch {}
+          if (vol >= TARGET_VOL) clearFade();
+        }, FADE_MS);
+      } else {
+        player.volume = TARGET_VOL;
+        player.play();
+        soundRef.current = player;
+      }
     } catch (e) {
       console.warn('Ambient sound error:', e);
     }
   };
 
   useEffect(() => {
-    return () => { stopAmbientSound(); };
+    return () => { clearFade(); stopAmbientSound(); };
   }, []);
 
-  // Start/stop sound with timer
+  // Session transitions: clear preview timer, manage sound
   useEffect(() => {
-    if (isActive && ambientSound !== 'off') {
-      playAmbientSound(ambientSound);
-    } else if (!isActive) {
-      stopAmbientSound();
-    }
+    if (previewTimerRef.current) { clearTimeout(previewTimerRef.current); previewTimerRef.current = null; }
+    if (isActive && ambientSound !== 'off') playAmbientSound(ambientSound);
+    else if (!isActive) stopAmbientSound();
+  }, [isActive]);
+
+  // Sound changes during an active session
+  useEffect(() => {
+    if (!isActive) return;
+    if (ambientSound === 'off') stopAmbientSound();
+    else playAmbientSound(ambientSound);
+  }, [ambientSound]);
+
+  // Breath cue cycle
+  useEffect(() => {
+    if (!isActive) { setBreathPhase('in'); return; }
+    const iv = setInterval(() => setBreathPhase(p => p === 'in' ? 'out' : 'in'), 4000);
+    return () => clearInterval(iv);
   }, [isActive]);
 
   // ── Init ──────────────────────────────────────────────────────────────────
@@ -243,7 +300,8 @@ export default function FocusScreen() {
         });
         setSummaryMinutes(minutes);
         setSummaryCompleted(true);
-        setSummaryVisible(true);
+        setCompletionRitual(true);
+        setTimeout(() => { setCompletionRitual(false); setSummaryVisible(true); }, 1800);
       }
     }
     if (isActive && seconds > 0) completedRef.current = false;
@@ -361,24 +419,26 @@ export default function FocusScreen() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
 
-        {/* Header */}
+        {/* Header — left/right slots are equal width so badge stays perfectly centered */}
         <View style={[styles.header, { paddingVertical: S.md }]}>
-          <TouchableOpacity
-            onPress={() => {
-              if (elapsed > 0) {
-                stopAmbientSound();
-                setAmbientSound('off');
-                setIsActive(false);
-                const minutesDone = Math.max(1, Math.round(elapsed / 60));
-                FocusService.saveSession(currentTask || 'Focus', minutesDone, false).catch(() => {});
-                addFocusMinutes(minutesDone);
-              }
-              router.canGoBack() ? router.back() : router.replace('/');
-            }}
-            style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
-          >
-            <X size={20} color={theme.onSurface} />
-          </TouchableOpacity>
+          <View style={{ width: 110, alignItems: 'flex-start' }}>
+            <TouchableOpacity
+              onPress={() => {
+                if (elapsed > 0) {
+                  stopAmbientSound();
+                  setAmbientSound('off');
+                  setIsActive(false);
+                  const minutesDone = Math.max(1, Math.round(elapsed / 60));
+                  FocusService.saveSession(currentTask || 'Focus', minutesDone, false).catch(() => {});
+                  addFocusMinutes(minutesDone);
+                }
+                router.canGoBack() ? router.back() : router.replace('/');
+              }}
+              style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
+            >
+              <X size={20} color={theme.onSurface} />
+            </TouchableOpacity>
+          </View>
 
           <View style={[styles.badge, { backgroundColor: theme.primary + '15' }]}>
             <Sparkles size={11} color={theme.primary} />
@@ -387,29 +447,39 @@ export default function FocusScreen() {
             </Text>
           </View>
 
-          {/* Pomodoro toggle + info */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <TouchableOpacity
-              onPress={() => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(POMODORO_WORK_MINS); }}
-              style={[
-                styles.pomodoroToggle,
-                {
-                  backgroundColor: pomodoroMode ? theme.primary + '20' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
-                  borderColor: pomodoroMode ? theme.primary + '50' : 'transparent',
-                },
-              ]}
-            >
-              <Timer size={14} color={pomodoroMode ? theme.primary : theme.onSurfaceVariant} />
-              <Text style={[styles.pomodoroToggleText, { color: pomodoroMode ? theme.primary : theme.onSurfaceVariant }]}>
-                Pomodoro
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPomodoroInfoVisible(true); }}
-              style={{ width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: '900', color: theme.onSurfaceVariant }}>ⓘ</Text>
-            </TouchableOpacity>
+          {/* Pomodoro toggle + info — hidden during active session */}
+          <View style={{ width: 110, alignItems: 'flex-end' }}>
+            <AnimatePresence>
+              {!isActive && (
+                <MotiView
+                  key="pomo-controls"
+                  from={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ type: 'timing', duration: 220 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                >
+                  <TouchableOpacity
+                    onPress={() => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(POMODORO_WORK_MINS); }}
+                    style={[
+                      styles.pomodoroToggle,
+                      {
+                        backgroundColor: pomodoroMode ? theme.primary + '20' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
+                        borderColor: pomodoroMode ? theme.primary + '50' : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Timer size={14} color={pomodoroMode ? theme.primary : theme.onSurfaceVariant} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPomodoroInfoVisible(true); }}
+                    style={{ width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '900', color: theme.onSurfaceVariant }}>ⓘ</Text>
+                  </TouchableOpacity>
+                </MotiView>
+              )}
+            </AnimatePresence>
           </View>
         </View>
 
@@ -419,53 +489,61 @@ export default function FocusScreen() {
           {pomodoroMode ? (
             <PomodoroIndicator />
           ) : (
-            <View style={[styles.durationRow, { marginBottom: S.xl, gap: S.sm }]}>
-              {DURATIONS.map((min) => {
-                const active = totalSeconds === min * 60;
-                return (
-                  <TouchableOpacity
-                    key={min}
-                    onPress={() => { Haptics.selectionAsync(); setDuration(min); }}
-                    disabled={isActive}
-                    style={[
-                      styles.durationChip,
-                      {
-                        backgroundColor: active ? 'rgba(250,250,250,0.1)' : 'transparent',
-                        borderColor: active ? theme.primary : theme.outline,
-                        borderWidth: 1,
-                        opacity: isActive ? 0.35 : 1,
-                        paddingHorizontal: S.md,
-                        paddingVertical: S.sm,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.durationText, { color: active ? theme.primary : theme.onSurfaceVariant, fontSize: F.body, fontWeight: active ? '900' : '600' }]}>
-                      {min}m
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-              <TouchableOpacity
-                onPress={() => { if (!isActive) { prepareCustom(); Haptics.selectionAsync(); setCustomVisible(true); } }}
-                disabled={isActive}
-                style={[
-                  styles.durationChip,
-                  {
-                    backgroundColor: !DURATIONS.includes(Math.round(totalSeconds / 60)) && totalSeconds > 0 ? 'rgba(250,250,250,0.1)' : 'transparent',
-                    borderColor: !DURATIONS.includes(Math.round(totalSeconds / 60)) && totalSeconds > 0 ? theme.primary : theme.outline,
-                    borderWidth: 1,
-                    opacity: isActive ? 0.35 : 1,
-                    paddingHorizontal: S.md,
-                    paddingVertical: S.sm,
-                  },
-                ]}
-              >
-                <Text style={[styles.durationText, {
-                  color: !DURATIONS.includes(Math.round(totalSeconds / 60)) && totalSeconds > 0 ? theme.primary : theme.onSurfaceVariant,
-                  fontSize: F.subhead, fontWeight: '900',
-                }]}>···</Text>
-              </TouchableOpacity>
-            </View>
+            <AnimatePresence>
+              {!sessionStarted && (
+                <MotiView
+                  key="chips"
+                  from={{ opacity: 0, translateY: -6 }}
+                  animate={{ opacity: 1, translateY: 0 }}
+                  exit={{ opacity: 0, translateY: -6 }}
+                  transition={{ type: 'timing', duration: 220 }}
+                >
+                  <View style={[styles.durationRow, { marginBottom: S.xl, gap: S.sm }]}>
+                    {DURATIONS.map((min) => {
+                      const active = totalSeconds === min * 60;
+                      return (
+                        <TouchableOpacity
+                          key={min}
+                          onPress={() => { Haptics.selectionAsync(); setDuration(min); }}
+                          style={[
+                            styles.durationChip,
+                            {
+                              backgroundColor: active ? 'rgba(250,250,250,0.1)' : 'transparent',
+                              borderColor: active ? theme.primary : theme.outline,
+                              borderWidth: 1,
+                              paddingHorizontal: S.md,
+                              paddingVertical: S.sm,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.durationText, { color: active ? theme.primary : theme.onSurfaceVariant, fontSize: F.body, fontWeight: active ? '900' : '600' }]}>
+                            {min}m
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    <TouchableOpacity
+                      onPress={() => { prepareCustom(); Haptics.selectionAsync(); setCustomVisible(true); }}
+                      style={[
+                        styles.durationChip,
+                        {
+                          backgroundColor: !DURATIONS.includes(Math.round(totalSeconds / 60)) && totalSeconds > 0 ? 'rgba(250,250,250,0.1)' : 'transparent',
+                          borderColor: !DURATIONS.includes(Math.round(totalSeconds / 60)) && totalSeconds > 0 ? theme.primary : theme.outline,
+                          borderWidth: 1,
+                          paddingHorizontal: S.md,
+                          paddingVertical: S.sm,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.durationText, {
+                        color: !DURATIONS.includes(Math.round(totalSeconds / 60)) && totalSeconds > 0 ? theme.primary : theme.onSurfaceVariant,
+                        fontSize: F.subhead, fontWeight: '900',
+                      }]}>···</Text>
+                    </TouchableOpacity>
+                  </View>
+                </MotiView>
+              )}
+            </AnimatePresence>
           )}
 
           {/* Timer */}
@@ -501,12 +579,16 @@ export default function FocusScreen() {
               backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest,
               borderRadius: timerSize / 2,
             }]}>
-              <Text style={[styles.timerText, { color: theme.onSurface, fontSize: 56 }]}>
+              <Text style={[styles.timerText, { color: theme.onSurface, fontSize: Math.round(timerSize * 0.195) }]}>
                 {formatTime(seconds)}
               </Text>
 
-              {/* Task display — tap to edit inline, long-press to open picker */}
-              {taskEditMode ? (
+              {/* Task display — read-only during session, editable before */}
+              {isActive ? (
+                <Text style={[styles.currentTaskText, { color: theme.onSurfaceVariant, fontSize: F.body, maxWidth: timerSize * 0.75, textAlign: 'center' }]} numberOfLines={1}>
+                  {currentTask || t.focusSession}
+                </Text>
+              ) : taskEditMode ? (
                 <TextInput
                   ref={taskInputRef}
                   value={taskEditInput}
@@ -539,18 +621,49 @@ export default function FocusScreen() {
                   {isActive ? t.focusRunning : seconds === totalSeconds ? t.focusReady : t.focusPaused}
                 </Text>
               </View>
+
+              {/* Breath cue — fades between phases in sync with glow animation */}
+              {isActive && (
+                <MotiView
+                  key={breathPhase}
+                  from={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ type: 'timing', duration: 1400 }}
+                  style={{ marginTop: 7 }}
+                >
+                  <Text style={{ fontSize: 9, letterSpacing: 2.5, fontWeight: '700', textAlign: 'center', color: pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary, opacity: 0.4 }}>
+                    {breathPhase === 'in'
+                      ? (language === 'tr' ? 'İÇİNE ÇEK' : 'BREATHE IN')
+                      : (language === 'tr' ? 'BIRAK' : 'LET GO')}
+                  </Text>
+                </MotiView>
+              )}
             </View>
           </MotiView>
 
           {/* Controls */}
           <View style={[styles.controlsRow, { marginTop: S.xl, gap: S.xl }]}>
-            <TouchableOpacity
-              onPress={resetTimer}
-              disabled={!sessionStarted}
-              style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg, opacity: sessionStarted ? 1 : 0.3 }]}
-            >
-              <RotateCcw size={24} color={theme.onSurfaceVariant} />
-            </TouchableOpacity>
+            <View style={{ width: 56, height: 56 }}>
+              <AnimatePresence>
+                {!isActive && (
+                  <MotiView
+                    key="reset-btn"
+                    from={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.85 }}
+                    transition={{ type: 'timing', duration: 200 }}
+                  >
+                    <TouchableOpacity
+                      onPress={resetTimer}
+                      disabled={!sessionStarted}
+                      style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg, opacity: sessionStarted ? 1 : 0.3 }]}
+                    >
+                      <RotateCcw size={24} color={theme.onSurfaceVariant} />
+                    </TouchableOpacity>
+                  </MotiView>
+                )}
+              </AnimatePresence>
+            </View>
 
             <TouchableOpacity
               onPress={toggleTimer}
@@ -568,52 +681,75 @@ export default function FocusScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
-            <View style={{ width: 56, height: 56, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={[styles.progressText, { color: progress > 0 ? theme.primary : theme.onSurfaceVariant, fontSize: 13, opacity: progress > 0 ? 1 : 0.4 }]}>
-                {Math.round(progress * 100)}%
-              </Text>
-            </View>
+            <View style={{ width: 56, height: 56 }} />
           </View>
 
           {/* Ambient sound row */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ambientRow}>
-            {(['off', 'rain', 'cafe', 'forest', 'ocean', 'fireplace'] as AmbientSound[]).map(type => {
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ flexGrow: 0 }}
+            contentContainerStyle={styles.ambientRow}
+            keyboardShouldPersistTaps="handled"
+          >
+            {(['rain', 'cafe', 'forest', 'ocean', 'fireplace'] as AmbientSound[]).map(type => {
               const active = ambientSound === type;
               const cfg = SOUND_LABELS[type];
-              const IconComp = cfg.icon;
+              const IconComp = cfg.icon!;
               return (
                 <TouchableOpacity
                   key={type}
+                  activeOpacity={0.7}
                   onPress={() => {
                     const next = active ? 'off' : type;
                     setAmbientSound(next);
-                    if (isActive) {
-                      if (next === 'off') {
-                        stopAmbientSound();
+                    Haptics.selectionAsync();
+                    if (!isActive) {
+                      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+                      if (next !== 'off') {
+                        playAmbientSound(next, true);
+                        previewTimerRef.current = setTimeout(() => {
+                          if (!useFocusStore.getState().isActive) stopAmbientSoundFaded();
+                          previewTimerRef.current = null;
+                        }, 1800);
                       } else {
-                        playAmbientSound(next);
+                        stopAmbientSoundFaded();
                       }
                     }
-                    Haptics.selectionAsync();
                   }}
                   style={[
                     styles.ambientBtn,
-                    {
-                      backgroundColor: active ? (isDark ? theme.primary + '25' : theme.primary + '15') : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
-                      borderColor: active ? theme.primary + '60' : 'transparent',
-                    },
+                    active
+                      ? { backgroundColor: isDark ? theme.primary + '28' : theme.primary + '14', borderColor: theme.primary + '55' }
+                      : { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', borderColor: 'transparent' },
                   ]}
                 >
-                  {IconComp
-                    ? <IconComp size={13} color={active ? theme.primary : theme.onSurfaceVariant} />
-                    : <X size={11} color={active ? theme.primary : theme.onSurfaceVariant} />}
-                  <Text style={[styles.ambientLabel, { color: active ? theme.primary : theme.onSurfaceVariant }]}>
+                  <IconComp size={14} color={active ? theme.primary : theme.onSurfaceVariant} strokeWidth={active ? 2.2 : 1.8} />
+                  <Text style={[styles.ambientLabel, { color: active ? theme.primary : theme.onSurfaceVariant, opacity: active ? 1 : 0.7 }]}>
                     {language === 'tr' ? cfg.labelTr : cfg.labelEn}
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
+
+          {/* Pomodoro break guidance */}
+          <AnimatePresence>
+            {pomodoroMode && pomodoroPhase === 'break' && isActive && (
+              <MotiView
+                key="break-tip"
+                from={{ opacity: 0, translateY: 6 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                exit={{ opacity: 0, translateY: 6 }}
+                transition={{ type: 'timing', duration: 400 }}
+                style={{ alignItems: 'center', marginTop: S.sm }}
+              >
+                <Text style={{ fontSize: F.caption, color: theme.tertiary, fontWeight: '700', letterSpacing: 0.2, opacity: 0.85 }}>
+                  {language === 'tr' ? '💧 Su iç  ·  Esne  ·  Gözlerini kapat' : '💧 Hydrate  ·  Stretch  ·  Close your eyes'}
+                </Text>
+              </MotiView>
+            )}
+          </AnimatePresence>
 
           {/* End session */}
           <AnimatePresence>
@@ -639,10 +775,58 @@ export default function FocusScreen() {
           </AnimatePresence>
         </View>
 
-        <View style={[styles.footer, { padding: S.xl }]}>
-          <Text style={[styles.quote, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{quote}</Text>
-        </View>
+        <AnimatePresence>
+          {!isActive && (
+            <MotiView
+              key="footer-quote"
+              from={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ type: 'timing', duration: 350 }}
+            >
+              <View style={[styles.footer, { padding: S.xl }]}>
+                <Text style={[styles.quote, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{quote}</Text>
+              </View>
+            </MotiView>
+          )}
+        </AnimatePresence>
       </SafeAreaView>
+
+      {/* ── Session completion ritual overlay ────────────────────────────────── */}
+      <AnimatePresence>
+        {completionRitual && (
+          <MotiView
+            from={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 1.04 }}
+            transition={{ type: 'timing', duration: 400 }}
+            style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.78)' : 'rgba(255,255,255,0.88)', alignItems: 'center', justifyContent: 'center', gap: S.lg }]}
+            pointerEvents="none"
+          >
+            <MotiView
+              from={{ scale: 0.4, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', damping: 11, stiffness: 180, delay: 100 }}
+              style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: theme.primaryContainer, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <CheckCircle2 size={44} color={theme.primary} strokeWidth={2} />
+            </MotiView>
+            <MotiView
+              from={{ opacity: 0, translateY: 8 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 380, delay: 320 }}
+              style={{ alignItems: 'center', gap: S.sm }}
+            >
+              <Text style={{ fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>
+                {language === 'tr' ? 'Tamamlandı' : 'Complete'}
+              </Text>
+              <Text style={{ fontSize: F.body, color: theme.onSurfaceVariant, fontWeight: '600', opacity: 0.7 }}>
+                {language === 'tr' ? 'Harika bir seans ✦' : 'Great session ✦'}
+              </Text>
+            </MotiView>
+          </MotiView>
+        )}
+      </AnimatePresence>
 
       {/* ── Pomodoro transition overlay ──────────────────────────────────────── */}
       <AnimatePresence>
@@ -949,12 +1133,12 @@ const styles = StyleSheet.create({
   closeBtn: { width: 44, height: 44, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full },
   badgeText: { fontWeight: '900', letterSpacing: 1 },
-  pomodoroToggle: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: R.full, borderWidth: 1 },
+  pomodoroToggle: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, borderWidth: 1 },
   pomodoroToggleText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
   pomodoroRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.xl, justifyContent: 'center' },
   phaseBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: R.full },
   phaseLabel: { fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   durationRow: { flexDirection: 'row' },
   durationChip: { borderRadius: 100 },
   durationText: { fontWeight: '800' },
@@ -972,10 +1156,9 @@ const styles = StyleSheet.create({
   secondaryBtn: { alignItems: 'center', justifyContent: 'center' },
   playBtn: { overflow: 'hidden', elevation: 8, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
   btnGradient: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
-  progressText: { fontWeight: '900' },
-  ambientRow: { flexDirection: 'row', gap: 6, marginTop: S.lg, paddingHorizontal: S.lg },
-  ambientBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: R.full, borderWidth: 1 },
-  ambientLabel: { fontSize: 11, fontWeight: '700' },
+  ambientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: S.lg, paddingHorizontal: S.lg },
+  ambientBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: R.full, borderWidth: 1 },
+  ambientLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.1 },
   finishBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, borderWidth: 1 },
   finishText: { fontWeight: '700', letterSpacing: 0.3 },
   footer: { alignItems: 'center' },

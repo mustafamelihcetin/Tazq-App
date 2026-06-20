@@ -1,33 +1,25 @@
 ﻿import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Alert, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, Switch, Dimensions } from 'react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Alert, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, Switch } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Award, Zap, Target, Trophy, Shield, CalendarDays, BookOpen, Star, Volume2 } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2 } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { AuthService, FocusService, TaskService } from '../services/api';
+import { AuthService, FocusService } from '../services/api';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useAuthStore } from '../store/useAuthStore';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { requestNotificationPermissions, cancelWeeklySummary, scheduleExamCountdownNotifs, cancelExamCountdownNotifs, scheduleRamadanStartNotification, cancelRamadanStartNotification } from '../utils/notifications';
+import { useRouter } from 'expo-router';
+import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '../utils/notifications';
 import { S, R, F } from '../constants/tokens';
 import { useToastStore } from '../store/useToastStore';
 import { AVATAR_CONFIGS, getAvatarSource } from '../utils/avatars';
 import { usePrefsStore } from '../store/usePrefsStore';
-import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
-import { useTaskStore } from '../store/useTaskStore';
-import { TurkishModeBanner } from '../components/TurkishModeBanner';
-import { getModePreview, getTezMode, getMulakatMode, ModeType, RAMAZAN_HABIT_NAMES } from '../utils/turkishModes';
 import { useAchievementStore } from '../store/useAchievementStore';
 import { ACHIEVEMENTS } from '../utils/achievements';
-import { getCurrentRamadanStatus, formatRamadanDate } from '../utils/ramadanDates';
-import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '../utils/examPresets';
-import { useCompletionStore } from '../store/useCompletionStore';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -38,256 +30,12 @@ export default function ProfileScreen() {
   const { width, height } = useWindowDimensions();
   const router = useRouter();
   const isDark = colorScheme === 'dark';
-  const ramadanStatus = useMemo(() => getCurrentRamadanStatus(), []);
   const { show: showToast } = useToastStore();
   const insets = useSafeAreaInsets();
 
   const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset } = useFocusStore();
-  const { seasonal, setSeasonalPref, weeklyNotification, setWeeklyNotification,
-          examPlanHabitIds, examPlanTaskIds, exam2PlanHabitIds, exam2PlanTaskIds,
-          exam3PlanHabitIds, exam3PlanTaskIds,
-          ramazanPlanHabitIds, ramazanPlanTaskIds,
-          tezPlanHabitIds, tezPlanTaskIds,
-          mulakatPlanHabitIds, mulakatPlanTaskIds,
-          examReviewShown, setExamReviewShown,
-          soundEffects, setSoundEffects,
-          setPlanIds, clearPlanIds } = usePrefsStore();
-  const { habits, removeHabit } = useHabitStore();
+  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects } = usePrefsStore();
   const { unlocked: unlockedAchievements } = useAchievementStore();
-  const { removeTask } = useTaskStore();
-  const { record: recordCompletion } = useCompletionStore();
-
-  // Cleanly retires a plan task: journals if completed, removes locally, deletes from server
-  const retirePlanTask = useCallback((taskId: number, planMode?: string) => {
-    const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
-    if (task?.isCompleted) {
-      recordCompletion(task.id, task.title, task.completedAt ?? undefined, planMode);
-    }
-    removeTask(taskId);
-    TaskService.deleteTask(taskId).catch(() => {});
-  }, [removeTask, recordCompletion]);
-  const [modePreview, setModePreview] = useState<{ type: ModeType; key: number; templateId?: string; examTipTr?: string; examTipEn?: string; examName?: string; examDate?: string } | null>(null);
-  const [examNameInput, setExamNameInput] = useState(seasonal.examName || '');
-  const [examSuggestions, setExamSuggestions] = useState<ExamPreset[]>([]);
-  const [selectedExamPreset, setSelectedExamPreset] = useState<ExamPreset | null>(() => detectExamFromInput(seasonal.examName || ''));
-  const [examDailyMinutes, setExamDailyMinutes] = useState<number | null>(null);
-  const [exam2Suggestions, setExam2Suggestions] = useState<ExamPreset[]>([]);
-  const [selectedExam2Preset, setSelectedExam2Preset] = useState<ExamPreset | null>(() => detectExamFromInput(seasonal.exam2Name || ''));
-  const [exam2DailyMinutes, setExam2DailyMinutes] = useState<number | null>(null);
-  const [exam3Suggestions, setExam3Suggestions] = useState<ExamPreset[]>([]);
-  const [selectedExam3Preset, setSelectedExam3Preset] = useState<ExamPreset | null>(() => detectExamFromInput(seasonal.exam3Name || ''));
-  const [exam3DailyMinutes, setExam3DailyMinutes] = useState<number | null>(null);
-  const [examDateInput, setExamDateInput] = useState(seasonal.examDate || '');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [examExpanded, setExamExpanded] = useState(false);
-  const [exam2NameInput, setExam2NameInput] = useState(seasonal.exam2Name || '');
-  const [exam2DateInput, setExam2DateInput] = useState(seasonal.exam2Date || '');
-  const [exam2Expanded, setExam2Expanded] = useState(false);
-  const [showExam2DatePicker, setShowExam2DatePicker] = useState(false);
-  const [exam3NameInput, setExam3NameInput] = useState(seasonal.exam3Name || '');
-  const [exam3DateInput, setExam3DateInput] = useState(seasonal.exam3Date || '');
-  const [exam3Expanded, setExam3Expanded] = useState(false);
-  const [showExam3DatePicker, setShowExam3DatePicker] = useState(false);
-  const [tezNameInput, setTezNameInput] = useState(seasonal.tezName || '');
-  const [tezDateInput, setTezDateInput] = useState(seasonal.tezDate || '');
-  const [tezExpanded, setTezExpanded] = useState(false);
-  const [showTezDatePicker, setShowTezDatePicker] = useState(false);
-  const [mulakatNameInput, setMulakatNameInput] = useState(seasonal.mulakatName || '');
-  const [mulakatDateInput, setMulakatDateInput] = useState(seasonal.mulakatDate || '');
-  const [mulakatExpanded, setMulakatExpanded] = useState(false);
-  const [showMulakatDatePicker, setShowMulakatDatePicker] = useState(false);
-  const examDateObj = examDateInput ? new Date(examDateInput) : new Date(Date.now() + 30 * 86400000);
-  const exam2DateObj = exam2DateInput ? new Date(exam2DateInput) : new Date(Date.now() + 60 * 86400000);
-  const exam3DateObj = exam3DateInput ? new Date(exam3DateInput) : new Date(Date.now() + 90 * 86400000);
-  const tezDateObj = tezDateInput ? new Date(tezDateInput) : new Date(Date.now() + 90 * 86400000);
-  const mulakatDateObj = mulakatDateInput ? new Date(mulakatDateInput) : new Date(Date.now() + 14 * 86400000);
-
-  const formatExamDate = (iso: string) => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (language === 'tr') {
-      return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
-
-  const examIsComplete = examNameInput.trim() !== '' && examDateInput !== '';
-  const examDatePast = examDateInput
-    ? new Date(examDateInput).setHours(23, 59, 59, 999) < Date.now()
-    : false;
-
-  // Plan progress & countdown
-  const thisWeekKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      keys.add(fmtDateKey(d));
-    }
-    return keys;
-  }, []);
-
-  const examPlanHabits = useMemo(
-    () => habits.filter(h => examPlanHabitIds.includes(h.id)),
-    [habits, examPlanHabitIds]
-  );
-  const examHabitsActiveThisWeek = examPlanHabits.filter(h =>
-    (Array.isArray(h.completedDates) ? h.completedDates : []).some(d => thisWeekKeys.has(d))
-  ).length;
-  const examWeekPct = examPlanHabits.length > 0
-    ? Math.round(examHabitsActiveThisWeek / examPlanHabits.length * 100)
-    : 0;
-
-  const ramazanPlanHabits = useMemo(
-    () => habits.filter(h => ramazanPlanHabitIds.includes(h.id)),
-    [habits, ramazanPlanHabitIds]
-  );
-  const ramazanHabitsActiveThisWeek = ramazanPlanHabits.filter(h =>
-    (Array.isArray(h.completedDates) ? h.completedDates : []).some(d => thisWeekKeys.has(d))
-  ).length;
-  const ramazanWeekPct = ramazanPlanHabits.length > 0
-    ? Math.round(ramazanHabitsActiveThisWeek / ramazanPlanHabits.length * 100)
-    : 0;
-
-  const examDaysLeft = examDateInput && !examDatePast
-    ? Math.max(0, Math.ceil((new Date(examDateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000))
-    : 0;
-  const urgencyColor = examDaysLeft <= 7 ? '#EF4444' : examDaysLeft <= 30 ? '#F59E0B' : '#3B82F6';
-
-  // Exam 2
-  const exam2IsComplete = exam2NameInput.trim() !== '' && exam2DateInput !== '';
-  const exam2DatePast = exam2DateInput ? new Date(exam2DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const exam2DaysLeft = exam2DateInput && !exam2DatePast
-    ? Math.max(0, Math.ceil((new Date(exam2DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000))
-    : 0;
-  const exam2UrgencyColor = exam2DaysLeft <= 7 ? '#EF4444' : exam2DaysLeft <= 30 ? '#F59E0B' : '#3B82F6';
-
-  // Exam 3
-  const exam3IsComplete = exam3NameInput.trim() !== '' && exam3DateInput !== '';
-  const exam3DatePast = exam3DateInput ? new Date(exam3DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const exam3DaysLeft = exam3DateInput && !exam3DatePast
-    ? Math.max(0, Math.ceil((new Date(exam3DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000))
-    : 0;
-  const exam3UrgencyColor = exam3DaysLeft <= 7 ? '#EF4444' : exam3DaysLeft <= 30 ? '#F59E0B' : '#3B82F6';
-
-  // Tez / Proje
-  const tezIsComplete = tezNameInput.trim() !== '' && tezDateInput !== '';
-  const tezDatePast = tezDateInput ? new Date(tezDateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const tezDaysLeft = tezDateInput && !tezDatePast
-    ? Math.max(0, Math.ceil((new Date(tezDateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000))
-    : 0;
-  const tezUrgencyColor = tezDaysLeft <= 7 ? '#EF4444' : tezDaysLeft <= 30 ? '#F59E0B' : '#8B5CF6';
-
-  // İş Mülakatı
-  const mulakatIsComplete = mulakatNameInput.trim() !== '' && mulakatDateInput !== '';
-  const mulakatDatePast = mulakatDateInput ? new Date(mulakatDateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const mulakatDaysLeft = mulakatDateInput && !mulakatDatePast
-    ? Math.max(0, Math.ceil((new Date(mulakatDateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000))
-    : 0;
-  const mulakatUrgencyColor = mulakatDaysLeft <= 7 ? '#EF4444' : mulakatDaysLeft <= 30 ? '#F59E0B' : '#10B981';
-
-  const tezPlanHabits = useMemo(
-    () => habits.filter(h => tezPlanHabitIds.includes(h.id)),
-    [habits, tezPlanHabitIds]
-  );
-  const tezHabitsActiveThisWeek = tezPlanHabits.filter(h =>
-    (Array.isArray(h.completedDates) ? h.completedDates : []).some(d => thisWeekKeys.has(d))
-  ).length;
-  const tezWeekPct = tezPlanHabits.length > 0
-    ? Math.round(tezHabitsActiveThisWeek / tezPlanHabits.length * 100)
-    : 0;
-
-  const mulakatPlanHabits = useMemo(
-    () => habits.filter(h => mulakatPlanHabitIds.includes(h.id)),
-    [habits, mulakatPlanHabitIds]
-  );
-  const mulakatHabitsActiveThisWeek = mulakatPlanHabits.filter(h =>
-    (Array.isArray(h.completedDates) ? h.completedDates : []).some(d => thisWeekKeys.has(d))
-  ).length;
-  const mulakatWeekPct = mulakatPlanHabits.length > 0
-    ? Math.round(mulakatHabitsActiveThisWeek / mulakatPlanHabits.length * 100)
-    : 0;
-
-  const closeExamModeWithReview = useCallback(() => {
-    cancelExamCountdownNotifs();
-    examPlanHabitIds.forEach(id => removeHabit(id));
-    examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam'));
-    exam2PlanHabitIds.forEach(id => removeHabit(id));
-    exam2PlanTaskIds.forEach(id => retirePlanTask(id, 'exam2'));
-    exam3PlanHabitIds.forEach(id => removeHabit(id));
-    exam3PlanTaskIds.forEach(id => retirePlanTask(id, 'exam3'));
-    clearPlanIds('exam');
-    clearPlanIds('exam2');
-    clearPlanIds('exam3');
-    setExamNameInput('');
-    setExamDateInput('');
-    setExam2NameInput('');
-    setExam2DateInput('');
-    setExam3NameInput('');
-    setExam3DateInput('');
-    setExamExpanded(false);
-    setExam2Expanded(false);
-    setExam3Expanded(false);
-    setSeasonalPref('examMode', false);
-    setSeasonalPref('examName', '');
-    setSeasonalPref('examDate', null);
-    setSeasonalPref('exam2Name', '');
-    setSeasonalPref('exam2Date', null);
-    setSeasonalPref('exam3Name', '');
-    setSeasonalPref('exam3Date', null);
-    setExamReviewShown(false);
-    showToast(language === 'tr' ? '🎓 Sınav modu kapatıldı' : '🎓 Exam mode closed', 'success');
-  }, [examPlanHabitIds, examPlanTaskIds, exam2PlanHabitIds, exam2PlanTaskIds, exam3PlanHabitIds, exam3PlanTaskIds, language, retirePlanTask]);
-
-  // Use a ref so the useFocusEffect cleanup always reads fresh seasonal values
-  const seasonalRef = useRef(seasonal);
-  useEffect(() => { seasonalRef.current = seasonal; }, [seasonal]);
-
-  // On focus: show "Nasıl geçti?" if exam date has passed. On blur: disable incomplete modes.
-  useFocusEffect(
-    useCallback(() => {
-      const s = seasonalRef.current;
-      if (s.examMode && s.examDate && !examReviewShown) {
-        const past = new Date(s.examDate).setHours(23, 59, 59, 999) < Date.now();
-        if (past) {
-          setExamReviewShown(true);
-          const name = s.examName || (language === 'tr' ? 'Sınav' : 'Exam');
-          setTimeout(() => {
-            Alert.alert(
-              language === 'tr' ? `🎓 ${name} tamamlandı!` : `🎓 ${name} is over!`,
-              language === 'tr' ? 'Nasıl geçti?' : 'How did it go?',
-              [
-                { text: language === 'tr' ? 'Harika geçti 🎉' : 'It went great 🎉', onPress: closeExamModeWithReview },
-                { text: language === 'tr' ? 'Orta geçti 😅' : 'So-so 😅', onPress: closeExamModeWithReview },
-                { text: language === 'tr' ? 'Zor geçti 😢' : 'It was tough 😢', onPress: closeExamModeWithReview },
-              ],
-              { cancelable: false }
-            );
-          }, 600);
-        }
-      }
-      return () => {
-        const s = seasonalRef.current;
-        if (s.examMode && (!s.examName?.trim() || !s.examDate)) {
-          setSeasonalPref('examMode', false);
-          setSeasonalPref('examName', '');
-          setSeasonalPref('examDate', null);
-        }
-        if (s.tezMode && (!s.tezName?.trim() || !s.tezDate)) {
-          setSeasonalPref('tezMode', false);
-          setSeasonalPref('tezName', '');
-          setSeasonalPref('tezDate', null);
-        }
-        if (s.mulakatMode && (!s.mulakatName?.trim() || !s.mulakatDate)) {
-          setSeasonalPref('mulakatMode', false);
-          setSeasonalPref('mulakatName', '');
-          setSeasonalPref('mulakatDate', null);
-        }
-      };
-    }, [examReviewShown, language, closeExamModeWithReview])
-  );
-
-  // isSmallDevice / isShortDevice removed — design tokens used instead
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(user?.avatar || 'm1');
@@ -532,34 +280,43 @@ export default function ProfileScreen() {
                     {tr ? '3 günlük seri yap ya da odak seansı başlat.' : 'Build a 3-day streak or start a focus session.'}
                   </Text>
                 ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.xs, paddingRight: S.xs }}>
-                    {chips.map(ach => (
-                      <View
-                        key={ach.id}
-                        style={{
-                          alignItems: 'center',
-                          gap: 4,
-                          paddingVertical: S.sm,
-                          paddingHorizontal: S.sm + 2,
-                          borderRadius: R.md,
-                          borderWidth: 1,
-                          borderColor: ach.locked
-                            ? (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)')
-                            : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.09)'),
-                          backgroundColor: ach.locked
-                            ? 'transparent'
-                            : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                          opacity: ach.locked ? 0.45 : 1,
-                          minWidth: 64,
-                        }}
-                      >
-                        <Text style={{ fontSize: 22 }}>{ach.emoji}</Text>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurface, textAlign: 'center', maxWidth: 72, lineHeight: 13 }} numberOfLines={2}>
-                          {tr ? ach.titleTr : ach.titleEn}
-                        </Text>
+                  <View style={{ gap: S.xs }}>
+                    {Array.from({ length: Math.ceil(chips.length / 3) }, (_, rowIdx) => (
+                      <View key={rowIdx} style={{ flexDirection: 'row', gap: S.xs }}>
+                        {chips.slice(rowIdx * 3, rowIdx * 3 + 3).map(ach => (
+                          <View
+                            key={ach.id}
+                            style={{
+                              flex: 1,
+                              alignItems: 'center',
+                              gap: 4,
+                              paddingVertical: S.sm,
+                              paddingHorizontal: S.xs,
+                              borderRadius: R.md,
+                              borderWidth: 1,
+                              borderColor: ach.locked
+                                ? (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)')
+                                : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.09)'),
+                              backgroundColor: ach.locked
+                                ? 'transparent'
+                                : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                              opacity: ach.locked ? 0.45 : 1,
+                            }}
+                          >
+                            <Text style={{ fontSize: 22 }}>{ach.emoji}</Text>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurface, textAlign: 'center', lineHeight: 13 }} numberOfLines={2}>
+                              {tr ? ach.titleTr : ach.titleEn}
+                            </Text>
+                          </View>
+                        ))}
+                        {chips.slice(rowIdx * 3, rowIdx * 3 + 3).length < 3 &&
+                          Array.from({ length: 3 - chips.slice(rowIdx * 3, rowIdx * 3 + 3).length }, (_, i) => (
+                            <View key={`placeholder-${i}`} style={{ flex: 1 }} />
+                          ))
+                        }
                       </View>
                     ))}
-                  </ScrollView>
+                  </View>
                 )}
               </View>
             );
@@ -614,6 +371,54 @@ export default function ProfileScreen() {
                 />
                 <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: theme.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                    <Bell size={18} color={theme.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
+                      {language === 'tr' ? 'Sabah Özeti' : 'Morning Brief'}
+                    </Text>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
+                      {language === 'tr' ? 'Her sabah 08:00 — bugünkü görevler' : 'Daily at 08:00 — today\'s tasks'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={morningBrief}
+                    onValueChange={(v) => {
+                      Haptics.selectionAsync();
+                      setMorningBrief(v);
+                      if (!v) cancelMorningBrief();
+                    }}
+                    trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: theme.primary + '80' }}
+                    thumbColor={morningBrief ? theme.primary : (isDark ? '#636366' : '#fff')}
+                  />
+                </View>
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: theme.secondary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                    <Bell size={18} color={theme.secondary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
+                      {language === 'tr' ? 'Akşam Özeti' : 'Evening Brief'}
+                    </Text>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
+                      {language === 'tr' ? 'Her gün 21:00 — günlük tamamlanma' : 'Daily at 21:00 — day completion'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={eveningBrief}
+                    onValueChange={(v) => {
+                      Haptics.selectionAsync();
+                      setEveningBrief(v);
+                      if (!v) cancelEveningBrief();
+                    }}
+                    trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: theme.secondary + '80' }}
+                    thumbColor={eveningBrief ? theme.secondary : (isDark ? '#636366' : '#fff')}
+                  />
+                </View>
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
                   <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#F59E0B15', alignItems: 'center', justifyContent: 'center' }}>
                     <Star size={18} color="#F59E0B" />
                   </View>
@@ -659,6 +464,7 @@ export default function ProfileScreen() {
             </View>
             {/* Dönemsel Modlar */}
             <View style={{ marginTop: S.xl }}>
+              <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', marginBottom: S.md }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.md, marginLeft: S.xs }}>
                 <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5, marginBottom: 0 }]}>
                   {language === 'tr' ? 'DÖNEMSEL MODLAR' : 'SEASONAL MODES'}

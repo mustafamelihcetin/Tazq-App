@@ -35,7 +35,8 @@ import { useAchievementStore } from '../store/useAchievementStore';
 import { checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS } from '../utils/achievements';
 
 export default function HomeScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const isSmallScreen = width < 380 || height < 700;
   const { tasks, isLoading, setTasks, setLoading, addTask } = useTaskStore();
   const { user } = useAuthStore();
   const { t, language } = useLanguageStore();
@@ -425,7 +426,7 @@ export default function HomeScreen() {
                 style={[
                     styles.floatingTopBar,
                     {
-                        backgroundColor: isDark ? 'rgba(14,14,14,0.6)' : 'rgba(255,255,255,0.7)',
+                        backgroundColor: 'transparent',
                         borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
                     },
                     isDark ? styles.darkTopBarShadow : styles.lightTopBarShadow
@@ -540,11 +541,11 @@ export default function HomeScreen() {
                 style={[styles.heroSection, { paddingHorizontal: S.lg }]}
             >
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', flexShrink: 1, overflow: 'hidden' }}>
-                    <Text style={[styles.greeting, { color: theme.onSurface, fontSize: 28, lineHeight: 34, flexShrink: 0 }]} numberOfLines={1}>
+                    <Text style={[styles.greeting, { color: theme.onSurface, fontSize: isSmallScreen ? 22 : 28, lineHeight: isSmallScreen ? 28 : 34, flexShrink: 0 }]} numberOfLines={1}>
                         {getGreeting()},
                     </Text>
                     <Text
-                        style={[styles.greeting, { color: theme.primary, fontSize: 28, lineHeight: 34, flexShrink: 1, maxWidth: 180 }]}
+                        style={[styles.greeting, { color: theme.primary, fontSize: isSmallScreen ? 22 : 28, lineHeight: isSmallScreen ? 28 : 34, flexShrink: 1, maxWidth: width * 0.42 }]}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                     >
@@ -555,9 +556,6 @@ export default function HomeScreen() {
                     {getSubGreeting()}
                 </Text>
             </MotiView>
-
-            {/* Focus Widget */}
-            <DynamicIsland />
 
             {/* ── TODAY CARD ── */}
             <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
@@ -577,7 +575,7 @@ export default function HomeScreen() {
                     <View style={{ flex: 1, gap: 6 }}>
                         <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>{t.todayLabel}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
-                            <Text style={{ fontSize: 44, fontWeight: '900', letterSpacing: -2.5, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: 48 }}>
+                            <Text style={{ fontSize: isSmallScreen ? 34 : 44, fontWeight: '900', letterSpacing: -2.5, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: isSmallScreen ? 38 : 48 }}>
                                 {todayCompleted}
                             </Text>
                             <Text style={{ fontSize: 18, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.45, letterSpacing: -0.5 }}>
@@ -649,6 +647,9 @@ export default function HomeScreen() {
             </BentoCard>
             </TouchableOpacity>
             </View>
+
+            {/* Focus Widget */}
+            <DynamicIsland />
 
             {/* Next Mission Widget */}
             <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>

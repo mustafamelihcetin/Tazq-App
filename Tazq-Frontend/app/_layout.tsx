@@ -16,7 +16,18 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { initIntelligence } from '../utils/taskIntelligence';
 import { ErrorBoundary } from '../components/ErrorBoundary';
-import { scheduleShutdownNotification, requestNotificationPermissions, showFocusNotification, cancelFocusNotification, registerNotificationCategories } from '../utils/notifications';
+import {
+  scheduleMorningBrief,
+  scheduleEveningBrief,
+  cancelMorningBrief,
+  cancelEveningBrief,
+  scheduleShutdownNotification,
+  cancelHabitAtRisk,
+  requestNotificationPermissions,
+  showFocusNotification,
+  cancelFocusNotification,
+  registerNotificationCategories,
+} from '../utils/notifications';
 import { useTaskStore } from '../store/useTaskStore';
 import { useFocusStore } from '../store/useFocusStore';
 import { Platform } from 'react-native';
@@ -72,6 +83,7 @@ LogBox.ignoreLogs([
 
 import { useFonts, PlusJakartaSans_800ExtraBold, PlusJakartaSans_700Bold, PlusJakartaSans_600SemiBold, PlusJakartaSans_800ExtraBold_Italic } from '@expo-google-fonts/plus-jakarta-sans';
 import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
+import { usePrefsStore } from '../store/usePrefsStore';
 import { useCompletionStore } from '../store/useCompletionStore';
 
 export default function RootLayout() {
@@ -92,6 +104,7 @@ export default function RootLayout() {
 
   const { sync, language } = useLanguageStore();
   const { tasks } = useTaskStore();
+  const { morningBrief: morningBriefEnabled, eveningBrief: eveningBriefEnabled } = usePrefsStore();
   const focusActive = useFocusStore((s) => s.isActive);
 
   // Preload all critical assets
@@ -163,15 +176,45 @@ export default function RootLayout() {
     };
   }, [focusActive]);
 
-  // Schedule daily shutdown notification + register Watch-compatible categories
+  // Register notification categories + schedule daily morning/evening briefs
   useEffect(() => {
     if (!isLoggedIn) return;
     requestNotificationPermissions().then((granted) => {
       if (!granted) return;
-      // Register action categories — these appear as buttons on Apple Watch too
       registerNotificationCategories();
-      const pending = tasks.filter(t => !t.isCompleted).length;
-      scheduleShutdownNotification(pending, language || 'en');
+
+      const allTasks = tasks;
+      const today = new Date().toDateString();
+      const todayTasks = allTasks.filter(t => {
+        if (!t.dueDate) return false;
+        return new Date(t.dueDate).toDateString() === today;
+      });
+      const pending = allTasks.filter(t => !t.isCompleted).length;
+      const completedToday = allTasks.filter(t => {
+        if (!t.isCompleted || !t.completedAt) return false;
+        return new Date(t.completedAt).toDateString() === today;
+      }).length;
+
+      // Habit streak from cockpit store — best-effort
+      let streak = 0;
+      try {
+        const { habits } = require('../store/useHabitStore').useHabitStore.getState();
+        streak = habits?.reduce((max: number, h: any) => Math.max(max, h.streak ?? 0), 0) ?? 0;
+      } catch (_) {}
+
+      // Morning brief: today's task count + streak (respects user preference)
+      if (morningBriefEnabled) {
+        scheduleMorningBrief(todayTasks.length, streak, language || 'en');
+      } else {
+        cancelMorningBrief();
+      }
+
+      // Evening brief: completed today vs still pending (respects user preference)
+      if (eveningBriefEnabled) {
+        scheduleEveningBrief(completedToday, pending, language || 'en');
+      } else {
+        cancelEveningBrief();
+      }
     });
   }, [isLoggedIn]);
 
@@ -186,6 +229,17 @@ export default function RootLayout() {
         const action = response?.actionIdentifier;
         const data = response?.notification?.request?.content?.data ?? {};
 
+        // Watch/Lock Screen: "✅ Tamamla" on task reminder (mark complete silently)
+        if (action === 'task-complete' && data.taskId) {
+          try {
+            const { api: taskApi } = require('../services/api');
+            taskApi.patch(`/tasks/${data.taskId}`, { isCompleted: true }).catch(() => {});
+            // Refresh local store
+            require('../store/useTaskStore').useTaskStore.getState().fetchTasks?.();
+          } catch (_) {}
+          return;
+        }
+
         // Watch: "✅ Tamamladım" on habit reminder
         if (action === 'habit-complete' && data.habitId) {
           const { toggleDate, habits: h } = useHabitStore.getState();
@@ -196,6 +250,8 @@ export default function RootLayout() {
               toggleDate(data.habitId, todayKey);
             }
           }
+          // Habits done — cancel at-risk warning for today
+          cancelHabitAtRisk();
           return;
         }
 
@@ -207,17 +263,31 @@ export default function RootLayout() {
 
         // Watch: "📋 Planı Görüntüle" on exam countdown
         if (action === 'exam-open' && isLoggedIn) {
-          router.push('/profile');
+          router.push('/modlar');
           return;
         }
 
-        // Default tap → deep link
+        // Morning brief → "▶️ Odak Başlat"
+        if (action === 'start-focus' && isLoggedIn) {
+          router.push('/focus');
+          return;
+        }
+
+        // Any "📋 Görevler / Görevlere Git" action
+        if (action === 'open-tasks' && isLoggedIn) {
+          router.push('/tasks');
+          return;
+        }
+
+        // Default tap → deep link based on notification data
         if (!isLoggedIn) return;
         const taskId = data.taskId;
         if (taskId) {
           router.push({ pathname: '/tasks', params: { highlightId: String(taskId) } });
         } else if (data.type === 'focus') {
           router.push('/focus');
+        } else if (data.type === 'habit-risk' || data.type === 'habit-reminder') {
+          router.push('/cockpit');
         } else {
           router.push('/tasks');
         }
@@ -340,12 +410,13 @@ export default function RootLayout() {
             animation: 'fade_from_bottom',
           }}
         >
-          <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="onboarding" options={{ gestureEnabled: false, animation: 'none' }} />
+          <Stack.Screen name="login" options={{ gestureEnabled: false, animation: 'none' }} />
           <Stack.Screen name="register" />
-          <Stack.Screen name="index" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="tasks" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="cockpit" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="index" options={{ gestureEnabled: false, animation: 'none' }} />
+          <Stack.Screen name="tasks" options={{ gestureEnabled: false, animation: 'none' }} />
+          <Stack.Screen name="cockpit" options={{ gestureEnabled: false, animation: 'none' }} />
+          <Stack.Screen name="modlar" options={{ gestureEnabled: false, animation: 'none' }} />
         </Stack>
 
         <OfflineBanner />

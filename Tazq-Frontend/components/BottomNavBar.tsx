@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, useWindowDimensions, Animated } from 'react-native';
-import { LayoutGrid, CheckSquare, Sparkles, User, CalendarDays } from 'lucide-react-native';
+import { LayoutGrid, CheckSquare, Sparkles, Layers, CalendarDays } from 'lucide-react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
@@ -22,7 +22,7 @@ export const BottomNavBar = () => {
     { id: 'tasks', path: '/tasks', icon: CheckSquare },
     { id: 'cockpit', path: '/cockpit', icon: CalendarDays },
     { id: 'focus', path: '/focus', icon: Sparkles },
-    { id: 'profile', path: '/profile', icon: User },
+    { id: 'modlar', path: '/modlar', icon: Layers },
   ];
 
   const activeIndex = tabs.findIndex(

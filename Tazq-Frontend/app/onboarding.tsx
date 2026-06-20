@@ -1,13 +1,12 @@
 ﻿import React, { useState, useRef, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Image, 
-  TouchableOpacity, 
-  useWindowDimensions, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
   ScrollView,
-  NativeSyntheticEvent, 
+  NativeSyntheticEvent,
   NativeScrollEvent,
   DimensionValue,
   Platform
@@ -18,76 +17,47 @@ import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
-import { ChevronRight, CheckCircle2, Clock, Zap, TrendingUp, Sparkles, Activity, ListTodo } from 'lucide-react-native';
+import { ChevronRight, CheckCircle2, Clock, Zap, Activity } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Easing } from 'react-native-reanimated';
+import { TazqLogo } from '../components/TazqLogo';
 
 const SLIDES = [
   {
     id: '1',
     titleKey: 'onboardingTitle1',
     bodyKey: 'onboardingBody1',
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDehFy7-IfGX-n56BKeKMDpeteacGPRXtHDqUo6-zbjYc-PMuxAXBqev3oaYKuX_mNapLCAvQw2CkTsFLjwC_DbU6sROn3H741ruPT_vckOM7Gv4mZ6Iunnzm5oCmF4tnTCFvMkOXzH1j-6bN8DwNqDzgWXFdL04TwjPSHHAufe66HWcDnQMMyK8NnFLO0g4Lt8XkuIVNA9tE1e7fBJV_1ZB1PORiaxcc29_kywNIxLlTWoCAkmG_14hMNExtlni_lkrZeiFOlSvaA",
     color: '#3367ff',
-    type: 'sculpture'
+    type: 'welcome',
   },
   {
     id: '2',
-    titleKey: 'onboardingTitle2',
-    bodyKey: 'onboardingBody2',
-    color: '#00cc88',
-    type: 'tasks'
-  },
-  {
-    id: '2b',
     titleKey: 'onboardingTitle2b',
     bodyKey: 'onboardingBody2b',
     color: '#00cc88',
-    type: 'smart_input'
+    type: 'smart_input',
   },
   {
     id: '3',
     titleKey: 'onboardingTitle3',
-    bodyKey: 'onboardingBody3',
-    color: '#ff2d55',
-    type: 'focus'
-  },
-  {
-    id: '3b',
-    titleKey: 'onboardingTitle3b',
     bodyKey: 'onboardingBody3b',
     color: '#ff2d55',
-    type: 'pomodoro'
+    type: 'focus',
   },
   {
     id: '4',
-    titleKey: 'onboardingTitle4',
-    bodyKey: 'onboardingBody4',
-    color: '#6200ee',
-    type: 'stats'
-  },
-  {
-    id: '4b',
-    titleKey: 'onboardingTitle4b',
-    bodyKey: 'onboardingBody4b',
-    color: '#6200ee',
-    type: 'momentum'
-  },
-  {
-    id: '4c',
     titleKey: 'onboardingTitle4c',
     bodyKey: 'onboardingBody4c',
-    color: '#f59e0b',
-    type: 'cockpit'
+    color: '#6200ee',
+    type: 'cockpit',
   },
   {
     id: '5',
     titleKey: 'onboardingTitle5',
-    bodyKey: 'onboardingBody5',
-    image: "https://lh3.googleusercontent.com/aida-public/AB6AXuALtdMkm7GYoNuakWzR99utIollrCJCVYOVV7c8JNAoHwp9uNli3FD1KZwlWraR1nRMvilIe-qxN2KuSCZNFYDWqcUISH7B2R4kiojmpebKJD0XYYaADkTgBoGQcaTXSnXK-6XPzhkkLcy8eng_Lu8tesOVYNdsIbmy5GqcjgRWJI1S0sKVVBWe5tz8yp4uuGpQvgYlbdTEZ4DtkkChqy_dsrgTkm95MVd5xQoakNHkXgMaC054Ev0UGZUeqT_s464oEIdYfUO_Bck",
-    color: '#ff9500',
-    type: 'sculpture'
-  }
+    bodyKey: 'onboardingBody4b',
+    color: '#f59e0b',
+    type: 'momentum',
+  },
 ];
 
 export default function OnboardingScreen() {
@@ -142,36 +112,41 @@ export default function OnboardingScreen() {
     const isActive = currentIndex === index;
 
     switch (item.type) {
-      case 'sculpture':
+      case 'welcome':
         return (
           <View style={[styles.visualCard, { width: visualSize, height: visualSize }]}>
-            <MotiView 
-                animate={{ scale: isActive ? 1 : 0.9, opacity: isActive ? 1 : 0.01 }}
-                transition={{ type: 'timing', duration: 800 }}
-                style={styles.sculptureWrapper}
+            {/* Animated concentric rings */}
+            {[1, 0.72, 0.48].map((scale, i) => (
+              <MotiView
+                key={i}
+                animate={{
+                  scale: isActive ? [scale, scale * 1.12, scale] : scale * 0.8,
+                  opacity: isActive ? [0.14, 0.06, 0.14] : 0,
+                }}
+                transition={{ loop: true, duration: 3200 + i * 700, delay: i * 350 }}
+                style={{
+                  position: 'absolute',
+                  width: visualSize,
+                  height: visualSize,
+                  borderRadius: visualSize / 2,
+                  borderWidth: 1.5,
+                  borderColor: item.color,
+                }}
+              />
+            ))}
+            {/* Center logo */}
+            <MotiView
+              animate={{ scale: isActive ? 1 : 0.75, opacity: isActive ? 1 : 0 }}
+              transition={{ type: 'spring', damping: 14, delay: 150 }}
+              style={{ alignItems: 'center', justifyContent: 'center' }}
             >
-                <MotiView 
-                    animate={{ translateY: isActive ? [0, -10, 0] : 0 }}
-                    transition={{ loop: true, duration: 6000, easing: Easing.inOut(Easing.sin) }}
-                    style={{ width: visualSize, height: visualSize }}
-                >
-                    {item.image ? (
-                        <Image 
-                            source={{ uri: item.image }} 
-                            style={{ width: '100%', height: '100%', borderRadius: visualSize / 5 }} 
-                            resizeMode="cover" 
-                        />
-                    ) : (
-                        <View style={styles.fallback}>
-                            <Sparkles size={visualSize * 0.3} color={item.color} />
-                        </View>
-                    )}
-                </MotiView>
+              <TazqLogo size={isSmallDevice ? 72 : 92} />
             </MotiView>
-            <MotiView 
-                animate={{ scale: isActive ? [1, 1.25, 1.1] : 0.8, opacity: isActive ? 0.1 : 0 }}
-                transition={{ loop: true, duration: 6000 }}
-                style={[styles.glowBlob, { backgroundColor: item.color, width: visualSize, height: visualSize }]}
+            {/* Glow blob */}
+            <MotiView
+              animate={{ scale: isActive ? [1, 1.2, 1] : 0.8, opacity: isActive ? 0.08 : 0 }}
+              transition={{ loop: true, duration: 5000 }}
+              style={[styles.glowBlob, { backgroundColor: item.color, width: visualSize, height: visualSize }]}
             />
           </View>
         );
@@ -313,8 +288,8 @@ export default function OnboardingScreen() {
                 animate={{ scale: isActive ? 1 : 0.7, opacity: isActive ? 1 : 0 }}
                 transition={{ type: 'spring', damping: 14 }}
               >
-                <Text style={{ fontSize: isSmallDevice ? 52 : 64, fontWeight: '900', letterSpacing: -4, color: '#6200ee', lineHeight: isSmallDevice ? 56 : 70 }}>78</Text>
-                <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: '#6200ee', opacity: 0.5, textAlign: 'center' }}>MOMENTUM</Text>
+                <Text style={{ fontSize: isSmallDevice ? 52 : 64, fontWeight: '900', letterSpacing: -4, color: item.color, lineHeight: isSmallDevice ? 56 : 70 }}>78</Text>
+                <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: item.color, opacity: 0.5, textAlign: 'center' }}>MOMENTUM</Text>
               </MotiView>
               {[
                 { label: '✅ Görevler', pct: '40%' },
@@ -325,10 +300,10 @@ export default function OnboardingScreen() {
                   key={i}
                   animate={{ translateX: isActive ? 0 : 30, opacity: isActive ? 1 : 0 }}
                   transition={{ delay: 400 + i * 100, type: 'spring' }}
-                  style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', backgroundColor: '#6200ee18', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}
+                  style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', backgroundColor: item.color + '18', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}
                 >
                   <Text style={{ fontSize: 11, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#6200ee' }}>{row.pct}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: item.color }}>{row.pct}</Text>
                 </MotiView>
               ))}
             </View>
@@ -343,14 +318,14 @@ export default function OnboardingScreen() {
                 transition={{ type: 'spring', delay: 200 }}
                 style={{ width: '100%' }}
               >
-                <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: '#f59e0b', opacity: 0.7, marginBottom: 8 }}>HAFTALIK MERKEZ</Text>
+                <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: item.color, opacity: 0.7, marginBottom: 8 }}>HAFTALIK MERKEZ</Text>
                 <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
                   {['P', 'S', 'Ç', 'P', 'C', 'C', 'P'].map((d, i) => (
                     <MotiView
                       key={i}
                       animate={{ scale: isActive ? 1 : 0.5, opacity: isActive ? 1 : 0 }}
                       transition={{ delay: 400 + i * 60, type: 'spring' }}
-                      style={{ flex: 1, alignItems: 'center', backgroundColor: i === 4 ? '#f59e0b' : theme.surfaceContainerHighest, borderRadius: 8, paddingVertical: 6 }}
+                      style={{ flex: 1, alignItems: 'center', backgroundColor: i === 4 ? item.color : theme.surfaceContainerHighest, borderRadius: 8, paddingVertical: 6 }}
                     >
                       <Text style={{ fontSize: 9, fontWeight: '800', color: i === 4 ? '#fff' : theme.onSurfaceVariant }}>{d}</Text>
                     </MotiView>
@@ -361,7 +336,7 @@ export default function OnboardingScreen() {
                     key={i}
                     animate={{ width: isActive ? `${h}%` : '5%' } as any}
                     transition={{ delay: 800 + i * 80, type: 'timing', duration: 500 }}
-                    style={{ height: 8, borderRadius: 4, backgroundColor: '#f59e0b' + (i === 3 ? 'FF' : '55'), marginBottom: 5 }}
+                    style={{ height: 8, borderRadius: 4, backgroundColor: item.color + (i === 3 ? 'FF' : '55'), marginBottom: 5 }}
                   />
                 ))}
               </MotiView>

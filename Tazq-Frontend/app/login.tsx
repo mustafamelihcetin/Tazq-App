@@ -48,6 +48,7 @@ export default function LoginScreen() {
   const { t } = useLanguageStore();
   const router = useRouter();
   const { height } = useWindowDimensions();
+  const isSmallScreen = height < 700;
   const setAuth = useAuthStore(state => state.setAuth);
 
   const [email, setEmail] = useState('');
@@ -120,18 +121,18 @@ export default function LoginScreen() {
             automaticallyAdjustKeyboardInsets={true}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.content}>
+            <View style={[styles.content, { paddingVertical: isSmallScreen ? 20 : 32 }]}>
               <MotiView
                 from={{ opacity: 0, scale: 0.8, translateY: -20 }}
                 animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                style={styles.header}
+                style={[styles.header, { marginBottom: isSmallScreen ? 16 : 28 }]}
               >
-                <TazqLogo size={80} />
-                <MotiText 
+                <TazqLogo size={isSmallScreen ? 64 : 80} />
+                <MotiText
                   from={{ opacity: 0, translateY: 10 }}
                   animate={{ opacity: 1, translateY: 0 }}
                   transition={{ delay: 200 }}
-                  style={[styles.title, { color: theme.onSurface }]}
+                  style={[styles.title, { color: theme.onSurface, fontSize: isSmallScreen ? 26 : 34, marginTop: isSmallScreen ? 12 : 20 }]}
                 >
                   {t.login.title}
                 </MotiText>
@@ -146,7 +147,7 @@ export default function LoginScreen() {
                 transition={{ delay: 400 }}
                 style={styles.cardContainer}
               >
-                <GlassCard style={styles.glassCard}>
+                <GlassCard style={[styles.glassCard, { padding: isSmallScreen ? 20 : 28 }]}>
                   {error && (
                     <MotiView 
                       from={{ opacity: 0, height: 0 }}
@@ -257,7 +258,7 @@ export default function LoginScreen() {
                 from={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 600 }}
-                style={styles.footer}
+                style={[styles.footer, { marginTop: isSmallScreen ? 16 : 28 }]}
               >
                 <View style={styles.footerRow}>
                   <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
@@ -325,12 +326,12 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
-  content: { paddingHorizontal: 28, paddingVertical: 32, gap: 0 },
-  header: { alignItems: 'center', marginBottom: 32 },
-  title: { fontSize: 34, fontFamily: 'Jakarta-ExtraBold', marginTop: 20, letterSpacing: -1.2 },
+  content: { paddingHorizontal: 24, gap: 0 },
+  header: { alignItems: 'center' },
+  title: { fontFamily: 'Jakarta-ExtraBold', letterSpacing: -1.2 },
   subtitle: { fontSize: 15, fontWeight: '500', marginTop: 6, opacity: 0.6, letterSpacing: 0.1 },
   cardContainer: { width: '100%' },
-  glassCard: { width: '100%', padding: 28 },
+  glassCard: { width: '100%' },
   errorContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, marginBottom: 16 },
   errorText: { fontSize: 13, fontWeight: '600' },
   form: { gap: 14 },
