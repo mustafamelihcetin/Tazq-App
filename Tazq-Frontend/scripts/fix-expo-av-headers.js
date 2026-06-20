@@ -36,16 +36,14 @@ if (fs.existsSync(videoViewModulePath)) {
 // EXAudioRecordingPermissionRequester.m (which doesn't include EXAV.h).
 
 const COMPAT_STUBS = `
-// EXFatal / EXErrorWithMessage / EXLogWarn — removed from expo-modules-core 56.x
-#ifndef EXAVCompatFunctions_h
-#define EXAVCompatFunctions_h
-static inline NSError * _Nullable EXErrorWithMessage(NSString * _Nonnull message) {
-    return [NSError errorWithDomain:@"EXAV" code:0 userInfo:@{NSLocalizedDescriptionKey: message}];
-}
-static inline void EXFatal(NSError * _Nullable error) {
-    [NSException raise:@"EXFatal" format:@"%@", error.localizedDescription ?: @"Unknown error"];
-}
-#define EXLogWarn(fmt, ...) NSLog(fmt, ##__VA_ARGS__)
+// EXFatal / EXErrorWithMessage / EXLog* — removed from expo-modules-core 56.x
+#ifndef EXAVCompatMacros_h
+#define EXAVCompatMacros_h
+#define EXErrorWithMessage(msg) [NSError errorWithDomain:@"EXAV" code:0 userInfo:@{NSLocalizedDescriptionKey: (msg)}]
+#define EXFatal(err) do { [[NSException exceptionWithName:@"EXFatal" reason:[(err) localizedDescription] userInfo:nil] raise]; } while(0)
+#define EXLogWarn(...)  NSLog(__VA_ARGS__)
+#define EXLogError(...) NSLog(__VA_ARGS__)
+#define EXLogInfo(...)  NSLog(__VA_ARGS__)
 #endif`;
 
 // Patch EXAudioRecordingPermissionRequester.m — replace last known import line
@@ -53,7 +51,7 @@ const audioPermPath = path.join(avIosDir, 'EXAudioRecordingPermissionRequester.m
 if (fs.existsSync(audioPermPath)) {
   let content = fs.readFileSync(audioPermPath, 'utf8');
   const marker = '#import <objc/message.h>';
-  if (content.includes(marker) && !content.includes('EXAVCompatFunctions_h')) {
+  if (content.includes(marker) && !content.includes('EXAVCompatMacros_h')) {
     content = content.replace(marker, marker + '\n' + COMPAT_STUBS);
     fs.writeFileSync(audioPermPath, content, 'utf8');
     console.log('[fix-expo-av-headers] Patched EXAudioRecordingPermissionRequester.m (EXFatal stubs)');
