@@ -1,10 +1,10 @@
 /**
- * expo-av 16.0.8 has two incompatibilities with expo-modules-core 56.x:
- *  1. ObjC source files import headers removed from expo-modules-core 56.x.
+ * expo-av 16.0.8 has several incompatibilities with expo-modules-core 56.x:
+ *  1. ObjC source files import headers removed in 56.x (EXEventEmitter, etc.)
  *  2. VideoViewModule.swift passes Promise.ResolveClosure where EXPromiseResolveBlock
- *     is expected (the types diverged in 56.x).
- * This script patches expo-av's iOS source files inline. Remove once expo-av ships
- * a release compatible with SDK 56.
+ *     is expected (types diverged in 56.x).
+ *  3. EXFatal / EXErrorWithMessage / EXLogWarn were removed from expo-modules-core 56.x.
+ * Remove this script once expo-av ships a release compatible with SDK 56.
  */
 const fs = require('fs');
 const path = require('path');
@@ -19,8 +19,6 @@ if (!fs.existsSync(avIosDir)) {
 let patchedAny = false;
 
 // ── 1. Swift fix: promise.resolver → promise.legacyResolver ──────────────────
-// VideoViewModule.swift passes Promise.ResolveClosure to setFullscreen() which
-// expects EXPromiseResolveBlock. legacyResolver bridges between the two types.
 
 const videoViewModulePath = path.join(avIosDir, 'Video', 'VideoViewModule.swift');
 if (fs.existsSync(videoViewModulePath)) {
@@ -33,9 +31,41 @@ if (fs.existsSync(videoViewModulePath)) {
   }
 }
 
-// ── 2. ObjC header stubs for removed expo-modules-core 56.x headers ───────────
+// ── 2. ObjC function stubs: EXFatal / EXErrorWithMessage / EXLogWarn ─────────
+// These were removed from expo-modules-core 56.x. Add them to
+// EXAudioRecordingPermissionRequester.m (which doesn't include EXAV.h).
 
-const STUBS = {
+const COMPAT_STUBS = `
+// EXFatal / EXErrorWithMessage / EXLogWarn — removed from expo-modules-core 56.x
+#ifndef EXAVCompatFunctions_h
+#define EXAVCompatFunctions_h
+static inline NSError * _Nullable EXErrorWithMessage(NSString * _Nonnull message) {
+    return [NSError errorWithDomain:@"EXAV" code:0 userInfo:@{NSLocalizedDescriptionKey: message}];
+}
+static inline void EXFatal(NSError * _Nullable error) {
+    [NSException raise:@"EXFatal" format:@"%@", error.localizedDescription ?: @"Unknown error"];
+}
+#define EXLogWarn(fmt, ...) NSLog(fmt, ##__VA_ARGS__)
+#endif`;
+
+// Patch EXAudioRecordingPermissionRequester.m — replace last known import line
+const audioPermPath = path.join(avIosDir, 'EXAudioRecordingPermissionRequester.m');
+if (fs.existsSync(audioPermPath)) {
+  let content = fs.readFileSync(audioPermPath, 'utf8');
+  const marker = '#import <objc/message.h>';
+  if (content.includes(marker) && !content.includes('EXAVCompatFunctions_h')) {
+    content = content.replace(marker, marker + '\n' + COMPAT_STUBS);
+    fs.writeFileSync(audioPermPath, content, 'utf8');
+    console.log('[fix-expo-av-headers] Patched EXAudioRecordingPermissionRequester.m (EXFatal stubs)');
+    patchedAny = true;
+  }
+}
+
+// ── 3. ObjC header stubs for removed expo-modules-core 56.x imports ───────────
+// Also embeds EXFatal/EXErrorWithMessage/EXLogWarn into EXAV.h so that EXAV.m,
+// EXAVTV.m, and EXAVPlayerData.m (which include EXAV.h transitively) all compile.
+
+const HEADER_STUBS = {
   '#import <ExpoModulesCore/EXEventEmitter.h>': `\
 // EXEventEmitter — inlined (removed from expo-modules-core 56.x)
 #ifndef EXEventEmitter_h
@@ -45,7 +75,8 @@ const STUBS = {
 - (void)startObserving;
 - (void)stopObserving;
 @end
-#endif`,
+#endif
+${COMPAT_STUBS}`,
 
   '#import <ExpoModulesCore/EXEventEmitterService.h>': `\
 // EXEventEmitterService — inlined (removed from expo-modules-core 56.x)
@@ -82,7 +113,7 @@ for (const filePath of filesToPatch) {
   let content = fs.readFileSync(filePath, 'utf8');
   let changed = false;
 
-  for (const [importLine, stub] of Object.entries(STUBS)) {
+  for (const [importLine, stub] of Object.entries(HEADER_STUBS)) {
     if (content.includes(importLine)) {
       content = content.replace(importLine, stub);
       changed = true;
