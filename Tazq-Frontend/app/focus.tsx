@@ -136,6 +136,15 @@ export default function FocusScreen() {
     return () => { stopAmbientSound(); };
   }, []);
 
+  // Start/stop sound with timer
+  useEffect(() => {
+    if (isActive && ambientSound !== 'off') {
+      playAmbientSound(ambientSound);
+    } else if (!isActive) {
+      stopAmbientSound();
+    }
+  }, [isActive]);
+
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => { rehydrateTimer(); }, []);
 
@@ -340,10 +349,10 @@ export default function FocusScreen() {
         return (
           <TouchableOpacity
             key={type}
+            disabled={isActive}
             onPress={() => {
               const next = active ? 'off' : type;
               setAmbientSound(next);
-              playAmbientSound(next);
               Haptics.selectionAsync();
             }}
             style={[
@@ -351,6 +360,7 @@ export default function FocusScreen() {
               {
                 backgroundColor: active ? (isDark ? theme.primary + '25' : theme.primary + '15') : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
                 borderColor: active ? theme.primary + '60' : 'transparent',
+                opacity: isActive ? 0.4 : 1,
               },
             ]}
           >
