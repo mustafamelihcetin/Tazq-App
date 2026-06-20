@@ -1,7 +1,10 @@
 /**
- * expo-av 16.0.8 references headers removed from expo-modules-core 56.x.
- * This script patches expo-av's iOS source files to inline missing protocol
- * definitions. Can be removed once expo-av ships a compatible release.
+ * expo-av 16.0.8 has two incompatibilities with expo-modules-core 56.x:
+ *  1. ObjC source files import headers removed from expo-modules-core 56.x.
+ *  2. VideoViewModule.swift passes Promise.ResolveClosure where EXPromiseResolveBlock
+ *     is expected (the types diverged in 56.x).
+ * This script patches expo-av's iOS source files inline. Remove once expo-av ships
+ * a release compatible with SDK 56.
  */
 const fs = require('fs');
 const path = require('path');
@@ -13,7 +16,24 @@ if (!fs.existsSync(avIosDir)) {
   process.exit(0);
 }
 
-// ── Inline stubs for all removed headers ─────────────────────────────────────
+let patchedAny = false;
+
+// ── 1. Swift fix: promise.resolver → promise.legacyResolver ──────────────────
+// VideoViewModule.swift passes Promise.ResolveClosure to setFullscreen() which
+// expects EXPromiseResolveBlock. legacyResolver bridges between the two types.
+
+const videoViewModulePath = path.join(avIosDir, 'Video', 'VideoViewModule.swift');
+if (fs.existsSync(videoViewModulePath)) {
+  let content = fs.readFileSync(videoViewModulePath, 'utf8');
+  if (content.includes('promise.resolver,')) {
+    content = content.replace('promise.resolver,', 'promise.legacyResolver,');
+    fs.writeFileSync(videoViewModulePath, content, 'utf8');
+    console.log('[fix-expo-av-headers] Patched VideoViewModule.swift (promise.resolver → legacyResolver)');
+    patchedAny = true;
+  }
+}
+
+// ── 2. ObjC header stubs for removed expo-modules-core 56.x headers ───────────
 
 const STUBS = {
   '#import <ExpoModulesCore/EXEventEmitter.h>': `\
@@ -48,8 +68,6 @@ const STUBS = {
 #endif`,
 };
 
-// ── Files to patch ────────────────────────────────────────────────────────────
-
 const filesToPatch = [
   path.join(avIosDir, 'EXAV.h'),
   path.join(avIosDir, 'EXAV.m'),
@@ -57,8 +75,6 @@ const filesToPatch = [
   path.join(avIosDir, 'Video', 'EXVideoView.h'),
   path.join(avIosDir, 'Video', 'EXVideoView.m'),
 ];
-
-let patchedAny = false;
 
 for (const filePath of filesToPatch) {
   if (!fs.existsSync(filePath)) continue;
