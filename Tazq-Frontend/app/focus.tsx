@@ -355,8 +355,8 @@ export default function FocusScreen() {
             ]}
           >
             {IconComp
-              ? <IconComp size={15} color={active ? theme.primary : theme.onSurfaceVariant} />
-              : <X size={13} color={active ? theme.primary : theme.onSurfaceVariant} />}
+              ? <IconComp size={13} color={active ? theme.primary : theme.onSurfaceVariant} />
+              : <X size={11} color={active ? theme.primary : theme.onSurfaceVariant} />}
             <Text style={[styles.ambientLabel, { color: active ? theme.primary : theme.onSurfaceVariant }]}>
               {language === 'tr' ? cfg.labelTr : cfg.labelEn}
             </Text>
@@ -897,9 +897,9 @@ const styles = StyleSheet.create({
   playBtn: { overflow: 'hidden', elevation: 8, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
   btnGradient: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   progressText: { fontWeight: '900' },
-  ambientRow: { flexDirection: 'row', gap: S.sm, marginTop: S.lg },
-  ambientBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, borderWidth: 1 },
-  ambientLabel: { fontSize: 11, fontWeight: '700' },
+  ambientRow: { flexDirection: 'row', gap: 6, marginTop: S.lg, paddingHorizontal: S.lg },
+  ambientBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: R.full, borderWidth: 1 },
+  ambientLabel: { fontSize: 10, fontWeight: '700' },
   finishBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, borderWidth: 1 },
   finishText: { fontWeight: '700', letterSpacing: 0.3 },
   footer: { alignItems: 'center' },
