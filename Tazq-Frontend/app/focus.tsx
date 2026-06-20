@@ -180,6 +180,12 @@ export default function FocusScreen() {
     if (seconds === 0 && totalSeconds > 0 && !completedRef.current) {
       completedRef.current = true;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      try {
+        const p = createAudioPlayer(require('../assets/sounds/timer_end.mp3'));
+        p.volume = 0.8;
+        p.play();
+        setTimeout(() => { try { p.remove(); } catch {} }, 5000);
+      } catch {}
 
       const { pomodoroMode: isPomo, pomodoroPhase: phase, pomodoroRound: round } = useFocusStore.getState();
 

@@ -14,6 +14,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
+import { createAudioPlayer } from 'expo-audio';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '../services/api';
 import { parseTaskHint } from '../utils/taskParser';
@@ -435,6 +436,12 @@ export default function ActionCenter() {
 
     if (isCompleting) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      try {
+        const p = createAudioPlayer(require('../assets/sounds/success.mp3'));
+        p.volume = 0.6;
+        p.play();
+        setTimeout(() => { try { p.remove(); } catch {} }, 3000);
+      } catch {}
       await cancelTaskNotification(id);
 
       if (hideCompleted) {
