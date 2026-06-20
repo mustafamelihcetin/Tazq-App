@@ -95,7 +95,7 @@ export default function ActionCenter() {
   const { width, height } = useWindowDimensions();
   const router = useRouter();
   const navigation = useNavigation();
-  const { action, highlightId } = useLocalSearchParams<{ action?: string; highlightId?: string }>();
+  const { action, highlightId, dateFilter } = useLocalSearchParams<{ action?: string; highlightId?: string; dateFilter?: string }>();
   const insets = useSafeAreaInsets();
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const scrollViewRef = useRef<any>(null);
@@ -129,6 +129,8 @@ export default function ActionCenter() {
   const [isListeningDesc, setIsListeningDesc] = useState(false);
   const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
   const exitAnimMap = useRef<Map<number, { opacity: RNAnimated.Value; translateY: RNAnimated.Value }>>(new Map());
+  const TASK_PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(TASK_PAGE_SIZE);
 
   const { panResponder: taskPan, animatedStyle: taskSlide, prepare: prepareTask, slideIn: taskSlideIn } = useSwipeToDismiss({
     onDismiss: () => !saving && setModalVisible(false),
@@ -149,6 +151,11 @@ export default function ActionCenter() {
       setIsBulkMode(false);
     }
   }, [selectedIds, isBulkMode]);
+
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(TASK_PAGE_SIZE);
+  }, [filter, tagFilter, searchQuery, sortBy, hideCompleted]);
 
   const toggleVoice = async (field: 'title' | 'description') => {
     const isActive = field === 'title' ? isListeningTitle : isListeningDesc;
@@ -258,9 +265,18 @@ export default function ActionCenter() {
 
   const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
 
+  // Mount/unmount only — voice cleanup must not run on every route-param change
   useEffect(() => {
     loadTasks();
     requestNotificationPermissions();
+    return () => {
+      VoiceService.destroy();
+      Object.values(subtaskSaveTimers.current).forEach(clearTimeout);
+    };
+  }, []);
+
+  // Handle deep-link route params independently (no VoiceService side-effects)
+  useEffect(() => {
     if (action === 'add') {
       setTimeout(() => openAdd(), 400);
     }
@@ -268,13 +284,8 @@ export default function ActionCenter() {
       const id = Number(highlightId);
       setHighlightedId(id);
       setExpandedId(id);
-      // Clear highlight after 3 seconds
       setTimeout(() => setHighlightedId(null), 3000);
     }
-    return () => {
-      VoiceService.destroy();
-      Object.values(subtaskSaveTimers.current).forEach(clearTimeout);
-    };
   }, [action, highlightId]);
 
   // Refresh tasks when returning from background (keeps "today" filter accurate after midnight)
@@ -461,6 +472,9 @@ export default function ActionCenter() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
+    // In-flight guard: prevent double-tap desync
+    if (completingIds.has(id)) return;
+    setCompletingIds(prev => new Set([...prev, id]));
     toggleTaskCompletion(id);
 
     try {
@@ -473,6 +487,8 @@ export default function ActionCenter() {
       toggleTaskCompletion(id);
       const isNetwork = !error.response;
       showToast(isNetwork ? t.toastChangeReverted : t.toastUpdateFailed, 'error');
+    } finally {
+      setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
     }
   };
 
@@ -483,11 +499,10 @@ export default function ActionCenter() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const pendingDeleteRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDeleteRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const handleDelete = (id: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    // Snapshot task before removing for undo
     const snapshot = tasks.find((t) => t.id === id);
     if (!snapshot) return;
     removeTask(id);
@@ -497,18 +512,22 @@ export default function ActionCenter() {
     const undoLabel = isTR ? 'Geri Al' : 'Undo';
     const deleteMsg = isTR ? `"${snapshot.title.slice(0, 28)}" silindi` : `"${snapshot.title.slice(0, 28)}" deleted`;
 
-    // Delay the API call so undo can intercept it
-    if (pendingDeleteRef.current) clearTimeout(pendingDeleteRef.current);
-    pendingDeleteRef.current = setTimeout(async () => {
+    // Cancel any existing pending delete for this task
+    const existing = pendingDeleteRef.current.get(id);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(async () => {
+      pendingDeleteRef.current.delete(id);
       try { await TaskService.deleteTask(id); }
       catch { loadTasks(); }
     }, 4200);
+    pendingDeleteRef.current.set(id, timer);
 
     showToast(deleteMsg, 'info', {
       label: undoLabel,
       onAction: () => {
-        if (pendingDeleteRef.current) clearTimeout(pendingDeleteRef.current);
-        // Restore task to local store — backend still has it
+        const t = pendingDeleteRef.current.get(id);
+        if (t) { clearTimeout(t); pendingDeleteRef.current.delete(id); }
         addTask(snapshot);
       },
     });
@@ -676,6 +695,11 @@ export default function ActionCenter() {
         if (d < todayStart || d > todayEnd) return false;
       }
       else if (filter !== 'all') { if (task.priority !== filter || task.isCompleted) return false; }
+      // dateFilter from cockpit "+N more" button (YYYY-MM-DD)
+      if (dateFilter && task.dueDate) {
+        const taskDay = task.dueDate.slice(0, 10);
+        if (taskDay !== dateFilter) return false;
+      }
       if (tagFilter && !(task.tags || []).includes(tagFilter)) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -700,6 +724,8 @@ export default function ActionCenter() {
   }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds]);
 
   const filteredTasks = filteredAndSortedTasks;
+  const visibleTasks = useMemo(() => filteredTasks.slice(0, visibleCount), [filteredTasks, visibleCount]);
+  const remainingCount = filteredTasks.length - visibleCount;
   const filters: FilterType[] = ['all', 'today', 'High', 'Medium', 'Low', 'done'];
 
   const handleBulkDelete = async () => {
@@ -722,15 +748,27 @@ export default function ActionCenter() {
   };
 
   const handleBulkComplete = async () => {
-    for (const id of Array.from(selectedIds)) {
-      try {
-        await TaskService.updateTask(id, { isCompleted: true });
-        toggleTaskCompletion(id);
-      } catch {}
-    }
+    const ids = Array.from(selectedIds);
+    // Optimistic update
+    ids.forEach(id => toggleTaskCompletion(id));
     setSelectedIds(new Set());
     setIsBulkMode(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    const failed: number[] = [];
+    for (const id of ids) {
+      try {
+        await TaskService.updateTask(id, { isCompleted: true });
+      } catch {
+        failed.push(id);
+        toggleTaskCompletion(id); // revert
+      }
+    }
+
+    if (failed.length > 0) {
+      showToast(t.toastUpdateFailed, 'error');
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
   };
 
   const handleClearCompleted = () => {
@@ -984,7 +1022,7 @@ export default function ActionCenter() {
                         <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>{searchQuery.trim() ? (language === 'tr' ? `"${searchQuery}" için sonuç bulunamadı` : `No results for "${searchQuery}"`) : t.noTasksHint}</Text>
                     </MotiView>
                 ) : (
-                    filteredTasks.map((task, i) => {
+                    visibleTasks.map((task, i) => {
                         const exitAnim = exitAnimMap.current.get(task.id);
                         return (
                         <RNAnimated.View
@@ -1292,7 +1330,22 @@ export default function ActionCenter() {
                 )}
             </AnimatePresence>
 
-            {filteredTasks.length > 0 && !isBulkMode && (
+            {remainingCount > 0 && (
+              <TouchableOpacity
+                onPress={() => { setVisibleCount(v => v + TASK_PAGE_SIZE); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                style={{ alignItems: 'center', paddingVertical: S.md, marginTop: S.sm }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)', backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.primary, letterSpacing: 0.3 }}>
+                    {language === 'tr' ? `${remainingCount} görev daha` : `${remainingCount} more`}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.6 }}>▼</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {filteredTasks.length > 0 && !isBulkMode && remainingCount === 0 && (
               <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: isDark ? 0.5 : 0.35, textAlign: 'center', marginTop: S.md, fontWeight: '600', letterSpacing: 0.3 }}>
                 {t.swipeHint}
               </Text>
@@ -1420,7 +1473,11 @@ export default function ActionCenter() {
                     <Text style={[styles.sheetTitle, { color: theme.onSurface, fontSize: F.title }]}>
                         {editingId ? t.editTask : t.addTask}
                     </Text>
-                    <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeModalBtn}>
+                    <TouchableOpacity
+                        onPress={() => !saving && setModalVisible(false)}
+                        style={[styles.closeModalBtn, saving && { opacity: 0.35 }]}
+                        disabled={saving}
+                    >
                         <X size={20} color={theme.onSurfaceVariant} />
                     </TouchableOpacity>
                 </View>

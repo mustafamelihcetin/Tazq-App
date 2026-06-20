@@ -1,0 +1,4 @@
+# Exclude unused watch connectivity module from EAS archive.
+# The module is not yet integrated in the app; including it causes CocoaPods errors.
+modules/expo-watch-connectivity/ios/
+modules/expo-watch-connectivity/expo-watch-connectivity.podspec

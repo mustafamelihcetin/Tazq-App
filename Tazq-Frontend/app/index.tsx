@@ -242,11 +242,18 @@ export default function HomeScreen() {
     return false;
   })();
 
+  // Track last scheduled values to avoid re-firing on every momentum change
+  const lastScheduledNotifRef = useRef({ momentum: -1, streak: -1 });
+
   // Save daily momentum + reschedule weekly notification + check achievements
   useEffect(() => {
     if (statsLoading) return;
     recordScore(momentum);
-    if (weeklyNotification) scheduleWeeklySummary(momentum, streak, language);
+    if (weeklyNotification &&
+        (momentum !== lastScheduledNotifRef.current.momentum || streak !== lastScheduledNotifRef.current.streak)) {
+      lastScheduledNotifRef.current = { momentum, streak };
+      scheduleWeeklySummary(momentum, streak, language);
+    }
 
     // Streak achievements
     const streakAch = checkStreakAchievement(streak);
@@ -373,6 +380,27 @@ export default function HomeScreen() {
     if (currentHour >= 13 && currentHour < 18) return t.greetingAfternoon;
     if (currentHour >= 18 && currentHour < 23) return t.greetingEvening;
     return t.greetingNight;
+  };
+
+  const getSubGreeting = (): string => {
+    const incomplete = tasks.filter(x => !x.isCompleted).length;
+    const tr = language === 'tr';
+    if (isActive) {
+      return tr ? 'Harika! Odak seansın devam ediyor. 🔥' : "You're crushing it! Focus session in progress. 🔥";
+    }
+    if (incomplete === 0) {
+      return tr ? 'Temiz sayfa — yeni bir hedef eklemek ister misin?' : 'Clean slate — want to add a new goal?';
+    }
+    if (incomplete === 1) {
+      return tr ? 'Sadece 1 görevin kaldı. Kolayca bitirebilirsin!' : 'Just 1 task left. You can finish this!';
+    }
+    if (incomplete <= 5) {
+      return tr ? `${incomplete} görevin var. Hadi devam edelim!` : `${incomplete} tasks waiting. Let's keep going!`;
+    }
+    if (momentum >= 75) {
+      return tr ? `${incomplete} görev var ama sen zirvedesin — durdurulamaz!` : `${incomplete} tasks, but you're at peak momentum!`;
+    }
+    return tr ? `${incomplete} görevin seni bekliyor.` : `${incomplete} tasks are waiting for you.`;
   };
 
   const priorityColor = (p: string) => {
@@ -507,20 +535,20 @@ export default function HomeScreen() {
                 animate={{ opacity: 1, translateY: 0 }}
                 style={[styles.heroSection, { paddingHorizontal: S.lg }]}
             >
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', flexShrink: 1 }}>
-                    <Text style={[styles.greeting, { color: theme.onSurface, fontSize: 28, lineHeight: 34 }]} numberOfLines={1}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', flexShrink: 1, overflow: 'hidden' }}>
+                    <Text style={[styles.greeting, { color: theme.onSurface, fontSize: 28, lineHeight: 34, flexShrink: 0 }]} numberOfLines={1}>
                         {getGreeting()},
                     </Text>
                     <Text
-                        style={[styles.greeting, { color: theme.primary, fontSize: 28, lineHeight: 34, flexShrink: 1 }]}
+                        style={[styles.greeting, { color: theme.primary, fontSize: 28, lineHeight: 34, flexShrink: 1, maxWidth: 180 }]}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                     >
-                        {` ${user?.name?.split(' ')[0] || 'System'}`}
+                        {` ${user?.name?.split(' ')[0] || (language === 'tr' ? 'sen' : 'you')}`}
                     </Text>
                 </View>
                 <Text style={[styles.subGreeting, { color: theme.onSurfaceVariant, fontSize: F.subhead }]}>
-                    {isActive ? t.executiveSummaryActive : tasks.filter(x => !x.isCompleted).length > 0 ? t.executiveSummaryTasks : t.executiveSummaryEmpty}
+                    {getSubGreeting()}
                 </Text>
             </MotiView>
 
@@ -555,7 +583,7 @@ export default function HomeScreen() {
                             {topTask?.priority === 'High' && (
                                 <View style={[styles.missionBadge, { backgroundColor: theme.error + '20' }]}>
                                     <Zap size={12} color={theme.error} fill={theme.error} />
-                                    <Text style={[styles.missionBadgeText, { color: theme.error }]}>URGENT</Text>
+                                    <Text style={[styles.missionBadgeText, { color: theme.error }]}>{language === 'tr' ? 'ACİL' : 'URGENT'}</Text>
                                 </View>
                             )}
                         </View>

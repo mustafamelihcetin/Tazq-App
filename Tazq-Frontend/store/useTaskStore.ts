@@ -31,7 +31,7 @@ interface TaskState {
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
-  isLoading: false,
+  isLoading: true, // Start as loading to prevent empty-state flash on cold start
   dailyProgressText: '',
 
   setTasks: (tasks) => {

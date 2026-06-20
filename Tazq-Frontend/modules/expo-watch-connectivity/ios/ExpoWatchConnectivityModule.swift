@@ -1,97 +1,76 @@
-import Foundation
+import ExpoModulesCore
 import WatchConnectivity
 
-@objc(ExpoWatchConnectivity)
-class ExpoWatchConnectivityModule: RCTEventEmitter, WCSessionDelegate {
+// WCSessionDelegate must be an NSObject — keep it separate from the Expo Module class
+private class WatchSessionManager: NSObject, WCSessionDelegate {
+  weak var module: ExpoWatchConnectivityModule?
 
-  private var session: WCSession?
-  private var hasListeners = false
-
-  override init() {
-    super.init()
-    if WCSession.isSupported() {
-      session = WCSession.default
-      session?.delegate = self
-      session?.activate()
-    }
-  }
-
-  override static func requiresMainQueueSetup() -> Bool { true }
-
-  override func supportedEvents() -> [String]! {
-    return ["onWatchEvent"]
-  }
-
-  override func startObserving() { hasListeners = true }
-  override func stopObserving() { hasListeners = false }
-
-  private func emit(_ type: String, data: [String: Any]) {
-    guard hasListeners else { return }
-    sendEvent(withName: "onWatchEvent", body: ["type": type, "data": data])
-  }
-
-  // MARK: - JS-callable methods
-
-  @objc func isWatchSupported(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
-    resolve(WCSession.isSupported())
-  }
-
-  @objc func isWatchPaired(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
-    resolve(session?.isPaired ?? false)
-  }
-
-  @objc func isWatchReachable(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
-    resolve(session?.isReachable ?? false)
-  }
-
-  @objc func sendToWatch(_ data: NSDictionary, resolver resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
-    guard let session = session, session.isReachable else {
-      // Not reachable — fall back to application context
-      updateContextInternal(data: data)
-      resolve(nil)
-      return
-    }
-    session.sendMessage(data as! [String: Any], replyHandler: nil) { error in
-      // Ignore send errors silently — watch will sync via context
-    }
-    updateContextInternal(data: data)
-    resolve(nil)
-  }
-
-  @objc func updateApplicationContext(_ data: NSDictionary, resolver resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
-    updateContextInternal(data: data)
-    resolve(nil)
-  }
-
-  private func updateContextInternal(data: NSDictionary) {
-    guard let session = session, session.activationState == .activated else { return }
-    do {
-      try session.updateApplicationContext(data as! [String: Any])
-    } catch {
-      // Silent — context update failures are non-critical
-    }
-  }
-
-  // MARK: - WCSessionDelegate
-
-  func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
-
+  func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {}
   func sessionDidBecomeInactive(_ session: WCSession) {}
-  func sessionDidDeactivate(_ session: WCSession) {
-    session.activate()
-  }
+  func sessionDidDeactivate(_ session: WCSession) { session.activate() }
 
   func sessionReachabilityDidChange(_ session: WCSession) {
-    emit("reachabilityChanged", data: ["reachable": session.isReachable])
+    module?.sendEvent("onWatchEvent", [
+      "type": "reachabilityChanged",
+      "data": ["reachable": session.isReachable]
+    ])
   }
 
   func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
     guard let type = message["type"] as? String,
           let data = message["data"] as? [String: Any] else { return }
-    emit(type, data: data)
+    module?.sendEvent("onWatchEvent", ["type": type, "data": data])
   }
 
-  func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-    // Watch sent updated context — usually not used but handle gracefully
+  func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {}
+}
+
+public class ExpoWatchConnectivityModule: Module {
+  private var session: WCSession?
+  private let sessionManager = WatchSessionManager()
+
+  public func definition() -> ModuleDefinition {
+    Name("ExpoWatchConnectivity")
+
+    Events("onWatchEvent")
+
+    OnCreate {
+      self.sessionManager.module = self
+      if WCSession.isSupported() {
+        self.session = WCSession.default
+        self.session?.delegate = self.sessionManager
+        self.session?.activate()
+      }
+    }
+
+    AsyncFunction("isWatchSupported") { () -> Bool in
+      WCSession.isSupported()
+    }
+
+    AsyncFunction("isWatchPaired") { () -> Bool in
+      self.session?.isPaired ?? false
+    }
+
+    AsyncFunction("isWatchReachable") { () -> Bool in
+      self.session?.isReachable ?? false
+    }
+
+    AsyncFunction("sendToWatch") { (data: [String: Any]) in
+      guard let session = self.session, session.isReachable else {
+        self.updateContextInternal(data: data)
+        return
+      }
+      session.sendMessage(data, replyHandler: nil) { _ in }
+      self.updateContextInternal(data: data)
+    }
+
+    AsyncFunction("updateApplicationContext") { (data: [String: Any]) in
+      self.updateContextInternal(data: data)
+    }
+  }
+
+  private func updateContextInternal(data: [String: Any]) {
+    guard let session = session, session.activationState == .activated else { return }
+    try? session.updateApplicationContext(data)
   }
 }

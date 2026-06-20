@@ -76,7 +76,9 @@ export const AuthService = {
   getCurrentUser: async (manualToken?: string) => {
     const config = manualToken ? { headers: { Authorization: `Bearer ${manualToken}` } } : {};
     const response = await api.get('/api/users/me', config);
-    return response.data;
+    const data = response.data;
+    // Map backend profilePicture field to frontend avatar field
+    return { ...data, avatar: data.profilePicture ?? data.avatar };
   },
   updateProfile: async (data: { name?: string, avatar?: string }) => {
     const response = await api.put('/api/users/profile', data);
@@ -124,7 +126,7 @@ export interface UserStatsResponse {
 
 export const TaskService = {
   getTasks: async () => {
-    const response = await api.get('/api/tasks');
+    const response = await api.get('/api/tasks', { params: { pageSize: 200 } });
     return response.data.items ?? response.data;
   },
   getTask: async (id: number) => {

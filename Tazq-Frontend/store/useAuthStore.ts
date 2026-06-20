@@ -2,6 +2,57 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const SECURE_TOKEN_KEY = 'tazq-jwt-token';
+
+// Lazy-load expo-secure-store — only available after native rebuild
+let SecureStore: typeof import('expo-secure-store') | null = null;
+try {
+  SecureStore = require('expo-secure-store');
+} catch (_) {
+  // Native module not compiled yet — token will stay in AsyncStorage until rebuild
+}
+
+const secureStorage = {
+  getItem: async (name: string) => {
+    if (name === 'tazq-auth-storage' && SecureStore) {
+      try {
+        const token = await SecureStore.getItemAsync(SECURE_TOKEN_KEY);
+        const rest = await AsyncStorage.getItem(name);
+        if (!rest) return null;
+        const parsed = JSON.parse(rest);
+        if (token && parsed?.state) parsed.state.token = token;
+        return JSON.stringify(parsed);
+      } catch {
+        return AsyncStorage.getItem(name);
+      }
+    }
+    return AsyncStorage.getItem(name);
+  },
+  setItem: async (name: string, value: string) => {
+    if (name === 'tazq-auth-storage' && SecureStore) {
+      try {
+        const parsed = JSON.parse(value);
+        const token = parsed?.state?.token;
+        if (token) {
+          await SecureStore.setItemAsync(SECURE_TOKEN_KEY, token);
+          parsed.state.token = null;
+        }
+        await AsyncStorage.setItem(name, JSON.stringify(parsed));
+        return;
+      } catch {
+        return AsyncStorage.setItem(name, value);
+      }
+    }
+    return AsyncStorage.setItem(name, value);
+  },
+  removeItem: async (name: string) => {
+    if (name === 'tazq-auth-storage' && SecureStore) {
+      try { await SecureStore.deleteItemAsync(SECURE_TOKEN_KEY); } catch {}
+    }
+    return AsyncStorage.removeItem(name);
+  },
+};
+
 interface User {
   id: number;
   email: string;
@@ -32,12 +83,18 @@ export const useAuthStore = create<AuthState>()(
       _hasHydrated: false,
       setAuth: (user, token) => set({ user, token, isLoggedIn: true }),
       setUser: (user) => set({ user }),
-      logout: () => set({ user: null, token: null, isLoggedIn: false }),
+      logout: () => {
+        set({ user: null, token: null, isLoggedIn: false });
+        // Clear other stores so previous user's data isn't visible after re-login
+        try { require('./useTaskStore').useTaskStore.setState({ tasks: [], isLoading: false }); } catch {}
+        try { require('./useFocusStore').useFocusStore.getState().reset(); } catch {}
+        try { require('./useHabitStore').useHabitStore?.setState({ habits: [] }); } catch {}
+      },
       setHasHydrated: (val) => set({ _hasHydrated: val }),
     }),
     {
       name: 'tazq-auth-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => secureStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },

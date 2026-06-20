@@ -365,19 +365,28 @@ export const TurkishModeBanner: React.FC<Props> = ({
               <Text style={[styles.bannerTitle, { color: isDark ? '#fff' : '#111' }]}>
                 {tr ? mode.labelTr : mode.labelEn}
               </Text>
-              <Text style={[styles.bannerSub, { color: modeAccent }]}>
-                {tr ? `${mode.daysLeft} gün kaldı` : `${mode.daysLeft} days left`}
-              </Text>
+              {planApplied ? (
+                <Text style={[styles.bannerSub, { color: modeAccent }]}>
+                  {tr
+                    ? `${completedPlanTasks}/${totalPlanTasks} görev · ${avgHabitWeekPct}% alışkanlık`
+                    : `${completedPlanTasks}/${totalPlanTasks} tasks · ${avgHabitWeekPct}% habits`}
+                </Text>
+              ) : (
+                <Text style={[styles.bannerSub, { color: modeAccent }]}>
+                  {tr ? `${mode.daysLeft} gün kaldı` : `${mode.daysLeft} days left`}
+                </Text>
+              )}
             </View>
           </View>
           <View style={styles.bannerRight}>
             <TouchableOpacity
               onPress={openSheet}
-              style={[styles.planBtn, { backgroundColor: modeAccent }]}
+              style={[styles.planBtn, { backgroundColor: planApplied ? modeAccent : modeAccent }]}
               activeOpacity={0.8}
             >
+              {planApplied && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff', opacity: 0.85, marginRight: 2 }} />}
               <Text style={styles.planBtnText}>
-                {planApplied ? (tr ? 'Planı Görüntüle' : 'View Plan') : (tr ? 'Planı Seç' : 'Pick Plan')}
+                {planApplied ? (tr ? 'Planı Gör' : 'View Plan') : (tr ? 'Planı Seç' : 'Pick Plan')}
               </Text>
               <ChevronRight size={13} color="#fff" />
             </TouchableOpacity>

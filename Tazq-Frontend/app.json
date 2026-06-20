@@ -27,6 +27,12 @@
       ],
       "expo-font",
       "expo-localization",
+      [
+        "expo-av",
+        {
+          "microphonePermission": false
+        }
+      ],
       "@react-native-community/datetimepicker",
       [
         "@react-native-voice/voice",
@@ -49,7 +55,8 @@
         "NSMicrophoneUsageDescription": "Tazq needs access to the microphone to record your tasks.",
         "NSSpeechRecognitionUsageDescription": "Tazq needs access to speech recognition to convert your voice to text.",
         "NSPhotoLibraryUsageDescription": "Tazq needs access to your photo library if you want to attach images to your tasks.",
-        "NSCameraUsageDescription": "Tazq needs access to your camera if you want to take photos for your tasks."
+        "NSCameraUsageDescription": "Tazq needs access to your camera if you want to take photos for your tasks.",
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {

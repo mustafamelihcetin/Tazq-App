@@ -404,7 +404,12 @@ export default function CockpitScreen() {
                 ))}
                 {selectedDayTasks.length > 4 && (
                   <TouchableOpacity
-                    onPress={() => router.push({ pathname: '/tasks', params: { filter: 'today' } })}
+                    onPress={() => router.push({
+                      pathname: '/tasks',
+                      params: selectedDay === todayKey
+                        ? { filter: 'today' }
+                        : { dateFilter: selectedDay },
+                    })}
                     style={[styles.dayTaskRow, { borderTopColor: theme.outline + '20', borderTopWidth: 1, justifyContent: 'center' }]}
                   >
                     <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.primary }}>

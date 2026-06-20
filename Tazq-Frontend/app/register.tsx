@@ -12,7 +12,7 @@ import {
   Keyboard,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
 import { Mail, Lock, User, ArrowRight, ArrowLeft, AlertCircle, Eye, EyeOff } from 'lucide-react-native';
@@ -45,6 +45,7 @@ export default function RegisterScreen() {
   const { t } = useLanguageStore();
   const router = useRouter();
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -83,7 +84,7 @@ export default function RegisterScreen() {
         <SafeAreaView style={styles.safeArea}>
           <TouchableOpacity
             onPress={() => router.back()}
-            style={styles.backButton}
+            style={[styles.backButton, { top: insets.top + 12 }]}
             activeOpacity={0.7}
           >
             <ArrowLeft size={22} color={theme.onSurface} />
@@ -248,7 +249,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  backButton: { position: 'absolute', top: 16, left: 20, zIndex: 10, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  backButton: { position: 'absolute', left: 20, zIndex: 10, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
   content: { paddingHorizontal: 24, paddingVertical: 32 },

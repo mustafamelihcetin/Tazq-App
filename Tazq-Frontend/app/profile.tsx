@@ -244,6 +244,7 @@ export default function ProfileScreen() {
   const [newName, setNewName] = useState(user?.name || '');
   const [selectedGoal, setSelectedGoal] = useState(dailyGoalMinutes);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   const { panResponder: editPan, animatedStyle: editSlide, prepare: prepareEdit, slideIn: editSlideIn } = useSwipeToDismiss({
     onDismiss: () => setEditModalVisible(false),
@@ -310,6 +311,7 @@ export default function ProfileScreen() {
     setSelectedAvatar(user?.avatar || 'm1');
     setNewName(user?.name || '');
     setSelectedGoal(dailyGoalMinutes);
+    setProfileError(null);
     setEditModalVisible(true);
   };
 
@@ -317,21 +319,23 @@ export default function ProfileScreen() {
     if (!user) return;
     if (!newName.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setProfileError(language === 'tr' ? 'Görünen ad boş olamaz.' : 'Name cannot be empty.');
       return;
     }
+    setProfileError(null);
     setSavingProfile(true);
     try {
-      await AuthService.updateProfile({ avatar: selectedAvatar, name: newName });
-      setUser({ ...user, avatar: selectedAvatar, name: newName });
+      await AuthService.updateProfile({ avatar: selectedAvatar, name: newName.trim() });
+      // Update local state and close only on success — prevents unmounted-component reopen on error
+      setUser({ ...user, avatar: selectedAvatar, name: newName.trim() });
       setDailyGoal(selectedGoal);
       setEditModalVisible(false);
       showToast(t.toastProfileUpdated, 'success');
     } catch (e: any) {
-      if (!e.response) {
-        showToast(t.toastProfileNoConn, 'error');
-      } else {
-        showToast(t.toastProfileFailed, 'error');
-      }
+      const msg = !e.response
+        ? (language === 'tr' ? 'Bağlantı hatası. Tekrar dene.' : 'Connection error. Try again.')
+        : (language === 'tr' ? 'Güncelleme başarısız.' : 'Update failed.');
+      setProfileError(msg);
     } finally {
       setSavingProfile(false);
     }
@@ -1414,6 +1418,7 @@ export default function ProfileScreen() {
                       placeholder={t.namePlaceholder || 'Your name'}
                       placeholderTextColor={theme.onSurfaceVariant + '99'}
                       style={[styles.nameInput, { color: theme.onSurface }]}
+                      maxLength={50}
                     />
                   </View>
                 </View>
@@ -1480,6 +1485,13 @@ export default function ProfileScreen() {
                     ))}
                   </View>
                 </View>
+
+                {/* Inline error */}
+                {profileError && (
+                  <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>
+                    {profileError}
+                  </Text>
+                )}
 
                 {/* Save button */}
                 <TouchableOpacity

@@ -9,7 +9,7 @@ import { useColorScheme, View, LogBox, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../constants/Colors';
 import { useAuthStore } from '../store/useAuthStore';
-import { AuthService, api } from '../services/api';
+import { AuthService, FocusService, api } from '../services/api';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useLanguageStore } from '../store/useLanguageStore';
@@ -256,6 +256,20 @@ export default function RootLayout() {
 
     return () => clearTimeout(timer);
   }, [_hasHydrated, isLoggedIn, segments, router]);
+
+  // BR-01: Recover focus session that ended while app was killed
+  useEffect(() => {
+    const { isActive, lastActiveAt, totalSeconds, seconds, currentTask } = useFocusStore.getState();
+    if (!isActive || !lastActiveAt) return;
+    const elapsed = Math.floor((Date.now() - lastActiveAt) / 1000);
+    const remaining = totalSeconds - elapsed;
+    if (remaining <= 0) {
+      // Session would have finished — save it and reset
+      const minutes = Math.max(1, Math.round(totalSeconds / 60));
+      FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
+      useFocusStore.setState({ isActive: false, seconds: 0, lastActiveAt: null });
+    }
+  }, []);
 
   // Sync user profile on mount if token exists
   useEffect(() => {
