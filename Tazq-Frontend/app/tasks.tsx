@@ -23,6 +23,7 @@ import { SwipeableItem } from '../components/SwipeableItem';
 import { useToastStore } from '../store/useToastStore';
 import { categorizeTask } from '../utils/taskIntelligence';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { usePrefsStore } from '../store/usePrefsStore';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
 import { S, R, F } from '../constants/tokens';
 import VoiceService from '../utils/voice';
@@ -92,6 +93,7 @@ export default function ActionCenter() {
   const { tasks, toggleTaskCompletion, addTask, removeTask, updateTask, setTasks, setLoading, isLoading, toggleSubtask } = useTaskStore();
   const { t, language } = useLanguageStore();
   const { show: showToast } = useToastStore();
+  const { soundEffects } = usePrefsStore();
   const { setCurrentTask } = useFocusStore();
   const { width, height } = useWindowDimensions();
   const router = useRouter();
@@ -436,7 +438,7 @@ export default function ActionCenter() {
 
     if (isCompleting) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      try {
+      if (soundEffects) try {
         const p = createAudioPlayer(require('../assets/sounds/success.mp3'));
         p.volume = 0.6;
         p.play();

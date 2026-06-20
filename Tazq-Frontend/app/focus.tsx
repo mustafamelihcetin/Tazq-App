@@ -14,6 +14,7 @@ import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 import { FocusService } from '../services/api';
 import { useAchievementStore } from '../store/useAchievementStore';
+import { usePrefsStore } from '../store/usePrefsStore';
 import { checkFocusAchievement } from '../utils/achievements';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -55,6 +56,7 @@ export default function FocusScreen() {
 
   const completedRef = useRef(false);
   const { trigger: triggerAchievement } = useAchievementStore();
+  const { soundEffects } = usePrefsStore();
 
   // Sound
   const soundRef = useRef<AudioPlayer | null>(null);
@@ -180,7 +182,7 @@ export default function FocusScreen() {
     if (seconds === 0 && totalSeconds > 0 && !completedRef.current) {
       completedRef.current = true;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      try {
+      if (soundEffects) try {
         const p = createAudioPlayer(require('../assets/sounds/timer_end.mp3'));
         p.volume = 0.8;
         p.play();

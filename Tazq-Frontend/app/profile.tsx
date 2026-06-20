@@ -4,7 +4,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Award, Zap, Target, Trophy, Shield, CalendarDays, BookOpen, Star } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Award, Zap, Target, Trophy, Shield, CalendarDays, BookOpen, Star, Volume2 } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AuthService, FocusService } from '../services/api';
 import { BentoCard } from '../components/BentoCard';
@@ -43,6 +43,7 @@ export default function ProfileScreen() {
           tezPlanHabitIds, tezPlanTaskIds,
           mulakatPlanHabitIds, mulakatPlanTaskIds,
           examReviewShown, setExamReviewShown,
+          soundEffects, setSoundEffects,
           setPlanIds, clearPlanIds } = usePrefsStore();
   const { habits, removeHabit } = useHabitStore();
   const { removeTask } = useTaskStore();
@@ -527,6 +528,26 @@ export default function ProfileScreen() {
                     }}
                     trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: theme.primary + '80' }}
                     thumbColor={weeklyNotification ? theme.primary : (isDark ? '#636366' : '#fff')}
+                  />
+                </View>
+                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#6366F115', alignItems: 'center', justifyContent: 'center' }}>
+                    <Volume2 size={18} color="#6366F1" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
+                      {language === 'tr' ? 'Ses Efektleri' : 'Sound Effects'}
+                    </Text>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
+                      {language === 'tr' ? 'Görev & timer tamamlama sesleri' : 'Task & timer completion sounds'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={soundEffects}
+                    onValueChange={(v) => { Haptics.selectionAsync(); setSoundEffects(v); }}
+                    trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: '#6366F180' }}
+                    thumbColor={soundEffects ? '#6366F1' : (isDark ? '#636366' : '#fff')}
                   />
                 </View>
             </View>

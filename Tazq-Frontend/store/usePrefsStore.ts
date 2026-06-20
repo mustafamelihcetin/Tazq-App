@@ -24,6 +24,8 @@ interface PrefsState {
   setSeasonalPref: (key: keyof SeasonalPrefs, value: boolean | string | null) => void;
   weeklyNotification: boolean;
   setWeeklyNotification: (value: boolean) => void;
+  soundEffects: boolean;
+  setSoundEffects: (value: boolean) => void;
   examPlanHabitIds: string[];
   examPlanTaskIds: number[];
   exam2PlanHabitIds: string[];
@@ -61,6 +63,8 @@ export const usePrefsStore = create<PrefsState>()(
         set((s) => ({ seasonal: { ...s.seasonal, [key]: value } })),
       weeklyNotification: true,
       setWeeklyNotification: (value) => set({ weeklyNotification: value }),
+      soundEffects: true,
+      setSoundEffects: (value) => set({ soundEffects: value }),
       examPlanHabitIds: [],
       examPlanTaskIds: [],
       exam2PlanHabitIds: [],
