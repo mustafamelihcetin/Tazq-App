@@ -332,3 +332,62 @@ export async function cancelExamCountdownNotifs(): Promise<void> {
     try { await Notifications.cancelScheduledNotificationAsync(`exam-countdown-${d}d`); } catch (_) {}
   }
 }
+
+export async function scheduleRamadanStartNotification(
+  startDateStr: string,
+  locale: string = 'tr'
+): Promise<void> {
+  if (!Notifications || isExpoGo) return;
+  try {
+    const isTR = locale === 'tr';
+
+    // Day-before nudge at 20:00 — "yarın başlıyor, planını hazırla"
+    const eve = new Date(startDateStr);
+    eve.setDate(eve.getDate() - 1);
+    eve.setHours(20, 0, 0, 0);
+    await Notifications.cancelScheduledNotificationAsync('ramazan-eve').catch(() => {});
+    if (eve > new Date()) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'ramazan-eve',
+        content: {
+          title: isTR ? '🌙 Yarın Ramazan başlıyor' : '🌙 Ramadan starts tomorrow',
+          body: isTR
+            ? 'Alışkanlık planını bir kez gözden geçir — yarın hazır ol.'
+            : 'Review your habit plan once — be ready for tomorrow.',
+          sound: true,
+          data: { type: 'ramazan-eve' },
+          categoryIdentifier: 'daily-summary',
+        },
+        trigger: { type: 'date', date: eve } as any,
+      });
+    }
+
+    // Start-day notification at 07:00 — actionable, not a celebration
+    const start = new Date(startDateStr);
+    start.setHours(7, 0, 0, 0);
+    await Notifications.cancelScheduledNotificationAsync('ramazan-start').catch(() => {});
+    if (start > new Date()) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: 'ramazan-start',
+        content: {
+          title: isTR ? '🌙 Ramazan başladı' : '🌙 Ramadan has begun',
+          body: isTR
+            ? 'Planın aktif. İlk günü güçlü başlatmak için alışkanlıklarına bak.'
+            : 'Your plan is active. Check your habits to start the first day strong.',
+          sound: true,
+          data: { type: 'ramazan-start' },
+          categoryIdentifier: 'daily-summary',
+        },
+        trigger: { type: 'date', date: start } as any,
+      });
+    }
+  } catch (_) {}
+}
+
+export async function cancelRamadanStartNotification(): Promise<void> {
+  if (!Notifications) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync('ramazan-start').catch(() => {});
+    await Notifications.cancelScheduledNotificationAsync('ramazan-eve').catch(() => {});
+  } catch (_) {}
+}

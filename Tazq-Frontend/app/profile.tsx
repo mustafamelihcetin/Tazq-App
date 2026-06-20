@@ -6,7 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MotiView } from 'moti';
 import { Bell, Moon, Languages, LogOut, ChevronRight, Award, Zap, Target, Trophy, Shield, CalendarDays, BookOpen, Star, Volume2 } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { AuthService, FocusService } from '../services/api';
+import { AuthService, FocusService, TaskService } from '../services/api';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useAuthStore } from '../store/useAuthStore';
@@ -14,7 +14,7 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { requestNotificationPermissions, cancelWeeklySummary, scheduleExamCountdownNotifs, cancelExamCountdownNotifs } from '../utils/notifications';
+import { requestNotificationPermissions, cancelWeeklySummary, scheduleExamCountdownNotifs, cancelExamCountdownNotifs, scheduleRamadanStartNotification, cancelRamadanStartNotification } from '../utils/notifications';
 import { S, R, F } from '../constants/tokens';
 import { useToastStore } from '../store/useToastStore';
 import { AVATAR_CONFIGS, getAvatarSource } from '../utils/avatars';
@@ -22,7 +22,12 @@ import { usePrefsStore } from '../store/usePrefsStore';
 import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
 import { useTaskStore } from '../store/useTaskStore';
 import { TurkishModeBanner } from '../components/TurkishModeBanner';
-import { getModePreview, getTezMode, getMulakatMode, ModeType } from '../utils/turkishModes';
+import { getModePreview, getTezMode, getMulakatMode, ModeType, RAMAZAN_HABIT_NAMES } from '../utils/turkishModes';
+import { useAchievementStore } from '../store/useAchievementStore';
+import { ACHIEVEMENTS } from '../utils/achievements';
+import { getCurrentRamadanStatus, formatRamadanDate } from '../utils/ramadanDates';
+import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '../utils/examPresets';
+import { useCompletionStore } from '../store/useCompletionStore';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -33,12 +38,14 @@ export default function ProfileScreen() {
   const { width, height } = useWindowDimensions();
   const router = useRouter();
   const isDark = colorScheme === 'dark';
+  const ramadanStatus = useMemo(() => getCurrentRamadanStatus(), []);
   const { show: showToast } = useToastStore();
   const insets = useSafeAreaInsets();
 
   const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset } = useFocusStore();
   const { seasonal, setSeasonalPref, weeklyNotification, setWeeklyNotification,
           examPlanHabitIds, examPlanTaskIds, exam2PlanHabitIds, exam2PlanTaskIds,
+          exam3PlanHabitIds, exam3PlanTaskIds,
           ramazanPlanHabitIds, ramazanPlanTaskIds,
           tezPlanHabitIds, tezPlanTaskIds,
           mulakatPlanHabitIds, mulakatPlanTaskIds,
@@ -46,9 +53,30 @@ export default function ProfileScreen() {
           soundEffects, setSoundEffects,
           setPlanIds, clearPlanIds } = usePrefsStore();
   const { habits, removeHabit } = useHabitStore();
+  const { unlocked: unlockedAchievements } = useAchievementStore();
   const { removeTask } = useTaskStore();
-  const [modePreview, setModePreview] = useState<{ type: ModeType; key: number } | null>(null);
+  const { record: recordCompletion } = useCompletionStore();
+
+  // Cleanly retires a plan task: journals if completed, removes locally, deletes from server
+  const retirePlanTask = useCallback((taskId: number, planMode?: string) => {
+    const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
+    if (task?.isCompleted) {
+      recordCompletion(task.id, task.title, task.completedAt ?? undefined, planMode);
+    }
+    removeTask(taskId);
+    TaskService.deleteTask(taskId).catch(() => {});
+  }, [removeTask, recordCompletion]);
+  const [modePreview, setModePreview] = useState<{ type: ModeType; key: number; templateId?: string; examTipTr?: string; examTipEn?: string; examName?: string; examDate?: string } | null>(null);
   const [examNameInput, setExamNameInput] = useState(seasonal.examName || '');
+  const [examSuggestions, setExamSuggestions] = useState<ExamPreset[]>([]);
+  const [selectedExamPreset, setSelectedExamPreset] = useState<ExamPreset | null>(() => detectExamFromInput(seasonal.examName || ''));
+  const [examDailyMinutes, setExamDailyMinutes] = useState<number | null>(null);
+  const [exam2Suggestions, setExam2Suggestions] = useState<ExamPreset[]>([]);
+  const [selectedExam2Preset, setSelectedExam2Preset] = useState<ExamPreset | null>(() => detectExamFromInput(seasonal.exam2Name || ''));
+  const [exam2DailyMinutes, setExam2DailyMinutes] = useState<number | null>(null);
+  const [exam3Suggestions, setExam3Suggestions] = useState<ExamPreset[]>([]);
+  const [selectedExam3Preset, setSelectedExam3Preset] = useState<ExamPreset | null>(() => detectExamFromInput(seasonal.exam3Name || ''));
+  const [exam3DailyMinutes, setExam3DailyMinutes] = useState<number | null>(null);
   const [examDateInput, setExamDateInput] = useState(seasonal.examDate || '');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [examExpanded, setExamExpanded] = useState(false);
@@ -56,6 +84,10 @@ export default function ProfileScreen() {
   const [exam2DateInput, setExam2DateInput] = useState(seasonal.exam2Date || '');
   const [exam2Expanded, setExam2Expanded] = useState(false);
   const [showExam2DatePicker, setShowExam2DatePicker] = useState(false);
+  const [exam3NameInput, setExam3NameInput] = useState(seasonal.exam3Name || '');
+  const [exam3DateInput, setExam3DateInput] = useState(seasonal.exam3Date || '');
+  const [exam3Expanded, setExam3Expanded] = useState(false);
+  const [showExam3DatePicker, setShowExam3DatePicker] = useState(false);
   const [tezNameInput, setTezNameInput] = useState(seasonal.tezName || '');
   const [tezDateInput, setTezDateInput] = useState(seasonal.tezDate || '');
   const [tezExpanded, setTezExpanded] = useState(false);
@@ -66,6 +98,7 @@ export default function ProfileScreen() {
   const [showMulakatDatePicker, setShowMulakatDatePicker] = useState(false);
   const examDateObj = examDateInput ? new Date(examDateInput) : new Date(Date.now() + 30 * 86400000);
   const exam2DateObj = exam2DateInput ? new Date(exam2DateInput) : new Date(Date.now() + 60 * 86400000);
+  const exam3DateObj = exam3DateInput ? new Date(exam3DateInput) : new Date(Date.now() + 90 * 86400000);
   const tezDateObj = tezDateInput ? new Date(tezDateInput) : new Date(Date.now() + 90 * 86400000);
   const mulakatDateObj = mulakatDateInput ? new Date(mulakatDateInput) : new Date(Date.now() + 14 * 86400000);
 
@@ -129,6 +162,14 @@ export default function ProfileScreen() {
     : 0;
   const exam2UrgencyColor = exam2DaysLeft <= 7 ? '#EF4444' : exam2DaysLeft <= 30 ? '#F59E0B' : '#3B82F6';
 
+  // Exam 3
+  const exam3IsComplete = exam3NameInput.trim() !== '' && exam3DateInput !== '';
+  const exam3DatePast = exam3DateInput ? new Date(exam3DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
+  const exam3DaysLeft = exam3DateInput && !exam3DatePast
+    ? Math.max(0, Math.ceil((new Date(exam3DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000))
+    : 0;
+  const exam3UrgencyColor = exam3DaysLeft <= 7 ? '#EF4444' : exam3DaysLeft <= 30 ? '#F59E0B' : '#3B82F6';
+
   // Tez / Proje
   const tezIsComplete = tezNameInput.trim() !== '' && tezDateInput !== '';
   const tezDatePast = tezDateInput ? new Date(tezDateInput).setHours(23, 59, 59, 999) < Date.now() : false;
@@ -170,25 +211,33 @@ export default function ProfileScreen() {
   const closeExamModeWithReview = useCallback(() => {
     cancelExamCountdownNotifs();
     examPlanHabitIds.forEach(id => removeHabit(id));
-    examPlanTaskIds.forEach(id => removeTask(id));
+    examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam'));
     exam2PlanHabitIds.forEach(id => removeHabit(id));
-    exam2PlanTaskIds.forEach(id => removeTask(id));
+    exam2PlanTaskIds.forEach(id => retirePlanTask(id, 'exam2'));
+    exam3PlanHabitIds.forEach(id => removeHabit(id));
+    exam3PlanTaskIds.forEach(id => retirePlanTask(id, 'exam3'));
     clearPlanIds('exam');
     clearPlanIds('exam2');
+    clearPlanIds('exam3');
     setExamNameInput('');
     setExamDateInput('');
     setExam2NameInput('');
     setExam2DateInput('');
+    setExam3NameInput('');
+    setExam3DateInput('');
     setExamExpanded(false);
     setExam2Expanded(false);
+    setExam3Expanded(false);
     setSeasonalPref('examMode', false);
     setSeasonalPref('examName', '');
     setSeasonalPref('examDate', null);
     setSeasonalPref('exam2Name', '');
     setSeasonalPref('exam2Date', null);
+    setSeasonalPref('exam3Name', '');
+    setSeasonalPref('exam3Date', null);
     setExamReviewShown(false);
     showToast(language === 'tr' ? '🎓 Sınav modu kapatıldı' : '🎓 Exam mode closed', 'success');
-  }, [examPlanHabitIds, examPlanTaskIds, exam2PlanHabitIds, exam2PlanTaskIds, language]);
+  }, [examPlanHabitIds, examPlanTaskIds, exam2PlanHabitIds, exam2PlanTaskIds, exam3PlanHabitIds, exam3PlanTaskIds, language, retirePlanTask]);
 
   // Use a ref so the useFocusEffect cleanup always reads fresh seasonal values
   const seasonalRef = useRef(seasonal);
@@ -419,48 +468,105 @@ export default function ProfileScreen() {
           </View>
 
           {statsLoading ? (
-            <View style={[styles.statsGrid, { gap: S.sm, marginTop: S.xl }]}>
-                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200 }} style={{ flex: 1, height: 100, borderRadius: R.lg, backgroundColor: theme.surfaceContainerHigh }} />
-                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: 100 }} style={{ flex: 1, height: 100, borderRadius: R.lg, backgroundColor: theme.surfaceContainerHigh }} />
-                <MotiView animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: 200 }} style={{ flex: 1, height: 100, borderRadius: R.lg, backgroundColor: theme.surfaceContainerHigh }} />
+            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg }}>
+              {[0,1,2].map(i => (
+                <MotiView key={i} animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ loop: true, duration: 1200, delay: i * 80 }} style={{ flex: 1, height: 52, borderRadius: R.md, backgroundColor: theme.surfaceContainerHigh }} />
+              ))}
             </View>
           ) : statsError ? (
-            <View style={{ marginTop: S.xl, alignItems: 'center', gap: S.md }}>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontWeight: '600', opacity: 0.6 }}>
-                {language === 'tr' ? 'İstatistikler yüklenemedi' : 'Could not load stats'}
+            <TouchableOpacity onPress={loadStats} style={{ marginTop: S.md, alignSelf: 'flex-start', paddingHorizontal: S.md, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.surfaceContainerHigh }}>
+              <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>
+                {language === 'tr' ? '↺ Yenile' : '↺ Retry'}
               </Text>
-              <TouchableOpacity
-                onPress={loadStats}
-                style={{ paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primary }}
-              >
-                <Text style={{ color: theme.onPrimary, fontWeight: '800', fontSize: F.body }}>
-                  {language === 'tr' ? 'Tekrar dene' : 'Retry'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           ) : (
-            <>
-              <View style={[styles.statsGrid, { gap: S.sm, marginTop: S.xl }]}>
-                <BentoCard index={1} style={{ flex: 1, alignItems: 'center', padding: S.md }}>
-                    <Zap size={22} color={theme.primary} fill={theme.primary + '30'} />
-                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: F.title }]}>{stats.totalFocusHours}</Text>
-                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.hours}</Text>
-                </BentoCard>
-                <BentoCard index={2} style={{ flex: 1, alignItems: 'center', padding: S.md }}>
-                    <Target size={22} color={theme.secondary} />
-                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: F.title }]}>{stats.completedTasksCount}</Text>
-                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.tasks}</Text>
-                </BentoCard>
-                <BentoCard index={3} style={{ flex: 1, alignItems: 'center', padding: S.md }}>
-                    <Trophy size={22} color={'#ff9f0a'} />
-                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: F.title }]}>{displayBestStreak}</Text>
-                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.bestStreak || 'BEST STREAK'}</Text>
-                </BentoCard>
-              </View>
-            </>
+            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg }}>
+              {[
+                { icon: <Zap size={15} color={theme.primary} />, value: stats.totalFocusHours, label: language === 'tr' ? 'saat odak' : 'focus hrs' },
+                { icon: <Target size={15} color={theme.secondary} />, value: stats.completedTasksCount, label: language === 'tr' ? 'görev tamam' : 'tasks done' },
+                { icon: <Trophy size={15} color="#ff9f0a" />, value: displayBestStreak, label: language === 'tr' ? 'en uzun seri' : 'best streak' },
+              ].map((s, i) => (
+                <View key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.xs + 2, paddingVertical: S.sm + 2, paddingHorizontal: S.sm + 2, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderRadius: R.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+                  {s.icon}
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ fontSize: F.subhead, fontWeight: '800', color: theme.onSurface, lineHeight: 20 }}>{s.value}</Text>
+                    <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.6, lineHeight: 13 }} numberOfLines={1}>{s.label}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           )}
 
-          <View style={[styles.settingsSection, { marginTop: S.xl }]}>
+          {/* ── Achievement Bölümü ── */}
+          {(() => {
+            const all = Object.values(ACHIEVEMENTS);
+            const unlockedList = all.filter(a => unlockedAchievements.includes(a.id));
+            const streakSeq = ['streak_3','streak_7','streak_14','streak_30','streak_100'];
+            const momentumSeq = ['momentum_50','momentum_75','momentum_90','momentum_100'];
+            const focusSeq = ['focus_first','focus_5h','focus_25h'];
+            const dailySeq = ['daily_perfect'];
+            const nextOf = (seq: string[]) => seq.find(id => !unlockedAchievements.includes(id));
+            const nextIds = [nextOf(streakSeq), nextOf(momentumSeq), nextOf(focusSeq), nextOf(dailySeq)].filter(Boolean) as string[];
+            const nextList = nextIds.map(id => ACHIEVEMENTS[id]).filter(Boolean);
+            const tr = language === 'tr';
+            const chips = [
+              ...unlockedList.map(a => ({ ...a, locked: false })),
+              ...nextList.map(a => ({ ...a, locked: true })),
+            ];
+            return (
+              <View style={{ marginTop: S.md }}>
+                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', marginBottom: S.md }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: S.sm }}>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5 }}>
+                    {tr ? 'BAŞARILAR' : 'ACHIEVEMENTS'}
+                  </Text>
+                  <View style={{ marginLeft: S.sm, backgroundColor: unlockedList.length > 0 ? theme.tertiary + '22' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.full, paddingHorizontal: 7, paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: unlockedList.length > 0 ? theme.tertiary : theme.onSurfaceVariant, opacity: unlockedList.length > 0 ? 1 : 0.5 }}>
+                      {unlockedList.length}/{all.length}
+                    </Text>
+                  </View>
+                </View>
+
+                {chips.length === 0 ? (
+                  <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                    {tr ? '3 günlük seri yap ya da odak seansı başlat.' : 'Build a 3-day streak or start a focus session.'}
+                  </Text>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.xs, paddingRight: S.xs }}>
+                    {chips.map(ach => (
+                      <View
+                        key={ach.id}
+                        style={{
+                          alignItems: 'center',
+                          gap: 4,
+                          paddingVertical: S.sm,
+                          paddingHorizontal: S.sm + 2,
+                          borderRadius: R.md,
+                          borderWidth: 1,
+                          borderColor: ach.locked
+                            ? (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)')
+                            : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.09)'),
+                          backgroundColor: ach.locked
+                            ? 'transparent'
+                            : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                          opacity: ach.locked ? 0.45 : 1,
+                          minWidth: 64,
+                        }}
+                      >
+                        <Text style={{ fontSize: 22 }}>{ach.emoji}</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurface, textAlign: 'center', maxWidth: 72, lineHeight: 13 }} numberOfLines={2}>
+                          {tr ? ach.titleTr : ach.titleEn}
+                        </Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            );
+          })()}
+
+          <View style={[styles.settingsSection, { marginTop: S.lg }]}>
+            <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', marginBottom: S.lg }} />
             <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5, marginBottom: S.sm, marginLeft: S.xs }]}>{t.settings.toUpperCase()}</Text>
             <View style={[styles.settingsCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', borderWidth: 1, borderRadius: R.lg, overflow: 'hidden' }]}>
                 <SettingItem 
@@ -553,9 +659,24 @@ export default function ProfileScreen() {
             </View>
             {/* Dönemsel Modlar */}
             <View style={{ marginTop: S.xl }}>
-              <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5, marginBottom: S.md, marginLeft: S.xs }]}>
-                {language === 'tr' ? 'DÖNEMSEL MODLAR' : 'SEASONAL MODES'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.md, marginLeft: S.xs }}>
+                <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5, marginBottom: 0 }]}>
+                  {language === 'tr' ? 'DÖNEMSEL MODLAR' : 'SEASONAL MODES'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => Alert.alert(
+                    language === 'tr' ? 'Dönemsel Modlar Nedir?' : 'What are Seasonal Modes?',
+                    language === 'tr'
+                      ? 'Dönemsel modlar belirli bir hedef veya dönem için hazırlanmış alışkanlık ve görev paketleridir. Aktif ettiğinde ilgili plan otomatik olarak Haftalık Merkez\'e ve görevlerine eklenir. Mod kapatıldığında eklenen içerikler kaldırılır.'
+                      : 'Seasonal modes are curated habit and task bundles for specific goals or periods. When activated, the plan is automatically added to your Weekly Hub and tasks. Disabling the mode removes the added content.',
+                    [{ text: language === 'tr' ? 'Anladım' : 'Got it' }]
+                  )}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '900', color: theme.onSurfaceVariant, lineHeight: 18 }}>i</Text>
+                </TouchableOpacity>
+              </View>
 
               <View style={{ gap: S.md }}>
                 {/* ── Ramazan Modu ── */}
@@ -569,10 +690,19 @@ export default function ProfileScreen() {
                         <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
                           {language === 'tr' ? 'Ramazan Modu' : 'Ramadan Mode'}
                         </Text>
-                        <Text style={{ color: seasonal.ramazan ? '#6366F1' : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: seasonal.ramazan ? '700' : '400', opacity: seasonal.ramazan ? 1 : 0.6, marginTop: 1 }}>
-                          {seasonal.ramazan
-                            ? (language === 'tr' ? 'Aktif — özel plan devrede' : 'Active — custom plan running')
-                            : (language === 'tr' ? 'Ramazan alışkanlıkları & görevleri' : 'Ramadan habits & tasks')}
+                        <Text style={{ fontSize: F.caption, fontWeight: '500', marginTop: 1,
+                          color: ramadanStatus.isActive ? '#6366F1' : seasonal.ramazan && ramadanStatus.period ? '#6366F1' : theme.onSurfaceVariant,
+                          opacity: ramadanStatus.isActive ? 0.9 : seasonal.ramazan && ramadanStatus.period ? 0.75 : 0.55,
+                        }}>
+                          {ramadanStatus.isActive && ramadanStatus.period
+                            ? (language === 'tr'
+                                ? `🌙 ${formatRamadanDate(ramadanStatus.period.start, 'tr')} – ${formatRamadanDate(ramadanStatus.period.end, 'tr')} · ${ramadanStatus.daysRemaining} gün kaldı`
+                                : `🌙 ${formatRamadanDate(ramadanStatus.period.start, 'en')} – ${formatRamadanDate(ramadanStatus.period.end, 'en')} · ${ramadanStatus.daysRemaining} days left`)
+                            : seasonal.ramazan && ramadanStatus.period
+                            ? (language === 'tr'
+                                ? `${formatRamadanDate(ramadanStatus.period.start, 'tr', ramadanStatus.period.year !== new Date().getFullYear())} · ${ramadanStatus.daysUntilStart} gün`
+                                : `${formatRamadanDate(ramadanStatus.period.start, 'en', ramadanStatus.period.year !== new Date().getFullYear())} · ${ramadanStatus.daysUntilStart} days`)
+                            : (language === 'tr' ? 'Oruç dönemine özel alışkanlık ve görevler' : 'Habits & tasks tailored for the fasting month')}
                         </Text>
                       </View>
                       <Switch
@@ -597,16 +727,23 @@ export default function ProfileScreen() {
                                   style: 'destructive',
                                   onPress: () => {
                                     ramazanPlanHabitIds.forEach(id => removeHabit(id));
-                                    ramazanPlanTaskIds.forEach(id => removeTask(id));
+                                    habits.filter(h => RAMAZAN_HABIT_NAMES.some(n => n.toLowerCase() === h.name.toLowerCase())).forEach(h => removeHabit(h.id));
+                                    ramazanPlanTaskIds.forEach(id => retirePlanTask(id, 'ramazan'));
                                     clearPlanIds('ramazan');
                                     setSeasonalPref('ramazan', false);
+                                    cancelRamadanStartNotification();
                                   }
                                 },
                               ]
                             );
                           } else {
                             setSeasonalPref('ramazan', v);
-                            if (v) setModePreview({ type: 'ramazan', key: Date.now() });
+                            if (v) {
+                              setModePreview({ type: 'ramazan', key: Date.now() });
+                              if (ramadanStatus.period && !ramadanStatus.isActive) {
+                                scheduleRamadanStartNotification(ramadanStatus.period.start, language);
+                              }
+                            }
                           }
                         }}
                         trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: '#6366F180' }}
@@ -618,11 +755,23 @@ export default function ProfileScreen() {
                   {seasonal.ramazan && (
                     <View style={{ paddingHorizontal: S.md, paddingBottom: S.md }}>
                       <View style={{ height: 1, backgroundColor: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.10)', marginBottom: S.md }} />
-                      {ramazanPlanHabits.length > 0 ? (
+                      {!ramadanStatus.isActive && ramadanStatus.period ? (
+                        <TouchableOpacity
+                          onPress={() => setModePreview({ type: 'ramazan', key: Date.now() })}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}
+                          activeOpacity={0.7}
+                        >
+                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#6366F1' }} />
+                          <Text style={{ color: '#6366F1', fontSize: F.caption, fontWeight: '600', flex: 1 }}>
+                            {language === 'tr' ? 'Planı şimdiden hazırla' : 'Set up your plan in advance'}
+                          </Text>
+                          <ChevronRight size={12} color="#6366F1" />
+                        </TouchableOpacity>
+                      ) : ramazanPlanHabits.length > 0 ? (
                         <View style={{ gap: S.sm }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>
-                              {language === 'tr' ? 'Bu hafta alışkanlık' : 'Habits this week'}
+                              {language === 'tr' ? 'Bu haftaki ilerleme' : 'This week\'s progress'}
                             </Text>
                             <Text style={{ color: '#6366F1', fontSize: F.caption, fontWeight: '800' }}>
                               {ramazanHabitsActiveThisWeek}/{ramazanPlanHabits.length} · {ramazanWeekPct}%
@@ -695,22 +844,30 @@ export default function ProfileScreen() {
                                   onPress: () => {
                                     cancelExamCountdownNotifs();
                                     examPlanHabitIds.forEach(id => removeHabit(id));
-                                    examPlanTaskIds.forEach(id => removeTask(id));
+                                    examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam'));
                                     exam2PlanHabitIds.forEach(id => removeHabit(id));
-                                    exam2PlanTaskIds.forEach(id => removeTask(id));
+                                    exam2PlanTaskIds.forEach(id => retirePlanTask(id, 'exam2'));
+                                    exam3PlanHabitIds.forEach(id => removeHabit(id));
+                                    exam3PlanTaskIds.forEach(id => retirePlanTask(id, 'exam3'));
                                     clearPlanIds('exam');
                                     clearPlanIds('exam2');
+                                    clearPlanIds('exam3');
                                     setExamNameInput('');
                                     setExamDateInput('');
                                     setExam2NameInput('');
                                     setExam2DateInput('');
+                                    setExam3NameInput('');
+                                    setExam3DateInput('');
                                     setExamExpanded(false);
                                     setExam2Expanded(false);
+                                    setExam3Expanded(false);
                                     setSeasonalPref('examMode', false);
                                     setSeasonalPref('examName', '');
                                     setSeasonalPref('examDate', null);
                                     setSeasonalPref('exam2Name', '');
                                     setSeasonalPref('exam2Date', null);
+                                    setSeasonalPref('exam3Name', '');
+                                    setSeasonalPref('exam3Date', null);
                                     setExamReviewShown(false);
                                   }
                                 },
@@ -803,7 +960,7 @@ export default function ProfileScreen() {
                                       <View style={{ marginTop: S.sm, gap: 4 }}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                           <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>
-                                            {language === 'tr' ? 'Bu hafta alışkanlık' : 'Habits this week'}
+                                            {language === 'tr' ? 'Bu haftaki ilerleme' : 'This week\'s progress'}
                                           </Text>
                                           <Text style={{ color: urgencyColor, fontSize: 11, fontWeight: '800' }}>
                                             {examHabitsActiveThisWeek}/{examPlanHabits.length} · {examWeekPct}%
@@ -870,13 +1027,63 @@ export default function ProfileScreen() {
                                 <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
                                   <TextInput
                                     value={exam2NameInput}
-                                    onChangeText={(v) => { setExam2NameInput(v); setSeasonalPref('exam2Name', v); }}
-                                    placeholder={language === 'tr' ? 'İkinci sınav adı (TYT, YDT...)' : 'Second exam name (e.g. ACT...)'}
+                                    onChangeText={(v) => {
+                                      setExam2NameInput(v);
+                                      setSeasonalPref('exam2Name', v);
+                                      if (!v.trim()) {
+                                        setExam2Suggestions([]);
+                                        setSelectedExam2Preset(null);
+                                        setExam2DailyMinutes(null);
+                                        return;
+                                      }
+                                      const detected = detectExamFromInput(v);
+                                      if (detected) {
+                                        setSelectedExam2Preset(detected);
+                                        setExam2Suggestions([]);
+                                      } else {
+                                        setSelectedExam2Preset(null);
+                                        setExam2Suggestions(matchExamName(v));
+                                      }
+                                    }}
+                                    placeholder={language === 'tr' ? 'İkinci sınav adı (örn: YDS, ALES...)' : 'Second exam name (e.g. IELTS, GRE...)'}
                                     placeholderTextColor={theme.onSurfaceVariant + '70'}
                                     style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }}
                                     returnKeyType="done"
+                                    onSubmitEditing={() => {
+                                      if (exam2Suggestions.length > 0) {
+                                        const top = exam2Suggestions[0];
+                                        setExam2NameInput(top.shortName);
+                                        setSeasonalPref('exam2Name', top.shortName);
+                                        setSelectedExam2Preset(top);
+                                        setExam2Suggestions([]);
+                                      }
+                                    }}
                                   />
                                 </View>
+
+                                {/* Autocomplete suggestions */}
+                                {exam2Suggestions.length > 0 && (
+                                  <View style={{ borderRadius: R.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface, overflow: 'hidden', marginTop: -S.xs }}>
+                                    {exam2Suggestions.map((preset, idx) => (
+                                      <TouchableOpacity
+                                        key={preset.id}
+                                        onPress={() => {
+                                          Haptics.selectionAsync();
+                                          setExam2NameInput(preset.shortName);
+                                          setSeasonalPref('exam2Name', preset.shortName);
+                                          setSelectedExam2Preset(preset);
+                                          setExam2Suggestions([]);
+                                        }}
+                                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 10, borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)' }}
+                                        activeOpacity={0.7}
+                                      >
+                                        <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface, minWidth: 44 }}>{preset.shortName}</Text>
+                                        <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, flex: 1 }} numberOfLines={1}>{preset.displayName}</Text>
+                                      </TouchableOpacity>
+                                    ))}
+                                  </View>
+                                )}
+
                                 <TouchableOpacity
                                   onPress={() => { Haptics.selectionAsync(); setShowExam2DatePicker(true); }}
                                   style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}
@@ -906,17 +1113,51 @@ export default function ProfileScreen() {
                                     }}
                                   />
                                 )}
+
+                                {/* Daily hours mini-wizard for exam 2 */}
+                                {selectedExam2Preset && (
+                                  <View style={{ gap: 6 }}>
+                                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.8 }}>
+                                      {language === 'tr' ? 'Günlük kaç saat çalışabilirsin?' : 'How many hours can you study daily?'}
+                                    </Text>
+                                    <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap' }}>
+                                      {HOURS_OPTIONS.map((opt) => {
+                                        const active = exam2DailyMinutes === opt.minutes;
+                                        return (
+                                          <TouchableOpacity
+                                            key={opt.minutes}
+                                            onPress={() => { Haptics.selectionAsync(); setExam2DailyMinutes(active ? null : opt.minutes); }}
+                                            style={{ paddingHorizontal: S.sm + 2, paddingVertical: 7, borderRadius: R.full, borderWidth: 1.5, borderColor: active ? exam2UrgencyColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? exam2UrgencyColor + '18' : 'transparent' }}
+                                            activeOpacity={0.7}
+                                          >
+                                            <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? exam2UrgencyColor : theme.onSurfaceVariant }}>
+                                              {language === 'tr' ? opt.labelTr : opt.labelEn}
+                                            </Text>
+                                          </TouchableOpacity>
+                                        );
+                                      })}
+                                    </View>
+                                    {selectedExam2Preset.tipTr && (
+                                      <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, opacity: 0.65, lineHeight: 15 }}>
+                                        {language === 'tr' ? selectedExam2Preset.tipTr : selectedExam2Preset.tipEn}
+                                      </Text>
+                                    )}
+                                  </View>
+                                )}
+
                                 <View style={{ flexDirection: 'row', gap: S.sm }}>
                                   <TouchableOpacity
                                     onPress={() => {
                                       if (exam2NameInput || exam2DateInput) {
                                         exam2PlanHabitIds.forEach(id => removeHabit(id));
-                                        exam2PlanTaskIds.forEach(id => removeTask(id));
+                                        exam2PlanTaskIds.forEach(id => retirePlanTask(id, 'exam2'));
                                         clearPlanIds('exam2');
                                         setExam2NameInput('');
                                         setExam2DateInput('');
                                         setSeasonalPref('exam2Name', '');
                                         setSeasonalPref('exam2Date', null);
+                                        setSelectedExam2Preset(null);
+                                        setExam2DailyMinutes(null);
                                       }
                                       setExam2Expanded(false);
                                     }}
@@ -929,12 +1170,25 @@ export default function ProfileScreen() {
                                   </TouchableOpacity>
                                   {exam2IsComplete && (
                                     <TouchableOpacity
-                                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExam2Expanded(false); setModePreview({ type: 'exam', key: Date.now() }); }}
+                                      onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                        setExam2Expanded(false);
+                                        const templateId = selectedExam2Preset
+                                          ? recommendTemplateId(
+                                              exam2DaysLeft,
+                                              selectedExam2Preset.category,
+                                              selectedExam2Preset.preferredTemplates,
+                                              exam2DailyMinutes ?? selectedExam2Preset.defaultDailyMinutes
+                                            )
+                                          : undefined;
+                                        setModePreview({ type: 'exam', key: Date.now(), templateId, examTipTr: selectedExam2Preset?.tipTr, examTipEn: selectedExam2Preset?.tipEn, examName: exam2NameInput, examDate: exam2DateInput });
+                                      }}
                                       style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: exam2UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }}
                                       activeOpacity={0.8}
                                     >
+                                      <BookOpen size={13} color="#fff" />
                                       <Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>
-                                        {language === 'tr' ? 'Planı Uygula' : 'Apply Plan'}
+                                        {language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}
                                       </Text>
                                     </TouchableOpacity>
                                   )}
@@ -942,6 +1196,211 @@ export default function ProfileScreen() {
                               </View>
                             )}
                           </View>
+
+                          {/* Üçüncü Sınav */}
+                          {exam2IsComplete && (
+                            <View style={{ marginTop: S.xs }}>
+                              <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', marginBottom: S.sm }} />
+                              {exam3IsComplete && !exam3Expanded ? (
+                                <TouchableOpacity
+                                  onPress={() => { Haptics.selectionAsync(); setExam3Expanded(true); }}
+                                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: (exam3DatePast ? theme.error : exam3UrgencyColor) + '10', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }}
+                                  activeOpacity={0.8}
+                                >
+                                  <Text style={{ fontSize: 14 }}>🎯</Text>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{exam3NameInput}</Text>
+                                    <Text style={{ color: exam3DatePast ? theme.error : exam3UrgencyColor, fontSize: 11, fontWeight: '700' }}>
+                                      {exam3DatePast ? (language === 'tr' ? 'Tarih geçti' : 'Date passed') : (language === 'tr' ? `${exam3DaysLeft} gün kaldı` : `${exam3DaysLeft} days left`)}
+                                    </Text>
+                                  </View>
+                                  <Text style={{ color: exam3UrgencyColor, fontSize: 11, fontWeight: '800' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
+                                </TouchableOpacity>
+                              ) : !exam3IsComplete && !exam3Expanded ? (
+                                <TouchableOpacity
+                                  onPress={() => { Haptics.selectionAsync(); setExam3Expanded(true); }}
+                                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }}
+                                  activeOpacity={0.7}
+                                >
+                                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>＋</Text>
+                                  <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, flex: 1 }}>
+                                    {language === 'tr' ? 'Üçüncü sınav ekle' : 'Add third exam'}
+                                  </Text>
+                                </TouchableOpacity>
+                              ) : null}
+                              {exam3Expanded && (
+                                <View style={{ gap: S.sm }}>
+                                  <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
+                                    <TextInput
+                                      value={exam3NameInput}
+                                      onChangeText={(v) => {
+                                        setExam3NameInput(v);
+                                        setSeasonalPref('exam3Name', v);
+                                        if (!v.trim()) {
+                                          setExam3Suggestions([]);
+                                          setSelectedExam3Preset(null);
+                                          setExam3DailyMinutes(null);
+                                          return;
+                                        }
+                                        const detected = detectExamFromInput(v);
+                                        if (detected) {
+                                          setSelectedExam3Preset(detected);
+                                          setExam3Suggestions([]);
+                                        } else {
+                                          setSelectedExam3Preset(null);
+                                          setExam3Suggestions(matchExamName(v));
+                                        }
+                                      }}
+                                      placeholder={language === 'tr' ? 'Üçüncü sınav adı (örn: YDS, DGS...)' : 'Third exam name (e.g. TOEFL, GMAT...)'}
+                                      placeholderTextColor={theme.onSurfaceVariant + '70'}
+                                      style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }}
+                                      returnKeyType="done"
+                                      onSubmitEditing={() => {
+                                        if (exam3Suggestions.length > 0) {
+                                          const top = exam3Suggestions[0];
+                                          setExam3NameInput(top.shortName);
+                                          setSeasonalPref('exam3Name', top.shortName);
+                                          setSelectedExam3Preset(top);
+                                          setExam3Suggestions([]);
+                                        }
+                                      }}
+                                    />
+                                  </View>
+
+                                  {exam3Suggestions.length > 0 && (
+                                    <View style={{ borderRadius: R.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface, overflow: 'hidden', marginTop: -S.xs }}>
+                                      {exam3Suggestions.map((preset, idx) => (
+                                        <TouchableOpacity
+                                          key={preset.id}
+                                          onPress={() => {
+                                            Haptics.selectionAsync();
+                                            setExam3NameInput(preset.shortName);
+                                            setSeasonalPref('exam3Name', preset.shortName);
+                                            setSelectedExam3Preset(preset);
+                                            setExam3Suggestions([]);
+                                          }}
+                                          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 10, borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)' }}
+                                          activeOpacity={0.7}
+                                        >
+                                          <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface, minWidth: 44 }}>{preset.shortName}</Text>
+                                          <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, flex: 1 }} numberOfLines={1}>{preset.displayName}</Text>
+                                        </TouchableOpacity>
+                                      ))}
+                                    </View>
+                                  )}
+
+                                  <TouchableOpacity
+                                    onPress={() => { Haptics.selectionAsync(); setShowExam3DatePicker(true); }}
+                                    style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}
+                                    activeOpacity={0.7}
+                                  >
+                                    <Text style={{ color: exam3DateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>
+                                      {exam3DateInput ? formatExamDate(exam3DateInput) : (language === 'tr' ? 'Sınav tarihi seç' : 'Select date')}
+                                    </Text>
+                                    <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
+                                  </TouchableOpacity>
+                                  {showExam3DatePicker && (
+                                    <DateTimePicker
+                                      value={exam3DateObj}
+                                      mode="date"
+                                      display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                                      locale={language === 'tr' ? 'tr-TR' : 'en-GB'}
+                                      minimumDate={new Date()}
+                                      onChange={(event: DateTimePickerEvent, date?: Date) => {
+                                        if (Platform.OS === 'android') setShowExam3DatePicker(false);
+                                        if (event.type === 'dismissed') { setShowExam3DatePicker(false); return; }
+                                        if (date) {
+                                          const iso = date.toISOString().split('T')[0];
+                                          setExam3DateInput(iso);
+                                          setSeasonalPref('exam3Date', iso);
+                                          if (Platform.OS === 'ios') setShowExam3DatePicker(false);
+                                        }
+                                      }}
+                                    />
+                                  )}
+
+                                  {selectedExam3Preset && (
+                                    <View style={{ gap: 6 }}>
+                                      <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.8 }}>
+                                        {language === 'tr' ? 'Günlük kaç saat çalışabilirsin?' : 'How many hours can you study daily?'}
+                                      </Text>
+                                      <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap' }}>
+                                        {HOURS_OPTIONS.map((opt) => {
+                                          const active = exam3DailyMinutes === opt.minutes;
+                                          return (
+                                            <TouchableOpacity
+                                              key={opt.minutes}
+                                              onPress={() => { Haptics.selectionAsync(); setExam3DailyMinutes(active ? null : opt.minutes); }}
+                                              style={{ paddingHorizontal: S.sm + 2, paddingVertical: 7, borderRadius: R.full, borderWidth: 1.5, borderColor: active ? exam3UrgencyColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? exam3UrgencyColor + '18' : 'transparent' }}
+                                              activeOpacity={0.7}
+                                            >
+                                              <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? exam3UrgencyColor : theme.onSurfaceVariant }}>
+                                                {language === 'tr' ? opt.labelTr : opt.labelEn}
+                                              </Text>
+                                            </TouchableOpacity>
+                                          );
+                                        })}
+                                      </View>
+                                      {selectedExam3Preset.tipTr && (
+                                        <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, opacity: 0.65, lineHeight: 15 }}>
+                                          {language === 'tr' ? selectedExam3Preset.tipTr : selectedExam3Preset.tipEn}
+                                        </Text>
+                                      )}
+                                    </View>
+                                  )}
+
+                                  <View style={{ flexDirection: 'row', gap: S.sm }}>
+                                    <TouchableOpacity
+                                      onPress={() => {
+                                        if (exam3NameInput || exam3DateInput) {
+                                          exam3PlanHabitIds.forEach(id => removeHabit(id));
+                                          exam3PlanTaskIds.forEach(id => retirePlanTask(id, 'exam3'));
+                                          clearPlanIds('exam3');
+                                          setExam3NameInput('');
+                                          setExam3DateInput('');
+                                          setSeasonalPref('exam3Name', '');
+                                          setSeasonalPref('exam3Date', null);
+                                          setSelectedExam3Preset(null);
+                                          setExam3DailyMinutes(null);
+                                        }
+                                        setExam3Expanded(false);
+                                      }}
+                                      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>
+                                        {language === 'tr' ? 'Kapat' : 'Close'}
+                                      </Text>
+                                    </TouchableOpacity>
+                                    {exam3IsComplete && (
+                                      <TouchableOpacity
+                                        onPress={() => {
+                                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                          setExam3Expanded(false);
+                                          const templateId = selectedExam3Preset
+                                            ? recommendTemplateId(
+                                                exam3DaysLeft,
+                                                selectedExam3Preset.category,
+                                                selectedExam3Preset.preferredTemplates,
+                                                exam3DailyMinutes ?? selectedExam3Preset.defaultDailyMinutes
+                                              )
+                                            : undefined;
+                                          setModePreview({ type: 'exam', key: Date.now(), templateId, examTipTr: selectedExam3Preset?.tipTr, examTipEn: selectedExam3Preset?.tipEn, examName: exam3NameInput, examDate: exam3DateInput });
+                                        }}
+                                        style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: exam3UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }}
+                                        activeOpacity={0.8}
+                                      >
+                                        <BookOpen size={13} color="#fff" />
+                                        <Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>
+                                          {language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    )}
+                                  </View>
+                                </View>
+                              )}
+                            </View>
+                          )}
                         </View>
                       )}
 
@@ -951,13 +1410,62 @@ export default function ProfileScreen() {
                           <View ref={examInputViewRef} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
                             <TextInput
                               value={examNameInput}
-                              onChangeText={(v) => { setExamNameInput(v); setSeasonalPref('examName', v); }}
-                              placeholder={language === 'tr' ? 'Sınav adı (örn: ALES, DGS...)' : 'Exam name (e.g. SAT, GRE...)'}
+                              onChangeText={(v) => {
+                                setExamNameInput(v);
+                                setSeasonalPref('examName', v);
+                                if (!v.trim()) {
+                                  setExamSuggestions([]);
+                                  setSelectedExamPreset(null);
+                                  setExamDailyMinutes(null);
+                                  return;
+                                }
+                                const detected = detectExamFromInput(v);
+                                if (detected) {
+                                  setSelectedExamPreset(detected);
+                                  setExamSuggestions([]);
+                                } else {
+                                  setSelectedExamPreset(null);
+                                  setExamSuggestions(matchExamName(v));
+                                }
+                              }}
+                              placeholder={language === 'tr' ? 'Sınav adı (örn: ALES, DGS, KPSS...)' : 'Exam name (e.g. SAT, GRE, IELTS...)'}
                               placeholderTextColor={theme.onSurfaceVariant + '70'}
                               style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }}
                               returnKeyType="done"
+                              onSubmitEditing={() => {
+                                if (examSuggestions.length > 0) {
+                                  const top = examSuggestions[0];
+                                  setExamNameInput(top.shortName);
+                                  setSeasonalPref('examName', top.shortName);
+                                  setSelectedExamPreset(top);
+                                  setExamSuggestions([]);
+                                }
+                              }}
                             />
                           </View>
+
+                          {/* Autocomplete suggestions */}
+                          {examSuggestions.length > 0 && (
+                            <View style={{ borderRadius: R.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface, overflow: 'hidden', marginTop: -S.xs }}>
+                              {examSuggestions.map((preset, idx) => (
+                                <TouchableOpacity
+                                  key={preset.id}
+                                  onPress={() => {
+                                    Haptics.selectionAsync();
+                                    setExamNameInput(preset.shortName);
+                                    setSeasonalPref('examName', preset.shortName);
+                                    setSelectedExamPreset(preset);
+                                    setExamSuggestions([]);
+                                  }}
+                                  style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 10, borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)' }}
+                                  activeOpacity={0.7}
+                                >
+                                  <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface, minWidth: 44 }}>{preset.shortName}</Text>
+                                  <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, flex: 1 }} numberOfLines={1}>{preset.displayName}</Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          )}
 
                           <TouchableOpacity
                             onPress={() => { Haptics.selectionAsync(); setShowDatePicker(true); }}
@@ -990,6 +1498,37 @@ export default function ProfileScreen() {
                             />
                           )}
 
+                          {/* Daily hours mini-wizard — shown when a recognized exam is detected */}
+                          {selectedExamPreset && (
+                            <View style={{ gap: 6 }}>
+                              <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.8 }}>
+                                {language === 'tr' ? 'Günlük kaç saat çalışabilirsin?' : 'How many hours can you study daily?'}
+                              </Text>
+                              <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap' }}>
+                                {HOURS_OPTIONS.map((opt) => {
+                                  const active = examDailyMinutes === opt.minutes;
+                                  return (
+                                    <TouchableOpacity
+                                      key={opt.minutes}
+                                      onPress={() => { Haptics.selectionAsync(); setExamDailyMinutes(active ? null : opt.minutes); }}
+                                      style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.sm + 2, paddingVertical: 7, borderRadius: R.full, borderWidth: 1.5, borderColor: active ? urgencyColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? urgencyColor + '18' : 'transparent' }}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? urgencyColor : theme.onSurfaceVariant }}>
+                                        {language === 'tr' ? opt.labelTr : opt.labelEn}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                              {selectedExamPreset.tipTr && (
+                                <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, opacity: 0.65, lineHeight: 15 }}>
+                                  {language === 'tr' ? selectedExamPreset.tipTr : selectedExamPreset.tipEn}
+                                </Text>
+                              )}
+                            </View>
+                          )}
+
                           <View style={{ flexDirection: 'row', gap: S.sm }}>
                             <TouchableOpacity
                               onPress={() => { setExamExpanded(false); }}
@@ -1002,7 +1541,19 @@ export default function ProfileScreen() {
                             </TouchableOpacity>
                             {examIsComplete && (
                               <TouchableOpacity
-                                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExamExpanded(false); setModePreview({ type: 'exam', key: Date.now() }); }}
+                                onPress={() => {
+                                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                  setExamExpanded(false);
+                                  const templateId = selectedExamPreset
+                                    ? recommendTemplateId(
+                                        examDaysLeft,
+                                        selectedExamPreset.category,
+                                        selectedExamPreset.preferredTemplates,
+                                        examDailyMinutes ?? selectedExamPreset.defaultDailyMinutes
+                                      )
+                                    : undefined;
+                                  setModePreview({ type: 'exam', key: Date.now(), templateId, examTipTr: selectedExamPreset?.tipTr, examTipEn: selectedExamPreset?.tipEn, examName: examNameInput, examDate: examDateInput });
+                                }}
                                 style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: urgencyColor, borderRadius: R.full, paddingVertical: S.sm + 2 }}
                                 activeOpacity={0.8}
                               >
@@ -1057,7 +1608,7 @@ export default function ProfileScreen() {
                                   style: 'destructive',
                                   onPress: () => {
                                     tezPlanHabitIds.forEach(id => removeHabit(id));
-                                    tezPlanTaskIds.forEach(id => removeTask(id));
+                                    tezPlanTaskIds.forEach(id => retirePlanTask(id, 'tez'));
                                     clearPlanIds('tez');
                                     setTezNameInput('');
                                     setTezDateInput('');
@@ -1111,7 +1662,7 @@ export default function ProfileScreen() {
                                     {tezPlanHabits.length > 0 && (
                                       <View style={{ marginTop: S.sm, gap: 4 }}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                          <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Bu hafta' : 'This week'}</Text>
+                                          <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Bu haftaki ilerleme' : "This week's progress"}</Text>
                                           <Text style={{ color: tezUrgencyColor, fontSize: 11, fontWeight: '800' }}>{tezHabitsActiveThisWeek}/{tezPlanHabits.length} · {tezWeekPct}%</Text>
                                         </View>
                                         <View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
@@ -1198,7 +1749,7 @@ export default function ProfileScreen() {
                                   style: 'destructive',
                                   onPress: () => {
                                     mulakatPlanHabitIds.forEach(id => removeHabit(id));
-                                    mulakatPlanTaskIds.forEach(id => removeTask(id));
+                                    mulakatPlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat'));
                                     clearPlanIds('mulakat');
                                     setMulakatNameInput('');
                                     setMulakatDateInput('');
@@ -1252,7 +1803,7 @@ export default function ProfileScreen() {
                                     {mulakatPlanHabits.length > 0 && (
                                       <View style={{ marginTop: S.sm, gap: 4 }}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                          <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Bu hafta' : 'This week'}</Text>
+                                          <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Bu haftaki ilerleme' : "This week's progress"}</Text>
                                           <Text style={{ color: mulakatUrgencyColor, fontSize: 11, fontWeight: '800' }}>{mulakatHabitsActiveThisWeek}/{mulakatPlanHabits.length} · {mulakatWeekPct}%</Text>
                                         </View>
                                         <View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
@@ -1315,9 +1866,12 @@ export default function ProfileScreen() {
       {modePreview && (
         <TurkishModeBanner
           key={modePreview.key}
+          defaultTemplateId={modePreview.templateId}
           mode={getModePreview(modePreview.type, {
-            examName: examNameInput,
-            examDate: examDateInput,
+            examName: modePreview.examName ?? examNameInput,
+            examDate: modePreview.examDate ?? examDateInput,
+            examTipTr: modePreview.examTipTr,
+            examTipEn: modePreview.examTipEn,
             tezName: tezNameInput,
             tezDate: tezDateInput,
             mulakatName: mulakatNameInput,
@@ -1388,19 +1942,20 @@ export default function ProfileScreen() {
             const t = modePreview.type;
             if (t === 'exam' || t === 'yks' || t === 'kpss') {
               examPlanHabitIds.forEach(id => removeHabit(id));
-              examPlanTaskIds.forEach(id => removeTask(id));
+              examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam'));
               clearPlanIds('exam');
             } else if (t === 'tez') {
               tezPlanHabitIds.forEach(id => removeHabit(id));
-              tezPlanTaskIds.forEach(id => removeTask(id));
+              tezPlanTaskIds.forEach(id => retirePlanTask(id, 'tez'));
               clearPlanIds('tez');
             } else if (t === 'mulakat') {
               mulakatPlanHabitIds.forEach(id => removeHabit(id));
-              mulakatPlanTaskIds.forEach(id => removeTask(id));
+              mulakatPlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat'));
               clearPlanIds('mulakat');
             } else {
               ramazanPlanHabitIds.forEach(id => removeHabit(id));
-              ramazanPlanTaskIds.forEach(id => removeTask(id));
+              habits.filter(h => RAMAZAN_HABIT_NAMES.some(n => n.toLowerCase() === h.name.toLowerCase())).forEach(h => removeHabit(h.id));
+              ramazanPlanTaskIds.forEach(id => retirePlanTask(id, 'ramazan'));
               clearPlanIds('ramazan');
             }
             setModePreview(null);

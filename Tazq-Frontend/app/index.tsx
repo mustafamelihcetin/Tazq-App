@@ -9,7 +9,7 @@ import { BentoCard } from '../components/BentoCard';
 import { DynamicIsland } from '../components/DynamicIsland';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { MotiView, MotiText } from 'moti';
-import { Plus, FileText, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp, Flame, Check } from 'lucide-react-native';
+import { Plus, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp, Flame, Check } from 'lucide-react-native';
 import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
 import { TaskService, FocusService, DailyFocusData } from '../services/api';
@@ -200,20 +200,24 @@ export default function HomeScreen() {
     if (firstHalf === 0) return null;
     return Math.round(((secondHalf - firstHalf) / firstHalf) * 100);
   })();
-  const completedCount = tasks.filter(t => t.isCompleted).length;
-  const totalCount = tasks.length || 1;
-  const completionRate = completedCount / totalCount;
+  // Bu haftaki görevler (son 7 gün, dueDate'e göre) — tüm zamanlık değil
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+  const weeklyTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate) >= sevenDaysAgo);
+  const completedCount = weeklyTasks.filter(t => t.isCompleted).length;
+  const totalCount = weeklyTasks.length;
+  const completionRate = totalCount > 0 ? completedCount / totalCount : 0;
   const focusScore = Math.min(weeklyMinutes / 300, 1);
   const streakScore = Math.min(streak / 14, 1);
   const momentum = Math.round(completionRate * 40 + focusScore * 35 + streakScore * 25);
-  const warningColor = isDark ? '#FFB340' : '#FF9500';
-  const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? warningColor : theme.primary;
+  const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? theme.warning : theme.primary;
 
   // Momentum history (last 7 days for sparkline)
   const momentumHistory = getLastNDays(7);
 
   // Daily target: how many tasks + minutes needed to hit 75
-  const targetTasks = Math.max(0, Math.ceil(((75 - momentum) / 40) * totalCount));
+  const targetTasks = Math.max(0, Math.ceil(((75 - momentum) / 40) * Math.max(totalCount, 3)));
   const targetFocusMin = Math.max(0, Math.ceil(((75 - momentum) / 35) * 300 - weeklyMinutes));
   const alreadyAt75 = momentum >= 75;
 
@@ -404,9 +408,9 @@ export default function HomeScreen() {
   };
 
   const priorityColor = (p: string) => {
-    if (p === 'High') return '#ff3b30';
-    if (p === 'Medium') return '#ff9f0a';
-    return '#34c759';
+    if (p === 'High') return theme.priorityHigh;
+    if (p === 'Medium') return theme.priorityMedium;
+    return theme.priorityLow;
   };
 
   return (
@@ -439,7 +443,7 @@ export default function HomeScreen() {
                         </View>
                     </View>
 
-                    <TouchableOpacity onPress={() => router.push('/cockpit')} style={styles.avatarContainer}>
+                    <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarContainer}>
                         <Image
                             source={getAvatarSource(user?.avatar || null)}
                             style={styles.avatar}
@@ -527,7 +531,7 @@ export default function HomeScreen() {
             style={{ flex: 1 }}
             contentContainerStyle={[styles.scrollContent, { paddingTop: S.lg, paddingBottom: 120 }]}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchTasks} tintColor={theme.primary} />}
+            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} />}
         >
             {/* Welcome Hero */}
             <MotiView
@@ -555,6 +559,97 @@ export default function HomeScreen() {
             {/* Focus Widget */}
             <DynamicIsland />
 
+            {/* ── TODAY CARD ── */}
+            <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
+            <TouchableOpacity onPress={handleTodayDoubleTap} activeOpacity={1}>
+            <BentoCard index={0} style={{ overflow: 'hidden', padding: S.md }}>
+                <LinearGradient
+                    colors={todayHighlight
+                        ? (isDark ? [theme.tertiary + '45', 'transparent'] : [theme.tertiary + '30', 'transparent'])
+                        : todayCompleted >= dailyGoal
+                        ? (isDark ? [theme.tertiary + '30', 'transparent'] : [theme.tertiary + '20', 'transparent'])
+                        : (isDark ? [theme.primary + '28', 'transparent'] : [theme.primary + '18', 'transparent'])}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.lg }}>
+                    {/* Left: text stats */}
+                    <View style={{ flex: 1, gap: 6 }}>
+                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>{t.todayLabel}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
+                            <Text style={{ fontSize: 44, fontWeight: '900', letterSpacing: -2.5, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: 48 }}>
+                                {todayCompleted}
+                            </Text>
+                            <Text style={{ fontSize: 18, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.45, letterSpacing: -0.5 }}>
+                                /{dailyGoal}
+                            </Text>
+                        </View>
+                        <MotiView
+                            key={`today-sub-${todayBurstKey}`}
+                            from={{ scale: todayBurstKey > 0 ? 1.22 : 1, opacity: todayBurstKey > 0 ? 0 : 1 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ type: 'spring', damping: 11, stiffness: 220 }}
+                        >
+                            <Text style={{ fontSize: F.caption, fontWeight: '800', letterSpacing: 0.3,
+                                color: todayHighlight ? (todayCompleted >= dailyGoal ? theme.tertiary : theme.primary) : theme.onSurfaceVariant,
+                                opacity: todayHighlight ? 1 : 0.55 }}>
+                                {todayHighlight
+                                    ? todaySurprise
+                                    : todayCompleted >= dailyGoal
+                                    ? (language === 'tr' ? 'Tümü tamamlandı 🎉' : 'All done 🎉')
+                                    : (language === 'tr' ? 'görev tamamlandı' : 'tasks completed')}
+                            </Text>
+                        </MotiView>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                            <Zap size={10} color={theme.primary} fill={theme.primary} />
+                            <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                                <MotiView
+                                    animate={{ width: `${Math.min((dailyFocusMinutes / Math.max(dailyGoalMinutes, 1)) * 100, 100)}%` as any }}
+                                    transition={{ type: 'timing', duration: 900 }}
+                                    style={{ height: '100%', borderRadius: 2, backgroundColor: theme.primary }}
+                                />
+                            </View>
+                            <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.4 }}>
+                                {dailyFocusMinutes}{language === 'tr' ? 'dk' : 'm'}
+                            </Text>
+                        </View>
+                    </View>
+                    {/* Right: ring */}
+                    <View style={{ width: 90, height: 90 }}>
+                        <Svg width={90} height={90}>
+                            <Defs>
+                                <SvgLinearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                                    <Stop offset="0%" stopColor={todayCompleted >= dailyGoal ? theme.tertiary : theme.primary} stopOpacity="1" />
+                                    <Stop offset="100%" stopColor={todayCompleted >= dailyGoal
+                                        ? (isDark ? '#FB923C' : '#059669')
+                                        : theme.secondary} stopOpacity="1" />
+                                </SvgLinearGradient>
+                            </Defs>
+                            <G rotation="-90" origin="45,45">
+                                <Circle cx="45" cy="45" r="37" fill="none"
+                                    stroke={isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}
+                                    strokeWidth={9} />
+                                <Circle cx="45" cy="45" r="37" fill="none"
+                                    stroke="url(#ringGrad)"
+                                    strokeWidth={9}
+                                    strokeLinecap="round"
+                                    strokeDasharray={`${2 * Math.PI * 37}`}
+                                    strokeDashoffset={`${2 * Math.PI * 37 * (1 - Math.min(dailyGoal > 0 ? todayCompleted / dailyGoal : 0, 1))}`}
+                                />
+                            </G>
+                        </Svg>
+                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontSize: 22, fontWeight: '900', letterSpacing: -1.2, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: 24 }}>
+                                {Math.round((todayCompleted / Math.max(dailyGoal, 1)) * 100)}
+                            </Text>
+                            <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.45 }}>%</Text>
+                        </View>
+                    </View>
+                </View>
+            </BentoCard>
+            </TouchableOpacity>
+            </View>
+
             {/* Next Mission Widget */}
             <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <MotiView
@@ -562,15 +657,15 @@ export default function HomeScreen() {
                     animate={{ opacity: 1, translateY: 0 }}
                     transition={{ type: 'spring', damping: 15 }}
                 >
-                    <BentoCard index={0} style={[styles.nextMissionCard, { minHeight: 180 }]}>
+                    <BentoCard index={1} style={[styles.nextMissionCard, { minHeight: 180 }]}>
                         <LinearGradient
                             colors={!topTask
                                 ? ['#8e8e93', 'transparent']
                                 : topTask.priority === 'High'
-                                ? ['#ff3b30', 'transparent']
+                                ? [theme.priorityHigh, 'transparent']
                                 : topTask.priority === 'Medium'
-                                ? ['#ff9f0a', 'transparent']
-                                : ['#34c759', 'transparent']}
+                                ? [theme.priorityMedium, 'transparent']
+                                : [theme.priorityLow, 'transparent']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.25 : 0.12 }]}
@@ -675,19 +770,19 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {/* ── Section Header ── */}
-            <TouchableOpacity onPress={handleHeaderDoubleTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
+            {/* ── Section Header — easter egg sadece aktifken görünür ── */}
+            {headerHighlight && (
+              <TouchableOpacity onPress={handleHeaderDoubleTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
                 <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
-                    <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1.8, color: headerHighlight ? theme.primary : theme.onSurfaceVariant, opacity: headerHighlight ? 1 : 0.45 }}>
-                        {headerHighlight
-                            ? (language === 'tr' ? '✦ İYİ GİDİYOR' : '✦ LOOKING GOOD')
-                            : (language === 'tr' ? 'GENEL BAKIŞ' : 'OVERVIEW')}
-                    </Text>
-                    <Text style={{ fontSize: 9, fontWeight: '700', color: headerHighlight ? theme.primary : theme.onSurfaceVariant, opacity: headerHighlight ? 0.7 : 0.3 }}>
-                        {headerHighlight ? (language === 'tr' ? 'devam et →' : 'keep going →') : (language === 'tr' ? 'Bu Hafta' : 'This Week')}
-                    </Text>
+                  <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1.8, color: theme.primary }}>
+                    {language === 'tr' ? '✦ İYİ GİDİYOR' : '✦ LOOKING GOOD'}
+                  </Text>
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.primary, opacity: 0.7 }}>
+                    {language === 'tr' ? 'devam et →' : 'keep going →'}
+                  </Text>
                 </Animated.View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            )}
 
             {/* Metrics Grid */}
             <View style={{ paddingHorizontal: S.lg, gap: S.md }}>
@@ -696,10 +791,10 @@ export default function HomeScreen() {
                 <View style={{ flexDirection: 'row', gap: S.sm }}>
                     {[
                         {
-                            icon: <Flame size={16} color="#FF6B35" />,
+                            icon: <Flame size={16} color={theme.streak} />,
                             value: statsLoading ? '--' : `${streak}`,
                             label: language === 'tr' ? 'günlük seri' : 'day streak',
-                            color: '#FF6B35',
+                            color: theme.streak,
                         },
                         {
                             icon: <Zap size={16} color={theme.primary} fill={theme.primary} />,
@@ -710,10 +805,10 @@ export default function HomeScreen() {
                             color: theme.primary,
                         },
                         {
-                            icon: <Check size={16} color="#34C759" strokeWidth={3} />,
-                            value: `${Math.round(completionRate * 100)}%`,
+                            icon: <Check size={16} color={theme.success} strokeWidth={3} />,
+                            value: totalCount > 0 ? `${Math.round(completionRate * 100)}%` : '–',
                             label: language === 'tr' ? 'tamamlanma' : 'completion',
-                            color: '#34C759',
+                            color: theme.success,
                         },
                     ].map((stat, i) => {
                         const isHighlighted = chipHighlights[i];
@@ -759,7 +854,7 @@ export default function HomeScreen() {
                 </View>
 
                 {/* ── WEEKLY FOCUS CHART ── */}
-                <BentoCard index={1} style={{ padding: S.md, overflow: 'hidden' }}>
+                <BentoCard index={2} style={{ padding: S.md, overflow: 'hidden' }}>
                     <LinearGradient
                         colors={isDark
                             ? [theme.primary + '12', 'transparent']
@@ -860,95 +955,6 @@ export default function HomeScreen() {
                     </View>
                 </BentoCard>
 
-                {/* ── TODAY CARD — full width, horizontal ── */}
-                <TouchableOpacity onPress={handleTodayDoubleTap} activeOpacity={1}>
-                <BentoCard index={2} style={{ overflow: 'hidden', padding: S.md }}>
-                    <LinearGradient
-                        colors={todayHighlight
-                            ? (isDark ? [theme.tertiary + '45', 'transparent'] : [theme.tertiary + '30', 'transparent'])
-                            : todayCompleted >= dailyGoal
-                            ? (isDark ? [theme.tertiary + '30', 'transparent'] : [theme.tertiary + '20', 'transparent'])
-                            : (isDark ? [theme.primary + '28', 'transparent'] : [theme.primary + '18', 'transparent'])}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFill}
-                    />
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.lg }}>
-                        {/* Left: text stats */}
-                        <View style={{ flex: 1, gap: 6 }}>
-                            <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>{t.todayLabel}</Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
-                                <Text style={{ fontSize: 44, fontWeight: '900', letterSpacing: -2.5, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: 48 }}>
-                                    {todayCompleted}
-                                </Text>
-                                <Text style={{ fontSize: 18, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.45, letterSpacing: -0.5 }}>
-                                    /{dailyGoal}
-                                </Text>
-                            </View>
-                            <MotiView
-                                key={`today-sub-${todayBurstKey}`}
-                                from={{ scale: todayBurstKey > 0 ? 1.22 : 1, opacity: todayBurstKey > 0 ? 0 : 1 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ type: 'spring', damping: 11, stiffness: 220 }}
-                            >
-                                <Text style={{ fontSize: F.caption, fontWeight: '800', letterSpacing: 0.3,
-                                    color: todayHighlight ? (todayCompleted >= dailyGoal ? theme.tertiary : theme.primary) : theme.onSurfaceVariant,
-                                    opacity: todayHighlight ? 1 : 0.55 }}>
-                                    {todayHighlight
-                                        ? todaySurprise
-                                        : todayCompleted >= dailyGoal
-                                        ? (language === 'tr' ? 'Tümü tamamlandı 🎉' : 'All done 🎉')
-                                        : (language === 'tr' ? 'görev tamamlandı' : 'tasks completed')}
-                                </Text>
-                            </MotiView>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                                <Zap size={10} color={theme.primary} fill={theme.primary} />
-                                <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                                    <MotiView
-                                        animate={{ width: `${Math.min((dailyFocusMinutes / Math.max(dailyGoalMinutes, 1)) * 100, 100)}%` as any }}
-                                        transition={{ type: 'timing', duration: 900 }}
-                                        style={{ height: '100%', borderRadius: 2, backgroundColor: theme.primary }}
-                                    />
-                                </View>
-                                <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.4 }}>
-                                    {dailyFocusMinutes}{language === 'tr' ? 'dk' : 'm'}
-                                </Text>
-                            </View>
-                        </View>
-                        {/* Right: ring */}
-                        <View style={{ width: 90, height: 90 }}>
-                            <Svg width={90} height={90}>
-                                <Defs>
-                                    <SvgLinearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-                                        <Stop offset="0%" stopColor={todayCompleted >= dailyGoal ? theme.tertiary : theme.primary} stopOpacity="1" />
-                                        <Stop offset="100%" stopColor={todayCompleted >= dailyGoal
-                                            ? (isDark ? '#FB923C' : '#059669')
-                                            : theme.secondary} stopOpacity="1" />
-                                    </SvgLinearGradient>
-                                </Defs>
-                                <G rotation="-90" origin="45,45">
-                                    <Circle cx="45" cy="45" r="37" fill="none"
-                                        stroke={isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}
-                                        strokeWidth={9} />
-                                    <Circle cx="45" cy="45" r="37" fill="none"
-                                        stroke="url(#ringGrad)"
-                                        strokeWidth={9}
-                                        strokeLinecap="round"
-                                        strokeDasharray={`${2 * Math.PI * 37}`}
-                                        strokeDashoffset={`${2 * Math.PI * 37 * (1 - Math.min(dailyGoal > 0 ? todayCompleted / dailyGoal : 0, 1))}`}
-                                    />
-                                </G>
-                            </Svg>
-                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-                                <Text style={{ fontSize: 22, fontWeight: '900', letterSpacing: -1.2, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: 24 }}>
-                                    {Math.round((todayCompleted / Math.max(dailyGoal, 1)) * 100)}
-                                </Text>
-                                <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.45 }}>%</Text>
-                            </View>
-                        </View>
-                    </View>
-                </BentoCard>
-                </TouchableOpacity>
-
 
             </View>
         </ScrollView>
@@ -968,16 +974,21 @@ export default function HomeScreen() {
                           <View style={styles.sheetHandle} />
                         </View>
                         <View style={styles.sheetHeader}>
-                            <View style={[styles.sheetIcon, { backgroundColor: theme.primaryContainer }]}>
-                                <FileText size={20} color={theme.primary} />
+                            <View style={[styles.sheetIcon, { backgroundColor: '#F59E0B20' }]}>
+                                <Zap size={20} color="#F59E0B" fill="#F59E0B" />
                             </View>
-                            <Text style={[styles.quickDraftTitle, { color: theme.onSurface }]}>{t.draftNote}</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.quickDraftTitle, { color: theme.onSurface }]}>{t.draftNote}</Text>
+                                <Text style={{ fontSize: F.caption, fontWeight: '600', color: '#F59E0B', opacity: 0.8, marginTop: 1 }}>
+                                    {language === 'tr' ? 'Aklındakini yaz, sonra düzenlersin' : 'Capture now, refine later'}
+                                </Text>
+                            </View>
                         </View>
 
                         <View style={[styles.quickInputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', marginTop: S.md }]}>
-                            <TextInput 
+                            <TextInput
                                 style={[styles.quickInput, { color: theme.onSurface, height: 60 }]}
-                                placeholder={t.draftPlaceholder}
+                                placeholder={language === 'tr' ? 'Aklına ne geldi?' : "What's on your mind?"}
                                 placeholderTextColor={theme.onSurfaceVariant + '99'}
                                 value={draftTitle}
                                 onChangeText={setDraftTitle}
@@ -985,12 +996,15 @@ export default function HomeScreen() {
                                 onSubmitEditing={handleQuickSave}
                             />
                         </View>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#F59E0B', opacity: 0.55, marginTop: S.sm, letterSpacing: 0.2 }}>
+                            {language === 'tr' ? '📌 Görevler ekranına taslak olarak eklenir' : '📌 Saved as a draft in your task list'}
+                        </Text>
 
                         <View style={styles.quickActions}>
-                            <TouchableOpacity 
-                                onPress={handleQuickSave} 
-                                disabled={isSavingDraft || !draftTitle.trim()} 
-                                style={[styles.quickSave, { backgroundColor: draftTitle.trim() ? theme.primary : theme.surfaceContainerHigh, flex: 1 }]}
+                            <TouchableOpacity
+                                onPress={handleQuickSave}
+                                disabled={isSavingDraft || !draftTitle.trim()}
+                                style={[styles.quickSave, { backgroundColor: draftTitle.trim() ? '#F59E0B' : theme.surfaceContainerHigh, flex: 1 }]}
                             >
                                 {isSavingDraft ? <ActivityIndicator color="white" /> : (
                                     <Text style={{ color: draftTitle.trim() ? 'white' : theme.onSurfaceVariant, fontWeight: '900' }}>{t.save}</Text>
@@ -1007,9 +1021,12 @@ export default function HomeScreen() {
       {/* Quick Draft FAB */}
       <TouchableOpacity
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareDraft(); setQuickDraftVisible(true); }}
-        style={[styles.fab, { backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F', shadowColor: '#000', bottom: Math.max(insets.bottom, 16) + 88 }]}
+        style={[styles.fab, { backgroundColor: '#F59E0B', shadowColor: '#F59E0B', bottom: Math.max(insets.bottom, 16) + 88, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingVertical: 14, borderRadius: 100 }]}
       >
-        <Plus size={32} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={3} />
+        <Zap size={20} color="#fff" fill="#fff" />
+        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '900', letterSpacing: 0.3 }}>
+          {language === 'tr' ? 'Hızlı Taslak' : 'Quick Draft'}
+        </Text>
       </TouchableOpacity>
 
       <BottomNavBar />
@@ -1083,6 +1100,6 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', paddingHorizontal: S.lg, gap: S.md, marginTop: S.md },
   actionBtn: { flex: 1, borderRadius: R.lg, alignItems: 'center', gap: S.sm },
   actionLabel: { fontWeight: '800' },
-  fab: { position: 'absolute', right: S.lg, width: 64, height: 64, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center', elevation: 10, zIndex: 100, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16 },
+  fab: { position: 'absolute', right: S.lg, minHeight: 50, elevation: 10, zIndex: 100, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16 },
 });
 

@@ -1,8 +1,13 @@
 /**
- * Tazq Design System — v4
+ * Tazq Design System — v5
  *
  * Light: Ceramic White — clean, airy, electric blue accent
- * Dark:  Midnight Indigo — deep zinc with soft indigo/emerald glow
+ * Dark:  Midnight Indigo — deep zinc with soft indigo/violet glow
+ *
+ * v5 changes:
+ * - Light surface hiyerarşisi güçlendirildi (Highest artık Zinc 300)
+ * - Dark secondary Violet 400, tertiary Emerald 400 (light mode hue'larıyla tutarlı)
+ * - Semantic color token'ları eklendi: warning, priorityHigh/Medium/Low, streak, success, info
  */
 
 const lightPalette = {
@@ -31,11 +36,20 @@ const lightPalette = {
   surfaceContainerLowest: '#FFFFFF',
   surfaceContainerLow: '#FAFAFA',
   surfaceContainer: '#F0F0F2',
-  surfaceContainerHigh: '#E8E8EB',
-  surfaceContainerHighest: '#E4E4E7',
+  surfaceContainerHigh: '#E0E0E4',      // Daha belirgin adım (eski: #E8E8EB)
+  surfaceContainerHighest: '#D4D4D8',  // Zinc 300 — açıkça ayırt edilebilir (eski: #E4E4E7)
 
   outline: 'rgba(0,0,0,0.08)',
   outlineVariant: 'rgba(0,0,0,0.04)',
+
+  // Semantic / status tokens — tema sisteminde merkezi tanım
+  warning: '#FF9500',
+  priorityHigh: '#FF3B30',
+  priorityMedium: '#FF9F0A',
+  priorityLow: '#34C759',
+  streak: '#FF6B35',
+  success: '#34C759',
+  info: '#4FC3F7',
 };
 
 const darkPalette = {
@@ -45,13 +59,13 @@ const darkPalette = {
   onPrimary: '#FFFFFF',
   onPrimaryContainer: '#C7D2FE',
 
-  secondary: '#34D399',         // Emerald 400 — calm green accent
-  secondaryContainer: '#064E3B',// Emerald 950
-  onSecondary: '#ECFDF5',
+  secondary: '#A78BFA',         // Violet 400 — light mode secondary hue ile tutarlı
+  secondaryContainer: '#2D1B69',// Violet 950
+  onSecondary: '#F3F0FF',
 
-  tertiary: '#FB923C',          // Orange 400 — warm energy
-  tertiaryContainer: '#431407', // Orange 950
-  onTertiary: '#FFF7ED',
+  tertiary: '#34D399',          // Emerald 400 — light mode tertiary hue ile tutarlı
+  tertiaryContainer: '#064E3B', // Emerald 950
+  onTertiary: '#ECFDF5',
 
   error: '#F87171',             // Red 400
 
@@ -63,7 +77,6 @@ const darkPalette = {
   surface: '#09090B',
   surfaceVariant: '#18181B',    // Zinc 900
 
-  // Clearly distinct surface layers (no more merging into one flat black)
   surfaceContainerLowest: '#000000',
   surfaceContainerLow: '#0F0F12',
   surfaceContainer: '#17171C',
@@ -72,6 +85,15 @@ const darkPalette = {
 
   outline: 'rgba(255,255,255,0.07)',
   outlineVariant: 'rgba(255,255,255,0.03)',
+
+  // Semantic / status tokens
+  warning: '#FFB340',
+  priorityHigh: '#FF3B30',
+  priorityMedium: '#FF9F0A',
+  priorityLow: '#34C759',
+  streak: '#FF6B35',
+  success: '#34C759',
+  info: '#4FC3F7',
 };
 
 export const Colors = {

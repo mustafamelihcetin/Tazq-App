@@ -80,8 +80,9 @@ namespace Tazq_App.Services
                     _ => filtered.OrderByDescending(t => t.SortOrder)
                 };
 
-                var finalCount = sorted.Count();
-                var result = sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+                var sortedList = sorted.ToList();
+                var finalCount = sortedList.Count;
+                var result = sortedList.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
                 return (result, finalCount);
             }
@@ -178,8 +179,8 @@ namespace Tazq_App.Services
             task.DueTime = finalDueTime;
             task.IsCompleted = updatedTask.IsCompleted;
             task.Priority = updatedTask.Priority;
-            task.Tags = updatedTask.Tags ?? new List<string>();
-            task.Subtasks = updatedTask.Subtasks ?? new List<SubtaskItem>();
+            task.Tags = (updatedTask.Tags ?? new List<string>()).Take(MaxTagsPerTask).ToList();
+            task.Subtasks = (updatedTask.Subtasks ?? new List<SubtaskItem>()).Take(MaxSubtasksPerTask).ToList();
             task.Recurrence = updatedTask.Recurrence;
             task.SortOrder = updatedTask.SortOrder;
 

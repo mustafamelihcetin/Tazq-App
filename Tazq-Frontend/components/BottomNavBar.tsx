@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, useWindowDimensions, Animated } from 'react-native';
-import { LayoutGrid, CheckSquare, Sparkles, User } from 'lucide-react-native';
+import { LayoutGrid, CheckSquare, Sparkles, User, CalendarDays } from 'lucide-react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
@@ -20,6 +20,7 @@ export const BottomNavBar = () => {
   const tabs = [
     { id: 'home', path: '/', icon: LayoutGrid },
     { id: 'tasks', path: '/tasks', icon: CheckSquare },
+    { id: 'cockpit', path: '/cockpit', icon: CalendarDays },
     { id: 'focus', path: '/focus', icon: Sparkles },
     { id: 'profile', path: '/profile', icon: User },
   ];
@@ -28,8 +29,8 @@ export const BottomNavBar = () => {
     tab => pathname === tab.path || (tab.path === '/' && pathname === '/index')
   );
 
-  const barWidth = width * 0.88;
-  const segW = barWidth / 4;
+  const barWidth = width * 0.92;
+  const segW = barWidth / 5;
 
   const indicatorSlide = useRef(new Animated.Value(activeIndex >= 0 ? activeIndex : 0)).current;
 
@@ -45,8 +46,8 @@ export const BottomNavBar = () => {
   }, [activeIndex]);
 
   const indicatorTranslateX = indicatorSlide.interpolate({
-    inputRange: [0, 1, 2, 3],
-    outputRange: [0, segW, segW * 2, segW * 3],
+    inputRange: [0, 1, 2, 3, 4],
+    outputRange: [0, segW, segW * 2, segW * 3, segW * 4],
   });
 
   const handlePress = (path: string) => {

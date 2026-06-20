@@ -97,6 +97,9 @@ namespace Tazq_App.Controllers
             if (taskRequest?.Tasks == null || !taskRequest.Tasks.Any())
                 return BadRequest("Invalid request body.");
 
+            if (taskRequest.Tasks.Count > 200)
+                return BadRequest("Maximum 200 tasks per bulk request.");
+
             var userId = GetUserId();
             if (userId == null)
                 return Unauthorized();

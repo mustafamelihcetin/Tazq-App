@@ -97,6 +97,9 @@ builder.Services.AddHealthChecks();
 var allowedOrigins = (Environment.GetEnvironmentVariable("ALLOWED_ORIGINS") ?? "")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+if (allowedOrigins.Length == 0)
+    Console.WriteLine("WARNING: ALLOWED_ORIGINS env var is not set — CORS wildcard is active. Set it in .env for production.");
+
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("TazqCorsPolicy", policy =>
@@ -177,7 +180,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddSingleton<IJwtService, JwtService>();
-builder.Services.AddSingleton<ICryptoService>(new CryptoService(jwtKey));
+var encryptionKey = Environment.GetEnvironmentVariable("ENCRYPTION_KEY") ?? jwtKey;
+builder.Services.AddSingleton<ICryptoService>(new CryptoService(encryptionKey));
 
 builder.Services.Configure<SmtpSettings>(opt =>
 {
@@ -201,10 +205,16 @@ builder.WebHost.UseUrls($"http://*:{port}");
 
 var app = builder.Build();
 
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+var forwardedOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-});
+};
+// Trust Caddy reverse proxy on the same Docker network
+forwardedOptions.KnownNetworks.Clear();
+forwardedOptions.KnownProxies.Clear();
+forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(
+    System.Net.IPAddress.Parse("172.0.0.0"), 8));
+app.UseForwardedHeaders(forwardedOptions);
 
 if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();

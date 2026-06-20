@@ -72,6 +72,7 @@ LogBox.ignoreLogs([
 
 import { useFonts, PlusJakartaSans_800ExtraBold, PlusJakartaSans_700Bold, PlusJakartaSans_600SemiBold, PlusJakartaSans_800ExtraBold_Italic } from '@expo-google-fonts/plus-jakarta-sans';
 import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
+import { useCompletionStore } from '../store/useCompletionStore';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -271,6 +272,13 @@ export default function RootLayout() {
     }
   }, []);
 
+  // Purge completion journal entries older than 90 days on launch
+  useEffect(() => {
+    if (isLoggedIn) {
+      useCompletionStore.getState().purgeOlderThan(90);
+    }
+  }, [isLoggedIn]);
+
   // Sync user profile on mount if token exists
   useEffect(() => {
     const syncProfile = async () => {
@@ -337,7 +345,7 @@ export default function RootLayout() {
           <Stack.Screen name="register" />
           <Stack.Screen name="index" options={{ gestureEnabled: false }} />
           <Stack.Screen name="tasks" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="cockpit" />
+          <Stack.Screen name="cockpit" options={{ gestureEnabled: false }} />
         </Stack>
 
         <OfflineBanner />

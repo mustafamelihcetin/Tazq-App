@@ -1,6 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet, PanResponder } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withSequence, withDelay } from 'react-native-reanimated';
 import { Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { S, R } from '../constants/tokens';
@@ -9,12 +9,28 @@ interface Props {
   children: React.ReactNode;
   onDelete: () => void;
   disabled?: boolean;
+  showPeekHint?: boolean;
 }
 
-export const SwipeableItem = ({ children, onDelete, disabled }: Props) => {
+export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Props) => {
   const translateX = useSharedValue(0);
   const deleteOpacity = useSharedValue(0);
   const startTranslateX = useSharedValue(0);
+
+  useEffect(() => {
+    if (!showPeekHint) return;
+    const timer = setTimeout(() => {
+      translateX.value = withSequence(
+        withTiming(-44, { duration: 380 }),
+        withDelay(500, withSpring(0, { damping: 18, stiffness: 120 }))
+      );
+      deleteOpacity.value = withSequence(
+        withTiming(1, { duration: 380 }),
+        withDelay(500, withTiming(0, { duration: 300 }))
+      );
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [showPeekHint]);
 
   const panResponder = useRef(
     PanResponder.create({

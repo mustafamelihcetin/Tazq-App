@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -108,6 +109,17 @@ namespace Tazq_App.Controllers
             return newToken != null ? Ok(new { token = newToken }) : Unauthorized("Oturum yenilenemedi.");
         }
 
+        [HttpPut("profile")]
+        [Authorize]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
+        {
+            var userId = GetUserId();
+            if (userId == null) return Unauthorized();
+
+            var success = await _userService.UpdateProfileAsync(userId.Value, dto.Name, dto.Avatar);
+            return success ? Ok("Profile updated.") : NotFound();
+        }
+
         [HttpDelete("me")]
         [Authorize]
         public async Task<IActionResult> DeleteMe()
@@ -125,7 +137,13 @@ namespace Tazq_App.Controllers
             return int.TryParse(userIdClaim, out int userId) ? userId : null;
         }
 
-        public class ForgotPasswordRequest { public string Email { get; set; } = string.Empty; }
+        public class ForgotPasswordRequest
+        {
+            [Required]
+            [EmailAddress]
+            public string Email { get; set; } = string.Empty;
+        }
         public class ResetPasswordRequest { public string Token { get; set; } = string.Empty; public string NewPassword { get; set; } = string.Empty; }
+        public class UpdateProfileDto { public string? Name { get; set; } public string? Avatar { get; set; } }
     }
 }

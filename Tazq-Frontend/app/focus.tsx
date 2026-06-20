@@ -79,6 +79,7 @@ export default function FocusScreen() {
 
   // Pomodoro transition overlay
   const [pomodoroTransition, setPomodoroTransition] = useState<{ visible: boolean; type: 'break' | 'work'; isLong?: boolean }>({ visible: false, type: 'break' });
+  const [pomodoroInfoVisible, setPomodoroInfoVisible] = useState(false);
 
   // Session summary
   const [summaryVisible, setSummaryVisible] = useState(false);
@@ -256,6 +257,13 @@ export default function FocusScreen() {
 
   const resetTimer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (elapsed > 0) {
+      const minutesDone = Math.max(1, Math.round(elapsed / 60));
+      FocusService.saveSession(currentTask || 'Focus', minutesDone, false).catch(() => {});
+      addFocusMinutes(minutesDone);
+      stopAmbientSound();
+      setAmbientSound('off');
+    }
     completedRef.current = false;
     reset();
   };
@@ -347,42 +355,6 @@ export default function FocusScreen() {
     </View>
   );
 
-  // ── Ambient sound row ─────────────────────────────────────────────────────
-  const AmbientRow = () => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ambientRow}>
-      {(['off', 'rain', 'cafe', 'forest', 'ocean', 'fireplace'] as AmbientSound[]).map(type => {
-        const active = ambientSound === type;
-        const cfg = SOUND_LABELS[type];
-        const IconComp = cfg.icon;
-        return (
-          <TouchableOpacity
-            key={type}
-            disabled={isActive}
-            onPress={() => {
-              const next = active ? 'off' : type;
-              setAmbientSound(next);
-              Haptics.selectionAsync();
-            }}
-            style={[
-              styles.ambientBtn,
-              {
-                backgroundColor: active ? (isDark ? theme.primary + '25' : theme.primary + '15') : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
-                borderColor: active ? theme.primary + '60' : 'transparent',
-                opacity: isActive ? 0.4 : 1,
-              },
-            ]}
-          >
-            {IconComp
-              ? <IconComp size={13} color={active ? theme.primary : theme.onSurfaceVariant} />
-              : <X size={11} color={active ? theme.primary : theme.onSurfaceVariant} />}
-            <Text style={[styles.ambientLabel, { color: active ? theme.primary : theme.onSurfaceVariant }]}>
-              {language === 'tr' ? cfg.labelTr : cfg.labelEn}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
-  );
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -392,7 +364,17 @@ export default function FocusScreen() {
         {/* Header */}
         <View style={[styles.header, { paddingVertical: S.md }]}>
           <TouchableOpacity
-            onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
+            onPress={() => {
+              if (elapsed > 0) {
+                stopAmbientSound();
+                setAmbientSound('off');
+                setIsActive(false);
+                const minutesDone = Math.max(1, Math.round(elapsed / 60));
+                FocusService.saveSession(currentTask || 'Focus', minutesDone, false).catch(() => {});
+                addFocusMinutes(minutesDone);
+              }
+              router.canGoBack() ? router.back() : router.replace('/');
+            }}
             style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
           >
             <X size={20} color={theme.onSurface} />
@@ -405,22 +387,30 @@ export default function FocusScreen() {
             </Text>
           </View>
 
-          {/* Pomodoro toggle */}
-          <TouchableOpacity
-            onPress={() => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(POMODORO_WORK_MINS); }}
-            style={[
-              styles.pomodoroToggle,
-              {
-                backgroundColor: pomodoroMode ? theme.primary + '20' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
-                borderColor: pomodoroMode ? theme.primary + '50' : 'transparent',
-              },
-            ]}
-          >
-            <Timer size={14} color={pomodoroMode ? theme.primary : theme.onSurfaceVariant} />
-            <Text style={[styles.pomodoroToggleText, { color: pomodoroMode ? theme.primary : theme.onSurfaceVariant }]}>
-              {language === 'tr' ? 'Pomodoro' : 'Pomodoro'}
-            </Text>
-          </TouchableOpacity>
+          {/* Pomodoro toggle + info */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TouchableOpacity
+              onPress={() => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(POMODORO_WORK_MINS); }}
+              style={[
+                styles.pomodoroToggle,
+                {
+                  backgroundColor: pomodoroMode ? theme.primary + '20' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
+                  borderColor: pomodoroMode ? theme.primary + '50' : 'transparent',
+                },
+              ]}
+            >
+              <Timer size={14} color={pomodoroMode ? theme.primary : theme.onSurfaceVariant} />
+              <Text style={[styles.pomodoroToggleText, { color: pomodoroMode ? theme.primary : theme.onSurfaceVariant }]}>
+                Pomodoro
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPomodoroInfoVisible(true); }}
+              style={{ width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '900', color: theme.onSurfaceVariant }}>ⓘ</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={[styles.content, { paddingHorizontal: S.lg }]}>
@@ -552,27 +542,12 @@ export default function FocusScreen() {
             </View>
           </MotiView>
 
-          {/* Task picker button (below timer) */}
-          <TouchableOpacity
-            onPress={openTaskPicker}
-            style={[styles.taskPickerBtn, {
-              borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
-              backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-            }]}
-          >
-            <Text style={[styles.taskPickerLabel, { color: theme.onSurfaceVariant }]} numberOfLines={1}>
-              {currentTask
-                ? currentTask
-                : (language === 'tr' ? 'Görev seç...' : 'Pick a task...')}
-            </Text>
-            <ChevronRight size={14} color={theme.onSurfaceVariant} style={{ opacity: 0.5 }} />
-          </TouchableOpacity>
-
           {/* Controls */}
           <View style={[styles.controlsRow, { marginTop: S.xl, gap: S.xl }]}>
             <TouchableOpacity
               onPress={resetTimer}
-              style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg }]}
+              disabled={!sessionStarted}
+              style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg, opacity: sessionStarted ? 1 : 0.3 }]}
             >
               <RotateCcw size={24} color={theme.onSurfaceVariant} />
             </TouchableOpacity>
@@ -593,15 +568,52 @@ export default function FocusScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
-            <View style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg }]}>
-              <Text style={[styles.progressText, { color: progress > 0 ? theme.primary : theme.onSurfaceVariant, fontSize: 13 }]}>
+            <View style={{ width: 56, height: 56, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={[styles.progressText, { color: progress > 0 ? theme.primary : theme.onSurfaceVariant, fontSize: 13, opacity: progress > 0 ? 1 : 0.4 }]}>
                 {Math.round(progress * 100)}%
               </Text>
             </View>
           </View>
 
           {/* Ambient sound row */}
-          <AmbientRow />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ambientRow}>
+            {(['off', 'rain', 'cafe', 'forest', 'ocean', 'fireplace'] as AmbientSound[]).map(type => {
+              const active = ambientSound === type;
+              const cfg = SOUND_LABELS[type];
+              const IconComp = cfg.icon;
+              return (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => {
+                    const next = active ? 'off' : type;
+                    setAmbientSound(next);
+                    if (isActive) {
+                      if (next === 'off') {
+                        stopAmbientSound();
+                      } else {
+                        playAmbientSound(next);
+                      }
+                    }
+                    Haptics.selectionAsync();
+                  }}
+                  style={[
+                    styles.ambientBtn,
+                    {
+                      backgroundColor: active ? (isDark ? theme.primary + '25' : theme.primary + '15') : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
+                      borderColor: active ? theme.primary + '60' : 'transparent',
+                    },
+                  ]}
+                >
+                  {IconComp
+                    ? <IconComp size={13} color={active ? theme.primary : theme.onSurfaceVariant} />
+                    : <X size={11} color={active ? theme.primary : theme.onSurfaceVariant} />}
+                  <Text style={[styles.ambientLabel, { color: active ? theme.primary : theme.onSurfaceVariant }]}>
+                    {language === 'tr' ? cfg.labelTr : cfg.labelEn}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
           {/* End session */}
           <AnimatePresence>
@@ -714,7 +726,7 @@ export default function FocusScreen() {
                 </View>
               ) : (
                 incompleteTasks.slice(0, 50).map(task => {
-                  const priorityDot = task.priority === 'High' ? '#ff3b30' : task.priority === 'Medium' ? '#ff9f0a' : '#34c759';
+                  const priorityDot = task.priority === 'High' ? theme.priorityHigh : task.priority === 'Medium' ? theme.priorityMedium : theme.priorityLow;
                   const isSelected = currentTask === task.title;
                   return (
                     <TouchableOpacity
@@ -881,6 +893,52 @@ export default function FocusScreen() {
             </TouchableOpacity>
           </MotiView>
         </View>
+      </Modal>
+
+      {/* ── Pomodoro Info Modal ── */}
+      <Modal visible={pomodoroInfoVisible} transparent animationType="fade" onRequestClose={() => setPomodoroInfoVisible(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 32 }} activeOpacity={1} onPress={() => setPomodoroInfoVisible(false)}>
+          <MotiView
+            from={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 18 }}
+            style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderRadius: 28, padding: 28, width: '100%', gap: 16 }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: theme.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
+                <Timer size={20} color={theme.primary} />
+              </View>
+              <Text style={{ fontSize: 17, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, flex: 1 }}>
+                {language === 'tr' ? 'Pomodoro Tekniği' : 'Pomodoro Technique'}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 14, fontWeight: '500', color: theme.onSurfaceVariant, lineHeight: 22 }}>
+              {language === 'tr'
+                ? 'Francesco Cirillo\'nun geliştirdiği zaman yönetimi yöntemi. 25 dakika kesintisiz çalış, 5 dakika mola ver. 4 tur sonra uzun bir mola (15 dk).'
+                : "A time management method by Francesco Cirillo. Work 25 minutes without interruptions, then take a 5-minute break. After 4 rounds, take a long break (15 min)."}
+            </Text>
+            <View style={{ gap: 8 }}>
+              {[
+                { label: language === 'tr' ? '🧠 Çalışma' : '🧠 Work', value: '25 dk' },
+                { label: language === 'tr' ? '☕ Kısa Mola' : '☕ Short Break', value: '5 dk' },
+                { label: language === 'tr' ? '😴 Uzun Mola' : '😴 Long Break', value: '15 dk' },
+              ].map((row) => (
+                <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '900', color: theme.primary }}>{row.value}</Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              onPress={() => setPomodoroInfoVisible(false)}
+              style={{ backgroundColor: theme.primary, borderRadius: 16, paddingVertical: 14, alignItems: 'center' }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '900', color: theme.onPrimary }}>
+                {language === 'tr' ? 'Anladım' : 'Got it'}
+              </Text>
+            </TouchableOpacity>
+          </MotiView>
+        </TouchableOpacity>
       </Modal>
     </View>
   );

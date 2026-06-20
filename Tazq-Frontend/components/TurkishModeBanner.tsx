@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Animated, useWindowDimensions,
 } from 'react-native';
 import { MotiView } from 'moti';
-import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle } from 'lucide-react-native';
+import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle, Star } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,11 +27,13 @@ interface Props {
   planHabitIds?: string[];
   planTaskIds?: number[];
   onClearPlan?: () => void;
+  defaultTemplateId?: string;
 }
 
 export const TurkishModeBanner: React.FC<Props> = ({
   mode, onDismiss, showSheetImmediately, onApplied, onSheetClose,
   planApplied, planHabitIds = [], planTaskIds = [], onClearPlan,
+  defaultTemplateId,
 }) => {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -48,6 +50,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<StudyTemplate | null>(null);
+  const [deselectedHabits, setDeselectedHabits] = useState<Set<string>>(new Set());
   const sheetWasOpenRef = React.useRef(false);
   const appliedRef = React.useRef(false);
   const onSheetCloseRef = React.useRef(onSheetClose);
@@ -56,6 +59,11 @@ export const TurkishModeBanner: React.FC<Props> = ({
   useEffect(() => {
     if (sheetVisible) {
       sheetWasOpenRef.current = true;
+      // Auto-select the recommended template when the sheet first opens
+      if (defaultTemplateId && !selectedTemplate && mode.templates?.length) {
+        const match = mode.templates.find(t => t.id === defaultTemplateId);
+        if (match) setSelectedTemplate(match);
+      }
     } else if (sheetWasOpenRef.current) {
       sheetWasOpenRef.current = false;
       if (!appliedRef.current) onSheetCloseRef.current?.();
@@ -141,7 +149,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
     if (selectedTemplate?.dailyGoalMinutes) setDailyGoal(selectedTemplate.dailyGoalMinutes);
 
     const addedHabitIds: string[] = [];
-    for (const h of newHabits) {
+    for (const h of newHabits.filter(h => !deselectedHabits.has(h.name))) {
       const hid = `habit_${mode.type}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       addHabit(h.name, h.emoji, h.color, hid);
       addedHabitIds.push(hid);
@@ -185,6 +193,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
   const selectTemplate = (tpl: StudyTemplate) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedTemplate(tpl);
+    setDeselectedHabits(new Set());
     setStep('review');
   };
 
@@ -239,7 +248,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
         {planHabitStats.length > 0 && (
           <>
             <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
-              {tr ? 'ALIŞKANLIKLARINız' : 'YOUR HABITS'}
+              {tr ? 'ALIŞKANLIKLARINIZ' : 'YOUR HABITS'}
             </Text>
             {planHabitStats.map(h => (
               <View key={h.id} style={[styles.planViewRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }]}>
@@ -404,7 +413,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
             style={[
               animatedStyle,
               styles.sheet,
-              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant + '30', maxHeight: screenHeight - insets.top - 16 },
+              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant + '30', maxHeight: screenHeight - insets.top - 16, paddingBottom: Math.max(insets.bottom, S.lg) + S.md },
             ]}
           >
             <View {...panResponder.panHandlers} style={styles.dragHandle}>
@@ -419,7 +428,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               <>
                 <View style={styles.sheetHeader}>
                   <Text style={styles.sheetEmoji}>{mode.emoji}</Text>
-                  <View>
+                  <View style={{ flex: 1 }}>
                     <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
                       {tr ? 'Çalışma Planı Seç' : 'Choose a Study Plan'}
                     </Text>
@@ -428,24 +437,66 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     </Text>
                   </View>
                 </View>
+                {/* Exam-specific tip pill */}
+                {(tr ? mode.tipTr : mode.tipEn) ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.sm, backgroundColor: modeAccent + '12', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm + 1, marginBottom: S.sm, borderWidth: 1, borderColor: modeAccent + '28' }}>
+                    <Text style={{ fontSize: 13 }}>💡</Text>
+                    <Text style={{ flex: 1, fontSize: F.caption, fontWeight: '600', color: modeAccent, lineHeight: 17, opacity: 0.95 }}>
+                      {tr ? mode.tipTr : mode.tipEn}
+                    </Text>
+                  </View>
+                ) : null}
                 <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
                   <Text style={[styles.expertNote, { color: theme.onSurfaceVariant }]}>
                     {tr ? '✦ Eğitim psikolojisi araştırmalarına dayalı metodlar' : '✦ Methods based on educational psychology research'}
                   </Text>
-                  {mode.templates!.map((tpl) => (
+                  {mode.templates!.map((tpl) => {
+                    const isRecommended = defaultTemplateId === tpl.id;
+                    return (
                     <TouchableOpacity
                       key={tpl.id}
                       onPress={() => selectTemplate(tpl)}
-                      style={[styles.templateCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)' }]}
+                      style={[styles.templateCard, {
+                        backgroundColor: isRecommended
+                          ? (isDark ? modeAccent + '18' : modeAccent + '10')
+                          : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                        borderColor: isRecommended ? modeAccent + '70' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'),
+                        borderWidth: isRecommended ? 1.5 : 1,
+                      }]}
                       activeOpacity={0.75}
                     >
+                      {/* Recommended ribbon */}
+                      {isRecommended && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: S.sm, backgroundColor: modeAccent + '20', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 4, alignSelf: 'flex-start' }}>
+                          <Star size={11} color={modeAccent} fill={modeAccent} strokeWidth={0} />
+                          <Text style={{ fontSize: 10, fontWeight: '900', color: modeAccent, letterSpacing: 0.5 }}>
+                            {tr ? `${mode.labelTr.split(' ')[0]} İÇİN ÖNERİLEN` : `RECOMMENDED FOR ${mode.labelEn.split(' ')[0].toUpperCase()}`}
+                          </Text>
+                        </View>
+                      )}
                       <View style={styles.templateTop}>
-                        <Text style={styles.templateEmoji}>{tpl.emoji}</Text>
+                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: isRecommended ? modeAccent + '28' : modeAccent + '1A', alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 22 }}>{tpl.emoji}</Text>
+                        </View>
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.templateTitle, { color: theme.onSurface }]}>{tr ? tpl.titleTr : tpl.titleEn}</Text>
-                          <Text style={[styles.templateDesc, { color: theme.onSurfaceVariant }]}>{tr ? tpl.descTr : tpl.descEn}</Text>
+                          <Text style={[styles.templateDesc, { color: theme.onSurfaceVariant, opacity: 0.9 }]}>{tr ? tpl.descTr : tpl.descEn}</Text>
                         </View>
-                        <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.4} />
+                        <ChevronRight size={16} color={isRecommended ? modeAccent : theme.onSurfaceVariant} opacity={isRecommended ? 0.8 : 0.4} />
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 5, flexWrap: 'wrap', marginTop: 4 }}>
+                        {tpl.habits.slice(0, 4).map((h) => (
+                          <View key={h.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: h.color + '18', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 10 }}>{h.emoji}</Text>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: h.color, letterSpacing: 0.2 }}>{tr ? h.nameTr : h.name}</Text>
+                          </View>
+                        ))}
+                        {tpl.tasks.length > 0 && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: modeAccent + '12', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 10 }}>✓</Text>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: modeAccent, letterSpacing: 0.2 }}>{tpl.tasks.length} {tr ? 'görev' : 'tasks'}</Text>
+                          </View>
+                        )}
                       </View>
                       <View style={styles.templateMeta}>
                         <View style={[styles.metaChip, { backgroundColor: modeAccent + '18' }]}>
@@ -454,7 +505,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
                         <Text style={[styles.templateTarget, { color: theme.onSurfaceVariant }]}>{tr ? tpl.targetTr : tpl.targetEn}</Text>
                       </View>
                     </TouchableOpacity>
-                  ))}
+                    );
+                  })}
                 </ScrollView>
               </>
             )}
@@ -485,14 +537,33 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>{tr ? 'EKLENECEK ALIŞKANLIKLAR' : 'HABITS TO ADD'}</Text>
                   {activeHabits.map((h) => {
                     const exists = existingHabitNames.has(h.name.toLowerCase());
+                    const skipped = !exists && deselectedHabits.has(h.name);
                     return (
-                      <View key={h.name} style={[styles.itemRow, { opacity: exists ? 0.45 : 1 }]}>
-                        <View style={[styles.itemDot, { backgroundColor: h.color + '30', borderColor: h.color + '60' }]}>
+                      <TouchableOpacity
+                        key={h.name}
+                        onPress={() => {
+                          if (exists) return;
+                          Haptics.selectionAsync();
+                          setDeselectedHabits(prev => {
+                            const next = new Set(prev);
+                            if (next.has(h.name)) next.delete(h.name);
+                            else next.add(h.name);
+                            return next;
+                          });
+                        }}
+                        style={[styles.itemRow, { opacity: exists || skipped ? 0.4 : 1 }]}
+                        activeOpacity={exists ? 1 : 0.7}
+                      >
+                        <View style={[styles.itemDot, { backgroundColor: (skipped ? '#94A3B8' : h.color) + '30', borderColor: (skipped ? '#94A3B8' : h.color) + '60' }]}>
                           <Text style={{ fontSize: 15 }}>{h.emoji}</Text>
                         </View>
-                        <Text style={[styles.itemText, { color: theme.onSurface }]}>{h.name}</Text>
-                        {exists && <Check size={15} color={theme.tertiary} strokeWidth={2.5} />}
-                      </View>
+                        <Text style={[styles.itemText, { color: theme.onSurface, flex: 1, textDecorationLine: skipped ? 'line-through' : 'none' }]}>{tr ? h.nameTr : h.name}</Text>
+                        {exists
+                          ? <Check size={15} color={theme.tertiary} strokeWidth={2.5} />
+                          : skipped
+                          ? <X size={15} color={theme.onSurfaceVariant} strokeWidth={2} />
+                          : <Check size={15} color={h.color} strokeWidth={2.5} />}
+                      </TouchableOpacity>
                     );
                   })}
                   <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant, marginTop: S.md }]}>{tr ? 'EKLENECEK GÖREVLER' : 'TASKS TO ADD'}</Text>
@@ -555,7 +626,7 @@ const styles = StyleSheet.create({
   planBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: S.sm + 2, paddingVertical: S.xs + 1, borderRadius: R.full },
   planBtnText: { color: '#fff', fontSize: F.caption, fontWeight: '800' },
   dismissBtn: { padding: 2 },
-  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, paddingHorizontal: S.lg, paddingBottom: S.xl + S.lg },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, paddingHorizontal: S.lg },
   dragHandle: { paddingTop: 12, paddingBottom: 8, alignItems: 'center' },
   handle: { width: 36, height: 4, borderRadius: 2 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.lg },

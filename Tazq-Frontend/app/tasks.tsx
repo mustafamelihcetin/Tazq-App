@@ -19,11 +19,13 @@ import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '../services/api';
 import { parseTaskHint } from '../utils/taskParser';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SwipeableItem } from '../components/SwipeableItem';
 import { useToastStore } from '../store/useToastStore';
 import { categorizeTask } from '../utils/taskIntelligence';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { usePrefsStore } from '../store/usePrefsStore';
+import { useCompletionStore } from '../store/useCompletionStore';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
 import { S, R, F } from '../constants/tokens';
 import VoiceService from '../utils/voice';
@@ -94,6 +96,7 @@ export default function ActionCenter() {
   const { t, language } = useLanguageStore();
   const { show: showToast } = useToastStore();
   const { soundEffects } = usePrefsStore();
+  const { record: recordCompletion } = useCompletionStore();
   const { setCurrentTask } = useFocusStore();
   const { width, height } = useWindowDimensions();
   const router = useRouter();
@@ -121,6 +124,8 @@ export default function ActionCenter() {
   const [saving, setSaving] = useState(false);
   const [kbHeight, setKbHeight] = useState(0);
   const [nlpHint, setNlpHint] = useState('');
+  const [showSmartHint, setShowSmartHint] = useState(false);
+  const [showSwipePeek, setShowSwipePeek] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, day: new Date().getDate() });
@@ -272,6 +277,14 @@ export default function ActionCenter() {
   useEffect(() => {
     loadTasks();
     requestNotificationPermissions();
+
+    AsyncStorage.getItem('tazq-swipe-peek-shown').then(val => {
+      if (!val) {
+        setShowSwipePeek(true);
+        AsyncStorage.setItem('tazq-swipe-peek-shown', 'true').catch(() => {});
+      }
+    }).catch(() => {});
+
     return () => {
       VoiceService.destroy();
       Object.values(subtaskSaveTimers.current).forEach(clearTimeout);
@@ -311,7 +324,24 @@ export default function ActionCenter() {
     setLoading(true);
     try {
       const data = await TaskService.getTasks();
-      setTasks(Array.isArray(data) ? data : []);
+      const safeData = Array.isArray(data) ? data : [];
+      setTasks(safeData);
+
+      // Auto-cleanup: completed tasks whose journal entry is older than 7 days → delete from server
+      const journal = useCompletionStore.getState();
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 7);
+      const toDelete = safeData.filter(task => {
+        if (!task.isCompleted) return false;
+        const entry = journal.events.find(e => e.taskId === task.id);
+        return entry && new Date(entry.completedAt) < cutoff;
+      });
+      if (toDelete.length > 0) {
+        toDelete.forEach(task => {
+          removeTask(task.id);
+          TaskService.deleteTask(task.id).catch(() => {});
+        });
+      }
     } catch (e: any) {
       if (e.response?.status !== 401) {
         console.warn('loadTasks error:', e.message);
@@ -386,8 +416,8 @@ export default function ActionCenter() {
     const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
     const dateStart = new Date(date); dateStart.setHours(0, 0, 0, 0);
     const diffDays = Math.round((dateStart.getTime() - todayStart.getTime()) / 86400000);
-    if (diffDays < 0) return '#ff3b30';
-    if (diffDays === 0) return '#ff9f0a';
+    if (diffDays < 0) return thm.priorityHigh;
+    if (diffDays === 0) return thm.priorityMedium;
     return thm.onSurfaceVariant;
   };
 
@@ -437,6 +467,7 @@ export default function ActionCenter() {
     const isCompleting = !task.isCompleted;
 
     if (isCompleting) {
+      recordCompletion(task.id, task.title);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (soundEffects) try {
         const p = createAudioPlayer(require('../assets/sounds/success.mp3'));
@@ -542,13 +573,26 @@ export default function ActionCenter() {
     });
   };
 
-  const openAdd = () => {
+  const openAdd = async () => {
     prepareTask();
     setEditingId(null);
     setForm(EMPTY_FORM);
     setNlpHint('');
     setTitleError(false);
     setModalVisible(true);
+
+    try {
+      const raw = await AsyncStorage.getItem('tazq-smart-hint-count');
+      const count = raw ? parseInt(raw, 10) : 0;
+      if (count < 6) {
+        setShowSmartHint(true);
+        await AsyncStorage.setItem('tazq-smart-hint-count', String(count + 1));
+      } else {
+        setShowSmartHint(false);
+      }
+    } catch {
+      setShowSmartHint(false);
+    }
   };
 
   const openEdit = (id: number) => {
@@ -682,9 +726,9 @@ export default function ActionCenter() {
   };
 
   const priorityColor = (p: string) => {
-    if (p === 'High') return '#ff3b30';   // Signal Red
-    if (p === 'Medium') return '#ff9f0a'; // Warning Orange
-    return '#34c759';                    // Success Green
+    if (p === 'High') return theme.priorityHigh;
+    if (p === 'Medium') return theme.priorityMedium;
+    return theme.priorityLow;
   };
 
   const getTagColor = getTagColorStatic;
@@ -746,6 +790,8 @@ export default function ActionCenter() {
         { text: t.cancel, style: 'cancel' },
         { text: t.delete, style: 'destructive', onPress: async () => {
           for (const id of Array.from(selectedIds)) {
+            const task = tasks.find(tk => tk.id === id);
+            if (task?.isCompleted) recordCompletion(task.id, task.title, task.completedAt ?? undefined);
             try { await TaskService.deleteTask(id); removeTask(id); } catch {}
           }
           setSelectedIds(new Set());
@@ -789,6 +835,7 @@ export default function ActionCenter() {
       [
         { text: t.cancel, style: 'cancel' },
         { text: t.delete, style: 'destructive', onPress: async () => {
+          completedTasks.forEach(task => recordCompletion(task.id, task.title, task.completedAt ?? undefined));
           for (const task of completedTasks) {
             try { await TaskService.deleteTask(task.id); removeTask(task.id); } catch {}
           }
@@ -830,9 +877,13 @@ export default function ActionCenter() {
             </>
           ) : (
             <>
-              <TouchableOpacity onPress={() => navigation.canGoBack() ? router.back() : router.replace('/')} style={styles.backBtn}>
-                <ArrowLeft size={24} color={theme.onSurface} />
-              </TouchableOpacity>
+              {navigation.canGoBack() ? (
+                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                  <ArrowLeft size={24} color={theme.onSurface} />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.backBtn} />
+              )}
               <Text style={[styles.headerTitle, { color: theme.onSurface }]}>{t.actionCenter}</Text>
               <View style={{ flexDirection: 'row', gap: S.xs }}>
                 <TouchableOpacity onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.headerIconBtn}>
@@ -887,6 +938,15 @@ export default function ActionCenter() {
             </MotiView>
           )}
         </AnimatePresence>
+
+        {/* Sort Menu Backdrop */}
+        {showSortMenu && (
+          <TouchableOpacity
+            style={[StyleSheet.absoluteFill, { zIndex: 100 }]}
+            onPress={() => setShowSortMenu(false)}
+            activeOpacity={1}
+          />
+        )}
 
         {/* Sort Menu */}
         <AnimatePresence>
@@ -1041,6 +1101,7 @@ export default function ActionCenter() {
                         <SwipeableItem
                             onDelete={() => handleDelete(task.id)}
                             disabled={isBulkMode}
+                            showPeekHint={showSwipePeek && i === 0}
                         >
                             <MotiView
                                 from={{ opacity: 0, translateY: 10 }}
@@ -1112,8 +1173,8 @@ export default function ActionCenter() {
                                                 </View>
                                             )}
                                             {(task.tags?.includes('hatırlatıcı') || task.tags?.includes('reminder')) && (
-                                                <View style={[styles.categoryBadge, { backgroundColor: '#ff9f0a' + '20' }]}>
-                                                    <Bell size={10} color="#ff9f0a" />
+                                                <View style={[styles.categoryBadge, { backgroundColor: theme.priorityMedium + '20' }]}>
+                                                    <Bell size={10} color={theme.priorityMedium} />
                                                 </View>
                                             )}
                                             {(task.tags?.includes('etkinlik') || task.tags?.includes('event')) && (
@@ -1122,8 +1183,8 @@ export default function ActionCenter() {
                                                 </View>
                                             )}
                                             {(task.tags?.includes('not') || task.tags?.includes('note')) && (
-                                                <View style={[styles.categoryBadge, { backgroundColor: '#4fc3f7' + '20' }]}>
-                                                    <Tag size={10} color="#4fc3f7" />
+                                                <View style={[styles.categoryBadge, { backgroundColor: theme.info + '20' }]}>
+                                                    <Tag size={10} color={theme.info} />
                                                 </View>
                                             )}
                                             {(() => {
@@ -1182,12 +1243,12 @@ export default function ActionCenter() {
                                                 {
                                                     width: 36,
                                                     height: 36,
-                                                    backgroundColor: task.isCompleted ? theme.tertiary : (task.tags?.includes('not') || task.tags?.includes('note') ? '#4fc3f720' : theme.surfaceContainerHigh)
+                                                    backgroundColor: task.isCompleted ? theme.tertiary : (task.tags?.includes('not') || task.tags?.includes('note') ? theme.info + '20' : theme.surfaceContainerHigh)
                                                 }
                                             ]}
                                         >
                                             {task.tags?.includes('not') || task.tags?.includes('note') ? (
-                                                <Tag size={18} color={task.isCompleted ? 'white' : '#4fc3f7'} strokeWidth={3} />
+                                                <Tag size={18} color={task.isCompleted ? 'white' : theme.info} strokeWidth={3} />
                                             ) : (
                                                 <Check size={18} color={task.isCompleted ? 'white' : theme.onSurfaceVariant} strokeWidth={3} />
                                             )}
@@ -1199,9 +1260,9 @@ export default function ActionCenter() {
                                 <AnimatePresence>
                                     {expandedId === task.id && (
                                         <MotiView
-                                            from={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            exit={{ opacity: 0, height: 0 }}
+                                            from={{ opacity: 0, maxHeight: 0 }}
+                                            animate={{ opacity: 1, maxHeight: 600 }}
+                                            exit={{ opacity: 0, maxHeight: 0 }}
                                             transition={{ type: 'timing', duration: 300 }}
                                             style={{ overflow: 'hidden', marginTop: S.md, paddingTop: S.md, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)' }}
                                         >
@@ -1424,10 +1485,10 @@ export default function ActionCenter() {
               disabled={selectedIds.size === 0}
               style={[
                 styles.bulkIconBtn,
-                { backgroundColor: selectedIds.size > 0 ? '#34C7591A' : 'transparent' },
+                { backgroundColor: selectedIds.size > 0 ? theme.success + '1A' : 'transparent' },
               ]}
             >
-              <CheckCircle2 size={17} color={selectedIds.size > 0 ? '#34C759' : theme.onSurfaceVariant + '55'} />
+              <CheckCircle2 size={17} color={selectedIds.size > 0 ? theme.success : theme.onSurfaceVariant + '55'} />
             </TouchableOpacity>
 
             {/* Delete */}
@@ -1436,10 +1497,10 @@ export default function ActionCenter() {
               disabled={selectedIds.size === 0}
               style={[
                 styles.bulkIconBtn,
-                { backgroundColor: selectedIds.size > 0 ? '#FF3B301A' : 'transparent' },
+                { backgroundColor: selectedIds.size > 0 ? theme.priorityHigh + '1A' : 'transparent' },
               ]}
             >
-              <Trash2 size={17} color={selectedIds.size > 0 ? '#FF3B30' : theme.onSurfaceVariant + '55'} />
+              <Trash2 size={17} color={selectedIds.size > 0 ? theme.priorityHigh : theme.onSurfaceVariant + '55'} />
             </TouchableOpacity>
           </MotiView>
         )}
@@ -1478,7 +1539,7 @@ export default function ActionCenter() {
                   <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
                 </View>
                 
-                <View style={[styles.sheetHeader, { marginBottom: S.lg }]}>
+                <View style={[styles.sheetHeader, { marginBottom: !editingId ? S.sm : S.lg }]}>
                     <Text style={[styles.sheetTitle, { color: theme.onSurface, fontSize: F.title }]}>
                         {editingId ? t.editTask : t.addTask}
                     </Text>
@@ -1490,6 +1551,18 @@ export default function ActionCenter() {
                         <X size={20} color={theme.onSurfaceVariant} />
                     </TouchableOpacity>
                 </View>
+                {!editingId && (
+                    <View style={{ flexDirection: 'row', gap: S.xs, marginBottom: S.lg, flexWrap: 'wrap' }}>
+                        {(language === 'tr'
+                            ? ['📅 Tarih', '🎯 Öncelik', '🔔 Hatırlatıcı']
+                            : ['📅 Due date', '🎯 Priority', '🔔 Reminder']
+                        ).map((chip) => (
+                            <View key={chip} style={{ backgroundColor: theme.primary + '14', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 3 }}>
+                                <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary, letterSpacing: 0.3 }}>{chip}</Text>
+                            </View>
+                        ))}
+                    </View>
+                )}
 
                 <ScrollView
                     style={styles.formContainer}
@@ -1517,13 +1590,26 @@ export default function ActionCenter() {
                                 </View>
                             </View>
                             {nlpHint ? (
-                                <MotiText 
-                                    from={{ opacity: 0, translateY: -5 }} 
-                                    animate={{ opacity: 1, translateY: 0 }} 
+                                <MotiText
+                                    from={{ opacity: 0, translateY: -5 }}
+                                    animate={{ opacity: 1, translateY: 0 }}
                                     style={{ color: theme.primary, fontSize: F.caption, marginTop: S.sm, marginLeft: S.md, fontWeight: '800', letterSpacing: 0.5 }}
                                 >
                                     {nlpHint}
                                 </MotiText>
+                            ) : showSmartHint && !editingId ? (
+                                <MotiView
+                                    from={{ opacity: 0, translateY: -4 }}
+                                    animate={{ opacity: 1, translateY: 0 }}
+                                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm, marginLeft: S.md }}
+                                >
+                                    <Sparkles size={11} color={theme.primary} />
+                                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700', opacity: 0.75 }}>
+                                        {language === 'tr'
+                                            ? '"yarın", "acil", "hatırlatıcı" gibi kelimeler otomatik algılanır'
+                                            : '"tomorrow", "urgent", "reminder" are auto-detected'}
+                                    </Text>
+                                </MotiView>
                             ) : null}
 
                             <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, marginTop: S.sm, height: 100 }]}>
@@ -1715,18 +1801,18 @@ export default function ActionCenter() {
                             onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, reminderEnabled: !f.reminderEnabled })); }}
                             style={[styles.inputGroup, {
                                 backgroundColor: form.reminderEnabled
-                                    ? (isDark ? 'rgba(255,159,10,0.12)' : 'rgba(255,159,10,0.08)')
+                                    ? theme.priorityMedium + (isDark ? '1F' : '14')
                                     : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow),
                                 height: 52,
                             }]}
                         >
-                            <Bell size={18} color={form.reminderEnabled ? '#ff9f0a' : theme.onSurfaceVariant} />
-                            <Text style={{ flex: 1, fontSize: F.body, fontWeight: '700', color: form.reminderEnabled ? '#ff9f0a' : theme.onSurfaceVariant, marginLeft: S.sm }}>
+                            <Bell size={18} color={form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant} />
+                            <Text style={{ flex: 1, fontSize: F.body, fontWeight: '700', color: form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant, marginLeft: S.sm }}>
                                 {t.reminderLabel}
                             </Text>
                             <View style={{
                                 width: 44, height: 26, borderRadius: 13,
-                                backgroundColor: form.reminderEnabled ? '#ff9f0a' : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'),
+                                backgroundColor: form.reminderEnabled ? theme.priorityMedium : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'),
                                 justifyContent: 'center', paddingHorizontal: 2,
                             }}>
                                 <MotiView

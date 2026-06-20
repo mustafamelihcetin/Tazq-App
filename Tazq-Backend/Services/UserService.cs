@@ -99,20 +99,23 @@ namespace Tazq_App.Services
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
             if (user == null) return true; // Pretend success for security
 
-            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+            var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+            // Store SHA-256 hash; send raw token to user so a DB breach doesn't expose tokens
+            using var sha256 = System.Security.Cryptography.SHA256.Create();
+            var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawToken)));
             var expiration = DateTime.UtcNow.AddHours(1);
 
             var resetToken = new PasswordResetToken
             {
                 UserId = user.Id,
-                Token = token,
+                Token = tokenHash,
                 Expiration = expiration
             };
 
             _context.PasswordResetTokens.Add(resetToken);
             await _context.SaveChangesAsync();
 
-            var mailBody = $"Şifre sıfırlama kodunuz: <b>{token}</b>";
+            var mailBody = $"Şifre sıfırlama kodunuz: <b>{rawToken}</b>";
             await _emailService.SendEmailAsync(user.Email, "Şifre Sıfırlama", mailBody);
 
             return true;
@@ -120,7 +123,9 @@ namespace Tazq_App.Services
 
         public async Task<bool> ResetPasswordAsync(string token, string newPassword)
         {
-            var tokenEntry = await _context.PasswordResetTokens.Include(t => t.User).FirstOrDefaultAsync(t => t.Token == token);
+            using var sha256 = System.Security.Cryptography.SHA256.Create();
+            var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token)));
+            var tokenEntry = await _context.PasswordResetTokens.Include(t => t.User).FirstOrDefaultAsync(t => t.Token == tokenHash);
             if (tokenEntry == null || tokenEntry.Expiration < DateTime.UtcNow) return false;
 
             var salt = RandomNumberGenerator.GetBytes(16);
@@ -146,14 +151,6 @@ namespace Tazq_App.Services
 
                 var user = await _context.Users.FindAsync(userId);
                 if (user == null) return null;
-
-                // IP check (allowing same subnet for mobile roaming if needed, keeping simple for now)
-                if (!string.IsNullOrEmpty(currentIp) && !string.IsNullOrEmpty(user.LastLoginIp))
-                {
-                    var oldRange = user.LastLoginIp.Split('.').Take(2);
-                    var newRange = currentIp.Split('.').Take(2);
-                    if (!oldRange.SequenceEqual(newRange)) return null;
-                }
 
                 return _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
             }

@@ -39,6 +39,13 @@ const SLIDES = [
     type: 'tasks'
   },
   {
+    id: '2b',
+    titleKey: 'onboardingTitle2b',
+    bodyKey: 'onboardingBody2b',
+    color: '#00cc88',
+    type: 'smart_input'
+  },
+  {
     id: '3',
     titleKey: 'onboardingTitle3',
     bodyKey: 'onboardingBody3',
@@ -46,11 +53,32 @@ const SLIDES = [
     type: 'focus'
   },
   {
+    id: '3b',
+    titleKey: 'onboardingTitle3b',
+    bodyKey: 'onboardingBody3b',
+    color: '#ff2d55',
+    type: 'pomodoro'
+  },
+  {
     id: '4',
     titleKey: 'onboardingTitle4',
     bodyKey: 'onboardingBody4',
     color: '#6200ee',
     type: 'stats'
+  },
+  {
+    id: '4b',
+    titleKey: 'onboardingTitle4b',
+    bodyKey: 'onboardingBody4b',
+    color: '#6200ee',
+    type: 'momentum'
+  },
+  {
+    id: '4c',
+    titleKey: 'onboardingTitle4c',
+    bodyKey: 'onboardingBody4c',
+    color: '#f59e0b',
+    type: 'cockpit'
   },
   {
     id: '5',
@@ -195,7 +223,7 @@ export default function OnboardingScreen() {
              <View style={styles.cinematicTimer}>
                 <Clock size={isSmallDevice ? 45 : 65} color={theme.tertiary} />
                 <Text style={[styles.cinematicTimeText, { color: theme.onSurface, fontSize: isSmallDevice ? 24 : 36 }]}>
-                    {`24:${(59 - timerSeconds).toString().padStart(2, '0')}`}
+                    {`24:${(59 - timerSeconds % 60).toString().padStart(2, '0')}`}
                 </Text>
              </View>
           </View>
@@ -222,6 +250,121 @@ export default function OnboardingScreen() {
                     <Activity size={14} color={theme.onSecondary} />
                     <Text style={[styles.floatingBadgeText, { color: theme.onSecondary, fontSize: 12 }]}>Peak Focus</Text>
                 </MotiView>
+            </View>
+          </View>
+        );
+      case 'smart_input':
+        return (
+          <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
+            <View style={styles.simContainer}>
+              {[
+                { text: 'yarın teslim et', badge: '📅 Yarın', color: '#00cc88' },
+                { text: 'acil rapor yaz', badge: '⚡ Yüksek', color: '#ff3b30' },
+                { text: 'hatırlatıcı ekle', badge: '🔔 Bildirim', color: theme.primary },
+              ].map((row, i) => (
+                <MotiView
+                  key={i}
+                  animate={{ translateX: isActive ? 0 : 40, opacity: isActive ? 1 : 0 }}
+                  transition={{ delay: 300 + i * 120, type: 'spring' }}
+                  style={[styles.cinematicTask, { backgroundColor: theme.surfaceContainerHighest, height: isSmallDevice ? 38 : 46 }]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <View style={[styles.cinematicLine, { backgroundColor: theme.outlineVariant, width: '70%' }]} />
+                  </View>
+                  <MotiView
+                    animate={{ scale: isActive ? 1 : 0.6, opacity: isActive ? 1 : 0 }}
+                    transition={{ delay: 600 + i * 120, type: 'spring' }}
+                    style={{ backgroundColor: row.color + '22', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 }}
+                  >
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: row.color }}>{row.badge}</Text>
+                  </MotiView>
+                </MotiView>
+              ))}
+            </View>
+          </View>
+        );
+      case 'pomodoro':
+        return (
+          <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
+            <View style={{ alignItems: 'center', justifyContent: 'center', gap: 12, flex: 1 }}>
+              {[
+                { label: '🧠 Çalışma', value: '25:00', color: '#ff2d55' },
+                { label: '☕ Mola', value: '05:00', color: theme.tertiary },
+                { label: '😴 Uzun Mola', value: '15:00', color: '#ff9500' },
+              ].map((row, i) => (
+                <MotiView
+                  key={i}
+                  animate={{ translateY: isActive ? 0 : 20, opacity: isActive ? 1 : 0 }}
+                  transition={{ delay: 300 + i * 150, type: 'spring' }}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '80%', backgroundColor: row.color + '18', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}
+                >
+                  <Text style={{ fontSize: isSmallDevice ? 11 : 13, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
+                  <Text style={{ fontSize: isSmallDevice ? 13 : 15, fontWeight: '900', color: row.color }}>{row.value}</Text>
+                </MotiView>
+              ))}
+            </View>
+          </View>
+        );
+      case 'momentum':
+        return (
+          <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
+            <View style={{ alignItems: 'center', justifyContent: 'center', gap: 14, flex: 1, paddingHorizontal: 20 }}>
+              <MotiView
+                animate={{ scale: isActive ? 1 : 0.7, opacity: isActive ? 1 : 0 }}
+                transition={{ type: 'spring', damping: 14 }}
+              >
+                <Text style={{ fontSize: isSmallDevice ? 52 : 64, fontWeight: '900', letterSpacing: -4, color: '#6200ee', lineHeight: isSmallDevice ? 56 : 70 }}>78</Text>
+                <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: '#6200ee', opacity: 0.5, textAlign: 'center' }}>MOMENTUM</Text>
+              </MotiView>
+              {[
+                { label: '✅ Görevler', pct: '40%' },
+                { label: '⚡ Odak', pct: '35%' },
+                { label: '🔥 Seri', pct: '25%' },
+              ].map((row, i) => (
+                <MotiView
+                  key={i}
+                  animate={{ translateX: isActive ? 0 : 30, opacity: isActive ? 1 : 0 }}
+                  transition={{ delay: 400 + i * 100, type: 'spring' }}
+                  style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', backgroundColor: '#6200ee18', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#6200ee' }}>{row.pct}</Text>
+                </MotiView>
+              ))}
+            </View>
+          </View>
+        );
+      case 'cockpit':
+        return (
+          <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
+            <View style={styles.simContainer}>
+              <MotiView
+                animate={{ opacity: isActive ? 1 : 0, translateY: isActive ? 0 : -10 }}
+                transition={{ type: 'spring', delay: 200 }}
+                style={{ width: '100%' }}
+              >
+                <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: '#f59e0b', opacity: 0.7, marginBottom: 8 }}>HAFTALIK MERKEZ</Text>
+                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+                  {['P', 'S', 'Ç', 'P', 'C', 'C', 'P'].map((d, i) => (
+                    <MotiView
+                      key={i}
+                      animate={{ scale: isActive ? 1 : 0.5, opacity: isActive ? 1 : 0 }}
+                      transition={{ delay: 400 + i * 60, type: 'spring' }}
+                      style={{ flex: 1, alignItems: 'center', backgroundColor: i === 4 ? '#f59e0b' : theme.surfaceContainerHighest, borderRadius: 8, paddingVertical: 6 }}
+                    >
+                      <Text style={{ fontSize: 9, fontWeight: '800', color: i === 4 ? '#fff' : theme.onSurfaceVariant }}>{d}</Text>
+                    </MotiView>
+                  ))}
+                </View>
+                {[40, 75, 55, 90].map((h, i) => (
+                  <MotiView
+                    key={i}
+                    animate={{ width: isActive ? `${h}%` : '5%' } as any}
+                    transition={{ delay: 800 + i * 80, type: 'timing', duration: 500 }}
+                    style={{ height: 8, borderRadius: 4, backgroundColor: '#f59e0b' + (i === 3 ? 'FF' : '55'), marginBottom: 5 }}
+                  />
+                ))}
+              </MotiView>
             </View>
           </View>
         );

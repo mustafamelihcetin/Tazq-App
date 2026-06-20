@@ -38,6 +38,8 @@ export interface TurkishMode {
   habits: ModeHabit[];
   tasks: ModeTask[];
   templates?: StudyTemplate[];
+  tipTr?: string;
+  tipEn?: string;
 }
 
 // ── Date ranges ──────────────────────────────────────────────────────────────
@@ -183,10 +185,10 @@ const TEMPLATE_RAMAZAN_GECE: StudyTemplate = {
   id: 'ramazan-gece',
   titleTr: 'Gece Odağı',
   titleEn: 'Night Focus',
-  descTr: 'Teravih sonrası saatler en verimli zaman. Gece çalış, gündüz dinlen.',
-  descEn: 'Post-Tarawih hours are peak focus time. Work at night, rest during the day.',
-  targetTr: 'Teravih kılan, gece uyuyan · Gündüz odaklanmakta zorlananlar',
-  targetEn: 'Praying Tarawih, sleeping at night · Those who struggle to focus during the day',
+  descTr: 'Teravih sonrası zihin taze, ev sessiz. İbadet ve üretkenliği dengeleyen karma bir rutin — hem huzur hem ilerleme.',
+  descEn: 'Mind is fresh after Tarawih, house is quiet. A balanced routine blending worship and productivity — peace and progress together.',
+  targetTr: '🌙 Teravih kılıyor · Gece uyuyor · Gündüz odaklanmakta zorlananlar',
+  targetEn: '🌙 Prays Tarawih · Sleeps at night · Struggles to focus during the day',
   emoji: '🌙',
   dailyGoalMinutes: 60,
   habits: [
@@ -207,10 +209,10 @@ const TEMPLATE_RAMAZAN_SABAH: StudyTemplate = {
   id: 'ramazan-sabah',
   titleTr: 'Sahur Bereketi',
   titleEn: 'Suhoor Blessing',
-  descTr: 'Sahurdan sonra taze zihinle çalış. Gün içi ritüellere odaklan.',
-  descEn: 'Work with a fresh mind after Suhoor. Focus on rituals during the day.',
-  targetTr: 'Erken uyuyan · Sabah çalışmayı sevenler',
-  targetEn: 'Early sleepers · Morning workers',
+  descTr: 'Sahur bereketi sadece ruhani değil — taze zihinle ders ya da işe başlamak için de en doğal vakit. Gün ilerledikçe ibadet ritmi alışkanlığı destekler.',
+  descEn: 'Suhoor blessing isn\'t only spiritual — it\'s the most natural time to start studying or working with a fresh mind. Daily worship rhythm reinforces the habit.',
+  targetTr: '🌅 Erken uyuyor · Sabah çalışmayı seviyor · Oruç + verimlilik dengesini arıyor',
+  targetEn: '🌅 Early sleeper · Loves morning work · Seeking balance between fasting and productivity',
   emoji: '🌅',
   dailyGoalMinutes: 45,
   habits: [
@@ -421,10 +423,63 @@ export function getMulakatMode(company: string, date: string): TurkishMode {
   };
 }
 
-export function getCustomExamMode(examName: string, examDate: string): TurkishMode {
+function examTemplateTargetTr(id: string, name: string, isMemHeavy: boolean, isQHeavy: boolean, isLanguage: boolean, isMedical: boolean): string {
+  switch (id) {
+    case 'spaced-repetition':
+      if (isMedical) return `✓ ${name} için kritik · Devasa konu havuzu — kartsız kazanmak çok zor`;
+      if (isLanguage) return `✓ ${name} için kritik · Kelime ve gramer kalıcı hafızaya alınmalı`;
+      if (isMemHeavy) return `✓ ${name} için ideal · Ezber yoğun konu havuzu için bilimsel yöntem`;
+      return 'Tıp · Hukuk · Dil sınavları · Tarih ağırlıklı konular';
+    case 'active-recall':
+      if (isQHeavy) return `✓ ${name} için ideal · Çoktan seçmeli, soru çözme hızı belirleyici`;
+      if (isLanguage) return `✓ ${name} için güçlü · Parça anlama ve dinleme pratiği kritik`;
+      return 'Çoktan seçmeli sınavlar · Olgusal bilgi · Soru bankası çalışması';
+    case 'deep-work':
+      return `${name} için uzun oturum çalışması · Konu geçişlerini minimize et`;
+    case 'sprint':
+      return `${name}'a 30 gün kala başla · Yeni konu yok, sadece pekiştirme`;
+    default:
+      return 'Çoktan seçmeli sınavlar · Olgusal bilgi';
+  }
+}
+
+function examTemplateTargetEn(id: string, name: string, isMemHeavy: boolean, isQHeavy: boolean, isLanguage: boolean, isMedical: boolean): string {
+  switch (id) {
+    case 'spaced-repetition':
+      if (isMedical) return `✓ Critical for ${name} · Massive syllabus — nearly impossible without flashcards`;
+      if (isLanguage) return `✓ Critical for ${name} · Vocabulary and grammar must enter long-term memory`;
+      if (isMemHeavy) return `✓ Ideal for ${name} · Scientific method for memory-heavy syllabi`;
+      return 'Medicine · Law · Language exams · History-heavy topics';
+    case 'active-recall':
+      if (isQHeavy) return `✓ Ideal for ${name} · Multiple choice — question speed is decisive`;
+      if (isLanguage) return `✓ Strong for ${name} · Reading comprehension and listening practice matter`;
+      return 'Multiple choice exams · Factual knowledge · Question bank practice';
+    case 'deep-work':
+      return `Long study sessions for ${name} · Minimize topic-switching`;
+    case 'sprint':
+      return `Start 30 days before ${name} · No new topics — reinforcement only`;
+    default:
+      return 'Multiple choice exams · Factual knowledge';
+  }
+}
+
+export function getCustomExamMode(examName: string, examDate: string, examTipTr?: string, examTipEn?: string): TurkishMode {
   const days = Math.max(0, Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000));
   const name = examName.trim() || 'Sınav';
   const isLastMonth = days <= 30;
+  const n = name.toUpperCase();
+  const isMemHeavy = ['KPSS', 'TUS', 'DUS', 'YDS', 'YOKDIL', 'YÖKDİL', 'IELTS', 'TOEFL', 'GRE', 'GMAT', 'USMLE'].some(e => n.includes(e));
+  const isQHeavy = ['YKS', 'TYT', 'AYT', 'LGS', 'ALES', 'DGS', 'KPSS', 'MSÜ', 'MSU', 'PMYO'].some(e => n.includes(e));
+  const isLanguage = ['YDS', 'YOKDIL', 'YÖKDİL', 'IELTS', 'TOEFL', 'GRE', 'GMAT'].some(e => n.includes(e));
+  const isMedical = ['TUS', 'DUS', 'USMLE'].some(e => n.includes(e));
+  const rawTemplates = isLastMonth
+    ? [TEMPLATE_SPRINT(name), TEMPLATE_ACTIVE_RECALL(name), TEMPLATE_DEEP_WORK(name)]
+    : [TEMPLATE_ACTIVE_RECALL(name), TEMPLATE_SPACED_REPETITION(name), TEMPLATE_DEEP_WORK(name), TEMPLATE_SPRINT(name)];
+  const templates = rawTemplates.map(t => ({
+    ...t,
+    targetTr: examTemplateTargetTr(t.id, name, isMemHeavy, isQHeavy, isLanguage, isMedical),
+    targetEn: examTemplateTargetEn(t.id, name, isMemHeavy, isQHeavy, isLanguage, isMedical),
+  }));
   return {
     type: 'exam',
     labelTr: `${name} Hazırlığı`,
@@ -435,9 +490,9 @@ export function getCustomExamMode(examName: string, examDate: string): TurkishMo
     daysLeft: days,
     habits: [],
     tasks: [],
-    templates: isLastMonth
-      ? [TEMPLATE_SPRINT(name), TEMPLATE_ACTIVE_RECALL(name), TEMPLATE_DEEP_WORK(name)]
-      : [TEMPLATE_ACTIVE_RECALL(name), TEMPLATE_SPACED_REPETITION(name), TEMPLATE_DEEP_WORK(name), TEMPLATE_SPRINT(name)],
+    templates,
+    tipTr: examTipTr,
+    tipEn: examTipEn,
   };
 }
 
@@ -449,14 +504,14 @@ function nextDate(ranges: { start: string }[]): string {
   return future?.start ?? ranges[ranges.length - 1].start;
 }
 
-export function getModePreview(type: ModeType, opts?: { examName?: string; examDate?: string; tezName?: string; tezDate?: string; mulakatName?: string; mulakatDate?: string }): TurkishMode {
+export function getModePreview(type: ModeType, opts?: { examName?: string; examDate?: string; examTipTr?: string; examTipEn?: string; tezName?: string; tezDate?: string; mulakatName?: string; mulakatDate?: string }): TurkishMode {
   if (type === 'ramazan') {
     const next = nextDate(RAMAZAN);
     const date = new Date(next).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
     return { ...RAMAZAN_MODE(0), subtitleTr: `${date}'den itibaren aktif`, subtitleEn: `Activates from ${date}` };
   }
   if (type === 'exam') {
-    return getCustomExamMode(opts?.examName ?? '', opts?.examDate ?? new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]);
+    return getCustomExamMode(opts?.examName ?? '', opts?.examDate ?? new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0], opts?.examTipTr, opts?.examTipEn);
   }
   if (type === 'tez') {
     return getTezMode(opts?.tezName ?? '', opts?.tezDate ?? new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0]);
@@ -489,3 +544,9 @@ export function detectTurkishMode(): TurkishMode | null {
   }
   return null;
 }
+
+// All habit names that can be created by each seasonal mode — used for name-based fallback removal
+export const RAMAZAN_HABIT_NAMES: string[] = [
+  ...TEMPLATE_RAMAZAN_GECE.habits.map(h => h.name),
+  ...TEMPLATE_RAMAZAN_SABAH.habits.map(h => h.name),
+];

@@ -8,6 +8,7 @@ export interface Task {
   dueDate?: string | null;
   dueTime?: string | null;
   isCompleted: boolean;
+  completedAt?: string | null;
   priority: string;
   tags: string[];
   subtasks?: SubtaskItem[];
@@ -35,12 +36,22 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   dailyProgressText: '',
 
   setTasks: (tasks) => {
-    // Smart Sort: 
+    // Preserve local completedAt timestamps when server refreshes (server doesn't track this)
+    const existing = new Map(get().tasks.map(t => [t.id, t]));
+    const merged = tasks.map(t => {
+      const local = existing.get(t.id);
+      if (t.isCompleted && local?.completedAt && !t.completedAt) {
+        return { ...t, completedAt: local.completedAt };
+      }
+      return t;
+    });
+
+    // Smart Sort:
     // 1. Uncompleted first
     // 2. Manual sort order (if set)
     // 3. Priority (High > Medium > Low)
     // 4. Due Date (Earliest first, nulls at bottom)
-    const sorted = [...tasks].sort((a, b) => {
+    const sorted = [...merged].sort((a, b) => {
       if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
       
       // Manual sort order takes precedence if both have non-zero values
@@ -86,9 +97,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   toggleTaskCompletion: (taskId) => {
-    const newTasks = get().tasks.map((t) =>
-      t.id === taskId ? { ...t, isCompleted: !t.isCompleted } : t
-    );
+    const newTasks = get().tasks.map((t) => {
+      if (t.id !== taskId) return t;
+      const completing = !t.isCompleted;
+      return { ...t, isCompleted: completing, completedAt: completing ? new Date().toISOString() : null };
+    });
     get().setTasks(newTasks);
   },
 

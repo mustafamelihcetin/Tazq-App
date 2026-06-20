@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Modal, KeyboardAvoidingView, Platform, Alert, Dimensions,
@@ -8,15 +9,16 @@ import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
 import {
-  ArrowLeft, Plus, Check, Flame, Clock, Target,
+  Plus, Check, Flame, Clock, Target,
   ChevronRight, Sparkles, CalendarDays, Trash2,
 } from 'lucide-react-native';
-import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useTaskStore } from '../store/useTaskStore';
 import { useFocusStore } from '../store/useFocusStore';
 import { useHabitStore, Habit, fmtDateKey } from '../store/useHabitStore';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { usePrefsStore } from '../store/usePrefsStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
@@ -63,12 +65,13 @@ export default function CockpitScreen() {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
-  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const { language } = useLanguageStore();
   const { tasks } = useTaskStore();
   const { habits, addHabit, removeHabit, toggleDate, weeklyGoal, setWeeklyGoal, getStreak } = useHabitStore();
+  const { seasonal } = usePrefsStore();
+  const hasActiveSeasonalMode = seasonal.ramazan || seasonal.examMode || seasonal.tezMode || seasonal.mulakatMode;
 
   const todayKey = fmtDateKey();
   const tr = language === 'tr';
@@ -78,6 +81,7 @@ export default function CockpitScreen() {
 
   const [selectedDay, setSelectedDay] = useState(todayKey);
   const [addVisible, setAddVisible] = useState(false);
+  const [showDayHint, setShowDayHint] = useState(false);
   const [planVisible, setPlanVisible] = useState(false);
   const [completingHabitIds, setCompletingHabitIds] = useState<Set<string>>(new Set());
   const [newName, setNewName] = useState('');
@@ -107,6 +111,16 @@ export default function CockpitScreen() {
   }, []);
 
   useFocusEffect(fetchStats);
+
+  useEffect(() => {
+    AsyncStorage.getItem('tazq-day-hint-shown').then(val => {
+      if (!val) {
+        setShowDayHint(true);
+        setTimeout(() => setShowDayHint(false), 4000);
+        AsyncStorage.setItem('tazq-day-hint-shown', 'true').catch(() => {});
+      }
+    }).catch(() => {});
+  }, []);
 
   // Reset add-habit form when sheet closes
   useEffect(() => {
@@ -241,9 +255,6 @@ export default function CockpitScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* ── Header ── */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.canGoBack() ? router.back() : router.replace('/')} style={styles.backBtn}>
-            <ArrowLeft size={22} color={theme.onSurface} />
-          </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={[styles.headerTitle, { color: theme.onSurface }]}>
               {tr ? 'HAFTALIK MERKEZ' : 'WEEKLY HUB'}
@@ -264,14 +275,32 @@ export default function CockpitScreen() {
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: 120 }}
+          contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
         >
           {/* ── WEEK STRIP ── */}
           <BentoCard index={0} style={{ padding: S.md, marginBottom: S.md }}>
-            <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
-              {tr ? 'BU HAFTA' : 'THIS WEEK'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
+                {tr ? 'BU HAFTA' : 'THIS WEEK'}
+              </Text>
+              <AnimatePresence>
+                {showDayHint && (
+                  <MotiView
+                    key="day-hint"
+                    from={{ opacity: 0, translateX: 8 }}
+                    animate={{ opacity: 1, translateX: 0 }}
+                    exit={{ opacity: 0, translateX: 8 }}
+                    transition={{ type: 'timing', duration: 400 }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}
+                  >
+                    <Text style={{ fontSize: 10, color: theme.primary, fontWeight: '800' }}>
+                      {tr ? '← Geçmiş günlere dokun' : '← Tap past days'}
+                    </Text>
+                  </MotiView>
+                )}
+              </AnimatePresence>
+            </View>
             <View style={styles.weekRow}>
               {weekData.map((day, i) => {
                 const isSelected = day.key === selectedDay;
@@ -320,7 +349,7 @@ export default function CockpitScreen() {
                       styles.taskDot,
                       {
                         backgroundColor: hasTasks
-                          ? allDone ? '#34C759' : (day.isPast ? theme.onSurfaceVariant : theme.primary)
+                          ? allDone ? theme.success : (day.isPast ? theme.onSurfaceVariant : theme.primary)
                           : 'transparent',
                         opacity: day.isPast && !day.isToday ? 0.4 : 1,
                       },
@@ -333,7 +362,20 @@ export default function CockpitScreen() {
 
           {/* ── SELECTED DAY TASKS ── */}
           <AnimatePresence>
-            {selectedDayTasks.length > 0 && (
+            {selectedDayTasks.length === 0 && selectedDay !== todayKey ? (
+              <MotiView
+                key={`empty-${selectedDay}`}
+                from={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ type: 'timing', duration: 250 }}
+                style={{ paddingVertical: S.sm, alignItems: 'center', marginBottom: S.md }}
+              >
+                <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.45 }}>
+                  {tr ? 'Bu gün için planlanmış görev yok' : 'No tasks planned for this day'}
+                </Text>
+              </MotiView>
+            ) : selectedDayTasks.length > 0 ? (
               <MotiView
                 key={selectedDay}
                 from={{ opacity: 0, translateY: -6 }}
@@ -373,11 +415,11 @@ export default function CockpitScreen() {
                     <View style={[
                       styles.miniCheck,
                       {
-                        borderColor: task.isCompleted ? '#34C759' : theme.outline + '80',
-                        backgroundColor: task.isCompleted ? '#34C75918' : 'transparent',
+                        borderColor: task.isCompleted ? theme.success : theme.outline + '80',
+                        backgroundColor: task.isCompleted ? theme.success + '18' : 'transparent',
                       },
                     ]}>
-                      {task.isCompleted && <Check size={10} color="#34C759" strokeWidth={3} />}
+                      {task.isCompleted && <Check size={10} color={theme.success} strokeWidth={3} />}
                     </View>
                     <Text
                       style={[
@@ -395,9 +437,9 @@ export default function CockpitScreen() {
                       styles.priorityPip,
                       {
                         backgroundColor:
-                          task.priority === 'High' ? '#FF3B30'
-                          : task.priority === 'Medium' ? '#FF9F0A'
-                          : '#34C759',
+                          task.priority === 'High' ? theme.priorityHigh
+                          : task.priority === 'Medium' ? theme.priorityMedium
+                          : theme.priorityLow,
                       },
                     ]} />
                   </TouchableOpacity>
@@ -418,7 +460,7 @@ export default function CockpitScreen() {
                   </TouchableOpacity>
                 )}
               </MotiView>
-            )}
+            ) : null}
           </AnimatePresence>
 
           {/* ── HABITS ── */}
@@ -440,39 +482,79 @@ export default function CockpitScreen() {
               >
                 <Flame size={40} color={theme.primary} />
               </MotiView>
-              <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>
-                {tr ? 'İlk alışkanlığını ekle' : 'Add your first habit'}
-              </Text>
-              <Text style={[styles.emptySub, { color: theme.onSurfaceVariant }]}>
-                {tr
-                  ? 'Küçük alışkanlıklar büyük dönüşümler yaratır.'
-                  : 'Small habits create big transformations.'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => { prepareAdd(); setAddVisible(true); }}
-                style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}
-              >
-                <Plus size={15} color={theme.onPrimary} />
-                <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>
-                  {tr ? 'Alışkanlık Ekle' : 'Add Habit'}
-                </Text>
-              </TouchableOpacity>
+              {hasActiveSeasonalMode ? (
+                <>
+                  <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>
+                    {tr ? 'Planı Ana Ekrandan Uygula' : 'Apply Plan from Home'}
+                  </Text>
+                  <Text style={[styles.emptySub, { color: theme.onSurfaceVariant }]}>
+                    {tr
+                      ? 'Dönemsel modun aktif. Ana ekrandaki "Planı Uygula" butonuna bas.'
+                      : 'Seasonal mode is active. Tap "Apply Plan" on the Home screen.'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.replace('/')}
+                    style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}
+                  >
+                    <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>
+                      {tr ? 'Ana Ekrana Git' : 'Go to Home'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>
+                    {tr ? 'İlk alışkanlığını ekle' : 'Add your first habit'}
+                  </Text>
+                  <Text style={[styles.emptySub, { color: theme.onSurfaceVariant }]}>
+                    {tr
+                      ? 'Küçük alışkanlıklar büyük dönüşümler yaratır.'
+                      : 'Small habits create big transformations.'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => { prepareAdd(); setAddVisible(true); }}
+                    style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}
+                  >
+                    <Plus size={15} color={theme.onPrimary} />
+                    <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>
+                      {tr ? 'Alışkanlık Ekle' : 'Add Habit'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </BentoCard>
           ) : (
             <View style={{ gap: S.sm, marginBottom: S.md }}>
-              {/* Tamamlanan alışkanlık sayacı */}
+              {/* Tamamlanan alışkanlıklar — tam liste */}
               {(() => {
-                const doneCount = habits.filter(h => {
+                const doneHabits = habits.filter(h => {
+                  if (!h || !h.id) return false;
                   const dates = Array.isArray(h.completedDates) ? h.completedDates : [];
-                  return dates.includes(todayKey);
-                }).length;
-                if (doneCount === 0) return null;
+                  return dates.includes(todayKey) && !completingHabitIds.has(h.id);
+                });
+                if (doneHabits.length === 0) return null;
                 return (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: S.xs, paddingHorizontal: S.sm }}>
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#34C759' }} />
-                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>
-                      {tr ? `Bugün ${doneCount} alışkanlık tamamlandı` : `${doneCount} habit${doneCount > 1 ? 's' : ''} done today`}
+                  <View style={{ gap: S.xs, marginBottom: S.sm }}>
+                    <Text style={{ fontSize: 10, fontWeight: '900', color: theme.success, opacity: 0.7, letterSpacing: 1, paddingHorizontal: S.sm }}>
+                      {tr ? `✓ BUGÜN TAMAMLANDI (${doneHabits.length})` : `✓ DONE TODAY (${doneHabits.length})`}
                     </Text>
+                    {doneHabits.map(habit => (
+                      <TouchableOpacity
+                        key={habit.id}
+                        onPress={() => handleToggleHabit(habit.id)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.lg,
+                          backgroundColor: theme.success + (isDark ? '12' : '0D'),
+                          borderWidth: 1, borderColor: theme.success + '18' }}
+                      >
+                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 16 }}>{habit.emoji ?? '📌'}</Text>
+                        </View>
+                        <Text style={{ flex: 1, fontSize: F.body, fontWeight: '700', color: theme.onSurfaceVariant, textDecorationLine: 'line-through', opacity: 0.55 }} numberOfLines={1}>
+                          {habit.name}
+                        </Text>
+                        <Check size={14} color={theme.success} strokeWidth={3} />
+                      </TouchableOpacity>
+                    ))}
                   </View>
                 );
               })()}
@@ -507,11 +589,11 @@ export default function CockpitScreen() {
                           <View style={styles.streakRow}>
                             <Flame
                               size={11}
-                              color={streak > 0 ? '#FF6B35' : theme.onSurfaceVariant}
+                              color={streak > 0 ? theme.streak : theme.onSurfaceVariant}
                             />
                             <Text style={[
                               styles.streakText,
-                              { color: streak > 0 ? '#FF6B35' : theme.onSurfaceVariant },
+                              { color: streak > 0 ? theme.streak : theme.onSurfaceVariant },
                             ]}>
                               {streak} {tr ? 'gün' : 'days'}
                             </Text>
@@ -613,10 +695,10 @@ export default function CockpitScreen() {
             <View style={{ flexDirection: 'row', gap: S.sm }}>
               {[
                 {
-                  icon: <Check size={15} color="#34C759" strokeWidth={3} />,
+                  icon: <Check size={15} color={theme.success} strokeWidth={3} />,
                   value: String(thisWeekCompleted),
                   label: tr ? 'Tamamlandı' : 'Completed',
-                  accent: '#34C759',
+                  accent: theme.success,
                 },
                 {
                   icon: <Clock size={15} color={theme.primary} />,
@@ -625,10 +707,10 @@ export default function CockpitScreen() {
                   accent: theme.primary,
                 },
                 {
-                  icon: <Flame size={15} color="#FF6B35" />,
+                  icon: <Flame size={15} color={theme.streak} />,
                   value: `${habitsThisWeekPct}%`,
                   label: tr ? 'Alışkanlık' : 'Habits',
-                  accent: '#FF6B35',
+                  accent: theme.streak,
                 },
               ].map((stat, i) => (
                 <View
@@ -725,9 +807,17 @@ export default function CockpitScreen() {
             >
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
             </View>
-            <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
-              {tr ? 'Yeni Alışkanlık' : 'New Habit'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.sm }}>
+              <Text style={[styles.sheetTitle, { color: theme.onSurface, marginBottom: 0 }]}>
+                {tr ? 'Yeni Alışkanlık' : 'New Habit'}
+              </Text>
+              <View style={{ backgroundColor: newColor + '20', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={{ fontSize: 10 }}>🔄</Text>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: newColor, letterSpacing: 0.3 }}>
+                  {tr ? 'Her gün takip edilir' : 'Tracked daily'}
+                </Text>
+              </View>
+            </View>
 
             {/* Name input */}
             <View style={[
