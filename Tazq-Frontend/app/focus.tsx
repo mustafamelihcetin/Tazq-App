@@ -10,9 +10,8 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
 import { useTaskStore } from '../store/useTaskStore';
 import * as Haptics from 'expo-haptics';
-// expo-av is a native module — requires dev client rebuild to activate
-let Audio: typeof import('expo-av').Audio | null = null;
-try { Audio = require('expo-av').Audio; } catch (_) {}
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import type { AudioPlayer } from 'expo-audio';
 import { FocusService } from '../services/api';
 import { useAchievementStore } from '../store/useAchievementStore';
 import { checkFocusAchievement } from '../utils/achievements';
@@ -56,7 +55,7 @@ export default function FocusScreen() {
   const { trigger: triggerAchievement } = useAchievementStore();
 
   // Sound
-  const soundRef = useRef<any>(null);
+  const soundRef = useRef<AudioPlayer | null>(null);
   const [ambientSound, setAmbientSound] = useState<AmbientSound>('off');
 
   // Task picker
@@ -100,38 +99,33 @@ export default function FocusScreen() {
   // ── Ambient sound ────────────────────────────────────────────────────────
   const playAmbientSound = async (type: AmbientSound) => {
     if (soundRef.current) {
-      try { await (soundRef.current as any).stopAsync(); await (soundRef.current as any).unloadAsync(); } catch {}
+      try { soundRef.current.remove(); } catch {}
       soundRef.current = null;
     }
     if (type === 'off') return;
-    console.log('[Audio] playAmbientSound:', type, '| Audio module:', Audio ? 'OK' : 'NULL');
-    if (!Audio) {
-      console.warn('[Audio] expo-av native module not available — dev client rebuild needed');
-      return;
-    }
     try {
       const sources: Record<string, any> = {
         rain: require('../assets/sounds/rain.wav'),
         cafe: require('../assets/sounds/cafe.wav'),
         forest: require('../assets/sounds/forest.wav'),
       };
-      await Audio.setAudioModeAsync({
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: false,
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        interruptionMode: 'mixWithOthers',
       });
-      const { sound } = await Audio.Sound.createAsync(
-        sources[type],
-        { shouldPlay: true, isLooping: true, volume: 0.4 },
-      );
-      soundRef.current = sound;
+      const player = createAudioPlayer(sources[type]);
+      player.loop = true;
+      player.volume = 0.4;
+      player.play();
+      soundRef.current = player;
     } catch (e) {
       console.warn('Ambient sound error:', e);
     }
   };
 
   useEffect(() => {
-    return () => { soundRef.current?.unloadAsync().catch(() => {}); };
+    return () => { try { soundRef.current?.remove(); } catch {} };
   }, []);
 
   // ── Init ──────────────────────────────────────────────────────────────────

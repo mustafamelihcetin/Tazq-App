@@ -27,12 +27,7 @@
       ],
       "expo-font",
       "expo-localization",
-      [
-        "expo-av",
-        {
-          "microphonePermission": false
-        }
-      ],
+      "expo-audio",
       "@react-native-community/datetimepicker",
       [
         "@react-native-voice/voice",
