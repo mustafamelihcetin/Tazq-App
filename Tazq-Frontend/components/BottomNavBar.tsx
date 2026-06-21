@@ -20,8 +20,8 @@ export const BottomNavBar = () => {
   const tabs = [
     { id: 'home', path: '/', icon: LayoutGrid },
     { id: 'tasks', path: '/tasks', icon: CheckSquare },
-    { id: 'cockpit', path: '/cockpit', icon: CalendarDays },
     { id: 'focus', path: '/focus', icon: Sparkles },
+    { id: 'cockpit', path: '/cockpit', icon: CalendarDays },
     { id: 'modlar', path: '/modlar', icon: Layers },
   ];
 

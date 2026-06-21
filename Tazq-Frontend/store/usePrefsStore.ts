@@ -17,9 +17,12 @@ interface SeasonalPrefs {
   mulakatMode: boolean;
   mulakatName: string;
   mulakatDate: string | null;
+  sporMode: boolean;
+  sporGoal: string;
+  sporDate: string | null;
 }
 
-type PlanMode = 'exam' | 'exam2' | 'exam3' | 'ramazan' | 'tez' | 'mulakat';
+type PlanMode = 'exam' | 'exam2' | 'exam3' | 'ramazan' | 'tez' | 'mulakat' | 'spor';
 
 interface PrefsState {
   seasonal: SeasonalPrefs;
@@ -44,6 +47,8 @@ interface PrefsState {
   tezPlanTaskIds: number[];
   mulakatPlanHabitIds: string[];
   mulakatPlanTaskIds: number[];
+  sporPlanHabitIds: string[];
+  sporPlanTaskIds: number[];
   examReviewShown: boolean;
   setExamReviewShown: (v: boolean) => void;
   setPlanIds: (mode: PlanMode, habitIds: string[], taskIds: number[]) => void;
@@ -68,6 +73,9 @@ export const usePrefsStore = create<PrefsState>()(
         mulakatMode: false,
         mulakatName: '',
         mulakatDate: null,
+        sporMode: false,
+        sporGoal: '',
+        sporDate: null,
       },
       setSeasonalPref: (key, value) =>
         set((s) => ({ seasonal: { ...s.seasonal, [key]: value } })),
@@ -91,6 +99,8 @@ export const usePrefsStore = create<PrefsState>()(
       tezPlanTaskIds: [],
       mulakatPlanHabitIds: [],
       mulakatPlanTaskIds: [],
+      sporPlanHabitIds: [],
+      sporPlanTaskIds: [],
       examReviewShown: false,
       setExamReviewShown: (v) => set({ examReviewShown: v }),
       setPlanIds: (mode, habitIds, taskIds) => {
@@ -99,6 +109,7 @@ export const usePrefsStore = create<PrefsState>()(
         if (mode === 'exam3') return set({ exam3PlanHabitIds: habitIds, exam3PlanTaskIds: taskIds });
         if (mode === 'tez') return set({ tezPlanHabitIds: habitIds, tezPlanTaskIds: taskIds });
         if (mode === 'mulakat') return set({ mulakatPlanHabitIds: habitIds, mulakatPlanTaskIds: taskIds });
+        if (mode === 'spor') return set({ sporPlanHabitIds: habitIds, sporPlanTaskIds: taskIds });
         return set({ ramazanPlanHabitIds: habitIds, ramazanPlanTaskIds: taskIds });
       },
       clearPlanIds: (mode) => {
@@ -107,6 +118,7 @@ export const usePrefsStore = create<PrefsState>()(
         if (mode === 'exam3') return set({ exam3PlanHabitIds: [], exam3PlanTaskIds: [] });
         if (mode === 'tez') return set({ tezPlanHabitIds: [], tezPlanTaskIds: [] });
         if (mode === 'mulakat') return set({ mulakatPlanHabitIds: [], mulakatPlanTaskIds: [] });
+        if (mode === 'spor') return set({ sporPlanHabitIds: [], sporPlanTaskIds: [] });
         return set({ ramazanPlanHabitIds: [], ramazanPlanTaskIds: [] });
       },
     }),
@@ -131,6 +143,9 @@ export const usePrefsStore = create<PrefsState>()(
           mulakatMode: false,
           mulakatName: '',
           mulakatDate: null,
+          sporMode: false,
+          sporGoal: '',
+          sporDate: null,
           ...(persisted?.seasonal ?? {}),
         },
       }),

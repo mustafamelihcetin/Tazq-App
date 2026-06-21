@@ -42,7 +42,11 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
-      useAuthStore.getState().logout();
+      // Only logout if we're actually authenticated — avoids false logouts on network race conditions
+      const { isLoggedIn, _hasHydrated } = useAuthStore.getState();
+      if (isLoggedIn && _hasHydrated) {
+        useAuthStore.getState().logout();
+      }
       return Promise.reject(error);
     }
 

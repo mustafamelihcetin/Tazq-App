@@ -161,16 +161,15 @@ export default function LoginScreen() {
 
                   <View style={styles.form}>
                     <View style={styles.inputGroup}>
-                      <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>{t.login.email.toUpperCase()}</Text>
                       <View style={[styles.inputWrapper, {
                         backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
                         borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
                       }]}>
-                        <Mail size={18} color={isDark ? 'rgba(255,255,255,0.45)' : theme.outline} />
+                        <Mail size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
                           ref={emailRef}
                           placeholder={t.login.email}
-                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : theme.outlineVariant}
+                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
                           style={[styles.input, { color: theme.onSurface }]}
                           value={email}
                           onChangeText={setEmail}
@@ -183,21 +182,15 @@ export default function LoginScreen() {
                     </View>
 
                     <View style={styles.inputGroup}>
-                      <View style={styles.labelRow}>
-                        <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>{t.login.password.toUpperCase()}</Text>
-                        <TouchableOpacity onPress={() => setForgotVisible(true)}>
-                          <Text style={[styles.forgotText, { color: theme.primary }]}>{t.login.forgotPassword}</Text>
-                        </TouchableOpacity>
-                      </View>
                       <View style={[styles.inputWrapper, {
                         backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
                         borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
                       }]}>
-                        <Lock size={18} color={isDark ? 'rgba(255,255,255,0.45)' : theme.outline} />
+                        <Lock size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
                           ref={passwordRef}
                           placeholder="••••••••"
-                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : theme.outlineVariant}
+                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
                           style={[styles.input, { color: theme.onSurface }]}
                           value={password}
                           onChangeText={setPassword}
@@ -205,10 +198,13 @@ export default function LoginScreen() {
                         />
                         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                           {showPassword
-                            ? <EyeOff size={18} color={isDark ? 'rgba(255,255,255,0.45)' : theme.outline} />
-                            : <Eye size={18} color={isDark ? 'rgba(255,255,255,0.45)' : theme.outline} />}
+                            ? <EyeOff size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
+                            : <Eye size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
                         </TouchableOpacity>
                       </View>
+                      <TouchableOpacity onPress={() => setForgotVisible(true)} style={{ alignSelf: 'flex-end', marginTop: 6 }}>
+                        <Text style={[styles.forgotText, { color: theme.primary }]}>{t.login.forgotPassword}</Text>
+                      </TouchableOpacity>
                     </View>
 
                     <TouchableOpacity
@@ -261,6 +257,7 @@ export default function LoginScreen() {
                 style={[styles.footer, { marginTop: isSmallScreen ? 16 : 28 }]}
               >
                 <View style={styles.footerRow}>
+                  <TazqLogo size={15} color={theme.onSurfaceVariant} style={{ marginTop: -4 }} />
                   <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
                     {t.login.footer}
                   </Text>
@@ -286,7 +283,7 @@ export default function LoginScreen() {
               
               <TextInput
                 placeholder={t.login.email}
-                placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : theme.outlineVariant}
+                placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
                 style={[styles.modalInput, {
                   backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
                   color: theme.onSurface,
@@ -335,7 +332,7 @@ const styles = StyleSheet.create({
   errorContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, marginBottom: 16 },
   errorText: { fontSize: 13, fontWeight: '600' },
   form: { gap: 14 },
-  inputGroup: { gap: 7 },
+  inputGroup: { gap: 12 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
   forgotText: { fontSize: 12, fontWeight: '700' },

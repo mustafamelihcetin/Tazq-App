@@ -416,45 +416,48 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* TopBar — sibling of SafeAreaView, uses insets.top to clear status bar */}
+      <MotiView
+          from={{ translateY: -20, opacity: 0 }}
+          animate={{ translateY: 0, opacity: 1 }}
+          style={[
+              styles.floatingTopBar,
+              {
+                  position: 'absolute',
+                  top: insets.top + S.sm,
+                  left: S.lg,
+                  right: S.lg,
+                  zIndex: 100,
+                  backgroundColor: 'transparent',
+                  borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+              },
+              isDark ? styles.darkTopBarShadow : styles.lightTopBarShadow
+          ]}
+      >
+          <BlurView
+              intensity={isDark ? 50 : 30}
+              tint={colorScheme}
+              style={StyleSheet.absoluteFill}
+          />
+          <View style={[styles.topBarContent, { paddingHorizontal: S.md }]}>
+              <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                      <TazqLogo height={24} />
+                  </View>
+              </View>
+
+              <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarContainer}>
+                  <Image
+                      source={getAvatarSource(user?.avatar || null)}
+                      style={styles.avatar}
+                  />
+              </TouchableOpacity>
+
+              <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareHub(); setStatusHubVisible(true); }} />
+          </View>
+      </MotiView>
+
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-
-        {/* TopBar */}
-        <View style={[styles.topBarWrapper]}>
-            <MotiView
-                from={{ translateY: -20, opacity: 0 }}
-                animate={{ translateY: 0, opacity: 1 }}
-                style={[
-                    styles.floatingTopBar,
-                    {
-                        backgroundColor: 'transparent',
-                        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                    },
-                    isDark ? styles.darkTopBarShadow : styles.lightTopBarShadow
-                ]}
-            >
-                <BlurView
-                    intensity={isDark ? 50 : 30}
-                    tint={colorScheme}
-                    style={StyleSheet.absoluteFill}
-                />
-                <View style={[styles.topBarContent, { paddingHorizontal: S.md }]}>
-                    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                            <TazqLogo height={24} />
-                        </View>
-                    </View>
-
-                    <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarContainer}>
-                        <Image
-                            source={getAvatarSource(user?.avatar || null)}
-                            style={styles.avatar}
-                        />
-                    </TouchableOpacity>
-
-                    <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareHub(); setStatusHubVisible(true); }} />
-                </View>
-            </MotiView>
-        </View>
 
         {/* Smart Cockpit Modal — bottom sheet */}
         <Modal visible={statusHubVisible} transparent animationType="none" onRequestClose={() => setStatusHubVisible(false)} onShow={() => hubSlideIn()}>
@@ -530,9 +533,9 @@ export default function HomeScreen() {
 
         <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={[styles.scrollContent, { paddingTop: S.lg, paddingBottom: 120 }]}
+            contentContainerStyle={[styles.scrollContent, { paddingTop: S.sm + 68 + S.lg, paddingBottom: 120 }]}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} />}
+            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
             {/* Welcome Hero */}
             <MotiView
@@ -1022,12 +1025,9 @@ export default function HomeScreen() {
       {/* Quick Draft FAB */}
       <TouchableOpacity
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareDraft(); setQuickDraftVisible(true); }}
-        style={[styles.fab, { backgroundColor: '#F59E0B', shadowColor: '#F59E0B', bottom: Math.max(insets.bottom, 16) + 88, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingVertical: 14, borderRadius: 100 }]}
+        style={[styles.fab, { backgroundColor: isDark ? '#B45309' : '#D97706', shadowColor: isDark ? '#B45309' : '#D97706', bottom: Math.max(insets.bottom, 16) + 88, padding: 16, borderRadius: 100 }]}
       >
-        <Zap size={20} color="#fff" fill="#fff" />
-        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '900', letterSpacing: 0.3 }}>
-          {language === 'tr' ? 'Hızlı Taslak' : 'Quick Draft'}
-        </Text>
+        <Zap size={22} color="#fff" fill="#fff" />
       </TouchableOpacity>
 
       <BottomNavBar />
@@ -1038,7 +1038,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   topBarWrapper: { paddingHorizontal: S.lg, paddingVertical: S.sm, alignItems: 'center' },
-  floatingTopBar: { width: '100%', borderRadius: R.full, overflow: 'hidden', borderWidth: 1.2 },
+  floatingTopBar: { borderRadius: R.full, overflow: 'hidden', borderWidth: 1.2 },
   lightTopBarShadow: { shadowColor: '#2d2f31', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 8 },
   darkTopBarShadow: { shadowColor: '#3367ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 },
   topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },

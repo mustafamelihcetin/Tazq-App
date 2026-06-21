@@ -15,7 +15,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, User, ArrowRight, ArrowLeft, AlertCircle, Eye, EyeOff } from 'lucide-react-native';
+import { Mail, Lock, User, ArrowRight, ArrowLeft, AlertCircle, Eye, EyeOff, CheckSquare, Square } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '../services/api';
@@ -42,7 +42,8 @@ const AppleIcon = ({ color }: { color: string }) => (
 
 export default function RegisterScreen() {
   const { theme, isDark } = useAppTheme();
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
+  const tr = language === 'tr';
   const router = useRouter();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -53,10 +54,15 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [consentChecked, setConsentChecked] = useState(false);
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
       setError(t.login.error);
+      return;
+    }
+    if (!consentChecked) {
+      setError(tr ? 'Devam etmek için sözleşmeleri onaylamanız gerekir.' : 'You must accept the agreements to continue.');
       return;
     }
 
@@ -136,12 +142,11 @@ export default function RegisterScreen() {
 
                   <View style={styles.form}>
                     <View style={styles.inputGroup}>
-                      <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>{t.login.name.toUpperCase()}</Text>
                       <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
-                        <User size={18} color={theme.outline} />
-                        <TextInput 
+                        <User size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
+                        <TextInput
                           placeholder={t.login.name}
-                          placeholderTextColor={theme.outlineVariant}
+                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
                           style={[styles.input, { color: theme.onSurface }]}
                           value={name}
                           onChangeText={setName}
@@ -151,12 +156,11 @@ export default function RegisterScreen() {
                     </View>
 
                     <View style={styles.inputGroup}>
-                      <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>{t.login.email.toUpperCase()}</Text>
                       <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
-                        <Mail size={18} color={theme.outline} />
-                        <TextInput 
+                        <Mail size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
+                        <TextInput
                           placeholder={t.login.email}
-                          placeholderTextColor={theme.outlineVariant}
+                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
                           style={[styles.input, { color: theme.onSurface }]}
                           value={email}
                           onChangeText={setEmail}
@@ -166,24 +170,59 @@ export default function RegisterScreen() {
                     </View>
 
                     <View style={styles.inputGroup}>
-                      <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>{t.login.password.toUpperCase()}</Text>
                       <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
-                        <Lock size={18} color={theme.outline} />
+                        <Lock size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
                           placeholder="••••••••"
-                          placeholderTextColor={theme.outlineVariant}
+                          placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
                           style={[styles.input, { color: theme.onSurface }]}
                           value={password}
                           onChangeText={setPassword}
                           secureTextEntry={!showPassword}
                         />
                         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                          {showPassword ? <EyeOff size={18} color={theme.outline} /> : <Eye size={18} color={theme.outline} />}
+                          {showPassword ? <EyeOff size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} /> : <Eye size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
                         </TouchableOpacity>
                       </View>
                     </View>
 
-                    <TouchableOpacity 
+                    {/* Legal consent */}
+                    <TouchableOpacity
+                      onPress={() => { Haptics.selectionAsync(); setConsentChecked(v => !v); }}
+                      activeOpacity={0.7}
+                      style={styles.consentRow}
+                    >
+                      {consentChecked
+                        ? <CheckSquare size={18} color={theme.primary} />
+                        : <Square size={18} color={theme.outlineVariant} />
+                      }
+                      <Text style={[styles.consentText, { color: theme.onSurfaceVariant }]}>
+                        {tr ? '' : 'I have read and agree to the '}
+                        <Text
+                          style={{ color: theme.primary, fontFamily: 'Jakarta-Bold' }}
+                          onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
+                        >
+                          {tr ? 'Kullanıcı Sözleşmesi' : 'Terms of Service'}
+                        </Text>
+                        {tr ? ', ' : ', '}
+                        <Text
+                          style={{ color: theme.primary, fontFamily: 'Jakarta-Bold' }}
+                          onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
+                        >
+                          {tr ? 'Gizlilik Politikası' : 'Privacy Policy'}
+                        </Text>
+                        {tr ? ' ve ' : ' and '}
+                        <Text
+                          style={{ color: theme.primary, fontFamily: 'Jakarta-Bold' }}
+                          onPress={() => router.push({ pathname: '/legal', params: { doc: 'kvkk' } })}
+                        >
+                          {tr ? 'KVKK Aydınlatma Metni' : 'Data Protection Notice'}
+                        </Text>
+                        {tr ? "'ni okudum ve kabul ediyorum." : '.'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
                       onPress={handleRegister}
                       disabled={isLoading}
                       style={styles.registerButton}
@@ -261,10 +300,12 @@ const styles = StyleSheet.create({
   errorContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, marginBottom: 16 },
   errorText: { fontSize: 13, fontWeight: '600' },
   form: { gap: 16 },
-  inputGroup: { gap: 6 },
+  inputGroup: { gap: 12 },
   label: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 56, borderRadius: 16, borderWidth: 1, gap: 12 },
   input: { flex: 1, fontSize: 16, fontWeight: '600' },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 4, marginBottom: 4 },
+  consentText: { flex: 1, fontSize: 12, fontFamily: 'Jakarta-SemiBold', lineHeight: 18 },
   registerButton: { height: 56, borderRadius: 16, overflow: 'hidden', marginTop: 8 },
   buttonInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   buttonText: { fontSize: 18, fontWeight: '800' },

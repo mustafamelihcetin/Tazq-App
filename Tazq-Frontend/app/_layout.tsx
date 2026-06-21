@@ -301,7 +301,7 @@ export default function RootLayout() {
     if (!_hasHydrated) return;
 
     const timer = setTimeout(async () => {
-      const inAuthGroup = segments[0] === 'login' || segments[0] === 'register';
+      const inAuthGroup = segments[0] === 'login' || segments[0] === 'register' || segments[0] === 'legal';
       const inOnboarding = segments[0] === 'onboarding';
 
       try {
@@ -349,25 +349,26 @@ export default function RootLayout() {
     }
   }, [isLoggedIn]);
 
-  // Sync user profile on mount if token exists
+  // Sync user profile after hydration — ensures we use the restored token, not the initial null
   useEffect(() => {
+    if (!_hasHydrated) return;
     const syncProfile = async () => {
-      if (token && isLoggedIn) {
-        try {
-          const userData = await AuthService.getCurrentUser();
-          if (userData) setUser(userData);
-        } catch (error: any) {
-          if (error.response?.status === 401) {
-            logout();
-          } else {
-            // Network/server error — don't logout, keep local session
-            console.warn('Session sync failed (keeping session):', error.message);
-          }
+      const { token: t, isLoggedIn: loggedIn } = useAuthStore.getState();
+      if (!t || !loggedIn) return;
+      try {
+        const userData = await AuthService.getCurrentUser();
+        if (userData) setUser(userData);
+      } catch (error: any) {
+        if (error.response?.status === 401) {
+          logout();
+        } else {
+          // Network/server error — don't logout, keep local session
+          console.warn('Session sync failed (keeping session):', error.message);
         }
       }
     };
     syncProfile();
-  }, []);
+  }, [_hasHydrated]);
 
   // Android Navigation Bar & System UI Sync
   useEffect(() => {
@@ -412,11 +413,12 @@ export default function RootLayout() {
         >
           <Stack.Screen name="onboarding" options={{ gestureEnabled: false, animation: 'none' }} />
           <Stack.Screen name="login" options={{ gestureEnabled: false, animation: 'none' }} />
-          <Stack.Screen name="register" />
+          <Stack.Screen name="register" options={{ gestureEnabled: false, animation: 'none' }} />
           <Stack.Screen name="index" options={{ gestureEnabled: false, animation: 'none' }} />
           <Stack.Screen name="tasks" options={{ gestureEnabled: false, animation: 'none' }} />
           <Stack.Screen name="cockpit" options={{ gestureEnabled: false, animation: 'none' }} />
           <Stack.Screen name="modlar" options={{ gestureEnabled: false, animation: 'none' }} />
+          <Stack.Screen name="legal" options={{ animation: 'slide_from_right' }} />
         </Stack>
 
         <OfflineBanner />

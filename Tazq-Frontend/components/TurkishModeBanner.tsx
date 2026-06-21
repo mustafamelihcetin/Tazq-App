@@ -49,12 +49,24 @@ export const TurkishModeBanner: React.FC<Props> = ({
   const [sheetVisible, setSheetVisible] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<StudyTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<StudyTemplate | null>(() => {
+    if (defaultTemplateId && mode.templates?.length) {
+      return mode.templates.find(t => t.id === defaultTemplateId) ?? null;
+    }
+    return null;
+  });
   const [deselectedHabits, setDeselectedHabits] = useState<Set<string>>(new Set());
   const sheetWasOpenRef = React.useRef(false);
   const appliedRef = React.useRef(false);
   const onSheetCloseRef = React.useRef(onSheetClose);
   onSheetCloseRef.current = onSheetClose;
+
+  const [step, setStep] = useState<'template' | 'review'>(() => {
+    if (planApplied || !mode.templates?.length) return 'review';
+    // If a level was pre-selected (from hours picker), skip the template picker
+    if (defaultTemplateId && mode.templates?.some(t => t.id === defaultTemplateId)) return 'review';
+    return 'template';
+  });
 
   useEffect(() => {
     if (sheetVisible) {
@@ -69,10 +81,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
       if (!appliedRef.current) onSheetCloseRef.current?.();
     }
   }, [sheetVisible]);
-
-  const [step, setStep] = useState<'template' | 'review'>(
-    (planApplied || !mode.templates?.length) ? 'review' : 'template'
-  );
 
   const { panResponder, animatedStyle, prepare: prepareSheet, slideIn } = useSwipeToDismiss({
     onDismiss: () => setSheetVisible(false),
@@ -179,7 +187,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
     setApplying(false);
     appliedRef.current = true;
     setApplied(true);
-    setTimeout(() => setSheetVisible(false), 1200);
   };
 
   const modeAccent =
@@ -188,6 +195,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
     : mode.type === 'exam' ? '#3B82F6'
     : mode.type === 'tez' ? '#8B5CF6'
     : mode.type === 'mulakat' ? '#10B981'
+    : mode.type === 'spor' ? '#F97316'
     : '#EC4899';
 
   const selectTemplate = (tpl: StudyTemplate) => {
@@ -339,18 +347,29 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 </>}
           </TouchableOpacity>
         )}
-        {onClearPlan && (
+        <View style={{ flexDirection: 'row', gap: S.sm }}>
           <TouchableOpacity
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onClearPlan(); setSheetVisible(false); }}
+            onPress={() => setSheetVisible(false)}
             activeOpacity={0.8}
-            style={[styles.clearBtn, { borderColor: theme.error + '40' }]}
+            style={[styles.clearBtn, { flex: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }]}
           >
-            <Trash2 size={13} color={theme.error} strokeWidth={2} />
-            <Text style={[styles.clearBtnText, { color: theme.error }]}>
-              {tr ? 'Planı Kaldır' : 'Remove Plan'}
+            <Text style={[styles.clearBtnText, { color: theme.onSurfaceVariant }]}>
+              {tr ? 'Kapat' : 'Close'}
             </Text>
           </TouchableOpacity>
-        )}
+          {onClearPlan && (
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onClearPlan(); setSheetVisible(false); }}
+              activeOpacity={0.8}
+              style={[styles.clearBtn, { flex: 1, borderColor: theme.error + '40' }]}
+            >
+              <Trash2 size={13} color={theme.error} strokeWidth={2} />
+              <Text style={[styles.clearBtnText, { color: theme.error }]}>
+                {tr ? 'Planı Kaldır' : 'Remove Plan'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </>
   );
@@ -427,13 +446,12 @@ export const TurkishModeBanner: React.FC<Props> = ({
             {!planApplied && step === 'template' && hasTemplates && (
               <>
                 <View style={styles.sheetHeader}>
-                  <Text style={styles.sheetEmoji}>{mode.emoji}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
                       {tr ? 'Çalışma Planı Seç' : 'Choose a Study Plan'}
                     </Text>
                     <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>
-                      {tr ? 'Sana uygun metodu seç, gerisini biz ayarlarız.' : 'Pick the method that fits you — we set the rest up.'}
+                      {tr ? 'Sana uygun seviyeyi seç, gerisini biz ayarlarız.' : 'Pick the level that fits you — we set the rest up.'}
                     </Text>
                   </View>
                 </View>
@@ -475,11 +493,11 @@ export const TurkishModeBanner: React.FC<Props> = ({
                         </View>
                       )}
                       <View style={styles.templateTop}>
-                        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: isRecommended ? modeAccent + '28' : modeAccent + '1A', alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 22 }}>{tpl.emoji}</Text>
-                        </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.templateTitle, { color: theme.onSurface }]}>{tr ? tpl.titleTr : tpl.titleEn}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                            <Text style={{ fontSize: 18, lineHeight: 22 }}>{tpl.emoji}</Text>
+                            <Text style={[styles.templateTitle, { color: theme.onSurface, flex: 1 }]}>{tr ? tpl.titleTr : tpl.titleEn}</Text>
+                          </View>
                           <Text style={[styles.templateDesc, { color: theme.onSurfaceVariant, opacity: 0.9 }]}>{tr ? tpl.descTr : tpl.descEn}</Text>
                         </View>
                         <ChevronRight size={16} color={isRecommended ? modeAccent : theme.onSurfaceVariant} opacity={isRecommended ? 0.8 : 0.4} />
@@ -588,7 +606,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   )}
                 </ScrollView>
                 <TouchableOpacity
-                  onPress={applyAll}
+                  onPress={applied ? () => setSheetVisible(false) : applyAll}
                   activeOpacity={0.85}
                   disabled={applying || allDone}
                   style={[styles.applyBtn, { backgroundColor: applied ? theme.tertiary : allDone ? theme.surfaceContainerHigh : modeAccent, opacity: applying ? 0.7 : 1 }]}
@@ -596,7 +614,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   {applying ? (
                     <ActivityIndicator color="#fff" size="small" />
                   ) : applied ? (
-                    <><Check size={16} color="#fff" strokeWidth={2.5} /><Text style={styles.applyBtnText}>{tr ? 'Uygulandı!' : 'Applied!'}</Text></>
+                    <><Check size={16} color="#fff" strokeWidth={2.5} /><Text style={styles.applyBtnText}>{tr ? 'Uygulandı! — Kapat' : 'Applied! — Close'}</Text></>
                   ) : allDone ? (
                     <Text style={[styles.applyBtnText, { color: theme.onSurfaceVariant }]}>{tr ? 'Tümü zaten mevcut' : 'All already added'}</Text>
                   ) : (
