@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { TazqLogo } from '../components/TazqLogo';
+import { PremiumStatChip } from '../components/PremiumStatChip';
 import { useFocusStore } from '../store/useFocusStore';
 import { StatusHub } from '../components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -57,17 +58,14 @@ export default function HomeScreen() {
   const [modeDismissed, setModeDismissed] = useState(false);
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
-  const [chipHighlights, setChipHighlights] = useState([false, false, false]);
   const [headerHighlight, setHeaderHighlight] = useState(false);
   const [todayHighlight, setTodayHighlight] = useState(false);
   const [momentumHighlight, setMomentumHighlight] = useState(false);
   const [todayBurstKey, setTodayBurstKey] = useState(0);
   const [momentumBurstKey, setMomentumBurstKey] = useState(0);
-  const chipTapTimes = useRef([0, 0, 0]);
   const headerTapTime = useRef(0);
   const todayTapTime = useRef(0);
   const momentumTapTime = useRef(0);
-  const chipScales = useRef([new Animated.Value(1), new Animated.Value(1), new Animated.Value(1)]).current;
   const headerScale = useRef(new Animated.Value(1)).current;
 
   const { panResponder: draftPan, animatedStyle: draftSlide, prepare: prepareDraft, slideIn: draftSlideIn } = useSwipeToDismiss({
@@ -201,25 +199,64 @@ export default function HomeScreen() {
     if (firstHalf === 0) return null;
     return Math.round(((secondHalf - firstHalf) / firstHalf) * 100);
   })();
-  // Bu haftaki görevler (son 7 gün, dueDate'e göre) — tüm zamanlık değil
+  // ── Professional Momentum Score ────────────────────────────────────────────
+  // Priority weights: High=3pts, Medium=2pts, Low=1pt (prevents gaming with 1 easy task)
+  const PRIORITY_WEIGHTS: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+  // Recency decay: tasks from today count 100%, yesterday 90%, 2d ago 80%... (10% per day)
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   sevenDaysAgo.setHours(0, 0, 0, 0);
   const weeklyTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate) >= sevenDaysAgo);
-  const completedCount = weeklyTasks.filter(t => t.isCompleted).length;
   const totalCount = weeklyTasks.length;
-  const completionRate = totalCount > 0 ? completedCount / totalCount : 0;
-  const focusScore = Math.min(weeklyMinutes / 300, 1);
-  const streakScore = Math.min(streak / 14, 1);
-  const momentum = Math.round(completionRate * 40 + focusScore * 35 + streakScore * 25);
+  const completedCount = weeklyTasks.filter(t => t.isCompleted).length;
+
+  // Priority-weighted completion rate with recency decay
+  const weightedCompletion = (() => {
+    if (weeklyTasks.length === 0) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let earnedPts = 0;
+    let totalPts = 0;
+    for (const task of weeklyTasks) {
+      const taskDate = task.dueDate ? new Date(task.dueDate) : new Date();
+      const daysAgo = Math.floor((today.getTime() - taskDate.getTime()) / 86400000);
+      const recency = Math.max(0.3, 1 - daysAgo * 0.1); // 100% today → 30% min at 7d
+      const weight = (PRIORITY_WEIGHTS[task.priority] || 1) * recency;
+      totalPts += weight;
+      if (task.isCompleted) earnedPts += weight;
+    }
+    return totalPts > 0 ? earnedPts / totalPts : 0;
+  })();
+
+  // Focus consistency bonus: daily distribution matters, not just total minutes
+  // Reward spreading sessions across more days (up to 7)
+  const focusActiveDays = weeklyFocus.filter((d: any) => (d.minutes || 0) >= 10).length;
+  const focusVolumeScore = Math.min(weeklyMinutes / 280, 1); // 280 min/week = full score (4hrs/day × 70% efficiency)
+  const focusConsistencyScore = focusActiveDays / 7;
+  const focusScore = focusVolumeScore * 0.6 + focusConsistencyScore * 0.4;
+
+  // Streak score with diminishing returns above 14 days (prevents purely streak-gaming)
+  const streakScore = streak <= 14
+    ? Math.min(streak / 14, 1)
+    : 1 + Math.min((streak - 14) / 28, 0.15); // small bonus up to 1.15x for long streaks, capped
+
+  // Habit completion component (from completion journal: last 7 days)
+  const completionHistory = getLastNDays(7);
+  const habitActivityDays = completionHistory.filter(d => d.score >= 0).length;
+  const habitScore = habitActivityDays / 7;
+
+  // Final weighted score (0-100)
+  // Completion 38% | Focus 32% | Streak 20% | Habit activity 10%
+  const rawMomentum = weightedCompletion * 38 + focusScore * 32 + Math.min(streakScore, 1.15) * 20 + habitScore * 10;
+  const momentum = Math.min(100, Math.round(rawMomentum));
   const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? theme.warning : theme.primary;
 
   // Momentum history (last 7 days for sparkline)
   const momentumHistory = getLastNDays(7);
 
-  // Daily target: how many tasks + minutes needed to hit 75
-  const targetTasks = Math.max(0, Math.ceil(((75 - momentum) / 40) * Math.max(totalCount, 3)));
-  const targetFocusMin = Math.max(0, Math.ceil(((75 - momentum) / 35) * 300 - weeklyMinutes));
+  // Daily target coaching: reverse-compute what's needed to hit 75
+  const targetTasks = totalCount === 0 ? 3 : Math.max(0, Math.ceil(3 - completedCount));
+  const targetFocusMin = Math.max(0, Math.ceil(280 * (1 - focusVolumeScore) / 7)); // daily shortfall
   const alreadyAt75 = momentum >= 75;
 
   // Turkish mode (only if user opted in)
@@ -303,32 +340,35 @@ export default function HomeScreen() {
   const momentumLabel = momentum >= 75 ? t.momentumHigh : momentum >= 40 ? t.momentumMid : t.momentumLow;
   const dayLabels: string[] = t.dayLabels;
 
-  const chipSurprises = language === 'tr'
-    ? [
-        { icon: '🔥', label: 'YAKIYORSUN!' },
-        { icon: '⚡', label: 'KONSANTRESSİN!' },
-        { icon: '✅', label: 'HARIKA İŞ!' },
-      ]
-    : [
-        { icon: '🔥', label: 'ON FIRE!' },
-        { icon: '⚡', label: 'FOCUSED!' },
-        { icon: '✅', label: 'GREAT JOB!' },
-      ];
+  const tr = language === 'tr';
 
-  const handleChipDoubleTap = (idx: number) => {
-    const now = Date.now();
-    if (now - chipTapTimes.current[idx] < 380) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Animated.sequence([
-        Animated.spring(chipScales[idx], { toValue: 1.2, useNativeDriver: true, damping: 4, stiffness: 400 } as any),
-        Animated.spring(chipScales[idx], { toValue: 0.9, useNativeDriver: true, damping: 8, stiffness: 400 } as any),
-        Animated.spring(chipScales[idx], { toValue: 1, useNativeDriver: true, damping: 12, stiffness: 300 } as any),
-      ]).start();
-      setChipHighlights(prev => prev.map((v, i) => i === idx ? true : v));
-      setTimeout(() => setChipHighlights(prev => prev.map((v, i) => i === idx ? false : v)), 1500);
-    }
-    chipTapTimes.current[idx] = now;
-  };
+  const getStreakSurprise = useCallback(() => {
+    const n = parseInt(streak as string, 10) || 0;
+    if (n === 0)  return { icon: '🌱', label: tr ? 'HADI BAŞLA!'    : 'START TODAY!',    tier: 'nudge'     } as const;
+    if (n <= 3)   return { icon: '🔥', label: tr ? 'ISINIYORSUN!'   : 'WARMING UP!',     tier: 'celebrate' } as const;
+    if (n <= 7)   return { icon: '⚡', label: tr ? 'GEL-İYOR!'      : 'GETTING HOT!',    tier: 'celebrate' } as const;
+    if (n <= 14)  return { icon: '🔥', label: tr ? 'YAKIYORSUN!'    : 'ON FIRE!',        tier: 'celebrate' } as const;
+    if (n <= 30)  return { icon: '🏆', label: tr ? 'HARIKA SERİ!'   : 'GREAT STREAK!',   tier: 'celebrate' } as const;
+    return              { icon: '👑', label: tr ? 'EFSANE SERİ!'   : 'LEGENDARY!',      tier: 'celebrate' } as const;
+  }, [streak, tr]);
+
+  const getFocusSurprise = useCallback(() => {
+    if (weeklyMinutes === 0)  return { icon: '💤', label: tr ? 'BUGÜN BAŞLA!'    : 'START TODAY!',   tier: 'nudge'     } as const;
+    if (weeklyMinutes < 60)   return { icon: '🌱', label: tr ? 'ISINIYOR!'       : 'WARMING UP!',    tier: 'celebrate' } as const;
+    if (weeklyMinutes < 120)  return { icon: '⚡', label: tr ? 'ODAKLISIN!'      : 'FOCUSED!',       tier: 'celebrate' } as const;
+    if (weeklyMinutes < 240)  return { icon: '🔥', label: tr ? 'KONSANTRESSİN!' : 'DIALED IN!',     tier: 'celebrate' } as const;
+    return                          { icon: '🚀', label: tr ? 'SÜPER ODAK!'     : 'SUPER FOCUS!',   tier: 'celebrate' } as const;
+  }, [weeklyMinutes, tr]);
+
+  const getCompletionSurprise = useCallback(() => {
+    const pct = totalCount > 0 ? Math.round(weightedCompletion * 100) : 0;
+    if (pct === 0)  return { icon: '📋', label: tr ? 'HAYDI BAKALIM!'  : 'LET\'S GO!',       tier: 'nudge'     } as const;
+    if (pct <= 25)  return { icon: '🌱', label: tr ? 'BAŞLADIN!'       : 'JUST STARTED!',   tier: 'celebrate' } as const;
+    if (pct <= 50)  return { icon: '📈', label: tr ? 'YARIYA GELDİN!'  : 'HALFWAY THERE!',  tier: 'celebrate' } as const;
+    if (pct <= 74)  return { icon: '⚡', label: tr ? 'HARIKA GİDİYOR!' : 'GREAT PROGRESS!', tier: 'celebrate' } as const;
+    if (pct < 100)  return { icon: '🔥', label: tr ? 'AZ KALDI!'       : 'SO CLOSE!',       tier: 'celebrate' } as const;
+    return                { icon: '🏆', label: tr ? 'MÜKEMMEL!'       : 'PERFECT!',        tier: 'celebrate' } as const;
+  }, [weightedCompletion, totalCount, tr]);
 
   const todaySurprise = (() => {
     if (todayCompleted >= dailyGoal) return language === 'tr' ? '🏆 MÜKEMMEL GÜN!' : '🏆 PERFECT DAY!';
@@ -389,7 +429,6 @@ export default function HomeScreen() {
 
   const getSubGreeting = (): string => {
     const incomplete = tasks.filter(x => !x.isCompleted).length;
-    const tr = language === 'tr';
     if (isActive) {
       return tr ? 'Harika! Odak seansın devam ediyor. 🔥' : "You're crushing it! Focus session in progress. 🔥";
     }
@@ -442,7 +481,7 @@ export default function HomeScreen() {
           <View style={[styles.topBarContent, { paddingHorizontal: S.md }]}>
               <View style={StyleSheet.absoluteFill} pointerEvents="none">
                   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                      <TazqLogo height={24} />
+                      <TazqLogo height={30} />
                   </View>
               </View>
 
@@ -533,7 +572,7 @@ export default function HomeScreen() {
 
         <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={[styles.scrollContent, { paddingTop: S.sm + 68 + S.lg, paddingBottom: 120 }]}
+            contentContainerStyle={[styles.scrollContent, { paddingTop: Platform.OS === 'android' ? insets.top + 68 + S.lg : S.sm + 68 + S.lg, paddingBottom: 120 }]}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
@@ -793,68 +832,35 @@ export default function HomeScreen() {
 
                 {/* ── QUICK STATS STRIP ── */}
                 <View style={{ flexDirection: 'row', gap: S.sm }}>
-                    {[
-                        {
-                            icon: <Flame size={16} color={theme.streak} />,
-                            value: statsLoading ? '--' : `${streak}`,
-                            label: language === 'tr' ? 'günlük seri' : 'day streak',
-                            color: theme.streak,
-                        },
-                        {
-                            icon: <Zap size={16} color={theme.primary} fill={theme.primary} />,
-                            value: statsLoading ? '--' : weeklyMinutes >= 60
-                                ? `${Math.floor(weeklyMinutes / 60)}${language === 'tr' ? 'sa' : 'h'}`
-                                : `${weeklyMinutes}${language === 'tr' ? 'dk' : 'm'}`,
-                            label: language === 'tr' ? 'haftalık odak' : 'weekly focus',
-                            color: theme.primary,
-                        },
-                        {
-                            icon: <Check size={16} color={theme.success} strokeWidth={3} />,
-                            value: totalCount > 0 ? `${Math.round(completionRate * 100)}%` : '–',
-                            label: language === 'tr' ? 'tamamlanma' : 'completion',
-                            color: theme.success,
-                        },
-                    ].map((stat, i) => {
-                        const isHighlighted = chipHighlights[i];
-                        return (
-                            <TouchableOpacity key={i} onPress={() => handleChipDoubleTap(i)} activeOpacity={0.85} style={{ flex: 1 }}>
-                                <MotiView
-                                    from={{ opacity: 0, translateY: 10 }}
-                                    animate={{ opacity: 1, translateY: 0 }}
-                                    transition={{ type: 'spring', damping: 18, delay: i * 70 }}
-                                >
-                                    <Animated.View style={{
-                                        transform: [{ scale: chipScales[i] }],
-                                        backgroundColor: isHighlighted
-                                            ? stat.color + '1C'
-                                            : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
-                                        borderRadius: R.md,
-                                        padding: S.md,
-                                        alignItems: 'center',
-                                        gap: 5,
-                                        borderWidth: 1,
-                                        borderColor: isHighlighted
-                                            ? stat.color + '55'
-                                            : (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)'),
-                                    }}>
-                                        {isHighlighted
-                                            ? <Text style={{ fontSize: 18, lineHeight: 20 }}>{chipSurprises[i].icon}</Text>
-                                            : stat.icon}
-                                        <Text style={{ fontSize: F.title, fontWeight: '900', letterSpacing: -1, color: stat.color, lineHeight: 26 }}>
-                                            {stat.value}
-                                        </Text>
-                                        <Text style={{
-                                            fontSize: 8, fontWeight: '800', letterSpacing: 0.4, textAlign: 'center',
-                                            color: isHighlighted ? stat.color : theme.onSurfaceVariant,
-                                            opacity: isHighlighted ? 1 : 0.55,
-                                        }}>
-                                            {isHighlighted ? chipSurprises[i].label : stat.label.toUpperCase()}
-                                        </Text>
-                                    </Animated.View>
-                                </MotiView>
-                            </TouchableOpacity>
-                        );
-                    })}
+                    <PremiumStatChip
+                        icon={<Flame size={16} color={theme.streak} />}
+                        value={statsLoading ? '--' : `${streak}`}
+                        label={tr ? 'günlük seri' : 'day streak'}
+                        color={theme.streak}
+                        isDark={isDark}
+                        theme={theme}
+                        getSurprise={getStreakSurprise}
+                    />
+                    <PremiumStatChip
+                        icon={<Zap size={16} color={theme.primary} fill={theme.primary} />}
+                        value={statsLoading ? '--' : weeklyMinutes >= 60
+                            ? `${Math.floor(weeklyMinutes / 60)}${tr ? 'sa' : 'h'}`
+                            : `${weeklyMinutes}${tr ? 'dk' : 'm'}`}
+                        label={tr ? 'haftalık odak' : 'weekly focus'}
+                        color={theme.primary}
+                        isDark={isDark}
+                        theme={theme}
+                        getSurprise={getFocusSurprise}
+                    />
+                    <PremiumStatChip
+                        icon={<Check size={16} color={theme.success} strokeWidth={3} />}
+                        value={totalCount > 0 ? `${Math.round(weightedCompletion * 100)}%` : '–'}
+                        label={tr ? 'tamamlanma' : 'completion'}
+                        color={theme.success}
+                        isDark={isDark}
+                        theme={theme}
+                        getSurprise={getCompletionSurprise}
+                    />
                 </View>
 
                 {/* ── WEEKLY FOCUS CHART ── */}
@@ -967,7 +973,7 @@ export default function HomeScreen() {
         <Modal visible={quickDraftVisible} transparent animationType="none" onRequestClose={() => setQuickDraftVisible(false)} onShow={() => draftSlideIn()}>
           <View style={styles.draftOverlay}>
             <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
-                <View style={[styles.bottomSheetWrapper, { marginBottom: keyboardHeight }]}>
+                <View style={[styles.bottomSheetWrapper, { marginBottom: Platform.OS === 'ios' ? keyboardHeight : 0 }]}>
                     <Animated.View style={[draftSlide, styles.quickDraftSheet, {
                           backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
                           paddingBottom: keyboardHeight > 0 ? S.md : S.xl,
@@ -988,7 +994,7 @@ export default function HomeScreen() {
                                 </Text>
                             </View>
                         </View>
-
+                        
                         <View style={[styles.quickInputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', marginTop: S.md }]}>
                             <TextInput
                                 style={[styles.quickInput, { color: theme.onSurface, height: 60 }]}
@@ -998,12 +1004,13 @@ export default function HomeScreen() {
                                 onChangeText={setDraftTitle}
                                 returnKeyType="done"
                                 onSubmitEditing={handleQuickSave}
+                                underlineColorAndroid="transparent"
                             />
                         </View>
                         <Text style={{ fontSize: 10, fontWeight: '700', color: '#F59E0B', opacity: 0.55, marginTop: S.sm, letterSpacing: 0.2 }}>
                             {language === 'tr' ? '📌 Görevler ekranına taslak olarak eklenir' : '📌 Saved as a draft in your task list'}
                         </Text>
-
+                        
                         <View style={styles.quickActions}>
                             <TouchableOpacity
                                 onPress={handleQuickSave}
@@ -1023,12 +1030,14 @@ export default function HomeScreen() {
       </SafeAreaView>
 
       {/* Quick Draft FAB */}
-      <TouchableOpacity
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareDraft(); setQuickDraftVisible(true); }}
-        style={[styles.fab, { backgroundColor: isDark ? '#B45309' : '#D97706', shadowColor: isDark ? '#B45309' : '#D97706', bottom: Math.max(insets.bottom, 16) + 88, padding: 16, borderRadius: 100 }]}
-      >
-        <Zap size={22} color="#fff" fill="#fff" />
-      </TouchableOpacity>
+      {!(Platform.OS === 'android' && keyboardHeight > 0) && (
+        <TouchableOpacity
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareDraft(); setQuickDraftVisible(true); }}
+          style={[styles.fab, { backgroundColor: isDark ? '#B45309' : '#D97706', shadowColor: isDark ? '#B45309' : '#D97706', bottom: Math.max(insets.bottom, 16) + 88, padding: 16, borderRadius: 100 }]}
+        >
+          <Zap size={22} color="#fff" fill="#fff" />
+        </TouchableOpacity>
+      )}
 
       <BottomNavBar />
     </View>

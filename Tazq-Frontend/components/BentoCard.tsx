@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, ViewStyle, StyleProp, TouchableOpacity } from 'react-native';
+import { StyleSheet, ViewStyle, StyleProp, TouchableOpacity, Platform } from 'react-native';
 import { MotiView } from 'moti';
 import { BlurView } from 'expo-blur';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -27,8 +27,12 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
         {
           backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
           borderColor: isDark ? theme.outline : 'rgba(0,0,0,0.05)',
-          shadowColor: isDark ? theme.primary : '#000',
-          shadowOpacity: isDark ? 0.12 : 0.05,
+          ...(Platform.OS === 'ios' ? {
+            shadowColor: isDark ? theme.primary : '#000',
+            shadowOpacity: isDark ? 0.12 : 0.05,
+            shadowOffset: { width: 0, height: 8 },
+            shadowRadius: 24,
+          } : {}),
           padding: S.lg,
           borderRadius: R.lg,
         },
@@ -56,8 +60,6 @@ const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
     overflow: 'hidden',
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 24,
-    elevation: 4,
+    elevation: Platform.OS === 'android' ? 3 : 0,
   },
 });

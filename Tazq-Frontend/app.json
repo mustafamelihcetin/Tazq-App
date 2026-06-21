@@ -61,6 +61,7 @@
       },
       "package": "com.tazqapp.tazq",
       "backgroundColor": "#000000",
+      "softwareKeyboardLayoutMode": "pan",
       "navigationBar": {
         "backgroundColor": "#000000",
         "barStyle": "light-content"

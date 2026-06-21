@@ -20,7 +20,7 @@ import {
 } from '../utils/notifications';
 import { S, R, F } from '../constants/tokens';
 import { useToastStore } from '../store/useToastStore';
-import { getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType } from '../utils/turkishModes';
+import { getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, RAMAZAN } from '../utils/turkishModes';
 import { useSporStore, getThisWeekEntry } from '../store/useSporStore';
 import { getCurrentRamadanStatus, formatRamadanDate } from '../utils/ramadanDates';
 import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '../utils/examPresets';
@@ -149,6 +149,22 @@ export default function ModlarScreen() {
     : [{ key: 'maraton', label: '🏃 Marathon / Running' }, { key: 'guc', label: '💪 Strength & Muscle' }, { key: 'kilo', label: '⚖️ Weight Management' }, { key: 'genel', label: '✨ General Fitness' }, { key: 'yaris', label: '🏆 Sport Competition' }];
 
   const TARGET_EVENTS = ['5K', '10K', 'Yarı', 'Tam'] as const;
+
+  // YKS / KPSS auto-mode active check — warn if user enters same exam in custom exam mode
+  const yksAutoActive = useMemo(() => {
+    const YKS_DATES = [{ start: '2025-06-14', end: '2025-06-15' }, { start: '2026-06-13', end: '2026-06-14' }, { start: '2027-06-12', end: '2027-06-13' }];
+    return YKS_DATES.some(r => { const s = new Date(r.start); s.setDate(s.getDate() - 35); return Date.now() >= s.getTime() && Date.now() <= new Date(r.end).setHours(23,59,59,999); });
+  }, []);
+  const kpssAutoActive = useMemo(() => {
+    const KPSS_DATES = [{ start: '2025-10-26', end: '2025-10-26' }, { start: '2026-10-25', end: '2026-10-25' }, { start: '2027-10-24', end: '2027-10-24' }];
+    return KPSS_DATES.some(r => { const s = new Date(r.start); s.setDate(s.getDate() - 45); return Date.now() >= s.getTime() && Date.now() <= new Date(r.end).setHours(23,59,59,999); });
+  }, []);
+  const examNameConflict = useMemo(() => {
+    const n = examNameInput.toUpperCase();
+    if (yksAutoActive && ['YKS', 'TYT', 'AYT'].some(k => n.includes(k))) return language === 'tr' ? '⚠️ YKS modu zaten otomatik aktif — bu plan onunla çakışabilir' : '⚠️ YKS mode is already auto-active — this plan may overlap';
+    if (kpssAutoActive && n.includes('KPSS')) return language === 'tr' ? '⚠️ KPSS modu zaten otomatik aktif — bu plan onunla çakışabilir' : '⚠️ KPSS mode is already auto-active — this plan may overlap';
+    return null;
+  }, [examNameInput, yksAutoActive, kpssAutoActive, language]);
   const sporDatePast = effectiveSporDate ? new Date(effectiveSporDate).setHours(23, 59, 59, 999) < Date.now() : false;
   const sporDaysLeft = effectiveSporDate && !sporDatePast ? Math.max(0, Math.ceil((new Date(effectiveSporDate).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
   const sporColor = '#F97316';
@@ -296,6 +312,23 @@ export default function ModlarScreen() {
     }
   }, [seasonal.examDate, seasonal.examName, seasonal.examMode]);
 
+  // Ramazan period ended while app was closed — clean up habits automatically
+  useEffect(() => {
+    if (!seasonal.ramazan) return;
+    const now = Date.now();
+    const stillActive = RAMAZAN.some(r => {
+      const end = new Date(r.end);
+      end.setHours(23, 59, 59, 999);
+      return now <= end.getTime();
+    });
+    if (!stillActive) {
+      ramazanPlanHabitIds.forEach(id => removeHabit(id));
+      ramazanPlanTaskIds.forEach(id => retirePlanTask(id, 'ramazan'));
+      clearPlanIds('ramazan');
+      setSeasonalPref('ramazan', false);
+    }
+  }, [seasonal.ramazan]);
+
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -320,7 +353,7 @@ export default function ModlarScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
@@ -600,7 +633,7 @@ export default function ModlarScreen() {
                         {exam2Expanded && (
                           <View style={{ gap: S.sm }}>
                             <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
-                              <TextInput value={exam2NameInput} onChangeText={(v) => { setExam2NameInput(v); setSeasonalPref('exam2Name', v); if (!v.trim()) { setExam2Suggestions([]); setSelectedExam2Preset(null); setExam2DailyMinutes(null); return; } const detected = detectExamFromInput(v); if (detected) { setSelectedExam2Preset(detected); setExam2Suggestions([]); } else { setSelectedExam2Preset(null); setExam2Suggestions(matchExamName(v)); } }} placeholder={language === 'tr' ? 'İkinci sınav adı (örn: YDS, ALES...)' : 'Second exam name (e.g. IELTS, GRE...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }} returnKeyType="done" onSubmitEditing={() => { if (exam2Suggestions.length > 0) { const top = exam2Suggestions[0]; setExam2NameInput(top.shortName); setSeasonalPref('exam2Name', top.shortName); setSelectedExam2Preset(top); setExam2Suggestions([]); } }} />
+                              <TextInput value={exam2NameInput} onChangeText={(v) => { setExam2NameInput(v); setSeasonalPref('exam2Name', v); if (!v.trim()) { setExam2Suggestions([]); setSelectedExam2Preset(null); setExam2DailyMinutes(null); return; } const detected = detectExamFromInput(v); if (detected) { setSelectedExam2Preset(detected); setExam2Suggestions([]); } else { setSelectedExam2Preset(null); setExam2Suggestions(matchExamName(v)); } }} placeholder={language === 'tr' ? 'İkinci sınav adı (örn: YDS, ALES...)' : 'Second exam name (e.g. IELTS, GRE...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" onSubmitEditing={() => { if (exam2Suggestions.length > 0) { const top = exam2Suggestions[0]; setExam2NameInput(top.shortName); setSeasonalPref('exam2Name', top.shortName); setSelectedExam2Preset(top); setExam2Suggestions([]); } }} />
                             </View>
                             {exam2Suggestions.length > 0 && (
                               <View style={{ borderRadius: R.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface, overflow: 'hidden', marginTop: -S.xs }}>
@@ -665,7 +698,7 @@ export default function ModlarScreen() {
                           {exam3Expanded && (
                             <View style={{ gap: S.sm }}>
                               <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
-                                <TextInput value={exam3NameInput} onChangeText={(v) => { setExam3NameInput(v); setSeasonalPref('exam3Name', v); if (!v.trim()) { setExam3Suggestions([]); setSelectedExam3Preset(null); setExam3DailyMinutes(null); return; } const detected = detectExamFromInput(v); if (detected) { setSelectedExam3Preset(detected); setExam3Suggestions([]); } else { setSelectedExam3Preset(null); setExam3Suggestions(matchExamName(v)); } }} placeholder={language === 'tr' ? 'Üçüncü sınav adı (örn: YDS, DGS...)' : 'Third exam name (e.g. TOEFL, GMAT...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }} returnKeyType="done" onSubmitEditing={() => { if (exam3Suggestions.length > 0) { const top = exam3Suggestions[0]; setExam3NameInput(top.shortName); setSeasonalPref('exam3Name', top.shortName); setSelectedExam3Preset(top); setExam3Suggestions([]); } }} />
+                                <TextInput value={exam3NameInput} onChangeText={(v) => { setExam3NameInput(v); setSeasonalPref('exam3Name', v); if (!v.trim()) { setExam3Suggestions([]); setSelectedExam3Preset(null); setExam3DailyMinutes(null); return; } const detected = detectExamFromInput(v); if (detected) { setSelectedExam3Preset(detected); setExam3Suggestions([]); } else { setSelectedExam3Preset(null); setExam3Suggestions(matchExamName(v)); } }} placeholder={language === 'tr' ? 'Üçüncü sınav adı (örn: YDS, DGS...)' : 'Third exam name (e.g. TOEFL, GMAT...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" onSubmitEditing={() => { if (exam3Suggestions.length > 0) { const top = exam3Suggestions[0]; setExam3NameInput(top.shortName); setSeasonalPref('exam3Name', top.shortName); setSelectedExam3Preset(top); setExam3Suggestions([]); } }} />
                               </View>
                               {exam3Suggestions.length > 0 && (
                                 <View style={{ borderRadius: R.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface, overflow: 'hidden', marginTop: -S.xs }}>
@@ -707,8 +740,11 @@ export default function ModlarScreen() {
                   {examExpanded && (
                     <View style={{ gap: S.sm }}>
                       <View ref={examInputViewRef} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
-                        <TextInput value={examNameInput} onChangeText={(v) => { setExamNameInput(v); setSeasonalPref('examName', v); if (!v.trim()) { setExamSuggestions([]); setSelectedExamPreset(null); setExamDailyMinutes(null); return; } const detected = detectExamFromInput(v); if (detected) { setSelectedExamPreset(detected); setExamSuggestions([]); } else { setSelectedExamPreset(null); setExamSuggestions(matchExamName(v)); } }} placeholder={language === 'tr' ? 'Sınav adı (örn: ALES, DGS, KPSS...)' : 'Exam name (e.g. SAT, GRE, IELTS...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" onSubmitEditing={() => { if (examSuggestions.length > 0) { const top = examSuggestions[0]; setExamNameInput(top.shortName); setSeasonalPref('examName', top.shortName); setSelectedExamPreset(top); setExamSuggestions([]); } }} />
+                        <TextInput value={examNameInput} onChangeText={(v) => { setExamNameInput(v); setSeasonalPref('examName', v); if (!v.trim()) { setExamSuggestions([]); setSelectedExamPreset(null); setExamDailyMinutes(null); return; } const detected = detectExamFromInput(v); if (detected) { setSelectedExamPreset(detected); setExamSuggestions([]); } else { setSelectedExamPreset(null); setExamSuggestions(matchExamName(v)); } }} placeholder={language === 'tr' ? 'Sınav adı (örn: ALES, DGS, KPSS...)' : 'Exam name (e.g. SAT, GRE, IELTS...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" onSubmitEditing={() => { if (examSuggestions.length > 0) { const top = examSuggestions[0]; setExamNameInput(top.shortName); setSeasonalPref('examName', top.shortName); setSelectedExamPreset(top); setExamSuggestions([]); } }} />
                       </View>
+                      {examNameConflict && (
+                        <Text style={{ fontSize: 11, color: '#F59E0B', fontWeight: '700', paddingHorizontal: 2 }}>{examNameConflict}</Text>
+                      )}
                       {examSuggestions.length > 0 && (
                         <View style={{ borderRadius: R.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface, overflow: 'hidden', marginTop: -S.xs }}>
                           {examSuggestions.map((preset, idx) => (<TouchableOpacity key={preset.id} onPress={() => { Haptics.selectionAsync(); setExamNameInput(preset.shortName); setSeasonalPref('examName', preset.shortName); setSelectedExamPreset(preset); setExamSuggestions([]); }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 10, borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)' }} activeOpacity={0.7}><Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface, minWidth: 44 }}>{preset.shortName}</Text><Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, flex: 1 }} numberOfLines={1}>{preset.displayName}</Text></TouchableOpacity>))}
@@ -805,7 +841,7 @@ export default function ModlarScreen() {
                   )}
                   {tezExpanded && (
                     <View style={{ gap: S.sm }}>
-                      <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}><TextInput value={tezNameInput} onChangeText={(v) => { setTezNameInput(v); setSeasonalPref('tezName', v); }} placeholder={language === 'tr' ? 'Proje adı (Yüksek Lisans Tezi...)' : "Project name (Master's Thesis...)"} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" /></View>
+                      <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}><TextInput value={tezNameInput} onChangeText={(v) => { setTezNameInput(v); setSeasonalPref('tezName', v); }} placeholder={language === 'tr' ? 'Proje adı (Yüksek Lisans Tezi...)' : "Project name (Master's Thesis...)"} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" /></View>
                       <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowTezDatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}><Text style={{ color: tezDateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{tezDateInput ? formatExamDate(tezDateInput) : (language === 'tr' ? 'Teslim tarihi seç' : 'Select deadline')}</Text><CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} /></TouchableOpacity>
                       {showTezDatePicker && (<DateTimePicker value={tezDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowTezDatePicker(false); if (event.type === 'dismissed') { setShowTezDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setTezDateInput(iso); setSeasonalPref('tezDate', iso); if (Platform.OS === 'ios') setShowTezDatePicker(false); } }} />)}
                       <View style={{ flexDirection: 'row', gap: S.sm }}>
@@ -865,7 +901,7 @@ export default function ModlarScreen() {
                   )}
                   {mulakatExpanded && (
                     <View style={{ gap: S.sm }}>
-                      <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}><TextInput value={mulakatNameInput} onChangeText={(v) => { setMulakatNameInput(v); setSeasonalPref('mulakatName', v); }} placeholder={language === 'tr' ? 'Şirket / Pozisyon (Google - SWE...)' : 'Company / Role (Google - SWE...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" /></View>
+                      <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}><TextInput value={mulakatNameInput} onChangeText={(v) => { setMulakatNameInput(v); setSeasonalPref('mulakatName', v); }} placeholder={language === 'tr' ? 'Şirket / Pozisyon (Google - SWE...)' : 'Company / Role (Google - SWE...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" /></View>
                       <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowMulakatDatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}><Text style={{ color: mulakatDateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{mulakatDateInput ? formatExamDate(mulakatDateInput) : (language === 'tr' ? 'Mülakat tarihi seç' : 'Select interview date')}</Text><CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} /></TouchableOpacity>
                       {showMulakatDatePicker && (<DateTimePicker value={mulakatDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowMulakatDatePicker(false); if (event.type === 'dismissed') { setShowMulakatDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setMulakatDateInput(iso); setSeasonalPref('mulakatDate', iso); if (Platform.OS === 'ios') setShowMulakatDatePicker(false); } }} />)}
                       <View style={{ flexDirection: 'row', gap: S.sm }}>
@@ -1024,9 +1060,10 @@ export default function ModlarScreen() {
                                 placeholder={language === 'tr' ? 'Kg gir (örn: 70.5)' : 'Enter kg (e.g. 70.5)'}
                                 placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'}
                                 keyboardType="decimal-pad"
-                                style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700', height: 36 }}
+                                style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700', height: 36, paddingVertical: 0 }}
                                 autoFocus
                                 returnKeyType="done"
+                                underlineColorAndroid="transparent"
                                 onSubmitEditing={() => {
                                   const v = parseFloat(weightEntryInput.replace(',', '.'));
                                   if (!isNaN(v) && v > 20 && v < 300) { addWeightEntry(v); setWeightEntryInput(''); setShowWeightEntry(false); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
@@ -1081,10 +1118,10 @@ export default function ModlarScreen() {
                           <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8 }}>{language === 'tr' ? 'Kilo bilgileri' : 'Weight info'}</Text>
                           <View style={{ flexDirection: 'row', gap: S.sm }}>
                             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: R.md, paddingHorizontal: S.md, height: 44, borderWidth: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', gap: S.xs }}>
-                              <TextInput value={currentWeight} onChangeText={setCurrentWeight} placeholder={language === 'tr' ? 'Şu an (kg)' : 'Current (kg)'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="decimal-pad" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700' }} returnKeyType="next" />
+                              <TextInput value={currentWeight} onChangeText={setCurrentWeight} placeholder={language === 'tr' ? 'Şu an (kg)' : 'Current (kg)'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="decimal-pad" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700', paddingVertical: 0 }} returnKeyType="next" underlineColorAndroid="transparent" />
                             </View>
                             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: R.md, paddingHorizontal: S.md, height: 44, borderWidth: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', gap: S.xs }}>
-                              <TextInput value={targetWeight} onChangeText={setTargetWeight} placeholder={language === 'tr' ? 'Hedef (kg)' : 'Target (kg)'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="decimal-pad" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700' }} returnKeyType="done" />
+                              <TextInput value={targetWeight} onChangeText={setTargetWeight} placeholder={language === 'tr' ? 'Hedef (kg)' : 'Target (kg)'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="decimal-pad" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700', paddingVertical: 0 }} returnKeyType="done" underlineColorAndroid="transparent" />
                             </View>
                           </View>
                           {cwNum > 0 && twNum > 0 && cwNum === twNum && (
@@ -1099,6 +1136,13 @@ export default function ModlarScreen() {
                                 : `${twNum > cwNum ? '📈' : '📉'} ${Math.abs(cwNum - twNum)} kg · at ${kiloWeeklyRate} kg/week ~${kiloAutoWeeks} weeks`}
                             </Text>
                           )}
+                          {cwNum > 0 && twNum > 0 && Math.abs(cwNum - twNum) > 30 && (
+                            <Text style={{ fontSize: 11, color: '#EF4444', fontWeight: '700', lineHeight: 16 }}>
+                              {language === 'tr'
+                                ? '⚠️ 30 kg üzeri hedefler için bir doktor veya diyetisyen desteği önerilir.'
+                                : '⚠️ For goals over 30 kg, consulting a doctor or dietitian is recommended.'}
+                            </Text>
+                          )}
                         </View>
                       )}
 
@@ -1107,7 +1151,7 @@ export default function ModlarScreen() {
                         <View style={{ gap: S.xs }}>
                           <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8 }}>{language === 'tr' ? 'Mevcut haftalık km' : 'Current weekly km'}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: R.md, paddingHorizontal: S.md, height: 44, borderWidth: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }}>
-                            <TextInput value={weeklyKm} onChangeText={setWeeklyKm} placeholder={language === 'tr' ? 'Örn: 15' : 'e.g. 15'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="numeric" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700' }} returnKeyType="done" />
+                            <TextInput value={weeklyKm} onChangeText={setWeeklyKm} placeholder={language === 'tr' ? 'Örn: 15' : 'e.g. 15'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="numeric" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700', paddingVertical: 0 }} returnKeyType="done" underlineColorAndroid="transparent" />
                             <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>km/hft</Text>
                           </View>
                           <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8, marginTop: 2 }}>{language === 'tr' ? 'Hedef mesafe' : 'Target distance'}</Text>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import { Sparkles, Timer as TimerIcon, Play, Zap } from 'lucide-react-native';
@@ -133,15 +133,13 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 9,
-    fontWeight: '900',
     letterSpacing: 1,
     marginBottom: 2,
-    fontFamily: Platform.OS === 'ios' ? 'Plus Jakarta Sans' : 'sans-serif',
+    fontFamily: 'Jakarta-ExtraBold',
   },
   title: {
     fontSize: 15,
-    fontWeight: '800',
-    fontFamily: Platform.OS === 'ios' ? 'Plus Jakarta Sans' : 'sans-serif',
+    fontFamily: 'Jakarta-Bold',
   },
   actionButton: {
     borderRadius: 100,
@@ -159,7 +157,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: 'Jakarta-ExtraBold',
     letterSpacing: -0.2,
   }
 });

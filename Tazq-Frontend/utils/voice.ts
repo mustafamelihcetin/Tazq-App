@@ -1,11 +1,15 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules, Platform, PermissionsAndroid } from 'react-native';
 
-const isNativeModuleAvailable = Platform.OS === 'web' || !!NativeModules.Voice;
+const isNativeModuleAvailable = Platform.OS !== 'web' && !!NativeModules.Voice;
 
 let Voice: any = null;
 
 if (isNativeModuleAvailable) {
-  Voice = require('@react-native-voice/voice').default;
+  try {
+    Voice = require('@react-native-voice/voice').default;
+  } catch {
+    // Module not linked — treat as unavailable
+  }
 }
 
 export interface VoiceOptions {
@@ -13,6 +17,26 @@ export interface VoiceOptions {
   onResults?: (results: string[]) => void;
   onError?: (err: any) => void;
   onEnded?: () => void;
+}
+
+async function requestAndroidMicPermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  try {
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+      {
+        title: 'Mikrofon İzni / Microphone Permission',
+        message:
+          'Sesli görev girişi için mikrofon izni gereklidir.\nMicrophone permission is required for voice task input.',
+        buttonPositive: 'Tamam / OK',
+        buttonNegative: 'İptal / Cancel',
+        buttonNeutral: 'Sonra Sor / Ask Later',
+      }
+    );
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  } catch {
+    return false;
+  }
 }
 
 class VoiceService {
@@ -26,23 +50,39 @@ class VoiceService {
       Voice.onSpeechResults = this.onSpeechResults.bind(this);
       Voice.onSpeechError = this.onSpeechError.bind(this);
       Voice.onSpeechEnd = this.onSpeechEnd.bind(this);
+      Voice.onSpeechPartialResults = this.onSpeechPartialResults.bind(this);
     }
   }
 
   private onSpeechResults(e: any) {
     if (this._ended) return;
-    if (e.value && this._options?.onResults) {
+    if (e.value?.length && this._options?.onResults) {
       this._options.onResults(e.value);
     }
-    // Auto-terminate after receiving results — prevents stuck state
     this._terminate();
+  }
+
+  private onSpeechPartialResults(e: any) {
+    // On Android, partial results fire continuously — pass them through so UI feels responsive
+    if (this._ended) return;
+    if (e.value?.length && this._options?.onResults) {
+      this._options.onResults(e.value);
+    }
   }
 
   private onSpeechError(e: any) {
     if (this._ended) return;
     const opts = this._options;
     this._terminate();
-    if (opts?.onError) opts.onError(e.error ?? e);
+    if (opts?.onError) {
+      const code = e?.error?.code ?? e?.code;
+      // Android error 7 = "No match" — treat as empty, not a crash
+      if (code === '7' || code === 7) {
+        opts.onEnded?.();
+        return;
+      }
+      opts.onError(e.error ?? e);
+    }
   }
 
   private onSpeechEnd() {
@@ -61,30 +101,37 @@ class VoiceService {
   }
 
   async start(options: VoiceOptions) {
-    // Stop any prior session cleanly
-    if (this._isListening) {
-      await this.stop();
-    }
+    if (this._isListening) await this.stop();
 
     this._options = options;
     this._ended = false;
 
-    if (!isNativeModuleAvailable) {
-      console.warn('Voice recognition is not available. Use a custom dev client (expo run:ios / expo run:android) instead of Expo Go.');
+    if (!isNativeModuleAvailable || !Voice) {
       if (options.onError) {
-        options.onError(new Error('Voice recognition is not supported in this environment.'));
+        options.onError(new Error('not-available'));
       }
       return;
     }
 
-    // Safety timeout: auto-stop after 12 seconds
-    this._timeout = setTimeout(() => this._terminate(), 12000);
+    // Runtime permission on Android (required for API 23+)
+    if (Platform.OS === 'android') {
+      const granted = await requestAndroidMicPermission();
+      if (!granted) {
+        const opts = this._options;
+        this._ended = true;
+        this._options = null;
+        if (opts?.onError) opts.onError(new Error('permission-denied'));
+        return;
+      }
+    }
+
+    // Safety timeout: auto-stop after 15 seconds
+    this._timeout = setTimeout(() => this._terminate(), 15000);
 
     try {
       this._isListening = true;
-      await Voice.start(options.language || 'en-US');
-    } catch (e) {
-      console.error('Voice start error:', e);
+      await Voice.start(options.language || 'tr-TR');
+    } catch (e: any) {
       const opts = this._options;
       this._terminate();
       if (opts?.onError) opts.onError(e);
@@ -92,8 +139,7 @@ class VoiceService {
   }
 
   async stop() {
-    if (!this._isListening || !isNativeModuleAvailable) {
-      // Still reset state even if not tracked as listening
+    if (!this._isListening || !Voice) {
       this._ended = true;
       this._isListening = false;
       if (this._timeout) { clearTimeout(this._timeout); this._timeout = null; }
@@ -104,7 +150,7 @@ class VoiceService {
   }
 
   destroy() {
-    if (!isNativeModuleAvailable || !Voice) return;
+    if (!Voice) return;
     this._terminate();
     Voice.destroy().then(() => {
       if (Voice.removeAllListeners) Voice.removeAllListeners();

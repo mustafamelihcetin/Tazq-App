@@ -14,10 +14,10 @@ export const api = axios.create({
   },
 });
 
-// Inject token into every request
+// Inject token into every request — skip if caller already set Authorization (e.g. login flow)
 api.interceptors.request.use(async (config) => {
   const token = useAuthStore.getState().token;
-  if (token) {
+  if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

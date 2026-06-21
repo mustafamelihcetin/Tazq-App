@@ -44,7 +44,7 @@ export interface TurkishMode {
 
 // ── Date ranges ──────────────────────────────────────────────────────────────
 
-const RAMAZAN: { start: string; end: string }[] = [
+export const RAMAZAN: { start: string; end: string }[] = [
   { start: '2025-03-01', end: '2025-03-30' },
   { start: '2026-02-18', end: '2026-03-19' },
   { start: '2027-02-07', end: '2027-03-08' },
@@ -69,6 +69,30 @@ function daysUntilEnd(endStr: string): number {
   const end = new Date(endStr);
   end.setHours(23, 59, 59, 999);
   return Math.ceil((end.getTime() - Date.now()) / 86400000);
+}
+
+// Kaç gün kaldığını ve tarihin geçip geçmediğini döner
+function daysLeftInfo(dateStr: string): { days: number; isPast: boolean; isToday: boolean } {
+  const end = new Date(dateStr);
+  end.setHours(23, 59, 59, 999);
+  const diff = Math.ceil((end.getTime() - Date.now()) / 86400000);
+  const isPast = diff < 0;
+  const isToday = diff === 0;
+  return { days: Math.max(0, diff), isPast, isToday };
+}
+
+function modeSubtitle(
+  dateStr: string,
+  tr: { future: string; today: string; past: string },
+  en: { future: string; today: string; past: string },
+): { tr: string; en: string } {
+  const { days, isPast, isToday } = daysLeftInfo(dateStr);
+  if (isPast) return { tr: tr.past, en: en.past };
+  if (isToday) return { tr: tr.today, en: en.today };
+  return {
+    tr: tr.future.replace('{days}', String(days)),
+    en: en.future.replace('{days}', String(days)),
+  };
 }
 
 function isActive(start: string, end: string, leadDays = 0): number {
@@ -341,6 +365,61 @@ const TEMPLATE_TEZ_MILESTONE = (projectName = 'Tez'): StudyTemplate => ({
   ],
 });
 
+const TEMPLATE_TEZ_SOFTWARE = (projectName = 'Proje'): StudyTemplate => ({
+  id: 'tez-software',
+  titleTr: 'Yazılım / Teknik Proje',
+  titleEn: 'Software / Technical Project',
+  descTr: 'Sprint döngüleri, kod kalitesi ve teslim takibi. Geliştirme projelerini yönetmenin kanıtlanmış yolu.',
+  descEn: 'Sprint cycles, code quality, and delivery tracking. The proven way to manage dev projects.',
+  targetTr: 'Uygulama · API · Sistem geliştirme · Teknik proje',
+  targetEn: 'App · API · System development · Technical project',
+  emoji: '💻',
+  dailyGoalMinutes: 120,
+  habits: [
+    { name: 'Günlük Kod', nameTr: 'Günlük kod yazımı / commit', emoji: '💻', color: '#3B82F6' },
+    { name: 'Sprint Review', nameTr: 'Haftalık sprint review & planlama', emoji: '🔄', color: '#8B5CF6' },
+    { name: 'Test', nameTr: 'Test yaz / çalıştır', emoji: '🧪', color: '#10B981' },
+  ],
+  tasks: [
+    { titleTr: `${projectName} için kullanıcı hikayeleri (user stories) listesi oluştur`, titleEn: `Create user stories list for ${projectName}`, priority: 'High' },
+    { titleTr: 'GitHub / GitLab repo kur, branching stratejisini belirle', titleEn: 'Set up GitHub / GitLab repo and define branching strategy', priority: 'High' },
+    { titleTr: 'İlk çalışan MVP\'yi 2 haftada teslim etmeyi hedefle', titleEn: 'Target delivering the first working MVP within 2 weeks', priority: 'High' },
+    { titleTr: 'CI/CD pipeline kur (GitHub Actions, Vercel vb.)', titleEn: 'Set up CI/CD pipeline (GitHub Actions, Vercel etc.)', priority: 'Medium' },
+  ],
+});
+
+const TEMPLATE_TEZ_IS = (projectName = 'Proje'): StudyTemplate => ({
+  id: 'tez-is',
+  titleTr: 'İş / Strateji Projesi',
+  titleEn: 'Business / Strategy Project',
+  descTr: 'Paydaş yönetimi, çıktı takibi ve iş hedeflerine odaklı proje yönetimi.',
+  descEn: 'Stakeholder management, output tracking, and business goal-driven project management.',
+  targetTr: 'Raporlar · Strateji · Kurumsal proje · Sunum hazırlığı',
+  targetEn: 'Reports · Strategy · Corporate project · Presentation prep',
+  emoji: '📊',
+  dailyGoalMinutes: 90,
+  habits: [
+    { name: 'Günlük İlerleme', nameTr: 'Günlük ilerleme notu ve çıktı kaydı', emoji: '📋', color: '#F59E0B' },
+    { name: 'Paydaş İletişimi', nameTr: 'Paydaş güncelleme / e-posta / toplantı', emoji: '🤝', color: '#10B981' },
+    { name: 'Risk Takibi', nameTr: 'Risk ve engel takibi', emoji: '⚠️', color: '#EF4444' },
+  ],
+  tasks: [
+    { titleTr: `${projectName} için proje şartnamesi (scope) ve başarı kriterleri yaz`, titleEn: `Write project scope and success criteria for ${projectName}`, priority: 'High' },
+    { titleTr: 'Paydaşları belirle ve iletişim planı oluştur', titleEn: 'Identify stakeholders and create a communication plan', priority: 'High' },
+    { titleTr: 'Proje takip aracı kur (Jira, Notion, Trello vb.)', titleEn: 'Set up project tracking tool (Jira, Notion, Trello etc.)', priority: 'Medium' },
+    { titleTr: 'Haftalık durum raporu şablonu hazırla', titleEn: 'Prepare a weekly status report template', priority: 'Medium' },
+  ],
+});
+
+function detectTezType(name: string): 'akademik' | 'yazilim' | 'is' {
+  const upper = name.toUpperCase();
+  const yazilimKeywords = ['UYGULAMA', 'APP', 'YAZILIM', 'SİSTEM', 'SISTEM', 'API', 'WEB', 'MOBİL', 'MOBIL', 'BACKEND', 'FRONTEND', 'DATABASE', 'PROJE', 'PROJECT', 'KOD', 'DEV', 'SOFTWARE'];
+  const isKeywords = ['RAPOR', 'STRATEJİ', 'STRATEJİ', 'STRATEJI', 'İŞ', 'IS ', 'SUNUM', 'ANALIZ', 'ANALİZ', 'PAZARLAMA', 'YÖNETİM', 'YONETIM', 'KURUMSAL'];
+  if (yazilimKeywords.some(k => upper.includes(k))) return 'yazilim';
+  if (isKeywords.some(k => upper.includes(k))) return 'is';
+  return 'akademik';
+}
+
 // ── İş Mülakatı templates ─────────────────────────────────────────────────────
 
 const TEMPLATE_MULAKAT_TEKNIK = (company = 'Şirket'): StudyTemplate => ({
@@ -389,6 +468,63 @@ const TEMPLATE_MULAKAT_BEHAVIORAL = (company = 'Şirket'): StudyTemplate => ({
   ],
 });
 
+const TEMPLATE_MULAKAT_CASE = (company = 'Şirket'): StudyTemplate => ({
+  id: 'mulakat-case',
+  titleTr: 'Case / Vaka Mülakatı',
+  titleEn: 'Case Interview',
+  descTr: 'Danışmanlık ve strateji pozisyonları için yapılandırılmış problem çözme. Framework + pratik.',
+  descEn: 'Structured problem-solving for consulting and strategy roles. Framework + practice.',
+  targetTr: 'McKinsey · BCG · Bain · Danışmanlık · Strateji · Finans pozisyonları',
+  targetEn: 'McKinsey · BCG · Bain · Consulting · Strategy · Finance roles',
+  emoji: '🧩',
+  dailyGoalMinutes: 75,
+  habits: [
+    { name: 'Case Pratik', nameTr: 'Günlük case çözümü (1 case/gün)', emoji: '🧩', color: '#6366F1' },
+    { name: 'Framework', nameTr: 'Framework ezber ve uygulama (MECE, Profitability)', emoji: '📐', color: '#3B82F6' },
+    { name: 'Math Drill', nameTr: 'Mental math hız pratiği (10 dk)', emoji: '🔢', color: '#F59E0B' },
+  ],
+  tasks: [
+    { titleTr: `${company} için şirket araştırması yap: değerler, son projeler, pazar pozisyonu`, titleEn: `Research ${company}: values, recent projects, market position`, priority: 'High' },
+    { titleTr: 'Case kitabı edin: Case in Point veya Victor Cheng LOMS', titleEn: 'Get a case book: Case in Point or Victor Cheng LOMS', priority: 'High' },
+    { titleTr: '5 temel framework\'ü öğren: Profitability, Market Entry, M&A, Operations, Pricing', titleEn: 'Learn 5 core frameworks: Profitability, Market Entry, M&A, Operations, Pricing', priority: 'High' },
+    { titleTr: 'Peer ile 3 mock case çöz — ses kaydı al ve dinle', titleEn: 'Solve 3 mock cases with a peer — record and review', priority: 'Medium' },
+  ],
+});
+
+const TEMPLATE_MULAKAT_AKADEMIK = (company = 'Kurum'): StudyTemplate => ({
+  id: 'mulakat-akademik',
+  titleTr: 'Akademik / Kurumsal Mülakat',
+  titleEn: 'Academic / Institutional Interview',
+  descTr: 'Araştırma sunumu, pedagoji soruları ve akademik kimlik. Üniversite ve araştırma pozisyonları için.',
+  descEn: 'Research presentation, pedagogy questions, and academic identity. For university and research roles.',
+  targetTr: 'Profesörlük · Araştırmacı · Doktora başvurusu · Kamu kurumları',
+  targetEn: 'Professorship · Researcher · PhD application · Public institutions',
+  emoji: '🎓',
+  dailyGoalMinutes: 60,
+  habits: [
+    { name: 'Araştırma Özeti', nameTr: 'Araştırma özetini sesli anlat (3 dk)', emoji: '🔬', color: '#8B5CF6' },
+    { name: 'Pedagoji', nameTr: 'Ders planı / öğretim felsefesi hazırlığı', emoji: '📚', color: '#3B82F6' },
+    { name: 'Soru Pratiği', nameTr: 'Muhtemel soruları yüksek sesle yanıtla', emoji: '🎙️', color: '#10B981' },
+  ],
+  tasks: [
+    { titleTr: `${company} araştırma önceliklerini ve yayınlarını incele`, titleEn: `Review ${company} research priorities and recent publications`, priority: 'High' },
+    { titleTr: 'Araştırma özetini (research statement) 2 sayfada hazırla', titleEn: 'Prepare 2-page research statement', priority: 'High' },
+    { titleTr: 'Job talk sunumunu hazırla: 45 dk + 15 dk soru bölümü', titleEn: 'Prepare job talk: 45 min presentation + 15 min Q&A', priority: 'High' },
+    { titleTr: 'Öğretim felsefeni (teaching philosophy) 1 sayfada özetle', titleEn: 'Summarize your teaching philosophy in 1 page', priority: 'Medium' },
+  ],
+});
+
+function detectMulakatType(company: string): 'teknik' | 'case' | 'akademik' | 'behavioral' {
+  const upper = company.toUpperCase();
+  const caseKeywords = ['MCKINSEY', 'BCG', 'BAIN', 'DELOITTE', 'ACCENTURE', 'KPMG', 'PWC', 'EY', 'DANIŞMAN', 'CONSULTING', 'STRATEGY'];
+  const akademikKeywords = ['ÜNİVERSİTE', 'UNIVERSITE', 'UNIVERSITY', 'COLLEGE', 'ARAŞTIRMA', 'ARASTIRMA', 'RESEARCH', 'AKADEMI', 'AKADEMİ', 'DOKTORA', 'PHD'];
+  const teknikKeywords = ['GOOGLE', 'META', 'AMAZON', 'APPLE', 'MICROSOFT', 'NETFLIX', 'UBER', 'AIRBNB', 'TRENDYOL', 'GETIR', 'YAZILIM', 'SOFTWARE', 'TECH'];
+  if (caseKeywords.some(k => upper.includes(k))) return 'case';
+  if (akademikKeywords.some(k => upper.includes(k))) return 'akademik';
+  if (teknikKeywords.some(k => upper.includes(k))) return 'teknik';
+  return 'behavioral';
+}
+
 // ── Spor / Fiziksel Hedef ────────────────────────────────────────────────────
 
 export interface SporInputs {
@@ -428,11 +564,12 @@ const GUN_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 const GUN_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // Pick evenly-spaced training days given count, returns 0-based Monday indices
+// Max 2 consecutive training days to allow muscle recovery
 function pickTrainingDays(count: number): number[] {
   const options: Record<number, number[]> = {
-    3: [0, 2, 4],  // Mon Wed Fri
-    4: [0, 1, 3, 4], // Mon Tue Thu Fri
-    5: [0, 1, 2, 4, 5], // Mon Tue Wed Fri Sat
+    3: [0, 2, 4],     // Mon Wed Fri — 1 rest day between each
+    4: [0, 1, 3, 4],  // Mon Tue | rest Wed | Thu Fri — 2+2 with midweek rest
+    5: [0, 1, 3, 4, 6], // Mon Tue | rest Wed | Thu Fri | rest Sat | Sun — max 2 consecutive
   };
   return options[count] ?? options[3];
 }
@@ -552,9 +689,11 @@ function buildMaratonTemplate(inputs: SporInputs, days: number): StudyTemplate {
   const kmStr = km > 0 ? `${km} km/hft` : '—';
   const weeks = Math.max(1, Math.round(days / 7));
 
+  // Beginner starting long run by event (conservative, injury-safe)
+  const BEGINNER_LONG_RUN: Record<string, number> = { '5K': 2, '10K': 3, 'Yarı': 5, 'Tam': 6 };
   const longRunKm = km > 0
     ? Math.min(Math.round(km * 0.4), Math.round(targetKm * 0.6))
-    : Math.round(targetKm * 0.3);
+    : (BEGINNER_LONG_RUN[event] ?? 5);
   const longRunStr = `${Math.max(1, longRunKm)} km`;
 
   // If already above peak, user doesn't need to increase — just maintain/taper
@@ -563,6 +702,11 @@ function buildMaratonTemplate(inputs: SporInputs, days: number): StudyTemplate {
   const projectedWeeklyKm = km > 0
     ? Math.min(peakKm, Math.round(km * Math.pow(1.1, Math.min(weeks, 16))))
     : Math.round(peakKm * 0.5);
+
+  // Minimum safe training weeks by event
+  const MIN_WEEKS: Record<string, number> = { '5K': 6, '10K': 8, 'Yarı': 12, 'Tam': 16 };
+  const minWeeks = MIN_WEEKS[event] ?? 12;
+  const tooShort = weeks < minWeeks && !alreadyReady;
 
   const tasks: ModeTask[] = alreadyReady
     ? [
@@ -608,6 +752,11 @@ function buildMaratonTemplate(inputs: SporInputs, days: number): StudyTemplate {
           titleEn: `Current base: ${kmStr} → Target base for ${event}: ~${projectedWeeklyKm} km/week`,
           priority: 'Medium',
         },
+        ...(tooShort ? [{
+          titleTr: `⚠️ Dikkat: ${event} için ideal hazırlık ${minWeeks} haftadır — tarihi uzatmayı düşün`,
+          titleEn: `⚠️ Note: Ideal prep for ${event} is ${minWeeks} weeks — consider extending your date`,
+          priority: 'High' as const,
+        }] : []),
       ];
 
   return {
@@ -759,7 +908,11 @@ function buildGucTemplate(inputs: SporInputs, days: number, goalType: SporType):
 }
 
 export function getSporMode(goalLabel: string, goalDate: string, inputs?: SporInputs): TurkishMode {
-  const days = Math.max(0, Math.ceil((new Date(goalDate).getTime() - Date.now()) / 86400000));
+  const { days } = daysLeftInfo(goalDate);
+  const sporSub = modeSubtitle(goalDate,
+    { future: '{days} gün kaldı · Programını önizle', today: 'Bugün · Hedef günü!', past: 'Tarih geçti · Güncelle' },
+    { future: '{days} days left · Preview your program', today: 'Today · Goal day!', past: 'Date passed · Update' },
+  );
   const name = goalLabel.trim() || 'Spor Hedefi';
   const sporType = detectSporType(name);
   const inp = inputs ?? {};
@@ -780,8 +933,8 @@ export function getSporMode(goalLabel: string, goalDate: string, inputs?: SporIn
     type: 'spor',
     labelTr: cleanName,
     labelEn: cleanName,
-    subtitleTr: days > 0 ? `${days} gün kaldı · Programını önizle` : `Bugün · Hedef günü!`,
-    subtitleEn: days > 0 ? `${days} days left · Preview your program` : `Today · Goal day!`,
+    subtitleTr: sporSub.tr,
+    subtitleEn: sporSub.en,
     emoji: sporType === 'kilo' ? '⚖️' : sporType === 'maraton' ? '🏃' : sporType === 'yaris' ? '🏆' : sporType === 'genel' ? '✨' : '💪',
     daysLeft: days,
     habits: [],
@@ -791,24 +944,36 @@ export function getSporMode(goalLabel: string, goalDate: string, inputs?: SporIn
 }
 
 export function getTezMode(projectName: string, deadline: string): TurkishMode {
-  const days = Math.max(0, Math.ceil((new Date(deadline).getTime() - Date.now()) / 86400000));
+  const { days } = daysLeftInfo(deadline);
+  const sub = modeSubtitle(deadline,
+    { future: '{days} gün kaldı · Çalışma planını seç', today: 'Bugün · Teslim günü!', past: 'Tarih geçti · Güncelle' },
+    { future: '{days} days left · Pick your plan', today: 'Today · Deadline!', past: 'Date passed · Update' },
+  );
   const name = projectName.trim() || 'Proje';
   return {
     type: 'tez',
     labelTr: `${name} Hazırlığı`,
     labelEn: `${name} Prep`,
-    subtitleTr: days > 0 ? `${days} gün kaldı · Çalışma planını seç` : `Bugün · Teslim günü!`,
-    subtitleEn: days > 0 ? `${days} days left · Pick your plan` : `Today · Deadline!`,
+    subtitleTr: sub.tr,
+    subtitleEn: sub.en,
     emoji: '📝',
     daysLeft: days,
     habits: [],
     tasks: [],
-    templates: [TEMPLATE_TEZ_WRITING(name), TEMPLATE_TEZ_MILESTONE(name)],
+    templates: detectTezType(name) === 'yazilim'
+      ? [TEMPLATE_TEZ_SOFTWARE(name), TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)]
+      : detectTezType(name) === 'is'
+      ? [TEMPLATE_TEZ_IS(name), TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)]
+      : [TEMPLATE_TEZ_WRITING(name), TEMPLATE_TEZ_MILESTONE(name)],
   };
 }
 
 export function getMulakatMode(company: string, date: string): TurkishMode {
-  const days = Math.max(0, Math.ceil((new Date(date).getTime() - Date.now()) / 86400000));
+  const { days } = daysLeftInfo(date);
+  const sub = modeSubtitle(date,
+    { future: '{days} gün kaldı · Hazırlık planını seç', today: 'Bugün · Mülakat günü!', past: 'Tarih geçti · Güncelle' },
+    { future: '{days} days left · Pick your prep plan', today: 'Today · Interview day!', past: 'Date passed · Update' },
+  );
   const name = company.trim() || '';
   const labelTr = name ? `${name} Mülakatı` : 'İş Mülakatı';
   const labelEn = name ? `${name} Interview` : 'Job Interview';
@@ -816,13 +981,25 @@ export function getMulakatMode(company: string, date: string): TurkishMode {
     type: 'mulakat',
     labelTr,
     labelEn,
-    subtitleTr: days > 0 ? `${days} gün kaldı · Hazırlık planını seç` : `Bugün · Mülakat günü!`,
-    subtitleEn: days > 0 ? `${days} days left · Pick your prep plan` : `Today · Interview day!`,
+    subtitleTr: sub.tr,
+    subtitleEn: sub.en,
     emoji: '💼',
     daysLeft: days,
     habits: [],
     tasks: [],
-    templates: [TEMPLATE_MULAKAT_TEKNIK(name), TEMPLATE_MULAKAT_BEHAVIORAL(name)],
+    templates: (() => {
+      const detected = detectMulakatType(name);
+      const all = [
+        TEMPLATE_MULAKAT_TEKNIK(name),
+        TEMPLATE_MULAKAT_BEHAVIORAL(name),
+        TEMPLATE_MULAKAT_CASE(name),
+        TEMPLATE_MULAKAT_AKADEMIK(name),
+      ];
+      // Detected type goes first, rest follow
+      const order: Record<string, number> = { teknik: 0, behavioral: 1, case: 2, akademik: 3 };
+      const priority = order[detected] ?? 0;
+      return [all[priority], ...all.filter((_, i) => i !== priority)];
+    })(),
   };
 }
 
@@ -1460,7 +1637,11 @@ function buildLevelTemplates(content: ExamContent, examName: string, days: numbe
 }
 
 export function getCustomExamMode(examName: string, examDate: string, examTipTr?: string, examTipEn?: string): TurkishMode {
-  const days = Math.max(0, Math.ceil((new Date(examDate).getTime() - Date.now()) / 86400000));
+  const { days } = daysLeftInfo(examDate);
+  const examSub = modeSubtitle(examDate,
+    { future: '{days} gün kaldı · Seviyeni seç', today: 'Bugün · Son gün!', past: 'Tarih geçti · Güncelle' },
+    { future: '{days} days left · Pick your level', today: 'Today · Last day!', past: 'Date passed · Update' },
+  );
   const name = examName.trim() || 'Sınav';
   const n = name.toUpperCase();
 
@@ -1490,8 +1671,8 @@ export function getCustomExamMode(examName: string, examDate: string, examTipTr?
     type: 'exam',
     labelTr: `${name} Hazırlığı`,
     labelEn: `${name} Prep`,
-    subtitleTr: days > 0 ? `${days} gün kaldı · Seviyeni seç` : `Bugün · Son gün!`,
-    subtitleEn: days > 0 ? `${days} days left · Pick your level` : `Today · Last day!`,
+    subtitleTr: examSub.tr,
+    subtitleEn: examSub.en,
     emoji: examEmoji,
     daysLeft: days,
     habits: [],

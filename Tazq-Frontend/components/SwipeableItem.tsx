@@ -1,6 +1,15 @@
-import React, { useRef, useEffect } from 'react';
-import { View, TouchableOpacity, StyleSheet, PanResponder } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withSequence, withDelay } from 'react-native-reanimated';
+import React, { useEffect } from 'react';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withSequence,
+  withDelay,
+  runOnJS,
+} from 'react-native-reanimated';
 import { Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { S, R } from '../constants/tokens';
@@ -12,11 +21,17 @@ interface Props {
   showPeekHint?: boolean;
 }
 
+// Worklet-safe: called via runOnJS so haptics fires from JS thread
+function triggerLightHaptic() {
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+}
+
 export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Props) => {
   const translateX = useSharedValue(0);
   const deleteOpacity = useSharedValue(0);
-  const startTranslateX = useSharedValue(0);
+  const contextX = useSharedValue(0);
 
+  // One-time educational peek on first render
   useEffect(() => {
     if (!showPeekHint) return;
     const timer = setTimeout(() => {
@@ -32,40 +47,48 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
     return () => clearTimeout(timer);
   }, [showPeekHint]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) => {
-        return !disabled && Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy);
-      },
-      onPanResponderGrant: () => {
-        startTranslateX.value = translateX.value;
-      },
-      onPanResponderMove: (_, gs) => {
-        const newX = Math.min(0, startTranslateX.value + gs.dx);
-        translateX.value = newX;
-        deleteOpacity.value = Math.min(Math.abs(newX) / 80, 1);
-      },
-      onPanResponderRelease: (_, gs) => {
-        const total = startTranslateX.value + gs.dx;
-        const isFastSwipe = gs.vx < -0.5;
-        const isOpening = total < -40;
-
-        if (isFastSwipe || isOpening) {
-          translateX.value = withSpring(-80, { damping: 15, stiffness: 100 });
-          deleteOpacity.value = withTiming(1);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        } else {
-          translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
-          deleteOpacity.value = withTiming(0);
-        }
-      },
-      onPanResponderTerminate: () => {
-        translateX.value = withSpring(translateX.value < -40 ? -80 : 0);
-      },
+  // Pan gesture runs entirely on UI thread — no JS thread involvement during drag
+  const panGesture = Gesture.Pan()
+    .enabled(!disabled)
+    // Activate after 10px horizontal; fail (→ scroll wins) if vertical moves first
+    .activeOffsetX([-10, 10])
+    .failOffsetY([-8, 8])
+    .onBegin(() => {
+      contextX.value = translateX.value;
     })
-  ).current;
+    .onUpdate((e) => {
+      // Only allow leftward swipe
+      const newX = Math.min(0, contextX.value + e.translationX);
+      translateX.value = newX;
+      deleteOpacity.value = Math.min(Math.abs(newX) / 80, 1);
+    })
+    .onEnd((e) => {
+      const total = contextX.value + e.translationX;
+      // velocityX in gesture handler is px/s; -500 px/s ≈ the original -0.5 px/ms threshold
+      const isFastSwipe = e.velocityX < -500;
+      const isOpened = total < -40;
 
-  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
+      if (isFastSwipe || isOpened) {
+        translateX.value = withSpring(-80, { damping: 15, stiffness: 100 });
+        deleteOpacity.value = withTiming(1);
+        runOnJS(triggerLightHaptic)();
+      } else {
+        translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
+        deleteOpacity.value = withTiming(0);
+      }
+    })
+    .onFinalize(() => {
+      // Snap back if gesture was cancelled mid-swipe (interrupted by scroll or system gesture)
+      if (translateX.value > -40 && translateX.value < 0) {
+        translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
+        deleteOpacity.value = withTiming(0);
+      }
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
   const actionStyle = useAnimatedStyle(() => ({
     opacity: deleteOpacity.value,
     transform: [{ scale: withSpring(deleteOpacity.value > 0.5 ? 1 : 0.8) }],
@@ -75,23 +98,34 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
     <View style={styles.container}>
       <View style={[StyleSheet.absoluteFill, styles.deleteZone]}>
         <Animated.View style={actionStyle}>
-          <TouchableOpacity
-            onPress={onDelete}
-            style={styles.deleteBtn}
-          >
+          <TouchableOpacity onPress={onDelete} style={styles.deleteBtn}>
             <Trash2 size={22} color="white" />
           </TouchableOpacity>
         </Animated.View>
       </View>
-      <Animated.View {...panResponder.panHandlers} style={animatedStyle}>
-        {children}
-      </Animated.View>
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={animatedStyle}>
+          {children}
+        </Animated.View>
+      </GestureDetector>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { position: 'relative', marginBottom: S.sm },
-  deleteZone: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingRight: S.md },
-  deleteBtn: { width: 48, height: 48, borderRadius: R.full, backgroundColor: '#ff3b30', justifyContent: 'center', alignItems: 'center' },
+  deleteZone: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingRight: S.md,
+  },
+  deleteBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: R.full,
+    backgroundColor: '#ff3b30',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -48,7 +48,8 @@ export default function LoginScreen() {
   const { t } = useLanguageStore();
   const router = useRouter();
   const { height } = useWindowDimensions();
-  const isSmallScreen = height < 700;
+  const isSmallScreen = height < 750;
+  const isMediumScreen = height < 850;
   const setAuth = useAuthStore(state => state.setAuth);
 
   const [email, setEmail] = useState('');
@@ -83,7 +84,11 @@ export default function LoginScreen() {
       router.replace('/');
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(t.login.error);
+      if (!err?.response) {
+        setError(t.login.networkError);
+      } else {
+        setError(t.login.error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -114,25 +119,29 @@ export default function LoginScreen() {
         <AnimatedBackground />
         
         <SafeAreaView style={styles.safeArea}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 0}
+          >
           <ScrollView
             style={styles.keyboardView}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}
             showsVerticalScrollIndicator={false}
           >
-            <View style={[styles.content, { paddingVertical: isSmallScreen ? 20 : 32 }]}>
+            <View style={[styles.content, { paddingVertical: isSmallScreen ? 12 : isMediumScreen ? 20 : 32 }]}>
               <MotiView
                 from={{ opacity: 0, scale: 0.8, translateY: -20 }}
                 animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                style={[styles.header, { marginBottom: isSmallScreen ? 16 : 28 }]}
+                style={[styles.header, { marginBottom: isSmallScreen ? 10 : isMediumScreen ? 16 : 28 }]}
               >
-                <TazqLogo size={isSmallScreen ? 64 : 80} />
+                <TazqLogo size={isSmallScreen ? 52 : isMediumScreen ? 64 : 80} />
                 <MotiText
                   from={{ opacity: 0, translateY: 10 }}
                   animate={{ opacity: 1, translateY: 0 }}
                   transition={{ delay: 200 }}
-                  style={[styles.title, { color: theme.onSurface, fontSize: isSmallScreen ? 26 : 34, marginTop: isSmallScreen ? 12 : 20 }]}
+                  style={[styles.title, { color: theme.onSurface, fontSize: isSmallScreen ? 24 : isMediumScreen ? 28 : 34, marginTop: isSmallScreen ? 8 : 16 }]}
                 >
                   {t.login.title}
                 </MotiText>
@@ -147,7 +156,7 @@ export default function LoginScreen() {
                 transition={{ delay: 400 }}
                 style={styles.cardContainer}
               >
-                <GlassCard style={[styles.glassCard, { padding: isSmallScreen ? 20 : 28 }]}>
+                <GlassCard style={[styles.glassCard, { padding: isSmallScreen ? 16 : isMediumScreen ? 20 : 28 }]}>
                   {error && (
                     <MotiView 
                       from={{ opacity: 0, height: 0 }}
@@ -177,6 +186,7 @@ export default function LoginScreen() {
                           keyboardType="email-address"
                           returnKeyType="next"
                           onSubmitEditing={() => passwordRef.current?.focus()}
+                          underlineColorAndroid="transparent"
                         />
                       </View>
                     </View>
@@ -195,6 +205,7 @@ export default function LoginScreen() {
                           value={password}
                           onChangeText={setPassword}
                           secureTextEntry={!showPassword}
+                          underlineColorAndroid="transparent"
                         />
                         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                           {showPassword
@@ -254,10 +265,10 @@ export default function LoginScreen() {
                 from={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 600 }}
-                style={[styles.footer, { marginTop: isSmallScreen ? 16 : 28 }]}
+                style={[styles.footer, { marginTop: isSmallScreen ? 8 : isMediumScreen ? 16 : 28 }]}
               >
                 <View style={styles.footerRow}>
-                  <TazqLogo size={15} color={theme.onSurfaceVariant} style={{ marginTop: -4 }} />
+                  <TazqLogo size={14} width={44} style={{ marginTop: -2, opacity: 0.6 }} />
                   <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
                     {t.login.footer}
                   </Text>
@@ -268,6 +279,7 @@ export default function LoginScreen() {
               </MotiView>
             </View>
           </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
 
         <Modal visible={forgotVisible} transparent animationType="fade">
@@ -292,6 +304,7 @@ export default function LoginScreen() {
                 value={forgotEmail}
                 onChangeText={setForgotEmail}
                 autoCapitalize="none"
+                underlineColorAndroid="transparent"
               />
 
               {forgotMsg && (
@@ -336,16 +349,16 @@ const styles = StyleSheet.create({
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
   forgotText: { fontSize: 12, fontWeight: '700' },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 56, borderRadius: 16, borderWidth: 1, gap: 12 },
-  input: { flex: 1, fontSize: 16, fontWeight: '600' },
-  loginButton: { height: 56, borderRadius: 16, overflow: 'hidden' },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: Platform.OS === 'android' ? 52 : 56, borderRadius: 16, borderWidth: 1, gap: 12 },
+  input: { flex: 1, fontSize: 16, fontWeight: '600', paddingVertical: 0 },
+  loginButton: { height: Platform.OS === 'android' ? 52 : 56, borderRadius: 16, overflow: 'hidden' },
   buttonInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   buttonText: { fontSize: 18, fontWeight: '800' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 8 },
   divider: { flex: 1, height: 1 },
   dividerText: { fontSize: 12, fontWeight: '700', opacity: 0.5 },
   socialRow: { flexDirection: 'row', gap: 12 },
-  socialButton: { flex: 1, height: 56, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1 },
+  socialButton: { flex: 1, height: Platform.OS === 'android' ? 48 : 56, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1 },
   socialText: { fontSize: 15, fontWeight: '700' },
   footer: { alignItems: 'center', marginTop: 28 },
   footerRow: { flexDirection: 'row', alignItems: 'center' },

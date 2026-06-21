@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   useWindowDimensions,
+  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   TouchableWithoutFeedback,
@@ -19,6 +20,7 @@ import { Mail, Lock, User, ArrowRight, ArrowLeft, AlertCircle, Eye, EyeOff, Chec
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '../services/api';
+import { useAuthStore } from '../store/useAuthStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { GlassCard } from '../components/GlassCard';
@@ -47,6 +49,10 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const isSmallScreen = height < 750;
+  const isMediumScreen = height < 850;
+
+  const setAuth = useAuthStore(state => state.setAuth);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -58,7 +64,11 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
-      setError(t.login.error);
+      setError(tr ? 'Tüm alanları doldurun.' : 'Please fill in all fields.');
+      return;
+    }
+    if (password.length < 6) {
+      setError(t.login.registerWeakPassword);
       return;
     }
     if (!consentChecked) {
@@ -72,11 +82,25 @@ export default function RegisterScreen() {
 
     try {
       await AuthService.register({ name, email, password });
+
+      // Auto-login immediately after successful registration
+      const { token } = await AuthService.login(email, password);
+      const userData = await AuthService.getCurrentUser(token);
+      setAuth(userData, token);
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace('/login');
+      router.replace('/');
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(t.login.error);
+      const status = err?.response?.status;
+      const body = err?.response?.data ?? '';
+      if (status === 400 && typeof body === 'string' && body.includes('zaten')) {
+        setError(t.login.registerEmailTaken);
+      } else if (status === 400) {
+        setError(t.login.registerWeakPassword);
+      } else {
+        setError(t.login.registerError);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -95,25 +119,28 @@ export default function RegisterScreen() {
           >
             <ArrowLeft size={22} color={theme.onSurface} />
           </TouchableOpacity>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
           <ScrollView
             style={styles.keyboardView}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.content}>
+            <View style={[styles.content, { paddingVertical: isSmallScreen ? 12 : isMediumScreen ? 20 : 32 }]}>
               <MotiView
                 from={{ opacity: 0, scale: 0.8, translateY: -20 }}
                 animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                style={styles.header}
+                style={[styles.header, { marginBottom: isSmallScreen ? 12 : 32 }]}
               >
-                <TazqLogo size={60} />
-                <MotiText 
+                <TazqLogo size={isSmallScreen ? 44 : isMediumScreen ? 52 : 60} />
+                <MotiText
                   from={{ opacity: 0, translateY: 10 }}
                   animate={{ opacity: 1, translateY: 0 }}
                   transition={{ delay: 200 }}
-                  style={[styles.title, { color: theme.onSurface }]}
+                  style={[styles.title, { color: theme.onSurface, fontSize: isSmallScreen ? 22 : 28 }]}
                 >
                   {t.login.signUp}
                 </MotiText>
@@ -128,7 +155,7 @@ export default function RegisterScreen() {
                 transition={{ delay: 400 }}
                 style={styles.cardContainer}
               >
-                <GlassCard style={styles.glassCard}>
+                <GlassCard style={[styles.glassCard, { padding: isSmallScreen ? 16 : 24 }]}>
                   {error && (
                     <MotiView 
                       from={{ opacity: 0, height: 0 }}
@@ -151,6 +178,7 @@ export default function RegisterScreen() {
                           value={name}
                           onChangeText={setName}
                           maxLength={50}
+                          underlineColorAndroid="transparent"
                         />
                       </View>
                     </View>
@@ -165,6 +193,7 @@ export default function RegisterScreen() {
                           value={email}
                           onChangeText={setEmail}
                           autoCapitalize="none"
+                          underlineColorAndroid="transparent"
                         />
                       </View>
                     </View>
@@ -179,6 +208,7 @@ export default function RegisterScreen() {
                           value={password}
                           onChangeText={setPassword}
                           secureTextEntry={!showPassword}
+                          underlineColorAndroid="transparent"
                         />
                         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                           {showPassword ? <EyeOff size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} /> : <Eye size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
@@ -279,6 +309,7 @@ export default function RegisterScreen() {
               </MotiView>
             </View>
           </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </View>
     </TouchableWithoutFeedback>
@@ -291,31 +322,31 @@ const styles = StyleSheet.create({
   backButton: { position: 'absolute', left: 20, zIndex: 10, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
-  content: { paddingHorizontal: 24, paddingVertical: 32 },
-  header: { alignItems: 'center', marginBottom: 32 },
-  title: { fontSize: 28, fontFamily: 'Jakarta-ExtraBold', marginTop: 12, letterSpacing: -0.5 },
+  content: { paddingHorizontal: 24 },
+  header: { alignItems: 'center' },
+  title: { fontSize: 28, fontFamily: 'Jakarta-ExtraBold', marginTop: 10, letterSpacing: -0.5 },
   subtitle: { fontSize: 14, fontWeight: '500', marginTop: 4, opacity: 0.7, textAlign: 'center' },
   cardContainer: { width: '100%' },
-  glassCard: { width: '100%', padding: 24 },
+  glassCard: { width: '100%' },
   errorContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, marginBottom: 16 },
   errorText: { fontSize: 13, fontWeight: '600' },
-  form: { gap: 16 },
+  form: { gap: Platform.OS === 'android' ? 12 : 16 },
   inputGroup: { gap: 12 },
   label: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 56, borderRadius: 16, borderWidth: 1, gap: 12 },
-  input: { flex: 1, fontSize: 16, fontWeight: '600' },
-  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 4, marginBottom: 4 },
-  consentText: { flex: 1, fontSize: 12, fontFamily: 'Jakarta-SemiBold', lineHeight: 18 },
-  registerButton: { height: 56, borderRadius: 16, overflow: 'hidden', marginTop: 8 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: Platform.OS === 'android' ? 50 : 56, borderRadius: 16, borderWidth: 1, gap: 12 },
+  input: { flex: 1, fontSize: 15, fontWeight: '600', paddingVertical: 0 },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 2, marginBottom: 2 },
+  consentText: { flex: 1, fontSize: 11, fontFamily: 'Jakarta-SemiBold', lineHeight: 16 },
+  registerButton: { height: Platform.OS === 'android' ? 50 : 56, borderRadius: 16, overflow: 'hidden', marginTop: 4 },
   buttonInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   buttonText: { fontSize: 18, fontWeight: '800' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 },
   divider: { flex: 1, height: 1 },
   dividerText: { fontSize: 12, fontWeight: '700', opacity: 0.5 },
   socialRow: { flexDirection: 'row', gap: 12 },
-  socialButton: { flex: 1, height: 56, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1 },
+  socialButton: { flex: 1, height: Platform.OS === 'android' ? 46 : 56, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1 },
   socialText: { fontSize: 15, fontWeight: '700' },
-  footer: { alignItems: 'center', marginTop: 24 },
+  footer: { alignItems: 'center', marginTop: Platform.OS === 'android' ? 12 : 24 },
   footerRow: { flexDirection: 'row', alignItems: 'center' },
   footerText: { fontSize: 15, fontWeight: '500' },
   link: { fontSize: 15, fontWeight: '800' },

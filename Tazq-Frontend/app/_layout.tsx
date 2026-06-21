@@ -1,5 +1,10 @@
-﻿import { Buffer } from 'buffer';
+﻿import 'react-native-gesture-handler';
+import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
+
+// Initialize crash reporting as early as possible — before any other imports
+import { initSentry } from '../utils/sentry';
+initSentry();
 
 import '../global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -12,6 +17,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { AuthService, FocusService, api } from '../services/api';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { initIntelligence } from '../utils/taskIntelligence';
@@ -39,6 +45,7 @@ import { FocusIsland } from '../components/FocusIsland';
 import { Toast } from '../components/Toast';
 import { CelebrationOverlay } from '../components/CelebrationOverlay';
 import { Asset } from 'expo-asset';
+import { useOfflineSync } from '../hooks/useOfflineSync';
 
 // Prevent the native splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -100,6 +107,9 @@ export default function RootLayout() {
   const router = useRouter();
   const [isInitialized, setIsInitialized] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+
+  // Replay queued offline operations when connection is restored
+  useOfflineSync();
   const [assetsLoaded, setAssetsLoaded] = useState(false);
 
   const { sync, language } = useLanguageStore();
@@ -114,7 +124,8 @@ export default function RootLayout() {
         // Preload logo images to prevent flashing
         await Asset.loadAsync([
           require('../assets/images/tazq_icon.png'),
-          require('../assets/images/tazq_logo_v2_white.png'),
+          require('../assets/images/tazq_text_white.png'),
+          require('../assets/images/tazq_text_dark.png'),
         ]);
         setAssetsLoaded(true);
       } catch (e) {
@@ -301,16 +312,19 @@ export default function RootLayout() {
     if (!_hasHydrated) return;
 
     const timer = setTimeout(async () => {
-      const inAuthGroup = segments[0] === 'login' || segments[0] === 'register' || segments[0] === 'legal';
-      const inOnboarding = segments[0] === 'onboarding';
+      // Read segments inside effect so we always get current value,
+      // but don't add segments to deps — we don't want to re-fire on every navigation
+      const currentSegments = segments;
+      const inAuthGroup = currentSegments[0] === 'login' || currentSegments[0] === 'register' || currentSegments[0] === 'legal';
+      const inOnboarding = currentSegments[0] === 'onboarding';
 
       try {
         const onboardingDone = await AsyncStorage.getItem('tazq-onboarding-done');
-        
+
         // If not logged in and onboarding not done, force onboarding
         if (!isLoggedIn && onboardingDone !== 'true' && !inOnboarding) {
           router.replace('/onboarding');
-        } 
+        }
         // If logged in and in auth/onboarding, go to home
         else if (isLoggedIn && (inAuthGroup || inOnboarding)) {
           router.replace('/');
@@ -326,19 +340,23 @@ export default function RootLayout() {
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [_hasHydrated, isLoggedIn, segments, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [_hasHydrated, isLoggedIn]);
 
   // BR-01: Recover focus session that ended while app was killed
   useEffect(() => {
     const { isActive, lastActiveAt, totalSeconds, seconds, currentTask } = useFocusStore.getState();
     if (!isActive || !lastActiveAt) return;
     const elapsed = Math.floor((Date.now() - lastActiveAt) / 1000);
-    const remaining = totalSeconds - elapsed;
+    const remaining = seconds - elapsed; // use current remaining, not total (handles pause/resume)
     if (remaining <= 0) {
       // Session would have finished — save it and reset
       const minutes = Math.max(1, Math.round(totalSeconds / 60));
       FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
       useFocusStore.setState({ isActive: false, seconds: 0, lastActiveAt: null });
+    } else {
+      // Session still in progress — rehydrate with correct remaining time
+      useFocusStore.getState().rehydrateTimer();
     }
   }, []);
 
@@ -354,7 +372,18 @@ export default function RootLayout() {
     if (!_hasHydrated) return;
     const syncProfile = async () => {
       const { token: t, isLoggedIn: loggedIn } = useAuthStore.getState();
-      if (!t || !loggedIn) return;
+      if (!loggedIn) {
+        // Stale token in store but session is not active — clear it so the
+        // request interceptor cannot accidentally inject it into login requests.
+        if (t) useAuthStore.setState({ token: null });
+        return;
+      }
+      // Token missing but isLoggedIn=true → stale auth state (e.g. new APK signing key
+      // made SecureStore inaccessible). Force re-login immediately.
+      if (!t) {
+        logout();
+        return;
+      }
       try {
         const userData = await AuthService.getCurrentUser();
         if (userData) setUser(userData);
@@ -399,6 +428,7 @@ export default function RootLayout() {
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ErrorBoundary>
     <SafeAreaProvider>
       <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -428,6 +458,7 @@ export default function RootLayout() {
       </View>
     </SafeAreaProvider>
     </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
 

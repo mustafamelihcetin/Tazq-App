@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { View, TouchableOpacity, StyleSheet, useWindowDimensions, Animated } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, TouchableOpacity, StyleSheet, useWindowDimensions, Animated, Platform, Keyboard } from 'react-native';
 import { LayoutGrid, CheckSquare, Sparkles, Layers, CalendarDays } from 'lucide-react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { BlurView } from 'expo-blur';
@@ -16,6 +16,22 @@ export const BottomNavBar = () => {
   const router = useRouter();
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
+
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const showSub = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  if (keyboardVisible && Platform.OS === 'android') {
+    return null;
+  }
 
   const tabs = [
     { id: 'home', path: '/', icon: LayoutGrid },
@@ -63,14 +79,18 @@ export const BottomNavBar = () => {
           styles.bar,
           {
             width: barWidth,
-            backgroundColor: isDark ? 'rgba(15,15,18,0.88)' : 'rgba(255,255,255,0.88)',
+            backgroundColor: isDark ? 'rgba(15,15,18,0.95)' : 'rgba(255,255,255,0.95)',
             borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
-            shadowColor: '#000',
-            shadowOpacity: isDark ? 0.6 : 0.1,
+            ...(Platform.OS === 'ios' ? {
+              shadowColor: '#000',
+              shadowOpacity: isDark ? 0.4 : 0.1,
+            } : {}),
           }
         ]}
       >
-        <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        {Platform.OS === 'ios' && (
+          <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        )}
         <View style={styles.tabsContainer}>
           {/* Sliding active indicator */}
           {activeIndex >= 0 && (

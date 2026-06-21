@@ -1,6 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
+
+const LOGO_WHITE = require('../assets/images/tazq_text_white.png');
+const LOGO_DARK = require('../assets/images/tazq_text_dark.png');
 
 interface TazqLogoProps {
   size?: number;
@@ -11,44 +14,25 @@ interface TazqLogoProps {
   showIcon?: boolean;
 }
 
-export const TazqLogo: React.FC<TazqLogoProps> = ({ 
+export const TazqLogo: React.FC<TazqLogoProps> = ({
   size,
   height = 24,
   width,
   style,
-  color,
-  showIcon = false
 }) => {
-  const { theme, colorScheme } = useAppTheme();
+  const { colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
-  const brandColor = color || theme.onSurface;
-  
-  // Use size if provided, otherwise fallback to height
-  const effectiveSize = size || height;
-  
+
+  const effectiveHeight = size || height;
+  const effectiveWidth = width || effectiveHeight * 3.2;
+
   return (
     <View style={[styles.container, style]}>
-      {showIcon && (
-        <Image 
-          source={require('../assets/images/tazq_icon.png')} 
-          style={{ 
-            width: effectiveSize * 1.6, 
-            height: effectiveSize * 1.6, 
-            marginBottom: 6,
-            borderRadius: effectiveSize * 0.4
-          }} 
-          resizeMode="contain"
-        />
-      )}
-      <Text 
-        style={[
-            styles.logoText, 
-            { color: brandColor, fontSize: effectiveSize },
-            isDark && { textShadowColor: theme.primary + '60', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10 }
-        ]}
-      >
-        TAZQ
-      </Text>
+      <Image
+        source={isDark ? LOGO_WHITE : LOGO_DARK}
+        style={{ width: effectiveWidth, height: effectiveHeight }}
+        resizeMode="contain"
+      />
     </View>
   );
 };
@@ -58,13 +42,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  logoText: {
-    fontSize: 24,
-    fontFamily: 'Jakarta-ExtraBold',
-    letterSpacing: -1.5,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    marginTop: 4,
   },
 });

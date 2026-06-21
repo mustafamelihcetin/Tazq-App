@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView, AppState, Keyboard, Animated, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView, AppState, Keyboard, Animated, ScrollView, BackHandler } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import Svg, { Circle, G } from 'react-native-svg';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,10 +21,14 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { getRandomQuote } from '../constants/Quotes';
 import { S, R, F } from '../constants/tokens';
 
-const DURATIONS = [15, 25, 50, 90];
-const POMODORO_WORK_MINS = 25;
-const POMODORO_SHORT_BREAK = 5;
-const POMODORO_LONG_BREAK = 15;
+// Named focus presets — each encodes work + break durations
+const PRESETS = [
+  { key: 'sprint',   labelTr: 'Sprint',   labelEn: 'Sprint',   workMins: 15, shortBreak: 3,  longBreak: 8,  descTr: '15dk hızlı odak',    descEn: '15m quick focus' },
+  { key: 'classic',  labelTr: 'Klasik',   labelEn: 'Classic',  workMins: 25, shortBreak: 5,  longBreak: 15, descTr: '25dk standart odak', descEn: '25m standard focus' },
+  { key: 'extended', labelTr: 'Uzatılmış',labelEn: 'Extended', workMins: 50, shortBreak: 10, longBreak: 20, descTr: '50dk derin odak',     descEn: '50m deep focus' },
+  { key: 'ultra',    labelTr: 'Ultra',    labelEn: 'Ultra',    workMins: 90, shortBreak: 20, longBreak: 30, descTr: '90dk akış durumu',   descEn: '90m flow state' },
+] as const;
+type PresetKey = typeof PRESETS[number]['key'];
 
 type AmbientSound = 'off' | 'rain' | 'cafe' | 'forest' | 'ocean' | 'fireplace';
 
@@ -70,6 +74,10 @@ export default function FocusScreen() {
   // Task picker
   const [taskPickerVisible, setTaskPickerVisible] = useState(false);
   const incompleteTasks = tasks.filter(t => !t.isCompleted);
+
+  // Named preset selection
+  const [selectedPreset, setSelectedPreset] = useState<PresetKey>('classic');
+  const activePreset = PRESETS.find(p => p.key === selectedPreset) ?? PRESETS[1];
 
   // Custom duration
   const [customVisible, setCustomVisible] = useState(false);
@@ -212,6 +220,16 @@ export default function FocusScreen() {
     setQuote(getRandomQuote(language));
   }, [language]));
 
+  // Android hardware back button — go home instead of closing app
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.replace('/');
+      return true; // prevent default (app close)
+    });
+    return () => sub.remove();
+  }, [router]));
+
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -267,7 +285,7 @@ export default function FocusScreen() {
 
           const isLongBreak = round >= 4;
           nextPomodoroPhase();
-          const breakMins = isLongBreak ? POMODORO_LONG_BREAK : POMODORO_SHORT_BREAK;
+          const breakMins = isLongBreak ? activePreset.longBreak : activePreset.shortBreak;
           setTimeout(() => {
             setDuration(breakMins);
             useFocusStore.setState({ isActive: true, lastActiveAt: Date.now() });
@@ -277,7 +295,7 @@ export default function FocusScreen() {
         } else {
           // Break finished → next work round
           nextPomodoroPhase();
-          setTimeout(() => { setDuration(POMODORO_WORK_MINS); }, 400);
+          setTimeout(() => { setDuration(activePreset.workMins); }, 400);
           setPomodoroTransition({ visible: true, type: 'work' });
           setTimeout(() => setPomodoroTransition(p => ({ ...p, visible: false })), 3500);
         }
@@ -460,7 +478,7 @@ export default function FocusScreen() {
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
                 >
                   <TouchableOpacity
-                    onPress={() => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(POMODORO_WORK_MINS); }}
+                    onPress={() => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); }}
                     style={[
                       styles.pomodoroToggle,
                       {
@@ -485,7 +503,7 @@ export default function FocusScreen() {
 
         <View style={[styles.content, { paddingHorizontal: S.lg }]}>
 
-          {/* Duration chips (standard mode) / Pomodoro indicator */}
+          {/* Preset chips (standard mode) / Pomodoro indicator */}
           {pomodoroMode ? (
             <PomodoroIndicator />
           ) : (
@@ -498,26 +516,37 @@ export default function FocusScreen() {
                   exit={{ opacity: 0, translateY: -6 }}
                   transition={{ type: 'timing', duration: 220 }}
                 >
-                  <View style={[styles.durationRow, { marginBottom: S.xl, gap: S.sm }]}>
-                    {DURATIONS.map((min) => {
-                      const active = totalSeconds === min * 60;
+                  <View style={[styles.durationRow, { marginBottom: S.xl, gap: S.sm, flexWrap: 'wrap', justifyContent: 'center' }]}>
+                    {PRESETS.map((preset) => {
+                      const isActive = selectedPreset === preset.key && PRESETS.some(p => p.workMins * 60 === totalSeconds && p.key === preset.key);
+                      const isSelected = selectedPreset === preset.key;
                       return (
                         <TouchableOpacity
-                          key={min}
-                          onPress={() => { Haptics.selectionAsync(); setDuration(min); }}
+                          key={preset.key}
+                          onPress={() => {
+                            Haptics.selectionAsync();
+                            setSelectedPreset(preset.key);
+                            setDuration(preset.workMins);
+                          }}
                           style={[
                             styles.durationChip,
                             {
-                              backgroundColor: active ? 'rgba(250,250,250,0.1)' : 'transparent',
-                              borderColor: active ? theme.primary : theme.outline,
+                              backgroundColor: isSelected ? theme.primary + '18' : 'transparent',
+                              borderColor: isSelected ? theme.primary : theme.outline,
                               borderWidth: 1,
                               paddingHorizontal: S.md,
                               paddingVertical: S.sm,
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              minWidth: 64,
                             },
                           ]}
                         >
-                          <Text style={[styles.durationText, { color: active ? theme.primary : theme.onSurfaceVariant, fontSize: F.body, fontWeight: active ? '900' : '600' }]}>
-                            {min}m
+                          <Text style={[styles.durationText, { color: isSelected ? theme.primary : theme.onSurfaceVariant, fontSize: F.caption + 1, fontWeight: isSelected ? '900' : '700', letterSpacing: 0.2 }]}>
+                            {language === 'tr' ? preset.labelTr : preset.labelEn}
+                          </Text>
+                          <Text style={{ fontSize: 10, color: isSelected ? theme.primary : theme.onSurfaceVariant, opacity: 0.7, fontWeight: '600', marginTop: 1 }}>
+                            {preset.workMins}m
                           </Text>
                         </TouchableOpacity>
                       );
@@ -527,18 +556,24 @@ export default function FocusScreen() {
                       style={[
                         styles.durationChip,
                         {
-                          backgroundColor: !DURATIONS.includes(Math.round(totalSeconds / 60)) && totalSeconds > 0 ? 'rgba(250,250,250,0.1)' : 'transparent',
-                          borderColor: !DURATIONS.includes(Math.round(totalSeconds / 60)) && totalSeconds > 0 ? theme.primary : theme.outline,
+                          backgroundColor: !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0 ? theme.primary + '18' : 'transparent',
+                          borderColor: !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0 ? theme.primary : theme.outline,
                           borderWidth: 1,
                           paddingHorizontal: S.md,
                           paddingVertical: S.sm,
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          minWidth: 64,
                         },
                       ]}
                     >
                       <Text style={[styles.durationText, {
-                        color: !DURATIONS.includes(Math.round(totalSeconds / 60)) && totalSeconds > 0 ? theme.primary : theme.onSurfaceVariant,
+                        color: !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0 ? theme.primary : theme.onSurfaceVariant,
                         fontSize: F.subhead, fontWeight: '900',
                       }]}>···</Text>
+                      <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.7, fontWeight: '600', marginTop: 1 }}>
+                        {language === 'tr' ? 'Özel' : 'Custom'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </MotiView>
@@ -599,6 +634,7 @@ export default function FocusScreen() {
                   style={[styles.currentTaskText, { color: theme.primary, fontSize: F.body, maxWidth: timerSize * 0.75, borderBottomWidth: 1, borderBottomColor: theme.primary + '60', paddingBottom: 2, minWidth: 120, textAlign: 'center' }]}
                   autoCapitalize="none"
                   selectTextOnFocus
+                  underlineColorAndroid="transparent"
                 />
               ) : (
                 <TouchableOpacity
@@ -633,8 +669,8 @@ export default function FocusScreen() {
                 >
                   <Text style={{ fontSize: 9, letterSpacing: 2.5, fontWeight: '700', textAlign: 'center', color: pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary, opacity: 0.4 }}>
                     {breathPhase === 'in'
-                      ? (language === 'tr' ? 'İÇİNE ÇEK' : 'BREATHE IN')
-                      : (language === 'tr' ? 'BIRAK' : 'LET GO')}
+                      ? (language === 'tr' ? 'NEFES AL' : 'INHALE')
+                      : (language === 'tr' ? 'NEFES VER' : 'EXHALE')}
                   </Text>
                 </MotiView>
               )}
@@ -852,8 +888,8 @@ export default function FocusScreen() {
             <Text style={[styles.transitionSub, { color: theme.onSurfaceVariant }]}>
               {pomodoroTransition.type === 'break'
                 ? (pomodoroTransition.isLong
-                  ? (language === 'tr' ? '15 dakika dinlen, hak ettin.' : '15 min rest — you earned it.')
-                  : (language === 'tr' ? '5 dakika nefes al.' : 'Take 5, breathe.'))
+                  ? (language === 'tr' ? `${activePreset.longBreak} dakika dinlen, hak ettin.` : `${activePreset.longBreak} min rest — you earned it.`)
+                  : (language === 'tr' ? `${activePreset.shortBreak} dakika nefes al.` : `${activePreset.shortBreak} min — breathe.`))
                 : (language === 'tr' ? 'Hazır olduğunda başla.' : 'Start when ready.')}
             </Text>
           </MotiView>
@@ -947,7 +983,7 @@ export default function FocusScreen() {
 
       {/* ── Custom Duration Modal ─────────────────────────────────────────────── */}
       <Modal visible={customVisible} transparent animationType="none" onShow={() => customSlideIn()}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCustomVisible(false)} />
           <Animated.View
             style={[
@@ -974,11 +1010,14 @@ export default function FocusScreen() {
                   maxLength={3}
                   placeholder={t.focusCustomPlaceholder}
                   placeholderTextColor={customError ? theme.error + '80' : theme.onSurfaceVariant + '80'}
-                  style={[styles.customInput, { color: customError ? theme.error : theme.onSurface, fontSize: 32 }]}
+                  style={[styles.customInput, { color: customError ? theme.error : theme.onSurface, fontSize: 48, flex: 1 }]}
                   onSubmitEditing={applyCustomDuration}
+                  underlineColorAndroid="transparent"
                 />
-                <Text style={[styles.minLabel, { color: customError ? theme.error : theme.onSurfaceVariant }]}>min</Text>
               </View>
+              <Text style={[styles.minLabel, { color: customError ? theme.error : theme.onSurfaceVariant }]}>
+                {language === 'tr' ? 'DAKİKA' : 'MINUTES'}
+              </Text>
             </MotiView>
             {customError && (
               <Text style={{ fontSize: F.caption, color: theme.error, fontWeight: '700' }}>{t.focusCustomError}</Text>
@@ -1049,11 +1088,11 @@ export default function FocusScreen() {
             {/* Break button (only after standard completed session) */}
             {summaryCompleted && !pomodoroMode && (
               <TouchableOpacity
-                onPress={() => startBreak(5)}
+                onPress={() => startBreak(activePreset.shortBreak)}
                 style={{ width: '100%', paddingVertical: S.sm, borderRadius: R.full, borderWidth: 1, borderColor: theme.tertiary + '50', backgroundColor: theme.tertiary + '12', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.sm }}
               >
                 <Text style={{ fontSize: F.body, fontWeight: '800', color: theme.tertiary }}>
-                  {language === 'tr' ? '5 dk Mola Başlat' : 'Start 5-min Break'}
+                  {language === 'tr' ? `${activePreset.shortBreak} dk Mola Başlat` : `Start ${activePreset.shortBreak}-min Break`}
                 </Text>
               </TouchableOpacity>
             )}
@@ -1098,20 +1137,37 @@ export default function FocusScreen() {
             </View>
             <Text style={{ fontSize: 14, fontWeight: '500', color: theme.onSurfaceVariant, lineHeight: 22 }}>
               {language === 'tr'
-                ? 'Francesco Cirillo\'nun geliştirdiği zaman yönetimi yöntemi. 25 dakika kesintisiz çalış, 5 dakika mola ver. 4 tur sonra uzun bir mola (15 dk).'
-                : "A time management method by Francesco Cirillo. Work 25 minutes without interruptions, then take a 5-minute break. After 4 rounds, take a long break (15 min)."}
+                ? `"${language === 'tr' ? activePreset.labelTr : activePreset.labelEn}" modunda ${activePreset.workMins} dk çalışıp ${activePreset.shortBreak} dk dinleniyorsun. 4. turda ${activePreset.longBreak} dk uzun mola.`
+                : `In "${activePreset.labelEn}" mode you work for ${activePreset.workMins} min and rest ${activePreset.shortBreak} min. After round 4, a ${activePreset.longBreak}-min long break.`}
             </Text>
             <View style={{ gap: 8 }}>
-              {[
-                { label: language === 'tr' ? '🧠 Çalışma' : '🧠 Work', value: '25 dk' },
-                { label: language === 'tr' ? '☕ Kısa Mola' : '☕ Short Break', value: '5 dk' },
-                { label: language === 'tr' ? '😴 Uzun Mola' : '😴 Long Break', value: '15 dk' },
-              ].map((row) => (
-                <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
-                  <Text style={{ fontSize: 13, fontWeight: '900', color: theme.primary }}>{row.value}</Text>
-                </View>
-              ))}
+              {PRESETS.map((preset) => {
+                const isActive = preset.key === selectedPreset;
+                return (
+                  <TouchableOpacity
+                    key={preset.key}
+                    onPress={() => { setSelectedPreset(preset.key); setDuration(preset.workMins); if (pomodoroMode) {}; }}
+                    style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isActive ? theme.primary + '18' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: isActive ? theme.primary + '40' : 'transparent' }}
+                  >
+                    <View style={{ gap: 2 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: isActive ? theme.primary : theme.onSurface }}>
+                        {language === 'tr' ? preset.labelTr : preset.labelEn}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, opacity: 0.7 }}>
+                        {language === 'tr' ? preset.descTr : preset.descEn}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '900', color: isActive ? theme.primary : theme.onSurfaceVariant }}>
+                        {language === 'tr' ? `${preset.workMins}dk çalış` : `${preset.workMins}m work`}
+                      </Text>
+                      <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                        {language === 'tr' ? `${preset.shortBreak}/${preset.longBreak}dk mola` : `${preset.shortBreak}/${preset.longBreak}m break`}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
             <TouchableOpacity
               onPress={() => setPomodoroInfoVisible(false)}
@@ -1168,9 +1224,9 @@ const styles = StyleSheet.create({
   sheetHandle: { width: 36, height: 4, borderRadius: R.sm, marginBottom: S.sm },
   sheetTitle: { fontSize: F.title, fontWeight: '800', letterSpacing: -0.5 },
   sheetSub: { fontSize: F.body, fontWeight: '600', opacity: 0.5, marginBottom: S.sm },
-  inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: S.xs, gap: S.sm, marginBottom: S.sm },
-  customInput: { fontWeight: '900', letterSpacing: -1, minWidth: 80, textAlign: 'center' },
-  minLabel: { fontSize: F.subhead, fontWeight: '700', opacity: 0.5 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: S.xs, marginBottom: 6 },
+  customInput: { fontWeight: '900', letterSpacing: -2, textAlign: 'center' },
+  minLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5, opacity: 0.35, textAlign: 'center', marginBottom: S.sm },
   applyBtn: { width: '100%', paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
   applyBtnText: { color: 'white', fontWeight: '900', fontSize: F.subhead, letterSpacing: 0.5 },
   taskPickerItem: { flexDirection: 'row', alignItems: 'flex-start', gap: S.md, paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth },

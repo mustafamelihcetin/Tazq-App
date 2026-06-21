@@ -95,16 +95,14 @@ export const useFocusStore = create<FocusState>()(
       },
 
       rehydrateTimer: () => {
-        const { isActive, lastActiveAt, totalSeconds } = get();
+        const { isActive, lastActiveAt, seconds } = get();
         if (!isActive || !lastActiveAt) return;
-        // Use totalSeconds - elapsed (anchored to session start) to avoid double-subtraction
-        // when the JS interval has already been ticking (e.g., Android background).
         const elapsed = Math.floor((Date.now() - lastActiveAt) / 1000);
-        const remaining = Math.max(0, totalSeconds - elapsed);
+        const remaining = Math.max(0, seconds - elapsed);
         if (remaining === 0) {
           set({ isActive: false, seconds: 0, lastActiveAt: null });
         } else {
-          set({ seconds: remaining });
+          set({ seconds: remaining, lastActiveAt: null });
         }
       },
 

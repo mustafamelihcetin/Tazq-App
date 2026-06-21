@@ -1,36 +1,39 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming, 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
   Easing,
-  interpolate
 } from 'react-native-reanimated';
 import { useAppTheme } from '../hooks/useAppTheme';
 
-const Blob = ({ color, size, duration, delay = 0, isDark = false }: { color: string, size: number, duration: number, delay?: number, isDark?: boolean }) => {
+const Blob = ({ color, size, duration, isDark = false }: { color: string, size: number, duration: number, delay?: number, isDark?: boolean }) => {
   const { width, height } = useWindowDimensions();
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
   const scale = useSharedValue(1);
 
+  // Fixed initial position — computed once on mount, never on re-render
+  const left = useRef(Math.random() * width * 0.5).current;
+  const top = useRef(Math.random() * height * 0.5).current;
+
   useEffect(() => {
     tx.value = withRepeat(
-      withTiming(Math.random() * width * 0.5, { 
-        duration, 
-        easing: Easing.inOut(Easing.sin) 
-      }), 
-      -1, 
+      withTiming(Math.random() * width * 0.5, {
+        duration,
+        easing: Easing.inOut(Easing.sin)
+      }),
+      -1,
       true
     );
     ty.value = withRepeat(
-      withTiming(Math.random() * height * 0.5, { 
-        duration: duration * 1.2, 
-        easing: Easing.inOut(Easing.sin) 
-      }), 
-      -1, 
+      withTiming(Math.random() * height * 0.5, {
+        duration: duration * 1.2,
+        easing: Easing.inOut(Easing.sin)
+      }),
+      -1,
       true
     );
     scale.value = withRepeat(
@@ -49,20 +52,20 @@ const Blob = ({ color, size, duration, delay = 0, isDark = false }: { color: str
   }));
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[
-        styles.blob, 
-        { 
+        styles.blob,
+        {
           backgroundColor: color,
           width: size,
           height: size,
           borderRadius: size / 2,
           opacity: isDark ? 0.22 : 0.13,
-          left: Math.random() * width * 0.5,
-          top: Math.random() * height * 0.5,
+          left,
+          top,
         },
         animatedStyle
-      ]} 
+      ]}
     />
   );
 };
@@ -82,7 +85,7 @@ export const AnimatedBackground = () => {
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: 'hidden',
   },
   blob: {

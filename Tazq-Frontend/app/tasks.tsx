@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -29,6 +29,8 @@ import { useCompletionStore } from '../store/useCompletionStore';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
 import { S, R, F } from '../constants/tokens';
 import VoiceService from '../utils/voice';
+import { useNetworkStore } from '../store/useNetworkStore';
+import { useOfflineQueue } from '../store/useOfflineQueue';
 
 const SWIPE_THRESHOLD = -80;
 const TAG_COLORS_PALETTE = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4','#F97316'];
@@ -89,12 +91,33 @@ const RECURRENCE_OPTIONS: { key: RecurrenceType; labelKey: string }[] = [
   { key: 'Monthly', labelKey: 'recurrenceMonthly' },
 ];
 
+/** Returns a human-readable "Next: ..." label for the next task recurrence date */
+function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrence: RecurrenceType, lang: string): string {
+  if (!dueDateStr || recurrence === 'None') return '';
+  const base = new Date(dueDateStr);
+  if (isNaN(base.getTime())) return '';
+  const next = new Date(base);
+  if (recurrence === 'Daily') next.setDate(base.getDate() + 1);
+  else if (recurrence === 'Weekly') next.setDate(base.getDate() + 7);
+  else if (recurrence === 'Monthly') next.setMonth(base.getMonth() + 1);
+  next.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const tr = lang === 'tr';
+  const prefix = tr ? 'Sonraki: ' : 'Next: ';
+  if (next.getTime() === today.getTime()) return prefix + (tr ? 'Bugün' : 'Today');
+  if (next.getTime() === tomorrow.getTime()) return prefix + (tr ? 'Yarın' : 'Tomorrow');
+  return prefix + next.toLocaleDateString(tr ? 'tr-TR' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
 export default function ActionCenter() {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const { tasks, toggleTaskCompletion, addTask, removeTask, updateTask, setTasks, setLoading, isLoading, toggleSubtask } = useTaskStore();
   const { t, language } = useLanguageStore();
   const { show: showToast } = useToastStore();
+  const isOnline = useNetworkStore((s) => s.isOnline);
+  const { enqueue: enqueueOffline } = useOfflineQueue();
   const { soundEffects } = usePrefsStore();
   const { record: recordCompletion } = useCompletionStore();
   const { setCurrentTask } = useFocusStore();
@@ -209,12 +232,23 @@ export default function ActionCenter() {
         }
       },
       onError: (err: any) => {
-        const msg = err.message || err;
-        console.warn('Voice error:', msg);
-        if (typeof msg === 'string' && msg.includes('not supported')) {
-          Alert.alert(t.warningTitle || 'Uyarı', language === 'tr' ? 'Mikrofon özelliği bu ortamda (Expo Go) desteklenmiyor.' : 'Microphone feature is not supported in this environment (Expo Go).');
-        }
+        const msg = err?.message ?? String(err);
         field === 'title' ? setIsListeningTitle(false) : setIsListeningDesc(false);
+        if (msg === 'permission-denied') {
+          Alert.alert(
+            language === 'tr' ? 'Mikrofon İzni Gerekli' : 'Microphone Permission Required',
+            language === 'tr'
+              ? 'Lütfen uygulama ayarlarından mikrofon iznini etkinleştirin.'
+              : 'Please enable microphone permission in your device settings.'
+          );
+        } else if (msg === 'not-available') {
+          Alert.alert(
+            language === 'tr' ? 'Desteklenmiyor' : 'Not Supported',
+            language === 'tr'
+              ? 'Ses tanıma bu ortamda desteklenmiyor.'
+              : 'Voice recognition is not supported in this environment.'
+          );
+        }
       },
       onEnded: () => {
         field === 'title' ? setIsListeningTitle(false) : setIsListeningDesc(false);
@@ -294,7 +328,13 @@ export default function ActionCenter() {
   // Handle deep-link route params independently (no VoiceService side-effects)
   useEffect(() => {
     if (action === 'add') {
-      setTimeout(() => openAdd(), 400);
+      setTimeout(() => {
+        openAdd();
+        // If a specific date was passed from cockpit, prefill it
+        if (dateFilter) {
+          setForm(f => ({ ...f, dueDate: dateFilter }));
+        }
+      }, 400);
     }
     if (highlightId) {
       const id = Number(highlightId);
@@ -302,7 +342,7 @@ export default function ActionCenter() {
       setExpandedId(id);
       setTimeout(() => setHighlightedId(null), 3000);
     }
-  }, [action, highlightId]);
+  }, [action, highlightId, dateFilter]);
 
   // Refresh tasks when returning from background (keeps "today" filter accurate after midnight)
   useEffect(() => {
@@ -497,14 +537,26 @@ export default function ActionCenter() {
           setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
         });
 
-        try {
-          await TaskService.updateTask(id, { ...task, priority: task.priority as any, isCompleted: true });
-        } catch (error: any) {
-          toggleTaskCompletion(id);
+        if (!isOnline) {
+          // Offline: queue the toggle and keep optimistic UI
+          enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
+          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
           setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-          exitAnimMap.current.delete(id);
-          const isNetwork = !error.response;
-          showToast(isNetwork ? t.toastChangeReverted : t.toastUpdateFailed, 'error');
+        } else {
+          try {
+            await TaskService.updateTask(id, { ...task, priority: task.priority as any, isCompleted: true });
+          } catch (error: any) {
+            const isNetwork = !error.response;
+            if (isNetwork) {
+              enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
+              showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+            } else {
+              toggleTaskCompletion(id);
+              setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+              exitAnimMap.current.delete(id);
+              showToast(t.toastUpdateFailed, 'error');
+            }
+          }
         }
         return;
       }
@@ -517,6 +569,13 @@ export default function ActionCenter() {
     setCompletingIds(prev => new Set([...prev, id]));
     toggleTaskCompletion(id);
 
+    if (!isOnline) {
+      enqueueOffline({ type: 'toggle-task', id, isCompleted: isCompleting, completedAt: isCompleting ? new Date().toISOString() : null });
+      showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+      setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      return;
+    }
+
     try {
       await TaskService.updateTask(id, {
         ...task,
@@ -524,9 +583,14 @@ export default function ActionCenter() {
         isCompleted: isCompleting
       });
     } catch (error: any) {
-      toggleTaskCompletion(id);
       const isNetwork = !error.response;
-      showToast(isNetwork ? t.toastChangeReverted : t.toastUpdateFailed, 'error');
+      if (isNetwork) {
+        enqueueOffline({ type: 'toggle-task', id, isCompleted: isCompleting, completedAt: isCompleting ? new Date().toISOString() : null });
+        showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+      } else {
+        toggleTaskCompletion(id);
+        showToast(t.toastUpdateFailed, 'error');
+      }
     } finally {
       setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
     }
@@ -558,8 +622,18 @@ export default function ActionCenter() {
 
     const timer = setTimeout(async () => {
       pendingDeleteRef.current.delete(id);
+      if (!isOnline) {
+        enqueueOffline({ type: 'delete-task', id });
+        return;
+      }
       try { await TaskService.deleteTask(id); }
-      catch { loadTasks(); }
+      catch (err: any) {
+        if (!err.response) {
+          enqueueOffline({ type: 'delete-task', id });
+        } else {
+          loadTasks();
+        }
+      }
     }, 4200);
     pendingDeleteRef.current.set(id, timer);
 
@@ -928,6 +1002,7 @@ export default function ActionCenter() {
                   placeholderTextColor={theme.onSurfaceVariant}
                   style={[styles.searchInput, { color: theme.onSurface }]}
                   returnKeyType="search"
+                  underlineColorAndroid="transparent"
                 />
                 {searchQuery.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -1506,7 +1581,7 @@ export default function ActionCenter() {
         )}
       </AnimatePresence>
 
-      {!isBulkMode && (
+      {!isBulkMode && !(Platform.OS === 'android' && kbHeight > 0) && (
         <TouchableOpacity
           onPress={openAdd}
           style={[
@@ -1569,7 +1644,7 @@ export default function ActionCenter() {
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingBottom: S.lg }}
                     keyboardShouldPersistTaps="handled"
-                    automaticallyAdjustKeyboardInsets={true}
+                    automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
                 >
                     <View style={styles.section}>
                         <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 60 }]}>
@@ -1580,6 +1655,7 @@ export default function ActionCenter() {
                                     value={form.title}
                                     onChangeText={handleTitleChange}
                                     maxLength={150}
+                                    underlineColorAndroid="transparent"
                                 />
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                                     {nlpHint ? <Sparkles size={16} color={theme.primary} /> : null}
@@ -1622,6 +1698,7 @@ export default function ActionCenter() {
                                     multiline
                                     numberOfLines={3}
                                     maxLength={500}
+                                    underlineColorAndroid="transparent"
                                 />
                                 <TouchableOpacity onPress={() => toggleVoice('description')} style={{ position: 'absolute', right: S.md, top: 14, padding: S.xs, alignItems: 'center', justifyContent: 'center' }}>
                                     <VoiceWave active={isListeningDesc} theme={theme} />
@@ -1793,6 +1870,21 @@ export default function ActionCenter() {
                                 </TouchableOpacity>
                             ))}
                         </View>
+                        {/* Next occurrence hint */}
+                        {form.recurrence !== 'None' && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm }}>
+                                <Repeat size={11} color={theme.secondary} />
+                                {form.dueDate ? (
+                                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.secondary }}>
+                                        {getNextOccurrenceLabel(form.dueDate, form.recurrence, language)}
+                                    </Text>
+                                ) : (
+                                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant }}>
+                                        {language === 'tr' ? 'Tekrar için tarih seçin' : 'Set a due date to track recurrence'}
+                                    </Text>
+                                )}
+                            </View>
+                        )}
                     </View>
 
                     {/* Reminder Toggle */}
@@ -1856,6 +1948,7 @@ export default function ActionCenter() {
                                 onChangeText={setNewSubtaskText}
                                 returnKeyType="done"
                                 maxLength={100}
+                                underlineColorAndroid="transparent"
                                 onSubmitEditing={() => {
                                     if (newSubtaskText.trim() && form.subtasks.length < 15) {
                                         setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));

@@ -362,20 +362,44 @@ export default function CockpitScreen() {
 
           {/* ── SELECTED DAY TASKS ── */}
           <AnimatePresence>
-            {selectedDayTasks.length === 0 && selectedDay !== todayKey ? (
+            {selectedDayTasks.length === 0 ? (
               <MotiView
                 key={`empty-${selectedDay}`}
-                from={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                from={{ opacity: 0, translateY: -4 }}
+                animate={{ opacity: 1, translateY: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ type: 'timing', duration: 250 }}
-                style={{ paddingVertical: S.sm, alignItems: 'center', marginBottom: S.md }}
+                style={[
+                  styles.dayTasksCard,
+                  {
+                    backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
+                    borderColor: theme.outline + '30',
+                    marginBottom: S.md,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    paddingVertical: S.md,
+                    paddingHorizontal: S.md,
+                  },
+                ]}
               >
-                <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.45 }}>
-                  {tr ? 'Bu gün için planlanmış görev yok' : 'No tasks planned for this day'}
+                <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                  {tr ? 'Planlanmış görev yok' : 'No tasks planned'}
                 </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push({ pathname: '/tasks', params: { action: 'add', dateFilter: selectedDay } });
+                  }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary + '18', paddingHorizontal: S.sm, paddingVertical: 5, borderRadius: R.full }}
+                >
+                  <Plus size={12} color={theme.primary} />
+                  <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.primary }}>
+                    {tr ? 'Ekle' : 'Add'}
+                  </Text>
+                </TouchableOpacity>
               </MotiView>
-            ) : selectedDayTasks.length > 0 ? (
+            ) : (
               <MotiView
                 key={selectedDay}
                 from={{ opacity: 0, translateY: -6 }}
@@ -393,10 +417,24 @@ export default function CockpitScreen() {
                   },
                 ]}
               >
-                <Text style={[styles.dayTasksHeading, { color: theme.onSurfaceVariant }]}>
-                  {selectedDayLabel}
-                </Text>
-                {selectedDayTasks.slice(0, 4).map((task, idx) => (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.xs }}>
+                  <Text style={[styles.dayTasksHeading, { color: theme.onSurfaceVariant, marginBottom: 0 }]}>
+                    {selectedDayLabel}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push({ pathname: '/tasks', params: { action: 'add', dateFilter: selectedDay } });
+                    }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary + '18', paddingHorizontal: S.sm, paddingVertical: 4, borderRadius: R.full }}
+                  >
+                    <Plus size={11} color={theme.primary} />
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary }}>
+                      {tr ? 'Görev Ekle' : 'Add Task'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {selectedDayTasks.slice(0, 5).map((task, idx) => (
                   <TouchableOpacity
                     key={task.id}
                     onPress={() => {
@@ -444,7 +482,7 @@ export default function CockpitScreen() {
                     ]} />
                   </TouchableOpacity>
                 ))}
-                {selectedDayTasks.length > 4 && (
+                {selectedDayTasks.length > 5 && (
                   <TouchableOpacity
                     onPress={() => router.push({
                       pathname: '/tasks',
@@ -455,12 +493,12 @@ export default function CockpitScreen() {
                     style={[styles.dayTaskRow, { borderTopColor: theme.outline + '20', borderTopWidth: 1, justifyContent: 'center' }]}
                   >
                     <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.primary }}>
-                      +{selectedDayTasks.length - 4} {tr ? 'daha' : 'more'}
+                      +{selectedDayTasks.length - 5} {tr ? 'daha' : 'more'}
                     </Text>
                   </TouchableOpacity>
                 )}
               </MotiView>
-            ) : null}
+            )}
           </AnimatePresence>
 
           {/* ── HABITS ── */}
@@ -786,7 +824,7 @@ export default function CockpitScreen() {
         onShow={() => addSlideIn()}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1, justifyContent: 'flex-end' }}
         >
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setAddVisible(false)} />
@@ -838,6 +876,7 @@ export default function CockpitScreen() {
                 maxLength={40}
                 returnKeyType="done"
                 onSubmitEditing={handleAddHabit}
+                underlineColorAndroid="transparent"
               />
             </View>
 
@@ -913,7 +952,7 @@ export default function CockpitScreen() {
         onShow={() => planSlideIn()}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1, justifyContent: 'flex-end' }}
         >
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setPlanVisible(false)} />
@@ -968,6 +1007,7 @@ export default function CockpitScreen() {
               numberOfLines={3}
               maxLength={200}
               textAlignVertical="top"
+              underlineColorAndroid="transparent"
             />
 
             <TouchableOpacity
