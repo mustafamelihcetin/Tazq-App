@@ -6,6 +6,7 @@ import { useAchievementStore } from '../store/useAchievementStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { F, R, S } from '../constants/tokens';
+import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '../utils/achievementIcons';
 
 const CONFETTI_COLORS = [
   '#6366F1', '#EC4899', '#F59E0B', '#10B981',
@@ -264,9 +265,26 @@ export const CelebrationOverlay: React.FC = () => {
               pointerEvents="none"
             />
 
-            <Animated.Text style={[styles.emoji, { transform: [{ scale: emojiScale }] }]}>
-              {pending.emoji}
-            </Animated.Text>
+            <Animated.View style={{
+              width: 120,
+              height: 120,
+              borderRadius: 60,
+              borderWidth: 1.5,
+              borderColor: (ACHIEVEMENT_ICONS[pending.id]?.color || theme.primary) + '30', // 19% opacity colored border
+              backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: S.lg,
+              transform: [{ scale: emojiScale }],
+              shadowColor: ACHIEVEMENT_ICONS[pending.id]?.color || theme.primary,
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.3,
+              shadowRadius: 16,
+              elevation: 6,
+              zIndex: 1,
+            }}>
+              {renderAchievementIcon(pending.id, 56)}
+            </Animated.View>
             <Text style={[styles.title, { color: theme.onSurface }]}>
               {tr ? pending.titleTr : pending.titleEn}
             </Text>
@@ -299,7 +317,7 @@ const styles = StyleSheet.create({
     shadowRadius: 48,
     elevation: 24,
   },
-  emoji: { fontSize: 80, lineHeight: 88, marginBottom: S.sm },
+  achievementIcon: { width: 100, height: 100, marginBottom: S.sm },
   title: { fontSize: F.title + 2, fontWeight: '900', textAlign: 'center', letterSpacing: -0.5 },
   subtitle: { fontSize: F.body, fontWeight: '500', textAlign: 'center', opacity: 0.65, lineHeight: 22 },
   pill: {

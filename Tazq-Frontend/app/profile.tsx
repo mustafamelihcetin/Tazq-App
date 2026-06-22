@@ -20,6 +20,7 @@ import { usePrefsStore } from '../store/usePrefsStore';
 import { useAchievementStore } from '../store/useAchievementStore';
 import { ACHIEVEMENTS } from '../utils/achievements';
 import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
+import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '../utils/achievementIcons';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -286,8 +287,29 @@ export default function ProfileScreen() {
                               opacity: ach.locked ? 0.45 : 1,
                             }}
                           >
-                            <Text style={{ fontSize: 22 }}>{ach.emoji}</Text>
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurface, textAlign: 'center', lineHeight: 13 }} numberOfLines={2}>
+                            <View style={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: 24,
+                              backgroundColor: ach.locked
+                                ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.015)')
+                                : ((ACHIEVEMENT_ICONS[ach.id]?.color || theme.primary) + '12'), // 7% opacity colored backdrop
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginBottom: 6,
+                              borderWidth: ach.locked ? 0 : 1,
+                              borderColor: (ACHIEVEMENT_ICONS[ach.id]?.color || theme.primary) + '22', // 13% opacity colored border
+                            }}>
+                              {renderAchievementIcon(ach.id, 22, ach.locked)}
+                            </View>
+                            <Text style={{
+                              fontSize: 10,
+                              fontWeight: '700',
+                              color: ach.locked ? theme.onSurfaceVariant : theme.onSurface,
+                              opacity: ach.locked ? 0.65 : 1,
+                              textAlign: 'center',
+                              lineHeight: 13
+                            }} numberOfLines={2}>
                               {tr ? ach.titleTr : ach.titleEn}
                             </Text>
                           </View>
