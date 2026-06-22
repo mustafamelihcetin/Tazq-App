@@ -267,6 +267,17 @@ using (var scope = app.Services.CreateScope())
             db.SaveChanges();
         }
     }
+
+    // Promote any email listed in ADMIN_EMAILS to Admin role
+    var extraAdmins = (Environment.GetEnvironmentVariable("ADMIN_EMAILS") ?? "")
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    bool changed = false;
+    foreach (var email in extraAdmins)
+    {
+        var u = db.Users.FirstOrDefault(u => u.Email == email);
+        if (u != null && u.Role != "Admin") { u.Role = "Admin"; changed = true; }
+    }
+    if (changed) db.SaveChanges();
 }
 
 if (app.Environment.IsDevelopment())

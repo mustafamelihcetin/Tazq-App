@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, KeyboardAvoidingView, AppState, Keyboard, Animated, ScrollView, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, AppState, Animated, ScrollView, BackHandler } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import Svg, { Circle, G } from 'react-native-svg';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -79,11 +79,10 @@ export default function FocusScreen() {
   const [selectedPreset, setSelectedPreset] = useState<PresetKey>('classic');
   const activePreset = PRESETS.find(p => p.key === selectedPreset) ?? PRESETS[1];
 
-  // Custom duration
+  // Custom duration wheel
   const [customVisible, setCustomVisible] = useState(false);
-  const [customInput, setCustomInput] = useState('');
-  const [customError, setCustomError] = useState(false);
-  const customInputRef = useRef<TextInput>(null);
+  const [wheelValue, setWheelValue] = useState(25);
+  const wheelRef = useRef<ScrollView>(null);
 
   // Task inline edit
   const [taskEditMode, setTaskEditMode] = useState(false);
@@ -101,7 +100,8 @@ export default function FocusScreen() {
   const [completionRitual, setCompletionRitual] = useState(false);
 
   const [quote, setQuote] = useState('');
-  const [kbHeight, setKbHeight] = useState(0);
+  const WHEEL_ITEM_H = 56;
+  const WHEEL_MINS = Array.from({ length: 180 }, (_, i) => i + 1);
 
   const timerSize = Math.min(width * 0.72, height * 0.35);
   const elapsed = totalSeconds - seconds;
@@ -230,13 +230,6 @@ export default function FocusScreen() {
     return () => sub.remove();
   }, [router]));
 
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvent, e => setKbHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener(hideEvent, () => setKbHeight(0));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
 
   const backgroundSavedRef = useRef(false);
   useEffect(() => {
@@ -280,9 +273,9 @@ export default function FocusScreen() {
           FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
           addFocusMinutes(minutes);
 
-          // Check focus achievements
+          // Check focus achievements using lifetime total
           FocusService.getStats().then(s => {
-            const total = (s.weeklyFocus || []).reduce((a: number, d: any) => a + (d.minutes || 0), 0);
+            const total = Math.round((s.totalFocusHours || 0) * 60);
             const ach = checkFocusAchievement(total);
             if (ach) triggerAchievement(ach);
           }).catch(() => {});
@@ -313,7 +306,7 @@ export default function FocusScreen() {
         FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
         addFocusMinutes(minutes);
         FocusService.getStats().then(s => {
-          const total = (s.weeklyFocus || []).reduce((a: number, d: any) => a + (d.minutes || 0), 0);
+          const total = Math.round((s.totalFocusHours || 0) * 60);
           const ach = checkFocusAchievement(total);
           if (ach) triggerAchievement(ach);
         }).catch(() => {
@@ -363,17 +356,12 @@ export default function FocusScreen() {
   };
 
   const applyCustomDuration = () => {
-    const mins = parseInt(customInput, 10);
-    if (!isNaN(mins) && mins >= 1 && mins <= 480) {
+    if (wheelValue >= 1 && wheelValue <= 180) {
       Haptics.selectionAsync();
-      setDuration(mins);
-      setCustomInput('');
+      setDuration(wheelValue);
       setCustomVisible(false);
-      setCustomError(false);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setCustomError(true);
-      setTimeout(() => setCustomError(false), 700);
     }
   };
 
@@ -986,54 +974,82 @@ export default function FocusScreen() {
       </Modal>
 
       {/* ── Custom Duration Modal ─────────────────────────────────────────────── */}
-      <Modal visible={customVisible} transparent animationType="none" onShow={() => customSlideIn()}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <Modal
+        visible={customVisible}
+        transparent
+        animationType="none"
+        onShow={() => {
+          customSlideIn();
+          setTimeout(() => {
+            wheelRef.current?.scrollTo({ y: (wheelValue - 1) * WHEEL_ITEM_H, animated: false });
+          }, 50);
+        }}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCustomVisible(false)} />
           <Animated.View
             style={[
               customSlide,
               styles.customSheet,
-              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : S.xxl, borderBottomLeftRadius: kbHeight > 0 ? R.lg : 0, borderBottomRightRadius: kbHeight > 0 ? R.lg : 0, maxHeight: height - insets.top - 16 },
+              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', paddingBottom: S.xxl },
             ]}
           >
             <View {...customPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
             </View>
             <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>{t.focusCustomDuration}</Text>
-            <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>{t.focusCustomRange}</Text>
-            <MotiView
-              animate={customError ? { translateX: [-8, 8, -6, 6, -4, 4, -2, 2, 0] } : { translateX: 0 }}
-              transition={{ type: 'timing', duration: 620 }}
-            >
-              <View style={[styles.inputRow, { borderColor: customError ? theme.error : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'), backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
-                <TextInput
-                  ref={customInputRef}
-                  value={customInput}
-                  onChangeText={(v) => { setCustomInput(v); if (customError) setCustomError(false); }}
-                  keyboardType="number-pad"
-                  maxLength={3}
-                  placeholder={t.focusCustomPlaceholder}
-                  placeholderTextColor={customError ? theme.error + '80' : theme.onSurfaceVariant + '80'}
-                  style={[styles.customInput, { color: customError ? theme.error : theme.onSurface, fontSize: 48, flex: 1 }]}
-                  onSubmitEditing={applyCustomDuration}
-                  underlineColorAndroid="transparent"
-                />
+            <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>{language === 'tr' ? '1 – 180 dakika' : '1 – 180 minutes'}</Text>
+
+            {/* Drum-roll wheel */}
+            <View style={{ height: WHEEL_ITEM_H * 5, width: '100%', alignItems: 'center', overflow: 'hidden' }}>
+              {/* center selection indicator */}
+              <View style={{ position: 'absolute', top: WHEEL_ITEM_H * 2, left: 24, right: 24, height: WHEEL_ITEM_H, borderTopWidth: 1.5, borderBottomWidth: 1.5, borderColor: theme.primary + '70', borderRadius: R.sm, pointerEvents: 'none' }} />
+              {/* fade top */}
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, zIndex: 1, pointerEvents: 'none', background: 'transparent' }}
+                    pointerEvents="none">
+                <View style={{ flex: 1, backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', opacity: 0.7 }} />
               </View>
-              <Text style={[styles.minLabel, { color: customError ? theme.error : theme.onSurfaceVariant }]}>
-                {language === 'tr' ? 'DAKİKA' : 'MINUTES'}
-              </Text>
-            </MotiView>
-            {customError && (
-              <Text style={{ fontSize: F.caption, color: theme.error, fontWeight: '700' }}>{t.focusCustomError}</Text>
-            )}
+              {/* fade bottom */}
+              <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, zIndex: 1, pointerEvents: 'none' }}
+                    pointerEvents="none">
+                <View style={{ flex: 1, backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', opacity: 0.7 }} />
+              </View>
+              <ScrollView
+                ref={wheelRef}
+                style={{ flex: 1, width: '100%' }}
+                contentContainerStyle={{ paddingVertical: WHEEL_ITEM_H * 2 }}
+                snapToInterval={WHEEL_ITEM_H}
+                decelerationRate="fast"
+                showsVerticalScrollIndicator={false}
+                onMomentumScrollEnd={e => {
+                  const idx = Math.round(e.nativeEvent.contentOffset.y / WHEEL_ITEM_H);
+                  const val = Math.min(180, Math.max(1, idx + 1));
+                  setWheelValue(val);
+                  Haptics.selectionAsync();
+                }}
+              >
+                {WHEEL_MINS.map(m => (
+                  <View key={m} style={{ height: WHEEL_ITEM_H, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 36, fontWeight: '900', letterSpacing: -1, color: theme.onSurface }}>
+                      {m}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+
+            <Text style={[styles.minLabel, { color: theme.onSurfaceVariant, marginTop: S.xs }]}>
+              {language === 'tr' ? 'DAKİKA' : 'MINUTES'}
+            </Text>
+
             <TouchableOpacity
               onPress={applyCustomDuration}
-              style={[styles.applyBtn, { backgroundColor: theme.primary, opacity: customInput.length > 0 ? 1 : 0.4 }]}
+              style={[styles.applyBtn, { backgroundColor: theme.primary }]}
             >
               <Text style={[styles.applyBtnText, { color: theme.onPrimary }]}>{t.focusCustomApply}</Text>
             </TouchableOpacity>
           </Animated.View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* ── Session Summary Modal ─────────────────────────────────────────────── */}

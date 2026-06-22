@@ -58,6 +58,7 @@ interface User {
   email: string;
   name: string;
   avatar?: string;
+  role?: string;
   totalFocusHours?: number;
   completedTasksCount?: number;
   activeStreak?: number;

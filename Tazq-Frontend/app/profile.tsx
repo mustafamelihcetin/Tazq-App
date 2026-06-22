@@ -19,6 +19,7 @@ import { AVATAR_CONFIGS, getAvatarSource } from '../utils/avatars';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useAchievementStore } from '../store/useAchievementStore';
 import { ACHIEVEMENTS } from '../utils/achievements';
+import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -33,6 +34,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
 
   const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset } = useFocusStore();
+  const { habits, toggleDate } = useHabitStore();
   const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects } = usePrefsStore();
   const { unlocked: unlockedAchievements } = useAchievementStore();
 
@@ -159,7 +161,14 @@ export default function ProfileScreen() {
     if (!streakFreezeAvailable) return;
     Alert.alert(t.streakFreeze, t.streakFreezeConfirm, [
       { text: t.cancel, style: 'cancel' },
-      { text: t.streakFreezeUse, onPress: () => { useStreakFreeze(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } }
+      { text: t.streakFreezeUse, onPress: () => {
+        useStreakFreeze();
+        const todayKey = fmtDateKey();
+        habits.forEach(h => {
+          if (!h.completedDates.includes(todayKey)) toggleDate(h.id, todayKey);
+        });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } }
     ]);
   };
 
@@ -437,7 +446,20 @@ export default function ProfileScreen() {
                 </View>
             </View>
 
-            <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
+            {user?.role === 'Admin' && (
+              <TouchableOpacity
+                onPress={() => router.push('/admin')}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.08)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl, borderWidth: 1, borderColor: isDark ? 'rgba(99,102,241,0.25)' : 'rgba(99,102,241,0.15)' }}
+              >
+                <Shield size={18} color="#6366F1" />
+                <Text style={{ color: '#6366F1', fontWeight: '800', fontSize: F.body, flex: 1 }}>
+                  {language === 'tr' ? 'Admin Paneli' : 'Admin Panel'}
+                </Text>
+                <ChevronRight size={16} color="#6366F1" />
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md }]}>
                 <LogOut size={18} color={theme.error} />
                 <Text style={[styles.logoutText, { color: theme.error, fontSize: F.body }]}>{t.logout}</Text>
             </TouchableOpacity>

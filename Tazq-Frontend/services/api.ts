@@ -161,6 +161,47 @@ export const FocusService = {
   },
 };
 
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  profilePicture?: string;
+  taskCount: number;
+  completedTasks: number;
+  focusMinutes: number;
+  lastActivityAt?: string;
+  lastLoginIp?: string;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  totalTasks: number;
+  completedTasks: number;
+  totalFocusMinutes: number;
+  activeToday: number;
+  activeThisWeek: number;
+  sessionsToday: number;
+  dailyTrend: { day: string; minutes: number }[];
+}
+
+export const AdminService = {
+  getUsers: async (): Promise<AdminUser[]> => {
+    const r = await api.get('/api/admin/users');
+    return r.data;
+  },
+  getStats: async (): Promise<AdminStats> => {
+    const r = await api.get('/api/admin/stats');
+    return r.data;
+  },
+  deleteUser: async (id: number): Promise<void> => {
+    await api.delete(`/api/admin/users/${id}`);
+  },
+  setRole: async (id: number, role: string): Promise<void> => {
+    await api.patch(`/api/admin/users/${id}/role`, { role });
+  },
+};
+
 export const AiService = {
   parseTasks: async (text: string) => {
     const response = await api.post('/api/ai/parse-tasks', { text });
