@@ -38,7 +38,7 @@ import { checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS } from '
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
   const isSmallScreen = width < 380 || height < 700;
-  const { tasks, isLoading, setTasks, setLoading, addTask } = useTaskStore();
+  const { tasks, isLoading, setTasks, setLoading, addTask, toggleTaskCompletion } = useTaskStore();
   const { user } = useAuthStore();
   const { t, language } = useLanguageStore();
   const { theme, colorScheme } = useAppTheme();
@@ -48,14 +48,13 @@ export default function HomeScreen() {
   const { show: showToast } = useToastStore();
   const { recordScore, getLastNDays } = useMomentumStore();
   const { trigger: triggerAchievement } = useAchievementStore();
-  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds } = usePrefsStore();
+  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey } = usePrefsStore();
 
   // Focus Store
   const { isActive, seconds, setCurrentTask, setDuration, setIsActive, dailyFocusMinutes, dailyGoalMinutes, updateBestStreak } = useFocusStore();
 
   // State
   const [statusHubVisible, setStatusHubVisible] = useState(false);
-  const [modeDismissed, setModeDismissed] = useState(false);
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
   const [headerHighlight, setHeaderHighlight] = useState(false);
@@ -89,6 +88,11 @@ export default function HomeScreen() {
   });
   const todayCompleted = todayTasks.filter(t => t.isCompleted).length;
   const dailyGoal = todayTasks.length || 1;
+  const overdueCount = tasks.filter(t =>
+    !t.isCompleted && t.dueDate &&
+    new Date(t.dueDate).setHours(23, 59, 59, 999) < Date.now() &&
+    new Date(t.dueDate).toDateString() !== new Date().toDateString()
+  ).length;
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -151,7 +155,7 @@ export default function HomeScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
     try {
-        const hint = parseTaskHint(draftTitle.trim());
+        const hint = parseTaskHint(draftTitle.trim(), language as 'tr' | 'en');
         const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
         
         const payload = {
@@ -267,8 +271,15 @@ export default function HomeScreen() {
     }
     if (!detectedMode) return null;
     if (detectedMode.type === 'ramazan' && seasonal.ramazan) return detectedMode;
+    if ((detectedMode.type === 'yks' || detectedMode.type === 'kpss') && seasonal.examMode) return detectedMode;
     return null;
   })();
+
+  // A unique key per mode period — changes when mode type or exam date changes, resetting dismiss
+  const activeBannerKey = activeMode
+    ? `${activeMode.type}-${seasonal.examDate ?? seasonal.mulakatDate ?? seasonal.tezDate ?? `auto-${new Date().getFullYear()}`}`
+    : '';
+  const modeDismissed = !!activeBannerKey && dismissedBannerKey === activeBannerKey;
 
   const activePlanApplied = (() => {
     if (!activeMode) return false;
@@ -306,13 +317,13 @@ export default function HomeScreen() {
     if (momAch) triggerAchievement(momAch);
   }, [momentum, streak, statsLoading]);
 
-  // Daily perfect: all tasks completed
+  // Daily perfect: all of today's tasks completed
   useEffect(() => {
-    if (statsLoading || tasks.length === 0) return;
-    if (tasks.every(t => t.isCompleted)) {
+    if (statsLoading || todayTasks.length === 0) return;
+    if (todayTasks.every(t => t.isCompleted)) {
       triggerAchievement(ACHIEVEMENTS.daily_perfect);
     }
-  }, [tasks, statsLoading]);
+  }, [todayTasks, statsLoading]);
 
   // Smart Logic: Prioritize Today's Tasks
   const todayDateString = new Date().toDateString();
@@ -324,6 +335,23 @@ export default function HomeScreen() {
   const topTask = topTaskToday || futureTasksIncomplete[0];
 
   const insight = getSmartInsight(language as 'tr' | 'en', isActive, momentum, highPriorityToday, topTaskToday, futureTasksIncomplete);
+
+  const handleCheckTask = async (taskId: number) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    if (task.tags?.includes('weight_entry')) {
+      router.push('/modlar');
+      return;
+    }
+    if (task.isCompleted) return; // aksiyon merkezi sadece tamamlar, hiç geri almaz
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    toggleTaskCompletion(taskId);
+    try {
+      await TaskService.updateTask(taskId, { isCompleted: true });
+    } catch {
+      toggleTaskCompletion(taskId);
+    }
+  };
 
   const startQuickFocus = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -343,7 +371,7 @@ export default function HomeScreen() {
   const tr = language === 'tr';
 
   const getStreakSurprise = useCallback(() => {
-    const n = parseInt(streak as string, 10) || 0;
+    const n = streak || 0;
     if (n === 0)  return { icon: '🌱', label: tr ? 'HADI BAŞLA!'    : 'START TODAY!',    tier: 'nudge'     } as const;
     if (n <= 3)   return { icon: '🔥', label: tr ? 'ISINIYORSUN!'   : 'WARMING UP!',     tier: 'celebrate' } as const;
     if (n <= 7)   return { icon: '⚡', label: tr ? 'GEL-İYOR!'      : 'GETTING HOT!',    tier: 'celebrate' } as const;
@@ -360,15 +388,6 @@ export default function HomeScreen() {
     return                          { icon: '🚀', label: tr ? 'SÜPER ODAK!'     : 'SUPER FOCUS!',   tier: 'celebrate' } as const;
   }, [weeklyMinutes, tr]);
 
-  const getCompletionSurprise = useCallback(() => {
-    const pct = totalCount > 0 ? Math.round(weightedCompletion * 100) : 0;
-    if (pct === 0)  return { icon: '📋', label: tr ? 'HAYDI BAKALIM!'  : 'LET\'S GO!',       tier: 'nudge'     } as const;
-    if (pct <= 25)  return { icon: '🌱', label: tr ? 'BAŞLADIN!'       : 'JUST STARTED!',   tier: 'celebrate' } as const;
-    if (pct <= 50)  return { icon: '📈', label: tr ? 'YARIYA GELDİN!'  : 'HALFWAY THERE!',  tier: 'celebrate' } as const;
-    if (pct <= 74)  return { icon: '⚡', label: tr ? 'HARIKA GİDİYOR!' : 'GREAT PROGRESS!', tier: 'celebrate' } as const;
-    if (pct < 100)  return { icon: '🔥', label: tr ? 'AZ KALDI!'       : 'SO CLOSE!',       tier: 'celebrate' } as const;
-    return                { icon: '🏆', label: tr ? 'MÜKEMMEL!'       : 'PERFECT!',        tier: 'celebrate' } as const;
-  }, [weightedCompletion, totalCount, tr]);
 
   const todaySurprise = (() => {
     if (todayCompleted >= dailyGoal) return language === 'tr' ? '🏆 MÜKEMMEL GÜN!' : '🏆 PERFECT DAY!';
@@ -690,6 +709,60 @@ export default function HomeScreen() {
             </TouchableOpacity>
             </View>
 
+            {/* Today Tasks Quick-Check */}
+            {(todayTasksIncomplete.length > 0 || overdueCount > 0) && (
+              <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
+                {overdueCount > 0 && (
+                  <TouchableOpacity
+                    onPress={() => router.push('/tasks')}
+                    activeOpacity={0.8}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm, paddingHorizontal: 2 }}
+                  >
+                    <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: theme.error }} />
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: theme.error, opacity: 0.85, flex: 1 }}>
+                      {overdueCount} {language === 'tr' ? 'gecikmiş görev' : overdueCount === 1 ? 'overdue task' : 'overdue tasks'}
+                    </Text>
+                    <ChevronRight size={12} color={theme.error} opacity={0.5} />
+                  </TouchableOpacity>
+                )}
+                {todayTasksIncomplete.length > 0 && (
+                  <BentoCard index={1} style={{ padding: 0, overflow: 'hidden' }}>
+                    {todayTasksIncomplete.slice(0, 3).map((task, i) => (
+                      <TouchableOpacity
+                        key={task.id}
+                        onPress={() => handleCheckTask(task.id)}
+                        activeOpacity={0.7}
+                        style={{
+                          flexDirection: 'row', alignItems: 'center',
+                          paddingHorizontal: S.md, paddingVertical: 13,
+                          borderBottomWidth: i < Math.min(2, todayTasksIncomplete.length - 1) ? 1 : 0,
+                          borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                        }}
+                      >
+                        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: priorityColor(task.priority), marginRight: S.md }} />
+                        <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: theme.onSurface }} numberOfLines={1}>{task.title}</Text>
+                        <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: priorityColor(task.priority) + '55', alignItems: 'center', justifyContent: 'center', marginLeft: S.sm }}>
+                          <Check size={11} color={priorityColor(task.priority) + '70'} strokeWidth={2.5} />
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                    {todayTasksIncomplete.length > 3 && (
+                      <TouchableOpacity
+                        onPress={() => router.push('/tasks')}
+                        activeOpacity={0.7}
+                        style={{ paddingHorizontal: S.md, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}
+                      >
+                        <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.4, flex: 1 }}>
+                          {language === 'tr' ? `+${todayTasksIncomplete.length - 3} görev daha` : `+${todayTasksIncomplete.length - 3} more`}
+                        </Text>
+                        <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} />
+                      </TouchableOpacity>
+                    )}
+                  </BentoCard>
+                )}
+              </View>
+            )}
+
             {/* Focus Widget */}
             <DynamicIsland />
 
@@ -784,7 +857,7 @@ export default function HomeScreen() {
               <View style={{ paddingHorizontal: S.lg }}>
                 <TurkishModeBanner
                 mode={activeMode}
-                onDismiss={() => setModeDismissed(true)}
+                onDismiss={() => setDismissedBannerKey(activeBannerKey)}
                 planApplied={activePlanApplied}
                 planHabitIds={(() => {
                   const t = activeMode.type;
@@ -851,15 +924,6 @@ export default function HomeScreen() {
                         isDark={isDark}
                         theme={theme}
                         getSurprise={getFocusSurprise}
-                    />
-                    <PremiumStatChip
-                        icon={<Check size={16} color={theme.success} strokeWidth={3} />}
-                        value={totalCount > 0 ? `${Math.round(weightedCompletion * 100)}%` : '–'}
-                        label={tr ? 'tamamlanma' : 'completion'}
-                        color={theme.success}
-                        isDark={isDark}
-                        theme={theme}
-                        getSurprise={getCompletionSurprise}
                     />
                 </View>
 

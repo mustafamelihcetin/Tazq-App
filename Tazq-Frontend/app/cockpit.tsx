@@ -70,8 +70,48 @@ export default function CockpitScreen() {
   const { language } = useLanguageStore();
   const { tasks } = useTaskStore();
   const { habits, addHabit, removeHabit, toggleDate, weeklyGoal, setWeeklyGoal, getStreak } = useHabitStore();
-  const { seasonal } = usePrefsStore();
-  const hasActiveSeasonalMode = seasonal.ramazan || seasonal.examMode || seasonal.tezMode || seasonal.mulakatMode;
+  const {
+    seasonal,
+    examPlanTaskIds, exam2PlanTaskIds, exam3PlanTaskIds,
+    tezPlanTaskIds,
+    mulakatPlanTaskIds, mulakat2PlanTaskIds, mulakat3PlanTaskIds,
+    sporPlanTaskIds, spor2PlanTaskIds, spor3PlanTaskIds,
+    ramazanPlanTaskIds,
+    examPlanHabitIds, exam2PlanHabitIds, exam3PlanHabitIds,
+    tezPlanHabitIds,
+    mulakatPlanHabitIds, mulakat2PlanHabitIds, mulakat3PlanHabitIds,
+    sporPlanHabitIds, spor2PlanHabitIds, spor3PlanHabitIds,
+    ramazanPlanHabitIds,
+  } = usePrefsStore();
+  const hasActiveSeasonalMode = seasonal.ramazan || seasonal.examMode || seasonal.tezMode || seasonal.mulakatMode || seasonal.sporMode;
+
+  const planTaskIdSet = useMemo(() => new Set([
+    ...examPlanTaskIds, ...exam2PlanTaskIds, ...exam3PlanTaskIds,
+    ...tezPlanTaskIds,
+    ...mulakatPlanTaskIds, ...mulakat2PlanTaskIds, ...mulakat3PlanTaskIds,
+    ...sporPlanTaskIds, ...spor2PlanTaskIds, ...spor3PlanTaskIds,
+    ...ramazanPlanTaskIds,
+  ]), [
+    examPlanTaskIds, exam2PlanTaskIds, exam3PlanTaskIds,
+    tezPlanTaskIds,
+    mulakatPlanTaskIds, mulakat2PlanTaskIds, mulakat3PlanTaskIds,
+    sporPlanTaskIds, spor2PlanTaskIds, spor3PlanTaskIds,
+    ramazanPlanTaskIds,
+  ]);
+
+  const planHabitIdSet = useMemo(() => new Set([
+    ...examPlanHabitIds, ...exam2PlanHabitIds, ...exam3PlanHabitIds,
+    ...tezPlanHabitIds,
+    ...mulakatPlanHabitIds, ...mulakat2PlanHabitIds, ...mulakat3PlanHabitIds,
+    ...sporPlanHabitIds, ...spor2PlanHabitIds, ...spor3PlanHabitIds,
+    ...ramazanPlanHabitIds,
+  ]), [
+    examPlanHabitIds, exam2PlanHabitIds, exam3PlanHabitIds,
+    tezPlanHabitIds,
+    mulakatPlanHabitIds, mulakat2PlanHabitIds, mulakat3PlanHabitIds,
+    sporPlanHabitIds, spor2PlanHabitIds, spor3PlanHabitIds,
+    ramazanPlanHabitIds,
+  ]);
 
   const todayKey = fmtDateKey();
   const tr = language === 'tr';
@@ -112,6 +152,10 @@ export default function CockpitScreen() {
 
   useFocusEffect(fetchStats);
 
+  useFocusEffect(useCallback(() => {
+    setSelectedDay(fmtDateKey());
+  }, []));
+
   useEffect(() => {
     AsyncStorage.getItem('tazq-day-hint-shown').then(val => {
       if (!val) {
@@ -133,12 +177,18 @@ export default function CockpitScreen() {
 
   const dayLabels = tr ? DAY_LABELS_TR : (weekStart === 0 ? DAY_LABELS_EN_SUN : DAY_LABELS_EN_MON);
 
+  // Personal tasks only — plan tasks are managed in modlar, not here
+  const personalTasks = useMemo(
+    () => tasks.filter((t) => !planTaskIdSet.has(t.id)),
+    [tasks, planTaskIdSet]
+  );
+
   // Week strip data
   const weekData = useMemo(() => {
     const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
     return weekDays.map((d) => {
       const key = fmtDateKey(d);
-      const dayTasks = tasks.filter(
+      const dayTasks = personalTasks.filter(
         (t) => t.dueDate && fmtDateKey(new Date(t.dueDate)) === key
       );
       const isPast = d < todayMidnight;
@@ -151,33 +201,38 @@ export default function CockpitScreen() {
         completed: dayTasks.filter((t) => t.isCompleted).length,
       };
     });
-  }, [tasks, weekDays, todayKey]);
+  }, [personalTasks, weekDays, todayKey]);
 
   // Tasks for selected day
   const selectedDayTasks = useMemo(() =>
-    tasks.filter((t) => t.dueDate && fmtDateKey(new Date(t.dueDate)) === selectedDay),
-    [tasks, selectedDay]
+    personalTasks.filter((t) => t.dueDate && fmtDateKey(new Date(t.dueDate)) === selectedDay),
+    [personalTasks, selectedDay]
   );
 
   // Weekly stats
   const weekKeys = useMemo(() => new Set(weekDays.map(fmtDateKey)), [weekDays]);
 
   const thisWeekCompleted = useMemo(() =>
-    tasks.filter(
+    personalTasks.filter(
       (t) => t.isCompleted && t.dueDate && weekKeys.has(fmtDateKey(new Date(t.dueDate)))
     ).length,
-    [tasks, weekKeys]
+    [personalTasks, weekKeys]
+  );
+
+  const personalHabits = useMemo(
+    () => habits.filter((h) => h && h.id && !planHabitIdSet.has(h.id)),
+    [habits, planHabitIdSet]
   );
 
   const habitsThisWeekPct = useMemo(() => {
-    const total = habits.length * 7;
+    const total = personalHabits.length * 7;
     if (total === 0) return 0;
-    const done = habits.reduce(
+    const done = personalHabits.reduce(
       (acc, h) => acc + (Array.isArray(h.completedDates) ? h.completedDates : []).filter((d) => weekKeys.has(d)).length,
       0
     );
     return Math.round((done / total) * 100);
-  }, [habits, weekKeys]);
+  }, [personalHabits, weekKeys]);
 
   const todayDow = new Date().getDay(); // 0 Sun … 6 Sat
   const showPlanButton = todayDow === 0 || todayDow >= 4;
@@ -232,7 +287,30 @@ export default function CockpitScreen() {
       tr ? `"${name}" alışkanlığı silinsin mi?` : `Delete "${name}"?`,
       [
         { text: tr ? 'İptal' : 'Cancel', style: 'cancel' },
-        { text: tr ? 'Sil' : 'Delete', style: 'destructive', onPress: () => removeHabit(id) },
+        {
+          text: tr ? 'Sil' : 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const ps = usePrefsStore.getState();
+            const planSlots = [
+              { mode: 'exam' as const, hIds: ps.examPlanHabitIds, tIds: ps.examPlanTaskIds },
+              { mode: 'exam2' as const, hIds: ps.exam2PlanHabitIds, tIds: ps.exam2PlanTaskIds },
+              { mode: 'exam3' as const, hIds: ps.exam3PlanHabitIds, tIds: ps.exam3PlanTaskIds },
+              { mode: 'tez' as const, hIds: ps.tezPlanHabitIds, tIds: ps.tezPlanTaskIds },
+              { mode: 'mulakat' as const, hIds: ps.mulakatPlanHabitIds, tIds: ps.mulakatPlanTaskIds },
+              { mode: 'mulakat2' as const, hIds: ps.mulakat2PlanHabitIds, tIds: ps.mulakat2PlanTaskIds },
+              { mode: 'mulakat3' as const, hIds: ps.mulakat3PlanHabitIds, tIds: ps.mulakat3PlanTaskIds },
+              { mode: 'spor' as const, hIds: ps.sporPlanHabitIds, tIds: ps.sporPlanTaskIds },
+              { mode: 'spor2' as const, hIds: ps.spor2PlanHabitIds, tIds: ps.spor2PlanTaskIds },
+              { mode: 'spor3' as const, hIds: ps.spor3PlanHabitIds, tIds: ps.spor3PlanTaskIds },
+              { mode: 'ramazan' as const, hIds: ps.ramazanPlanHabitIds, tIds: ps.ramazanPlanTaskIds },
+            ];
+            for (const { mode, hIds, tIds } of planSlots) {
+              if (hIds.includes(id)) ps.setPlanIds(mode, hIds.filter(hid => hid !== id), tIds);
+            }
+            removeHabit(id);
+          },
+        },
       ]
     );
   };
@@ -511,7 +589,7 @@ export default function CockpitScreen() {
             </Text>
           </View>
 
-          {habits.length === 0 ? (
+          {personalHabits.length === 0 ? (
             <BentoCard index={1} style={{ alignItems: 'center', paddingVertical: S.xl, marginBottom: S.md }}>
               <MotiView
                 animate={{ scale: [1, 1.1, 1] }}
@@ -565,8 +643,7 @@ export default function CockpitScreen() {
             <View style={{ gap: S.sm, marginBottom: S.md }}>
               {/* Tamamlanan alışkanlıklar — tam liste */}
               {(() => {
-                const doneHabits = habits.filter(h => {
-                  if (!h || !h.id) return false;
+                const doneHabits = personalHabits.filter(h => {
                   const dates = Array.isArray(h.completedDates) ? h.completedDates : [];
                   return dates.includes(todayKey) && !completingHabitIds.has(h.id);
                 });
@@ -596,12 +673,10 @@ export default function CockpitScreen() {
                   </View>
                 );
               })()}
-              {[...habits]
+              {[...personalHabits]
                 .filter((h) => {
-                  if (!h || !h.id) return false;
                   const safeDates = Array.isArray(h.completedDates) ? h.completedDates : [];
                   const doneToday = safeDates.includes(todayKey);
-                  // Show: not done today, OR currently in exit animation
                   return !doneToday || completingHabitIds.has(h.id);
                 })
                 .sort((a, b) => getStreak(b) - getStreak(a))
@@ -612,7 +687,7 @@ export default function CockpitScreen() {
                 const doneToday = safeDates.includes(todayKey);
                 const habitExitAnim = habitExitAnimMap.current.get(habit.id);
                 return (
-                  <Animated.View key={`${habit.id}-${hIdx}`} style={habitExitAnim ? { opacity: habitExitAnim.opacity, transform: [{ translateY: habitExitAnim.translateY }] } : undefined}>
+                  <Animated.View key={habit.id} style={habitExitAnim ? { opacity: habitExitAnim.opacity, transform: [{ translateY: habitExitAnim.translateY }] } : undefined}>
                   <View style={[styles.habitCard, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
                     <View style={styles.habitRow}>
                       {/* Emoji + name + streak */}

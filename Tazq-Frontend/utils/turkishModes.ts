@@ -11,6 +11,7 @@ export interface ModeTask {
   titleTr: string;
   titleEn: string;
   priority: 'High' | 'Medium' | 'Low';
+  tags?: string[];
 }
 
 export interface StudyTemplate {
@@ -204,6 +205,30 @@ const TEMPLATE_SPRINT = (examName = 'Sınav'): StudyTemplate => ({
   ],
 });
 
+// Kanıt: Bloom's taxonomy — bilgi inşası kavramsal anlayışla başlamalıdır (uzun vadeli sınav hazırlığı)
+const TEMPLATE_FOUNDATION = (examName = 'Sınav'): StudyTemplate => ({
+  id: 'foundation',
+  titleTr: 'Temel İnşa',
+  titleEn: 'Foundation Build',
+  descTr: 'Ezber değil, anlama. Uzun vadeli sınav için kavramsal zemin şimdi atılır — üstüne her şey inşa edilecek.',
+  descEn: 'Understanding over memorization. The conceptual foundation for a long-term exam is laid now — everything else builds on this.',
+  targetTr: '270+ gün kaldı · Temelden başlamak · Uzun vadeli program',
+  targetEn: '270+ days left · Starting from the ground · Long-term plan',
+  emoji: '🏗️',
+  dailyGoalMinutes: 60,
+  habits: [
+    { name: 'Konu Okuma', nameTr: 'Günlük Konu Okuma', emoji: '📖', color: '#3B82F6' },
+    { name: 'Kavram Haritası', nameTr: 'Kavram Haritası Çıkarma', emoji: '🗺️', color: '#8B5CF6' },
+    { name: 'Temel Soru Çözümü', nameTr: 'Temel Soru Çözümü', emoji: '✏️', color: '#10B981' },
+  ],
+  tasks: [
+    { titleTr: `${examName} müfredatını listele ve konulara böl`, titleEn: `List ${examName} syllabus and break it into topics`, priority: 'High' },
+    { titleTr: 'Kaynak kitapları belirle (en fazla 2-3 kaynak)', titleEn: 'Choose study books (2-3 sources max)', priority: 'High' },
+    { titleTr: 'Aylık konu takvimi oluştur — acele etme', titleEn: 'Create monthly topic calendar — no rush', priority: 'High' },
+    { titleTr: 'Teşhis denemesi çöz, zayıf alanları işaretle', titleEn: 'Take a diagnostic test, mark weak areas', priority: 'Medium' },
+  ],
+});
+
 // Kanıt: Oruçluyken bilişsel yorgunluk gece azalır; Ramadan productivity research (Afandi et al., 2020)
 const TEMPLATE_RAMAZAN_GECE: StudyTemplate = {
   id: 'ramazan-gece',
@@ -292,6 +317,7 @@ const YKS_MODE = (days: number): TurkishMode => ({
   habits: [],
   tasks: [],
   templates: [
+    TEMPLATE_FOUNDATION('YKS'),
     TEMPLATE_ACTIVE_RECALL('YKS'),
     TEMPLATE_SPACED_REPETITION('YKS'),
     TEMPLATE_DEEP_WORK('YKS'),
@@ -310,6 +336,7 @@ const KPSS_MODE = (days: number): TurkishMode => ({
   habits: [],
   tasks: [],
   templates: [
+    TEMPLATE_FOUNDATION('KPSS'),
     TEMPLATE_ACTIVE_RECALL('KPSS'),
     TEMPLATE_SPACED_REPETITION('KPSS'),
     TEMPLATE_DEEP_WORK('KPSS'),
@@ -408,6 +435,29 @@ const TEMPLATE_TEZ_IS = (projectName = 'Proje'): StudyTemplate => ({
     { titleTr: 'Paydaşları belirle ve iletişim planı oluştur', titleEn: 'Identify stakeholders and create a communication plan', priority: 'High' },
     { titleTr: 'Proje takip aracı kur (Jira, Notion, Trello vb.)', titleEn: 'Set up project tracking tool (Jira, Notion, Trello etc.)', priority: 'Medium' },
     { titleTr: 'Haftalık durum raporu şablonu hazırla', titleEn: 'Prepare a weekly status report template', priority: 'Medium' },
+  ],
+});
+
+const TEMPLATE_TEZ_SPRINT = (projectName = 'Proje'): StudyTemplate => ({
+  id: 'tez-sprint',
+  titleTr: 'Son Sprint',
+  titleEn: 'Final Sprint',
+  descTr: 'Yeni içerik ekleme yok. Sadece yazım tamamlama, revizyon ve teslim hazırlığı. Kalite artık önceliktir.',
+  descEn: 'No new content. Completing writing, revisions, and submission prep. Quality is the priority now.',
+  targetTr: 'Teslime 60 gün kaldı · Revizyon · Son okuma · Format & teslim kontrolü',
+  targetEn: '60 days to deadline · Revision · Proofreading · Format & submission check',
+  emoji: '⚡',
+  dailyGoalMinutes: 150,
+  habits: [
+    { name: 'Yazım Tamamlama', nameTr: 'Günlük yazım/revizyon bloğu (3+ saat)', emoji: '✍️', color: '#EF4444' },
+    { name: 'Bölüm Revizyonu', nameTr: 'Bölüm revizyonu & danışman bildirimi', emoji: '🔍', color: '#F59E0B' },
+    { name: 'Format Kontrolü', nameTr: 'Kaynakça & format standartları kontrolü', emoji: '📋', color: '#6366F1' },
+  ],
+  tasks: [
+    { titleTr: `${projectName} tamamlama yüzdesini hesapla ve kalan bölümleri listele`, titleEn: `Calculate ${projectName} completion % and list remaining sections`, priority: 'High' },
+    { titleTr: 'Danışmana son taslağı gönder — geri bildirim tarihi belirle', titleEn: 'Send final draft to advisor — set feedback deadline', priority: 'High' },
+    { titleTr: 'Kaynakça ve atıf formatını kontrol et (APA/MLA/IEEE)', titleEn: 'Check references and citation format (APA/MLA/IEEE)', priority: 'High' },
+    { titleTr: 'Teslim gereksinimlerini oku: format, sayfa sayısı, bağlama kuralları', titleEn: 'Read submission requirements: format, page count, binding rules', priority: 'Medium' },
   ],
 });
 
@@ -514,6 +564,29 @@ const TEMPLATE_MULAKAT_AKADEMIK = (company = 'Kurum'): StudyTemplate => ({
   ],
 });
 
+const TEMPLATE_MULAKAT_SPRINT = (company = 'Şirket'): StudyTemplate => ({
+  id: 'mulakat-sprint',
+  titleTr: 'Son Hafta Sprinti',
+  titleEn: 'Final Week Sprint',
+  descTr: 'Yeni konu öğrenme yok. Sadece mock mülakat, STAR hikayelerini pekiştirme ve zihinsel hazırlık.',
+  descEn: 'No new studying. Only mock interviews, reinforcing STAR stories, and mental preparation.',
+  targetTr: '7 günden az kaldı · Mock mülakat · Pekiştirme · Lojistik hazırlık',
+  targetEn: 'Less than 7 days left · Mock interviews · Reinforcement · Logistics',
+  emoji: '⚡',
+  dailyGoalMinutes: 60,
+  habits: [
+    { name: 'Mock Mülakat', nameTr: 'Günlük mock mülakat (sesli/video)', emoji: '🎙️', color: '#EF4444' },
+    { name: 'STAR Tekrar', nameTr: 'STAR hikayelerini sesli tekrar et', emoji: '⭐', color: '#F59E0B' },
+    { name: 'Şirket Tarama', nameTr: 'Son dakika şirket/sektör haberleri', emoji: '🔍', color: '#10B981' },
+  ],
+  tasks: [
+    { titleTr: `${company} için son dakika haber ve gelişmeleri tara`, titleEn: `Scan latest news and developments for ${company}`, priority: 'High' },
+    { titleTr: 'En güçlü 3 STAR hikayeni sesli anlat ve zamanla', titleEn: 'Tell your 3 strongest STAR stories aloud and time them', priority: 'High' },
+    { titleTr: 'En zor sorunu belirle ve cevabını bir kez daha hazırla', titleEn: 'Identify your hardest question and prep the answer one more time', priority: 'High' },
+    { titleTr: 'Giysi, rota ve lojistik planını bugün tamamla — mülakat sabahını boşalt', titleEn: 'Plan outfit, route and logistics today — free up the interview morning', priority: 'Medium' },
+  ],
+});
+
 function detectMulakatType(company: string): 'teknik' | 'case' | 'akademik' | 'behavioral' {
   const upper = company.toUpperCase();
   const caseKeywords = ['MCKINSEY', 'BCG', 'BAIN', 'DELOITTE', 'ACCENTURE', 'KPMG', 'PWC', 'EY', 'DANIŞMAN', 'CONSULTING', 'STRATEGY'];
@@ -605,6 +678,12 @@ function buildKiloTemplate(inputs: SporInputs, days: number): StudyTemplate {
       priority: 'High',
     },
     {
+      titleTr: `Güncel kilonu gir`,
+      titleEn: `Log current weight`,
+      priority: 'Medium',
+      tags: ['weight_entry'],
+    },
+    {
       titleTr: `Mutfak düzenlemesi: şekerli içecek ve paketli atıştırmalıkları çıkar`,
       titleEn: `Kitchen reset: remove sugary drinks and packaged snacks`,
       priority: 'Medium',
@@ -626,6 +705,12 @@ function buildKiloTemplate(inputs: SporInputs, days: number): StudyTemplate {
       titleTr: `Günlük kalori hedefini hesapla: TDEE + 300–500 kcal fazlası (kilo alma için)`,
       titleEn: `Calculate daily calorie target: TDEE + 300–500 kcal surplus (for weight gain)`,
       priority: 'High',
+    },
+    {
+      titleTr: `Güncel kilonu gir`,
+      titleEn: `Log current weight`,
+      priority: 'Medium',
+      tags: ['weight_entry'],
     },
     {
       titleTr: `Protein hedefi belirle: vücut ağırlığının kg başına en az 1.6 g protein/gün`,
@@ -950,6 +1035,37 @@ export function getTezMode(projectName: string, deadline: string): TurkishMode {
     { future: '{days} days left · Pick your plan', today: 'Today · Deadline!', past: 'Date passed · Update' },
   );
   const name = projectName.trim() || 'Proje';
+  const tezType = detectTezType(name);
+
+  // Faz 1: Başlangıç & Planlama (180+ gün) → milestone önce
+  // Faz 2: Aktif Çalışma (60-180 gün)       → yazım/geliştirme önce
+  // Faz 3: Son Sprint (<60 gün)              → teslim odaklı sprint önce
+  let templates: StudyTemplate[];
+  if (days <= 60) {
+    const typeTemplate = tezType === 'yazilim'
+      ? TEMPLATE_TEZ_SOFTWARE(name)
+      : tezType === 'is'
+      ? TEMPLATE_TEZ_IS(name)
+      : TEMPLATE_TEZ_WRITING(name);
+    templates = [TEMPLATE_TEZ_SPRINT(name), typeTemplate, TEMPLATE_TEZ_MILESTONE(name)];
+  } else if (days <= 180) {
+    if (tezType === 'yazilim') {
+      templates = [TEMPLATE_TEZ_SOFTWARE(name), TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)];
+    } else if (tezType === 'is') {
+      templates = [TEMPLATE_TEZ_IS(name), TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)];
+    } else {
+      templates = [TEMPLATE_TEZ_WRITING(name), TEMPLATE_TEZ_MILESTONE(name)];
+    }
+  } else {
+    if (tezType === 'yazilim') {
+      templates = [TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_SOFTWARE(name), TEMPLATE_TEZ_WRITING(name)];
+    } else if (tezType === 'is') {
+      templates = [TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_IS(name), TEMPLATE_TEZ_WRITING(name)];
+    } else {
+      templates = [TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)];
+    }
+  }
+
   return {
     type: 'tez',
     labelTr: `${name} Hazırlığı`,
@@ -960,11 +1076,7 @@ export function getTezMode(projectName: string, deadline: string): TurkishMode {
     daysLeft: days,
     habits: [],
     tasks: [],
-    templates: detectTezType(name) === 'yazilim'
-      ? [TEMPLATE_TEZ_SOFTWARE(name), TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)]
-      : detectTezType(name) === 'is'
-      ? [TEMPLATE_TEZ_IS(name), TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)]
-      : [TEMPLATE_TEZ_WRITING(name), TEMPLATE_TEZ_MILESTONE(name)],
+    templates,
   };
 }
 
@@ -977,6 +1089,30 @@ export function getMulakatMode(company: string, date: string): TurkishMode {
   const name = company.trim() || '';
   const labelTr = name ? `${name} Mülakatı` : 'İş Mülakatı';
   const labelEn = name ? `${name} Interview` : 'Job Interview';
+
+  const detected = detectMulakatType(name);
+  const all = [
+    TEMPLATE_MULAKAT_TEKNIK(name),
+    TEMPLATE_MULAKAT_BEHAVIORAL(name),
+    TEMPLATE_MULAKAT_CASE(name),
+    TEMPLATE_MULAKAT_AKADEMIK(name),
+  ];
+  const order: Record<string, number> = { teknik: 0, behavioral: 1, case: 2, akademik: 3 };
+  const priority = order[detected] ?? 0;
+  const sorted = [all[priority], ...all.filter((_, i) => i !== priority)];
+
+  // Faz 1: Kapsamlı Hazırlık (30+ gün) → tüm templateler, en uygun önce
+  // Faz 2: Odaklanmış Hazırlık (7-30 gün) → sadece en ilgili 2 template
+  // Faz 3: Son Hafta Sprinti (<7 gün)      → mock sprint önce
+  let templates: StudyTemplate[];
+  if (days <= 7) {
+    templates = [TEMPLATE_MULAKAT_SPRINT(name), sorted[0], sorted[1]];
+  } else if (days <= 30) {
+    templates = [sorted[0], sorted[1]];
+  } else {
+    templates = sorted;
+  }
+
   return {
     type: 'mulakat',
     labelTr,
@@ -987,19 +1123,7 @@ export function getMulakatMode(company: string, date: string): TurkishMode {
     daysLeft: days,
     habits: [],
     tasks: [],
-    templates: (() => {
-      const detected = detectMulakatType(name);
-      const all = [
-        TEMPLATE_MULAKAT_TEKNIK(name),
-        TEMPLATE_MULAKAT_BEHAVIORAL(name),
-        TEMPLATE_MULAKAT_CASE(name),
-        TEMPLATE_MULAKAT_AKADEMIK(name),
-      ];
-      // Detected type goes first, rest follow
-      const order: Record<string, number> = { teknik: 0, behavioral: 1, case: 2, akademik: 3 };
-      const priority = order[detected] ?? 0;
-      return [all[priority], ...all.filter((_, i) => i !== priority)];
-    })(),
+    templates,
   };
 }
 
@@ -1578,6 +1702,14 @@ function detectExamContentKey(upperName: string): string | null {
 function buildLevelTemplates(content: ExamContent, examName: string, days: number): StudyTemplate[] {
   const templates: StudyTemplate[] = [];
 
+  // Foundation — Bloom faz 1: kavramsal zemin (270+ gün)
+  if (days >= 270) {
+    templates.push({
+      ...TEMPLATE_FOUNDATION(examName),
+      tasks: content.setupTasks,
+    });
+  }
+
   // Sprint önce — son 60 günde en üste çıkar
   if (days <= 60) {
     templates.push({
@@ -1659,6 +1791,8 @@ export function getCustomExamMode(examName: string, examDate: string, examTipTr?
     const isMedical = ['TUS', 'DUS', 'USMLE'].some(e => n.includes(e));
     const rawTemplates = isLastMonth
       ? [TEMPLATE_SPRINT(name), TEMPLATE_ACTIVE_RECALL(name), TEMPLATE_DEEP_WORK(name)]
+      : days >= 270
+      ? [TEMPLATE_FOUNDATION(name), TEMPLATE_ACTIVE_RECALL(name), TEMPLATE_SPACED_REPETITION(name), TEMPLATE_DEEP_WORK(name), TEMPLATE_SPRINT(name)]
       : [TEMPLATE_ACTIVE_RECALL(name), TEMPLATE_SPACED_REPETITION(name), TEMPLATE_DEEP_WORK(name), TEMPLATE_SPRINT(name)];
     templates = rawTemplates.map(t => ({
       ...t,
@@ -1694,8 +1828,16 @@ function nextDate(ranges: { start: string }[]): string {
 export function getModePreview(type: ModeType, opts?: { examName?: string; examDate?: string; examTipTr?: string; examTipEn?: string; tezName?: string; tezDate?: string; mulakatName?: string; mulakatDate?: string; sporGoal?: string; sporDate?: string; sporInputs?: SporInputs }): TurkishMode {
   if (type === 'ramazan') {
     const next = nextDate(RAMAZAN);
-    const date = new Date(next).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
-    return { ...RAMAZAN_MODE(0), subtitleTr: `${date}'den itibaren aktif`, subtitleEn: `Activates from ${date}` };
+    const nextDate_ = new Date(next);
+    const daysUntil = Math.max(0, Math.ceil((nextDate_.getTime() - Date.now()) / 86400000));
+    const dateLabel = nextDate_.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+    const subtitleTr = daysUntil > 0
+      ? `${dateLabel}'de başlıyor · Planı şimdiden hazırla`
+      : `${dateLabel}'den itibaren aktif`;
+    const subtitleEn = daysUntil > 0
+      ? `Starts ${dateLabel} · Plan ahead`
+      : `Active from ${dateLabel}`;
+    return { ...RAMAZAN_MODE(daysUntil), subtitleTr, subtitleEn };
   }
   if (type === 'exam') {
     return getCustomExamMode(opts?.examName ?? '', opts?.examDate ?? new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0], opts?.examTipTr, opts?.examTipEn);
@@ -1721,8 +1863,21 @@ export function getModePreview(type: ModeType, opts?: { examName?: string; examD
 
 export function detectTurkishMode(): TurkishMode | null {
   for (const r of RAMAZAN) {
-    const days = isActive(r.start, r.end, 0);
-    if (days >= 0) return RAMAZAN_MODE(days);
+    // Active during Ramazan itself
+    const duringDays = isActive(r.start, r.end, 0);
+    if (duringDays >= 0) return RAMAZAN_MODE(duringDays);
+
+    // Active 7 days before Ramazan starts (pre-period)
+    const preActive = isActive(r.start, r.end, 7);
+    if (preActive >= 0) {
+      const startMs = new Date(r.start).setHours(0, 0, 0, 0);
+      const daysToStart = Math.ceil((startMs - Date.now()) / 86400000);
+      return {
+        ...RAMAZAN_MODE(daysToStart),
+        subtitleTr: `${daysToStart} gün sonra başlıyor · Planı şimdiden hazırla`,
+        subtitleEn: `Starts in ${daysToStart} days · Plan ahead`,
+      };
+    }
   }
   for (const y of YKS) {
     const days = isActive(y.start, y.end, 35);

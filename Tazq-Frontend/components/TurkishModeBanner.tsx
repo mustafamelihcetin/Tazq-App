@@ -13,7 +13,10 @@ import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
 import { useTaskStore } from '../store/useTaskStore';
 import { useFocusStore } from '../store/useFocusStore';
 import { TaskService } from '../services/api';
-import { TurkishMode, StudyTemplate } from '../utils/turkishModes';
+import { TurkishMode, StudyTemplate, ModeHabit, ModeTask } from '../utils/turkishModes';
+import { getCurrentRamadanStatus } from '../utils/ramadanDates';
+import { extractPlanFromText, QUICK_EMOJIS, QUICK_COLORS, DraftHabit, DraftTask } from '../utils/planExtractor';
+import { TextInput } from 'react-native';
 import { S, R, F } from '../constants/tokens';
 import { useLanguageStore } from '../store/useLanguageStore';
 
@@ -45,6 +48,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
   const { habits, addHabit, getStreak } = useHabitStore();
   const { tasks, addTask } = useTaskStore();
   const { setDailyGoal } = useFocusStore();
+  const ramazanStatus = useMemo(() => getCurrentRamadanStatus(), []);
+  const isRamazanActive = ramazanStatus.isActive;
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -61,12 +66,17 @@ export const TurkishModeBanner: React.FC<Props> = ({
   const onSheetCloseRef = React.useRef(onSheetClose);
   onSheetCloseRef.current = onSheetClose;
 
-  const [step, setStep] = useState<'template' | 'review'>(() => {
+  const [step, setStep] = useState<'template' | 'review' | 'custom'>(() => {
     if (planApplied || !mode.templates?.length) return 'review';
-    // If a level was pre-selected (from hours picker), skip the template picker
     if (defaultTemplateId && mode.templates?.some(t => t.id === defaultTemplateId)) return 'review';
     return 'template';
   });
+
+  // Custom plan state
+  const [customHabits, setCustomHabits] = useState<DraftHabit[]>([]);
+  const [customTasks,  setCustomTasks]  = useState<DraftTask[]>([]);
+  const [customAiText, setCustomAiText] = useState('');
+  const [customGoal,   setCustomGoal]   = useState(60);
 
   useEffect(() => {
     if (sheetVisible) {
@@ -163,13 +173,30 @@ export const TurkishModeBanner: React.FC<Props> = ({
       addedHabitIds.push(hid);
     }
 
+    // Next Monday ISO date — used as dueDate for recurring weight_entry tasks
+    const nextMonday = (() => {
+      const d = new Date();
+      const day = d.getDay();
+      d.setDate(d.getDate() + ((8 - day) % 7 || 7));
+      return d.toISOString().split('T')[0];
+    })();
+
+    // Ramazan tasks created before Ramazan starts get the start date as dueDate
+    // so they don't clutter the task list until they're relevant
+    const ramazanStartDate = mode.type === 'ramazan' && !isRamazanActive
+      ? (ramazanStatus.period?.start ?? undefined)
+      : undefined;
+
     const addedTaskIds: number[] = [];
     for (const task of newTasks) {
       const title = tr ? task.titleTr : task.titleEn;
+      const isWeightEntry = task.tags?.includes('weight_entry');
+      const dueDate = isWeightEntry ? nextMonday : ramazanStartDate;
       try {
         const created = await TaskService.createTask({
           title, description: '', priority: task.priority,
-          isCompleted: false, tags: [mode.type], subtasks: [],
+          isCompleted: false, tags: [mode.type, ...(task.tags ?? [])], subtasks: [],
+          ...(dueDate && { dueDate }),
         } as any);
         addTask({ ...created, title });
         addedTaskIds.push(created.id);
@@ -177,7 +204,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
         const localId = Math.floor(Date.now() + Math.random() * 1000);
         addTask({
           id: localId, title, description: '', priority: task.priority,
-          isCompleted: false, tags: [mode.type], subtasks: [],
+          isCompleted: false, tags: [mode.type, ...(task.tags ?? [])], subtasks: [],
+          ...(dueDate && { dueDate }),
         } as any);
         addedTaskIds.push(localId);
       }
@@ -190,19 +218,235 @@ export const TurkishModeBanner: React.FC<Props> = ({
   };
 
   const modeAccent =
-    mode.type === 'ramazan' ? '#6366F1'
-    : mode.type === 'yks' ? '#3B82F6'
-    : mode.type === 'exam' ? '#3B82F6'
-    : mode.type === 'tez' ? '#8B5CF6'
-    : mode.type === 'mulakat' ? '#10B981'
-    : mode.type === 'spor' ? '#F97316'
-    : '#EC4899';
+    mode.type === 'ramazan' ? (isDark ? '#A5B4FC' : '#6366F1')
+    : mode.type === 'yks' ? (isDark ? '#93C5FD' : '#3B82F6')
+    : mode.type === 'exam' ? (isDark ? '#93C5FD' : '#3B82F6')
+    : mode.type === 'tez' ? (isDark ? '#C4B5FD' : '#8B5CF6')
+    : mode.type === 'mulakat' ? (isDark ? '#6EE7B7' : '#10B981')
+    : mode.type === 'spor' ? (isDark ? '#FCA5A1' : '#F97316')
+    : (isDark ? '#F9A8D4' : '#EC4899');
 
   const selectTemplate = (tpl: StudyTemplate) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedTemplate(tpl);
     setDeselectedHabits(new Set());
     setStep('review');
+  };
+
+  // ── Custom Plan Step ──
+  const renderCustomStep = () => {
+    const totalItems = customHabits.length + customTasks.length;
+    const canProceed = customHabits.some(h => h.nameTr.trim()) || customTasks.some(t => t.titleTr.trim());
+
+    const cycleEmoji = (idx: number) => {
+      setCustomHabits(prev => {
+        const next = [...prev];
+        const cur = QUICK_EMOJIS.indexOf(next[idx].emoji);
+        next[idx] = { ...next[idx], emoji: QUICK_EMOJIS[(cur + 1) % QUICK_EMOJIS.length] };
+        return next;
+      });
+    };
+
+    const cycleColor = (idx: number) => {
+      setCustomHabits(prev => {
+        const next = [...prev];
+        const cur = QUICK_COLORS.indexOf(next[idx].color);
+        next[idx] = { ...next[idx], color: QUICK_COLORS[(cur + 1) % QUICK_COLORS.length] };
+        return next;
+      });
+    };
+
+    const suggest = () => {
+      if (!customAiText.trim()) return;
+      const { habits: hs, tasks: ts } = extractPlanFromText(customAiText, tr);
+      if (hs.length) setCustomHabits(prev => [...prev, ...hs].slice(0, 5));
+      if (ts.length) setCustomTasks(prev => [...prev, ...ts].slice(0, 7));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    };
+
+    const proceed = () => {
+      const tpl: StudyTemplate = {
+        id: `custom_${Date.now()}`,
+        titleTr: 'Kişisel Planım',
+        titleEn: 'My Custom Plan',
+        descTr: 'Kendi oluşturduğum plan',
+        descEn: 'My own plan',
+        targetTr: '', targetEn: '',
+        emoji: '✨',
+        dailyGoalMinutes: customGoal,
+        habits: customHabits
+          .filter(h => h.nameTr.trim())
+          .map(h => ({ name: h.name || h.nameTr, nameTr: h.nameTr, emoji: h.emoji, color: h.color })),
+        tasks: customTasks
+          .filter(t => t.titleTr.trim())
+          .map(t => ({ titleTr: t.titleTr, titleEn: t.titleEn || t.titleTr, priority: t.priority })),
+      };
+      selectTemplate(tpl);
+    };
+
+    return (
+      <>
+        <View style={styles.sheetHeader}>
+          <TouchableOpacity
+            onPress={() => { Haptics.selectionAsync(); setStep('template'); }}
+            style={{ marginRight: S.sm, padding: 4 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <ArrowLeft size={20} color={theme.onSurfaceVariant} />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 26, lineHeight: 32 }}>✨</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
+              {tr ? 'Kendi Planını Oluştur' : 'Build Your Own Plan'}
+            </Text>
+            <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>
+              {tr ? 'Alışkanlık ve görevleri kendin belirle' : 'Set your own habits & tasks'}
+            </Text>
+          </View>
+        </View>
+
+        <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+          {/* AI text suggest */}
+          <View style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, padding: S.md, marginBottom: S.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.xs }}>
+              {tr ? '✦ Planını birkaç cümleyle anlat, önerelim' : '✦ Describe your plan, we\'ll suggest habits & tasks'}
+            </Text>
+            <TextInput
+              value={customAiText}
+              onChangeText={setCustomAiText}
+              multiline
+              numberOfLines={3}
+              placeholder={tr ? 'Örn: Sabah koşusu, kilo vermek, daha sağlıklı beslenmek...' : 'E.g. Morning run, lose weight, eat healthier...'}
+              placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.28)'}
+              style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '500', minHeight: 54, lineHeight: 20, textAlignVertical: 'top' }}
+            />
+            <TouchableOpacity
+              onPress={suggest}
+              style={{ alignSelf: 'flex-end', backgroundColor: modeAccent, borderRadius: R.full, paddingHorizontal: S.md, paddingVertical: S.xs + 1, marginTop: S.xs }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: '#fff', fontSize: F.caption, fontWeight: '800' }}>{tr ? 'Öner' : 'Suggest'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Habits */}
+          <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant, marginBottom: S.sm }]}>
+            {tr ? 'ALIŞKANLIKLAR' : 'HABITS'}
+          </Text>
+          {customHabits.map((h, idx) => (
+            <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.xs + 1 }}>
+              <TouchableOpacity
+                onPress={() => cycleEmoji(idx)}
+                style={{ width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: h.color + '20', borderWidth: 1, borderColor: h.color + '40' }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 16 }}>{h.emoji}</Text>
+              </TouchableOpacity>
+              <TextInput
+                value={h.nameTr}
+                onChangeText={v => setCustomHabits(prev => { const n = [...prev]; n[idx] = { ...n[idx], nameTr: v, name: v }; return n; })}
+                placeholder={tr ? 'Alışkanlık adı...' : 'Habit name...'}
+                placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.28)'}
+                style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '600', height: 34, paddingVertical: 0, borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }}
+                returnKeyType="next"
+                underlineColorAndroid="transparent"
+              />
+              <TouchableOpacity onPress={() => cycleColor(idx)} style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: h.color, borderWidth: 1.5, borderColor: isDark ? 'rgba(255,255,255,0.4)' : '#fff' }} activeOpacity={0.7} />
+              <TouchableOpacity onPress={() => setCustomHabits(prev => prev.filter((_, i) => i !== idx))} style={{ padding: 4 }} activeOpacity={0.7}>
+                <X size={14} color={theme.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+          ))}
+          {customHabits.length < 5 && (
+            <TouchableOpacity
+              onPress={() => setCustomHabits(prev => [...prev, { name: '', nameTr: '', emoji: QUICK_EMOJIS[prev.length % QUICK_EMOJIS.length], color: QUICK_COLORS[prev.length % QUICK_COLORS.length] }])}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: S.sm }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 18, color: modeAccent, lineHeight: 22 }}>+</Text>
+              <Text style={{ fontSize: F.caption, fontWeight: '700', color: modeAccent }}>{tr ? 'Alışkanlık Ekle' : 'Add Habit'}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Tasks */}
+          <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant, marginTop: S.md, marginBottom: S.sm }]}>
+            {tr ? 'GÖREVLER' : 'TASKS'}
+          </Text>
+          {customTasks.map((t, idx) => (
+            <View key={idx} style={{ marginBottom: S.sm, gap: S.xs }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                <TextInput
+                  value={t.titleTr}
+                  onChangeText={v => setCustomTasks(prev => { const n = [...prev]; n[idx] = { ...n[idx], titleTr: v, titleEn: v }; return n; })}
+                  placeholder={tr ? 'Görev başlığı...' : 'Task title...'}
+                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.28)'}
+                  style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '600', height: 34, paddingVertical: 0, borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }}
+                  returnKeyType="next"
+                  underlineColorAndroid="transparent"
+                />
+                <TouchableOpacity onPress={() => setCustomTasks(prev => prev.filter((_, i) => i !== idx))} style={{ padding: 4 }} activeOpacity={0.7}>
+                  <X size={14} color={theme.onSurfaceVariant} />
+                </TouchableOpacity>
+              </View>
+              <View style={{ flexDirection: 'row', gap: S.xs }}>
+                {(['High', 'Medium', 'Low'] as const).map(p => {
+                  const pColor = p === 'High' ? '#EF4444' : p === 'Medium' ? '#F59E0B' : (theme.onSurfaceVariant as string);
+                  const pLabel = tr ? (p === 'High' ? 'Yüksek' : p === 'Medium' ? 'Orta' : 'Düşük') : p;
+                  return (
+                    <TouchableOpacity
+                      key={p}
+                      onPress={() => { Haptics.selectionAsync(); setCustomTasks(prev => { const n = [...prev]; n[idx] = { ...n[idx], priority: p }; return n; }); }}
+                      style={{ paddingHorizontal: S.sm, paddingVertical: 3, borderRadius: R.sm, backgroundColor: t.priority === p ? pColor + '20' : 'transparent', borderWidth: 1, borderColor: t.priority === p ? pColor + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: t.priority === p ? pColor : theme.onSurfaceVariant }}>{pLabel}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+          {customTasks.length < 7 && (
+            <TouchableOpacity
+              onPress={() => setCustomTasks(prev => [...prev, { titleTr: '', titleEn: '', priority: 'Medium' }])}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: S.sm }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 18, color: modeAccent, lineHeight: 22 }}>+</Text>
+              <Text style={{ fontSize: F.caption, fontWeight: '700', color: modeAccent }}>{tr ? 'Görev Ekle' : 'Add Task'}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Daily goal picker */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm, paddingTop: S.sm, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
+            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, flex: 1 }}>
+              {tr ? 'Günlük odak' : 'Daily focus'}
+            </Text>
+            {[30, 45, 60, 90, 120].map(m => (
+              <TouchableOpacity
+                key={m}
+                onPress={() => setCustomGoal(m)}
+                style={{ paddingHorizontal: S.xs + 2, paddingVertical: 3, borderRadius: R.sm, backgroundColor: customGoal === m ? modeAccent + '20' : 'transparent', borderWidth: 1, borderColor: customGoal === m ? modeAccent + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 10, fontWeight: '800', color: customGoal === m ? modeAccent : theme.onSurfaceVariant }}>{m}dk</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+
+        <TouchableOpacity
+          onPress={canProceed ? proceed : undefined}
+          activeOpacity={canProceed ? 0.85 : 1}
+          style={[styles.applyBtn, { backgroundColor: canProceed ? modeAccent : theme.surfaceContainerHigh, opacity: canProceed ? 1 : 0.5, marginTop: S.lg }]}
+        >
+          <Zap size={15} color={canProceed ? '#fff' : (theme.onSurfaceVariant as string)} strokeWidth={2.5} />
+          <Text style={[styles.applyBtnText, { color: canProceed ? '#fff' : theme.onSurfaceVariant }]}>
+            {tr ? `Devam Et${totalItems > 0 ? ` (${totalItems} öğe)` : ''}` : `Continue${totalItems > 0 ? ` (${totalItems} items)` : ''}`}
+          </Text>
+        </TouchableOpacity>
+      </>
+    );
   };
 
   // ── Plan View (when plan already applied) ──
@@ -216,7 +460,9 @@ export const TurkishModeBanner: React.FC<Props> = ({
           </Text>
           <Text style={[styles.sheetSub, { color: modeAccent }]}>
             {mode.daysLeft > 0
-              ? (tr ? `${mode.daysLeft} gün kaldı` : `${mode.daysLeft} days left`)
+              ? (mode.type === 'ramazan' && !isRamazanActive
+                ? (tr ? `${mode.daysLeft} gün sonra başlıyor` : `Starts in ${mode.daysLeft} days`)
+                : (tr ? `${mode.daysLeft} gün kaldı` : `${mode.daysLeft} days left`))
               : (tr ? 'Süre doldu' : 'Time\'s up')}
           </Text>
         </View>
@@ -240,9 +486,10 @@ export const TurkishModeBanner: React.FC<Props> = ({
         <View style={[styles.progressDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }]} />
         <View style={styles.progressStat}>
           <Text style={[styles.progressNum, { color: modeAccent }]}>
-            {planHabitStats.length > 0
-              ? Math.max(...planHabitStats.map(h => h.streak))
-              : 0}🔥
+            {(() => {
+              const best = planHabitStats.length > 0 ? Math.max(...planHabitStats.map(h => h.streak)) : 0;
+              return best > 0 ? `${best}🔥` : '0';
+            })()}
           </Text>
           <Text style={[styles.progressLabel, { color: theme.onSurfaceVariant }]}>
             {tr ? 'en uzun seri' : 'best streak'}
@@ -401,7 +648,9 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 </Text>
               ) : (
                 <Text style={[styles.bannerSub, { color: modeAccent }]}>
-                  {tr ? `${mode.daysLeft} gün kaldı` : `${mode.daysLeft} days left`}
+                  {mode.type === 'ramazan' && !isRamazanActive
+                    ? (tr ? `${mode.daysLeft} gün sonra başlıyor` : `Starts in ${mode.daysLeft} days`)
+                    : (tr ? `${mode.daysLeft} gün kaldı` : `${mode.daysLeft} days left`)}
                 </Text>
               )}
             </View>
@@ -525,9 +774,31 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     </TouchableOpacity>
                     );
                   })}
+                  {/* Custom plan card */}
+                  <TouchableOpacity
+                    onPress={() => { Haptics.selectionAsync(); setStep('custom'); }}
+                    style={[styles.templateCard, {
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                      borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
+                      borderStyle: 'dashed',
+                      alignItems: 'center',
+                      paddingVertical: S.lg,
+                    }]}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={{ fontSize: 24, marginBottom: S.xs }}>✏️</Text>
+                    <Text style={{ fontSize: F.body, fontWeight: '800', color: theme.onSurface }}>
+                      {tr ? 'Kendi Planını Oluştur' : 'Build Your Own Plan'}
+                    </Text>
+                    <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, marginTop: 2, textAlign: 'center' }}>
+                      {tr ? 'Alışkanlık ve görevleri kendin belirle' : 'Set your own habits and tasks'}
+                    </Text>
+                  </TouchableOpacity>
                 </ScrollView>
               </>
             )}
+
+            {!planApplied && step === 'custom' && renderCustomStep()}
 
             {!planApplied && step === 'review' && (
               <>

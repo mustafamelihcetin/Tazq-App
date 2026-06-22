@@ -213,17 +213,18 @@ export default function ActionCenter() {
           const text = results[0];
           // Use a special internal flag or just set the form directly to avoid trigger loop
           if (field === 'title') {
-            const hint = parseTaskHint(text);
+            const hint = parseTaskHint(text, language as 'tr' | 'en');
             const hasReminderWord = text.toLowerCase().includes('hatırlat') || text.toLowerCase().includes('remind');
-            setForm(f => ({ 
-                ...f, 
+            setForm(f => ({
+                ...f,
                 title: text,
                 dueDate: hint.dueDate || f.dueDate,
                 dueTime: hint.dueTime || f.dueTime,
                 priority: hint.priority || f.priority,
+                recurrence: hint.recurrence || f.recurrence,
                 reminderEnabled: hasReminderWord ? true : f.reminderEnabled
             }));
-            if (hint.dueDate || hint.dueTime || hint.priority) {
+            if (hint.dueDate || hint.dueTime || hint.priority || hint.recurrence) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }
           } else {
@@ -415,7 +416,7 @@ export default function ActionCenter() {
       return;
     }
 
-    const hint = parseTaskHint(text);
+    const hint = parseTaskHint(text, language as 'tr' | 'en');
     const hasReminderWord = text.toLowerCase().includes('hatırlat') || text.toLowerCase().includes('remind');
 
     setForm(f => ({
@@ -424,6 +425,7 @@ export default function ActionCenter() {
         priority: hint.priority || f.priority,
         dueDate: hint.dueDate || f.dueDate,
         dueTime: hint.dueTime || f.dueTime,
+        recurrence: hint.recurrence || f.recurrence,
         reminderEnabled: hasReminderWord ? true : f.reminderEnabled,
         tags: hasReminderWord ? (f.tags.includes('hatırlatıcı') ? f.tags : [...f.tags, 'hatırlatıcı']) : f.tags
     }));
@@ -439,6 +441,18 @@ export default function ActionCenter() {
     if (hint.dueTime) {
       const timeStr = new Date(hint.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       parts.push(`⏰ ${timeStr}`);
+    }
+    if (hint.recurrence && hint.recurrence !== 'None') {
+      const isTR = language === 'tr';
+      const recurrenceLabel: Record<string, string> = {
+        Daily: isTR ? 'Her gün' : 'Daily',
+        Weekly: isTR ? 'Her hafta' : 'Weekly',
+        Monthly: isTR ? 'Her ay' : 'Monthly',
+      };
+      const label = hint.recurrenceDayLabel
+        ? `Her ${hint.recurrenceDayLabel}`
+        : recurrenceLabel[hint.recurrence];
+      parts.push(`🔁 ${label}`);
     }
 
     const fullHint = [
@@ -503,6 +517,11 @@ export default function ActionCenter() {
   const handleToggle = async (id: number) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
+
+    if (task.tags?.includes('weight_entry')) {
+      router.push('/modlar');
+      return;
+    }
 
     const isCompleting = !task.isCompleted;
 
@@ -611,6 +630,25 @@ export default function ActionCenter() {
     if (!snapshot) return;
     removeTask(id);
     cancelTaskNotification(id);
+
+    // Clean deleted task from any plan task ID arrays
+    const ps = usePrefsStore.getState();
+    const planSlots = [
+      { mode: 'exam' as const, hIds: ps.examPlanHabitIds, tIds: ps.examPlanTaskIds },
+      { mode: 'exam2' as const, hIds: ps.exam2PlanHabitIds, tIds: ps.exam2PlanTaskIds },
+      { mode: 'exam3' as const, hIds: ps.exam3PlanHabitIds, tIds: ps.exam3PlanTaskIds },
+      { mode: 'tez' as const, hIds: ps.tezPlanHabitIds, tIds: ps.tezPlanTaskIds },
+      { mode: 'mulakat' as const, hIds: ps.mulakatPlanHabitIds, tIds: ps.mulakatPlanTaskIds },
+      { mode: 'mulakat2' as const, hIds: ps.mulakat2PlanHabitIds, tIds: ps.mulakat2PlanTaskIds },
+      { mode: 'mulakat3' as const, hIds: ps.mulakat3PlanHabitIds, tIds: ps.mulakat3PlanTaskIds },
+      { mode: 'spor' as const, hIds: ps.sporPlanHabitIds, tIds: ps.sporPlanTaskIds },
+      { mode: 'spor2' as const, hIds: ps.spor2PlanHabitIds, tIds: ps.spor2PlanTaskIds },
+      { mode: 'spor3' as const, hIds: ps.spor3PlanHabitIds, tIds: ps.spor3PlanTaskIds },
+      { mode: 'ramazan' as const, hIds: ps.ramazanPlanHabitIds, tIds: ps.ramazanPlanTaskIds },
+    ];
+    for (const { mode, hIds, tIds } of planSlots) {
+      if (tIds.includes(id)) ps.setPlanIds(mode, hIds, tIds.filter(tid => tid !== id));
+    }
 
     const isTR = language === 'tr';
     const undoLabel = isTR ? 'Geri Al' : 'Undo';
@@ -738,9 +776,14 @@ export default function ActionCenter() {
             setSaving(false);
             return;
         }
-        
+        if (!form.dueDate) {
+            Alert.alert(t.warningTitle || 'Warning', isTR ? "Hatırlatıcı için tarih seçmelisiniz." : "Please select a date for the reminder.");
+            setSaving(false);
+            return;
+        }
+
         // Past time check
-        const target = new Date(form.dueDate || new Date());
+        const target = new Date(form.dueDate);
         const timeParts = new Date(form.dueTime);
         target.setHours(timeParts.getHours(), timeParts.getMinutes(), 0, 0);
         
@@ -885,8 +928,10 @@ export default function ActionCenter() {
 
     const failed: number[] = [];
     for (const id of ids) {
+      const task = tasks.find(tk => tk.id === id);
+      if (!task) continue;
       try {
-        await TaskService.updateTask(id, { isCompleted: true });
+        await TaskService.updateTask(id, { ...task, priority: task.priority as any, isCompleted: true });
       } catch {
         failed.push(id);
         toggleTaskCompletion(id); // revert
@@ -1056,24 +1101,46 @@ export default function ActionCenter() {
         >
           <Text style={[styles.subHeadline, { color: theme.onSurfaceVariant }]}>{t.allTasksReady}</Text>
 
-          {/* Stats Bento Section */}
-          <View style={[styles.statsGrid, { gap: S.md, marginTop: S.lg, marginBottom: S.lg }]}>
-            <BentoCard index={0} style={{ flex: 1.4, padding: S.md }}>
-                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.completed}</Text>
-                <View style={styles.statValueRow}>
-                    <Text style={[styles.statValue, { color: theme.onSurface, fontSize: F.hero }]}>{tasks.filter(t => t.isCompleted).length}</Text>
-                    <View style={[styles.trendBadge, { backgroundColor: theme.tertiary + '15' }]}>
-                        <TrendingUp size={12} color={theme.tertiary} />
-                    </View>
-                </View>
-                <Text style={[styles.statSub, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.completedTasks}</Text>
-            </BentoCard>
-
-            <BentoCard index={1} style={{ flex: 1, padding: S.md }}>
-                <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.pending}</Text>
-                <Text style={[styles.statValue, { color: theme.primary, fontSize: F.hero }]}>{tasks.filter(t => !t.isCompleted).length}</Text>
-                <Text style={[styles.statSub, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>{t.pendingTasks}</Text>
-            </BentoCard>
+          {/* Stats Row */}
+          <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.md, marginBottom: S.md }}>
+            <TouchableOpacity
+              onPress={() => { setFilter(filter === 'done' ? 'all' : 'done'); Haptics.selectionAsync(); }}
+              style={{
+                flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm,
+                paddingVertical: S.sm + 2, paddingHorizontal: S.md, borderRadius: R.md,
+                backgroundColor: filter === 'done' ? theme.tertiary + '15' : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                borderWidth: 1,
+                borderColor: filter === 'done' ? theme.tertiary + '35' : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+              }}
+              activeOpacity={0.7}
+            >
+              <TrendingUp size={13} color={filter === 'done' ? theme.tertiary : theme.onSurfaceVariant} opacity={0.7} />
+              <Text style={{ fontSize: F.subhead, fontWeight: '900', color: filter === 'done' ? theme.tertiary : theme.onSurface }}>
+                {tasks.filter(tk => tk.isCompleted).length}
+              </Text>
+              <Text style={{ fontSize: F.caption, fontWeight: '700', color: filter === 'done' ? theme.tertiary : theme.onSurfaceVariant, opacity: 0.75, flex: 1 }} numberOfLines={1}>
+                {t.completedTasks}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { setFilter('all'); Haptics.selectionAsync(); }}
+              style={{
+                flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm,
+                paddingVertical: S.sm + 2, paddingHorizontal: S.md, borderRadius: R.md,
+                backgroundColor: filter === 'all' ? theme.primary + '12' : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                borderWidth: 1,
+                borderColor: filter === 'all' ? theme.primary + '30' : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+              }}
+              activeOpacity={0.7}
+            >
+              <Clock size={13} color={filter === 'all' ? theme.primary : theme.onSurfaceVariant} opacity={0.7} />
+              <Text style={{ fontSize: F.subhead, fontWeight: '900', color: filter === 'all' ? theme.primary : theme.onSurface }}>
+                {tasks.filter(tk => !tk.isCompleted).length}
+              </Text>
+              <Text style={{ fontSize: F.caption, fontWeight: '700', color: filter === 'all' ? theme.primary : theme.onSurfaceVariant, opacity: 0.75, flex: 1 }} numberOfLines={1}>
+                {t.pendingTasks}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Filter Pills */}
@@ -1262,8 +1329,20 @@ export default function ActionCenter() {
                                                     <Tag size={10} color={theme.info} />
                                                 </View>
                                             )}
+                                            {task.tags?.includes('weight_entry') && (
+                                                <TouchableOpacity
+                                                    onPress={() => router.push('/modlar')}
+                                                    style={[styles.categoryBadge, { backgroundColor: '#10B981' + '25', flexDirection: 'row', alignItems: 'center', gap: 2 }]}
+                                                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                                                >
+                                                    <Text style={{ fontSize: 9, lineHeight: 12 }}>⚖️</Text>
+                                                    <Text style={[styles.categoryBadgeText, { color: '#10B981', fontWeight: '900' }]}>
+                                                        {language === 'tr' ? 'KİLO GİR' : 'LOG WEIGHT'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            )}
                                             {(() => {
-                                                const ICON_TAGS = ['hatırlatıcı', 'reminder', 'etkinlik', 'event', 'not', 'note'];
+                                                const ICON_TAGS = ['hatırlatıcı', 'reminder', 'etkinlik', 'event', 'not', 'note', 'weight_entry'];
                                                 const textTags = (task.tags || []).filter(tag => !ICON_TAGS.includes(tag));
                                                 const shown = textTags.slice(0, 2);
                                                 const overflow = textTags.length - shown.length;

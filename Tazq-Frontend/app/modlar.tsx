@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BookOpen, ChevronRight, CalendarDays } from 'lucide-react-native';
+import { BookOpen, ChevronRight, CalendarDays, X } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useLanguageStore } from '../store/useLanguageStore';
@@ -32,6 +32,7 @@ export default function ModlarScreen() {
   const isDark = colorScheme === 'dark';
   const { language } = useLanguageStore();
   const ramadanStatus = useMemo(() => getCurrentRamadanStatus(), []);
+  const ramazanAccent = isDark ? '#A5B4FC' : '#6366F1';
   const { show: showToast } = useToastStore();
 
   const {
@@ -43,7 +44,11 @@ export default function ModlarScreen() {
     tezPlanHabitIds, tezPlanTaskIds,
     mulakatPlanHabitIds, mulakatPlanTaskIds,
     examReviewShown, setExamReviewShown,
+    mulakat2PlanHabitIds, mulakat2PlanTaskIds,
+    mulakat3PlanHabitIds, mulakat3PlanTaskIds,
     sporPlanHabitIds, sporPlanTaskIds,
+    spor2PlanHabitIds, spor2PlanTaskIds,
+    spor3PlanHabitIds, spor3PlanTaskIds,
     setPlanIds, clearPlanIds,
   } = usePrefsStore();
   const { habits, removeHabit } = useHabitStore();
@@ -59,7 +64,7 @@ export default function ModlarScreen() {
     TaskService.deleteTask(taskId).catch(() => {});
   }, [removeTask, recordCompletion]);
 
-  const [modePreview, setModePreview] = useState<{ type: ModeType; key: number; templateId?: string; examTipTr?: string; examTipEn?: string; examName?: string; examDate?: string } | null>(null);
+  const [modePreview, setModePreview] = useState<{ type: ModeType; key: number; templateId?: string; examTipTr?: string; examTipEn?: string; examName?: string; examDate?: string; examSlot?: 'exam' | 'exam2' | 'exam3'; mulakatSlot?: 'mulakat' | 'mulakat2' | 'mulakat3'; sporSlot?: 'spor' | 'spor2' | 'spor3' } | null>(null);
   const [examNameInput, setExamNameInput] = useState(seasonal.examName || '');
   const [examSuggestions, setExamSuggestions] = useState<ExamPreset[]>([]);
   const [selectedExamPreset, setSelectedExamPreset] = useState<ExamPreset | null>(() => detectExamFromInput(seasonal.examName || ''));
@@ -89,10 +94,26 @@ export default function ModlarScreen() {
   const [mulakatDateInput, setMulakatDateInput] = useState(seasonal.mulakatDate || '');
   const [mulakatExpanded, setMulakatExpanded] = useState(false);
   const [showMulakatDatePicker, setShowMulakatDatePicker] = useState(false);
+  const [mulakat2NameInput, setMulakat2NameInput] = useState(seasonal.mulakat2Name || '');
+  const [mulakat2DateInput, setMulakat2DateInput] = useState(seasonal.mulakat2Date || '');
+  const [mulakat2Expanded, setMulakat2Expanded] = useState(false);
+  const [showMulakat2DatePicker, setShowMulakat2DatePicker] = useState(false);
+  const [mulakat3NameInput, setMulakat3NameInput] = useState(seasonal.mulakat3Name || '');
+  const [mulakat3DateInput, setMulakat3DateInput] = useState(seasonal.mulakat3Date || '');
+  const [mulakat3Expanded, setMulakat3Expanded] = useState(false);
+  const [showMulakat3DatePicker, setShowMulakat3DatePicker] = useState(false);
   const [sporGoalInput, setSporGoalInput] = useState(seasonal.sporGoal || '');
   const [sporDateInput, setSporDateInput] = useState(seasonal.sporDate || '');
   const [sporExpanded, setSporExpanded] = useState(false);
   const [showSporDatePicker, setShowSporDatePicker] = useState(false);
+  const [spor2GoalInput, setSpor2GoalInput] = useState(seasonal.spor2Goal || '');
+  const [spor2DateInput, setSpor2DateInput] = useState(seasonal.spor2Date || '');
+  const [spor2Expanded, setSpor2Expanded] = useState(false);
+  const [showSpor2DatePicker, setShowSpor2DatePicker] = useState(false);
+  const [spor3GoalInput, setSpor3GoalInput] = useState(seasonal.spor3Goal || '');
+  const [spor3DateInput, setSpor3DateInput] = useState(seasonal.spor3Date || '');
+  const [spor3Expanded, setSpor3Expanded] = useState(false);
+  const [showSpor3DatePicker, setShowSpor3DatePicker] = useState(false);
   const [weightEntryInput, setWeightEntryInput] = useState('');
   const [showWeightEntry, setShowWeightEntry] = useState(false);
 
@@ -168,6 +189,14 @@ export default function ModlarScreen() {
   const sporDatePast = effectiveSporDate ? new Date(effectiveSporDate).setHours(23, 59, 59, 999) < Date.now() : false;
   const sporDaysLeft = effectiveSporDate && !sporDatePast ? Math.max(0, Math.ceil((new Date(effectiveSporDate).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
   const sporColor = '#F97316';
+  const spor2IsComplete = spor2GoalInput.trim() !== '' && spor2DateInput !== '';
+  const spor2DatePast = spor2DateInput ? new Date(spor2DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
+  const spor2DaysLeft = spor2DateInput && !spor2DatePast ? Math.max(0, Math.ceil((new Date(spor2DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const spor2DateObj = spor2DateInput ? new Date(spor2DateInput) : new Date(Date.now() + 60 * 86400000);
+  const spor3IsComplete = spor3GoalInput.trim() !== '' && spor3DateInput !== '';
+  const spor3DatePast = spor3DateInput ? new Date(spor3DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
+  const spor3DaysLeft = spor3DateInput && !spor3DatePast ? Math.max(0, Math.ceil((new Date(spor3DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const spor3DateObj = spor3DateInput ? new Date(spor3DateInput) : new Date(Date.now() + 90 * 86400000);
   const examDateObj = examDateInput ? new Date(examDateInput) : new Date(Date.now() + 30 * 86400000);
   const exam2DateObj = exam2DateInput ? new Date(exam2DateInput) : new Date(Date.now() + 60 * 86400000);
   const exam3DateObj = exam3DateInput ? new Date(exam3DateInput) : new Date(Date.now() + 90 * 86400000);
@@ -230,6 +259,16 @@ export default function ModlarScreen() {
   const mulakatDatePast = mulakatDateInput ? new Date(mulakatDateInput).setHours(23, 59, 59, 999) < Date.now() : false;
   const mulakatDaysLeft = mulakatDateInput && !mulakatDatePast ? Math.max(0, Math.ceil((new Date(mulakatDateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
   const mulakatUrgencyColor = mulakatDaysLeft <= 7 ? '#EF4444' : mulakatDaysLeft <= 30 ? '#F59E0B' : '#10B981';
+  const mulakat2IsComplete = mulakat2NameInput.trim() !== '' && mulakat2DateInput !== '';
+  const mulakat2DatePast = mulakat2DateInput ? new Date(mulakat2DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
+  const mulakat2DaysLeft = mulakat2DateInput && !mulakat2DatePast ? Math.max(0, Math.ceil((new Date(mulakat2DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const mulakat2UrgencyColor = mulakat2DaysLeft <= 7 ? '#EF4444' : mulakat2DaysLeft <= 30 ? '#F59E0B' : '#10B981';
+  const mulakat2DateObj = mulakat2DateInput ? new Date(mulakat2DateInput) : new Date(Date.now() + 14 * 86400000);
+  const mulakat3IsComplete = mulakat3NameInput.trim() !== '' && mulakat3DateInput !== '';
+  const mulakat3DatePast = mulakat3DateInput ? new Date(mulakat3DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
+  const mulakat3DaysLeft = mulakat3DateInput && !mulakat3DatePast ? Math.max(0, Math.ceil((new Date(mulakat3DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const mulakat3UrgencyColor = mulakat3DaysLeft <= 7 ? '#EF4444' : mulakat3DaysLeft <= 30 ? '#F59E0B' : '#10B981';
+  const mulakat3DateObj = mulakat3DateInput ? new Date(mulakat3DateInput) : new Date(Date.now() + 21 * 86400000);
 
   const tezPlanHabits = useMemo(() => habits.filter(h => tezPlanHabitIds.includes(h.id)), [habits, tezPlanHabitIds]);
   const tezHabitsActiveThisWeek = tezPlanHabits.filter(h => (Array.isArray(h.completedDates) ? h.completedDates : []).some(d => thisWeekKeys.has(d))).length;
@@ -310,16 +349,19 @@ export default function ModlarScreen() {
     if (seasonal.examMode && seasonal.examDate && seasonal.examName) {
       scheduleExamCountdownNotifs(seasonal.examName, seasonal.examDate, language);
     }
-  }, [seasonal.examDate, seasonal.examName, seasonal.examMode]);
+  }, [seasonal.examDate, seasonal.examName, seasonal.examMode, language]);
 
   // Ramazan period ended while app was closed — clean up habits automatically
   useEffect(() => {
     if (!seasonal.ramazan) return;
     const now = Date.now();
     const stillActive = RAMAZAN.some(r => {
-      const end = new Date(r.end);
-      end.setHours(23, 59, 59, 999);
-      return now <= end.getTime();
+      const s = new Date(r.start);
+      s.setDate(s.getDate() - 7);
+      s.setHours(0, 0, 0, 0);
+      const e = new Date(r.end);
+      e.setHours(23, 59, 59, 999);
+      return now >= s.getTime() && now <= e.getTime();
     });
     if (!stillActive) {
       ramazanPlanHabitIds.forEach(id => removeHabit(id));
@@ -394,8 +436,8 @@ export default function ModlarScreen() {
           </TouchableOpacity>
 
           <View style={{ gap: S.md }}>
-            {/* ── Ramazan Modu ── */}
-            <View style={[styles.modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.ramazan ? (isDark ? 'rgba(99,102,241,0.30)' : 'rgba(99,102,241,0.20)') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
+            {/* ── Ramazan Modu ── only show within 30 days of start or when user has it enabled */}
+            {(seasonal.ramazan || ramadanStatus.daysUntilStart <= 7 || ramadanStatus.isActive) && <View style={[styles.modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.ramazan ? (isDark ? 'rgba(99,102,241,0.30)' : 'rgba(99,102,241,0.20)') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
               <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.ramazan ? S.sm : S.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
                   <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: seasonal.ramazan ? '#6366F122' : '#6366F115', alignItems: 'center', justifyContent: 'center' }}>
@@ -406,7 +448,7 @@ export default function ModlarScreen() {
                       {language === 'tr' ? 'Ramazan Modu' : 'Ramadan Mode'}
                     </Text>
                     <Text style={{ fontSize: F.caption, fontWeight: '500', marginTop: 1,
-                      color: ramadanStatus.isActive ? '#6366F1' : seasonal.ramazan && ramadanStatus.period ? '#6366F1' : theme.onSurfaceVariant,
+                      color: ramadanStatus.isActive ? ramazanAccent : seasonal.ramazan && ramadanStatus.period ? ramazanAccent : theme.onSurfaceVariant,
                       opacity: ramadanStatus.isActive ? 0.9 : seasonal.ramazan && ramadanStatus.period ? 0.75 : 0.55,
                     }}>
                       {ramadanStatus.isActive && ramadanStatus.period
@@ -463,30 +505,30 @@ export default function ModlarScreen() {
                   <View style={{ height: 1, backgroundColor: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.10)', marginBottom: S.md }} />
                   {!ramadanStatus.isActive && ramadanStatus.period ? (
                     <TouchableOpacity onPress={() => setModePreview({ type: 'ramazan', key: Date.now() })} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
-                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#6366F1' }} />
-                      <Text style={{ color: '#6366F1', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{language === 'tr' ? 'Planı şimdiden hazırla' : 'Set up your plan in advance'}</Text>
-                      <ChevronRight size={12} color="#6366F1" />
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: ramazanAccent }} />
+                      <Text style={{ color: ramazanAccent, fontSize: F.caption, fontWeight: '600', flex: 1 }}>{language === 'tr' ? 'Planı şimdiden hazırla' : 'Set up your plan in advance'}</Text>
+                      <ChevronRight size={12} color={ramazanAccent} />
                     </TouchableOpacity>
                   ) : ramazanPlanHabits.length > 0 ? (
                     <View style={{ gap: S.sm }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{language === 'tr' ? 'Bu haftaki ilerleme' : "This week's progress"}</Text>
-                        <Text style={{ color: '#6366F1', fontSize: F.caption, fontWeight: '800' }}>{ramazanHabitsActiveThisWeek}/{ramazanPlanHabits.length} · {ramazanWeekPct}%</Text>
+                        <Text style={{ color: ramazanAccent, fontSize: F.caption, fontWeight: '800' }}>{ramazanHabitsActiveThisWeek}/{ramazanPlanHabits.length} · {ramazanWeekPct}%</Text>
                       </View>
                       <View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.10)', overflow: 'hidden' }}>
-                        <View style={{ height: 5, borderRadius: 3, backgroundColor: '#6366F1', width: `${ramazanWeekPct}%` as any }} />
+                        <View style={{ height: 5, borderRadius: 3, backgroundColor: ramazanAccent, width: `${ramazanWeekPct}%` as any }} />
                       </View>
                     </View>
                   ) : (
                     <TouchableOpacity onPress={() => setModePreview({ type: 'ramazan', key: Date.now() })} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
-                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#6366F1' }} />
-                      <Text style={{ color: '#6366F1', fontSize: F.caption, fontWeight: '700', flex: 1 }}>{language === 'tr' ? 'Plan henüz oluşturulmadı — Oluştur' : 'No plan yet — Create one'}</Text>
-                      <ChevronRight size={12} color="#6366F1" />
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: ramazanAccent }} />
+                      <Text style={{ color: ramazanAccent, fontSize: F.caption, fontWeight: '700', flex: 1 }}>{language === 'tr' ? 'Plan henüz oluşturulmadı — Oluştur' : 'No plan yet — Create one'}</Text>
+                      <ChevronRight size={12} color={ramazanAccent} />
                     </TouchableOpacity>
                   )}
                 </View>
               )}
-            </View>
+            </View>}
 
             {/* ── Sınav Takibi ── */}
             <View style={[styles.modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.examMode && examIsComplete ? (examDatePast ? theme.error + '40' : urgencyColor + '35') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
@@ -569,6 +611,13 @@ export default function ModlarScreen() {
                             <Text style={{ fontSize: 16, marginRight: S.xs }}>🎯</Text>
                             <Text style={{ color: theme.onSurface, fontWeight: '800', fontSize: F.body, flex: 1 }}>{examNameInput}</Text>
                             <Text style={{ color: examDatePast ? theme.error : urgencyColor, fontSize: F.caption, fontWeight: '800' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
+                            <TouchableOpacity
+                              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Sınavı Sil' : 'Delete Exam', language === 'tr' ? `"${examNameInput}" silinecek. Emin misin?` : `"${examNameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { examPlanHabitIds.forEach(id => removeHabit(id)); examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam')); clearPlanIds('exam'); setExamNameInput(''); setExamDateInput(''); setSelectedExamPreset(null); setExamExpanded(false); setSeasonalPref('examName', ''); setSeasonalPref('examDate', null); if (!exam2IsComplete && !exam3IsComplete) { setSeasonalPref('examMode', false); } } }]); }}
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
+                              style={{ marginLeft: S.sm }}
+                            >
+                              <X size={14} color={theme.onSurfaceVariant} strokeWidth={2.5} />
+                            </TouchableOpacity>
                           </View>
                           {examDatePast ? (
                             <View style={{ gap: S.sm }}>
@@ -606,7 +655,7 @@ export default function ModlarScreen() {
                       </TouchableOpacity>
 
                       {!examDatePast && (
-                        <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const mins = examDailyMinutes ?? 90; const templateId = examPlanHabits.length === 0 ? (examDaysLeft <= 60 ? 'sprint' : mins <= 60 ? 'level-temel' : mins <= 120 ? 'level-orta' : 'level-ileri') : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examTipTr: selectedExamPreset?.tipTr, examTipEn: selectedExamPreset?.tipEn, examName: examNameInput, examDate: examDateInput }); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: urgencyColor + '12', borderRadius: R.md, paddingVertical: S.sm + 2, borderWidth: 1, borderColor: urgencyColor + '22' }} activeOpacity={0.75}>
+                        <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const templateId = examPlanHabits.length === 0 ? recommendTemplateId(examDaysLeft, selectedExamPreset?.category ?? 'other', selectedExamPreset?.preferredTemplates ?? [], examDailyMinutes ?? selectedExamPreset?.defaultDailyMinutes ?? 90) : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam', examTipTr: selectedExamPreset?.tipTr, examTipEn: selectedExamPreset?.tipEn, examName: examNameInput, examDate: examDateInput }); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: urgencyColor + '12', borderRadius: R.md, paddingVertical: S.sm + 2, borderWidth: 1, borderColor: urgencyColor + '22' }} activeOpacity={0.75}>
                           <BookOpen size={14} color={urgencyColor} />
                           <Text style={{ color: urgencyColor, fontWeight: '800', fontSize: F.caption }}>{examPlanHabits.length > 0 ? (language === 'tr' ? 'Planı Görüntüle & Güncelle' : 'View & Update Plan') : (language === 'tr' ? 'Çalışma Planı Oluştur' : 'Create Study Plan')}</Text>
                         </TouchableOpacity>
@@ -623,6 +672,12 @@ export default function ModlarScreen() {
                               <Text style={{ color: exam2DatePast ? theme.error : exam2UrgencyColor, fontSize: 11, fontWeight: '700' }}>{exam2DatePast ? (language === 'tr' ? 'Tarih geçti' : 'Date passed') : (language === 'tr' ? `${exam2DaysLeft} gün kaldı` : `${exam2DaysLeft} days left`)}</Text>
                             </View>
                             <Text style={{ color: exam2UrgencyColor, fontSize: 11, fontWeight: '800' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
+                            <TouchableOpacity
+                              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Sınavı Sil' : 'Delete Exam', language === 'tr' ? `"${exam2NameInput}" silinecek. Emin misin?` : `"${exam2NameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { setExam2NameInput(''); setExam2DateInput(''); setSelectedExam2Preset(null); setExam2Expanded(false); setSeasonalPref('exam2Name', ''); setSeasonalPref('exam2Date', null); } }]); }}
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
+                            >
+                              <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
+                            </TouchableOpacity>
                           </TouchableOpacity>
                         ) : !exam2IsComplete && !exam2Expanded ? (
                           <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setExam2Expanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
@@ -650,7 +705,7 @@ export default function ModlarScreen() {
                               <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
                             </TouchableOpacity>
                             {showExam2DatePicker && (
-                              <DateTimePicker value={exam2DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowExam2DatePicker(false); if (event.type === 'dismissed') { setShowExam2DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExam2DateInput(iso); setSeasonalPref('exam2Date', iso); if (Platform.OS === 'ios') setShowExam2DatePicker(false); } }} />
+                              <DateTimePicker value={exam2DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 18); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowExam2DatePicker(false); if (event.type === 'dismissed') { setShowExam2DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExam2DateInput(iso); setSeasonalPref('exam2Date', iso); if (Platform.OS === 'ios') setShowExam2DatePicker(false); } }} />
                             )}
                             {selectedExam2Preset && (
                               <View style={{ gap: 6 }}>
@@ -666,7 +721,7 @@ export default function ModlarScreen() {
                                 <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
                               </TouchableOpacity>
                               {exam2IsComplete && (
-                                <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExam2Expanded(false); const templateId = selectedExam2Preset ? recommendTemplateId(exam2DaysLeft, selectedExam2Preset.category, selectedExam2Preset.preferredTemplates, exam2DailyMinutes ?? selectedExam2Preset.defaultDailyMinutes) : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examTipTr: selectedExam2Preset?.tipTr, examTipEn: selectedExam2Preset?.tipEn, examName: exam2NameInput, examDate: exam2DateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: exam2UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}>
+                                <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExam2Expanded(false); const templateId = selectedExam2Preset ? recommendTemplateId(exam2DaysLeft, selectedExam2Preset.category, selectedExam2Preset.preferredTemplates, exam2DailyMinutes ?? selectedExam2Preset.defaultDailyMinutes) : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam2', examTipTr: selectedExam2Preset?.tipTr, examTipEn: selectedExam2Preset?.tipEn, examName: exam2NameInput, examDate: exam2DateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: exam2UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}>
                                   <BookOpen size={13} color="#fff" />
                                   <Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text>
                                 </TouchableOpacity>
@@ -688,6 +743,12 @@ export default function ModlarScreen() {
                                 <Text style={{ color: exam3DatePast ? theme.error : exam3UrgencyColor, fontSize: 11, fontWeight: '700' }}>{exam3DatePast ? (language === 'tr' ? 'Tarih geçti' : 'Date passed') : (language === 'tr' ? `${exam3DaysLeft} gün kaldı` : `${exam3DaysLeft} days left`)}</Text>
                               </View>
                               <Text style={{ color: exam3UrgencyColor, fontSize: 11, fontWeight: '800' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
+                              <TouchableOpacity
+                                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Sınavı Sil' : 'Delete Exam', language === 'tr' ? `"${exam3NameInput}" silinecek. Emin misin?` : `"${exam3NameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { setExam3NameInput(''); setExam3DateInput(''); setSelectedExam3Preset(null); setExam3Expanded(false); setSeasonalPref('exam3Name', ''); setSeasonalPref('exam3Date', null); } }]); }}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
+                              >
+                                <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
+                              </TouchableOpacity>
                             </TouchableOpacity>
                           ) : !exam3IsComplete && !exam3Expanded ? (
                             <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setExam3Expanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
@@ -709,7 +770,7 @@ export default function ModlarScreen() {
                                 <Text style={{ color: exam3DateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{exam3DateInput ? formatExamDate(exam3DateInput) : (language === 'tr' ? 'Sınav tarihi seç' : 'Select date')}</Text>
                                 <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
                               </TouchableOpacity>
-                              {showExam3DatePicker && (<DateTimePicker value={exam3DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowExam3DatePicker(false); if (event.type === 'dismissed') { setShowExam3DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExam3DateInput(iso); setSeasonalPref('exam3Date', iso); if (Platform.OS === 'ios') setShowExam3DatePicker(false); } }} />)}
+                              {showExam3DatePicker && (<DateTimePicker value={exam3DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 18); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowExam3DatePicker(false); if (event.type === 'dismissed') { setShowExam3DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExam3DateInput(iso); setSeasonalPref('exam3Date', iso); if (Platform.OS === 'ios') setShowExam3DatePicker(false); } }} />)}
                               {selectedExam3Preset && (
                                 <View style={{ gap: 6 }}>
                                   <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.8 }}>{language === 'tr' ? 'Günlük kaç saat çalışabilirsin?' : 'How many hours can you study daily?'}</Text>
@@ -724,7 +785,7 @@ export default function ModlarScreen() {
                                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
                                 </TouchableOpacity>
                                 {exam3IsComplete && (
-                                  <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExam3Expanded(false); const templateId = selectedExam3Preset ? recommendTemplateId(exam3DaysLeft, selectedExam3Preset.category, selectedExam3Preset.preferredTemplates, exam3DailyMinutes ?? selectedExam3Preset.defaultDailyMinutes) : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examTipTr: selectedExam3Preset?.tipTr, examTipEn: selectedExam3Preset?.tipEn, examName: exam3NameInput, examDate: exam3DateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: exam3UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}>
+                                  <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExam3Expanded(false); const templateId = selectedExam3Preset ? recommendTemplateId(exam3DaysLeft, selectedExam3Preset.category, selectedExam3Preset.preferredTemplates, exam3DailyMinutes ?? selectedExam3Preset.defaultDailyMinutes) : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam3', examTipTr: selectedExam3Preset?.tipTr, examTipEn: selectedExam3Preset?.tipEn, examName: exam3NameInput, examDate: exam3DateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: exam3UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}>
                                     <BookOpen size={13} color="#fff" />
                                     <Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text>
                                   </TouchableOpacity>
@@ -740,7 +801,7 @@ export default function ModlarScreen() {
                   {examExpanded && (
                     <View style={{ gap: S.sm }}>
                       <View ref={examInputViewRef} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
-                        <TextInput value={examNameInput} onChangeText={(v) => { setExamNameInput(v); setSeasonalPref('examName', v); if (!v.trim()) { setExamSuggestions([]); setSelectedExamPreset(null); setExamDailyMinutes(null); return; } const detected = detectExamFromInput(v); if (detected) { setSelectedExamPreset(detected); setExamSuggestions([]); } else { setSelectedExamPreset(null); setExamSuggestions(matchExamName(v)); } }} placeholder={language === 'tr' ? 'Sınav adı (örn: ALES, DGS, KPSS...)' : 'Exam name (e.g. SAT, GRE, IELTS...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" onSubmitEditing={() => { if (examSuggestions.length > 0) { const top = examSuggestions[0]; setExamNameInput(top.shortName); setSeasonalPref('examName', top.shortName); setSelectedExamPreset(top); setExamSuggestions([]); } }} />
+                        <TextInput value={examNameInput} onChangeText={(v) => { setExamNameInput(v); setSeasonalPref('examName', v); if (!v.trim()) { setExamSuggestions([]); setSelectedExamPreset(null); setExamDailyMinutes(null); return; } const detected = detectExamFromInput(v); if (detected) { setSelectedExamPreset(detected); setExamSuggestions([]); } else { setSelectedExamPreset(null); setExamSuggestions(matchExamName(v)); } }} placeholder={language === 'tr' ? 'Sınav adı (örn: ALES, DGS, KPSS...)' : 'Exam name (e.g. SAT, GRE, IELTS...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" maxLength={60} onSubmitEditing={() => { if (examSuggestions.length > 0) { const top = examSuggestions[0]; setExamNameInput(top.shortName); setSeasonalPref('examName', top.shortName); setSelectedExamPreset(top); setExamSuggestions([]); } }} />
                       </View>
                       {examNameConflict && (
                         <Text style={{ fontSize: 11, color: '#F59E0B', fontWeight: '700', paddingHorizontal: 2 }}>{examNameConflict}</Text>
@@ -754,7 +815,7 @@ export default function ModlarScreen() {
                         <Text style={{ color: examDateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{examDateInput ? formatExamDate(examDateInput) : (language === 'tr' ? 'Sınav tarihi seç' : 'Select exam date')}</Text>
                         <CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} />
                       </TouchableOpacity>
-                      {showDatePicker && (<DateTimePicker value={examDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowDatePicker(false); if (event.type === 'dismissed') { setShowDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExamDateInput(iso); setSeasonalPref('examDate', iso); if (Platform.OS === 'ios') setShowDatePicker(false); } }} />)}
+                      {showDatePicker && (<DateTimePicker value={examDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 18); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowDatePicker(false); if (event.type === 'dismissed') { setShowDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExamDateInput(iso); setSeasonalPref('examDate', iso); if (Platform.OS === 'ios') setShowDatePicker(false); } }} />)}
                       {selectedExamPreset && (
                         <View style={{ gap: 6 }}>
                           <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.8 }}>{language === 'tr' ? 'Günlük kaç saat çalışabilirsin?' : 'How many hours can you study daily?'}</Text>
@@ -782,7 +843,7 @@ export default function ModlarScreen() {
                           <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
                         </TouchableOpacity>
                         {examIsComplete && (
-                          <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExamExpanded(false); const mins = examDailyMinutes ?? (selectedExamPreset?.defaultDailyMinutes ?? 90); const templateId = examDaysLeft <= 60 ? 'sprint' : mins <= 60 ? 'level-temel' : mins <= 120 ? 'level-orta' : 'level-ileri'; setModePreview({ type: 'exam', key: Date.now(), templateId, examTipTr: selectedExamPreset?.tipTr, examTipEn: selectedExamPreset?.tipEn, examName: examNameInput, examDate: examDateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: urgencyColor, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>
+                          <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExamExpanded(false); const templateId = recommendTemplateId(examDaysLeft, selectedExamPreset?.category ?? 'other', selectedExamPreset?.preferredTemplates ?? [], examDailyMinutes ?? selectedExamPreset?.defaultDailyMinutes ?? 90); setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam', examTipTr: selectedExamPreset?.tipTr, examTipEn: selectedExamPreset?.tipEn, examName: examNameInput, examDate: examDateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: urgencyColor, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>
                             <BookOpen size={14} color="#fff" />
                             <Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text>
                           </TouchableOpacity>
@@ -837,13 +898,14 @@ export default function ModlarScreen() {
                         <BookOpen size={14} color={tezUrgencyColor} />
                         <Text style={{ color: tezUrgencyColor, fontWeight: '800', fontSize: F.caption }}>{tezPlanHabits.length > 0 ? (language === 'tr' ? 'Planı Görüntüle & Güncelle' : 'View & Update Plan') : (language === 'tr' ? 'Çalışma Planı Oluştur' : 'Create Work Plan')}</Text>
                       </TouchableOpacity>
+
                     </View>
                   )}
                   {tezExpanded && (
                     <View style={{ gap: S.sm }}>
                       <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}><TextInput value={tezNameInput} onChangeText={(v) => { setTezNameInput(v); setSeasonalPref('tezName', v); }} placeholder={language === 'tr' ? 'Proje adı (Yüksek Lisans Tezi...)' : "Project name (Master's Thesis...)"} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" /></View>
                       <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowTezDatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}><Text style={{ color: tezDateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{tezDateInput ? formatExamDate(tezDateInput) : (language === 'tr' ? 'Teslim tarihi seç' : 'Select deadline')}</Text><CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} /></TouchableOpacity>
-                      {showTezDatePicker && (<DateTimePicker value={tezDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowTezDatePicker(false); if (event.type === 'dismissed') { setShowTezDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setTezDateInput(iso); setSeasonalPref('tezDate', iso); if (Platform.OS === 'ios') setShowTezDatePicker(false); } }} />)}
+                      {showTezDatePicker && (<DateTimePicker value={tezDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowTezDatePicker(false); if (event.type === 'dismissed') { setShowTezDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setTezDateInput(iso); setSeasonalPref('tezDate', iso); if (Platform.OS === 'ios') setShowTezDatePicker(false); } }} />)}
                       <View style={{ flexDirection: 'row', gap: S.sm }}>
                         <TouchableOpacity onPress={() => { setTezExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}><Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text></TouchableOpacity>
                         {tezIsComplete && (<TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTezExpanded(false); setModePreview({ type: 'tez', key: Date.now() }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: tezUrgencyColor, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={14} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></TouchableOpacity>)}
@@ -893,20 +955,100 @@ export default function ModlarScreen() {
                           )}
                         </View>
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setModePreview({ type: 'mulakat', key: Date.now() }); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: mulakatUrgencyColor + '12', borderRadius: R.md, paddingVertical: S.sm + 2, borderWidth: 1, borderColor: mulakatUrgencyColor + '22' }} activeOpacity={0.75}>
+                      <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setModePreview({ type: 'mulakat', key: Date.now(), mulakatSlot: 'mulakat' }); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: mulakatUrgencyColor + '12', borderRadius: R.md, paddingVertical: S.sm + 2, borderWidth: 1, borderColor: mulakatUrgencyColor + '22' }} activeOpacity={0.75}>
                         <BookOpen size={14} color={mulakatUrgencyColor} />
                         <Text style={{ color: mulakatUrgencyColor, fontWeight: '800', fontSize: F.caption }}>{mulakatPlanHabits.length > 0 ? (language === 'tr' ? 'Planı Görüntüle & Güncelle' : 'View & Update Plan') : (language === 'tr' ? 'Hazırlık Planı Oluştur' : 'Create Prep Plan')}</Text>
                       </TouchableOpacity>
+
+                      {/* İkinci Mülakat */}
+                      <View style={{ marginTop: S.xs }}>
+                        <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', marginBottom: S.sm }} />
+                        {mulakat2IsComplete && !mulakat2Expanded ? (
+                          <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setMulakat2Expanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: (mulakat2DatePast ? theme.error : mulakat2UrgencyColor) + '10', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.8}>
+                            <Text style={{ fontSize: 14 }}>💼</Text>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{mulakat2NameInput}</Text>
+                              <Text style={{ color: mulakat2DatePast ? theme.error : mulakat2UrgencyColor, fontSize: 11, fontWeight: '700' }}>{mulakat2DatePast ? (language === 'tr' ? 'Tarih geçti' : 'Date passed') : (language === 'tr' ? `${mulakat2DaysLeft} gün kaldı` : `${mulakat2DaysLeft} days left`)}</Text>
+                            </View>
+                            <Text style={{ color: mulakat2UrgencyColor, fontSize: 11, fontWeight: '800' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
+                            <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Mülakatı Sil' : 'Delete Interview', language === 'tr' ? `"${mulakat2NameInput}" silinecek. Emin misin?` : `"${mulakat2NameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { mulakat2PlanHabitIds.forEach(id => removeHabit(id)); mulakat2PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat2')); clearPlanIds('mulakat2'); setMulakat2NameInput(''); setMulakat2DateInput(''); setMulakat2Expanded(false); setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}>
+                              <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
+                            </TouchableOpacity>
+                          </TouchableOpacity>
+                        ) : !mulakat2IsComplete && !mulakat2Expanded ? (
+                          <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setMulakat2Expanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
+                            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>＋</Text>
+                            <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, flex: 1 }}>{language === 'tr' ? 'İkinci mülakat ekle' : 'Add second interview'}</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        {mulakat2Expanded && (
+                          <View style={{ gap: S.sm }}>
+                            <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}><TextInput value={mulakat2NameInput} onChangeText={(v) => { setMulakat2NameInput(v); setSeasonalPref('mulakat2Name', v); }} placeholder={language === 'tr' ? 'Şirket / Pozisyon (Apple - iOS Dev...)' : 'Company / Role (Apple - iOS Dev...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" /></View>
+                            <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowMulakat2DatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
+                              <Text style={{ color: mulakat2DateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{mulakat2DateInput ? formatExamDate(mulakat2DateInput) : (language === 'tr' ? 'Mülakat tarihi seç' : 'Select interview date')}</Text>
+                              <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
+                            </TouchableOpacity>
+                            {showMulakat2DatePicker && (<DateTimePicker value={mulakat2DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowMulakat2DatePicker(false); if (event.type === 'dismissed') { setShowMulakat2DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setMulakat2DateInput(iso); setSeasonalPref('mulakat2Date', iso); if (Platform.OS === 'ios') setShowMulakat2DatePicker(false); } }} />)}
+                            <View style={{ flexDirection: 'row', gap: S.sm }}>
+                              <TouchableOpacity onPress={() => { if (mulakat2NameInput || mulakat2DateInput) { mulakat2PlanHabitIds.forEach(id => removeHabit(id)); mulakat2PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat2')); clearPlanIds('mulakat2'); setMulakat2NameInput(''); setMulakat2DateInput(''); setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); } setMulakat2Expanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
+                                <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
+                              </TouchableOpacity>
+                              {mulakat2IsComplete && (<TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setMulakat2Expanded(false); setModePreview({ type: 'mulakat', key: Date.now(), mulakatSlot: 'mulakat2' }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: mulakat2UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={13} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></TouchableOpacity>)}
+                            </View>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Üçüncü Mülakat */}
+                      {mulakat2IsComplete && (
+                        <View style={{ marginTop: S.xs }}>
+                          <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', marginBottom: S.sm }} />
+                          {mulakat3IsComplete && !mulakat3Expanded ? (
+                            <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setMulakat3Expanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: (mulakat3DatePast ? theme.error : mulakat3UrgencyColor) + '10', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.8}>
+                              <Text style={{ fontSize: 14 }}>💼</Text>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{mulakat3NameInput}</Text>
+                                <Text style={{ color: mulakat3DatePast ? theme.error : mulakat3UrgencyColor, fontSize: 11, fontWeight: '700' }}>{mulakat3DatePast ? (language === 'tr' ? 'Tarih geçti' : 'Date passed') : (language === 'tr' ? `${mulakat3DaysLeft} gün kaldı` : `${mulakat3DaysLeft} days left`)}</Text>
+                              </View>
+                              <Text style={{ color: mulakat3UrgencyColor, fontSize: 11, fontWeight: '800' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
+                              <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Mülakatı Sil' : 'Delete Interview', language === 'tr' ? `"${mulakat3NameInput}" silinecek. Emin misin?` : `"${mulakat3NameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { mulakat3PlanHabitIds.forEach(id => removeHabit(id)); mulakat3PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat3')); clearPlanIds('mulakat3'); setMulakat3NameInput(''); setMulakat3DateInput(''); setMulakat3Expanded(false); setSeasonalPref('mulakat3Name', ''); setSeasonalPref('mulakat3Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}>
+                                <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
+                              </TouchableOpacity>
+                            </TouchableOpacity>
+                          ) : !mulakat3IsComplete && !mulakat3Expanded ? (
+                            <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setMulakat3Expanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
+                              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>＋</Text>
+                              <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, flex: 1 }}>{language === 'tr' ? 'Üçüncü mülakat ekle' : 'Add third interview'}</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                          {mulakat3Expanded && (
+                            <View style={{ gap: S.sm }}>
+                              <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}><TextInput value={mulakat3NameInput} onChangeText={(v) => { setMulakat3NameInput(v); setSeasonalPref('mulakat3Name', v); }} placeholder={language === 'tr' ? 'Şirket / Pozisyon (Meta - PM...)' : 'Company / Role (Meta - PM...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" /></View>
+                              <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowMulakat3DatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
+                                <Text style={{ color: mulakat3DateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{mulakat3DateInput ? formatExamDate(mulakat3DateInput) : (language === 'tr' ? 'Mülakat tarihi seç' : 'Select interview date')}</Text>
+                                <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
+                              </TouchableOpacity>
+                              {showMulakat3DatePicker && (<DateTimePicker value={mulakat3DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowMulakat3DatePicker(false); if (event.type === 'dismissed') { setShowMulakat3DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setMulakat3DateInput(iso); setSeasonalPref('mulakat3Date', iso); if (Platform.OS === 'ios') setShowMulakat3DatePicker(false); } }} />)}
+                              <View style={{ flexDirection: 'row', gap: S.sm }}>
+                                <TouchableOpacity onPress={() => { if (mulakat3NameInput || mulakat3DateInput) { mulakat3PlanHabitIds.forEach(id => removeHabit(id)); mulakat3PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat3')); clearPlanIds('mulakat3'); setMulakat3NameInput(''); setMulakat3DateInput(''); setSeasonalPref('mulakat3Name', ''); setSeasonalPref('mulakat3Date', null); } setMulakat3Expanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
+                                  <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
+                                </TouchableOpacity>
+                                {mulakat3IsComplete && (<TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setMulakat3Expanded(false); setModePreview({ type: 'mulakat', key: Date.now(), mulakatSlot: 'mulakat3' }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: mulakat3UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={13} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></TouchableOpacity>)}
+                              </View>
+                            </View>
+                          )}
+                        </View>
+                      )}
                     </View>
                   )}
                   {mulakatExpanded && (
                     <View style={{ gap: S.sm }}>
                       <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}><TextInput value={mulakatNameInput} onChangeText={(v) => { setMulakatNameInput(v); setSeasonalPref('mulakatName', v); }} placeholder={language === 'tr' ? 'Şirket / Pozisyon (Google - SWE...)' : 'Company / Role (Google - SWE...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" /></View>
                       <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowMulakatDatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}><Text style={{ color: mulakatDateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{mulakatDateInput ? formatExamDate(mulakatDateInput) : (language === 'tr' ? 'Mülakat tarihi seç' : 'Select interview date')}</Text><CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} /></TouchableOpacity>
-                      {showMulakatDatePicker && (<DateTimePicker value={mulakatDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowMulakatDatePicker(false); if (event.type === 'dismissed') { setShowMulakatDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setMulakatDateInput(iso); setSeasonalPref('mulakatDate', iso); if (Platform.OS === 'ios') setShowMulakatDatePicker(false); } }} />)}
+                      {showMulakatDatePicker && (<DateTimePicker value={mulakatDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowMulakatDatePicker(false); if (event.type === 'dismissed') { setShowMulakatDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setMulakatDateInput(iso); setSeasonalPref('mulakatDate', iso); if (Platform.OS === 'ios') setShowMulakatDatePicker(false); } }} />)}
                       <View style={{ flexDirection: 'row', gap: S.sm }}>
                         <TouchableOpacity onPress={() => { setMulakatExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}><Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text></TouchableOpacity>
-                        {mulakatIsComplete && (<TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setMulakatExpanded(false); setModePreview({ type: 'mulakat', key: Date.now() }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: mulakatUrgencyColor, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={14} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></TouchableOpacity>)}
+                        {mulakatIsComplete && (<TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setMulakatExpanded(false); setModePreview({ type: 'mulakat', key: Date.now(), mulakatSlot: 'mulakat' }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: mulakatUrgencyColor, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={14} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></TouchableOpacity>)}
                       </View>
                     </View>
                   )}
@@ -1066,10 +1208,25 @@ export default function ModlarScreen() {
                                 underlineColorAndroid="transparent"
                                 onSubmitEditing={() => {
                                   const v = parseFloat(weightEntryInput.replace(',', '.'));
-                                  if (!isNaN(v) && v > 20 && v < 300) { addWeightEntry(v); setWeightEntryInput(''); setShowWeightEntry(false); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
+                                  if (!isNaN(v) && v > 20 && v < 300) {
+                                    addWeightEntry(v);
+                                    setWeightEntryInput('');
+                                    setShowWeightEntry(false);
+                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                    const allTasks = useTaskStore.getState().tasks;
+                                    const allSporTaskIds = [...sporPlanTaskIds, ...spor2PlanTaskIds, ...spor3PlanTaskIds];
+                                    const wTaskId = allSporTaskIds.find(id => {
+                                      const tk = allTasks.find(t => t.id === id);
+                                      return tk && !tk.isCompleted && (tk.tags?.includes('weight_entry') || tk.title === 'Güncel kilonu gir' || tk.title === 'Log current weight');
+                                    });
+                                    if (wTaskId) {
+                                      useTaskStore.getState().toggleTaskCompletion(wTaskId);
+                                      TaskService.updateTask(wTaskId, { isCompleted: true }).catch(() => {});
+                                    }
+                                  }
                                 }}
                               />
-                              <TouchableOpacity onPress={() => { const v = parseFloat(weightEntryInput.replace(',', '.')); if (!isNaN(v) && v > 20 && v < 300) { addWeightEntry(v); setWeightEntryInput(''); setShowWeightEntry(false); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } }} style={{ backgroundColor: sporColor, borderRadius: R.full, paddingHorizontal: S.md, height: 32, alignItems: 'center', justifyContent: 'center' }} activeOpacity={0.8}>
+                              <TouchableOpacity onPress={() => { const v = parseFloat(weightEntryInput.replace(',', '.')); if (!isNaN(v) && v > 20 && v < 300) { addWeightEntry(v); setWeightEntryInput(''); setShowWeightEntry(false); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); const allTasks = useTaskStore.getState().tasks; const allSporTaskIds = [...sporPlanTaskIds, ...spor2PlanTaskIds, ...spor3PlanTaskIds]; const wTaskId = allSporTaskIds.find(id => { const tk = allTasks.find(t => t.id === id); return tk && !tk.isCompleted && (tk.tags?.includes('weight_entry') || tk.title === 'Güncel kilonu gir' || tk.title === 'Log current weight'); }); if (wTaskId) { useTaskStore.getState().toggleTaskCompletion(wTaskId); TaskService.updateTask(wTaskId, { isCompleted: true }).catch(() => {}); } } }} style={{ backgroundColor: sporColor, borderRadius: R.full, paddingHorizontal: S.md, height: 32, alignItems: 'center', justifyContent: 'center' }} activeOpacity={0.8}>
                                 <Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Kaydet' : 'Save'}</Text>
                               </TouchableOpacity>
                               <TouchableOpacity onPress={() => { setShowWeightEntry(false); setWeightEntryInput(''); }} style={{ padding: 4 }} activeOpacity={0.7}>
@@ -1088,10 +1245,106 @@ export default function ModlarScreen() {
                       )}
 
                       {!sporDatePast && (
-                        <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setModePreview({ type: 'spor', key: Date.now() }); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: sporColor + '12', borderRadius: R.md, paddingVertical: S.sm + 2, borderWidth: 1, borderColor: sporColor + '22' }} activeOpacity={0.75}>
+                        <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setModePreview({ type: 'spor', key: Date.now(), sporSlot: 'spor' }); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: sporColor + '12', borderRadius: R.md, paddingVertical: S.sm + 2, borderWidth: 1, borderColor: sporColor + '22' }} activeOpacity={0.75}>
                           <Text style={{ fontSize: 14 }}>{sporType === 'kilo' ? '⚖️' : sporType === 'maraton' ? '🏃' : '💪'}</Text>
                           <Text style={{ color: sporColor, fontWeight: '800', fontSize: F.caption }}>{sporPlanHabits.length > 0 ? (language === 'tr' ? 'Planı Görüntüle & Güncelle' : 'View & Update Plan') : (language === 'tr' ? 'Antrenman Planı Oluştur' : 'Create Training Plan')}</Text>
                         </TouchableOpacity>
+                      )}
+
+                      {/* İkinci Spor Hedefi */}
+                      <View style={{ marginTop: S.xs }}>
+                        <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', marginBottom: S.sm }} />
+                        {spor2IsComplete && !spor2Expanded ? (
+                          <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setSpor2Expanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: (spor2DatePast ? theme.error : sporColor) + '10', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.8}>
+                            <Text style={{ fontSize: 14 }}>🏋️</Text>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{spor2GoalInput}</Text>
+                              <Text style={{ color: spor2DatePast ? theme.error : sporColor, fontSize: 11, fontWeight: '700' }}>{spor2DatePast ? (language === 'tr' ? 'Tarih geçti' : 'Date passed') : (language === 'tr' ? `${spor2DaysLeft} gün kaldı` : `${spor2DaysLeft} days left`)}</Text>
+                            </View>
+                            <Text style={{ color: sporColor, fontSize: 11, fontWeight: '800' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
+                            <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Hedefi Sil' : 'Delete Goal', language === 'tr' ? `"${spor2GoalInput}" silinecek. Emin misin?` : `"${spor2GoalInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { spor2PlanHabitIds.forEach(id => removeHabit(id)); spor2PlanTaskIds.forEach(id => retirePlanTask(id, 'spor2')); clearPlanIds('spor2'); setSpor2GoalInput(''); setSpor2DateInput(''); setSpor2Expanded(false); setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}>
+                              <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
+                            </TouchableOpacity>
+                          </TouchableOpacity>
+                        ) : !spor2IsComplete && !spor2Expanded ? (
+                          <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setSpor2Expanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
+                            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>＋</Text>
+                            <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, flex: 1 }}>{language === 'tr' ? 'İkinci fiziksel hedef ekle' : 'Add second physical goal'}</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                        {spor2Expanded && (
+                          <View style={{ gap: S.sm }}>
+                            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8 }}>{language === 'tr' ? 'Hedef türünü seç' : 'Select goal type'}</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
+                              {SPOR_GOALS.map((g) => { const active = spor2GoalInput === g.label; return (<TouchableOpacity key={g.key} onPress={() => { Haptics.selectionAsync(); const val = active ? '' : g.label; setSpor2GoalInput(val); setSeasonalPref('spor2Goal', val); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: 8, borderRadius: R.full, borderWidth: 1.5, borderColor: active ? sporColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? sporColor + '18' : 'transparent' }} activeOpacity={0.7}><Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? sporColor : theme.onSurfaceVariant }}>{g.label}</Text></TouchableOpacity>); })}
+                            </View>
+                            <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowSpor2DatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
+                              <Text style={{ color: spor2DateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{spor2DateInput ? formatExamDate(spor2DateInput) : (language === 'tr' ? 'Hedef tarihi seç' : 'Select target date')}</Text>
+                              <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
+                            </TouchableOpacity>
+                            {showSpor2DatePicker && (<DateTimePicker value={spor2DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowSpor2DatePicker(false); if (event.type === 'dismissed') { setShowSpor2DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setSpor2DateInput(iso); setSeasonalPref('spor2Date', iso); if (Platform.OS === 'ios') setShowSpor2DatePicker(false); } }} />)}
+                            <View style={{ flexDirection: 'row', gap: S.sm }}>
+                              <TouchableOpacity onPress={() => { if (spor2GoalInput || spor2DateInput) { spor2PlanHabitIds.forEach(id => removeHabit(id)); spor2PlanTaskIds.forEach(id => retirePlanTask(id, 'spor2')); clearPlanIds('spor2'); setSpor2GoalInput(''); setSpor2DateInput(''); setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); } setSpor2Expanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
+                                <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
+                              </TouchableOpacity>
+                              {spor2IsComplete && (
+                                <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setSpor2Expanded(false); setModePreview({ type: 'spor', key: Date.now(), sporSlot: 'spor2' }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: sporColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}>
+                                  <Text style={{ fontSize: 13 }}>🏋️</Text>
+                                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Üçüncü Spor Hedefi */}
+                      {spor2IsComplete && (
+                        <View style={{ marginTop: S.xs }}>
+                          <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', marginBottom: S.sm }} />
+                          {spor3IsComplete && !spor3Expanded ? (
+                            <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setSpor3Expanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: (spor3DatePast ? theme.error : sporColor) + '10', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.8}>
+                              <Text style={{ fontSize: 14 }}>🏋️</Text>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{spor3GoalInput}</Text>
+                                <Text style={{ color: spor3DatePast ? theme.error : sporColor, fontSize: 11, fontWeight: '700' }}>{spor3DatePast ? (language === 'tr' ? 'Tarih geçti' : 'Date passed') : (language === 'tr' ? `${spor3DaysLeft} gün kaldı` : `${spor3DaysLeft} days left`)}</Text>
+                              </View>
+                              <Text style={{ color: sporColor, fontSize: 11, fontWeight: '800' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
+                              <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Hedefi Sil' : 'Delete Goal', language === 'tr' ? `"${spor3GoalInput}" silinecek. Emin misin?` : `"${spor3GoalInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { spor3PlanHabitIds.forEach(id => removeHabit(id)); spor3PlanTaskIds.forEach(id => retirePlanTask(id, 'spor3')); clearPlanIds('spor3'); setSpor3GoalInput(''); setSpor3DateInput(''); setSpor3Expanded(false); setSeasonalPref('spor3Goal', ''); setSeasonalPref('spor3Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}>
+                                <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
+                              </TouchableOpacity>
+                            </TouchableOpacity>
+                          ) : !spor3IsComplete && !spor3Expanded ? (
+                            <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setSpor3Expanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
+                              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>＋</Text>
+                              <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, flex: 1 }}>{language === 'tr' ? 'Üçüncü fiziksel hedef ekle' : 'Add third physical goal'}</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                          {spor3Expanded && (
+                            <View style={{ gap: S.sm }}>
+                              <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8 }}>{language === 'tr' ? 'Hedef türünü seç' : 'Select goal type'}</Text>
+                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
+                                {SPOR_GOALS.map((g) => { const active = spor3GoalInput === g.label; return (<TouchableOpacity key={g.key} onPress={() => { Haptics.selectionAsync(); const val = active ? '' : g.label; setSpor3GoalInput(val); setSeasonalPref('spor3Goal', val); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: 8, borderRadius: R.full, borderWidth: 1.5, borderColor: active ? sporColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? sporColor + '18' : 'transparent' }} activeOpacity={0.7}><Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? sporColor : theme.onSurfaceVariant }}>{g.label}</Text></TouchableOpacity>); })}
+                              </View>
+                              <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowSpor3DatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
+                                <Text style={{ color: spor3DateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{spor3DateInput ? formatExamDate(spor3DateInput) : (language === 'tr' ? 'Hedef tarihi seç' : 'Select target date')}</Text>
+                                <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
+                              </TouchableOpacity>
+                              {showSpor3DatePicker && (<DateTimePicker value={spor3DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowSpor3DatePicker(false); if (event.type === 'dismissed') { setShowSpor3DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setSpor3DateInput(iso); setSeasonalPref('spor3Date', iso); if (Platform.OS === 'ios') setShowSpor3DatePicker(false); } }} />)}
+                              <View style={{ flexDirection: 'row', gap: S.sm }}>
+                                <TouchableOpacity onPress={() => { if (spor3GoalInput || spor3DateInput) { spor3PlanHabitIds.forEach(id => removeHabit(id)); spor3PlanTaskIds.forEach(id => retirePlanTask(id, 'spor3')); clearPlanIds('spor3'); setSpor3GoalInput(''); setSpor3DateInput(''); setSeasonalPref('spor3Goal', ''); setSeasonalPref('spor3Date', null); } setSpor3Expanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
+                                  <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
+                                </TouchableOpacity>
+                                {spor3IsComplete && (
+                                  <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setSpor3Expanded(false); setModePreview({ type: 'spor', key: Date.now(), sporSlot: 'spor3' }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: sporColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}>
+                                    <Text style={{ fontSize: 13 }}>🏋️</Text>
+                                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            </View>
+                          )}
+                        </View>
                       )}
                     </View>
                   )}
@@ -1105,7 +1358,29 @@ export default function ModlarScreen() {
                         {SPOR_GOALS.map((g) => {
                           const active = sporGoalInput === g.label;
                           return (
-                            <TouchableOpacity key={g.key} onPress={() => { Haptics.selectionAsync(); const val = active ? '' : g.label; setSporGoalInput(val); setSeasonalPref('sporGoal', val); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: 8, borderRadius: R.full, borderWidth: 1.5, borderColor: active ? sporColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? sporColor + '18' : 'transparent' }} activeOpacity={0.7}>
+                            <TouchableOpacity key={g.key} onPress={() => {
+                              Haptics.selectionAsync();
+                              const val = active ? '' : g.label;
+                              const newType = val ? detectSporType(val) : null;
+                              const hasActivePlan = sporPlanHabitIds.length > 0 || sporPlanTaskIds.length > 0;
+                              const typeChanged = newType !== sporType && hasActivePlan;
+                              const apply = () => { setSporGoalInput(val); setSeasonalPref('sporGoal', val); };
+                              if (typeChanged) {
+                                Alert.alert(
+                                  language === 'tr' ? 'Hedef Türü Değişiyor' : 'Goal Type Changing',
+                                  language === 'tr' ? 'Mevcut plan alışkanlık ve görevleri kaldırılacak. Devam et?' : 'Existing plan habits and tasks will be removed. Continue?',
+                                  [
+                                    { text: language === 'tr' ? 'İptal' : 'Cancel', style: 'cancel' },
+                                    { text: language === 'tr' ? 'Devam Et' : 'Continue', style: 'destructive', onPress: () => {
+                                      sporPlanHabitIds.forEach(id => removeHabit(id));
+                                      sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor'));
+                                      clearPlanIds('spor');
+                                      apply();
+                                    }},
+                                  ]
+                                );
+                              } else { apply(); }
+                            }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: 8, borderRadius: R.full, borderWidth: 1.5, borderColor: active ? sporColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? sporColor + '18' : 'transparent' }} activeOpacity={0.7}>
                               <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? sporColor : theme.onSurfaceVariant }}>{g.label}</Text>
                             </TouchableOpacity>
                           );
@@ -1196,7 +1471,7 @@ export default function ModlarScreen() {
                             <CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} />
                           </TouchableOpacity>
                           {showSporDatePicker && (
-                            <DateTimePicker value={sporDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowSporDatePicker(false); if (event.type === 'dismissed') { setShowSporDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setSporDateInput(iso); setSeasonalPref('sporDate', iso); if (Platform.OS === 'ios') setShowSporDatePicker(false); } }} />
+                            <DateTimePicker value={sporDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowSporDatePicker(false); if (event.type === 'dismissed') { setShowSporDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setSporDateInput(iso); setSeasonalPref('sporDate', iso); if (Platform.OS === 'ios') setShowSporDatePicker(false); } }} />
                           )}
                         </>
                       )}
@@ -1207,7 +1482,7 @@ export default function ModlarScreen() {
                           <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
                         </TouchableOpacity>
                         {sporIsComplete && (
-                          <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setSporExpanded(false); setModePreview({ type: 'spor', key: Date.now() }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: sporColor, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>
+                          <TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setSporExpanded(false); setModePreview({ type: 'spor', key: Date.now(), sporSlot: 'spor' }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: sporColor, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>
                             <Text style={{ fontSize: 13 }}>{sporType === 'kilo' ? '⚖️' : sporType === 'maraton' ? '🏃' : '💪'}</Text>
                             <Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text>
                           </TouchableOpacity>
@@ -1236,24 +1511,34 @@ export default function ModlarScreen() {
             examTipEn: modePreview.examTipEn,
             tezName: tezNameInput,
             tezDate: tezDateInput,
-            mulakatName: mulakatNameInput,
-            mulakatDate: mulakatDateInput,
-            sporGoal: sporGoalInput,
-            sporDate: effectiveSporDate,
-            sporInputs: {
+            mulakatName: modePreview.mulakatSlot === 'mulakat2' ? mulakat2NameInput : modePreview.mulakatSlot === 'mulakat3' ? mulakat3NameInput : mulakatNameInput,
+            mulakatDate: modePreview.mulakatSlot === 'mulakat2' ? mulakat2DateInput : modePreview.mulakatSlot === 'mulakat3' ? mulakat3DateInput : mulakatDateInput,
+            sporGoal: modePreview.sporSlot === 'spor2' ? spor2GoalInput : modePreview.sporSlot === 'spor3' ? spor3GoalInput : sporGoalInput,
+            sporDate: modePreview.sporSlot === 'spor2' ? spor2DateInput : modePreview.sporSlot === 'spor3' ? spor3DateInput : effectiveSporDate,
+            sporInputs: modePreview.sporSlot === 'spor' ? {
               currentWeight: cwNum > 0 ? cwNum : undefined,
               targetWeight: twNum > 0 ? twNum : undefined,
               weeklyKm: weeklyKm ? parseFloat(weeklyKm) : undefined,
               targetEvent: targetEvent || undefined,
               trainingDays: trainingDays ?? undefined,
-            },
+            } : undefined,
           })}
           onDismiss={() => {
             const t = modePreview.type;
             if (t === 'ramazan' && ramazanPlanHabitIds.length === 0) { setSeasonalPref('ramazan', false); }
             else if (t === 'tez' && tezPlanHabitIds.length === 0) { setSeasonalPref('tezMode', false); setSeasonalPref('tezName', ''); setSeasonalPref('tezDate', null); setTezNameInput(''); setTezDateInput(''); }
-            else if (t === 'mulakat' && mulakatPlanHabitIds.length === 0) { setSeasonalPref('mulakatMode', false); setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null); setMulakatNameInput(''); setMulakatDateInput(''); }
-            else if (t === 'spor' && sporPlanHabitIds.length === 0) { setSeasonalPref('sporMode', false); setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null); setSporGoalInput(''); setSporDateInput(''); resetSporInputs(); }
+            else if (t === 'mulakat') {
+              const slot = modePreview.mulakatSlot ?? 'mulakat';
+              if (slot === 'mulakat2' && mulakat2PlanHabitIds.length === 0) { setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); setMulakat2NameInput(''); setMulakat2DateInput(''); }
+              else if (slot === 'mulakat3' && mulakat3PlanHabitIds.length === 0) { setSeasonalPref('mulakat3Name', ''); setSeasonalPref('mulakat3Date', null); setMulakat3NameInput(''); setMulakat3DateInput(''); }
+              else if (slot === 'mulakat' && mulakatPlanHabitIds.length === 0) { setSeasonalPref('mulakatMode', false); setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null); setMulakatNameInput(''); setMulakatDateInput(''); }
+            }
+            else if (t === 'spor') {
+              const slot = modePreview.sporSlot ?? 'spor';
+              if (slot === 'spor2' && spor2PlanHabitIds.length === 0) { setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); setSpor2GoalInput(''); setSpor2DateInput(''); }
+              else if (slot === 'spor3' && spor3PlanHabitIds.length === 0) { setSeasonalPref('spor3Goal', ''); setSeasonalPref('spor3Date', null); setSpor3GoalInput(''); setSpor3DateInput(''); }
+              else if (slot === 'spor' && sporPlanHabitIds.length === 0) { setSeasonalPref('sporMode', false); setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null); setSporGoalInput(''); setSporDateInput(''); resetSporInputs(); }
+            }
             setModePreview(null);
           }}
           onSheetClose={() => {
@@ -1261,53 +1546,105 @@ export default function ModlarScreen() {
             if (!t) return;
             if (t === 'ramazan' && ramazanPlanHabitIds.length === 0) { setSeasonalPref('ramazan', false); }
             else if (t === 'tez' && tezPlanHabitIds.length === 0) { setSeasonalPref('tezMode', false); setSeasonalPref('tezName', ''); setSeasonalPref('tezDate', null); setTezNameInput(''); setTezDateInput(''); }
-            else if (t === 'mulakat' && mulakatPlanHabitIds.length === 0) { setSeasonalPref('mulakatMode', false); setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null); setMulakatNameInput(''); setMulakatDateInput(''); }
-            else if (t === 'spor' && sporPlanHabitIds.length === 0) { setSeasonalPref('sporMode', false); setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null); setSporGoalInput(''); setSporDateInput(''); resetSporInputs(); }
+            else if (t === 'mulakat') {
+              const slot = modePreview?.mulakatSlot ?? 'mulakat';
+              if (slot === 'mulakat2' && mulakat2PlanHabitIds.length === 0) { setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); setMulakat2NameInput(''); setMulakat2DateInput(''); }
+              else if (slot === 'mulakat3' && mulakat3PlanHabitIds.length === 0) { setSeasonalPref('mulakat3Name', ''); setSeasonalPref('mulakat3Date', null); setMulakat3NameInput(''); setMulakat3DateInput(''); }
+              else if (slot === 'mulakat' && mulakatPlanHabitIds.length === 0) { setSeasonalPref('mulakatMode', false); setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null); setMulakatNameInput(''); setMulakatDateInput(''); }
+            }
+            else if (t === 'spor') {
+              const slot = modePreview?.sporSlot ?? 'spor';
+              if (slot === 'spor2' && spor2PlanHabitIds.length === 0) { setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); setSpor2GoalInput(''); setSpor2DateInput(''); }
+              else if (slot === 'spor3' && spor3PlanHabitIds.length === 0) { setSeasonalPref('spor3Goal', ''); setSeasonalPref('spor3Date', null); setSpor3GoalInput(''); setSpor3DateInput(''); }
+              else if (slot === 'spor' && sporPlanHabitIds.length === 0) { setSeasonalPref('sporMode', false); setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null); setSporGoalInput(''); setSporDateInput(''); resetSporInputs(); }
+            }
             setModePreview(null);
           }}
           showSheetImmediately
           planApplied={(() => {
             const t = modePreview.type;
-            if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanHabitIds.length > 0 || examPlanTaskIds.length > 0;
+            if (t === 'exam' || t === 'yks' || t === 'kpss') {
+              const slot = modePreview.examSlot ?? 'exam';
+              const hIds = slot === 'exam2' ? exam2PlanHabitIds : slot === 'exam3' ? exam3PlanHabitIds : examPlanHabitIds;
+              const tIds = slot === 'exam2' ? exam2PlanTaskIds  : slot === 'exam3' ? exam3PlanTaskIds  : examPlanTaskIds;
+              return hIds.length > 0 || tIds.length > 0;
+            }
             if (t === 'tez') return tezPlanHabitIds.length > 0 || tezPlanTaskIds.length > 0;
-            if (t === 'mulakat') return mulakatPlanHabitIds.length > 0 || mulakatPlanTaskIds.length > 0;
-            if (t === 'spor') return sporPlanHabitIds.length > 0 || sporPlanTaskIds.length > 0;
+            if (t === 'mulakat') {
+              const slot = modePreview.mulakatSlot ?? 'mulakat';
+              const hIds = slot === 'mulakat2' ? mulakat2PlanHabitIds : slot === 'mulakat3' ? mulakat3PlanHabitIds : mulakatPlanHabitIds;
+              const tIds = slot === 'mulakat2' ? mulakat2PlanTaskIds  : slot === 'mulakat3' ? mulakat3PlanTaskIds  : mulakatPlanTaskIds;
+              return hIds.length > 0 || tIds.length > 0;
+            }
+            if (t === 'spor') {
+              const slot = modePreview.sporSlot ?? 'spor';
+              const hIds = slot === 'spor2' ? spor2PlanHabitIds : slot === 'spor3' ? spor3PlanHabitIds : sporPlanHabitIds;
+              const tIds = slot === 'spor2' ? spor2PlanTaskIds  : slot === 'spor3' ? spor3PlanTaskIds  : sporPlanTaskIds;
+              return hIds.length > 0 || tIds.length > 0;
+            }
             return ramazanPlanHabitIds.length > 0 || ramazanPlanTaskIds.length > 0;
           })()}
           planHabitIds={(() => {
             const t = modePreview.type;
-            if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanHabitIds;
+            if (t === 'exam' || t === 'yks' || t === 'kpss') {
+              const slot = modePreview.examSlot ?? 'exam';
+              return slot === 'exam2' ? exam2PlanHabitIds : slot === 'exam3' ? exam3PlanHabitIds : examPlanHabitIds;
+            }
             if (t === 'tez') return tezPlanHabitIds;
-            if (t === 'mulakat') return mulakatPlanHabitIds;
-            if (t === 'spor') return sporPlanHabitIds;
+            if (t === 'mulakat') {
+              const slot = modePreview.mulakatSlot ?? 'mulakat';
+              return slot === 'mulakat2' ? mulakat2PlanHabitIds : slot === 'mulakat3' ? mulakat3PlanHabitIds : mulakatPlanHabitIds;
+            }
+            if (t === 'spor') {
+              const slot = modePreview.sporSlot ?? 'spor';
+              return slot === 'spor2' ? spor2PlanHabitIds : slot === 'spor3' ? spor3PlanHabitIds : sporPlanHabitIds;
+            }
             return ramazanPlanHabitIds;
           })()}
           planTaskIds={(() => {
             const t = modePreview.type;
-            if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanTaskIds;
+            if (t === 'exam' || t === 'yks' || t === 'kpss') {
+              const slot = modePreview.examSlot ?? 'exam';
+              return slot === 'exam2' ? exam2PlanTaskIds : slot === 'exam3' ? exam3PlanTaskIds : examPlanTaskIds;
+            }
             if (t === 'tez') return tezPlanTaskIds;
-            if (t === 'mulakat') return mulakatPlanTaskIds;
-            if (t === 'spor') return sporPlanTaskIds;
+            if (t === 'mulakat') {
+              const slot = modePreview.mulakatSlot ?? 'mulakat';
+              return slot === 'mulakat2' ? mulakat2PlanTaskIds : slot === 'mulakat3' ? mulakat3PlanTaskIds : mulakatPlanTaskIds;
+            }
+            if (t === 'spor') {
+              const slot = modePreview.sporSlot ?? 'spor';
+              return slot === 'spor2' ? spor2PlanTaskIds : slot === 'spor3' ? spor3PlanTaskIds : sporPlanTaskIds;
+            }
             return ramazanPlanTaskIds;
           })()}
           onClearPlan={() => {
             const t = modePreview.type;
             if (t === 'exam' || t === 'yks' || t === 'kpss') {
-              examPlanHabitIds.forEach(id => removeHabit(id));
-              examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam'));
-              clearPlanIds('exam');
+              const slot = modePreview.examSlot ?? 'exam';
+              const hIds = slot === 'exam2' ? exam2PlanHabitIds : slot === 'exam3' ? exam3PlanHabitIds : examPlanHabitIds;
+              const tIds = slot === 'exam2' ? exam2PlanTaskIds  : slot === 'exam3' ? exam3PlanTaskIds  : examPlanTaskIds;
+              hIds.forEach(id => removeHabit(id));
+              tIds.forEach(id => retirePlanTask(id, slot));
+              clearPlanIds(slot);
             } else if (t === 'tez') {
               tezPlanHabitIds.forEach(id => removeHabit(id));
               tezPlanTaskIds.forEach(id => retirePlanTask(id, 'tez'));
               clearPlanIds('tez');
             } else if (t === 'mulakat') {
-              mulakatPlanHabitIds.forEach(id => removeHabit(id));
-              mulakatPlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat'));
-              clearPlanIds('mulakat');
+              const slot = modePreview.mulakatSlot ?? 'mulakat';
+              const hIds = slot === 'mulakat2' ? mulakat2PlanHabitIds : slot === 'mulakat3' ? mulakat3PlanHabitIds : mulakatPlanHabitIds;
+              const tIds = slot === 'mulakat2' ? mulakat2PlanTaskIds  : slot === 'mulakat3' ? mulakat3PlanTaskIds  : mulakatPlanTaskIds;
+              hIds.forEach(id => removeHabit(id));
+              tIds.forEach(id => retirePlanTask(id, slot));
+              clearPlanIds(slot);
             } else if (t === 'spor') {
-              sporPlanHabitIds.forEach(id => removeHabit(id));
-              sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor'));
-              clearPlanIds('spor');
+              const slot = modePreview.sporSlot ?? 'spor';
+              const hIds = slot === 'spor2' ? spor2PlanHabitIds : slot === 'spor3' ? spor3PlanHabitIds : sporPlanHabitIds;
+              const tIds = slot === 'spor2' ? spor2PlanTaskIds  : slot === 'spor3' ? spor3PlanTaskIds  : sporPlanTaskIds;
+              hIds.forEach(id => removeHabit(id));
+              tIds.forEach(id => retirePlanTask(id, slot));
+              clearPlanIds(slot);
             } else {
               ramazanPlanHabitIds.forEach(id => removeHabit(id));
               habits.filter(h => RAMAZAN_HABIT_NAMES.some(n => n.toLowerCase() === h.name.toLowerCase())).forEach(h => removeHabit(h.id));
@@ -1318,11 +1655,26 @@ export default function ModlarScreen() {
           }}
           onApplied={(habitIds, taskIds) => {
             const t = modePreview.type;
-            if (t === 'exam' || t === 'yks' || t === 'kpss') setPlanIds('exam', habitIds, taskIds);
-            else if (t === 'tez') setPlanIds('tez', habitIds, taskIds);
-            else if (t === 'mulakat') setPlanIds('mulakat', habitIds, taskIds);
-            else if (t === 'spor') setPlanIds('spor', habitIds, taskIds);
-            else setPlanIds('ramazan', habitIds, taskIds);
+            if (t === 'exam' || t === 'yks' || t === 'kpss') {
+              const slot = modePreview.examSlot ?? 'exam';
+              const prevHabits = slot === 'exam2' ? exam2PlanHabitIds : slot === 'exam3' ? exam3PlanHabitIds : examPlanHabitIds;
+              const prevTasks  = slot === 'exam2' ? exam2PlanTaskIds  : slot === 'exam3' ? exam3PlanTaskIds  : examPlanTaskIds;
+              setPlanIds(slot, [...new Set([...prevHabits, ...habitIds])], [...new Set([...prevTasks, ...taskIds])]);
+            } else if (t === 'tez') {
+              setPlanIds('tez', [...new Set([...tezPlanHabitIds, ...habitIds])], [...new Set([...tezPlanTaskIds, ...taskIds])]);
+            } else if (t === 'mulakat') {
+              const slot = modePreview.mulakatSlot ?? 'mulakat';
+              const prevH = slot === 'mulakat2' ? mulakat2PlanHabitIds : slot === 'mulakat3' ? mulakat3PlanHabitIds : mulakatPlanHabitIds;
+              const prevT = slot === 'mulakat2' ? mulakat2PlanTaskIds  : slot === 'mulakat3' ? mulakat3PlanTaskIds  : mulakatPlanTaskIds;
+              setPlanIds(slot, [...new Set([...prevH, ...habitIds])], [...new Set([...prevT, ...taskIds])]);
+            } else if (t === 'spor') {
+              const slot = modePreview.sporSlot ?? 'spor';
+              const prevH = slot === 'spor2' ? spor2PlanHabitIds : slot === 'spor3' ? spor3PlanHabitIds : sporPlanHabitIds;
+              const prevT = slot === 'spor2' ? spor2PlanTaskIds  : slot === 'spor3' ? spor3PlanTaskIds  : sporPlanTaskIds;
+              setPlanIds(slot, [...new Set([...prevH, ...habitIds])], [...new Set([...prevT, ...taskIds])]);
+            } else {
+              setPlanIds('ramazan', [...new Set([...ramazanPlanHabitIds, ...habitIds])], [...new Set([...ramazanPlanTaskIds, ...taskIds])]);
+            }
           }}
         />
       )}

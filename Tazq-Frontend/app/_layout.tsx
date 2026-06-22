@@ -401,34 +401,27 @@ export default function RootLayout() {
 
   // Android Navigation Bar & System UI Sync
   useEffect(() => {
-    /* 
-       Temporarily disabled for Expo Go SDK 55 stability.
-       Re-enable these when moving to a Custom Development Build.
-    */
-    /*
-    const isDarkTheme = colorScheme === 'dark';
-    const backgroundColor = isDarkTheme ? '#09090B' : '#FFFFFF';
-    const navStyle = isDarkTheme ? 'light' : 'dark';
-
+    const backgroundColor = isDark ? '#09090B' : '#FFFFFF';
+    const navStyle = isDark ? 'light' : 'dark';
     safeSystemUI(backgroundColor);
     safeNavigationBar(backgroundColor, navStyle);
-    */
-  }, [colorScheme]);
+  }, [isDark]);
 
   if (showSplash || !fontsLoaded || !assetsLoaded) {
     return (
-      <AnimatedSplash 
-        onFinish={() => setShowSplash(false)} 
+      <AnimatedSplash
+        isDark={isDark}
+        onFinish={() => setShowSplash(false)}
         onReady={() => {
           // This ensures the native splash only hides when our custom splash is visible
           SplashScreen.hideAsync().catch(() => {});
-        }} 
+        }}
       />
     );
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.background }}>
     <ErrorBoundary>
     <SafeAreaProvider>
       <View style={{ flex: 1, backgroundColor: theme.background }}>

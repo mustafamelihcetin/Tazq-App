@@ -13,6 +13,7 @@ import {
   Keyboard,
   Modal,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
@@ -171,8 +172,8 @@ export default function LoginScreen() {
                   <View style={styles.form}>
                     <View style={styles.inputGroup}>
                       <View style={[styles.inputWrapper, {
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
-                        borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                        backgroundColor: theme.surfaceContainerLow,
+                        borderColor: theme.outlineVariant,
                       }]}>
                         <Mail size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
@@ -193,8 +194,8 @@ export default function LoginScreen() {
 
                     <View style={styles.inputGroup}>
                       <View style={[styles.inputWrapper, {
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
-                        borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                        backgroundColor: theme.surfaceContainerLow,
+                        borderColor: theme.outlineVariant,
                       }]}>
                         <Lock size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
@@ -245,13 +246,21 @@ export default function LoginScreen() {
                       <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '40' }]} />
                     </View>
 
-                    {/* Social Buttons */}
+                    {/* Social Buttons — Coming soon */}
                     <View style={styles.socialRow}>
-                      <TouchableOpacity style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant }]}>
+                      <TouchableOpacity
+                        style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, opacity: 0.5 }]}
+                        onPress={() => Alert.alert('Yakında', 'Google ile giriş yakında eklenecek.')}
+                        activeOpacity={0.7}
+                      >
                         <GoogleIcon color={theme.onSurface} />
                         <Text style={[styles.socialText, { color: theme.onSurface }]}>Google</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant }]}>
+                      <TouchableOpacity
+                        style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, opacity: 0.5 }]}
+                        onPress={() => Alert.alert('Yakında', 'Apple ile giriş yakında eklenecek.')}
+                        activeOpacity={0.7}
+                      >
                         <AppleIcon color={theme.onSurface} />
                         <Text style={[styles.socialText, { color: theme.onSurface }]}>Apple</Text>
                       </TouchableOpacity>
@@ -297,9 +306,9 @@ export default function LoginScreen() {
                 placeholder={t.login.email}
                 placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
                 style={[styles.modalInput, {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
+                  backgroundColor: theme.surfaceContainerLow,
                   color: theme.onSurface,
-                  borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                  borderColor: theme.outlineVariant,
                 }]}
                 value={forgotEmail}
                 onChangeText={setForgotEmail}

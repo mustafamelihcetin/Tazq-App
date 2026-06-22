@@ -1,5 +1,7 @@
 import { SEMANTIC_DICTIONARY } from './semanticDictionary';
 
+export type RecurrenceType = 'None' | 'Daily' | 'Weekly' | 'Monthly';
+
 export interface ParsedHint {
   priority?: 'Low' | 'Medium' | 'High';
   dueDate?: string;
@@ -7,6 +9,8 @@ export interface ParsedHint {
   tags?: string[];
   wittyMessage?: string;
   context?: 'sensitive' | 'joyful' | 'stressful' | 'normal';
+  recurrence?: RecurrenceType;
+  recurrenceDayLabel?: string; // e.g. "Pazartesi", "Monday" — extracted from "her pazartesi"
 }
 
 /**
@@ -16,10 +20,18 @@ export interface ParsedHint {
 
 type ContextType = 'sensitive' | 'joyful' | 'stressful' | 'urgent' | 'social' | 'health' | 'work' | 'finance' | 'education' | 'shopping' | 'home';
 
-const CLUSTER_TO_TAG: Record<ContextType, string> = {
-  sensitive: 'önemli', joyful: 'sosyal', stressful: 'iş', urgent: 'acil',
-  social: 'sosyal', health: 'sağlık', work: 'iş', finance: 'finans', 
-  education: 'eğitim', shopping: 'alışveriş', home: 'ev'
+const CLUSTER_TO_TAG: Record<ContextType, { tr: string; en: string }> = {
+  sensitive: { tr: 'önemli',    en: 'important'  },
+  joyful:    { tr: 'sosyal',    en: 'social'      },
+  stressful: { tr: 'iş',       en: 'work'        },
+  urgent:    { tr: 'acil',     en: 'urgent'      },
+  social:    { tr: 'sosyal',   en: 'social'      },
+  health:    { tr: 'sağlık',   en: 'health'      },
+  work:      { tr: 'iş',       en: 'work'        },
+  finance:   { tr: 'finans',   en: 'finance'     },
+  education: { tr: 'eğitim',   en: 'education'   },
+  shopping:  { tr: 'alışveriş',en: 'shopping'    },
+  home:      { tr: 'ev',       en: 'home'        },
 };
 
 function toISO(date: Date): string {
@@ -35,12 +47,22 @@ const WEEKDAY_MAP: Record<string, number> = {
   perşembe: 4, thursday: 4, cuma: 5, friday: 5, cumartesi: 6, saturday: 6, pazar: 0, sunday: 0,
 };
 
-export function parseTaskHint(text: string): ParsedHint {
+export function parseTaskHint(text: string, preferredLang?: 'tr' | 'en'): ParsedHint {
   if (!text.trim()) return {};
   const lower = text.toLowerCase();
   const words = lower.split(/[\s,.;!?]+/);
   const hint: ParsedHint = {};
   const today = new Date();
+
+  // 0. Language detection — preferred lang takes priority; fall back to text-based heuristics
+  const isTR = preferredLang === 'tr'
+    || (preferredLang !== 'en' && (
+      /[ıİğĞüÜşŞöÖçÇ]/.test(text)
+      || lower.includes('yarın') || lower.includes('bugün')
+      || lower.includes('hatırlat') || lower.includes('pazartesi')
+      || lower.includes('salı') || lower.includes('çarşamba')
+      || lower.includes('perşembe') || lower.includes('cuma')
+    ));
   
   // 1. Semantic Intent Calculation using the Global Dictionary
   const scores: Record<ContextType, number> = {
@@ -91,20 +113,57 @@ export function parseTaskHint(text: string): ParsedHint {
   else if (scores.urgent >= 5 || scores.stressful >= 8) hint.priority = 'Medium';
   else if (scores.urgent > 0 || scores.stressful > 0) hint.priority = 'Low';
 
-  // 4. Auto-Tagging
+  // 4. Auto-Tagging (language-aware)
   const tagsSet = new Set<string>();
   Object.keys(scores).forEach(c => {
     if (scores[c as ContextType] >= 5) {
-       tagsSet.add(CLUSTER_TO_TAG[c as ContextType]);
+      const entry = CLUSTER_TO_TAG[c as ContextType];
+      tagsSet.add(isTR ? entry.tr : entry.en);
     }
   });
 
-  const KEYWORD_TAGS: Array<{ keywords: string[], tag: string }> = [
-    { keywords: ['toplantı', 'meeting'], tag: 'toplantı' },
-    { keywords: ['kod', 'kodla', 'kodlama', 'geliştir', 'develop', 'code', 'program', 'backend', 'frontend'], tag: 'geliştirme' },
+  // Keyword-level tags — more specific than cluster-level
+  const KEYWORD_TAGS: Array<{ keywords: string[]; tr: string; en: string }> = [
+    {
+      keywords: ['toplantı', 'meeting'],
+      tr: 'toplantı', en: 'meeting',
+    },
+    {
+      keywords: ['kod', 'kodla', 'kodlama', 'geliştir', 'develop', 'code', 'program', 'backend', 'frontend'],
+      tr: 'geliştirme', en: 'dev',
+    },
+    {
+      keywords: ['sınav', 'vize', 'final', 'exam', 'test', 'quiz'],
+      tr: 'sınav', en: 'exam',
+    },
+    {
+      keywords: ['ödev', 'homework', 'assignment'],
+      tr: 'ödev', en: 'homework',
+    },
+    {
+      keywords: ['alışveriş', 'market', 'sipariş', 'shopping', 'grocery', 'order'],
+      tr: 'alışveriş', en: 'shopping',
+    },
+    {
+      keywords: ['spor', 'egzersiz', 'gym', 'koşu', 'fitness', 'antrenman', 'workout', 'run'],
+      tr: 'spor', en: 'fitness',
+    },
+    {
+      keywords: ['randevu', 'doktor', 'hastane', 'appointment', 'doctor', 'hospital'],
+      tr: 'randevu', en: 'appointment',
+    },
   ];
-  KEYWORD_TAGS.forEach(({ keywords, tag }) => {
-    if (keywords.some(kw => lower.includes(kw))) tagsSet.add(tag);
+  KEYWORD_TAGS.forEach(({ keywords, tr, en }) => {
+    if (keywords.some(kw => lower.includes(kw))) {
+      // Remove the generic cluster tag if a more specific one is added
+      if (isTR) {
+        tagsSet.delete('eğitim'); tagsSet.delete('sağlık'); tagsSet.delete('alışveriş');
+        tagsSet.add(tr);
+      } else {
+        tagsSet.delete('education'); tagsSet.delete('health'); tagsSet.delete('shopping');
+        tagsSet.add(en);
+      }
+    }
   });
 
   if (tagsSet.size > 0) hint.tags = Array.from(tagsSet);
@@ -127,10 +186,38 @@ export function parseTaskHint(text: string): ParsedHint {
     }
   }
 
-  const timeMatch = 
-    lower.match(/saat\s*(\d{1,2})(?:[:.\s](\d{2}))?/) || 
+  // 5b. Recurrence Detection
+  const dailyPatterns = ['her gun', 'her gün', 'her sabah', 'her gece', 'gunluk', 'günlük', 'daily', 'every day', 'everyday'];
+  const weeklyPatterns = ['her hafta', 'haftalik', 'haftalık', 'weekly', 'every week'];
+  const monthlyPatterns = ['her ay', 'aylik', 'aylık', 'monthly', 'every month'];
+  // "her pazartesi / her salı ..." → weekly
+  const weeklyDayPattern = /her\s+(pazartesi|salı|çarşamba|perşembe|cuma|cumartesi|pazar|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i;
+
+  if (dailyPatterns.some(p => lower.includes(p))) {
+    hint.recurrence = 'Daily';
+  } else if (weeklyPatterns.some(p => lower.includes(p))) {
+    hint.recurrence = 'Weekly';
+  } else {
+    const dayMatch = weeklyDayPattern.exec(lower);
+    if (dayMatch) {
+      hint.recurrence = 'Weekly';
+      const raw = dayMatch[1].toLowerCase();
+      const dayMap: Record<string, string> = {
+        pazartesi: 'Pazartesi', salı: 'Salı', çarşamba: 'Çarşamba',
+        perşembe: 'Perşembe', cuma: 'Cuma', cumartesi: 'Cumartesi', pazar: 'Pazar',
+        monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday',
+        thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday',
+      };
+      hint.recurrenceDayLabel = dayMap[raw] ?? raw;
+    } else if (monthlyPatterns.some(p => lower.includes(p))) {
+      hint.recurrence = 'Monthly';
+    }
+  }
+
+  const timeMatch =
+    lower.match(/saat\s*(\d{1,2})(?:[:.\s](\d{2}))?/) ||
     lower.match(/(\d{1,2})[:.](\d{2})/) ||
-    lower.match(/(\d{1,2})['’]?(?:da|de|ta|te|ye|ya|e|a)/); // Turkish time suffixes like 15'te, 3'te
+    lower.match(/(\d{1,2})['']?(?:da|de|ta|te|ye|ya|e|a)/); // Turkish time suffixes like 15'te, 3'te
 
   if (timeMatch) {
     const hour = parseInt(timeMatch[1], 10);
@@ -147,7 +234,6 @@ export function parseTaskHint(text: string): ParsedHint {
   }
 
   // 6. Witty Message Generation & Reminder/Event Intent
-  const isTR = /[ıİğĞüÜşŞöÖçÇ]/.test(text) || lower.includes('yarın') || lower.includes('bugün') || lower.includes('hatırlat');
   const hasReminderIntent = lower.includes('hatırlat') || lower.includes('remind') || lower.includes('unutturma') || lower.includes('alarm');
   const hasGuestIntent = lower.includes('misafir') || lower.includes('davet') || lower.includes('konuk');
   

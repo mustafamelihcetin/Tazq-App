@@ -238,13 +238,17 @@ export default function FocusScreen() {
     return () => { show.remove(); hide.remove(); };
   }, []);
 
+  const backgroundSavedRef = useRef(false);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'active') {
+        backgroundSavedRef.current = false;
         rehydrateTimer();
       } else if (next === 'background') {
+        if (backgroundSavedRef.current) return;
         const { isActive: active, seconds: secs, totalSeconds: total } = useFocusStore.getState();
         if (active && total > 0) {
+          backgroundSavedRef.current = true;
           const elapsed = Math.max(1, Math.round((total - secs) / 60));
           FocusService.saveSession(currentTask || 'Focus', elapsed, false).catch(() => {});
         }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing, useColorScheme, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, Animated, Easing, useWindowDimensions } from 'react-native';
 import { TazqLogo } from './TazqLogo';
 
 const DARK_BG = '#0A0A0A';
@@ -11,12 +11,12 @@ const LINE_WIDTH = 72;
 export const AnimatedSplash = ({
   onFinish,
   onReady,
+  isDark = false,
 }: {
   onFinish: () => void;
   onReady: () => void;
+  isDark?: boolean;
 }) => {
-  const scheme = useColorScheme();
-  const isDark = scheme !== 'light';
   const { width } = useWindowDimensions();
   const logoWidth = width * 0.48;
   const logoHeight = logoWidth / 3.2;

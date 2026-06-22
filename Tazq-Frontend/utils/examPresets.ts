@@ -258,18 +258,42 @@ export function detectExamFromInput(input: string): ExamPreset | null {
   return null;
 }
 
+/**
+ * Eğitim uzmanı fazlama modeli:
+ *
+ * Faz 1 — Temel İnşa     (270-540 gün): Kavramsal anlama, müfredat tarama, diagnostik
+ * Faz 2 — Derinleşme     (120-270 gün): İçerik hakimiyeti, aralıklı tekrar, kart sistemi
+ * Faz 3 — Pekiştirme      (60-120 gün): Aktif geri çağırma, soru bankası, zayıf alan tespiti
+ * Faz 4 — Hızlanma         (30-60 gün): Mock sınavlar + hata analizi, güçlendirme
+ * Faz 5 — Son Sprint         (0-30 gün): Yeni konu yok, sadece tekrar ve deneme
+ */
 export function recommendTemplateId(
   daysLeft: number,
   category: ExamCategory,
   preferredTemplates: string[],
   dailyMinutes: number
 ): string {
+  // Faz 5 — Son Sprint
   if (daysLeft <= 30) return 'sprint';
-  if (category === 'language') return 'spaced-repetition';
-  if (category === 'medical') return 'spaced-repetition';
+
+  // Faz 4 — Hızlanma: mock + hata analizi
   if (daysLeft <= 60) return 'active-recall';
-  if (daysLeft >= 90 && dailyMinutes > 0 && dailyMinutes <= 60) return 'deep-work';
-  return preferredTemplates[0] ?? 'active-recall';
+
+  // Faz 3 — Pekiştirme: soru çözme yoğun, zayıf alan
+  if (daysLeft <= 120) {
+    if (category === 'language' || category === 'medical') return 'spaced-repetition';
+    return 'active-recall';
+  }
+
+  // Faz 2 — Derinleşme: içerik hakimiyeti, aralıklı tekrar
+  if (daysLeft <= 270) {
+    if (category === 'language' || category === 'medical') return 'spaced-repetition';
+    if (dailyMinutes >= 120) return 'deep-work';
+    return 'spaced-repetition';
+  }
+
+  // Faz 1 — Temel İnşa: 270+ gün
+  return 'foundation';
 }
 
 export const HOURS_OPTIONS: Array<{ labelTr: string; labelEn: string; minutes: number }> = [
@@ -280,6 +304,13 @@ export const HOURS_OPTIONS: Array<{ labelTr: string; labelEn: string; minutes: n
 ];
 
 export const TEMPLATE_DISPLAY: Record<string, { emoji: string; nameTr: string; nameEn: string; basisTr: string; basisEn: string }> = {
+  'foundation': {
+    emoji: '🏗️',
+    nameTr: 'Temel İnşa',
+    nameEn: 'Foundation Build',
+    basisTr: 'Bloom taksonomisi — kavramsal anlama ezberden önce gelir',
+    basisEn: 'Bloom\'s taxonomy — conceptual understanding before memorization',
+  },
   'active-recall': {
     emoji: '🧪',
     nameTr: 'Aktif Geri Çağırma',
