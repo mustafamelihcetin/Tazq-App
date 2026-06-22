@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   line: {
-    marginTop: 20,
+    marginTop: 8,
     width: LINE_WIDTH,
     height: StyleSheet.hairlineWidth,
   },

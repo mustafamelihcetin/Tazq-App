@@ -5,10 +5,11 @@ import { BlurView } from 'expo-blur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import Animated, { Layout } from 'react-native-reanimated';
-import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, ArrowLeft, Search, SlidersHorizontal, CheckSquare } from 'lucide-react-native';
+import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, ArrowLeft, Search, SlidersHorizontal, CheckSquare, Scale, Target } from 'lucide-react-native';
 import { SubtaskProgressRing } from '../components/SubtaskProgressRing';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { WeightEntryModal } from '../components/WeightEntryModal';
 import { useTaskStore } from '../store/useTaskStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useLanguageStore } from '../store/useLanguageStore';
@@ -27,7 +28,7 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useCompletionStore } from '../store/useCompletionStore';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
-import { S, R, F } from '../constants/tokens';
+import { S, R, F, scale, verticalScale, moderateScale } from '../constants/tokens';
 import VoiceService from '../utils/voice';
 import { useNetworkStore } from '../store/useNetworkStore';
 import { useOfflineQueue } from '../store/useOfflineQueue';
@@ -128,6 +129,7 @@ export default function ActionCenter() {
   const insets = useSafeAreaInsets();
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const scrollViewRef = useRef<any>(null);
+  const [weightModalTaskId, setWeightModalTaskId] = useState<number | null>(null);
 
   // isSmallDevice / isShortDevice removed — design tokens used instead
 
@@ -493,25 +495,25 @@ export default function ActionCenter() {
 
     if (diffDays === 0) {
       const diffMin = Math.round((date.getTime() - now.getTime()) / 60000);
-      if (diffMin > 0 && diffMin < 60) return isTR ? `⏰ ${diffMin} dk sonra` : `⏰ In ${diffMin}m`;
+      if (diffMin > 0 && diffMin < 60) return isTR ? `${diffMin} dk sonra` : `In ${diffMin}m`;
       if (diffMin >= 60 && diffMin < 1440) {
         const h = Math.round(diffMin / 60);
-        return isTR ? `⏰ ${h} saat sonra` : `⏰ In ${h}h`;
+        return isTR ? `${h} saat sonra` : `In ${h}h`;
       }
-      return isTR ? '📅 Bugün' : '📅 Today';
+      return isTR ? 'Bugün' : 'Today';
     }
-    if (diffDays === 1) return isTR ? '📅 Yarın' : '📅 Tomorrow';
-    if (diffDays === -1) return isTR ? '📅 Dün' : '📅 Yesterday';
-    if (diffDays > 1 && diffDays <= 6) return isTR ? `📅 ${diffDays} gün sonra` : `📅 In ${diffDays} days`;
-    if (diffDays < -1 && diffDays >= -6) return isTR ? `📅 ${Math.abs(diffDays)} gün önce` : `📅 ${Math.abs(diffDays)} days ago`;
-    if (diffDays === 7) return isTR ? '📅 Gelecek hafta' : '📅 Next week';
+    if (diffDays === 1) return isTR ? 'Yarın' : 'Tomorrow';
+    if (diffDays === -1) return isTR ? 'Dün' : 'Yesterday';
+    if (diffDays > 1 && diffDays <= 6) return isTR ? `${diffDays} gün sonra` : `In ${diffDays} days`;
+    if (diffDays < -1 && diffDays >= -6) return isTR ? `${Math.abs(diffDays)} gün önce` : `${Math.abs(diffDays)} days ago`;
+    if (diffDays === 7) return isTR ? 'Gelecek hafta' : 'Next week';
 
     const locale = isTR ? 'tr-TR' : 'en-US';
     const isCurrentYear = date.getFullYear() === now.getFullYear();
     const options: Intl.DateTimeFormatOptions = isCurrentYear
       ? { day: 'numeric', month: 'long' }
       : { day: 'numeric', month: 'long', year: 'numeric' };
-    return `📅 ${date.toLocaleDateString(locale, options)}`;
+    return date.toLocaleDateString(locale, options);
   };
 
   const handleToggle = async (id: number) => {
@@ -519,7 +521,8 @@ export default function ActionCenter() {
     if (!task) return;
 
     if (task.tags?.includes('weight_entry')) {
-      router.push('/modlar');
+      Haptics.selectionAsync();
+      setWeightModalTaskId(task.id);
       return;
     }
 
@@ -1331,11 +1334,11 @@ export default function ActionCenter() {
                                             )}
                                             {task.tags?.includes('weight_entry') && (
                                                 <TouchableOpacity
-                                                    onPress={() => router.push('/modlar')}
-                                                    style={[styles.categoryBadge, { backgroundColor: '#10B981' + '25', flexDirection: 'row', alignItems: 'center', gap: 2 }]}
+                                                    onPress={() => { Haptics.selectionAsync(); setWeightModalTaskId(task.id); }}
+                                                    style={[styles.categoryBadge, { backgroundColor: '#10B981' + '25', flexDirection: 'row', alignItems: 'center', gap: 4 }]}
                                                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                                                 >
-                                                    <Text style={{ fontSize: 9, lineHeight: 12 }}>⚖️</Text>
+                                                    <Scale size={10} color="#10B981" />
                                                     <Text style={[styles.categoryBadgeText, { color: '#10B981', fontWeight: '900' }]}>
                                                         {language === 'tr' ? 'KİLO GİR' : 'LOG WEIGHT'}
                                                     </Text>
@@ -1368,13 +1371,23 @@ export default function ActionCenter() {
                                             })()}
                                         </View>
                                         <View style={styles.taskMetaRow}>
-                                            <Text style={[styles.taskMetaText, { color: getDateColor(task.dueDate, theme), fontSize: F.caption }]}>
-                                                {formatSmartDate(task.dueDate)}
-                                            </Text>
-                                            {!(task.tags?.includes('etkinlik') || task.tags?.includes('event') || task.tags?.includes('not') || task.tags?.includes('note')) && (
-                                                <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.6, marginLeft: 10, fontWeight: '600' }}>
-                                                    ⏱️ {estimateDuration(task)}
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                                                {task.dueDate?.includes('T') && (new Date(task.dueDate).getTime() - new Date().getTime() < 86400000 && new Date(task.dueDate).getTime() - new Date().getTime() > 0) ? (
+                                                    <Clock size={11} color={getDateColor(task.dueDate, theme)} />
+                                                ) : (
+                                                    <Calendar size={11} color={getDateColor(task.dueDate, theme)} />
+                                                )}
+                                                <Text style={[styles.taskMetaText, { color: getDateColor(task.dueDate, theme), fontSize: F.caption, marginLeft: 0 }]}>
+                                                    {formatSmartDate(task.dueDate)}
                                                 </Text>
+                                            </View>
+                                            {!(task.tags?.includes('etkinlik') || task.tags?.includes('event') || task.tags?.includes('not') || task.tags?.includes('note')) && (
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 10 }}>
+                                                    <Timer size={11} color={theme.onSurfaceVariant} style={{ opacity: 0.6 }} />
+                                                    <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.6, fontWeight: '600' }}>
+                                                        {estimateDuration(task)}
+                                                    </Text>
+                                                </View>
                                             )}
                                         </View>
                                     </View>
@@ -1434,7 +1447,7 @@ export default function ActionCenter() {
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                                                     <Calendar size={13} color={theme.onSurfaceVariant} />
                                                     <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
-                                                        {formatSmartDate(task.dueDate).replace('📅 ', '')}
+                                                        {formatSmartDate(task.dueDate)}
                                                     </Text>
                                                 </View>
 
@@ -1682,6 +1695,12 @@ export default function ActionCenter() {
 
       <BottomNavBar />
 
+      <WeightEntryModal
+        visible={weightModalTaskId !== null}
+        taskId={weightModalTaskId}
+        onClose={() => setWeightModalTaskId(null)}
+      />
+
       {/* Modern Stitch Modal */}
       <Modal visible={modalVisible} transparent animationType="none" onRequestClose={() => !saving && setModalVisible(false)} onShow={() => taskSlideIn()}>
         <View style={styles.overlay}>
@@ -1707,12 +1726,14 @@ export default function ActionCenter() {
                 </View>
                 {!editingId && (
                     <View style={{ flexDirection: 'row', gap: S.xs, marginBottom: S.lg, flexWrap: 'wrap' }}>
-                        {(language === 'tr'
-                            ? ['📅 Tarih', '🎯 Öncelik', '🔔 Hatırlatıcı']
-                            : ['📅 Due date', '🎯 Priority', '🔔 Reminder']
-                        ).map((chip) => (
-                            <View key={chip} style={{ backgroundColor: theme.primary + '14', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 3 }}>
-                                <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary, letterSpacing: 0.3 }}>{chip}</Text>
+                        {[
+                            { text: language === 'tr' ? 'Tarih' : 'Due date', icon: <Calendar size={10} color={theme.primary} /> },
+                            { text: language === 'tr' ? 'Öncelik' : 'Priority', icon: <Target size={10} color={theme.primary} /> },
+                            { text: language === 'tr' ? 'Hatırlatıcı' : 'Reminder', icon: <Bell size={10} color={theme.primary} /> }
+                        ].map((chip) => (
+                            <View key={chip.text} style={{ backgroundColor: theme.primary + '14', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                {chip.icon}
+                                <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary, letterSpacing: 0.3 }}>{chip.text}</Text>
                             </View>
                         ))}
                     </View>
@@ -2018,7 +2039,7 @@ export default function ActionCenter() {
                                 </TouchableOpacity>
                             </View>
                         ))}
-                        <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 44 }]}>
+                        <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: verticalScale(44) }]}>
                             <TextInput
                                 style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
                                 placeholder={t.addSubtask}
@@ -2078,29 +2099,29 @@ export default function ActionCenter() {
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.lg, paddingVertical: S.sm },
-  backBtn: { width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontWeight: '900', letterSpacing: -0.5, flex: 1, textAlign: 'center' },
-  headerIconBtn: { width: 36, height: 36, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
-  selBadge: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  aiBtn: { width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: R.lg, borderWidth: 1, paddingHorizontal: S.md, gap: S.sm, height: 44 },
+  headerIconBtn: { width: scale(36), height: scale(36), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  selBadge: { minWidth: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  aiBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: R.lg, borderWidth: 1, paddingHorizontal: S.md, gap: S.sm, height: verticalScale(44) },
   searchInput: { flex: 1, fontWeight: '600', fontSize: F.body },
-  sortMenu: { position: 'absolute', top: 56, right: S.lg, zIndex: 200, borderRadius: R.lg, borderWidth: 1, overflow: 'hidden', minWidth: 180, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
+  sortMenu: { position: 'absolute', top: verticalScale(56), right: S.lg, zIndex: 200, borderRadius: R.lg, borderWidth: 1, overflow: 'hidden', minWidth: scale(180), shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
   sortOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth },
   bulkPill: {
     position: 'absolute', left: S.xl, right: S.xl,
     flexDirection: 'row', alignItems: 'center',
     borderRadius: R.full, overflow: 'hidden',
-    paddingHorizontal: S.lg, paddingVertical: 10,
+    paddingHorizontal: S.lg, paddingVertical: verticalScale(10),
     borderWidth: 1, zIndex: 100,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.18, shadowRadius: 20, elevation: 14,
   },
   bulkCountRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 },
-  bulkDot: { width: 7, height: 7, borderRadius: 4 },
+  bulkDot: { width: scale(7), height: scale(7), borderRadius: scale(4) },
   bulkCountText: { fontSize: F.body, fontWeight: '800' },
-  bulkSep: { width: 1, height: 22, marginHorizontal: S.sm },
-  bulkIconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  bulkSep: { width: 1, height: verticalScale(22), marginHorizontal: S.sm },
+  bulkIconBtn: { width: scale(40), height: scale(40), borderRadius: scale(20), alignItems: 'center', justifyContent: 'center' },
   headline: { fontWeight: '900', letterSpacing: -1.5 },
   subHeadline: { fontWeight: '600', opacity: 0.7, marginTop: S.xs },
   statsGrid: { flexDirection: 'row' },
@@ -2115,7 +2136,7 @@ const styles = StyleSheet.create({
   listSection: { flex: 1 },
   sectionTitle: { fontWeight: '900', marginBottom: S.md },
   taskCard: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', borderWidth: 1.2 },
-  priorityIndicator: { height: 32, borderRadius: R.sm, marginRight: S.md },
+  priorityIndicator: { height: verticalScale(32), borderRadius: R.sm, marginRight: S.md },
   taskContent: { flex: 1 },
   taskTitleText: { fontWeight: '700' },
   taskMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
@@ -2128,50 +2149,50 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: F.subhead, fontWeight: '800', letterSpacing: -0.3 },
   emptyText: { fontSize: F.body, fontWeight: '500', opacity: 0.6, textAlign: 'center' },
   deleteAction: {
-    width: 80,
+    width: scale(80),
     marginBottom: S.sm,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: R.lg,
-    marginLeft: -24,
+    marginLeft: scale(-24),
     paddingLeft: S.sm,
   },
   categoryBadge: { paddingHorizontal: S.sm, paddingVertical: 2, borderRadius: R.sm },
-  categoryBadgeText: { fontSize: 10, fontWeight: '800', textTransform: 'lowercase' },
+  categoryBadgeText: { fontSize: moderateScale(10), fontWeight: '800', textTransform: 'lowercase' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: { width: '100%' },
   sheet: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, borderWidth: 1, borderBottomWidth: 0 },
-  handle: { width: 40, height: 4, borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
+  handle: { width: scale(40), height: scale(4), borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sheetTitle: { fontWeight: '900', letterSpacing: -0.5 },
-  closeModalBtn: { width: 40, height: 40, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  closeModalBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   formContainer: { paddingHorizontal: 4 },
   section: { marginBottom: S.md },
   inputGroup: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md },
   modalInput: { flex: 1, fontWeight: '600' },
   modalTextArea: { alignItems: 'flex-start' },
   dateTimeRow: { flexDirection: 'row', gap: S.sm },
-  dateTimeChip: { flex: 1, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, gap: 10 },
+  dateTimeChip: { flex: 1, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, gap: scale(10) },
   chipText: { flex: 1, fontWeight: '700' },
   optionLabel: { fontWeight: '900', letterSpacing: 1.2, marginBottom: S.sm, marginLeft: S.xs, opacity: 0.6 },
   priorityRow: { flexDirection: 'row' },
   priorityTab: { flex: 1, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
   priorityTabText: { fontWeight: '800' },
   modalSaveBtn: { borderRadius: R.lg, overflow: 'hidden', marginTop: S.lg, marginBottom: S.xl },
-  modalSaveGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, height: 56 },
+  modalSaveGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, height: verticalScale(56) },
   modalSaveText: { color: 'white', fontWeight: '900', letterSpacing: -0.5, textAlign: 'center', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
   inlinePicker: { borderRadius: R.lg, padding: S.md, alignItems: 'center', borderWidth: 1 },
   inlinePickerTitle: { fontSize: F.body, fontWeight: '900', marginBottom: S.md, letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 },
   pickerRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.md },
-  pickerCol: { alignItems: 'center', minWidth: 60 },
+  pickerCol: { alignItems: 'center', minWidth: scale(60) },
   pickerColLabel: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1, marginBottom: S.sm, opacity: 0.5 },
   pickerArrow: { padding: S.sm },
   pickerArrowText: { fontSize: F.body, fontWeight: '900' },
-  pickerValue: { fontSize: 32, fontWeight: '900', letterSpacing: -1, lineHeight: 40 },
-  pickerColon: { fontSize: 28, fontWeight: '900', marginTop: S.sm },
+  pickerValue: { fontSize: moderateScale(32), fontWeight: '900', letterSpacing: -1, lineHeight: verticalScale(40) },
+  pickerColon: { fontSize: moderateScale(28), fontWeight: '900', marginTop: S.sm },
   pickerActions: { flexDirection: 'row', gap: S.sm, width: '100%', marginTop: S.sm },
-  pickerCancelBtn: { flex: 1, borderRadius: R.md, borderWidth: 1.5, height: 48, alignItems: 'center', justifyContent: 'center' },
-  pickerConfirmBtn: { flex: 1, borderRadius: R.md, height: 48, alignItems: 'center', justifyContent: 'center' },
+  pickerCancelBtn: { flex: 1, borderRadius: R.md, borderWidth: 1.5, height: verticalScale(48), alignItems: 'center', justifyContent: 'center' },
+  pickerConfirmBtn: { flex: 1, borderRadius: R.md, height: verticalScale(48), alignItems: 'center', justifyContent: 'center' },
   pickerBtnText: { fontWeight: '700', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
 });
 

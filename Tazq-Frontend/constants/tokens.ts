@@ -1,27 +1,37 @@
-// Tazq Design Tokens — Golden Ratio 8px base (×1.618)
+import { Dimensions } from 'react-native';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Standard design baseline (iPhone X/11 dimensions: 375x812)
+const BASE_WIDTH = 375;
+const BASE_HEIGHT = 812;
+
+export const scale = (size: number) => (SCREEN_WIDTH / BASE_WIDTH) * size;
+export const verticalScale = (size: number) => (SCREEN_HEIGHT / BASE_HEIGHT) * size;
+export const moderateScale = (size: number, factor = 0.5) => size + (scale(size) - size) * factor;
 
 export const S = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 40,
-  xxl: 64,
+  xs: moderateScale(4),
+  sm: moderateScale(8),
+  md: moderateScale(16),
+  lg: moderateScale(24),
+  xl: moderateScale(40),
+  xxl: moderateScale(64),
 } as const;
 
 export const R = {
-  sm: 8,
-  md: 16,
-  lg: 24,
-  full: 999,
+  sm: moderateScale(8),
+  md: moderateScale(16),
+  lg: moderateScale(24),
+  full: 999, // full border radius should not be scaled
 } as const;
 
 export const F = {
-  caption: 11,
-  body: 14,
-  subhead: 17,
-  title: 22,
-  hero: 34,
+  caption: moderateScale(11),
+  body: moderateScale(14),
+  subhead: moderateScale(17),
+  title: moderateScale(22),
+  hero: moderateScale(34),
 } as const;
 
 export const LH = {
@@ -29,3 +39,4 @@ export const LH = {
   normal: 1.45,
   relaxed: 1.65,
 } as const;
+

@@ -69,6 +69,12 @@ interface PrefsState {
   setExamReviewShown: (v: boolean) => void;
   dismissedBannerKey: string;
   setDismissedBannerKey: (key: string) => void;
+  motto: string;
+  setMotto: (v: string) => void;
+  productivityHour: 'morning' | 'afternoon' | 'evening' | 'night';
+  setProductivityHour: (v: 'morning' | 'afternoon' | 'evening' | 'night') => void;
+  avatarBorderColor: string;
+  setAvatarBorderColor: (v: string) => void;
   setPlanIds: (mode: PlanMode, habitIds: string[], taskIds: number[]) => void;
   clearPlanIds: (mode: PlanMode) => void;
 }
@@ -139,6 +145,12 @@ export const usePrefsStore = create<PrefsState>()(
       setExamReviewShown: (v) => set({ examReviewShown: v }),
       dismissedBannerKey: '',
       setDismissedBannerKey: (key) => set({ dismissedBannerKey: key }),
+      motto: '',
+      setMotto: (v) => set({ motto: v }),
+      productivityHour: 'morning',
+      setProductivityHour: (v) => set({ productivityHour: v }),
+      avatarBorderColor: 'transparent',
+      setAvatarBorderColor: (v) => set({ avatarBorderColor: v }),
       setPlanIds: (mode, habitIds, taskIds) => {
         if (mode === 'exam') return set({ examPlanHabitIds: habitIds, examPlanTaskIds: taskIds });
         if (mode === 'exam2') return set({ exam2PlanHabitIds: habitIds, exam2PlanTaskIds: taskIds });
@@ -200,6 +212,9 @@ export const usePrefsStore = create<PrefsState>()(
           spor3Date: null,
           ...(persisted?.seasonal ?? {}),
         },
+        motto: (persisted as any)?.motto ?? '',
+        productivityHour: (persisted as any)?.productivityHour ?? 'morning',
+        avatarBorderColor: (persisted as any)?.avatarBorderColor ?? 'transparent',
       }),
     }
   )

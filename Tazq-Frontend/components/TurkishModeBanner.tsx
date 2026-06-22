@@ -15,6 +15,7 @@ import { useFocusStore } from '../store/useFocusStore';
 import { TaskService } from '../services/api';
 import { TurkishMode, StudyTemplate, ModeHabit, ModeTask } from '../utils/turkishModes';
 import { getCurrentRamadanStatus } from '../utils/ramadanDates';
+import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { extractPlanFromText, QUICK_EMOJIS, QUICK_COLORS, DraftHabit, DraftTask } from '../utils/planExtractor';
 import { TextInput } from 'react-native';
 import { S, R, F } from '../constants/tokens';
@@ -230,6 +231,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedTemplate(tpl);
     setDeselectedHabits(new Set());
+    setApplied(false);
+    appliedRef.current = false;
     setStep('review');
   };
 
@@ -340,7 +343,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 style={{ width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: h.color + '20', borderWidth: 1, borderColor: h.color + '40' }}
                 activeOpacity={0.7}
               >
-                <Text style={{ fontSize: 16 }}>{h.emoji}</Text>
+                {renderModeEmojiIcon(h.emoji, 16, h.color)}
               </TouchableOpacity>
               <TextInput
                 value={h.nameTr}
@@ -453,7 +456,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
   const renderPlanView = () => (
     <>
       <View style={styles.sheetHeader}>
-        <Text style={styles.sheetEmoji}>{mode.emoji}</Text>
+        {renderModeEmojiIcon(mode.emoji, 36, modeAccent)}
         <View style={{ flex: 1 }}>
           <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
             {tr ? mode.labelTr : mode.labelEn}
@@ -508,7 +511,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
             {planHabitStats.map(h => (
               <View key={h.id} style={[styles.planViewRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }]}>
                 <View style={[styles.habitIconSm, { backgroundColor: (h.color ?? modeAccent) + '22' }]}>
-                  <Text style={{ fontSize: 16 }}>{h.emoji ?? '📌'}</Text>
+                  {renderModeEmojiIcon(h.emoji ?? '📌', 16, h.color ?? modeAccent)}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.planViewName, { color: theme.onSurface }]} numberOfLines={1}>{h.name}</Text>
@@ -595,15 +598,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
           </TouchableOpacity>
         )}
         <View style={{ flexDirection: 'row', gap: S.sm }}>
-          <TouchableOpacity
-            onPress={() => setSheetVisible(false)}
-            activeOpacity={0.8}
-            style={[styles.clearBtn, { flex: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }]}
-          >
-            <Text style={[styles.clearBtnText, { color: theme.onSurfaceVariant }]}>
-              {tr ? 'Kapat' : 'Close'}
-            </Text>
-          </TouchableOpacity>
           {onClearPlan && (
             <TouchableOpacity
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onClearPlan(); setSheetVisible(false); }}
@@ -616,6 +610,15 @@ export const TurkishModeBanner: React.FC<Props> = ({
               </Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity
+            onPress={() => setSheetVisible(false)}
+            activeOpacity={0.8}
+            style={[styles.clearBtn, { flex: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }]}
+          >
+            <Text style={[styles.clearBtnText, { color: theme.onSurfaceVariant }]}>
+              {tr ? 'Kapat' : 'Close'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </>
@@ -635,7 +638,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
           ]}
         >
           <View style={styles.bannerLeft}>
-            <Text style={styles.bannerEmoji}>{mode.emoji}</Text>
+            {renderModeEmojiIcon(mode.emoji, 22, modeAccent)}
             <View>
               <Text style={[styles.bannerTitle, { color: isDark ? '#fff' : '#111' }]}>
                 {tr ? mode.labelTr : mode.labelEn}
@@ -744,7 +747,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                       <View style={styles.templateTop}>
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                            <Text style={{ fontSize: 18, lineHeight: 22 }}>{tpl.emoji}</Text>
+                            {renderModeEmojiIcon(tpl.emoji, 18, modeAccent)}
                             <Text style={[styles.templateTitle, { color: theme.onSurface, flex: 1 }]}>{tr ? tpl.titleTr : tpl.titleEn}</Text>
                           </View>
                           <Text style={[styles.templateDesc, { color: theme.onSurfaceVariant, opacity: 0.9 }]}>{tr ? tpl.descTr : tpl.descEn}</Text>
@@ -754,7 +757,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                       <View style={{ flexDirection: 'row', gap: 5, flexWrap: 'wrap', marginTop: 4 }}>
                         {tpl.habits.slice(0, 4).map((h) => (
                           <View key={h.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: h.color + '18', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 3 }}>
-                            <Text style={{ fontSize: 10 }}>{h.emoji}</Text>
+                            {renderModeEmojiIcon(h.emoji, 10, h.color)}
                             <Text style={{ fontSize: 10, fontWeight: '700', color: h.color, letterSpacing: 0.2 }}>{tr ? h.nameTr : h.name}</Text>
                           </View>
                         ))}
@@ -812,7 +815,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                       <ArrowLeft size={20} color={theme.onSurfaceVariant} />
                     </TouchableOpacity>
                   )}
-                  <Text style={styles.sheetEmoji}>{selectedTemplate?.emoji ?? mode.emoji}</Text>
+                  {renderModeEmojiIcon(selectedTemplate?.emoji ?? mode.emoji, 36, modeAccent)}
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
                       {selectedTemplate ? (tr ? selectedTemplate.titleTr : selectedTemplate.titleEn) : (tr ? mode.labelTr : mode.labelEn)}
@@ -844,7 +847,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                         activeOpacity={exists ? 1 : 0.7}
                       >
                         <View style={[styles.itemDot, { backgroundColor: (skipped ? '#94A3B8' : h.color) + '30', borderColor: (skipped ? '#94A3B8' : h.color) + '60' }]}>
-                          <Text style={{ fontSize: 15 }}>{h.emoji}</Text>
+                          {renderModeEmojiIcon(h.emoji, 15, skipped ? '#94A3B8' : h.color)}
                         </View>
                         <Text style={[styles.itemText, { color: theme.onSurface, flex: 1, textDecorationLine: skipped ? 'line-through' : 'none' }]}>{tr ? h.nameTr : h.name}</Text>
                         {exists

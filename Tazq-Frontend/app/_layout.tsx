@@ -46,6 +46,7 @@ import { Toast } from '../components/Toast';
 import { CelebrationOverlay } from '../components/CelebrationOverlay';
 import { Asset } from 'expo-asset';
 import { useOfflineSync } from '../hooks/useOfflineSync';
+import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
 
 // Prevent the native splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -110,11 +111,12 @@ export default function RootLayout() {
 
   // Replay queued offline operations when connection is restored
   useOfflineSync();
+  usePlanAdaptations();
   const [assetsLoaded, setAssetsLoaded] = useState(false);
 
   const { sync, language } = useLanguageStore();
   const { tasks } = useTaskStore();
-  const { morningBrief: morningBriefEnabled, eveningBrief: eveningBriefEnabled } = usePrefsStore();
+  const { morningBrief: morningBriefEnabled, eveningBrief: eveningBriefEnabled, productivityHour } = usePrefsStore();
   const focusActive = useFocusStore((s) => s.isActive);
 
   // Preload all critical assets
@@ -215,7 +217,7 @@ export default function RootLayout() {
 
       // Morning brief: today's task count + streak (respects user preference)
       if (morningBriefEnabled) {
-        scheduleMorningBrief(todayTasks.length, streak, language || 'en');
+        scheduleMorningBrief(todayTasks.length, streak, language || 'en', productivityHour);
       } else {
         cancelMorningBrief();
       }

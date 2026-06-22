@@ -20,6 +20,7 @@ import { useHabitStore, Habit, fmtDateKey } from '../store/useHabitStore';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { FocusService } from '../services/api';
@@ -662,7 +663,7 @@ export default function CockpitScreen() {
                           borderWidth: 1, borderColor: theme.success + '18' }}
                       >
                         <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 16 }}>{habit.emoji ?? '📌'}</Text>
+                          {renderModeEmojiIcon(habit.emoji ?? '📌', 16, habit.color ?? theme.success)}
                         </View>
                         <Text style={{ flex: 1, fontSize: F.body, fontWeight: '700', color: theme.onSurfaceVariant, textDecorationLine: 'line-through', opacity: 0.55 }} numberOfLines={1}>
                           {habit.name}
@@ -693,7 +694,7 @@ export default function CockpitScreen() {
                       {/* Emoji + name + streak */}
                       <View style={styles.habitLeft}>
                         <View style={[styles.habitIcon, { backgroundColor: safeColor + '22' }]}>
-                          <Text style={{ fontSize: 20 }}>{habit.emoji ?? '📌'}</Text>
+                          {renderModeEmojiIcon(habit.emoji ?? '📌', 20, safeColor)}
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.habitName, { color: theme.onSurface }]} numberOfLines={1}>

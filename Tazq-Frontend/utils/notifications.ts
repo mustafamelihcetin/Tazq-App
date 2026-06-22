@@ -124,10 +124,18 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 // ─── Morning Brief (08:00 daily) ─────────────────────────────────────────────
 // Smart: fires only if there are tasks today. Gives streak context.
 
+const PRODUCTIVITY_HOUR: Record<string, number> = {
+  morning: 7,
+  afternoon: 12,
+  evening: 17,
+  night: 21,
+};
+
 export async function scheduleMorningBrief(
   todayTaskCount: number,
   streak: number,
-  locale: string = 'en'
+  locale: string = 'en',
+  productivityHour: string = 'morning'
 ): Promise<void> {
   if (!Notifications || isExpoGo) return;
   try {
@@ -139,7 +147,7 @@ export async function scheduleMorningBrief(
     if (todayTaskCount === 0 && streak === 0) return;
 
     const trigger = new Date();
-    trigger.setHours(8, 0, 0, 0);
+    trigger.setHours(PRODUCTIVITY_HOUR[productivityHour] ?? 8, 0, 0, 0);
     if (trigger <= new Date()) {
       trigger.setDate(trigger.getDate() + 1);
     }

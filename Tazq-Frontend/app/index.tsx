@@ -23,13 +23,14 @@ import { StatusHub } from '../components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { parseTaskHint } from '../utils/taskParser';
 import { getSmartInsight } from '../utils/insights';
-import { S, R, F } from '../constants/tokens';
+import { S, R, F, scale, verticalScale, moderateScale } from '../constants/tokens';
 import { getAvatarSource } from '../utils/avatars';
 import { useToastStore } from '../store/useToastStore';
 import { useMomentumStore } from '../store/useMomentumStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { TurkishModeBanner } from '../components/TurkishModeBanner';
 import { MomentumPulse } from '../components/MomentumPulse';
+import { WeightEntryModal } from '../components/WeightEntryModal';
 import { detectTurkishMode, getCustomExamMode } from '../utils/turkishModes';
 import { scheduleWeeklySummary } from '../utils/notifications';
 import { useAchievementStore } from '../store/useAchievementStore';
@@ -48,13 +49,14 @@ export default function HomeScreen() {
   const { show: showToast } = useToastStore();
   const { recordScore, getLastNDays } = useMomentumStore();
   const { trigger: triggerAchievement } = useAchievementStore();
-  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey } = usePrefsStore();
+  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor } = usePrefsStore();
 
   // Focus Store
   const { isActive, seconds, setCurrentTask, setDuration, setIsActive, dailyFocusMinutes, dailyGoalMinutes, updateBestStreak } = useFocusStore();
 
   // State
   const [statusHubVisible, setStatusHubVisible] = useState(false);
+  const [weightModalTaskId, setWeightModalTaskId] = useState<number | null>(null);
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
   const [headerHighlight, setHeaderHighlight] = useState(false);
@@ -340,7 +342,8 @@ export default function HomeScreen() {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
     if (task.tags?.includes('weight_entry')) {
-      router.push('/modlar');
+      Haptics.selectionAsync();
+      setWeightModalTaskId(task.id);
       return;
     }
     if (task.isCompleted) return; // aksiyon merkezi sadece tamamlar, hiç geri almaz
@@ -504,7 +507,16 @@ export default function HomeScreen() {
                   </View>
               </View>
 
-              <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarContainer}>
+              <TouchableOpacity
+                  onPress={() => router.push('/profile')}
+                  style={[
+                      styles.avatarContainer,
+                      {
+                          borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 1 : 2.5,
+                          borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 'rgba(255,255,255,0.1)' : avatarBorderColor
+                      }
+                  ]}
+              >
                   <Image
                       source={getAvatarSource(user?.avatar || null)}
                       style={styles.avatar}
@@ -1104,6 +1116,12 @@ export default function HomeScreen() {
       )}
 
       <BottomNavBar />
+
+      <WeightEntryModal
+        visible={weightModalTaskId !== null}
+        taskId={weightModalTaskId}
+        onClose={() => setWeightModalTaskId(null)}
+      />
     </View>
   );
 }
@@ -1115,13 +1133,13 @@ const styles = StyleSheet.create({
   lightTopBarShadow: { shadowColor: '#2d2f31', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 8 },
   darkTopBarShadow: { shadowColor: '#3367ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 },
   topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
-  avatarContainer: { width: 34, height: 34, borderRadius: R.full, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  avatarContainer: { width: scale(34), height: scale(34), borderRadius: R.full, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
   heroSection: { marginBottom: S.lg },
   greeting: { fontWeight: '900', letterSpacing: -1.5 },
   subGreeting: { fontWeight: '500', marginTop: S.xs, opacity: 0.7 },
-  metricLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, opacity: 0.45, marginBottom: S.xs },
+  metricLabel: { fontSize: moderateScale(9), fontWeight: '900', letterSpacing: 1.2, opacity: 0.45, marginBottom: S.xs },
   metricValue: { fontSize: F.title, fontWeight: '900', letterSpacing: -1 },
   metricSub: { fontSize: F.caption, fontWeight: '600', opacity: 0.6, marginTop: 2 },
   nextMissionCard: { padding: S.lg, justifyContent: 'space-between', overflow: 'hidden' },
@@ -1136,23 +1154,23 @@ const styles = StyleSheet.create({
   startBtnText: { color: 'white', fontWeight: '900', fontSize: F.body },
   seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
   seeAllText: { fontSize: F.body, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  insightCard: { width: '100%', borderRadius: 32, padding: 24, borderWidth: 1, gap: 24 },
-  insightHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  insightIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  insightHeaderTitle: { fontSize: 13, fontWeight: '900', letterSpacing: 1, opacity: 0.6 },
-  insightBody: { gap: 16 },
-  bentoMini: { padding: 16, borderRadius: 20 },
-  insightMainText: { fontSize: 16, fontWeight: '800', lineHeight: 24, letterSpacing: -0.3 },
-  insightStats: { gap: 12 },
-  statBento: { padding: 16, borderRadius: 20, alignItems: 'center', gap: 4 },
-  statValue: { fontSize: 18, fontWeight: '900' },
-  statLabel: { fontSize: 10, fontWeight: '800', opacity: 0.5, letterSpacing: 0.5 },
-  cockpitActions: { gap: 12 },
-  actionButtonMain: { height: 60, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
-  actionButtonText: { fontSize: 16, fontWeight: '900', letterSpacing: 0.5 },
-  actionButtonSecondary: { height: 52, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  actionButtonTextSecondary: { fontSize: 14, fontWeight: '800' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: scale(24) },
+  insightCard: { width: '100%', borderRadius: R.lg + 8, padding: scale(24), borderWidth: 1, gap: scale(24) },
+  insightHeader: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
+  insightIcon: { width: scale(36), height: scale(36), borderRadius: R.sm + 4, alignItems: 'center', justifyContent: 'center' },
+  insightHeaderTitle: { fontSize: moderateScale(13), fontWeight: '900', letterSpacing: 1, opacity: 0.6 },
+  insightBody: { gap: scale(16) },
+  bentoMini: { padding: scale(16), borderRadius: R.md + 4 },
+  insightMainText: { fontSize: moderateScale(16), fontWeight: '800', lineHeight: verticalScale(24), letterSpacing: -0.3 },
+  insightStats: { gap: scale(12) },
+  statBento: { padding: scale(16), borderRadius: R.md + 4, alignItems: 'center', gap: 4 },
+  statValue: { fontSize: moderateScale(18), fontWeight: '900' },
+  statLabel: { fontSize: moderateScale(10), fontWeight: '800', opacity: 0.5, letterSpacing: 0.5 },
+  cockpitActions: { gap: scale(12) },
+  actionButtonMain: { height: verticalScale(60), borderRadius: R.md + 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(12) },
+  actionButtonText: { fontSize: moderateScale(16), fontWeight: '900', letterSpacing: 0.5 },
+  actionButtonSecondary: { height: verticalScale(52), borderRadius: R.md + 4, alignItems: 'center', justifyContent: 'center' },
+  actionButtonTextSecondary: { fontSize: moderateScale(14), fontWeight: '800' },
   draftOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   bottomSheetWrapper: { width: '100%' },
   quickDraftSheet: {
@@ -1163,17 +1181,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  sheetHandle: { width: 40, height: 4, borderRadius: R.sm, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginBottom: S.md },
+  sheetHandle: { width: scale(40), height: scale(4), borderRadius: R.sm, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginBottom: S.md },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
-  sheetIcon: { width: 40, height: 40, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
+  sheetIcon: { width: scale(40), height: scale(40), borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
   quickDraftTitle: { fontSize: F.title, fontWeight: '900', letterSpacing: -0.5 },
-  quickInputGroup: { borderRadius: R.lg, paddingHorizontal: S.md, height: 64, justifyContent: 'center' },
+  quickInputGroup: { borderRadius: R.lg, paddingHorizontal: S.md, height: verticalScale(64), justifyContent: 'center' },
   quickInput: { fontWeight: '700', fontSize: F.subhead },
   quickActions: { flexDirection: 'row', gap: S.sm, marginTop: S.lg },
-  quickSave: { flex: 1, height: 56, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
+  quickSave: { flex: 1, height: verticalScale(56), borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
   actionRow: { flexDirection: 'row', paddingHorizontal: S.lg, gap: S.md, marginTop: S.md },
   actionBtn: { flex: 1, borderRadius: R.lg, alignItems: 'center', gap: S.sm },
   actionLabel: { fontWeight: '800' },
-  fab: { position: 'absolute', right: S.lg, minHeight: 50, elevation: 10, zIndex: 100, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16 },
+  fab: { position: 'absolute', right: S.lg, minHeight: scale(50), elevation: 10, zIndex: 100, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16 },
 });
 

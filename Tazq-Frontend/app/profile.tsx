@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowD
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2 } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AuthService, FocusService } from '../services/api';
 import { BottomNavBar } from '../components/BottomNavBar';
@@ -36,13 +36,16 @@ export default function ProfileScreen() {
 
   const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset } = useFocusStore();
   const { habits, toggleDate } = useHabitStore();
-  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects } = usePrefsStore();
+  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor } = usePrefsStore();
   const { unlocked: unlockedAchievements } = useAchievementStore();
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(user?.avatar || 'm1');
   const [newName, setNewName] = useState(user?.name || '');
   const [selectedGoal, setSelectedGoal] = useState(dailyGoalMinutes);
+  const [newMotto, setNewMotto] = useState(motto);
+  const [newProductivityHour, setNewProductivityHour] = useState(productivityHour);
+  const [selectedBorderColor, setSelectedBorderColor] = useState(avatarBorderColor);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -90,6 +93,9 @@ export default function ProfileScreen() {
     setSelectedAvatar(user?.avatar || 'm1');
     setNewName(user?.name || '');
     setSelectedGoal(dailyGoalMinutes);
+    setNewMotto(motto);
+    setNewProductivityHour(productivityHour);
+    setSelectedBorderColor(avatarBorderColor);
     setProfileError(null);
     setEditModalVisible(true);
   };
@@ -108,6 +114,9 @@ export default function ProfileScreen() {
       // Update local state and close only on success — prevents unmounted-component reopen on error
       setUser({ ...user, avatar: selectedAvatar, name: newName.trim() });
       setDailyGoal(selectedGoal);
+      setMotto(newMotto.trim());
+      setProductivityHour(newProductivityHour);
+      setAvatarBorderColor(selectedBorderColor);
       setEditModalVisible(false);
       showToast(t.toastProfileUpdated, 'success');
     } catch (e: any) {
@@ -187,12 +196,15 @@ export default function ProfileScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={[styles.header, { marginTop: S.md }]}>
-            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { borderColor: isDark ? theme.primary + '40' : 'rgba(0,0,0,0.05)', width: 110, height: 110, borderRadius: 55, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { backgroundColor: '#ffffff', borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)') : avatarBorderColor, width: 110, height: 110, borderRadius: 55, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
                 <Image source={getAvatarSource(user?.avatar || null)} style={{ width: 110, height: 110 }} resizeMode="cover" />
             </MotiView>
             <View style={{ alignItems: 'center', marginTop: S.md }}>
                 <Text style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{user?.name || 'Alex'}</Text>
                 <Text style={[styles.email, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{user?.email || 'user@tazq.com'}</Text>
+                {!!motto && (
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontStyle: 'italic', marginTop: 4, textAlign: 'center', paddingHorizontal: S.lg }}>"{motto}"</Text>
+                )}
                 <TouchableOpacity onPress={openEditModal} style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: S.sm }]}>
                     <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '900', fontSize: F.caption }]}>{t.editProfile || 'Edit Profile'}</Text>
                 </TouchableOpacity>
@@ -377,7 +389,7 @@ export default function ProfileScreen() {
                 <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
                   <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: theme.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
-                    <Bell size={18} color={theme.primary} />
+                    <Sunrise size={18} color={theme.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
@@ -401,7 +413,7 @@ export default function ProfileScreen() {
                 <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
                   <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: theme.secondary + '15', alignItems: 'center', justifyContent: 'center' }}>
-                    <Bell size={18} color={theme.secondary} />
+                    <Sunset size={18} color={theme.secondary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
@@ -425,7 +437,7 @@ export default function ProfileScreen() {
                 <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
                   <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#F59E0B15', alignItems: 'center', justifyContent: 'center' }}>
-                    <Star size={18} color="#F59E0B" />
+                    <CalendarDays size={18} color="#F59E0B" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
@@ -494,7 +506,7 @@ export default function ProfileScreen() {
       <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
             <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} />
-              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', paddingBottom: kbHeight > 0 ? S.md : (insets.bottom > 0 ? insets.bottom + S.md : S.lg), maxHeight: height - insets.top - 16 }]}>
+              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', maxHeight: height - insets.top - 16 }]}>
                 <View {...editPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
                   <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
                 </View>
@@ -502,105 +514,207 @@ export default function ProfileScreen() {
                   {t.editProfile || 'Edit Profile'}
                 </Text>
 
-                {/* Name input */}
-                <View style={{ width: '100%', marginBottom: S.md }}>
-                  <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
-                    {t.editName || 'Display Name'}
-                  </Text>
-                  <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
-                    <TextInput
-                      value={newName}
-                      onChangeText={setNewName}
-                      placeholder={t.namePlaceholder || 'Your name'}
-                      placeholderTextColor={theme.onSurfaceVariant + '99'}
-                      style={[styles.nameInput, { color: theme.onSurface }]}
-                      maxLength={50}
-                      underlineColorAndroid="transparent"
-                    />
-                  </View>
-                </View>
-
-                {/* Avatar selection */}
-                <View style={{ width: '100%', marginBottom: S.md }}>
-                  <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>Avatar</Text>
-                  <View style={[styles.avatarGrid, { gap: S.sm }]}>
-                    {AVATAR_CONFIGS.map((config) => {
-                      const isSelected = selectedAvatar === config.key;
-                      return (
-                        <TouchableOpacity
-                          key={config.id}
-                          onPress={() => { Haptics.selectionAsync(); setSelectedAvatar(config.key); }}
-                          activeOpacity={0.75}
-                          style={{ alignItems: 'center', gap: 5 }}
-                        >
-                          <View style={{
-                            width: 64, height: 64, borderRadius: 32,
-                            borderWidth: isSelected ? 3 : 1.5,
-                            borderColor: isSelected ? theme.primary : theme.outline + '40',
-                            overflow: 'hidden',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}>
-                            <Image
-                              source={config.image}
-                              style={{ width: 64, height: 64 }}
-                              resizeMode="cover"
-                            />
-                          </View>
-                          <Text style={{
-                            fontSize: 9, fontWeight: '800', letterSpacing: 0.3,
-                            color: isSelected ? theme.primary : theme.onSurfaceVariant,
-                            opacity: isSelected ? 1 : 0.5,
-                          }}>
-                            {config.name.toUpperCase()}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-
-                {/* Daily focus goal */}
-                <View style={{ width: '100%', marginBottom: S.lg }}>
-                  <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
-                    {t.dailyFocusGoal || 'Daily Focus Goal'}
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: S.sm }}>
-                    {GOAL_OPTIONS.map((g) => (
-                      <TouchableOpacity
-                        key={g}
-                        onPress={() => { Haptics.selectionAsync(); setSelectedGoal(g); }}
-                        style={[
-                          styles.goalChip,
-                          { backgroundColor: selectedGoal === g ? theme.primary : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow) }
-                        ]}
-                      >
-                        <Text style={{ color: selectedGoal === g ? 'white' : theme.onSurfaceVariant, fontWeight: '800', fontSize: F.body }}>
-                          {g}m
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Inline error */}
-                {profileError && (
-                  <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>
-                    {profileError}
-                  </Text>
-                )}
-
-                {/* Save button */}
-                <TouchableOpacity
-                  onPress={handleSaveProfile}
-                  disabled={savingProfile}
-                  style={[styles.saveBtn, { backgroundColor: theme.primary }]}
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: S.md }}
                 >
-                  {savingProfile
-                    ? <ActivityIndicator color="white" />
-                    : <Text style={{ color: 'white', fontWeight: '900', fontSize: F.body }}>{t.save}</Text>
-                  }
-                </TouchableOpacity>
+                  {/* Name input */}
+                  <View style={{ width: '100%', marginBottom: S.md }}>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
+                      {t.editName || 'Display Name'}
+                    </Text>
+                    <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
+                      <TextInput
+                        value={newName}
+                        onChangeText={setNewName}
+                        placeholder={t.namePlaceholder || 'Your name'}
+                        placeholderTextColor={theme.onSurfaceVariant + '99'}
+                        style={[styles.nameInput, { color: theme.onSurface }]}
+                        maxLength={50}
+                        underlineColorAndroid="transparent"
+                      />
+                    </View>
+                  </View>
+
+                  {/* Avatar selection */}
+                  <View style={{ width: '100%', marginBottom: S.md }}>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>Avatar</Text>
+                    <View style={[styles.avatarGrid, { gap: S.sm }]}>
+                      {AVATAR_CONFIGS.map((config) => {
+                        const isSelected = selectedAvatar === config.key;
+                        return (
+                          <TouchableOpacity
+                            key={config.id}
+                            onPress={() => { Haptics.selectionAsync(); setSelectedAvatar(config.key); }}
+                            activeOpacity={0.75}
+                            style={{ alignItems: 'center', gap: 5 }}
+                          >
+                            <View style={{
+                              width: 64, height: 64, borderRadius: 32,
+                              borderWidth: isSelected ? 3 : 1.5,
+                              borderColor: isSelected ? theme.primary : theme.outline + '40',
+                              overflow: 'hidden',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: '#ffffff',
+                            }}>
+                              <Image
+                                source={config.image}
+                                style={{ width: 64, height: 64 }}
+                                resizeMode="cover"
+                              />
+                            </View>
+                            <Text style={{
+                              fontSize: 9, fontWeight: '800', letterSpacing: 0.3,
+                              color: isSelected ? theme.primary : theme.onSurfaceVariant,
+                              opacity: isSelected ? 1 : 0.5,
+                            }}>
+                              {config.name.toUpperCase()}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  {/* Avatar Border Color */}
+                  <View style={{ width: '100%', marginBottom: S.md }}>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
+                      {language === 'tr' ? 'Profil Çerçeve Rengi' : 'Profile Border Color'}
+                    </Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: S.sm,
+                        paddingRight: S.lg,
+                      }}
+                      style={{ marginTop: S.xs }}
+                    >
+                      {([
+                        { key: 'transparent', color: 'transparent', labelTr: 'Yok', labelEn: 'None' },
+                        { key: 'blue', color: '#2563EB', labelTr: 'Mavi', labelEn: 'Blue' },
+                        { key: 'orange', color: '#F97316', labelTr: 'Turuncu', labelEn: 'Orange' },
+                        { key: 'indigo', color: '#6366F1', labelTr: 'İndigo', labelEn: 'Indigo' },
+                        { key: 'emerald', color: '#10B981', labelTr: 'Zümrüt', labelEn: 'Emerald' },
+                        { key: 'amber', color: '#F59E0B', labelTr: 'Kehribar', labelEn: 'Amber' },
+                        { key: 'rose', color: '#EC4899', labelTr: 'Gül', labelEn: 'Rose' },
+                        { key: 'violet', color: '#8B5CF6', labelTr: 'Menekşe', labelEn: 'Violet' },
+                      ] as const).map((colorOpt) => {
+                        const isSelected = selectedBorderColor === colorOpt.color;
+                        const isNone = colorOpt.color === 'transparent';
+                        return (
+                          <TouchableOpacity
+                            key={colorOpt.key}
+                            onPress={() => { Haptics.selectionAsync(); setSelectedBorderColor(colorOpt.color); }}
+                            activeOpacity={0.8}
+                            style={{
+                              width: 38,
+                              height: 38,
+                              borderRadius: 19,
+                              borderWidth: isSelected ? 3 : 1.5,
+                              borderColor: isSelected ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                            }}
+                          >
+                            <View style={{
+                              width: 26,
+                              height: 26,
+                              borderRadius: 13,
+                              borderWidth: isNone ? 1.5 : 0,
+                              borderStyle: isNone ? 'dashed' : 'solid',
+                              borderColor: isNone ? (isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)') : 'transparent',
+                              backgroundColor: isNone ? 'transparent' : colorOpt.color,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}>
+                              {isSelected && (
+                                <View style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: 4,
+                                  backgroundColor: isNone ? (isDark ? '#FFFFFF' : '#000000') : '#FFFFFF',
+                                }} />
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  {/* Motto */}
+                  <View style={{ width: '100%', marginBottom: S.lg }}>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
+                      {language === 'tr' ? 'Kişisel Motto' : 'Personal Motto'}
+                    </Text>
+                    <TextInput
+                      value={newMotto}
+                      onChangeText={setNewMotto}
+                      placeholder={language === 'tr' ? 'Seni motive eden bir cümle…' : 'A sentence that motivates you…'}
+                      placeholderTextColor={theme.onSurfaceVariant + '60'}
+                      maxLength={60}
+                      style={{ fontSize: F.body, color: theme.onSurface, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, marginTop: S.xs }}
+                    />
+                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.4, textAlign: 'right', marginTop: 4 }}>{newMotto.length}/60</Text>
+                  </View>
+
+                  {/* Productivity hour */}
+                  <View style={{ width: '100%', marginBottom: S.lg }}>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
+                      {language === 'tr' ? 'En Verimli Olduğun Zaman' : 'Peak Productivity Time'}
+                    </Text>
+                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.5, marginBottom: S.sm }}>
+                      {language === 'tr' ? 'Sabah özeti bu saate planlanır.' : 'Morning brief is scheduled around this time.'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: S.xs }}>
+                      {([
+                        { key: 'morning',   labelTr: 'Sabah',   labelEn: 'Morning',   hint: '07:00', icon: (color: string) => <Sunrise size={18} color={color} /> },
+                        { key: 'afternoon', labelTr: 'Öğlen',   labelEn: 'Afternoon', hint: '12:00', icon: (color: string) => <Sun size={18} color={color} /> },
+                        { key: 'evening',   labelTr: 'Akşam',   labelEn: 'Evening',   hint: '17:00', icon: (color: string) => <Sunset size={18} color={color} /> },
+                        { key: 'night',     labelTr: 'Gece',    labelEn: 'Night',     hint: '21:00', icon: (color: string) => <Moon size={18} color={color} /> },
+                      ] as const).map(opt => {
+                        const sel = newProductivityHour === opt.key;
+                        const itemColor = sel ? theme.primary : theme.onSurfaceVariant;
+                        return (
+                          <TouchableOpacity
+                            key={opt.key}
+                            onPress={() => { Haptics.selectionAsync(); setNewProductivityHour(opt.key); }}
+                            style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: S.sm, borderRadius: R.md, borderWidth: 1, borderColor: sel ? theme.primary + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), backgroundColor: sel ? theme.primary + '15' : 'transparent' }}
+                          >
+                            {opt.icon(itemColor)}
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: itemColor }}>{language === 'tr' ? opt.labelTr : opt.labelEn}</Text>
+                            <Text style={{ fontSize: 9, color: theme.onSurfaceVariant, opacity: 0.5 }}>{opt.hint}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                </ScrollView>
+
+                {/* Save button — fixed outside scroll, respects safe area */}
+                <View style={{ paddingHorizontal: S.lg, paddingTop: S.sm, paddingBottom: insets.bottom > 0 ? insets.bottom : S.xl }}>
+                  {profileError && (
+                    <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>
+                      {profileError}
+                    </Text>
+                  )}
+                  <TouchableOpacity
+                    onPress={handleSaveProfile}
+                    disabled={savingProfile}
+                    style={[styles.saveBtn, { backgroundColor: theme.primary }]}
+                  >
+                    {savingProfile
+                      ? <ActivityIndicator color="white" />
+                      : <Text style={{ color: 'white', fontWeight: '900', fontSize: F.body }}>{t.save}</Text>
+                    }
+                  </TouchableOpacity>
+                </View>
               </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
@@ -647,9 +761,9 @@ const styles = StyleSheet.create({
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.lg },
   logoutText: { fontWeight: '800' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, borderBottomLeftRadius: S.xl, borderBottomRightRadius: S.xl, padding: S.lg },
+  modalContent: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, borderBottomLeftRadius: S.xl, borderBottomRightRadius: S.xl, paddingTop: S.sm, overflow: 'hidden' },
   modalHandle: { width: 40, height: 4, borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
-  modalTitle: { fontWeight: '900', marginBottom: S.lg, textAlign: 'center' },
+  modalTitle: { fontWeight: '900', marginBottom: S.lg, textAlign: 'center', paddingHorizontal: S.lg },
   avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
   inputGroup: { borderRadius: R.md, paddingHorizontal: S.md, height: 48, justifyContent: 'center' },
   nameInput: { fontSize: F.body, fontWeight: '600' },
