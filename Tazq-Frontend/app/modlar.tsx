@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookOpen, ChevronRight, CalendarDays, X } from 'lucide-react-native';
@@ -55,6 +55,10 @@ const getEmojiFromLabel = (str: string): string => {
 export default function ModlarScreen() {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
+  const screenWidth = Dimensions.get('window').width;
+  const availableWidth = screenWidth - 84; // screen padding S.lg (24*2) + card padding S.md (16*2) = 80px + 4px safety buffer
+  const BASE_CALENDAR_WIDTH = 340;
+  const calendarScale = availableWidth < BASE_CALENDAR_WIDTH ? (availableWidth / BASE_CALENDAR_WIDTH) : 1;
   const { language } = useLanguageStore();
   const ramadanStatus = useMemo(() => getCurrentRamadanStatus(), []);
   const { runAdaptations } = usePlanAdaptations();
@@ -143,6 +147,16 @@ export default function ModlarScreen() {
   const [weightEntryInput, setWeightEntryInput] = useState('');
   const [showWeightEntry, setShowWeightEntry] = useState(false);
 
+  const {
+    currentWeight, setCurrentWeight,
+    targetWeight, setTargetWeight,
+    weeklyKm, setWeeklyKm,
+    targetEvent, setTargetEvent,
+    trainingDays, setTrainingDays,
+    weightLog, addWeightEntry,
+    resetInputs: resetSporInputs,
+  } = useSporStore();
+
   const saveWeightEntry = useCallback((kg: number) => {
     addWeightEntry(kg);
     setWeightEntryInput('');
@@ -190,16 +204,6 @@ export default function ModlarScreen() {
       }).catch(() => {});
     }
   }, [addWeightEntry, runAdaptations, sporPlanTaskIds, spor2PlanTaskIds, spor3PlanTaskIds, sporPlanHabitIds, language]);
-
-  const {
-    currentWeight, setCurrentWeight,
-    targetWeight, setTargetWeight,
-    weeklyKm, setWeeklyKm,
-    targetEvent, setTargetEvent,
-    trainingDays, setTrainingDays,
-    weightLog, addWeightEntry,
-    resetInputs: resetSporInputs,
-  } = useSporStore();
 
   const sporType = sporGoalInput ? detectSporType(sporGoalInput) : null;
   const cwNum = parseFloat(currentWeight);
@@ -792,7 +796,11 @@ export default function ModlarScreen() {
                               <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
                             </TouchableOpacity>
                             {showExam2DatePicker && (
-                              <DateTimePicker value={exam2DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 18); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowExam2DatePicker(false); if (event.type === 'dismissed') { setShowExam2DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExam2DateInput(iso); setSeasonalPref('exam2Date', iso); if (Platform.OS === 'ios') setShowExam2DatePicker(false); } }} />
+                              <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
+                                <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : null}>
+                                  <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={exam2DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 18); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowExam2DatePicker(false); if (event.type === 'dismissed') { setShowExam2DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExam2DateInput(iso); setSeasonalPref('exam2Date', iso); if (Platform.OS === 'ios') setShowExam2DatePicker(false); } }} />
+                                </View>
+                              </View>
                             )}
                             {selectedExam2Preset && (
                               <View style={{ gap: 6 }}>
@@ -857,7 +865,13 @@ export default function ModlarScreen() {
                                 <Text style={{ color: exam3DateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{exam3DateInput ? formatExamDate(exam3DateInput) : (language === 'tr' ? 'Sınav tarihi seç' : 'Select date')}</Text>
                                 <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
                               </TouchableOpacity>
-                              {showExam3DatePicker && (<DateTimePicker value={exam3DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 18); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowExam3DatePicker(false); if (event.type === 'dismissed') { setShowExam3DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExam3DateInput(iso); setSeasonalPref('exam3Date', iso); if (Platform.OS === 'ios') setShowExam3DatePicker(false); } }} />)}
+                              {showExam3DatePicker && (
+                                <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
+                                  <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : null}>
+                                    <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={exam3DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 18); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowExam3DatePicker(false); if (event.type === 'dismissed') { setShowExam3DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExam3DateInput(iso); setSeasonalPref('exam3Date', iso); if (Platform.OS === 'ios') setShowExam3DatePicker(false); } }} />
+                                  </View>
+                                </View>
+                              )}
                               {selectedExam3Preset && (
                                 <View style={{ gap: 6 }}>
                                   <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.8 }}>{language === 'tr' ? 'Günlük kaç saat çalışabilirsin?' : 'How many hours can you study daily?'}</Text>
@@ -902,7 +916,13 @@ export default function ModlarScreen() {
                         <Text style={{ color: examDateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{examDateInput ? formatExamDate(examDateInput) : (language === 'tr' ? 'Sınav tarihi seç' : 'Select exam date')}</Text>
                         <CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} />
                       </TouchableOpacity>
-                      {showDatePicker && (<DateTimePicker value={examDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 18); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowDatePicker(false); if (event.type === 'dismissed') { setShowDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExamDateInput(iso); setSeasonalPref('examDate', iso); if (Platform.OS === 'ios') setShowDatePicker(false); } }} />)}
+                      {showDatePicker && (
+                        <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
+                          <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : null}>
+                            <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={examDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 18); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowDatePicker(false); if (event.type === 'dismissed') { setShowDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setExamDateInput(iso); setSeasonalPref('examDate', iso); if (Platform.OS === 'ios') setShowDatePicker(false); } }} />
+                          </View>
+                        </View>
+                      )}
                       {selectedExamPreset && (
                         <View style={{ gap: 6 }}>
                           <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.8 }}>{language === 'tr' ? 'Günlük kaç saat çalışabilirsin?' : 'How many hours can you study daily?'}</Text>
@@ -1002,7 +1022,13 @@ export default function ModlarScreen() {
                     <View style={{ gap: S.sm }}>
                       <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}><TextInput value={tezNameInput} onChangeText={(v) => { setTezNameInput(v); setSeasonalPref('tezName', v); }} placeholder={language === 'tr' ? 'Proje adı (Yüksek Lisans Tezi...)' : "Project name (Master's Thesis...)"} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" /></View>
                       <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowTezDatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}><Text style={{ color: tezDateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{tezDateInput ? formatExamDate(tezDateInput) : (language === 'tr' ? 'Teslim tarihi seç' : 'Select deadline')}</Text><CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} /></TouchableOpacity>
-                      {showTezDatePicker && (<DateTimePicker value={tezDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowTezDatePicker(false); if (event.type === 'dismissed') { setShowTezDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setTezDateInput(iso); setSeasonalPref('tezDate', iso); if (Platform.OS === 'ios') setShowTezDatePicker(false); } }} />)}
+                      {showTezDatePicker && (
+                        <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
+                          <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : null}>
+                            <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={tezDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowTezDatePicker(false); if (event.type === 'dismissed') { setShowTezDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setTezDateInput(iso); setSeasonalPref('tezDate', iso); if (Platform.OS === 'ios') setShowTezDatePicker(false); } }} />
+                          </View>
+                        </View>
+                      )}
                       <View style={{ flexDirection: 'row', gap: S.sm }}>
                         <TouchableOpacity onPress={() => { setTezExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}><Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text></TouchableOpacity>
                         {tezIsComplete && (<TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTezExpanded(false); setModePreview({ type: 'tez', key: Date.now() }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: tezUrgencyColor, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={14} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></TouchableOpacity>)}
@@ -1095,7 +1121,13 @@ export default function ModlarScreen() {
                               <Text style={{ color: mulakat2DateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{mulakat2DateInput ? formatExamDate(mulakat2DateInput) : (language === 'tr' ? 'Mülakat tarihi seç' : 'Select interview date')}</Text>
                               <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
                             </TouchableOpacity>
-                            {showMulakat2DatePicker && (<DateTimePicker value={mulakat2DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowMulakat2DatePicker(false); if (event.type === 'dismissed') { setShowMulakat2DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setMulakat2DateInput(iso); setSeasonalPref('mulakat2Date', iso); if (Platform.OS === 'ios') setShowMulakat2DatePicker(false); } }} />)}
+                            {showMulakat2DatePicker && (
+                              <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
+                                <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : null}>
+                                  <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={mulakat2DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowMulakat2DatePicker(false); if (event.type === 'dismissed') { setShowMulakat2DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setMulakat2DateInput(iso); setSeasonalPref('mulakat2Date', iso); if (Platform.OS === 'ios') setShowMulakat2DatePicker(false); } }} />
+                                </View>
+                              </View>
+                            )}
                             <View style={{ flexDirection: 'row', gap: S.sm }}>
                               <TouchableOpacity onPress={() => { if (mulakat2NameInput || mulakat2DateInput) { mulakat2PlanHabitIds.forEach(id => removeHabit(id)); mulakat2PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat2')); clearPlanIds('mulakat2'); setMulakat2NameInput(''); setMulakat2DateInput(''); setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); } setMulakat2Expanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                                 <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
@@ -1135,7 +1167,13 @@ export default function ModlarScreen() {
                                 <Text style={{ color: mulakat3DateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{mulakat3DateInput ? formatExamDate(mulakat3DateInput) : (language === 'tr' ? 'Mülakat tarihi seç' : 'Select interview date')}</Text>
                                 <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
                               </TouchableOpacity>
-                              {showMulakat3DatePicker && (<DateTimePicker value={mulakat3DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowMulakat3DatePicker(false); if (event.type === 'dismissed') { setShowMulakat3DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setMulakat3DateInput(iso); setSeasonalPref('mulakat3Date', iso); if (Platform.OS === 'ios') setShowMulakat3DatePicker(false); } }} />)}
+                              {showMulakat3DatePicker && (
+                                <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
+                                  <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : null}>
+                                    <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={mulakat3DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowMulakat3DatePicker(false); if (event.type === 'dismissed') { setShowMulakat3DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setMulakat3DateInput(iso); setSeasonalPref('mulakat3Date', iso); if (Platform.OS === 'ios') setShowMulakat3DatePicker(false); } }} />
+                                  </View>
+                                </View>
+                              )}
                               <View style={{ flexDirection: 'row', gap: S.sm }}>
                                 <TouchableOpacity onPress={() => { if (mulakat3NameInput || mulakat3DateInput) { mulakat3PlanHabitIds.forEach(id => removeHabit(id)); mulakat3PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat3')); clearPlanIds('mulakat3'); setMulakat3NameInput(''); setMulakat3DateInput(''); setSeasonalPref('mulakat3Name', ''); setSeasonalPref('mulakat3Date', null); } setMulakat3Expanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
@@ -1152,7 +1190,13 @@ export default function ModlarScreen() {
                     <View style={{ gap: S.sm }}>
                       <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1 }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}><TextInput value={mulakatNameInput} onChangeText={(v) => { setMulakatNameInput(v); setSeasonalPref('mulakatName', v); }} placeholder={language === 'tr' ? 'Şirket / Pozisyon (Google - SWE...)' : 'Company / Role (Google - SWE...)'} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" /></View>
                       <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowMulakatDatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}><Text style={{ color: mulakatDateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{mulakatDateInput ? formatExamDate(mulakatDateInput) : (language === 'tr' ? 'Mülakat tarihi seç' : 'Select interview date')}</Text><CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} /></TouchableOpacity>
-                      {showMulakatDatePicker && (<DateTimePicker value={mulakatDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowMulakatDatePicker(false); if (event.type === 'dismissed') { setShowMulakatDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setMulakatDateInput(iso); setSeasonalPref('mulakatDate', iso); if (Platform.OS === 'ios') setShowMulakatDatePicker(false); } }} />)}
+                      {showMulakatDatePicker && (
+                        <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
+                          <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : null}>
+                            <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={mulakatDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setMonth(d.getMonth() + 3); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowMulakatDatePicker(false); if (event.type === 'dismissed') { setShowMulakatDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setMulakatDateInput(iso); setSeasonalPref('mulakatDate', iso); if (Platform.OS === 'ios') setShowMulakatDatePicker(false); } }} />
+                          </View>
+                        </View>
+                      )}
                       <View style={{ flexDirection: 'row', gap: S.sm }}>
                         <TouchableOpacity onPress={() => { setMulakatExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}><Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text></TouchableOpacity>
                         {mulakatIsComplete && (<TouchableOpacity onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setMulakatExpanded(false); setModePreview({ type: 'mulakat', key: Date.now(), mulakatSlot: 'mulakat' }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: mulakatUrgencyColor, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={14} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></TouchableOpacity>)}
@@ -1376,13 +1420,49 @@ export default function ModlarScreen() {
                           <View style={{ gap: S.sm }}>
                             <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8 }}>{language === 'tr' ? 'Hedef türünü seç' : 'Select goal type'}</Text>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
-                              {SPOR_GOALS.map((g) => { const active = spor2GoalInput === g.label; return (<TouchableOpacity key={g.key} onPress={() => { Haptics.selectionAsync(); const val = active ? '' : g.label; setSpor2GoalInput(val); setSeasonalPref('spor2Goal', val); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: 8, borderRadius: R.full, borderWidth: 1.5, borderColor: active ? sporColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? sporColor + '18' : 'transparent' }} activeOpacity={0.7}><Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? sporColor : theme.onSurfaceVariant }}>{g.label}</Text></TouchableOpacity>); })}
+                              {SPOR_GOALS.map((g) => {
+                                const active = spor2GoalInput === g.label;
+                                return (
+                                  <TouchableOpacity
+                                    key={g.key}
+                                    onPress={() => {
+                                      Haptics.selectionAsync();
+                                      const val = active ? '' : g.label;
+                                      setSpor2GoalInput(val);
+                                      setSeasonalPref('spor2Goal', val);
+                                    }}
+                                    style={{
+                                      flexDirection: 'row',
+                                      alignItems: 'center',
+                                      gap: 6,
+                                      paddingHorizontal: S.sm + 2,
+                                      paddingVertical: 8,
+                                      borderRadius: R.full,
+                                      borderWidth: 1.5,
+                                      borderColor: active ? sporColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
+                                      backgroundColor: active ? sporColor + '18' : 'transparent'
+                                    }}
+                                    activeOpacity={0.7}
+                                  >
+                                    {renderModeEmojiIcon(getEmojiFromLabel(g.label), 14, active ? sporColor : theme.onSurfaceVariant)}
+                                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? sporColor : theme.onSurfaceVariant }}>
+                                      {stripEmojiPrefix(g.label)}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
                             </View>
                             <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowSpor2DatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
                               <Text style={{ color: spor2DateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{spor2DateInput ? formatExamDate(spor2DateInput) : (language === 'tr' ? 'Hedef tarihi seç' : 'Select target date')}</Text>
                               <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
                             </TouchableOpacity>
-                            {showSpor2DatePicker && (<DateTimePicker value={spor2DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowSpor2DatePicker(false); if (event.type === 'dismissed') { setShowSpor2DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setSpor2DateInput(iso); setSeasonalPref('spor2Date', iso); if (Platform.OS === 'ios') setShowSpor2DatePicker(false); } }} />)}
+                            {showSpor2DatePicker && (
+                              <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
+                                <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : null}>
+                                  <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={spor2DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowSpor2DatePicker(false); if (event.type === 'dismissed') { setShowSpor2DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setSpor2DateInput(iso); setSeasonalPref('spor2Date', iso); if (Platform.OS === 'ios') setShowSpor2DatePicker(false); } }} />
+                                </View>
+                              </View>
+                            )}
                             <View style={{ flexDirection: 'row', gap: S.sm }}>
                               <TouchableOpacity onPress={() => { if (spor2GoalInput || spor2DateInput) { spor2PlanHabitIds.forEach(id => removeHabit(id)); spor2PlanTaskIds.forEach(id => retirePlanTask(id, 'spor2')); clearPlanIds('spor2'); setSpor2GoalInput(''); setSpor2DateInput(''); setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); } setSpor2Expanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                                 <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
@@ -1424,13 +1504,49 @@ export default function ModlarScreen() {
                             <View style={{ gap: S.sm }}>
                               <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8 }}>{language === 'tr' ? 'Hedef türünü seç' : 'Select goal type'}</Text>
                               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
-                                {SPOR_GOALS.map((g) => { const active = spor3GoalInput === g.label; return (<TouchableOpacity key={g.key} onPress={() => { Haptics.selectionAsync(); const val = active ? '' : g.label; setSpor3GoalInput(val); setSeasonalPref('spor3Goal', val); }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: 8, borderRadius: R.full, borderWidth: 1.5, borderColor: active ? sporColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? sporColor + '18' : 'transparent' }} activeOpacity={0.7}><Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? sporColor : theme.onSurfaceVariant }}>{g.label}</Text></TouchableOpacity>); })}
+                                {SPOR_GOALS.map((g) => {
+                                  const active = spor3GoalInput === g.label;
+                                  return (
+                                    <TouchableOpacity
+                                      key={g.key}
+                                      onPress={() => {
+                                        Haptics.selectionAsync();
+                                        const val = active ? '' : g.label;
+                                        setSpor3GoalInput(val);
+                                        setSeasonalPref('spor3Goal', val);
+                                      }}
+                                      style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        paddingHorizontal: S.sm + 2,
+                                        paddingVertical: 8,
+                                        borderRadius: R.full,
+                                        borderWidth: 1.5,
+                                        borderColor: active ? sporColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
+                                        backgroundColor: active ? sporColor + '18' : 'transparent'
+                                      }}
+                                      activeOpacity={0.7}
+                                    >
+                                      {renderModeEmojiIcon(getEmojiFromLabel(g.label), 14, active ? sporColor : theme.onSurfaceVariant)}
+                                      <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? sporColor : theme.onSurfaceVariant }}>
+                                        {stripEmojiPrefix(g.label)}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
                               </View>
                               <TouchableOpacity onPress={() => { Haptics.selectionAsync(); setShowSpor3DatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: 1, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
                                 <Text style={{ color: spor3DateInput ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{spor3DateInput ? formatExamDate(spor3DateInput) : (language === 'tr' ? 'Hedef tarihi seç' : 'Select target date')}</Text>
                                 <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
                               </TouchableOpacity>
-                              {showSpor3DatePicker && (<DateTimePicker value={spor3DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowSpor3DatePicker(false); if (event.type === 'dismissed') { setShowSpor3DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setSpor3DateInput(iso); setSeasonalPref('spor3Date', iso); if (Platform.OS === 'ios') setShowSpor3DatePicker(false); } }} />)}
+                              {showSpor3DatePicker && (
+                                <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
+                                  <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : null}>
+                                    <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={spor3DateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowSpor3DatePicker(false); if (event.type === 'dismissed') { setShowSpor3DatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setSpor3DateInput(iso); setSeasonalPref('spor3Date', iso); if (Platform.OS === 'ios') setShowSpor3DatePicker(false); } }} />
+                                  </View>
+                                </View>
+                              )}
                               <View style={{ flexDirection: 'row', gap: S.sm }}>
                                 <TouchableOpacity onPress={() => { if (spor3GoalInput || spor3DateInput) { spor3PlanHabitIds.forEach(id => removeHabit(id)); spor3PlanTaskIds.forEach(id => retirePlanTask(id, 'spor3')); clearPlanIds('spor3'); setSpor3GoalInput(''); setSpor3DateInput(''); setSeasonalPref('spor3Goal', ''); setSeasonalPref('spor3Date', null); } setSpor3Expanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
@@ -1458,45 +1574,100 @@ export default function ModlarScreen() {
                         {SPOR_GOALS.map((g) => {
                           const active = sporGoalInput === g.label;
                           return (
-                            <TouchableOpacity key={g.key} onPress={() => {
-                              Haptics.selectionAsync();
-                              const val = active ? '' : g.label;
-                              const newType = val ? detectSporType(val) : null;
-                              const hasActivePlan = sporPlanHabitIds.length > 0 || sporPlanTaskIds.length > 0;
-                              const typeChanged = newType !== sporType && hasActivePlan;
-                              const apply = () => { setSporGoalInput(val); setSeasonalPref('sporGoal', val); };
-                              if (typeChanged) {
-                                Alert.alert(
-                                  language === 'tr' ? 'Hedef Türü Değişiyor' : 'Goal Type Changing',
-                                  language === 'tr' ? 'Mevcut plan alışkanlık ve görevleri kaldırılacak. Devam et?' : 'Existing plan habits and tasks will be removed. Continue?',
-                                  [
-                                    { text: language === 'tr' ? 'İptal' : 'Cancel', style: 'cancel' },
-                                    { text: language === 'tr' ? 'Devam Et' : 'Continue', style: 'destructive', onPress: () => {
-                                      sporPlanHabitIds.forEach(id => removeHabit(id));
-                                      sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor'));
-                                      clearPlanIds('spor');
-                                      apply();
-                                    }},
-                                  ]
-                                );
-                              } else { apply(); }
-                            }} style={{ paddingHorizontal: S.sm + 2, paddingVertical: 8, borderRadius: R.full, borderWidth: 1.5, borderColor: active ? sporColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? sporColor + '18' : 'transparent' }} activeOpacity={0.7}>
-                              <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? sporColor : theme.onSurfaceVariant }}>{g.label}</Text>
+                            <TouchableOpacity
+                              key={g.key}
+                              onPress={() => {
+                                Haptics.selectionAsync();
+                                const val = active ? '' : g.label;
+                                const newType = val ? detectSporType(val) : null;
+                                const hasActivePlan = sporPlanHabitIds.length > 0 || sporPlanTaskIds.length > 0;
+                                const typeChanged = newType !== sporType && hasActivePlan;
+                                const apply = () => {
+                                  setSporGoalInput(val);
+                                  setSeasonalPref('sporGoal', val);
+                                  if (newType === 'kilo') {
+                                    if (!currentWeight || parseFloat(currentWeight) <= 0) {
+                                      setCurrentWeight('75');
+                                    }
+                                    if (!targetWeight || parseFloat(targetWeight) <= 0) {
+                                      setTargetWeight('70');
+                                    }
+                                  }
+                                };
+                                if (typeChanged) {
+                                  Alert.alert(
+                                    language === 'tr' ? 'Hedef Türü Değişiyor' : 'Goal Type Changing',
+                                    language === 'tr' ? 'Mevcut plan alışkanlık ve görevleri kaldırılacak. Devam et?' : 'Existing plan habits and tasks will be removed. Continue?',
+                                    [
+                                      { text: language === 'tr' ? 'İptal' : 'Cancel', style: 'cancel' },
+                                      { text: language === 'tr' ? 'Devam Et' : 'Continue', style: 'destructive', onPress: () => {
+                                        sporPlanHabitIds.forEach(id => removeHabit(id));
+                                        sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor'));
+                                        clearPlanIds('spor');
+                                        apply();
+                                      }},
+                                    ]
+                                  );
+                                } else { apply(); }
+                              }}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 6,
+                                paddingHorizontal: S.sm + 2,
+                                paddingVertical: 8,
+                                borderRadius: R.full,
+                                borderWidth: 1.5,
+                                borderColor: active ? sporColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
+                                backgroundColor: active ? sporColor + '18' : 'transparent'
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              {renderModeEmojiIcon(getEmojiFromLabel(g.label), 14, active ? sporColor : theme.onSurfaceVariant)}
+                              <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? sporColor : theme.onSurfaceVariant }}>
+                                {stripEmojiPrefix(g.label)}
+                              </Text>
                             </TouchableOpacity>
                           );
                         })}
                       </View>
 
-                      {/* Kilo: current + target weight */}
+                      {/* Kilo: current + target weight wheel pickers */}
                       {sporType === 'kilo' && (
-                        <View style={{ gap: S.xs }}>
-                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8 }}>{language === 'tr' ? 'Kilo bilgileri' : 'Weight info'}</Text>
-                          <View style={{ flexDirection: 'row', gap: S.sm }}>
-                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: R.md, paddingHorizontal: S.md, height: 44, borderWidth: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', gap: S.xs }}>
-                              <TextInput value={currentWeight} onChangeText={setCurrentWeight} placeholder={language === 'tr' ? 'Şu an (kg)' : 'Current (kg)'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="decimal-pad" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700', paddingVertical: 0 }} returnKeyType="next" underlineColorAndroid="transparent" />
+                        <View style={{ gap: S.sm }}>
+                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8, marginBottom: S.xs }}>
+                            {language === 'tr' ? 'Kilo Bilgileri (Kaydırarak Seçin)' : 'Weight Information (Scroll to Select)'}
+                          </Text>
+                          <View style={{ flexDirection: 'row', gap: S.sm, justifyContent: 'center', alignItems: 'center' }}>
+                            {/* Current Weight Wheel */}
+                            <View style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+                              <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                {language === 'tr' ? 'Şu Anki' : 'Current'}
+                              </Text>
+                              <WeightWheelPicker
+                                value={cwNum > 0 ? Math.round(cwNum) : 75}
+                                onChange={(val) => setCurrentWeight(val.toString())}
+                                theme={theme}
+                                isDark={isDark}
+                                sporColor={sporColor}
+                              />
                             </View>
-                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: R.md, paddingHorizontal: S.md, height: 44, borderWidth: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', gap: S.xs }}>
-                              <TextInput value={targetWeight} onChangeText={setTargetWeight} placeholder={language === 'tr' ? 'Hedef (kg)' : 'Target (kg)'} placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'} keyboardType="decimal-pad" style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700', paddingVertical: 0 }} returnKeyType="done" underlineColorAndroid="transparent" />
+
+                            {/* Divider line */}
+                            <View style={{ width: 1, height: 80, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginTop: 15 }} />
+
+                            {/* Target Weight Wheel */}
+                            <View style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+                              <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                {language === 'tr' ? 'Hedef' : 'Target'}
+                              </Text>
+                              <WeightWheelPicker
+                                value={twNum > 0 ? Math.round(twNum) : 70}
+                                onChange={(val) => setTargetWeight(val.toString())}
+                                theme={theme}
+                                isDark={isDark}
+                                sporColor={sporColor}
+                              />
                             </View>
                           </View>
                           {cwNum > 0 && !kiloWeightValid && (
@@ -1586,7 +1757,11 @@ export default function ModlarScreen() {
                             <CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} />
                           </TouchableOpacity>
                           {showSporDatePicker && (
-                            <DateTimePicker value={sporDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowSporDatePicker(false); if (event.type === 'dismissed') { setShowSporDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setSporDateInput(iso); setSeasonalPref('sporDate', iso); if (Platform.OS === 'ios') setShowSporDatePicker(false); } }} />
+                            <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
+                              <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : null}>
+                                <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={sporDateObj} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })()} onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') setShowSporDatePicker(false); if (event.type === 'dismissed') { setShowSporDatePicker(false); return; } if (date) { const iso = date.toISOString().split('T')[0]; setSporDateInput(iso); setSeasonalPref('sporDate', iso); if (Platform.OS === 'ios') setShowSporDatePicker(false); } }} />
+                              </View>
+                            </View>
                           )}
                         </>
                       )}
@@ -1820,3 +1995,109 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 });
+
+interface WeightWheelPickerProps {
+  value: number;
+  onChange: (val: number) => void;
+  min?: number;
+  max?: number;
+  theme: any;
+  isDark: boolean;
+  sporColor: string;
+}
+
+function WeightWheelPicker({ value, onChange, min = 30, max = 220, theme, isDark, sporColor }: WeightWheelPickerProps) {
+  const itemHeight = 40;
+  const visibleItems = 3;
+  const containerHeight = itemHeight * visibleItems;
+
+  const values = useMemo(() => {
+    const arr = [];
+    for (let i = min; i <= max; i++) {
+      arr.push(i);
+    }
+    return arr;
+  }, [min, max]);
+
+  const initialIndex = values.indexOf(value);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const isMounted = useRef(false);
+
+  // Scroll to value
+  useEffect(() => {
+    if (initialIndex !== -1 && scrollViewRef.current) {
+      const timer = setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: initialIndex * itemHeight,
+          animated: isMounted.current,
+        });
+        isMounted.current = true;
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [value, initialIndex]);
+
+  const handleMomentumScrollEnd = (e: any) => {
+    const offsetY = e.nativeEvent.contentOffset.y;
+    const index = Math.round(offsetY / itemHeight);
+    if (index >= 0 && index < values.length) {
+      const val = values[index];
+      if (val !== value) {
+        Haptics.selectionAsync();
+        onChange(val);
+      }
+    }
+  };
+
+  return (
+    <View style={{
+      height: containerHeight,
+      width: 100,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+      borderRadius: R.md,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+      alignSelf: 'center',
+    }}>
+      {/* Selection highlight lines */}
+      <View style={{
+        position: 'absolute',
+        top: itemHeight,
+        left: 0,
+        right: 0,
+        height: itemHeight,
+        borderTopWidth: 1.5,
+        borderBottomWidth: 1.5,
+        borderColor: sporColor + '40',
+        backgroundColor: sporColor + '08',
+      }} pointerEvents="none" />
+
+      <ScrollView
+        ref={scrollViewRef}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={itemHeight}
+        decelerationRate="fast"
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        contentContainerStyle={{
+          paddingVertical: itemHeight,
+        }}
+      >
+        {values.map((item) => {
+          const active = item === value;
+          return (
+            <View key={item} style={{ height: itemHeight, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{
+                fontSize: active ? 20 : 15,
+                fontWeight: active ? '900' : '600',
+                color: active ? sporColor : (isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'),
+              }}>
+                {item} <Text style={{ fontSize: active ? 12 : 9, fontWeight: '700' }}>kg</Text>
+              </Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
