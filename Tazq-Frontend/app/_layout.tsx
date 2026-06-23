@@ -373,16 +373,16 @@ export default function RootLayout() {
   useEffect(() => {
     if (!_hasHydrated) return;
     const syncProfile = async () => {
-      const { token: t, isLoggedIn: loggedIn } = useAuthStore.getState();
+      const { token: t, refreshToken: rt, isLoggedIn: loggedIn } = useAuthStore.getState();
       if (!loggedIn) {
         // Stale token in store but session is not active — clear it so the
         // request interceptor cannot accidentally inject it into login requests.
         if (t) useAuthStore.setState({ token: null });
         return;
       }
-      // Token missing but isLoggedIn=true → stale auth state (e.g. new APK signing key
-      // made SecureStore inaccessible). Force re-login immediately.
-      if (!t) {
+      // Hem access hem refresh token yoksa kurtarılamaz → çıkış. Refresh token
+      // varsa süresi dolmuş/eksik access token interceptor tarafından yenilenir.
+      if (!t && !rt) {
         logout();
         return;
       }

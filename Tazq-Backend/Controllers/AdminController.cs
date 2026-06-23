@@ -29,6 +29,7 @@ namespace Tazq_App.Controllers
                     u.Name,
                     u.Email,
                     u.Role,
+                    u.IsBanned,
                     u.ProfilePicture,
                     u.LastLoginIp,
                     TaskCount      = _db.Tasks.Count(t => t.UserId == u.Id),
@@ -121,9 +122,37 @@ namespace Tazq_App.Controllers
             return Ok();
         }
 
+        [HttpPatch("users/{id}/ban")]
+        public async Task<IActionResult> SetBan(int id, [FromBody] SetBanRequest req)
+        {
+            var requesterId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            if (id == requesterId) return BadRequest("Kendi hesabını banlayamazsın.");
+
+            var user = await _db.Users.FindAsync(id);
+            if (user == null) return NotFound();
+
+            user.IsBanned = req.Banned;
+            // Banlanınca tüm aktif refresh token'ları iptal et — oturumları kısa sürede düşer
+            if (req.Banned)
+            {
+                var now = DateTime.UtcNow;
+                var tokens = await _db.RefreshTokens
+                    .Where(t => t.UserId == id && t.RevokedAt == null)
+                    .ToListAsync();
+                foreach (var t in tokens) t.RevokedAt = now;
+            }
+            await _db.SaveChangesAsync();
+            return Ok();
+        }
+
         public class SetRoleRequest
         {
             public string Role { get; set; } = "User";
+        }
+
+        public class SetBanRequest
+        {
+            public bool Banned { get; set; }
         }
     }
 }

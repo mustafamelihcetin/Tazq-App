@@ -12,6 +12,7 @@ export interface ModeTask {
   titleEn: string;
   priority: 'High' | 'Medium' | 'Low';
   tags?: string[];
+  daysFromNow?: number; // gün 0 = bugün, 7 = 1 hafta sonra, vs.
 }
 
 export interface StudyTemplate {
@@ -198,10 +199,10 @@ const TEMPLATE_SPRINT = (examName = 'Sınav'): StudyTemplate => ({
     { name: 'Akşam Tekrarı', nameTr: 'Akşam Tekrarı', emoji: '🌙', color: '#6366F1' },
   ],
   tasks: [
-    { titleTr: `${examName}'a kaç gün kaldığını hesapla ve not al`, titleEn: `Count and note days until ${examName}`, priority: 'High' },
-    { titleTr: 'Mock sınav takvimini oluştur (gün aşırı deneme)', titleEn: 'Create mock exam schedule (every other day)', priority: 'High' },
-    { titleTr: 'En zayıf 5 konuyu listele ve önceliklendir', titleEn: 'List your 5 weakest topics and prioritize them', priority: 'High' },
-    { titleTr: 'Son haftaya "sadece tekrar" bloğu ayır', titleEn: 'Reserve final week for review-only blocks', priority: 'Medium' },
+    { titleTr: 'Mock sınav takvimini oluştur: hangi günler deneme, hangi günler hata analizi', titleEn: 'Build mock exam schedule: which days for tests, which for error analysis', priority: 'High' },
+    { titleTr: 'En zayıf 5 konuyu listele ve her birine bu haftadan başlayarak gün ata', titleEn: 'List 5 weakest topics and assign each a day starting this week', priority: 'High' },
+    { titleTr: 'Bir önceki denemeni çıkar: hangi sorular gitti, hangi konular tekrar lazım', titleEn: 'Review your last mock: which questions failed, which topics need review', priority: 'High' },
+    { titleTr: 'Son haftayı sadece tekrara ayır — o haftadan itibaren yeni konu açma', titleEn: 'Designate final week as review-only — no new topics after that point', priority: 'Medium' },
   ],
 });
 
@@ -247,9 +248,9 @@ const TEMPLATE_RAMAZAN_GECE: StudyTemplate = {
     { name: 'Şükür Günlüğü', nameTr: 'Şükür Günlüğü', emoji: '🙏', color: '#EC4899' },
   ],
   tasks: [
-    { titleTr: 'Gece çalışma alanını hazırla ve aydınlat', titleEn: 'Set up and light your night study space', priority: 'High' },
-    { titleTr: 'Teravih saatine göre günlük programı düzenle', titleEn: 'Adjust daily schedule around Tarawih time', priority: 'High' },
-    { titleTr: 'Ramazan hedeflerini yaz (ibadet + dünya)', titleEn: 'Write Ramadan goals (spiritual + worldly)', priority: 'Medium' },
+    { titleTr: 'Gece çalışma alanını hazırla: masa, lamba, su, telefon sessiz modda', titleEn: 'Set up night study space: desk, lamp, water, phone on silent', priority: 'High' },
+    { titleTr: 'Bu akşam teravih saatini öğren ve bittikten sonraki 60 dk\'lık çalışma bloğunu takvine ekle', titleEn: "Find tonight's Tarawih time and block 60 min after it in your calendar", priority: 'High' },
+    { titleTr: '3 ibadet + 3 dünya hedefi yaz ve çalışma alanına as', titleEn: 'Write 3 spiritual + 3 worldly goals and post them in your study area', priority: 'Medium' },
   ],
 };
 
@@ -287,8 +288,8 @@ const RAMAZAN_DEFAULT_HABITS: ModeHabit[] = [
 
 const RAMAZAN_DEFAULT_TASKS: ModeTask[] = [
   { titleTr: 'Zekat hesapla ve öde', titleEn: 'Calculate and pay Zakat', priority: 'High' },
-  { titleTr: 'İftar planlaması yap', titleEn: 'Plan iftar meals', priority: 'Medium' },
-  { titleTr: 'Ramazan hedeflerini belirle', titleEn: 'Set Ramadan goals', priority: 'Medium' },
+  { titleTr: 'Bu hafta için iftar menüsü hazırla: 3 ana yemek + sahur listesi yap', titleEn: 'Plan this week\'s iftar menu: 3 main dishes + suhoor shopping list', priority: 'Medium' },
+  { titleTr: '3 ibadet + 3 dünya hedefi yaz ve görünür bir yere as (telefon kilidi veya duvar)', titleEn: 'Write 3 spiritual + 3 worldly goals and put them somewhere visible (phone lock screen or wall)', priority: 'Medium' },
 ];
 
 // ── Mode definitions ───────────────────────────────────────────────────────────
@@ -364,8 +365,8 @@ const TEMPLATE_TEZ_WRITING = (projectName = 'Tez'): StudyTemplate => ({
   tasks: [
     { titleTr: `${projectName} için taslak outline oluştur`, titleEn: `Create rough outline for ${projectName}`, priority: 'High' },
     { titleTr: 'Kaynak yöneticisi kur (Zotero, Mendeley vb.)', titleEn: 'Set up reference manager (Zotero, Mendeley etc.)', priority: 'High' },
-    { titleTr: 'Haftalık kelime/sayfa hedefi belirle', titleEn: 'Set weekly word/page target', priority: 'Medium' },
-    { titleTr: 'Danışmanla düzenli toplantı planla', titleEn: 'Schedule regular advisor meetings', priority: 'Medium' },
+    { titleTr: 'Günlük yazım hedefini belirle ve bugün ilk 500 kelimeyi yaz', titleEn: 'Set daily writing target and write the first 500 words today', priority: 'Medium' },
+    { titleTr: 'Danışmanına bu hafta e-posta gönder: ilerleme özeti + bir sonraki toplantı tarihi iste', titleEn: 'Email your advisor this week: progress update + request next meeting date', priority: 'Medium' },
   ],
 });
 
@@ -387,8 +388,8 @@ const TEMPLATE_TEZ_MILESTONE = (projectName = 'Tez'): StudyTemplate => ({
   tasks: [
     { titleTr: `${projectName} için 3 aylık milestone planı oluştur`, titleEn: `Create 3-month milestone plan for ${projectName}`, priority: 'High' },
     { titleTr: 'Proje takip tahtası kur (Notion/Trello)', titleEn: 'Set up project tracking board (Notion/Trello)', priority: 'High' },
-    { titleTr: 'İlk milestone\'u bu hafta tamamla', titleEn: 'Complete first milestone this week', priority: 'High' },
-    { titleTr: 'Düzenli beyin fırtınası seansı planla', titleEn: 'Plan regular brainstorming sessions', priority: 'Low' },
+    { titleTr: 'Bu hafta tamamlanacak ilk milestone\'u tanımla ve bitiş tarihini takvine ekle', titleEn: 'Define the first milestone to complete this week and add its deadline to your calendar', priority: 'High' },
+    { titleTr: 'Bugün 30 dk beyin fırtınası yap: araştırma sorusunu, ana argümanı ve 3 olası bölüm başlığını yaz', titleEn: 'Do a 30-min brainstorm today: write the research question, core argument, and 3 possible chapter titles', priority: 'Low' },
   ],
 });
 
@@ -410,7 +411,7 @@ const TEMPLATE_TEZ_SOFTWARE = (projectName = 'Proje'): StudyTemplate => ({
   tasks: [
     { titleTr: `${projectName} için kullanıcı hikayeleri (user stories) listesi oluştur`, titleEn: `Create user stories list for ${projectName}`, priority: 'High' },
     { titleTr: 'GitHub / GitLab repo kur, branching stratejisini belirle', titleEn: 'Set up GitHub / GitLab repo and define branching strategy', priority: 'High' },
-    { titleTr: 'İlk çalışan MVP\'yi 2 haftada teslim etmeyi hedefle', titleEn: 'Target delivering the first working MVP within 2 weeks', priority: 'High' },
+    { titleTr: 'Bu hafta için MVP kapsamını tanımla: en basit çalışır halini listele (maksimum 3 özellik)', titleEn: 'Define MVP scope for this week: list the simplest working version (max 3 features)', priority: 'High' },
     { titleTr: 'CI/CD pipeline kur (GitHub Actions, Vercel vb.)', titleEn: 'Set up CI/CD pipeline (GitHub Actions, Vercel etc.)', priority: 'Medium' },
   ],
 });
@@ -488,10 +489,10 @@ const TEMPLATE_MULAKAT_TEKNIK = (company = 'Şirket'): StudyTemplate => ({
     { name: 'Mock Mülakat', nameTr: 'Mock Mülakat', emoji: '🎙️', color: '#8B5CF6' },
   ],
   tasks: [
-    { titleTr: `${company} için şirket araştırması yap`, titleEn: `Research ${company} thoroughly`, priority: 'High' },
-    { titleTr: 'CV\'yi pozisyona göre güncelle', titleEn: 'Update CV for the position', priority: 'High' },
-    { titleTr: 'En zayıf teknik konularını listele ve önceliklendir', titleEn: 'List weakest technical topics and prioritize', priority: 'High' },
-    { titleTr: 'Pratikte çöz: 50 medium LeetCode sorusu', titleEn: 'Practice: solve 50 medium LeetCode problems', priority: 'Medium' },
+    { titleTr: `${company} için araştır: son çeyrek haberlerini oku, iş ilanının her satırını analiz et, şirket değerlerini not al`, titleEn: `Research ${company}: read recent news, analyze every line of the job posting, note company values`, priority: 'High' },
+    { titleTr: 'CV\'yi pozisyona göre güncelle: ilandaki anahtar kelimeleri CV\'ye yansıt', titleEn: 'Update CV for the position: reflect the job posting\'s keywords in your CV', priority: 'High' },
+    { titleTr: 'En zayıf teknik konularını listele ve önceliklendir (veri yapıları, sistem tasarımı, dil temelleri)', titleEn: 'List and prioritize your weakest technical topics (data structures, system design, language basics)', priority: 'High' },
+    { titleTr: 'Bu hafta 10 medium LeetCode çöz: Array ve String konularından başla', titleEn: 'Solve 10 medium LeetCode problems this week: start with Array and String topics', priority: 'Medium' },
   ],
 });
 
@@ -606,6 +607,7 @@ export interface SporInputs {
   weeklyKm?: number;       // mevcut haftalık km
   targetEvent?: string;    // '5K' | '10K' | 'Yarı' | 'Tam'
   trainingDays?: number;   // 3 | 4 | 5
+  gender?: 'male' | 'female' | '';
 }
 
 export type SporType = 'kilo' | 'maraton' | 'guc' | 'genel' | 'yaris';
@@ -652,6 +654,7 @@ function buildKiloTemplate(inputs: SporInputs, days: number): StudyTemplate {
   const tw = inputs.targetWeight ?? 0;
   const diff = Math.abs(cw - tw);
   const losing = tw < cw;
+  const isFemale = inputs.gender === 'female';
 
   // Safe weekly rate: loss max 1 kg/week, gain max 0.5 kg/week
   const maxRate = losing ? 1.0 : 0.5;
@@ -666,68 +669,144 @@ function buildKiloTemplate(inputs: SporInputs, days: number): StudyTemplate {
   const rateStr = safeRate > 0 ? `${safeRate} kg` : `${defaultRate} kg`;
   const weekStr = realWeeks > 0 ? `${realWeeks} haftada` : '';
 
-  const lossTasks: ModeTask[] = [
-    {
-      titleTr: `Başlangıç tartısı: bugün sabah aç karna tart → ${cwStr} kaydet`,
-      titleEn: `Starting weight: weigh yourself this morning fasted → log ${cwStr}`,
-      priority: 'High',
-    },
-    {
-      titleTr: `Bu hafta hareket günlerini takvime ekle (haftada en az 3 gün, 30+ dk)`,
-      titleEn: `Add movement days to your calendar this week (at least 3 days, 30+ min)`,
-      priority: 'High',
-    },
-    {
-      titleTr: `Güncel kilonu gir`,
-      titleEn: `Log current weight`,
-      priority: 'Medium',
+  // Plan süresi kadar görev üret — cap yok, süre ne kadarsa o dolar
+  const planWeeks = Math.max(1, Math.ceil(days / 7));
+
+  // 2 haftada 1 tartı — haftalık tartı yorgunluk yaratır, çift haftalar yeterli
+  const weighInTasks: ModeTask[] = Array.from({ length: Math.ceil(planWeeks / 2) }, (_, i) => {
+    const w = (i + 1) * 2; // Hafta 2, 4, 6, 8...
+    return {
+      titleTr: i === 0
+        ? `Hafta ${w} tartısı — sabah aç karna, başlangıç kilosunla kıyasla`
+        : `Hafta ${w} tartısı — sabah aç karna`,
+      titleEn: i === 0
+        ? `Week ${w} weigh-in — fasted morning, compare with starting weight`
+        : `Week ${w} weigh-in — fasted morning`,
+      priority: 'High' as const,
       tags: ['weight_entry'],
+      daysFromNow: w * 7,
+    };
+  });
+
+  // Tek haftalarda (1, 3, 5...) faz bazlı alışkanlık/aktivite kontrolü
+  const weeklyHabitChecks: ModeTask[] = Array.from({ length: Math.ceil((planWeeks - 1) / 2) }, (_, i) => {
+    const w = (i + 1) * 2 - 1; // Hafta 1, 3, 5, 7...
+    if (w === 1) return null as any; // Hafta 1 setup görevlerden geliyor
+    const progress = w / planWeeks;
+    if (losing) {
+      if (progress < 0.3) return {
+        titleTr: `Hafta ${w}: bu haftaki hareketliliği değerlendir — kaç gün aktif oldun?`,
+        titleEn: `Week ${w}: review this week's activity — how many days were you active?`,
+        priority: 'Medium' as const, daysFromNow: w * 7 + 2,
+      };
+      if (progress < 0.6) return {
+        titleTr: `Hafta ${w}: porsiyon ve öğün saatlerini gözden geçir — plato var mı?`,
+        titleEn: `Week ${w}: review portions and meal timing — hitting a plateau?`,
+        priority: 'Medium' as const, daysFromNow: w * 7 + 2,
+      };
+      return {
+        titleTr: `Hafta ${w}: son sprint — kalori açığını koru, antrenman yoğunluğunu artır`,
+        titleEn: `Week ${w}: final sprint — maintain calorie deficit, increase workout intensity`,
+        priority: 'High' as const, daysFromNow: w * 7 + 2,
+      };
+    } else {
+      if (progress < 0.4) return {
+        titleTr: `Hafta ${w}: antrenman günlüğüne bak — ağırlıklar artıyor mu?`,
+        titleEn: `Week ${w}: check training log — are weights progressing?`,
+        priority: 'Medium' as const, daysFromNow: w * 7 + 2,
+      };
+      return {
+        titleTr: `Hafta ${w}: protein günlüğünü kontrol et — günlük hedefe ulaşıyor musun?`,
+        titleEn: `Week ${w}: check protein log — hitting your daily target?`,
+        priority: 'Medium' as const, daysFromNow: w * 7 + 2,
+      };
+    }
+  }).filter(Boolean) as ModeTask[];
+
+  // Aylık değerlendirme görevleri — her 4 haftada bir faz bazlı kontrol
+  const monthlyChecks: ModeTask[] = Array.from({ length: Math.floor(planWeeks / 4) }, (_, i) => {
+    const month = i + 1;
+    const w = month * 4;
+    const progress = w / planWeeks;
+    const isLast = w >= planWeeks - 2;
+    const isEarlyPhase = progress < 0.3;
+    const isMidPhase = progress >= 0.3 && progress < 0.7;
+    return {
+      titleTr: isLast
+        ? `Son aylık değerlendirme: ${cwStr} → ${twStr} hedefine ulaştın mı? Ölçüm al ve kaydet`
+        : isEarlyPhase
+        ? `Ay ${month} değerlendirmesi: tartı trendine bak — ortalama ${rateStr}/hafta mı? Rota doğru`
+        : isMidPhase
+        ? `Ay ${month} değerlendirmesi: rutinin tutarlı mı? Plato varsa kalori veya aktiviteyi gözden geçir`
+        : `Ay ${month} son sprint: hedeften kaç kg uzakta? Son düzlemeyi planla`,
+      titleEn: isLast
+        ? `Final monthly review: did you reach your ${cwStr} → ${twStr} goal? Measure and record`
+        : isEarlyPhase
+        ? `Month ${month} review: check weight trend — averaging ${rateStr}/week? On track`
+        : isMidPhase
+        ? `Month ${month} review: is your routine consistent? If plateau, recalibrate calories or activity`
+        : `Month ${month} final sprint: how many kg left? Plan the final stretch`,
+      priority: (isLast ? 'High' : 'Medium') as 'High' | 'Medium',
+      daysFromNow: w * 7 + 1,
+    };
+  });
+
+  const lossSetupTasks: ModeTask[] = [
+    {
+      titleTr: `İlk antrenman: bugün 30 dk tempolu yürüyüş yap — nefes biraz zorlanmalı, konuşabilmeli`,
+      titleEn: `First workout: 30 min brisk walk today — slightly breathless but able to talk`,
+      priority: 'High',
+      daysFromNow: 0,
     },
     {
-      titleTr: `Mutfak düzenlemesi: şekerli içecek ve paketli atıştırmalıkları çıkar`,
-      titleEn: `Kitchen reset: remove sugary drinks and packaged snacks`,
-      priority: 'Medium',
+      titleTr: `Mutfak düzenlemesi: şekerli içecek, beyaz ekmek ve paketli atıştırmalıkları kaldır`,
+      titleEn: `Kitchen reset: remove sugary drinks, white bread and packaged snacks`,
+      priority: 'High',
+      daysFromNow: 0,
     },
     {
-      titleTr: `Hedef: ${cwStr} → ${twStr} · ${weekStr} ${rateStr}/hafta · Pazartesi sabahı tartı günü`,
-      titleEn: `Goal: ${cwStr} → ${twStr} · ${rateStr}/week for ${realWeeks} weeks · Weigh-in every Monday morning`,
+      titleTr: `Günlük protein hedefini belirle: ${cw > 0 ? Math.round(cw * (isFemale ? 1.4 : 1.6)) : (isFemale ? 90 : 100)}–${cw > 0 ? Math.round(cw * (isFemale ? 1.8 : 2.0)) : (isFemale ? 115 : 130)} g/gün`,
+      titleEn: `Set daily protein target: ${cw > 0 ? Math.round(cw * (isFemale ? 1.4 : 1.6)) : (isFemale ? 90 : 100)}–${cw > 0 ? Math.round(cw * (isFemale ? 1.8 : 2.0)) : (isFemale ? 115 : 130)} g/day`,
       priority: 'Medium',
+      daysFromNow: 1,
+    },
+    {
+      titleTr: `Hedef: ${cwStr} → ${twStr} · ${planWeeks} haftada ${rateStr}/hafta — bugün planı kaydet`,
+      titleEn: `Goal: ${cwStr} → ${twStr} · ${rateStr}/week for ${planWeeks} weeks — save the plan today`,
+      priority: 'Medium',
+      daysFromNow: 2,
     },
   ];
 
-  const gainTasks: ModeTask[] = [
+  const gainSetupTasks: ModeTask[] = [
     {
-      titleTr: `Başlangıç tartısı: bugün sabah aç karna tart → ${cwStr} kaydet`,
-      titleEn: `Starting weight: weigh yourself this morning fasted → log ${cwStr}`,
+      titleTr: `Günlük kalori hedefini hesapla: TDEE + 300–500 kcal fazlası — myfitnesspal veya benzeri uygulama kullan`,
+      titleEn: `Calculate daily calorie target: TDEE + 300–500 kcal surplus — use myfitnesspal or similar`,
       priority: 'High',
+      daysFromNow: 0,
     },
     {
-      titleTr: `Günlük kalori hedefini hesapla: TDEE + 300–500 kcal fazlası (kilo alma için)`,
-      titleEn: `Calculate daily calorie target: TDEE + 300–500 kcal surplus (for weight gain)`,
+      titleTr: `Direnç antrenmanı programı seç ve ilk seansı yap (haftada 3–4 gün) — kas için antrenman zorunlu`,
+      titleEn: `Choose a resistance training program and do first session (3–4 days/week) — training is mandatory for muscle`,
       priority: 'High',
+      daysFromNow: 0,
     },
     {
-      titleTr: `Güncel kilonu gir`,
-      titleEn: `Log current weight`,
-      priority: 'Medium',
-      tags: ['weight_entry'],
-    },
-    {
-      titleTr: `Protein hedefi belirle: vücut ağırlığının kg başına en az 1.6 g protein/gün`,
-      titleEn: `Set protein target: at least 1.6 g protein per kg bodyweight per day`,
+      titleTr: `Günlük protein hedefi: ${cw > 0 ? Math.round(cw * (isFemale ? 1.6 : 1.8)) : (isFemale ? 105 : 120)}–${cw > 0 ? Math.round(cw * (isFemale ? 2.0 : 2.2)) : (isFemale ? 130 : 150)} g/gün — yumurta, tavuk, yoğurt, baklagil`,
+      titleEn: `Daily protein target: ${cw > 0 ? Math.round(cw * (isFemale ? 1.6 : 1.8)) : (isFemale ? 105 : 120)}–${cw > 0 ? Math.round(cw * (isFemale ? 2.0 : 2.2)) : (isFemale ? 130 : 150)} g/day — eggs, chicken, yogurt, legumes`,
       priority: 'High',
+      daysFromNow: 1,
     },
     {
-      titleTr: `Direnç antrenmanı programı seç (haftada 3–4 gün) — kas kütlesi için zorunlu`,
-      titleEn: `Choose a resistance training program (3–4 days/week) — mandatory for lean gain`,
+      titleTr: `Hedef: ${cwStr} → ${twStr} · ${planWeeks} haftada ${rateStr}/hafta — bugün planı kaydet`,
+      titleEn: `Goal: ${cwStr} → ${twStr} · ${rateStr}/week for ${planWeeks} weeks — save the plan today`,
       priority: 'Medium',
-    },
-    {
-      titleTr: `Hedef: ${cwStr} → ${twStr} · ${weekStr} ${rateStr}/hafta · Pazartesi sabahı tartı günü`,
-      titleEn: `Goal: ${cwStr} → ${twStr} · ${rateStr}/week for ${realWeeks} weeks · Weigh-in every Monday morning`,
-      priority: 'Medium',
+      daysFromNow: 2,
     },
   ];
+
+  const lossTasks: ModeTask[] = [...lossSetupTasks, ...weighInTasks, ...weeklyHabitChecks, ...monthlyChecks];
+  const gainTasks: ModeTask[] = [...gainSetupTasks, ...weighInTasks, ...weeklyHabitChecks, ...monthlyChecks];
 
   const lossHabits = [
     { name: 'Hareket', nameTr: 'Günlük hareket (yürüyüş / egzersiz)', emoji: '🚶', color: '#10B981' },
@@ -801,8 +880,8 @@ function buildMaratonTemplate(inputs: SporInputs, days: number): StudyTemplate {
           priority: 'High',
         },
         {
-          titleTr: `${event} öncesi son 3 hafta: km'yi %20 azalt, dinlenmeye odaklan`,
-          titleEn: `Last 3 weeks before ${event}: reduce km by 20%, focus on rest`,
+          titleTr: `Taper planını bugün oluştur: önümüzdeki 3 haftanın km hedeflerini yaz (%80, %60, %40 azaltarak)`,
+          titleEn: `Create your taper plan today: write the km targets for the next 3 weeks (reduce by 80%, 60%, 40%)`,
           priority: 'High',
         },
         {
@@ -833,15 +912,32 @@ function buildMaratonTemplate(inputs: SporInputs, days: number): StudyTemplate {
           priority: 'Medium',
         },
         {
-          titleTr: `Mevcut baz: ${kmStr} → ${event} için hedef baz: ~${projectedWeeklyKm} km/hft`,
-          titleEn: `Current base: ${kmStr} → Target base for ${event}: ~${projectedWeeklyKm} km/week`,
+          titleTr: `Koşu takip uygulaması kur (Strava / Garmin / Nike Run) ve bu haftaki ilk koşunu kaydet — hedef baz: ~${projectedWeeklyKm} km/hft`,
+          titleEn: `Set up a running tracker (Strava / Garmin / Nike Run) and log this week's first run — target base: ~${projectedWeeklyKm} km/week`,
           priority: 'Medium',
         },
         ...(tooShort ? [{
           titleTr: `⚠️ Dikkat: ${event} için ideal hazırlık ${minWeeks} haftadır — tarihi uzatmayı düşün`,
           titleEn: `⚠️ Note: Ideal prep for ${event} is ${minWeeks} weeks — consider extending your date`,
           priority: 'High' as const,
+          daysFromNow: 0,
         }] : []),
+        // Haftalık ilerleme kontrolleri — tüm plan süresince
+        ...Array.from({ length: weeks - 1 }, (_, i) => {
+          const w = i + 2;
+          const expectedKm = Math.min(peakKm, Math.round((km > 0 ? km : peakKm * 0.4) * Math.pow(1.1, w - 1)));
+          const isTaper = w >= weeks - 2;
+          return {
+            titleTr: isTaper
+              ? `Hafta ${w}: taper başlıyor — km'yi %20 azalt, dinlenmeye odaklan`
+              : `Hafta ${w}: uzun koşu kontrolü — bu haftaki hedef ~${expectedKm} km/hft`,
+            titleEn: isTaper
+              ? `Week ${w}: taper begins — reduce km by 20%, focus on rest`
+              : `Week ${w}: long run check — this week's target ~${expectedKm} km/week`,
+            priority: (isTaper ? 'High' : 'Medium') as 'High' | 'Medium',
+            daysFromNow: (w - 1) * 7 + 1,
+          };
+        }),
       ];
 
   return {
@@ -896,13 +992,13 @@ function buildGucTemplate(inputs: SporInputs, days: number, goalType: SporType):
       priority: 'High',
     },
     {
-      titleTr: `Sporunun gerektirdiği zayıf noktanı belirle ve o alana odaklan`,
-      titleEn: `Identify the weak point your sport demands and focus there`,
+      titleTr: `Geçen antrenmanlarında en çok zorlandığın anı düşün: o zayıf noktayı yaz ve bu hafta bir seans sadece ona ayır`,
+      titleEn: `Think of your most struggled moment in recent training: write that weak point and dedicate one session to it this week`,
       priority: 'Medium',
     },
     {
-      titleTr: `Yarışma öncesi 1 hafta: antrenmanı azalt (taper), uyku ve beslenmeni optimize et`,
-      titleEn: `Week before competition: reduce training (taper), optimize sleep and nutrition`,
+      titleTr: `Takvime taper haftasını işaretle: yarışmadan 7 gün önce antrenmanı %40 azalt, erken uyu`,
+      titleEn: `Mark taper week in your calendar: reduce training by 40% starting 7 days before the competition, sleep early`,
       priority: 'Medium',
     },
   ];
@@ -914,18 +1010,18 @@ function buildGucTemplate(inputs: SporInputs, days: number, goalType: SporType):
       priority: 'High',
     },
     {
-      titleTr: `Split planı: ${splitListTr}`,
-      titleEn: `Split plan: ${splitListEn}`,
+      titleTr: `Split programını kaydet ve ilk seansı başlat: ${splitListTr} sırasıyla devam et`,
+      titleEn: `Save your split program and start the first session: continue in order ${splitListEn}`,
       priority: 'High',
     },
     {
-      titleTr: `Başlangıç ölçümleri: kilo + bel çevresi + göğüs çevresi al ve kaydet`,
-      titleEn: `Baseline measurements: weigh in + waist + chest circumference, record them`,
+      titleTr: `Başlangıç ölçümleri al: kilo + bel çevresi + göğüs çevresi — kaydet ve fotoğrafla`,
+      titleEn: `Take baseline measurements: weight + waist + chest — record them and take a photo`,
       priority: 'Medium',
     },
     {
-      titleTr: `Her antrenman seansını kaydet: egzersiz · set · tekrar · ağırlık`,
-      titleEn: `Log every training session: exercise · sets · reps · weight`,
+      titleTr: `Antrenman günlüğü için uygulama aç (Strong, Hevy veya not defteri) ve ilk seansı kaydet`,
+      titleEn: `Open a training log app (Strong, Hevy or a notebook) and log your first session`,
       priority: 'Medium',
     },
   ];
@@ -942,13 +1038,13 @@ function buildGucTemplate(inputs: SporInputs, days: number, goalType: SporType):
       priority: 'High',
     },
     {
-      titleTr: `Split planı: ${splitListTr}`,
-      titleEn: `Split plan: ${splitListEn}`,
+      titleTr: `Split programını kaydet: ${splitListTr} sırasıyla devam et`,
+      titleEn: `Save your split program: continue in order ${splitListEn}`,
       priority: 'Medium',
     },
     {
-      titleTr: `Her antrenman seansını kaydet: egzersiz · set · tekrar · ağırlık`,
-      titleEn: `Log every training session: exercise · sets · reps · weight`,
+      titleTr: `Antrenman günlüğü için uygulama aç (Strong, Hevy veya not defteri) ve ilk seansı kaydet`,
+      titleEn: `Open a training log app (Strong, Hevy or a notebook) and log your first session`,
       priority: 'Medium',
     },
   ];
@@ -992,6 +1088,11 @@ function buildGucTemplate(inputs: SporInputs, days: number, goalType: SporType):
   };
 }
 
+function buildGucTemplateWithProgram(inputs: SporInputs, days: number, goalType: SporType): StudyTemplate {
+  const base = buildGucTemplate(inputs, days, goalType);
+  return withWeeklyProgram(base, days, base.titleTr, 'guc');
+}
+
 export function getSporMode(goalLabel: string, goalDate: string, inputs?: SporInputs): TurkishMode {
   const { days } = daysLeftInfo(goalDate);
   const sporSub = modeSubtitle(goalDate,
@@ -1006,9 +1107,9 @@ export function getSporMode(goalLabel: string, goalDate: string, inputs?: SporIn
   if (sporType === 'kilo') {
     template = buildKiloTemplate(inp, days);
   } else if (sporType === 'maraton' || sporType === 'yaris') {
-    template = sporType === 'maraton' ? buildMaratonTemplate(inp, days) : buildGucTemplate(inp, days, sporType);
+    template = sporType === 'maraton' ? buildMaratonTemplate(inp, days) : buildGucTemplateWithProgram(inp, days, sporType);
   } else {
-    template = buildGucTemplate(inp, days, sporType);
+    template = buildGucTemplateWithProgram(inp, days, sporType);
   }
 
   // Chip label'ından baştaki emojiyi sil (ör. "💪 Güç & Kas" → "Güç & Kas")
@@ -1041,28 +1142,29 @@ export function getTezMode(projectName: string, deadline: string): TurkishMode {
   // Faz 2: Aktif Çalışma (60-180 gün)       → yazım/geliştirme önce
   // Faz 3: Son Sprint (<60 gün)              → teslim odaklı sprint önce
   let templates: StudyTemplate[];
+  const addTezProgram = (t: StudyTemplate) => withWeeklyProgram(t, days, name, 'tez');
   if (days <= 60) {
     const typeTemplate = tezType === 'yazilim'
       ? TEMPLATE_TEZ_SOFTWARE(name)
       : tezType === 'is'
       ? TEMPLATE_TEZ_IS(name)
       : TEMPLATE_TEZ_WRITING(name);
-    templates = [TEMPLATE_TEZ_SPRINT(name), typeTemplate, TEMPLATE_TEZ_MILESTONE(name)];
+    templates = [TEMPLATE_TEZ_SPRINT(name), typeTemplate, TEMPLATE_TEZ_MILESTONE(name)].map(addTezProgram);
   } else if (days <= 180) {
     if (tezType === 'yazilim') {
-      templates = [TEMPLATE_TEZ_SOFTWARE(name), TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)];
+      templates = [TEMPLATE_TEZ_SOFTWARE(name), TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)].map(addTezProgram);
     } else if (tezType === 'is') {
-      templates = [TEMPLATE_TEZ_IS(name), TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)];
+      templates = [TEMPLATE_TEZ_IS(name), TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)].map(addTezProgram);
     } else {
-      templates = [TEMPLATE_TEZ_WRITING(name), TEMPLATE_TEZ_MILESTONE(name)];
+      templates = [TEMPLATE_TEZ_WRITING(name), TEMPLATE_TEZ_MILESTONE(name)].map(addTezProgram);
     }
   } else {
     if (tezType === 'yazilim') {
-      templates = [TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_SOFTWARE(name), TEMPLATE_TEZ_WRITING(name)];
+      templates = [TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_SOFTWARE(name), TEMPLATE_TEZ_WRITING(name)].map(addTezProgram);
     } else if (tezType === 'is') {
-      templates = [TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_IS(name), TEMPLATE_TEZ_WRITING(name)];
+      templates = [TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_IS(name), TEMPLATE_TEZ_WRITING(name)].map(addTezProgram);
     } else {
-      templates = [TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)];
+      templates = [TEMPLATE_TEZ_MILESTONE(name), TEMPLATE_TEZ_WRITING(name)].map(addTezProgram);
     }
   }
 
@@ -1105,12 +1207,13 @@ export function getMulakatMode(company: string, date: string): TurkishMode {
   // Faz 2: Odaklanmış Hazırlık (7-30 gün) → sadece en ilgili 2 template
   // Faz 3: Son Hafta Sprinti (<7 gün)      → mock sprint önce
   let templates: StudyTemplate[];
+  const addMulakatProgram = (t: StudyTemplate) => withWeeklyProgram(t, days, name || 'Mülakat', 'mulakat');
   if (days <= 7) {
-    templates = [TEMPLATE_MULAKAT_SPRINT(name), sorted[0], sorted[1]];
+    templates = [TEMPLATE_MULAKAT_SPRINT(name), sorted[0], sorted[1]].map(addMulakatProgram);
   } else if (days <= 30) {
-    templates = [sorted[0], sorted[1]];
+    templates = [sorted[0], sorted[1]].map(addMulakatProgram);
   } else {
-    templates = sorted;
+    templates = sorted.map(addMulakatProgram);
   }
 
   return {
@@ -1125,6 +1228,93 @@ export function getMulakatMode(company: string, date: string): TurkishMode {
     tasks: [],
     templates,
   };
+}
+
+// Plan süresi boyunca faz bazlı haftalık görevler üretir — cap yok, süre ne kadarsa o dolar
+function withWeeklyProgram(template: StudyTemplate, totalDays: number, name: string, type: 'exam' | 'tez' | 'mulakat' | 'guc'): StudyTemplate {
+  const totalWeeks = Math.max(2, Math.ceil(totalDays / 7));
+
+  const weeklyTasks: ModeTask[] = [];
+
+  for (let w = 2; w <= totalWeeks; w++) {
+    const daysFromNow = (w - 1) * 7;
+    const weeksLeft = totalWeeks - w;
+    const progress = w / totalWeeks; // 0→1 arası ilerleme oranı
+
+    if (type === 'exam') {
+      // Faz 1 — Temel (ilk %30): konu tarama ve kavram oluşturma
+      // Faz 2 — Aktif (%30-60): soru pratiği yoğunlaşıyor
+      // Faz 3 — Yoğunlaşma (%60-85): hata analizi ve zayıf konular
+      // Faz 4 — Sprint (son %15, min son 4 hafta): tam deneme
+      // Faz 5 — Son hafta
+      if (weeksLeft === 0) {
+        weeklyTasks.push({ titleTr: `${name} son hazırlık haftası: yeni konu yok — tüm notlarını tekrar et ve zihinsel hazırlık yap`, titleEn: `${name} final week: no new topics — review all notes and prepare mentally`, priority: 'High', daysFromNow });
+      } else if (weeksLeft <= 1) {
+        weeklyTasks.push({ titleTr: `Hafta ${w}: deneme sonuçlarını değerlendir — hangi sorular gitti, hangileri kazandırdı`, titleEn: `Week ${w}: evaluate mock results — which questions cost you, which earned points`, priority: 'High', daysFromNow });
+      } else if (weeksLeft <= Math.max(3, Math.round(totalWeeks * 0.15))) {
+        weeklyTasks.push({ titleTr: `Hafta ${w} sprint: tam ${name} denemesi çöz, süreli → hataları aynı gün analiz et`, titleEn: `Week ${w} sprint: full timed ${name} mock → analyze errors same day`, priority: 'High', daysFromNow });
+      } else if (progress >= 0.60) {
+        weeklyTasks.push({ titleTr: `Hafta ${w} yoğunlaşma: hata defterindeki en sık yanlış konuyu bu hafta bitir`, titleEn: `Week ${w} intensive: finish the most repeated wrong topic from your error log`, priority: 'High', daysFromNow });
+      } else if (progress >= 0.30) {
+        weeklyTasks.push({ titleTr: `Hafta ${w} pratik: bu haftaki konulara ait 30+ soru çöz ve hata defterini güncelle`, titleEn: `Week ${w} practice: solve 30+ questions on this week's topics and update error log`, priority: 'Medium', daysFromNow });
+      } else {
+        weeklyTasks.push({ titleTr: `Hafta ${w} temel: bu haftaki konuyu oku, kavram haritası çıkar, 10 temel soru çöz`, titleEn: `Week ${w} foundation: read this week's topic, draw concept map, solve 10 basic questions`, priority: 'Medium', daysFromNow });
+      }
+    }
+
+    else if (type === 'tez') {
+      // Faz 1 — Araştırma & Planlama (ilk %25)
+      // Faz 2 — Yazım (%25-75)
+      // Faz 3 — Revizyon (son %25)
+      if (weeksLeft === 0) {
+        weeklyTasks.push({ titleTr: `${name} teslim haftası: format, kaynakça ve bağlama kontrolü yap`, titleEn: `${name} submission week: check format, references and binding requirements`, priority: 'High', daysFromNow });
+      } else if (weeksLeft <= 2) {
+        weeklyTasks.push({ titleTr: `Hafta ${w}: danışmana son taslağı gönder — geri bildirim tarihini netleştir`, titleEn: `Week ${w}: send final draft to advisor — confirm feedback deadline`, priority: 'High', daysFromNow });
+      } else if (progress >= 0.75) {
+        weeklyTasks.push({ titleTr: `Hafta ${w} revizyon: bir bölümü baştan sona gözden geçir, danışman notlarını uygula`, titleEn: `Week ${w} revision: review one section end-to-end, apply advisor notes`, priority: 'High', daysFromNow });
+      } else if (progress >= 0.25) {
+        weeklyTasks.push({ titleTr: `Hafta ${w} yazım: bu haftaki hedef bölümü yaz — en az 500 kelime`, titleEn: `Week ${w} writing: write this week's target section — at least 500 words`, priority: 'Medium', daysFromNow });
+      } else {
+        weeklyTasks.push({ titleTr: `Hafta ${w} araştırma: bu haftaki literatürü tara, 3 kaynak oku ve özet çıkar`, titleEn: `Week ${w} research: scan this week's literature, read 3 sources and summarize`, priority: 'Medium', daysFromNow });
+      }
+    }
+
+    else if (type === 'mulakat') {
+      // Faz 1 — Araştırma & Hazırlık (ilk %40)
+      // Faz 2 — Pratik & Pekiştirme (%40-85)
+      // Faz 3 — Son Sprint (son %15)
+      if (weeksLeft === 0) {
+        weeklyTasks.push({ titleTr: `${name || 'Mülakat'} haftası: lojistik tamamla — giysi, rota, saat, uyku düzeni`, titleEn: `${name || 'Interview'} week: finalize logistics — outfit, route, time, sleep schedule`, priority: 'High', daysFromNow });
+      } else if (progress >= 0.85) {
+        weeklyTasks.push({ titleTr: `Hafta ${w}: video kaydıyla tam mock mülakat yap ve izleyerek düzelt`, titleEn: `Week ${w}: do a full video mock interview and review it to improve`, priority: 'High', daysFromNow });
+      } else if (progress >= 0.40) {
+        weeklyTasks.push({ titleTr: `Hafta ${w}: en zayıf soru tipini belirle, 3 farklı versiyonunu sesli çalış`, titleEn: `Week ${w}: identify your weakest question type, rehearse 3 versions aloud`, priority: 'Medium', daysFromNow });
+      } else {
+        weeklyTasks.push({ titleTr: `Hafta ${w}: şirketi/pozisyonu araştır — 1 yeni STAR hikayesi yaz`, titleEn: `Week ${w}: research company/role — write 1 new STAR story`, priority: 'Medium', daysFromNow });
+      }
+    }
+
+    else if (type === 'guc') {
+      // Faz 1 — Temel & Form (ilk %20): teknik öğrenme
+      // Faz 2 — Hacim/Hipertrofi (%20-50): set/rep artışı
+      // Faz 3 — Güç (%50-80): yoğunluk artışı
+      // Faz 4 — Deload & Test (son %20): dinlenme ve max test
+      const isDeload = w % 4 === 0; // Her 4. hafta deload
+      if (weeksLeft === 0) {
+        weeklyTasks.push({ titleTr: `Final haftası: başlangıç ölçümleriyle kıyasla — kilo, bel, göğüs & güç testi`, titleEn: `Final week: compare with starting measurements — weight, waist, chest & strength test`, priority: 'High', daysFromNow });
+      } else if (isDeload) {
+        weeklyTasks.push({ titleTr: `Hafta ${w} deload: ağırlıkları %40 düşür, form çalış — kaslar bu haftada onarılır`, titleEn: `Week ${w} deload: reduce weights 40%, focus on form — muscles recover this week`, priority: 'High', daysFromNow });
+      } else if (progress >= 0.50) {
+        weeklyTasks.push({ titleTr: `Hafta ${w} güç fazı: ana harekette (squat/deadlift/bench) yeni ağırlık dene`, titleEn: `Week ${w} strength phase: attempt a new weight on main lift (squat/deadlift/bench)`, priority: 'Medium', daysFromNow });
+      } else if (progress >= 0.20) {
+        weeklyTasks.push({ titleTr: `Hafta ${w} hacim: tüm setlerde son 2 tekrarda zorlanıyorsan ağırlığı artır`, titleEn: `Week ${w} volume: if the last 2 reps of every set are hard, increase the weight`, priority: 'Medium', daysFromNow });
+      } else {
+        weeklyTasks.push({ titleTr: `Hafta ${w} form: ayna veya video ile her hareketi kontrol et — teknik önce`, titleEn: `Week ${w} form: check every movement in a mirror or on video — technique first`, priority: 'Medium', daysFromNow });
+      }
+    }
+  }
+
+  return { ...template, tasks: [...template.tasks, ...weeklyTasks] };
 }
 
 function examTemplateTargetTr(id: string, name: string, isMemHeavy: boolean, isQHeavy: boolean, isLanguage: boolean, isMedical: boolean): string {
@@ -1765,7 +1955,7 @@ function buildLevelTemplates(content: ExamContent, examName: string, days: numbe
     tasks: [...content.setupTasks, ...content.sprintTasks],
   });
 
-  return templates;
+  return templates.map(t => withWeeklyProgram(t, days, examName, 'exam'));
 }
 
 export function getCustomExamMode(examName: string, examDate: string, examTipTr?: string, examTipEn?: string): TurkishMode {
@@ -1794,11 +1984,11 @@ export function getCustomExamMode(examName: string, examDate: string, examTipTr?
       : days >= 270
       ? [TEMPLATE_FOUNDATION(name), TEMPLATE_ACTIVE_RECALL(name), TEMPLATE_SPACED_REPETITION(name), TEMPLATE_DEEP_WORK(name), TEMPLATE_SPRINT(name)]
       : [TEMPLATE_ACTIVE_RECALL(name), TEMPLATE_SPACED_REPETITION(name), TEMPLATE_DEEP_WORK(name), TEMPLATE_SPRINT(name)];
-    templates = rawTemplates.map(t => ({
+    templates = rawTemplates.map(t => withWeeklyProgram({
       ...t,
       targetTr: examTemplateTargetTr(t.id, name, isMemHeavy, isQHeavy, isLanguage, isMedical),
       targetEn: examTemplateTargetEn(t.id, name, isMemHeavy, isQHeavy, isLanguage, isMedical),
-    }));
+    }, days, name, 'exam'));
   }
 
   return {

@@ -5,13 +5,18 @@ namespace Tazq_App.Services
     public interface IUserService
     {
         Task<bool> RegisterAsync(UserRegisterDto userDto);
-        Task<string?> LoginAsync(UserLoginDto userDto, string? ipAddress);
+        Task<AuthTokens?> LoginAsync(UserLoginDto userDto, string? ipAddress);
         Task<User?> GetUserByIdAsync(int userId);
         Task<bool> UpdateNotificationPreferencesAsync(int userId, UserNotificationPreferences preferences);
         Task<bool> SendForgotPasswordTokenAsync(string email);
         Task<bool> ResetPasswordAsync(string token, string newPassword);
-        Task<string?> RefreshSessionAsync(string oldToken, string? currentIp);
+        // Ham refresh token'ı doğrular (DB hash), rotasyona sokar ve yeni access+refresh döndürür.
+        Task<AuthTokens?> RotateRefreshTokenAsync(string refreshToken);
+        Task RevokeRefreshTokenAsync(string refreshToken);
         Task<bool> DeleteUserAsync(int userId);
-        Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar);
+        Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar, string? motto, string? avatarBorderColor);
     }
+
+    // Access (kısa ömürlü JWT) + Refresh (uzun ömürlü, DB-destekli) token çifti
+    public record AuthTokens(string Token, string RefreshToken);
 }

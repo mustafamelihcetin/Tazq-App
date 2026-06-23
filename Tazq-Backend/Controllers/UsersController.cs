@@ -38,8 +38,10 @@ namespace Tazq_App.Controllers
         {
 
 
-            var token = await _userService.LoginAsync(userDto, HttpContext.Connection.RemoteIpAddress?.ToString());
-            return token != null ? Ok(new { token }) : Unauthorized("Geçersiz e-posta veya şifre.");
+            var tokens = await _userService.LoginAsync(userDto, HttpContext.Connection.RemoteIpAddress?.ToString());
+            return tokens != null
+                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken })
+                : Unauthorized("Geçersiz e-posta veya şifre.");
         }
 
         [HttpPatch("update-notification-preferences")]
@@ -72,6 +74,8 @@ namespace Tazq_App.Controllers
                 user.PhoneNumber,
                 user.IsPhoneVerified,
                 ProfilePicture = user.ProfilePicture ?? "/default-profile.png",
+                user.Motto,
+                user.AvatarBorderColor,
                 NotificationPreferences = user.NotificationPreferences
             });
         }
@@ -96,17 +100,22 @@ namespace Tazq_App.Controllers
             return success ? Ok("Şifreniz başarıyla güncellendi.") : BadRequest("Geçersiz veya süresi dolmuş bağlantı.");
         }
 
-        [HttpPost("refresh-session")]
+        [HttpPost("refresh")]
         [AllowAnonymous]
-        public async Task<IActionResult> RefreshSession()
+        public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
         {
-            var tokenHeader = Request.Headers["Authorization"].ToString();
-            if (string.IsNullOrEmpty(tokenHeader) || !tokenHeader.StartsWith("Bearer ")) return Unauthorized();
+            var tokens = await _userService.RotateRefreshTokenAsync(request.RefreshToken);
+            return tokens != null
+                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken })
+                : Unauthorized("Oturum yenilenemedi.");
+        }
 
-            var tokenString = tokenHeader.Substring("Bearer ".Length);
-            var newToken = await _userService.RefreshSessionAsync(tokenString, HttpContext.Connection.RemoteIpAddress?.ToString());
-
-            return newToken != null ? Ok(new { token = newToken }) : Unauthorized("Oturum yenilenemedi.");
+        [HttpPost("logout")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Logout([FromBody] RefreshRequest request)
+        {
+            await _userService.RevokeRefreshTokenAsync(request.RefreshToken);
+            return Ok();
         }
 
         [HttpPut("profile")]
@@ -116,7 +125,7 @@ namespace Tazq_App.Controllers
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
 
-            var success = await _userService.UpdateProfileAsync(userId.Value, dto.Name, dto.Avatar);
+            var success = await _userService.UpdateProfileAsync(userId.Value, dto.Name, dto.Avatar, dto.Motto, dto.AvatarBorderColor);
             return success ? Ok("Profile updated.") : NotFound();
         }
 
@@ -144,6 +153,7 @@ namespace Tazq_App.Controllers
             public string Email { get; set; } = string.Empty;
         }
         public class ResetPasswordRequest { public string Token { get; set; } = string.Empty; public string NewPassword { get; set; } = string.Empty; }
-        public class UpdateProfileDto { public string? Name { get; set; } public string? Avatar { get; set; } }
+        public class RefreshRequest { public string RefreshToken { get; set; } = string.Empty; }
+        public class UpdateProfileDto { public string? Name { get; set; } public string? Avatar { get; set; } public string? Motto { get; set; } public string? AvatarBorderColor { get; set; } }
     }
 }

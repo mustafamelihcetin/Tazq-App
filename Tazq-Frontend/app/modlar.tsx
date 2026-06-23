@@ -79,7 +79,7 @@ export default function ModlarScreen() {
     sporPlanHabitIds, sporPlanTaskIds,
     spor2PlanHabitIds, spor2PlanTaskIds,
     spor3PlanHabitIds, spor3PlanTaskIds,
-    setPlanIds, clearPlanIds,
+    setPlanIds, clearPlanIds, setPlanSpec,
   } = usePrefsStore();
   const { habits, removeHabit } = useHabitStore();
   const { removeTask } = useTaskStore();
@@ -150,6 +150,9 @@ export default function ModlarScreen() {
   const {
     currentWeight, setCurrentWeight,
     targetWeight, setTargetWeight,
+    heightCm, setHeightCm,
+    ageYears, setAgeYears,
+    gender, setGender,
     weeklyKm, setWeeklyKm,
     targetEvent, setTargetEvent,
     trainingDays, setTrainingDays,
@@ -208,6 +211,13 @@ export default function ModlarScreen() {
   const sporType = sporGoalInput ? detectSporType(sporGoalInput) : null;
   const cwNum = parseFloat(currentWeight);
   const twNum = parseFloat(targetWeight);
+  const hnNum = parseFloat(heightCm); // boy cm
+  const ayNum = parseFloat(ageYears); // yaş
+
+  // BMI tabanlı sağlıklı kilo aralığı (boy girilmişse)
+  const heightM = hnNum >= 100 && hnNum <= 250 ? hnNum / 100 : 0;
+  const minHealthyKg = heightM > 0 ? parseFloat((18.5 * heightM * heightM).toFixed(1)) : 0;
+  const maxHealthyKg = heightM > 0 ? parseFloat((27.5 * heightM * heightM).toFixed(1)) : 0;
 
   // Kilo: tarih girişi yok — hedef ağırlıktan otomatik hesaplanır
   // Kilo verme: 0.5 kg/hafta, kilo alma: 0.25 kg/hafta (sağlıklı tempo)
@@ -230,9 +240,13 @@ export default function ModlarScreen() {
   // Input completeness per goal type
   const kiloWeightValid = cwNum >= 30 && cwNum <= 300 && twNum >= 30 && twNum <= 300;
   const kiloWeightRealistic = Math.abs(cwNum - twNum) <= 100;
+  // BMI kontrolü: boy girilmişse hedef kilonun sağlıklı aralıkta olup olmadığını kontrol et
+  const kiloBmiTargetTooLow = minHealthyKg > 0 && twNum > 0 && twNum < minHealthyKg;
+  const kiloBmiCurrentUnderweight = minHealthyKg > 0 && cwNum > 0 && cwNum < minHealthyKg;
+  const kiloBmiValid = !kiloBmiTargetTooLow; // hedef kilo BMI < 18.5 ise blokla
 
   const sporInputsComplete = sporType === 'kilo'
-    ? currentWeight.trim() !== '' && targetWeight.trim() !== '' && cwNum > 0 && twNum > 0 && cwNum !== twNum && kiloWeightValid && kiloWeightRealistic
+    ? currentWeight.trim() !== '' && targetWeight.trim() !== '' && cwNum > 0 && twNum > 0 && cwNum !== twNum && kiloWeightValid && kiloWeightRealistic && kiloBmiValid
     : sporType === 'maraton'
     ? weeklyKm.trim() !== '' && targetEvent !== ''
     : sporType === 'guc' || sporType === 'genel' || sporType === 'yaris'
@@ -1635,8 +1649,59 @@ export default function ModlarScreen() {
                       {/* Kilo: current + target weight wheel pickers */}
                       {sporType === 'kilo' && (
                         <View style={{ gap: S.sm }}>
-                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8, marginBottom: S.xs }}>
-                            {language === 'tr' ? 'Kilo Bilgileri (Kaydırarak Seçin)' : 'Weight Information (Scroll to Select)'}
+                          {/* Boy + Yaş */}
+                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8 }}>
+                            {language === 'tr' ? 'Beden bilgileri' : 'Body info'}
+                          </Text>
+                          <View style={{ flexDirection: 'row', gap: S.sm }}>
+                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: R.md, paddingHorizontal: S.md, height: 44, borderWidth: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', gap: S.xs }}>
+                              <TextInput
+                                value={heightCm}
+                                onChangeText={setHeightCm}
+                                placeholder={language === 'tr' ? 'Boy (cm)' : 'Height (cm)'}
+                                placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'}
+                                keyboardType="number-pad"
+                                style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700', paddingVertical: 0 }}
+                                returnKeyType="next"
+                                underlineColorAndroid="transparent"
+                              />
+                              <Text style={{ color: theme.onSurfaceVariant, fontSize: 12, fontWeight: '600', opacity: 0.6 }}>cm</Text>
+                            </View>
+                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: R.md, paddingHorizontal: S.md, height: 44, borderWidth: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', gap: S.xs }}>
+                              <TextInput
+                                value={ageYears}
+                                onChangeText={setAgeYears}
+                                placeholder={language === 'tr' ? 'Yaş' : 'Age'}
+                                placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.30)'}
+                                keyboardType="number-pad"
+                                style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '700', paddingVertical: 0 }}
+                                returnKeyType="done"
+                                underlineColorAndroid="transparent"
+                              />
+                              <Text style={{ color: theme.onSurfaceVariant, fontSize: 12, fontWeight: '600', opacity: 0.6 }}>{language === 'tr' ? 'yaş' : 'yrs'}</Text>
+                            </View>
+                          </View>
+
+                          {/* Cinsiyet seçici */}
+                          <View style={{ flexDirection: 'row', gap: S.sm }}>
+                            {(['male', 'female'] as const).map((g) => (
+                              <TouchableOpacity
+                                key={g}
+                                onPress={() => setGender(gender === g ? '' : g)}
+                                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, borderRadius: R.md, height: 40, borderWidth: 1.5, backgroundColor: gender === g ? (sporColor + '20') : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), borderColor: gender === g ? sporColor : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
+                                activeOpacity={0.75}
+                              >
+                                <Text style={{ fontSize: 15 }}>{g === 'male' ? '👨' : '👩'}</Text>
+                                <Text style={{ fontSize: F.caption, fontWeight: '800', color: gender === g ? sporColor : theme.onSurfaceVariant }}>
+                                  {language === 'tr' ? (g === 'male' ? 'Erkek' : 'Kadın') : (g === 'male' ? 'Male' : 'Female')}
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+
+                          {/* Kilo wheel pickers */}
+                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.8, marginTop: S.xs }}>
+                            {language === 'tr' ? 'Kilo bilgileri (kaydırarak seçin)' : 'Weight info (scroll to select)'}
                           </Text>
                           <View style={{ flexDirection: 'row', gap: S.sm, justifyContent: 'center', alignItems: 'center' }}>
                             {/* Current Weight Wheel */}
@@ -1670,6 +1735,8 @@ export default function ModlarScreen() {
                               />
                             </View>
                           </View>
+
+                          {/* Validasyon mesajları */}
                           {cwNum > 0 && !kiloWeightValid && (
                             <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '700', lineHeight: 16 }}>
                               {language === 'tr'
@@ -1684,23 +1751,45 @@ export default function ModlarScreen() {
                                 : '❌ The difference between current and target weight cannot exceed 100 kg. Please set a realistic goal.'}
                             </Text>
                           )}
+                          {kiloBmiCurrentUnderweight && (
+                            <Text style={{ fontSize: 12, color: '#F59E0B', fontWeight: '700', lineHeight: 16 }}>
+                              {language === 'tr'
+                                ? `⚠️ Mevcut kilonuz zaten sağlıklı aralığın altında (BMI < 18.5). Bir uzmana danışmanızı öneririz.`
+                                : `⚠️ Your current weight is already below the healthy range (BMI < 18.5). We recommend consulting a specialist.`}
+                            </Text>
+                          )}
+                          {kiloBmiTargetTooLow && (
+                            <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '700', lineHeight: 16 }}>
+                              {language === 'tr'
+                                ? `❌ ${twNum} kg, ${hnNum} cm boy için sağlıklı minimum kilonun (${minHealthyKg} kg, BMI 18.5) altında. Bu hedefi onaylamıyoruz.`
+                                : `❌ ${twNum} kg is below the minimum healthy weight (${minHealthyKg} kg, BMI 18.5) for ${hnNum} cm height. We cannot approve this goal.`}
+                            </Text>
+                          )}
                           {cwNum > 0 && twNum > 0 && cwNum === twNum && (
                             <Text style={{ fontSize: 12, color: '#10B981', fontWeight: '700' }}>
                               {language === 'tr' ? '🎯 Zaten hedef kilondasın! Koruma moduna geç.' : '🎯 Already at your goal weight! Switch to maintenance mode.'}
                             </Text>
                           )}
-                          {cwNum > 0 && twNum > 0 && cwNum !== twNum && kiloWeightValid && kiloWeightRealistic && (
+                          {cwNum > 0 && twNum > 0 && cwNum !== twNum && kiloWeightValid && kiloWeightRealistic && kiloBmiValid && (
                             <Text style={{ fontSize: 12, color: sporColor, fontWeight: '700', opacity: 0.9 }}>
                               {language === 'tr'
                                 ? `${twNum > cwNum ? '📈' : '📉'} ${Math.abs(cwNum - twNum)} kg · haftada ${kiloWeeklyRate} kg ile ~${kiloAutoWeeks} hafta`
                                 : `${twNum > cwNum ? '📈' : '📉'} ${Math.abs(cwNum - twNum)} kg · at ${kiloWeeklyRate} kg/week ~${kiloAutoWeeks} weeks`}
                             </Text>
                           )}
-                          {cwNum > 0 && twNum > 0 && kiloWeightValid && kiloWeightRealistic && Math.abs(cwNum - twNum) > 30 && (
+                          {cwNum > 0 && twNum > 0 && kiloWeightValid && kiloWeightRealistic && kiloBmiValid && Math.abs(cwNum - twNum) > 30 && (
                             <Text style={{ fontSize: 11, color: '#EF4444', fontWeight: '700', lineHeight: 16 }}>
                               {language === 'tr'
                                 ? '⚠️ 30 kg üzeri hedefler için bir doktor veya diyetisyen desteği önerilir.'
                                 : '⚠️ For goals over 30 kg, consulting a doctor or dietitian is recommended.'}
+                            </Text>
+                          )}
+                          {/* Sağlıklı kilo aralığı ipucu */}
+                          {heightM > 0 && !kiloBmiTargetTooLow && twNum > 0 && (
+                            <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, opacity: 0.55, lineHeight: 15 }}>
+                              {language === 'tr'
+                                ? `${hnNum} cm için sağlıklı aralık: ${minHealthyKg}–${maxHealthyKg} kg`
+                                : `Healthy range for ${hnNum} cm: ${minHealthyKg}–${maxHealthyKg} kg`}
                             </Text>
                           )}
                         </View>
@@ -1811,6 +1900,7 @@ export default function ModlarScreen() {
               weeklyKm: weeklyKm ? parseFloat(weeklyKm) : undefined,
               targetEvent: targetEvent || undefined,
               trainingDays: trainingDays ?? undefined,
+              gender: gender || undefined,
             } : undefined,
           })}
           onDismiss={() => {
@@ -1954,25 +2044,31 @@ export default function ModlarScreen() {
             }
             setModePreview(null);
           }}
-          onApplied={(habitIds, taskIds) => {
+          onApplied={(habitIds, taskIds, meta) => {
             const t = modePreview.type;
             if (t === 'exam' || t === 'yks' || t === 'kpss') {
               const slot = modePreview.examSlot ?? 'exam';
               const prevHabits = slot === 'exam2' ? exam2PlanHabitIds : slot === 'exam3' ? exam3PlanHabitIds : examPlanHabitIds;
               const prevTasks  = slot === 'exam2' ? exam2PlanTaskIds  : slot === 'exam3' ? exam3PlanTaskIds  : examPlanTaskIds;
               setPlanIds(slot, [...new Set([...prevHabits, ...habitIds])], [...new Set([...prevTasks, ...taskIds])]);
+              // Günlük plan motoru için spec: kullanıcının seçtiği saat öncelikli
+              const dm = (slot === 'exam2' ? exam2DailyMinutes : slot === 'exam3' ? exam3DailyMinutes : examDailyMinutes) ?? meta?.dailyMinutes;
+              setPlanSpec(slot, { templateId: meta?.templateId, dailyMinutes: dm ?? undefined });
             } else if (t === 'tez') {
               setPlanIds('tez', [...new Set([...tezPlanHabitIds, ...habitIds])], [...new Set([...tezPlanTaskIds, ...taskIds])]);
+              setPlanSpec('tez', { templateId: meta?.templateId, dailyMinutes: meta?.dailyMinutes });
             } else if (t === 'mulakat') {
               const slot = modePreview.mulakatSlot ?? 'mulakat';
               const prevH = slot === 'mulakat2' ? mulakat2PlanHabitIds : slot === 'mulakat3' ? mulakat3PlanHabitIds : mulakatPlanHabitIds;
               const prevT = slot === 'mulakat2' ? mulakat2PlanTaskIds  : slot === 'mulakat3' ? mulakat3PlanTaskIds  : mulakatPlanTaskIds;
               setPlanIds(slot, [...new Set([...prevH, ...habitIds])], [...new Set([...prevT, ...taskIds])]);
+              setPlanSpec(slot, { templateId: meta?.templateId, dailyMinutes: meta?.dailyMinutes });
             } else if (t === 'spor') {
               const slot = modePreview.sporSlot ?? 'spor';
               const prevH = slot === 'spor2' ? spor2PlanHabitIds : slot === 'spor3' ? spor3PlanHabitIds : sporPlanHabitIds;
               const prevT = slot === 'spor2' ? spor2PlanTaskIds  : slot === 'spor3' ? spor3PlanTaskIds  : sporPlanTaskIds;
               setPlanIds(slot, [...new Set([...prevH, ...habitIds])], [...new Set([...prevT, ...taskIds])]);
+              setPlanSpec(slot, { templateId: meta?.templateId, dailyMinutes: meta?.dailyMinutes });
               // kilo tipi için effectiveSporDate'i store'a kaydet (kiloAutoDate null olmayabilir)
               if (slot === 'spor' && effectiveSporDate) {
                 setSeasonalPref('sporDate', effectiveSporDate);
@@ -1980,7 +2076,10 @@ export default function ModlarScreen() {
               }
             } else {
               setPlanIds('ramazan', [...new Set([...ramazanPlanHabitIds, ...habitIds])], [...new Set([...ramazanPlanTaskIds, ...taskIds])]);
+              setPlanSpec('ramazan', { templateId: meta?.templateId, dailyMinutes: meta?.dailyMinutes });
             }
+            // Plan uygulanır uygulanmaz bugünün görevlerini üret — boş aksiyon merkezi olmasın
+            setTimeout(() => runAdaptations(true), 400);
           }}
         />
       )}

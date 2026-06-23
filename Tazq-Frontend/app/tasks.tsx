@@ -19,6 +19,7 @@ import { createAudioPlayer } from 'expo-audio';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '../services/api';
 import { parseTaskHint } from '../utils/taskParser';
+import { visibleTextTags } from '../utils/taskTags';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SwipeableItem } from '../components/SwipeableItem';
@@ -260,10 +261,10 @@ export default function ActionCenter() {
   };
   const subtaskSaveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
-  // Collect unique tags from all tasks for tag filter
+  // Collect unique tags from all tasks for tag filter — içsel/sistem etiketleri hariç
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
-    tasks.forEach(t => (t.tags || []).forEach(tag => tagSet.add(tag)));
+    tasks.forEach(t => visibleTextTags(t.tags).forEach(tag => tagSet.add(tag)));
     return Array.from(tagSet);
   }, [tasks]);
 
@@ -854,6 +855,8 @@ export default function ActionCenter() {
   const getTagColor = getTagColorStatic;
 
   const filteredAndSortedTasks = useMemo(() => {
+    const todayEndMs = (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); })();
+
     let result = tasks.filter((task) => {
       // Global hide-completed toggle (skip when "done" filter is active, or task is mid-exit animation)
       if (hideCompleted && filter !== 'done' && task.isCompleted && !completingIds.has(task.id)) return false;
@@ -868,6 +871,10 @@ export default function ActionCenter() {
         if (d < todayStart || d > todayEnd) return false;
       }
       else if (filter !== 'all') { if (task.priority !== filter || task.isCompleted) return false; }
+      // Tarihi gelmemiş görevleri gizle — sadece bugün ve geçmiş olanlar görünür
+      else if (filter === 'all' && !task.isCompleted && task.dueDate && !task.dueDate.startsWith('0001')) {
+        if (new Date(task.dueDate).getTime() > todayEndMs) return false;
+      }
       // dateFilter from cockpit "+N more" button (YYYY-MM-DD)
       if (dateFilter && task.dueDate) {
         const taskDay = task.dueDate.slice(0, 10);
@@ -1345,8 +1352,7 @@ export default function ActionCenter() {
                                                 </TouchableOpacity>
                                             )}
                                             {(() => {
-                                                const ICON_TAGS = ['hatırlatıcı', 'reminder', 'etkinlik', 'event', 'not', 'note', 'weight_entry'];
-                                                const textTags = (task.tags || []).filter(tag => !ICON_TAGS.includes(tag));
+                                                const textTags = visibleTextTags(task.tags);
                                                 const shown = textTags.slice(0, 2);
                                                 const overflow = textTags.length - shown.length;
                                                 return (

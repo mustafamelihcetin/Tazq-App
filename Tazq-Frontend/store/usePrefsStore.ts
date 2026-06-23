@@ -32,9 +32,19 @@ interface SeasonalPrefs {
 
 type PlanMode = 'exam' | 'exam2' | 'exam3' | 'ramazan' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'spor' | 'spor2' | 'spor3';
 
+// Günlük plan motorunun ihtiyaç duyduğu kompakt plan tarifi.
+// Görevler artık önceden materyalize edilmiyor; bu spec'ten her gün üretiliyor.
+export interface PlanSpec {
+  templateId?: string;     // seçilen şablon (faz override / başlangıç fazı)
+  dailyMinutes?: number;   // kullanıcının seçtiği günlük çalışma süresi → görev yoğunluğu
+}
+
 interface PrefsState {
   seasonal: SeasonalPrefs;
   setSeasonalPref: (key: keyof SeasonalPrefs, value: boolean | string | null) => void;
+  planSpecs: Partial<Record<PlanMode, PlanSpec>>;
+  setPlanSpec: (mode: PlanMode, spec: PlanSpec) => void;
+  clearPlanSpec: (mode: PlanMode) => void;
   weeklyNotification: boolean;
   setWeeklyNotification: (value: boolean) => void;
   morningBrief: boolean;
@@ -111,6 +121,15 @@ export const usePrefsStore = create<PrefsState>()(
       },
       setSeasonalPref: (key, value) =>
         set((s) => ({ seasonal: { ...s.seasonal, [key]: value } })),
+      planSpecs: {},
+      setPlanSpec: (mode, spec) =>
+        set((s) => ({ planSpecs: { ...s.planSpecs, [mode]: { ...s.planSpecs[mode], ...spec } } })),
+      clearPlanSpec: (mode) =>
+        set((s) => {
+          const next = { ...s.planSpecs };
+          delete next[mode];
+          return { planSpecs: next };
+        }),
       weeklyNotification: true,
       setWeeklyNotification: (value) => set({ weeklyNotification: value }),
       morningBrief: true,
@@ -165,17 +184,21 @@ export const usePrefsStore = create<PrefsState>()(
         return set({ ramazanPlanHabitIds: habitIds, ramazanPlanTaskIds: taskIds });
       },
       clearPlanIds: (mode) => {
-        if (mode === 'exam') return set({ examPlanHabitIds: [], examPlanTaskIds: [] });
-        if (mode === 'exam2') return set({ exam2PlanHabitIds: [], exam2PlanTaskIds: [] });
-        if (mode === 'exam3') return set({ exam3PlanHabitIds: [], exam3PlanTaskIds: [] });
-        if (mode === 'tez') return set({ tezPlanHabitIds: [], tezPlanTaskIds: [] });
-        if (mode === 'mulakat') return set({ mulakatPlanHabitIds: [], mulakatPlanTaskIds: [] });
-        if (mode === 'mulakat2') return set({ mulakat2PlanHabitIds: [], mulakat2PlanTaskIds: [] });
-        if (mode === 'mulakat3') return set({ mulakat3PlanHabitIds: [], mulakat3PlanTaskIds: [] });
-        if (mode === 'spor') return set({ sporPlanHabitIds: [], sporPlanTaskIds: [] });
-        if (mode === 'spor2') return set({ spor2PlanHabitIds: [], spor2PlanTaskIds: [] });
-        if (mode === 'spor3') return set({ spor3PlanHabitIds: [], spor3PlanTaskIds: [] });
-        return set({ ramazanPlanHabitIds: [], ramazanPlanTaskIds: [] });
+        set((s) => {
+          const planSpecs = { ...s.planSpecs };
+          delete planSpecs[mode];
+          if (mode === 'exam') return { examPlanHabitIds: [], examPlanTaskIds: [], planSpecs };
+          if (mode === 'exam2') return { exam2PlanHabitIds: [], exam2PlanTaskIds: [], planSpecs };
+          if (mode === 'exam3') return { exam3PlanHabitIds: [], exam3PlanTaskIds: [], planSpecs };
+          if (mode === 'tez') return { tezPlanHabitIds: [], tezPlanTaskIds: [], planSpecs };
+          if (mode === 'mulakat') return { mulakatPlanHabitIds: [], mulakatPlanTaskIds: [], planSpecs };
+          if (mode === 'mulakat2') return { mulakat2PlanHabitIds: [], mulakat2PlanTaskIds: [], planSpecs };
+          if (mode === 'mulakat3') return { mulakat3PlanHabitIds: [], mulakat3PlanTaskIds: [], planSpecs };
+          if (mode === 'spor') return { sporPlanHabitIds: [], sporPlanTaskIds: [], planSpecs };
+          if (mode === 'spor2') return { spor2PlanHabitIds: [], spor2PlanTaskIds: [], planSpecs };
+          if (mode === 'spor3') return { spor3PlanHabitIds: [], spor3PlanTaskIds: [], planSpecs };
+          return { ramazanPlanHabitIds: [], ramazanPlanTaskIds: [], planSpecs };
+        });
       },
     }),
     {
@@ -215,6 +238,7 @@ export const usePrefsStore = create<PrefsState>()(
         motto: (persisted as any)?.motto ?? '',
         productivityHour: (persisted as any)?.productivityHour ?? 'morning',
         avatarBorderColor: (persisted as any)?.avatarBorderColor ?? 'transparent',
+        planSpecs: (persisted as any)?.planSpecs ?? {},
       }),
     }
   )

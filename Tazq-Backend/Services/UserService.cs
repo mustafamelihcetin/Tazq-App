@@ -45,7 +45,34 @@ namespace Tazq_App.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
-        public async Task<string?> LoginAsync(UserLoginDto userDto, string? ipAddress)
+        // Refresh token ömrü
+        private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(60);
+
+        // Ham (istemciye dönen) opak token üretir; DB'ye yalnızca hash'i yazılır.
+        private static string GenerateRawRefreshToken() =>
+            Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+        private static string HashRefreshToken(string raw)
+        {
+            using var sha = SHA256.Create();
+            return Convert.ToHexString(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(raw)));
+        }
+
+        private async Task<string> IssueRefreshTokenAsync(int userId)
+        {
+            var raw = GenerateRawRefreshToken();
+            _context.RefreshTokens.Add(new RefreshToken
+            {
+                UserId = userId,
+                TokenHash = HashRefreshToken(raw),
+                ExpiresAt = DateTime.UtcNow.Add(RefreshTokenLifetime),
+                CreatedAt = DateTime.UtcNow,
+            });
+            await _context.SaveChangesAsync();
+            return raw;
+        }
+
+        public async Task<AuthTokens?> LoginAsync(UserLoginDto userDto, string? ipAddress)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userDto.Email);
             if (user == null || string.IsNullOrEmpty(user.PasswordSalt))
@@ -57,6 +84,10 @@ namespace Tazq_App.Services
             if (computedHash != user.PasswordHash)
                 return null;
 
+            // Banlı kullanıcı giriş yapamaz
+            if (user.IsBanned)
+                return null;
+
             if (!string.IsNullOrEmpty(ipAddress))
             {
                 user.LastLoginIp = ipAddress;
@@ -64,7 +95,9 @@ namespace Tazq_App.Services
                 await _context.SaveChangesAsync();
             }
 
-            return _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
+            var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
+            var refreshToken = await IssueRefreshTokenAsync(user.Id);
+            return new AuthTokens(accessToken, refreshToken);
         }
 
         public async Task<User?> GetUserByIdAsync(int userId)
@@ -140,21 +173,48 @@ namespace Tazq_App.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
-        public async Task<string?> RefreshSessionAsync(string oldToken, string? currentIp)
+        public async Task<AuthTokens?> RotateRefreshTokenAsync(string refreshToken)
         {
-            var handler = new JwtSecurityTokenHandler();
-            try
+            if (string.IsNullOrWhiteSpace(refreshToken)) return null;
+            var hash = HashRefreshToken(refreshToken);
+
+            var stored = await _context.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash);
+            // Geçersiz, süresi dolmuş veya iptal edilmiş → reddet
+            if (stored == null || stored.RevokedAt != null || stored.ExpiresAt <= DateTime.UtcNow)
+                return null;
+
+            var user = await _context.Users.FindAsync(stored.UserId);
+            if (user == null) return null;
+
+            // Banlı kullanıcının oturumu yenilenemez
+            if (user.IsBanned)
             {
-                var jwtToken = handler.ReadJwtToken(oldToken);
-                var userIdStr = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId)) return null;
-
-                var user = await _context.Users.FindAsync(userId);
-                if (user == null) return null;
-
-                return _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
+                stored.RevokedAt = DateTime.UtcNow;
+                _context.RefreshTokens.Update(stored);
+                await _context.SaveChangesAsync();
+                return null;
             }
-            catch { return null; }
+
+            // Rotasyon: eski token'ı iptal et, yenisini üret (tek kullanımlık)
+            stored.RevokedAt = DateTime.UtcNow;
+            _context.RefreshTokens.Update(stored);
+
+            var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
+            var newRefresh = await IssueRefreshTokenAsync(user.Id); // SaveChanges burada da çalışır
+            return new AuthTokens(accessToken, newRefresh);
+        }
+
+        public async Task RevokeRefreshTokenAsync(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken)) return;
+            var hash = HashRefreshToken(refreshToken);
+            var stored = await _context.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash);
+            if (stored != null && stored.RevokedAt == null)
+            {
+                stored.RevokedAt = DateTime.UtcNow;
+                _context.RefreshTokens.Update(stored);
+                await _context.SaveChangesAsync();
+            }
         }
 
         public async Task<bool> DeleteUserAsync(int userId)
@@ -166,7 +226,7 @@ namespace Tazq_App.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
-        public async Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar)
+        public async Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar, string? motto, string? avatarBorderColor)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return false;
@@ -176,6 +236,13 @@ namespace Tazq_App.Services
 
             if (avatar != null)
                 user.ProfilePicture = avatar;
+
+            // null = değiştirme; boş string = temizle. Üst sınırları modelle uyumlu kırp.
+            if (motto != null)
+                user.Motto = motto.Trim() is { Length: > 0 } m ? m[..Math.Min(m.Length, 150)] : null;
+
+            if (avatarBorderColor != null)
+                user.AvatarBorderColor = avatarBorderColor.Trim() is { Length: > 0 } c ? c[..Math.Min(c.Length, 32)] : null;
 
             _context.Users.Update(user);
             return await _context.SaveChangesAsync() > 0;

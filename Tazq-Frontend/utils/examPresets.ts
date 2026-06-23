@@ -267,33 +267,31 @@ export function detectExamFromInput(input: string): ExamPreset | null {
  * Faz 4 — Hızlanma         (30-60 gün): Mock sınavlar + hata analizi, güçlendirme
  * Faz 5 — Son Sprint         (0-30 gün): Yeni konu yok, sadece tekrar ve deneme
  */
+// Eğitim uzmanı faz modelinin tek kaynağı — hem şablon önerisi hem günlük motor bunu kullanır.
+export type StudyPhase = 'foundation' | 'deepen' | 'reinforce' | 'accelerate' | 'sprint';
+
+export function getPhase(daysLeft: number): StudyPhase {
+  if (daysLeft <= 30) return 'sprint';      // Faz 5 — Son Sprint
+  if (daysLeft <= 60) return 'accelerate';  // Faz 4 — Hızlanma
+  if (daysLeft <= 120) return 'reinforce';  // Faz 3 — Pekiştirme
+  if (daysLeft <= 270) return 'deepen';     // Faz 2 — Derinleşme
+  return 'foundation';                       // Faz 1 — Temel İnşa
+}
+
 export function recommendTemplateId(
   daysLeft: number,
   category: ExamCategory,
   preferredTemplates: string[],
   dailyMinutes: number
 ): string {
-  // Faz 5 — Son Sprint
-  if (daysLeft <= 30) return 'sprint';
-
-  // Faz 4 — Hızlanma: mock + hata analizi
-  if (daysLeft <= 60) return 'active-recall';
-
-  // Faz 3 — Pekiştirme: soru çözme yoğun, zayıf alan
-  if (daysLeft <= 120) {
-    if (category === 'language' || category === 'medical') return 'spaced-repetition';
-    return 'active-recall';
+  const langOrMedical = category === 'language' || category === 'medical';
+  switch (getPhase(daysLeft)) {
+    case 'sprint':     return 'sprint';
+    case 'accelerate': return 'active-recall';
+    case 'reinforce':  return langOrMedical ? 'spaced-repetition' : 'active-recall';
+    case 'deepen':     return langOrMedical ? 'spaced-repetition' : (dailyMinutes >= 120 ? 'deep-work' : 'spaced-repetition');
+    case 'foundation': return 'foundation';
   }
-
-  // Faz 2 — Derinleşme: içerik hakimiyeti, aralıklı tekrar
-  if (daysLeft <= 270) {
-    if (category === 'language' || category === 'medical') return 'spaced-repetition';
-    if (dailyMinutes >= 120) return 'deep-work';
-    return 'spaced-repetition';
-  }
-
-  // Faz 1 — Temel İnşa: 270+ gün
-  return 'foundation';
 }
 
 export const HOURS_OPTIONS: Array<{ labelTr: string; labelEn: string; minutes: number }> = [

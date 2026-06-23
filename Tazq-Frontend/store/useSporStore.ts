@@ -8,16 +8,23 @@ export interface WeightEntry {
 }
 
 export type TargetEvent = '' | '5K' | '10K' | 'Yarı' | 'Tam';
+export type Gender = '' | 'male' | 'female';
 
 interface SporState {
   currentWeight: string;
   targetWeight: string;
+  heightCm: string;
+  ageYears: string;
+  gender: Gender;
   weeklyKm: string;
   targetEvent: TargetEvent;
   trainingDays: 3 | 4 | 5 | null;
   weightLog: WeightEntry[];
   setCurrentWeight: (v: string) => void;
   setTargetWeight: (v: string) => void;
+  setHeightCm: (v: string) => void;
+  setAgeYears: (v: string) => void;
+  setGender: (v: Gender) => void;
   setWeeklyKm: (v: string) => void;
   setTargetEvent: (v: TargetEvent) => void;
   setTrainingDays: (v: 3 | 4 | 5 | null) => void;
@@ -31,12 +38,18 @@ export const useSporStore = create<SporState>()(
     (set) => ({
       currentWeight: '',
       targetWeight: '',
+      heightCm: '',
+      ageYears: '',
+      gender: '' as Gender,
       weeklyKm: '',
       targetEvent: '',
       trainingDays: null,
       weightLog: [],
       setCurrentWeight: (v) => set({ currentWeight: v }),
       setTargetWeight: (v) => set({ targetWeight: v }),
+      setHeightCm: (v) => set({ heightCm: v }),
+      setAgeYears: (v) => set({ ageYears: v }),
+      setGender: (v) => set({ gender: v }),
       setWeeklyKm: (v) => set({ weeklyKm: v }),
       setTargetEvent: (v) => set({ targetEvent: v }),
       setTrainingDays: (v) => set({ trainingDays: v }),
@@ -46,7 +59,12 @@ export const useSporStore = create<SporState>()(
         return { weightLog: [...filtered, { date: today, weight }].sort((a, b) => b.date.localeCompare(a.date)) };
       }),
       removeWeightEntry: (date) => set((s) => ({ weightLog: s.weightLog.filter(e => e.date !== date) })),
-      resetInputs: () => set({ currentWeight: '', targetWeight: '', weeklyKm: '', targetEvent: '', trainingDays: null }),
+      // Plan kaldırıldığında tüm spor verisi sıfırlanır — kayıtlı kilo geçmişi (weightLog)
+      // dahil. Aksi halde plan yeniden açıldığında eski kilo girişleri görünür kalıyordu.
+      resetInputs: () => set({
+        currentWeight: '', targetWeight: '', heightCm: '', ageYears: '', gender: '' as Gender,
+        weeklyKm: '', targetEvent: '', trainingDays: null, weightLog: [],
+      }),
     }),
     { name: 'spor-store', storage: createJSONStorage(() => AsyncStorage) }
   )

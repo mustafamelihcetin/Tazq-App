@@ -12,6 +12,7 @@ namespace Tazq_App.Data
 		public DbSet<UserNotificationPreferences> UserNotificationPreferences { get; set; }
 		public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 		public DbSet<FocusSession> FocusSessions { get; set; }
+		public DbSet<RefreshToken> RefreshTokens { get; set; }
 
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -51,6 +52,14 @@ namespace Tazq_App.Data
 			modelBuilder.Entity<FocusSession>().HasIndex(f => f.UserId);
 			modelBuilder.Entity<FocusSession>().HasIndex(f => f.StartedAt);
 			modelBuilder.Entity<PasswordResetToken>().HasIndex(t => t.Token).IsUnique();
+
+			modelBuilder.Entity<RefreshToken>()
+				.HasOne(t => t.User)
+				.WithMany()
+				.HasForeignKey(t => t.UserId)
+				.OnDelete(DeleteBehavior.Cascade);
+			modelBuilder.Entity<RefreshToken>().HasIndex(t => t.TokenHash).IsUnique();
+			modelBuilder.Entity<RefreshToken>().HasIndex(t => t.UserId);
 		}
 	}
 }

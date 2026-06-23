@@ -329,14 +329,30 @@ export default function HomeScreen() {
 
   // Smart Logic: Prioritize Today's Tasks
   const todayDateString = new Date().toDateString();
-  const todayTasksIncomplete = tasks.filter(t => !t.isCompleted && t.dueDate && new Date(t.dueDate).toDateString() === todayDateString);
-  const futureTasksIncomplete = tasks.filter(t => !t.isCompleted && (!t.dueDate || new Date(t.dueDate).toDateString() !== todayDateString));
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
 
-  const topTaskToday = todayTasksIncomplete[0];
-  const highPriorityToday = todayTasksIncomplete.find(t => t.priority === 'High');
-  const topTask = topTaskToday || futureTasksIncomplete[0];
+  // Bugün vadesi gelen veya geçmiş (overdue) görevler
+  const todayTasksIncomplete = tasks.filter(t => {
+    if (t.isCompleted) return false;
+    if (!t.dueDate) return false;
+    const due = new Date(t.dueDate);
+    return due <= new Date(todayStart.getTime() + 86400000); // bugün sonu dahil
+  });
+  // Tarihi olmayan görevler — her zaman görünür (plan hedef özeti, mutfak düzeni vs.)
+  const undatedTasksIncomplete = tasks.filter(t => !t.isCompleted && !t.dueDate);
+  // Gelecek tarihli görevler — aksiyon merkezinde GÖSTERILMEZ, sadece tasks listesinde
+  // (futureTasksIncomplete insight için tutulur ama topTask'a girmez)
+  const futureTasksIncomplete = tasks.filter(t => {
+    if (t.isCompleted || !t.dueDate) return false;
+    const due = new Date(t.dueDate);
+    return due > new Date(todayStart.getTime() + 86400000);
+  });
 
-  const insight = getSmartInsight(language as 'tr' | 'en', isActive, momentum, highPriorityToday, topTaskToday, futureTasksIncomplete);
+  const topTaskToday = todayTasksIncomplete[0] ?? undatedTasksIncomplete[0];
+  const highPriorityToday = todayTasksIncomplete.find(t => t.priority === 'High') ?? undatedTasksIncomplete.find(t => t.priority === 'High');
+  const topTask = topTaskToday; // gelecek tarihli task aksiyon merkezine girmiyor
+
+  const insight = getSmartInsight(language as 'tr' | 'en', isActive, momentum, highPriorityToday, topTaskToday, undatedTasksIncomplete);
 
   const handleCheckTask = async (taskId: number) => {
     const task = tasks.find(t => t.id === taskId);
@@ -358,7 +374,7 @@ export default function HomeScreen() {
 
   const startQuickFocus = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    const target = topTaskToday || futureTasksIncomplete[0];
+    const target = topTaskToday;
     // Pre-fill task name if available, otherwise let user set it on focus screen
     if (target) setCurrentTask(target.title);
     // setDuration resets isActive to false internally — set both together after

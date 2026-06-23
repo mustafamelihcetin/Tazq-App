@@ -31,6 +31,8 @@ import {
   Language,
 } from '../utils/planAdaptations';
 import { RAMAZAN } from '../utils/turkishModes';
+import { buildDailyTasks, DailyPlanSpec, PlanKind } from '../utils/dailyPlanEngine';
+import { runPlanMigrationOnce } from '../utils/planMigration';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
 
@@ -62,6 +64,9 @@ export function usePlanAdaptations() {
     mulakat2PlanTaskIds, mulakat2PlanHabitIds,
     mulakat3PlanTaskIds, mulakat3PlanHabitIds,
     ramazanPlanTaskIds, ramazanPlanHabitIds,
+    spor2PlanTaskIds, spor2PlanHabitIds,
+    spor3PlanTaskIds, spor3PlanHabitIds,
+    planSpecs,
   } = usePrefsStore();
 
   const { weightLog, currentWeight, targetWeight } = useSporStore();
@@ -71,7 +76,7 @@ export function usePlanAdaptations() {
 
   const applyTasks = useCallback(async (
     newTasks: ReturnType<typeof buildKiloAdaptationTasks>,
-    planMode: 'spor' | 'exam' | 'exam2' | 'exam3' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'ramazan',
+    planMode: 'spor' | 'spor2' | 'spor3' | 'exam' | 'exam2' | 'exam3' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'ramazan',
     currentTaskIds: number[],
     currentHabitIds: string[],
   ) => {
@@ -175,6 +180,75 @@ export function usePlanAdaptations() {
       }
     }
 
+    // ── GÜNLÜK PLAN MOTORU ────────────────────────────────────────────────────
+    // Her aktif plan için BUGÜNÜN görevlerini üretir (faz/ilerlemeye göre).
+    // hasDailyToday içte kontrol edildiği için aynı gün tekrar çağrılsa da çoğaltmaz.
+    const today = new Date();
+    const fresh = useTaskStore.getState().tasks;
+
+    const sporKind = (goal: string): PlanKind => {
+      const t = detectSporTypeLocal(goal);
+      return t === 'yaris' ? 'genel' : t;
+    };
+
+    const dailySlots: { spec: DailyPlanSpec; mode: Parameters<typeof applyTasks>[1]; taskIds: number[]; habitIds: string[] }[] = [];
+
+    // Sınav slotları
+    for (const slot of examSlots) {
+      if (slot.active && slot.name && slot.date) {
+        dailySlots.push({
+          spec: { kind: 'exam', name: slot.name, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
+          mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
+        });
+      }
+    }
+    // Tez
+    if (seasonal.tezMode && seasonal.tezName && seasonal.tezDate) {
+      dailySlots.push({
+        spec: { kind: 'tez', name: seasonal.tezName, daysLeft: daysUntil(seasonal.tezDate), dailyMinutes: planSpecs.tez?.dailyMinutes, templateId: planSpecs.tez?.templateId },
+        mode: 'tez', taskIds: tezPlanTaskIds, habitIds: tezPlanHabitIds,
+      });
+    }
+    // Mülakat slotları
+    for (const slot of mulakatSlots) {
+      if (slot.active && slot.name && slot.date) {
+        dailySlots.push({
+          spec: { kind: 'mulakat', name: slot.name, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
+          mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
+        });
+      }
+    }
+    // Spor slotları (kilo/maraton/güç/genel)
+    const sporSlots = [
+      { goal: seasonal.sporMode ? seasonal.sporGoal : '', date: seasonal.sporDate, taskIds: sporPlanTaskIds, habitIds: sporPlanHabitIds, mode: 'spor' as const },
+      { goal: seasonal.spor2Goal, date: seasonal.spor2Date, taskIds: spor2PlanTaskIds, habitIds: spor2PlanHabitIds, mode: 'spor2' as const },
+      { goal: seasonal.spor3Goal, date: seasonal.spor3Date, taskIds: spor3PlanTaskIds, habitIds: spor3PlanHabitIds, mode: 'spor3' as const },
+    ];
+    for (const slot of sporSlots) {
+      if (slot.goal && slot.date) {
+        dailySlots.push({
+          spec: { kind: sporKind(slot.goal), daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
+          mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
+        });
+      }
+    }
+    // Ramazan (aktif dönemdeyse)
+    if (seasonal.ramazan) {
+      const todayStr = today.toISOString().split('T')[0];
+      const activeRamazan = RAMAZAN.find(r => todayStr >= r.start && todayStr <= r.end);
+      if (activeRamazan) {
+        dailySlots.push({
+          spec: { kind: 'ramazan', daysLeft: daysUntil(activeRamazan.end), dailyMinutes: planSpecs.ramazan?.dailyMinutes, templateId: planSpecs.ramazan?.templateId },
+          mode: 'ramazan', taskIds: ramazanPlanTaskIds, habitIds: ramazanPlanHabitIds,
+        });
+      }
+    }
+
+    for (const ds of dailySlots) {
+      const daily = buildDailyTasks(ds.spec, fresh, lang, today);
+      await applyTasks(daily, ds.mode, ds.taskIds, ds.habitIds);
+    }
+
     await markRanToday();
   }, [
     seasonal, weightLog, currentWeight, targetWeight, lang,
@@ -187,6 +261,9 @@ export function usePlanAdaptations() {
     mulakat2PlanTaskIds, mulakat2PlanHabitIds,
     mulakat3PlanTaskIds, mulakat3PlanHabitIds,
     ramazanPlanTaskIds, ramazanPlanHabitIds,
+    spor2PlanTaskIds, spor2PlanHabitIds,
+    spor3PlanTaskIds, spor3PlanHabitIds,
+    planSpecs,
     applyTasks,
   ]);
 
@@ -194,7 +271,9 @@ export function usePlanAdaptations() {
     // Kullanıcı giriş yapmış ve task'lar yüklenmişse çalıştır
     const { user } = useAuthStore.getState();
     if (user) {
-      run();
+      // Önce tek seferlik migrasyon (eski gelecek-tarihli döküm görevlerini temizle),
+      // sonra günlük üretimi çalıştır.
+      runPlanMigrationOnce().finally(() => run());
     }
   }, []); // Yalnızca mount'ta
 

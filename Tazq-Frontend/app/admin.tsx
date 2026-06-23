@@ -5,10 +5,11 @@ import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
 import {
   ChevronLeft, Users, CheckSquare, Clock, Trash2, Shield, ShieldOff,
-  Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp,
+  Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban,
 } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { AdminService, AdminUser, AdminStats } from '../services/api';
 import { S, R, F } from '../constants/tokens';
 import * as Haptics from 'expo-haptics';
@@ -22,6 +23,7 @@ export default function AdminScreen() {
   const insets = useSafeAreaInsets();
   const isDark = colorScheme === 'dark';
   const tr = language === 'tr';
+  const myId = useAuthStore(s => s.user?.id);
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -105,6 +107,29 @@ export default function AdminScreen() {
             setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role: newRole } : u));
           } catch {
             Alert.alert(tr ? 'Hata' : 'Error', tr ? 'Değiştirilemedi.' : 'Could not update.');
+          }
+        }},
+      ]
+    );
+  };
+
+  const handleToggleBan = (user: AdminUser) => {
+    const willBan = !user.isBanned;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      willBan ? (tr ? 'Kullanıcıyı Banla' : 'Ban User') : (tr ? 'Banı Kaldır' : 'Unban User'),
+      willBan
+        ? (tr ? `${user.name} giriş yapamayacak ve oturumu kapatılacak.` : `${user.name} will be unable to log in and will be signed out.`)
+        : (tr ? `${user.name} tekrar giriş yapabilecek.` : `${user.name} will be able to log in again.`),
+      [
+        { text: tr ? 'İptal' : 'Cancel', style: 'cancel' },
+        { text: willBan ? (tr ? 'Banla' : 'Ban') : (tr ? 'Banı Kaldır' : 'Unban'), style: willBan ? 'destructive' : 'default', onPress: async () => {
+          try {
+            await AdminService.setBan(user.id, willBan);
+            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isBanned: willBan } : u));
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch {
+            Alert.alert(tr ? 'Hata' : 'Error', tr ? 'İşlem başarısız.' : 'Action failed.');
           }
         }},
       ]
@@ -287,6 +312,8 @@ export default function AdminScreen() {
             const completionRate = user.taskCount > 0 ? Math.round((user.completedTasks / user.taskCount) * 100) : 0;
             const focusHrs = (user.focusMinutes / 60).toFixed(1);
             const isAdmin = user.role === 'Admin';
+            const isSelf = user.id === myId;
+            const isBanned = !!user.isBanned;
 
             return (
               <MotiView
@@ -315,6 +342,11 @@ export default function AdminScreen() {
                       {isAdmin && (
                         <View style={{ backgroundColor: '#6366F115', borderRadius: R.full, paddingHorizontal: 6, paddingVertical: 1 }}>
                           <Text style={{ fontSize: 9, fontWeight: '800', color: '#6366F1' }}>ADMIN</Text>
+                        </View>
+                      )}
+                      {isBanned && (
+                        <View style={{ backgroundColor: theme.error + '20', borderRadius: R.full, paddingHorizontal: 6, paddingVertical: 1 }}>
+                          <Text style={{ fontSize: 9, fontWeight: '800', color: theme.error }}>{tr ? 'BANLI' : 'BANNED'}</Text>
                         </View>
                       )}
                     </View>
@@ -370,27 +402,47 @@ export default function AdminScreen() {
                     )}
 
                     {/* Action buttons */}
-                    <View style={{ flexDirection: 'row', gap: S.sm }}>
-                      <TouchableOpacity
-                        onPress={() => handleToggleRole(user)}
-                        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isAdmin ? '#6366F115' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'), borderWidth: 1, borderColor: isAdmin ? '#6366F130' : cardBorder }}
-                      >
-                        {isAdmin ? <ShieldOff size={14} color="#6366F1" /> : <Shield size={14} color={theme.onSurfaceVariant} />}
-                        <Text style={{ fontSize: F.caption, fontWeight: '700', color: isAdmin ? '#6366F1' : theme.onSurfaceVariant }}>
-                          {isAdmin ? (tr ? 'Admin Al' : 'Revoke Admin') : (tr ? 'Admin Yap' : 'Make Admin')}
+                    {isSelf ? (
+                      <View style={{ alignItems: 'center', paddingVertical: S.xs }}>
+                        <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                          {tr ? 'Bu senin hesabın' : 'This is your account'}
                         </Text>
-                      </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={{ gap: S.sm }}>
+                        <TouchableOpacity
+                          onPress={() => handleToggleRole(user)}
+                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isAdmin ? '#6366F115' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'), borderWidth: 1, borderColor: isAdmin ? '#6366F130' : cardBorder }}
+                        >
+                          {isAdmin ? <ShieldOff size={14} color="#6366F1" /> : <Shield size={14} color={theme.onSurfaceVariant} />}
+                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: isAdmin ? '#6366F1' : theme.onSurfaceVariant }}>
+                            {isAdmin ? (tr ? 'Admin Al' : 'Revoke Admin') : (tr ? 'Admin Yap' : 'Make Admin')}
+                          </Text>
+                        </TouchableOpacity>
 
-                      <TouchableOpacity
-                        onPress={() => handleDelete(user)}
-                        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.05)', borderWidth: 1, borderColor: theme.error + '30' }}
-                      >
-                        <Trash2 size={14} color={theme.error} />
-                        <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.error }}>
-                          {tr ? 'Hesabı Sil' : 'Delete Account'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                        <View style={{ flexDirection: 'row', gap: S.sm }}>
+                          <TouchableOpacity
+                            onPress={() => handleToggleBan(user)}
+                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isBanned ? '#10B98115' : (isDark ? 'rgba(245,158,11,0.10)' : 'rgba(245,158,11,0.07)'), borderWidth: 1, borderColor: isBanned ? '#10B98140' : '#F59E0B40' }}
+                          >
+                            {isBanned ? <CheckSquare size={14} color="#10B981" /> : <Ban size={14} color="#F59E0B" />}
+                            <Text style={{ fontSize: F.caption, fontWeight: '700', color: isBanned ? '#10B981' : '#F59E0B' }}>
+                              {isBanned ? (tr ? 'Banı Kaldır' : 'Unban') : (tr ? 'Banla' : 'Ban')}
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            onPress={() => handleDelete(user)}
+                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.05)', borderWidth: 1, borderColor: theme.error + '30' }}
+                          >
+                            <Trash2 size={14} color={theme.error} />
+                            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.error }}>
+                              {tr ? 'Hesabı Sil' : 'Delete'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
                   </View>
                 )}
               </MotiView>

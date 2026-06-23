@@ -69,7 +69,8 @@ namespace Tazq_Backend.Tests
             var token = await _userService.LoginAsync(loginDto, "127.0.0.1");
 
             // Assert
-            Assert.Equal("mock_token", token);
+            Assert.Equal("mock_token", token?.Token);
+            Assert.False(string.IsNullOrEmpty(token?.RefreshToken));
         }
     }
 }

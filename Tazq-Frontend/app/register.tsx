@@ -85,9 +85,9 @@ export default function RegisterScreen() {
       await AuthService.register({ name, email, password });
 
       // Auto-login immediately after successful registration
-      const { token } = await AuthService.login(email, password);
+      const { token, refreshToken } = await AuthService.login(email, password);
       const userData = await AuthService.getCurrentUser(token);
-      setAuth(userData, token);
+      setAuth(userData, token, refreshToken);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/');

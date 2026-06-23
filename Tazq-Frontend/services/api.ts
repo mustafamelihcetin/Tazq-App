@@ -26,13 +26,44 @@ api.interceptors.request.use(async (config) => {
 const RETRY_STATUS_CODES = [502, 503, 504];
 const MAX_RETRIES = 2;
 
+// Tek seferlik token yenileme — JWT 60 dk'da doluyor; eşzamanlı 401'lerde
+// tek bir refresh isteği paylaşılır (deduplication).
+let refreshPromise: Promise<string | null> | null = null;
+async function tryRefreshToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = useAuthStore.getState().refreshToken;
+      if (!refreshToken) return null;
+      // api instance'ı değil ham axios — interceptor döngüsüne girmesin
+      const res = await axios.post(`${BASE_URL}/api/users/refresh`, { refreshToken }, {
+        headers: { 'X-App-Signature': 'tazq-expo-frontend' },
+        timeout: 15000,
+      });
+      const newToken = res.data?.token as string | undefined;
+      const newRefresh = res.data?.refreshToken as string | undefined;
+      if (newToken) {
+        // Rotasyon: yeni access + yeni refresh token'ı sakla
+        useAuthStore.setState({ token: newToken, ...(newRefresh ? { refreshToken: newRefresh } : {}) });
+        return newToken;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
 api.interceptors.response.use(
   (response) => {
     useNetworkStore.getState().setOnline(true);
     return response;
   },
   async (error) => {
-    const config = error.config as typeof error.config & { _retryCount?: number };
+    const config = error.config as typeof error.config & { _retryCount?: number; _retriedAuth?: boolean };
 
     // Network failure (no response at all) → mark offline
     if (!error.response) {
@@ -42,8 +73,24 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
-      // Only logout if we're actually authenticated — avoids false logouts on network race conditions
       const { isLoggedIn, _hasHydrated } = useAuthStore.getState();
+      const url: string = config?.url ?? '';
+      const isRefreshCall = url.includes('/refresh-session');
+
+      // Süresi dolmuş JWT → önce sessizce yenilemeyi dene, sonra isteği tekrarla.
+      // Sadece gerçek oturum varsa, refresh çağrısının kendisi değilse ve daha önce
+      // denenmediyse. Böylece her açılışta gereksiz logout olmaz.
+      if (isLoggedIn && _hasHydrated && config && !config._retriedAuth && !isRefreshCall) {
+        config._retriedAuth = true;
+        const newToken = await tryRefreshToken();
+        if (newToken) {
+          config.headers = config.headers ?? {};
+          config.headers.Authorization = `Bearer ${newToken}`;
+          return api(config);
+        }
+      }
+
+      // Yenileme başarısız (token gerçekten geçersiz) → ancak o zaman çıkış yap.
       if (isLoggedIn && _hasHydrated) {
         useAuthStore.getState().logout();
       }
@@ -84,13 +131,17 @@ export const AuthService = {
     // Map backend profilePicture field to frontend avatar field
     return { ...data, avatar: data.profilePicture ?? data.avatar };
   },
-  updateProfile: async (data: { name?: string, avatar?: string }) => {
+  updateProfile: async (data: { name?: string, avatar?: string, motto?: string, avatarBorderColor?: string }) => {
     const response = await api.put('/api/users/profile', data);
     return response.data;
   },
   forgotPassword: async (email: string) => {
     const response = await api.post('/api/users/forgot-password', { email });
     return response.data;
+  },
+  // Refresh token'ı sunucuda iptal et (logout) — best-effort
+  logout: async (refreshToken: string) => {
+    try { await axios.post(`${BASE_URL}/api/users/logout`, { refreshToken }, { headers: { 'X-App-Signature': 'tazq-expo-frontend' }, timeout: 8000 }); } catch {}
   },
 };
 
@@ -166,6 +217,7 @@ export interface AdminUser {
   name: string;
   email: string;
   role: string;
+  isBanned?: boolean;
   profilePicture?: string;
   taskCount: number;
   completedTasks: number;
@@ -199,6 +251,9 @@ export const AdminService = {
   },
   setRole: async (id: number, role: string): Promise<void> => {
     await api.patch(`/api/admin/users/${id}/role`, { role });
+  },
+  setBan: async (id: number, banned: boolean): Promise<void> => {
+    await api.patch(`/api/admin/users/${id}/ban`, { banned });
   },
 };
 

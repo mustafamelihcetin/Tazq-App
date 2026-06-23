@@ -110,7 +110,12 @@ export default function ProfileScreen() {
     setProfileError(null);
     setSavingProfile(true);
     try {
-      await AuthService.updateProfile({ avatar: selectedAvatar, name: newName.trim() });
+      await AuthService.updateProfile({
+        avatar: selectedAvatar,
+        name: newName.trim(),
+        motto: newMotto.trim(),
+        avatarBorderColor: selectedBorderColor,
+      });
       // Update local state and close only on success — prevents unmounted-component reopen on error
       setUser({ ...user, avatar: selectedAvatar, name: newName.trim() });
       setDailyGoal(selectedGoal);

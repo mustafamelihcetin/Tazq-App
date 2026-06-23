@@ -28,7 +28,7 @@ namespace Tazq_App.Services
 			var key = Encoding.UTF8.GetBytes(keyString);
 			var issuer = "TazqServer";
 			var audience = "TazqApp";
-			var expiration = 60;
+			var expiration = 30; // dk — kısa ömürlü access token; kalıcılık DB-destekli refresh token ile sağlanır
 
 			var claims = new[]
 			{

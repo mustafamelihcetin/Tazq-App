@@ -32,6 +32,14 @@ namespace Tazq_App.Models
 
 		public string? ProfilePicture { get; set; } // Optional profile picture URL
 
+		[MaxLength(150)]
+		public string? Motto { get; set; } // Kişisel motto / kısa not
+
+		[MaxLength(32)]
+		public string? AvatarBorderColor { get; set; } // Profil avatar çerçeve rengi (hex)
+
+		public bool IsBanned { get; set; } = false; // Admin tarafından askıya alındı mı
+
 		[JsonIgnore]
 		public List<TaskItem> Tasks { get; set; } = new List<TaskItem>();
         public string? LastLoginIp { get; set; }

@@ -25,7 +25,7 @@ interface Props {
   mode: TurkishMode;
   onDismiss: () => void;
   showSheetImmediately?: boolean;
-  onApplied?: (habitIds: string[], taskIds: number[]) => void;
+  onApplied?: (habitIds: string[], taskIds: number[], meta?: { templateId?: string; dailyMinutes?: number }) => void;
   onSheetClose?: () => void;
   planApplied?: boolean;
   planHabitIds?: string[];
@@ -105,10 +105,20 @@ export const TurkishModeBanner: React.FC<Props> = ({
   const existingTaskTitles = new Set(tasks.map(t => t.title.toLowerCase()));
 
   const newHabits = activeHabits.filter(h => !existingHabitNames.has(h.name.toLowerCase()));
-  const newTasks = activeTasks.filter(t =>
+  const newTasksRaw = activeTasks.filter(t =>
     !existingTaskTitles.has(t.titleTr.toLowerCase()) &&
     !existingTaskTitles.has(t.titleEn.toLowerCase())
   );
+  // Gelecek-tarihli (daysFromNow > 1) görevler artık günlük plan motoru tarafından üretiliyor;
+  // plan uygulanırken materyalize edilmez. Yalnızca setup görevleri + kilo zincirini başlatan
+  // tek bir weight_entry görevi gerçekten oluşturulur. Sayım/buton/uygula hepsi bunu yansıtır.
+  let keptWeightEntry = false;
+  const newTasks = newTasksRaw.filter(t => {
+    const isFar = t.daysFromNow !== undefined && t.daysFromNow > 1;
+    if (!isFar) return true;
+    if (t.tags?.includes('weight_entry') && !keptWeightEntry) { keptWeightEntry = true; return true; }
+    return false;
+  });
   const allDone = newHabits.length === 0 && newTasks.length === 0;
 
   // Plan view data — active habits/tasks from this plan
@@ -174,25 +184,46 @@ export const TurkishModeBanner: React.FC<Props> = ({
       addedHabitIds.push(hid);
     }
 
-    // Next Monday ISO date — used as dueDate for recurring weight_entry tasks
-    const nextMonday = (() => {
-      const d = new Date();
-      const day = d.getDay();
-      d.setDate(d.getDate() + ((8 - day) % 7 || 7));
-      return d.toISOString().split('T')[0];
-    })();
+    // Smart scheduling: tasks drip in over multiple days, not all at once
+    // High priority → today, Medium → +1/+2/... days, Low → +4 days, weight_entry → +7 days
+    // Yerel tarih string'i üret — toISOString UTC'ye çevirir, timezone kayması yapar
+    const localDateStr = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+    const scheduleBase = new Date();
+    scheduleBase.setHours(0, 0, 0, 0);
+    const dayOffset = (n: number) => {
+      const d = new Date(scheduleBase);
+      d.setDate(d.getDate() + n);
+      return localDateStr(d);
+    };
 
     // Ramazan tasks created before Ramazan starts get the start date as dueDate
-    // so they don't clutter the task list until they're relevant
     const ramazanStartDate = mode.type === 'ramazan' && !isRamazanActive
       ? (ramazanStatus.period?.start ?? undefined)
       : undefined;
 
+    let mediumOffset = 1; // Fallback: first medium task appears tomorrow, increments per task
+    const getTaskDueDate = (task: ModeTask): string | undefined => {
+      if (ramazanStartDate) return ramazanStartDate;
+      // weight_entry zinciri WeightEntryModal/saveWeightEntry tarafından sürdürülür — ilk görevi +7'ye sabitle
+      if (task.tags?.includes('weight_entry')) return dayOffset(7);
+      // Template'in belirlediği gün offseti varsa onu kullan (bugün/yarınki setup görevleri)
+      if (task.daysFromNow !== undefined) return dayOffset(task.daysFromNow);
+      // Fallback: priority bazlı sıralama
+      if (task.priority === 'High') return dayOffset(0);
+      if (task.priority === 'Medium') return dayOffset(mediumOffset++);
+      return dayOffset(4); // Low
+    };
+
+    // newTasks zaten gelecek-tarihli dökümü hariç tutuyor (bkz. tanımı) — doğrudan oluştur.
     const addedTaskIds: number[] = [];
     for (const task of newTasks) {
       const title = tr ? task.titleTr : task.titleEn;
-      const isWeightEntry = task.tags?.includes('weight_entry');
-      const dueDate = isWeightEntry ? nextMonday : ramazanStartDate;
+      const dueDate = getTaskDueDate(task);
       try {
         const created = await TaskService.createTask({
           title, description: '', priority: task.priority,
@@ -212,7 +243,10 @@ export const TurkishModeBanner: React.FC<Props> = ({
       }
     }
 
-    onApplied?.(addedHabitIds, addedTaskIds);
+    onApplied?.(addedHabitIds, addedTaskIds, {
+      templateId: selectedTemplate?.id,
+      dailyMinutes: selectedTemplate?.dailyGoalMinutes,
+    });
     setApplying(false);
     appliedRef.current = true;
     setApplied(true);
@@ -580,23 +614,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
       {/* Actions */}
       <View style={styles.planViewActions}>
-        {(newHabits.length > 0 || newTasks.length > 0) && (
-          <TouchableOpacity
-            onPress={applyAll}
-            activeOpacity={0.85}
-            disabled={applying}
-            style={[styles.updateBtn, { backgroundColor: modeAccent, opacity: applying ? 0.7 : 1 }]}
-          >
-            {applying
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <>
-                  <RefreshCw size={14} color="#fff" strokeWidth={2.5} />
-                  <Text style={styles.updateBtnText}>
-                    {tr ? `Eksikleri Tamamla (${newHabits.length + newTasks.length})` : `Fill Missing (${newHabits.length + newTasks.length})`}
-                  </Text>
-                </>}
-          </TouchableOpacity>
-        )}
         <View style={{ flexDirection: 'row', gap: S.sm }}>
           {onClearPlan && (
             <TouchableOpacity
