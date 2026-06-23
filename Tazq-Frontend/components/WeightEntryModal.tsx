@@ -129,8 +129,8 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
         <Animated.View
           style={{
             backgroundColor: isDark ? '#1C1C22' : '#FFFFFF',
-            borderTopLeftRadius: R.xl,
-            borderTopRightRadius: R.xl,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
             paddingTop: S.sm,
             paddingBottom: insets.bottom > 0 ? insets.bottom : S.xl,
             paddingHorizontal: S.lg,

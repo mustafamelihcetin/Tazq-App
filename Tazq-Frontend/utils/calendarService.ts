@@ -22,7 +22,7 @@ export async function requestCalendarPermissions(): Promise<boolean> {
   return status === 'granted';
 }
 
-export async function getCalendarPermissionStatus(): Promise<Calendar.PermissionStatus> {
+export async function getCalendarPermissionStatus(): Promise<any> {
   const { status } = await Calendar.getCalendarPermissionsAsync();
   return status;
 }
@@ -98,7 +98,7 @@ export async function updateTaskInCalendar(
   task: Partial<CalendarTask>
 ): Promise<boolean> {
   try {
-    const patch: Partial<Calendar.Event> = {};
+    const patch: Partial<any> = {};
     if (task.title) patch.title = task.title;
     if (task.description !== undefined) patch.notes = task.description ?? '';
     if (task.dueDate) {
@@ -144,7 +144,7 @@ export async function addFocusBlockToCalendar(
 
 // ─── Upcoming Events (for future calendar view integration) ──────────────────
 
-export async function getUpcomingEvents(days = 7): Promise<Calendar.Event[]> {
+export async function getUpcomingEvents(days = 7): Promise<any[]> {
   try {
     const granted = await requestCalendarPermissions();
     if (!granted) return [];
