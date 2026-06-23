@@ -1,14 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, AppState, Animated, ScrollView, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, AppState, Animated, ScrollView, BackHandler, Easing } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import Svg, { Circle, G } from 'react-native-svg';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
 import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil, Timer, ChevronRight, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
-import { useTaskStore } from '../store/useTaskStore';
 import * as Haptics from 'expo-haptics';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
@@ -19,7 +21,8 @@ import { checkFocusAchievement } from '../utils/achievements';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { getRandomQuote } from '../constants/Quotes';
-import { S, R, F } from '../constants/tokens';
+import { S, R, F, B } from '../constants/tokens';
+import { Touchable } from '@/components/Touchable';
 
 // Named focus presets — each encodes work + break durations
 const PRESETS = [
@@ -50,11 +53,10 @@ export default function FocusScreen() {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { t, language } = useLanguageStore();
-  const { tasks } = useTaskStore();
 
   const {
     isActive, seconds, totalSeconds,
-    setIsActive, tick, reset, setDuration, currentTask, setCurrentTask,
+    setIsActive, tick, reset, setDuration,
     rehydrateTimer, addFocusMinutes,
     pomodoroMode, pomodoroRound, pomodoroPhase,
     togglePomodoroMode, nextPomodoroPhase,
@@ -77,13 +79,11 @@ export default function FocusScreen() {
   const [breathPickerVisible, setBreathPickerVisible] = useState(false);
   const [zenMode, setZenMode] = useState(false);
 
-  // Task picker
-  const [taskPickerVisible, setTaskPickerVisible] = useState(false);
-  const incompleteTasks = tasks.filter(t => !t.isCompleted);
-
   // Named preset selection
   const [selectedPreset, setSelectedPreset] = useState<PresetKey>('classic');
   const activePreset = PRESETS.find(p => p.key === selectedPreset) ?? PRESETS[1];
+
+
 
   // Custom duration wheel
   const [customVisible, setCustomVisible] = useState(false);
@@ -107,26 +107,63 @@ export default function FocusScreen() {
 
   const [isExiting, setIsExiting] = useState(false);
   const [quote, setQuote] = useState('');
+
+  useEffect(() => {
+    const handleBackPress = () => {
+      if (customVisible) { setCustomVisible(false); return true; }
+      if (breathPickerVisible) { setBreathPickerVisible(false); return true; }
+      if (taskEditMode) { setTaskEditMode(false); return true; }
+      if (pomodoroInfoVisible) { setPomodoroInfoVisible(false); return true; }
+      if (summaryVisible) { 
+        setSummaryVisible(false); 
+        if (summaryCompleted && !completionRitual) setCompletionRitual(true);
+        return true; 
+      }
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => backHandler.remove();
+  }, [customVisible, breathPickerVisible, taskEditMode, pomodoroInfoVisible, summaryVisible, summaryCompleted, completionRitual]);
+
   const WHEEL_ITEM_H = 56;
   const WHEEL_MINS = Array.from({ length: 180 }, (_, i) => i + 1);
 
-  const timerSize = Math.min(width * 0.68, height * 0.31);
+  const timerSize = Math.min(width * 0.72, height * 0.35);
   const elapsed = totalSeconds - seconds;
   const progress = totalSeconds > 0 ? elapsed / totalSeconds : 0;
   const sessionStarted = elapsed > 0;
 
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: progress,
+      duration: 1000,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start();
+  }, [progress]);
+
   const { panResponder: customPan, animatedStyle: customSlide, prepare: prepareCustom, slideIn: customSlideIn } = useSwipeToDismiss({
     onDismiss: () => setCustomVisible(false),
   });
-  const { panResponder: pickerPan, animatedStyle: pickerSlide, prepare: preparePicker, slideIn: pickerSlideIn } = useSwipeToDismiss({
-    onDismiss: () => setTaskPickerVisible(false),
-  });
+
   const { panResponder: breathPan, animatedStyle: breathSlide, prepare: prepareBreath, slideIn: breathSlideIn } = useSwipeToDismiss({
     onDismiss: () => setBreathPickerVisible(false),
   });
 
   // ── Ambient sound ────────────────────────────────────────────────────────
-  const TARGET_VOL = 0.4;
+  const [ambientVolume, setAmbientVolume] = useState(0.4);
+  const ambientVolumeRef = useRef(0.4);
+
+  const updateAmbientVolume = (vol: number) => {
+    setAmbientVolume(vol);
+    ambientVolumeRef.current = vol;
+    if (soundRef.current) {
+      try { soundRef.current.volume = vol; } catch {}
+    }
+  };
+
   const FADE_STEPS = 20;
   const FADE_MS = 16; // ~300ms total
   const CROSSFADE_SEC = 2.0; // crossfade başlangıcı: son 2 saniye
@@ -218,17 +255,17 @@ export default function FocusScreen() {
           nextPlayer.play();
 
           const crossFadeSteps = Math.floor((CROSSFADE_SEC * 1000) / FADE_MS);
-          const stepVal = TARGET_VOL / crossFadeSteps;
+          const stepVal = ambientVolumeRef.current / crossFadeSteps;
           let vol = 0;
           let step = 0;
 
           const xfInterval = setInterval(() => {
             step++;
-            vol = Math.min(vol + stepVal, TARGET_VOL);
+            vol = Math.min(vol + stepVal, ambientVolumeRef.current);
             try { nextPlayer.volume = vol; } catch {}
             // Mevcut player'ı fade-out
             try {
-              if (player) player.volume = Math.max(0, TARGET_VOL - vol);
+              if (player) player.volume = Math.max(0, ambientVolumeRef.current - vol);
             } catch {}
 
             if (step >= crossFadeSteps) {
@@ -238,7 +275,7 @@ export default function FocusScreen() {
               // Yeni player şimdi aktif
               if (currentSoundTypeRef.current === type) {
                 soundRef.current = nextPlayer;
-                nextPlayer.volume = TARGET_VOL;
+                nextPlayer.volume = ambientVolumeRef.current;
                 startCrossfadeLoop(type, nextPlayer);
               } else {
                 try { nextPlayer.pause(); nextPlayer.remove(); } catch {}
@@ -272,17 +309,17 @@ export default function FocusScreen() {
         player.play();
         soundRef.current = player;
         let vol = 0;
-        const stepVal = TARGET_VOL / FADE_STEPS;
+        const stepVal = ambientVolumeRef.current / FADE_STEPS;
         fadeIntervalRef.current = setInterval(() => {
-          vol = Math.min(vol + stepVal, TARGET_VOL);
+          vol = Math.min(vol + stepVal, ambientVolumeRef.current);
           try { if (soundRef.current) soundRef.current.volume = vol; } catch {}
-          if (vol >= TARGET_VOL) {
+          if (vol >= ambientVolumeRef.current) {
             clearFade();
             startCrossfadeLoop(type, player);
           }
         }, FADE_MS);
       } else {
-        player.volume = TARGET_VOL;
+        player.volume = ambientVolumeRef.current;
         player.play();
         soundRef.current = player;
         startCrossfadeLoop(type, player);
@@ -451,12 +488,12 @@ export default function FocusScreen() {
         if (active && total > 0) {
           backgroundSavedRef.current = true;
           const elapsed = Math.max(1, Math.round((total - secs) / 60));
-          FocusService.saveSession(currentTask || 'Focus', elapsed, false).catch(() => {});
+          FocusService.saveSession('Focus', elapsed, false).catch(() => {});
         }
       }
     });
     return () => sub.remove();
-  }, [currentTask]);
+  }, []);
 
   // ── Session completion / Pomodoro transitions ─────────────────────────────
   useEffect(() => {
@@ -488,7 +525,7 @@ export default function FocusScreen() {
 
         if (phase === 'work') {
           const minutes = Math.round(totalSeconds / 60);
-          FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
+          FocusService.saveSession('Focus', minutes, true).catch(() => {});
           addFocusMinutes(minutes);
 
           // Check focus achievements using lifetime total
@@ -524,7 +561,7 @@ export default function FocusScreen() {
         setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 300);
         setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 600);
         const minutes = Math.round(totalSeconds / 60);
-        FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
+        FocusService.saveSession('Focus', minutes, true).catch(() => {});
         addFocusMinutes(minutes);
         FocusService.getStats().then(s => {
           const total = Math.round((s.totalFocusHours || 0) * 60);
@@ -553,7 +590,7 @@ export default function FocusScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (elapsed > 0) {
       const minutesDone = Math.max(1, Math.round(elapsed / 60));
-      FocusService.saveSession(currentTask || 'Focus', minutesDone, false).catch(() => {});
+      FocusService.saveSession('Focus', minutesDone, false).catch(() => {});
       addFocusMinutes(minutesDone);
       stopAmbientSound();
       setAmbientSound('off');
@@ -571,7 +608,7 @@ export default function FocusScreen() {
     completedRef.current = true;
     setZenMode(false);
     const minutesDone = Math.max(1, Math.round(elapsed / 60));
-    FocusService.saveSession(currentTask || 'Focus', minutesDone, false).catch(() => {});
+    FocusService.saveSession('Focus', minutesDone, false).catch(() => {});
     addFocusMinutes(minutesDone);
     setSummaryMinutes(minutesDone);
     setSummaryCompleted(false);
@@ -594,17 +631,7 @@ export default function FocusScreen() {
     return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const openTaskPicker = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    preparePicker();
-    setTaskPickerVisible(true);
-  };
 
-  const selectTask = (title: string) => {
-    setCurrentTask(title);
-    setTaskPickerVisible(false);
-    Haptics.selectionAsync();
-  };
 
   const startBreak = (mins: number) => {
     setSummaryVisible(false);
@@ -654,7 +681,7 @@ export default function FocusScreen() {
       transition={{ type: 'timing', duration: 400 }}
       style={{ flex: 1, backgroundColor: theme.background }}
     >
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
 
         {/* Header — left/right slots are equal width so badge stays perfectly centered */}
         <MotiView
@@ -663,15 +690,15 @@ export default function FocusScreen() {
           transition={{ type: 'timing', duration: 400 }}
           style={[styles.header, { paddingVertical: S.md }]}
         >
-          <View style={{ width: 130, alignItems: 'flex-start' }}>
-            <TouchableOpacity
+          <View style={{ flex: 1, alignItems: 'flex-start' }}>
+            <Touchable
               onPress={() => {
                 stopAllSounds();
                 setAmbientSound('off');
                 if (elapsed > 0) {
                   setIsActive(false);
                   const minutesDone = Math.max(1, Math.round(elapsed / 60));
-                  FocusService.saveSession(currentTask || 'Focus', minutesDone, false).catch(() => {});
+                  FocusService.saveSession('Focus', minutesDone, false).catch(() => {});
                   addFocusMinutes(minutesDone);
                 }
                 setIsExiting(true);
@@ -682,18 +709,18 @@ export default function FocusScreen() {
               style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
             >
               <X size={20} color={theme.onSurface} />
-            </TouchableOpacity>
+            </Touchable>
           </View>
 
-          <View style={[styles.badge, { backgroundColor: theme.primary + '15' }]}>
+          <View style={[styles.badge, { backgroundColor: theme.primary + '15', flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginHorizontal: S.sm }]}>
             <Sparkles size={11} color={theme.primary} />
-            <Text style={[styles.badgeText, { color: theme.primary, fontSize: F.caption, letterSpacing: 1 }]}>
+            <Text style={[styles.badgeText, { color: theme.primary, fontSize: F.caption, letterSpacing: 1, maxWidth: 120 }]} numberOfLines={1}>
               {t.focusLabel || t.deepFocus}
             </Text>
           </View>
 
-          {/* Pomodoro toggle + info — hidden during active session */}
-          <View style={{ width: 130, alignItems: 'flex-end' }}>
+          {/* Pomodoro & Breath Toggles - Unified Premium Pill */}
+          <View style={{ flex: 1, alignItems: 'flex-end' }}>
             <AnimatePresence>
               {!isActive && (
                 <MotiView
@@ -702,38 +729,20 @@ export default function FocusScreen() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ type: 'timing', duration: 220 }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderRadius: 20, padding: 3 }}
                 >
-                  <TouchableOpacity
+                  <Touchable
                     onPress={() => { Haptics.selectionAsync(); setBreathPickerVisible(true); }}
-                    style={[
-                      styles.pomodoroToggle,
-                      {
-                        backgroundColor: breathMode !== 'off' ? theme.primary + '20' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
-                        borderColor: breathMode !== 'off' ? theme.primary + '50' : 'transparent',
-                      },
-                    ]}
+                    style={{ padding: 6, borderRadius: 17, backgroundColor: breathMode !== 'off' ? theme.primary + '20' : 'transparent' }}
                   >
-                    <Wind size={14} color={breathMode !== 'off' ? theme.primary : theme.onSurfaceVariant} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
+                    <Wind size={15} color={breathMode !== 'off' ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
+                  </Touchable>
+                  <Touchable
                     onPress={() => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); }}
-                    style={[
-                      styles.pomodoroToggle,
-                      {
-                        backgroundColor: pomodoroMode ? theme.primary + '20' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
-                        borderColor: pomodoroMode ? theme.primary + '50' : 'transparent',
-                      },
-                    ]}
+                    style={{ padding: 6, borderRadius: 17, backgroundColor: pomodoroMode ? theme.primary + '20' : 'transparent' }}
                   >
-                    <Timer size={14} color={pomodoroMode ? theme.primary : theme.onSurfaceVariant} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPomodoroInfoVisible(true); }}
-                    style={{ width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '900', color: theme.onSurfaceVariant }}>ⓘ</Text>
-                  </TouchableOpacity>
+                    <Timer size={15} color={pomodoroMode ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
+                  </Touchable>
                 </MotiView>
               )}
             </AnimatePresence>
@@ -742,13 +751,20 @@ export default function FocusScreen() {
 
         <View style={[styles.content, { paddingHorizontal: S.lg }]}>
 
-          {/* Preset chips (standard mode) / Pomodoro indicator */}
-          <MotiView
-            pointerEvents={zenMode && isActive ? "none" : "auto"}
-            animate={{ opacity: zenMode && isActive ? 0 : 1 }}
+          {/* Top Foreground (Chips) - Animates height to push timer smoothly */}
+          <MotiView 
+            animate={{ height: sessionStarted ? 20 : 90 }}
             transition={{ type: 'timing', duration: 400 }}
-            style={{ width: '100%', alignItems: 'center' }}
+            style={{ width: '100%', zIndex: 10 }} 
+            pointerEvents="box-none"
           >
+            {/* Preset chips (standard mode) / Pomodoro indicator */}
+            <MotiView
+              pointerEvents={zenMode && isActive ? "none" : "auto"}
+              animate={{ opacity: zenMode && isActive ? 0 : 1 }}
+              transition={{ type: 'timing', duration: 400 }}
+              style={{ width: '100%', alignItems: 'center', paddingTop: S.sm }}
+            >
             {pomodoroMode ? (
               <PomodoroIndicator />
             ) : (
@@ -761,11 +777,11 @@ export default function FocusScreen() {
                     exit={{ opacity: 0, translateY: -6 }}
                     transition={{ type: 'timing', duration: 220 }}
                   >
-                    <View style={[styles.durationRow, { marginBottom: S.md, gap: S.sm, flexWrap: 'wrap', justifyContent: 'center' }]}>
+                    <View style={[styles.durationRow, { marginBottom: S.md, gap: S.sm, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }]}>
                       {PRESETS.map((preset) => {
                         const isSelected = totalSeconds === preset.workMins * 60;
                         return (
-                          <TouchableOpacity
+                          <Touchable
                             key={preset.key}
                             onPress={() => {
                               Haptics.selectionAsync();
@@ -775,9 +791,9 @@ export default function FocusScreen() {
                             style={[
                               styles.durationChip,
                               {
-                                backgroundColor: isSelected ? theme.primary + '18' : 'transparent',
+                                backgroundColor: isSelected ? theme.primary + '18' : (Platform.OS === 'android' ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') : 'transparent'),
                                 borderColor: isSelected ? theme.primary : theme.outline,
-                                borderWidth: 1,
+                                borderWidth: B.thin,
                                 paddingHorizontal: S.md,
                                 paddingVertical: S.sm,
                                 flexDirection: 'column',
@@ -792,17 +808,17 @@ export default function FocusScreen() {
                             <Text style={{ fontSize: 10, color: isSelected ? theme.primary : theme.onSurfaceVariant, opacity: 0.7, fontWeight: '600', marginTop: 1 }}>
                               {preset.workMins}m
                             </Text>
-                          </TouchableOpacity>
+                          </Touchable>
                         );
                       })}
-                      <TouchableOpacity
+                      <Touchable
                         onPress={() => { prepareCustom(); Haptics.selectionAsync(); setCustomVisible(true); }}
                         style={[
                           styles.durationChip,
                           {
-                            backgroundColor: !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0 ? theme.primary + '18' : 'transparent',
+                            backgroundColor: !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0 ? theme.primary + '18' : (Platform.OS === 'android' ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') : 'transparent'),
                             borderColor: !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0 ? theme.primary : theme.outline,
-                            borderWidth: 1,
+                            borderWidth: B.thin,
                             paddingHorizontal: S.md,
                             paddingVertical: S.sm,
                             flexDirection: 'column',
@@ -818,16 +834,18 @@ export default function FocusScreen() {
                         <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.7, fontWeight: '600', marginTop: 1 }}>
                           {language === 'tr' ? 'Özel' : 'Custom'}
                         </Text>
-                      </TouchableOpacity>
+                      </Touchable>
                     </View>
                   </MotiView>
                 )}
               </AnimatePresence>
             )}
+            </MotiView>
           </MotiView>
 
-          {/* Timer */}
-          <MotiView style={[styles.timerContainer, { width: timerSize, height: timerSize }]}>
+          {/* Timer Container (Takes remaining space to prevent overlap) */}
+          <View style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', zIndex: 0 }} pointerEvents="box-none">
+            <MotiView style={[styles.timerContainer, { width: timerSize, height: timerSize }]} pointerEvents="auto">
             {/* Breath glow */}
             {/* Breath glow */}
             <Animated.View
@@ -849,15 +867,18 @@ export default function FocusScreen() {
             {(() => {
               const r = (timerSize / 2) - 6;
               const circumference = 2 * Math.PI * r;
-              const offset = circumference * (1 - progress);
+              const offsetAnim = progressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [circumference, 0]
+              });
               const strokeColor = pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary;
               return (
                 <Svg pointerEvents="none" width={timerSize} height={timerSize} style={{ position: 'absolute', zIndex: 12, opacity: zenMode && isActive ? 0.5 : 1 }}>
                   <G rotation={-90} origin={`${timerSize / 2}, ${timerSize / 2}`}>
                     <Circle cx={timerSize / 2} cy={timerSize / 2} r={r} fill="none" stroke={isDark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.08)'} strokeWidth={8} />
                     {progress > 0 && (
-                      <Circle cx={timerSize / 2} cy={timerSize / 2} r={r} fill="none" stroke={strokeColor} strokeWidth={8}
-                        strokeDasharray={`${circumference}`} strokeDashoffset={`${offset}`} strokeLinecap="round" />
+                      <AnimatedCircle cx={timerSize / 2} cy={timerSize / 2} r={r} fill="none" stroke={strokeColor} strokeWidth={8}
+                        strokeDasharray={`${circumference}`} strokeDashoffset={offsetAnim} strokeLinecap="round" />
                     )}
                   </G>
                 </Svg>
@@ -873,7 +894,7 @@ export default function FocusScreen() {
                 transform: [{ scale: circleScaleAnim }]
               }}
             >
-              <TouchableOpacity
+              <Touchable
                 activeOpacity={0.9}
                 onPress={() => {
                   if (isActive) {
@@ -900,38 +921,6 @@ export default function FocusScreen() {
                     {formatTime(seconds)}
                   </Text>
 
-                  {/* Task display — read-only during session, editable before */}
-                  {isActive ? (
-                    <Text style={[styles.currentTaskText, { color: theme.onSurfaceVariant, fontSize: F.body, maxWidth: timerSize * 0.75, textAlign: 'center' }]} numberOfLines={1}>
-                      {currentTask || t.focusSession}
-                    </Text>
-                  ) : taskEditMode ? (
-                    <TextInput
-                      ref={taskInputRef}
-                      value={taskEditInput}
-                      onChangeText={setTaskEditInput}
-                      onSubmitEditing={() => { setCurrentTask(taskEditInput.trim() || ''); setTaskEditMode(false); }}
-                      onBlur={() => { setCurrentTask(taskEditInput.trim() || ''); setTaskEditMode(false); }}
-                      returnKeyType="done"
-                      style={[styles.currentTaskText, { color: theme.primary, fontSize: F.body, maxWidth: timerSize * 0.75, borderBottomWidth: 1, borderBottomColor: theme.primary + '60', paddingBottom: 2, minWidth: 120, textAlign: 'center' }]}
-                      autoCapitalize="none"
-                      selectTextOnFocus
-                      underlineColorAndroid="transparent"
-                    />
-                  ) : (
-                    <TouchableOpacity
-                      onPress={() => { setTaskEditInput(currentTask || ''); setTaskEditMode(true); setTimeout(() => taskInputRef.current?.focus(), 80); }}
-                      onLongPress={openTaskPicker}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: timerSize * 0.8 }}
-                      accessibilityLabel={language === 'tr' ? 'Görev seç veya düzenle' : 'Select or edit task'}
-                    >
-                      <Text style={[styles.currentTaskText, { color: theme.onSurfaceVariant, fontSize: F.body, maxWidth: timerSize * 0.68 }]} numberOfLines={1}>
-                        {currentTask || t.focusSession}
-                      </Text>
-                      <Pencil size={11} color={theme.onSurfaceVariant} style={{ opacity: 0.5 }} />
-                    </TouchableOpacity>
-                  )}
-
                   {/* Status badge */}
                   <View style={[styles.statusBadge, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary + '20' : theme.primary + '20') : theme.surfaceContainerHigh, marginTop: 12 }]}>
                     <View style={[styles.statusDot, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary) : theme.onSurfaceVariant }]} />
@@ -941,9 +930,9 @@ export default function FocusScreen() {
                   </View>
 
                   {/* Breath cue — fades between phases in sync with glow animation */}
-                  {isActive && breathMode !== 'off' && (
-                    <View style={{ height: 16, marginTop: 7, justifyContent: 'center', alignItems: 'center' }}>
-                      <AnimatePresence>
+                  <View style={{ height: 16, marginTop: 7, justifyContent: 'center', alignItems: 'center' }}>
+                    <AnimatePresence>
+                      {isActive && breathMode !== 'off' && (
                         <MotiView
                           key={`normal-breath-${breathPhase}`}
                           from={{ opacity: 0 }}
@@ -955,9 +944,9 @@ export default function FocusScreen() {
                             {getBreathText()}
                           </Text>
                         </MotiView>
-                      </AnimatePresence>
-                    </View>
-                  )}
+                      )}
+                    </AnimatePresence>
+                  </View>
                 </MotiView>
 
                 {/* Zen Mode View (Fades in when Zen Mode is active) */}
@@ -986,30 +975,30 @@ export default function FocusScreen() {
                           </Text>
                         </MotiView>
                       </AnimatePresence>
-                      <Text style={{ fontFamily: 'Jakarta-SemiBold', fontSize: 13, color: theme.onSurfaceVariant, opacity: 0.5, marginTop: 12, letterSpacing: 0.5, textAlign: 'center' }}>
-                        {currentTask || t.focusSession}
-                      </Text>
                     </View>
                   ) : (
-                    <Text style={{ fontFamily: 'Jakarta-Bold', fontSize: 18, color: theme.onSurface, opacity: 0.8, textAlign: 'center' }}>
-                      {currentTask || t.focusSession}
-                    </Text>
+                    <View style={{ height: 40, alignItems: 'center', justifyContent: 'center' }}>
+                      <Sparkles size={24} color={theme.onSurface} style={{ opacity: 0.2 }} />
+                    </View>
                   )}
                   <Text style={{ fontFamily: 'Jakarta-SemiBold', fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.35, marginTop: 28, letterSpacing: 1 }}>
                     {language === 'tr' ? 'Çıkmak için dokun' : 'Tap to exit Zen Mode'}
                   </Text>
                 </MotiView>
-              </TouchableOpacity>
+              </Touchable>
             </Animated.View>
-          </MotiView>
+            </MotiView>
+          </View>
 
-          {/* Controls */}
-          <MotiView
-            pointerEvents={zenMode && isActive ? "none" : "auto"}
-            animate={{ opacity: zenMode && isActive ? 0 : 1 }}
-            transition={{ type: 'timing', duration: 400 }}
-            style={[styles.controlsRow, { marginTop: S.md, gap: S.xl }]}
-          >
+          {/* Controls & Bottom Section Wrapper */}
+          <View style={{ width: '100%', alignItems: 'center', paddingBottom: S.md, gap: S.md, zIndex: 10 }} pointerEvents="box-none">
+            {/* Controls */}
+            <MotiView
+              pointerEvents={zenMode && isActive ? "none" : "auto"}
+              animate={{ opacity: zenMode && isActive ? 0 : 1 }}
+              transition={{ type: 'timing', duration: 400 }}
+              style={[styles.controlsRow, { gap: S.xl }]}
+            >
             <View style={{ width: 56, height: 56 }}>
               <AnimatePresence>
                 {!isActive && (
@@ -1020,33 +1009,40 @@ export default function FocusScreen() {
                     exit={{ opacity: 0, scale: 0.85 }}
                     transition={{ type: 'timing', duration: 200 }}
                   >
-                    <TouchableOpacity
+                    <Touchable
                       onPress={resetTimer}
                       disabled={!sessionStarted}
                       style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg, opacity: sessionStarted ? 1 : 0.3 }]}
                     >
                       <RotateCcw size={24} color={theme.onSurfaceVariant} />
-                    </TouchableOpacity>
+                    </Touchable>
                   </MotiView>
                 )}
               </AnimatePresence>
             </View>
 
-            <TouchableOpacity
+            <Touchable
               onPress={toggleTimer}
-              style={[styles.playBtn, { backgroundColor: pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary, shadowColor: isDark ? theme.primary : '#000', width: 84, height: 84, borderRadius: 42 }]}
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                backgroundColor: isActive 
+                  ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') 
+                  : (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary),
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: isActive ? 'transparent' : (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary),
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: isActive ? 0 : 0.35,
+                shadowRadius: 12,
+                elevation: isActive ? 0 : 8,
+              }}
             >
-              <LinearGradient
-                colors={isDark
-                  ? [pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary, '#3367ff']
-                  : [pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary, theme.primaryContainer]}
-                style={styles.btnGradient}
-              >
-                {isActive
-                  ? <Pause size={32} color={theme.onPrimary} fill={theme.onPrimary} />
-                  : <Play size={32} color={theme.onPrimary} fill={theme.onPrimary} />}
-              </LinearGradient>
-            </TouchableOpacity>
+              {isActive
+                ? <Pause size={28} color={theme.onSurface} fill={theme.onSurface} style={{ opacity: 0.8 }} />
+                : <Play size={28} color={theme.onPrimary} fill={theme.onPrimary} style={{ marginLeft: 4 }} />}
+            </Touchable>
 
             <View style={{ width: 56, height: 56 }} />
           </MotiView>
@@ -1061,7 +1057,7 @@ export default function FocusScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.ambientRow}
+              contentContainerStyle={[styles.ambientRow, { marginTop: 0 }]}
               keyboardShouldPersistTaps="handled"
             >
               {(['rain', 'cafe', 'forest', 'ocean', 'fireplace', 'relaxing', 'binaural'] as AmbientSound[]).map(type => {
@@ -1069,7 +1065,7 @@ export default function FocusScreen() {
                 const cfg = SOUND_LABELS[type];
                 const IconComp = cfg.icon!;
                 return (
-                  <TouchableOpacity
+                  <Touchable
                     key={type}
                     activeOpacity={0.7}
                     onPress={() => {
@@ -1100,71 +1096,92 @@ export default function FocusScreen() {
                     <Text style={[styles.ambientLabel, { color: active ? theme.primary : theme.onSurfaceVariant, opacity: active ? 1 : 0.7 }]}>
                       {language === 'tr' ? cfg.labelTr : cfg.labelEn}
                     </Text>
-                  </TouchableOpacity>
+                  </Touchable>
                 );
               })}
             </ScrollView>
+
+            {/* Volume Control Stepper */}
+            <AnimatePresence>
+              {ambientSound !== 'off' && (
+                <MotiView
+                  key="volume-stepper"
+                  from={{ opacity: 0, height: 0, marginTop: 0 }}
+                  animate={{ opacity: 1, height: 24, marginTop: 12 }}
+                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                  transition={{ type: 'timing', duration: 300 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  {[0.2, 0.4, 0.6, 0.8, 1.0].map(v => (
+                    <Touchable
+                      key={v}
+                      onPress={() => { updateAmbientVolume(v); Haptics.selectionAsync(); }}
+                      style={{ width: 34, height: 24, justifyContent: 'center', alignItems: 'center' }}
+                      accessibilityLabel={`Ses seviyesi ${v * 100}`}
+                    >
+                      <View style={{ width: '100%', height: 4, borderRadius: 2, backgroundColor: ambientVolume >= v ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)') }} />
+                    </Touchable>
+                  ))}
+                </MotiView>
+              )}
+            </AnimatePresence>
           </MotiView>
 
-          {/* Pomodoro break guidance */}
-          <AnimatePresence>
-            {pomodoroMode && pomodoroPhase === 'break' && isActive && (
-              <MotiView
-                key="break-tip"
-                from={{ opacity: 0, translateY: 6 }}
-                animate={{ opacity: zenMode && isActive ? 0 : 1, translateY: 0 }}
-                exit={{ opacity: 0, translateY: 6 }}
-                transition={{ type: 'timing', duration: 400 }}
-                style={{ alignItems: 'center', marginTop: S.sm }}
-                pointerEvents={zenMode && isActive ? "none" : "auto"}
-              >
-                <Text style={{ fontSize: F.caption, color: theme.tertiary, fontWeight: '700', letterSpacing: 0.2, opacity: 0.85 }}>
-                  {language === 'tr' ? '💧 Su iç  ·  Esne  ·  Gözlerini kapat' : '💧 Hydrate  ·  Stretch  ·  Close your eyes'}
-                </Text>
-              </MotiView>
-            )}
-          </AnimatePresence>
-
-          {/* End session */}
-          <AnimatePresence>
-            {sessionStarted && (
-              <MotiView
-                from={{ opacity: 0, translateY: 10 }}
-                animate={{ opacity: zenMode && isActive ? 0 : 1, translateY: 0 }}
-                exit={{ opacity: 0, translateY: 10 }}
-                transition={{ type: 'timing', duration: 300 }}
-                style={{ marginTop: S.md, alignItems: 'center' }}
-                pointerEvents={zenMode && isActive ? "none" : "auto"}
-              >
-                <TouchableOpacity
-                  onPress={finishEarly}
-                  style={[styles.finishBtn, { borderColor: theme.tertiary + '50', backgroundColor: theme.tertiary + '12' }]}
+          {/* Dynamic Bottom Area (Fixed height to prevent layout shifts) */}
+          <View style={{ height: 44, width: '100%', alignItems: 'center', justifyContent: 'center' }}>
+            <AnimatePresence>
+              {pomodoroMode && pomodoroPhase === 'break' && isActive ? (
+                <MotiView
+                  key="break-tip"
+                  from={{ opacity: 0, translateY: 6 }}
+                  animate={{ opacity: zenMode && isActive ? 0 : 1, translateY: 0 }}
+                  exit={{ opacity: 0, translateY: 6 }}
+                  transition={{ type: 'timing', duration: 400 }}
+                  style={{ alignItems: 'center' }}
+                  pointerEvents={zenMode && isActive ? "none" : "auto"}
                 >
-                  <CheckCircle2 size={15} color={theme.tertiary} />
-                  <Text style={[styles.finishText, { color: theme.tertiary, fontSize: F.body }]}>
-                    {t.focusEndSession}
+                  <Text style={{ fontSize: F.caption, color: theme.tertiary, fontWeight: '700', letterSpacing: 0.2, opacity: 0.85 }}>
+                    {language === 'tr' ? '💧 Su iç  ·  Esne  ·  Gözlerini kapat' : '💧 Hydrate  ·  Stretch  ·  Close your eyes'}
                   </Text>
-                </TouchableOpacity>
-              </MotiView>
-            )}
-          </AnimatePresence>
-        </View>
+                </MotiView>
+              ) : sessionStarted ? (
+                <MotiView
+                  key="end-session"
+                  from={{ opacity: 0, translateY: 10 }}
+                  animate={{ opacity: zenMode && isActive ? 0 : 1, translateY: 0 }}
+                  exit={{ opacity: 0, translateY: 10 }}
+                  transition={{ type: 'timing', duration: 300 }}
+                  style={{ alignItems: 'center' }}
+                  pointerEvents={zenMode && isActive ? "none" : "auto"}
+                >
+                  <Touchable
+                    onPress={finishEarly}
+                    style={[styles.finishBtn, { borderColor: theme.tertiary + '50', backgroundColor: theme.tertiary + '12' }]}
+                  >
+                    <CheckCircle2 size={15} color={theme.tertiary} />
+                    <Text style={[styles.finishText, { color: theme.tertiary, fontSize: F.body }]}>
+                      {t.focusEndSession}
+                    </Text>
+                  </Touchable>
+                </MotiView>
+              ) : (
+                <MotiView
+                  key="footer-quote"
+                  from={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ type: 'timing', duration: 350 }}
+                >
+                  <View style={[styles.footer, { paddingHorizontal: S.xl }]}>
+                    <Text style={{ fontStyle: 'italic', textAlign: 'center', opacity: 0.5, color: theme.onSurfaceVariant, fontSize: F.body }}>{quote}</Text>
+                  </View>
+                </MotiView>
+              )}
+            </AnimatePresence>
+          </View>
 
-        <AnimatePresence>
-          {!isActive && (
-            <MotiView
-              key="footer-quote"
-              from={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ type: 'timing', duration: 350 }}
-            >
-              <View style={[styles.footer, { paddingVertical: S.sm, paddingHorizontal: S.xl }]}>
-                <Text style={[styles.quote, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{quote}</Text>
-              </View>
-            </MotiView>
-          )}
-        </AnimatePresence>
+          </View>
+        </View>
       </SafeAreaView>
 
       {/* ── Session completion ritual overlay ────────────────────────────────── */}
@@ -1192,7 +1209,7 @@ export default function FocusScreen() {
               transition={{ type: 'timing', duration: 380, delay: 320 }}
               style={{ alignItems: 'center', gap: S.sm }}
             >
-              <Text style={{ fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>
                 {language === 'tr' ? 'Tamamlandı' : 'Complete'}
               </Text>
               <Text style={{ fontSize: F.body, color: theme.onSurfaceVariant, fontWeight: '600', opacity: 0.7 }}>
@@ -1235,90 +1252,7 @@ export default function FocusScreen() {
         )}
       </AnimatePresence>
 
-      {/* ── Task picker modal ─────────────────────────────────────────────────── */}
-      <Modal visible={taskPickerVisible} transparent animationType="none" onShow={() => pickerSlideIn()} onRequestClose={() => setTaskPickerVisible(false)}>
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setTaskPickerVisible(false)} />
-          <Animated.View
-            style={[
-              pickerSlide,
-              {
-                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                maxHeight: height * 0.7,
-                paddingBottom: insets.bottom + S.lg,
-              },
-            ]}
-          >
-            <View {...pickerPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 4, alignItems: 'center' }}>
-              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }} />
-            </View>
 
-            <View style={{ paddingHorizontal: S.lg, paddingVertical: S.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: F.title, fontWeight: '800', color: theme.onSurface, letterSpacing: -0.3 }}>
-                {language === 'tr' ? 'Görev Seç' : 'Select Task'}
-              </Text>
-              <TouchableOpacity onPress={() => setTaskPickerVisible(false)} style={{ padding: S.sm }}>
-                <X size={18} color={theme.onSurfaceVariant} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: height * 0.5 }}>
-              {/* Clear selection */}
-              <TouchableOpacity
-                onPress={() => selectTask('')}
-                style={[styles.taskPickerItem, { borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.taskPickerItemTitle, { color: theme.onSurfaceVariant, fontStyle: 'italic' }]}>
-                    {language === 'tr' ? 'Seçimi temizle' : 'Clear selection'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              {incompleteTasks.length === 0 ? (
-                <View style={{ padding: S.xl, alignItems: 'center' }}>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center', opacity: 0.6 }}>
-                    {language === 'tr' ? 'Bekleyen görev yok.' : 'No pending tasks.'}
-                  </Text>
-                </View>
-              ) : (
-                incompleteTasks.slice(0, 50).map(task => {
-                  const priorityDot = task.priority === 'High' ? theme.priorityHigh : task.priority === 'Medium' ? theme.priorityMedium : theme.priorityLow;
-                  const isSelected = currentTask === task.title;
-                  return (
-                    <TouchableOpacity
-                      key={task.id}
-                      onPress={() => selectTask(task.title)}
-                      style={[
-                        styles.taskPickerItem,
-                        {
-                          borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-                          backgroundColor: isSelected ? theme.primary + '10' : 'transparent',
-                        },
-                      ]}
-                    >
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: priorityDot, marginTop: 3, flexShrink: 0 }} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.taskPickerItemTitle, { color: isSelected ? theme.primary : theme.onSurface }]} numberOfLines={2}>
-                          {task.title}
-                        </Text>
-                        {task.dueDate && (
-                          <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, opacity: 0.6, marginTop: 2 }}>
-                            {new Date(task.dueDate).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric' })}
-                          </Text>
-                        )}
-                      </View>
-                      {isSelected && <CheckCircle2 size={16} color={theme.primary} />}
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </ScrollView>
-          </Animated.View>
-        </View>
-      </Modal>
 
       {/* ── Custom Duration Modal ─────────────────────────────────────────────── */}
       <Modal
@@ -1333,7 +1267,7 @@ export default function FocusScreen() {
         }}
       >
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setCustomVisible(false)} />
+          <Touchable style={styles.modalOverlay} activeOpacity={1} onPress={() => setCustomVisible(false)} />
           <Animated.View
             style={[
               customSlide,
@@ -1344,7 +1278,7 @@ export default function FocusScreen() {
             <View {...customPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
             </View>
-            <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>{t.focusCustomDuration}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>{t.focusCustomDuration}</Text>
             <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>{language === 'tr' ? '1 – 180 dakika' : '1 – 180 minutes'}</Text>
 
             {/* Drum-roll wheel */}
@@ -1389,12 +1323,12 @@ export default function FocusScreen() {
               {language === 'tr' ? 'DAKİKA' : 'MINUTES'}
             </Text>
 
-            <TouchableOpacity
+            <Touchable
               onPress={applyCustomDuration}
               style={[styles.applyBtn, { backgroundColor: theme.primary }]}
             >
               <Text style={[styles.applyBtnText, { color: theme.onPrimary }]}>{t.focusCustomApply}</Text>
-            </TouchableOpacity>
+            </Touchable>
           </Animated.View>
         </View>
       </Modal>
@@ -1408,7 +1342,7 @@ export default function FocusScreen() {
         onRequestClose={() => setBreathPickerVisible(false)}
       >
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setBreathPickerVisible(false)} />
+          <Touchable style={styles.modalOverlay} activeOpacity={1} onPress={() => setBreathPickerVisible(false)} />
           <Animated.View
             style={[
               breathSlide,
@@ -1419,7 +1353,7 @@ export default function FocusScreen() {
             <View {...breathPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
             </View>
-            <Text style={[styles.sheetTitle, { color: theme.onSurface, paddingHorizontal: 24 }]}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface, paddingHorizontal: 24 }]}>
               {language === 'tr' ? 'Nefes Egzersizi' : 'Breathing Exercise'}
             </Text>
             <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant, paddingHorizontal: 24, marginBottom: 16 }]}>
@@ -1446,7 +1380,7 @@ export default function FocusScreen() {
                       : (language === 'tr' ? 'Ekrandaki solunum rehberini ve animasyonunu gizler' : 'Hides breathing guidance and animations');
 
                 return (
-                  <TouchableOpacity
+                  <Touchable
                     key={mode}
                     onPress={() => {
                       setBreathMode(mode);
@@ -1459,7 +1393,7 @@ export default function FocusScreen() {
                       backgroundColor: isActive ? theme.primary + '18' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
                       borderRadius: 16,
                       padding: 16,
-                      borderWidth: 1.5,
+                      borderWidth: B.medium,
                       borderColor: isActive ? theme.primary : 'transparent',
                     }}
                   >
@@ -1474,7 +1408,7 @@ export default function FocusScreen() {
                     {isActive && (
                       <CheckCircle2 size={20} color={theme.primary} />
                     )}
-                  </TouchableOpacity>
+                  </Touchable>
                 );
               })}
             </View>
@@ -1503,7 +1437,7 @@ export default function FocusScreen() {
                 : <Sparkles size={36} color={theme.secondary} strokeWidth={2.5} />}
             </MotiView>
 
-            <Text style={{ fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}>
               {summaryCompleted ? t.summaryGreatWork : t.summaryGoodStart}
             </Text>
 
@@ -1516,11 +1450,7 @@ export default function FocusScreen() {
               </Text>
             </View>
 
-            {!!currentTask && (
-              <Text style={{ fontSize: F.body, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center', opacity: 0.7 }} numberOfLines={2}>
-                {currentTask}
-              </Text>
-            )}
+
 
             <View style={{ width: '100%', backgroundColor: (summaryCompleted ? theme.primaryContainer : theme.secondaryContainer) + '60', borderRadius: R.md, padding: S.md, gap: 4 }}>
               <Text style={{ fontSize: F.body, fontWeight: '700', color: summaryCompleted ? theme.primary : theme.secondary, lineHeight: 20 }}>
@@ -1537,17 +1467,17 @@ export default function FocusScreen() {
 
             {/* Break button (only after standard completed session) */}
             {summaryCompleted && !pomodoroMode && (
-              <TouchableOpacity
+              <Touchable
                 onPress={() => startBreak(activePreset.shortBreak)}
-                style={{ width: '100%', paddingVertical: S.sm, borderRadius: R.full, borderWidth: 1, borderColor: theme.tertiary + '50', backgroundColor: theme.tertiary + '12', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.sm }}
+                style={{ width: '100%', paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: theme.tertiary + '50', backgroundColor: theme.tertiary + '12', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.sm }}
               >
                 <Text style={{ fontSize: F.body, fontWeight: '800', color: theme.tertiary }}>
                   {language === 'tr' ? `${activePreset.shortBreak} dk Mola Başlat` : `Start ${activePreset.shortBreak}-min Break`}
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
             )}
 
-            <TouchableOpacity
+            <Touchable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 setSummaryVisible(false);
@@ -1564,23 +1494,23 @@ export default function FocusScreen() {
               <Text style={{ fontSize: F.subhead, fontWeight: '900', color: theme.onPrimary, letterSpacing: 0.5 }}>
                 {t.summaryBackHome}
               </Text>
-            </TouchableOpacity>
+            </Touchable>
 
-            <TouchableOpacity
+            <Touchable
               onPress={() => { setSummaryVisible(false); completedRef.current = false; reset(); }}
               style={{ paddingVertical: S.sm }}
             >
               <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>
                 {t.summaryNewSession}
               </Text>
-            </TouchableOpacity>
+            </Touchable>
           </MotiView>
         </View>
       </Modal>
 
       {/* ── Pomodoro Info Modal ── */}
       <Modal visible={pomodoroInfoVisible} transparent animationType="fade" onRequestClose={() => setPomodoroInfoVisible(false)}>
-        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 32 }} activeOpacity={1} onPress={() => setPomodoroInfoVisible(false)}>
+        <Touchable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 32 }} activeOpacity={1} onPress={() => setPomodoroInfoVisible(false)}>
           <MotiView
             from={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -1604,10 +1534,10 @@ export default function FocusScreen() {
               {PRESETS.map((preset) => {
                 const isActive = preset.key === selectedPreset;
                 return (
-                  <TouchableOpacity
+                  <Touchable
                     key={preset.key}
                     onPress={() => { setSelectedPreset(preset.key); setDuration(preset.workMins); if (pomodoroMode) {}; }}
-                    style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isActive ? theme.primary + '18' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: isActive ? theme.primary + '40' : 'transparent' }}
+                    style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isActive ? theme.primary + '18' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: B.thin, borderColor: isActive ? theme.primary + '40' : 'transparent' }}
                   >
                     <View style={{ gap: 2 }}>
                       <Text style={{ fontSize: 13, fontWeight: '800', color: isActive ? theme.primary : theme.onSurface }}>
@@ -1625,20 +1555,20 @@ export default function FocusScreen() {
                         {language === 'tr' ? `${preset.shortBreak}/${preset.longBreak}dk mola` : `${preset.shortBreak}/${preset.longBreak}m break`}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+                  </Touchable>
                 );
               })}
             </View>
-            <TouchableOpacity
+            <Touchable
               onPress={() => setPomodoroInfoVisible(false)}
               style={{ backgroundColor: theme.primary, borderRadius: 16, paddingVertical: 14, alignItems: 'center' }}
             >
               <Text style={{ fontSize: 15, fontWeight: '900', color: theme.onPrimary }}>
                 {language === 'tr' ? 'Anladım' : 'Got it'}
               </Text>
-            </TouchableOpacity>
+            </Touchable>
           </MotiView>
-        </TouchableOpacity>
+        </Touchable>
       </Modal>
     </MotiView>
   );
@@ -1649,12 +1579,12 @@ const styles = StyleSheet.create({
   closeBtn: { width: 44, height: 44, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full },
   badgeText: { fontWeight: '900', letterSpacing: 1 },
-  pomodoroToggle: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, borderWidth: 1 },
+  pomodoroToggle: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, borderWidth: B.thin },
   pomodoroToggleText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
   pomodoroRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.xl, justifyContent: 'center' },
   phaseBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: R.full },
   phaseLabel: { fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  content: { flex: 1, alignItems: 'center', width: '100%' },
   durationRow: { flexDirection: 'row' },
   durationChip: { borderRadius: 100 },
   durationText: { fontWeight: '800' },
@@ -1666,16 +1596,16 @@ const styles = StyleSheet.create({
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontWeight: '900', letterSpacing: 1.5 },
-  taskPickerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, borderWidth: 1, marginTop: S.md, maxWidth: 260, gap: S.sm },
+  taskPickerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, marginTop: S.md, maxWidth: 260, gap: S.sm },
   taskPickerLabel: { fontSize: F.caption, fontWeight: '600', flex: 1 },
   controlsRow: { flexDirection: 'row', alignItems: 'center' },
   secondaryBtn: { alignItems: 'center', justifyContent: 'center' },
   playBtn: { overflow: 'hidden', elevation: 8, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
   btnGradient: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   ambientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: S.md, paddingHorizontal: S.lg },
-  ambientBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: R.full, borderWidth: 1 },
+  ambientBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: R.full, borderWidth: B.thin },
   ambientLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.1 },
-  finishBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, borderWidth: 1 },
+  finishBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin },
   finishText: { fontWeight: '700', letterSpacing: 0.3 },
   footer: { alignItems: 'center' },
   quote: { fontStyle: 'italic', textAlign: 'center', opacity: 0.5 },
@@ -1684,7 +1614,7 @@ const styles = StyleSheet.create({
   sheetHandle: { width: 36, height: 4, borderRadius: R.sm, marginBottom: S.sm },
   sheetTitle: { fontSize: F.title, fontWeight: '800', letterSpacing: -0.5 },
   sheetSub: { fontSize: F.body, fontWeight: '600', opacity: 0.5, marginBottom: S.sm },
-  inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: S.xs, marginBottom: 6 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: B.thin, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: S.xs, marginBottom: 6 },
   customInput: { fontWeight: '900', letterSpacing: -2, textAlign: 'center' },
   minLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5, opacity: 0.35, textAlign: 'center', marginBottom: S.sm },
   applyBtn: { width: '100%', paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },

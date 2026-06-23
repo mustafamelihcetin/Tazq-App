@@ -1,4 +1,4 @@
-import { Dimensions } from 'react-native';
+import { Dimensions, Platform, StyleSheet, PixelRatio } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -40,3 +40,22 @@ export const LH = {
   relaxed: 1.65,
 } as const;
 
+export const B = {
+  thin: Platform.OS === 'android' ? 1 : 1,
+  medium: Platform.OS === 'android' ? 1.5 : 1.5,
+} as const;
+
+export const getPremiumShadow = (elevation = 5, color = '#000000') => {
+  if (Platform.OS === 'android') {
+    return {
+      elevation,
+      shadowColor: color,
+    };
+  }
+  return {
+    shadowColor: color,
+    shadowOffset: { width: 0, height: elevation / 2 },
+    shadowOpacity: 0.1 + (elevation * 0.01),
+    shadowRadius: elevation,
+  };
+};

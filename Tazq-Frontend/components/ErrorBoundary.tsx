@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { captureError } from '../utils/sentry';
+import { Touchable } from '@/components/Touchable';
 
 interface Props {
   children: React.ReactNode;
@@ -30,11 +31,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
       if (this.props.fallback) return this.props.fallback;
       return (
         <View style={styles.container}>
-          <Text style={styles.title}>Something went wrong</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={styles.title}>Something went wrong</Text>
           <Text style={styles.message}>{this.state.error?.message}</Text>
-          <TouchableOpacity onPress={this.reset} style={styles.btn}>
+          <Touchable onPress={this.reset} style={styles.btn}>
             <Text style={styles.btnText}>Try Again</Text>
-          </TouchableOpacity>
+          </Touchable>
         </View>
       );
     }

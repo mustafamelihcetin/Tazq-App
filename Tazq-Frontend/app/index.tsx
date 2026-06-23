@@ -23,7 +23,7 @@ import { StatusHub } from '../components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { parseTaskHint } from '../utils/taskParser';
 import { getSmartInsight } from '../utils/insights';
-import { S, R, F, scale, verticalScale, moderateScale } from '../constants/tokens';
+import { S, R, F, scale, verticalScale, moderateScale, B } from '../constants/tokens';
 import { getAvatarSource } from '../utils/avatars';
 import { useToastStore } from '../store/useToastStore';
 import { useMomentumStore } from '../store/useMomentumStore';
@@ -35,6 +35,7 @@ import { detectTurkishMode, getCustomExamMode } from '../utils/turkishModes';
 import { scheduleWeeklySummary } from '../utils/notifications';
 import { useAchievementStore } from '../store/useAchievementStore';
 import { checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS } from '../utils/achievements';
+import { Touchable } from '@/components/Touchable';
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
@@ -505,17 +506,20 @@ export default function HomeScreen() {
                   left: S.lg,
                   right: S.lg,
                   zIndex: 100,
-                  backgroundColor: 'transparent',
+                  backgroundColor: Platform.OS === 'android' ? (isDark ? 'rgba(28,28,30,0.96)' : 'rgba(255,255,255,0.96)') : 'transparent',
                   borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                  elevation: Platform.OS === 'android' ? 4 : 0,
               },
-              isDark ? styles.darkTopBarShadow : styles.lightTopBarShadow
+              Platform.OS !== 'android' && (isDark ? styles.darkTopBarShadow : styles.lightTopBarShadow)
           ]}
       >
-          <BlurView
-              intensity={isDark ? 50 : 30}
-              tint={colorScheme}
-              style={StyleSheet.absoluteFill}
-          />
+          {Platform.OS !== 'android' && (
+            <BlurView
+                intensity={isDark ? 50 : 30}
+                tint={colorScheme}
+                style={StyleSheet.absoluteFill}
+            />
+          )}
           <View style={[styles.topBarContent, { paddingHorizontal: S.md }]}>
               <View style={StyleSheet.absoluteFill} pointerEvents="none">
                   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -523,7 +527,7 @@ export default function HomeScreen() {
                   </View>
               </View>
 
-              <TouchableOpacity
+              <Touchable
                   onPress={() => router.push('/profile')}
                   style={[
                       styles.avatarContainer,
@@ -537,7 +541,7 @@ export default function HomeScreen() {
                       source={getAvatarSource(user?.avatar || null)}
                       style={styles.avatar}
                   />
-              </TouchableOpacity>
+              </Touchable>
 
               <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareHub(); setStatusHubVisible(true); }} />
           </View>
@@ -548,7 +552,7 @@ export default function HomeScreen() {
         {/* Smart Cockpit Modal — bottom sheet */}
         <Modal visible={statusHubVisible} transparent animationType="none" onRequestClose={() => setStatusHubVisible(false)} onShow={() => hubSlideIn()}>
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
-                <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setStatusHubVisible(false)} />
+                <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setStatusHubVisible(false)} />
                 <Animated.View style={[hubSlide, styles.insightCard, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant + '40', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderRadius: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     <View {...hubPan.panHandlers} style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}>
                         <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }} />
@@ -572,12 +576,12 @@ export default function HomeScreen() {
                             <View style={{ flexDirection: 'row', gap: 12 }}>
                                 <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1 }]}>
                                     <Zap size={16} color={momentumColor} fill={momentumColor} />
-                                    <Text style={[styles.statValue, { color: theme.onSurface }]}>{momentum}%</Text>
+                                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.statValue, { color: theme.onSurface }]}>{momentum}%</Text>
                                     <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>Momentum</Text>
                                 </View>
                                 <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1 }]}>
                                     <Target size={16} color={theme.secondary} />
-                                    <Text style={[styles.statValue, { color: theme.onSurface }]}>{todayCompleted}/{dailyGoal}</Text>
+                                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.statValue, { color: theme.onSurface }]}>{todayCompleted}/{dailyGoal}</Text>
                                     <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.cockpitTarget}</Text>
                                 </View>
                             </View>
@@ -585,7 +589,7 @@ export default function HomeScreen() {
                     </View>
 
                     <View style={styles.cockpitActions}>
-                        <TouchableOpacity
+                        <Touchable
                             onPress={() => {
                                 if (isActive) {
                                     setStatusHubVisible(false);
@@ -602,16 +606,16 @@ export default function HomeScreen() {
                                  (!topTaskToday && futureTasksIncomplete.length > 0 ? t.cockpitPrepTomorrow :
                                  t.cockpitFocusNow)}
                             </Text>
-                        </TouchableOpacity>
+                        </Touchable>
 
-                        <TouchableOpacity
+                        <Touchable
                             onPress={() => setStatusHubVisible(false)}
                             style={[styles.actionButtonSecondary, { backgroundColor: theme.surfaceContainerHigh }]}
                         >
                             <Text style={[styles.actionButtonTextSecondary, { color: theme.onSurfaceVariant }]}>
                                 {t.cockpitClose}
                             </Text>
-                        </TouchableOpacity>
+                        </Touchable>
                     </View>
                 </Animated.View>
             </View>
@@ -621,7 +625,7 @@ export default function HomeScreen() {
             style={{ flex: 1 }}
             contentContainerStyle={[styles.scrollContent, { paddingTop: Platform.OS === 'android' ? insets.top + 68 + S.lg : S.sm + 68 + S.lg, paddingBottom: 120 }]}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
+            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={isDark ? '#1a1b1e' : '#ffffff'} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
             {/* Welcome Hero */}
             <MotiView
@@ -648,7 +652,7 @@ export default function HomeScreen() {
 
             {/* ── TODAY CARD ── */}
             <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
-            <TouchableOpacity onPress={handleTodayDoubleTap} activeOpacity={1}>
+            <Touchable onPress={handleTodayDoubleTap} activeOpacity={1}>
             <BentoCard index={0} style={{ overflow: 'hidden', padding: S.md }}>
                 <LinearGradient
                     colors={todayHighlight
@@ -734,14 +738,14 @@ export default function HomeScreen() {
                     </View>
                 </View>
             </BentoCard>
-            </TouchableOpacity>
+            </Touchable>
             </View>
 
             {/* Today Tasks Quick-Check */}
             {(todayTasksIncomplete.length > 0 || overdueCount > 0) && (
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 {overdueCount > 0 && (
-                  <TouchableOpacity
+                  <Touchable
                     onPress={() => router.push('/tasks')}
                     activeOpacity={0.8}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm, paddingHorizontal: 2 }}
@@ -751,12 +755,12 @@ export default function HomeScreen() {
                       {overdueCount} {language === 'tr' ? 'gecikmiş görev' : overdueCount === 1 ? 'overdue task' : 'overdue tasks'}
                     </Text>
                     <ChevronRight size={12} color={theme.error} opacity={0.5} />
-                  </TouchableOpacity>
+                  </Touchable>
                 )}
                 {todayTasksIncomplete.length > 0 && (
                   <BentoCard index={1} style={{ padding: 0, overflow: 'hidden' }}>
                     {todayTasksIncomplete.slice(0, 3).map((task, i) => (
-                      <TouchableOpacity
+                      <Touchable
                         key={task.id}
                         onPress={() => handleCheckTask(task.id)}
                         activeOpacity={0.7}
@@ -769,13 +773,13 @@ export default function HomeScreen() {
                       >
                         <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: priorityColor(task.priority), marginRight: S.md }} />
                         <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: theme.onSurface }} numberOfLines={1}>{task.title}</Text>
-                        <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: priorityColor(task.priority) + '55', alignItems: 'center', justifyContent: 'center', marginLeft: S.sm }}>
+                        <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: B.medium, borderColor: priorityColor(task.priority) + '55', alignItems: 'center', justifyContent: 'center', marginLeft: S.sm }}>
                           <Check size={11} color={priorityColor(task.priority) + '70'} strokeWidth={2.5} />
                         </View>
-                      </TouchableOpacity>
+                      </Touchable>
                     ))}
                     {todayTasksIncomplete.length > 3 && (
-                      <TouchableOpacity
+                      <Touchable
                         onPress={() => router.push('/tasks')}
                         activeOpacity={0.7}
                         style={{ paddingHorizontal: S.md, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}
@@ -784,7 +788,7 @@ export default function HomeScreen() {
                           {language === 'tr' ? `+${todayTasksIncomplete.length - 3} görev daha` : `+${todayTasksIncomplete.length - 3} more`}
                         </Text>
                         <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} />
-                      </TouchableOpacity>
+                      </Touchable>
                     )}
                   </BentoCard>
                 )}
@@ -828,7 +832,7 @@ export default function HomeScreen() {
                         </View>
 
                         <View style={styles.missionContent}>
-                            <Text style={[styles.missionTitle, { color: theme.onSurface, fontSize: F.title }]} numberOfLines={1} ellipsizeMode="tail">
+                            <Text adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.missionTitle, { color: theme.onSurface, fontSize: F.title }]} numberOfLines={1} ellipsizeMode="tail">
                                 {topTask ? topTask.title : t.noTasksHint}
                             </Text>
                             <Text style={[styles.missionSub, { color: theme.onSurfaceVariant }]}>
@@ -838,7 +842,7 @@ export default function HomeScreen() {
 
                         <View style={[styles.missionFooter, { gap: S.sm }]}>
                             {topTask ? (
-                                <TouchableOpacity
+                                <Touchable
                                     onPress={() => {
                                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                                         setCurrentTask(topTask.title);
@@ -850,23 +854,23 @@ export default function HomeScreen() {
                                 >
                                     <Play size={18} color={theme.onPrimary} fill={theme.onPrimary} />
                                     <Text style={[styles.startBtnText, { color: theme.onPrimary, fontSize: F.subhead, fontWeight: '900' }]}>{t.deepFocus.toUpperCase()}</Text>
-                                </TouchableOpacity>
+                                </Touchable>
                             ) : (
-                                <TouchableOpacity 
+                                <Touchable 
                                     onPress={() => router.push('/tasks')}
                                     style={[styles.startBtn, { backgroundColor: theme.surfaceContainerHigh, flex: 2, height: 52, justifyContent: 'center' }]}
                                 >
                                     <Plus size={18} color={theme.onSurface} />
                                     <Text style={[styles.startBtnText, { color: theme.onSurface, fontSize: F.subhead, fontWeight: '900' }]}>{t.addTask.toUpperCase()}</Text>
-                                </TouchableOpacity>
+                                </Touchable>
                             )}
-                            <TouchableOpacity 
+                            <Touchable 
                                 onPress={() => router.push('/tasks')} 
                                 style={[styles.seeAllBtn, { flex: 1, height: 52, justifyContent: 'flex-end', paddingRight: 4 }]}
                             >
                                 <Text style={[styles.seeAllText, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{t.filterAll}</Text>
                                 <ChevronRight size={16} color={theme.onSurfaceVariant} />
-                            </TouchableOpacity>
+                            </Touchable>
                         </View>
                     </BentoCard>
                 </MotiView>
@@ -916,7 +920,7 @@ export default function HomeScreen() {
 
             {/* ── Section Header — easter egg sadece aktifken görünür ── */}
             {headerHighlight && (
-              <TouchableOpacity onPress={handleHeaderDoubleTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
+              <Touchable onPress={handleHeaderDoubleTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
                 <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
                   <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1.8, color: theme.primary }}>
                     {language === 'tr' ? '✦ İYİ GİDİYOR' : '✦ LOOKING GOOD'}
@@ -925,7 +929,7 @@ export default function HomeScreen() {
                     {language === 'tr' ? 'devam et →' : 'keep going →'}
                   </Text>
                 </Animated.View>
-              </TouchableOpacity>
+              </Touchable>
             )}
 
             {/* Metrics Grid */}
@@ -971,7 +975,7 @@ export default function HomeScreen() {
                             <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1.5, color: theme.onSurfaceVariant, opacity: 0.5, marginBottom: 3 }}>
                                 {t.weeklyFocusLabel?.toUpperCase() ?? 'HAFTALIK ODAK'}
                             </Text>
-                            <Text style={{ fontSize: F.title, fontWeight: '900', letterSpacing: -1.2, color: theme.onSurface, lineHeight: 26 }}>
+                            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '900', letterSpacing: -1.2, color: theme.onSurface, lineHeight: 26 }}>
                                 {statsLoading ? '--' : weeklyMinutes >= 60
                                     ? `${Math.floor(weeklyMinutes / 60)}sa ${weeklyMinutes % 60 > 0 ? weeklyMinutes % 60 + 'dk' : ''}`
                                     : `${weeklyMinutes}dk`}
@@ -1064,7 +1068,7 @@ export default function HomeScreen() {
         {/* Quick Draft Modal */}
         <Modal visible={quickDraftVisible} transparent animationType="none" onRequestClose={() => setQuickDraftVisible(false)} onShow={() => draftSlideIn()}>
           <View style={styles.draftOverlay}>
-            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
+            <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
                 <View style={[styles.bottomSheetWrapper, { marginBottom: Platform.OS === 'ios' ? keyboardHeight : 0 }]}>
                     <Animated.View style={[draftSlide, styles.quickDraftSheet, {
                           backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
@@ -1080,7 +1084,7 @@ export default function HomeScreen() {
                                 <Zap size={20} color="#F59E0B" fill="#F59E0B" />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.quickDraftTitle, { color: theme.onSurface }]}>{t.draftNote}</Text>
+                                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.quickDraftTitle, { color: theme.onSurface }]}>{t.draftNote}</Text>
                                 <Text style={{ fontSize: F.caption, fontWeight: '600', color: '#F59E0B', opacity: 0.8, marginTop: 1 }}>
                                     {language === 'tr' ? 'Aklındakini yaz, sonra düzenlersin' : 'Capture now, refine later'}
                                 </Text>
@@ -1104,7 +1108,7 @@ export default function HomeScreen() {
                         </Text>
                         
                         <View style={styles.quickActions}>
-                            <TouchableOpacity
+                            <Touchable
                                 onPress={handleQuickSave}
                                 disabled={isSavingDraft || !draftTitle.trim()}
                                 style={[styles.quickSave, { backgroundColor: draftTitle.trim() ? '#F59E0B' : theme.surfaceContainerHigh, flex: 1 }]}
@@ -1112,7 +1116,7 @@ export default function HomeScreen() {
                                 {isSavingDraft ? <ActivityIndicator color="white" /> : (
                                     <Text style={{ color: draftTitle.trim() ? 'white' : theme.onSurfaceVariant, fontWeight: '900' }}>{t.save}</Text>
                                 )}
-                            </TouchableOpacity>
+                            </Touchable>
                         </View>
                     </Animated.View>
                 </View>
@@ -1123,12 +1127,12 @@ export default function HomeScreen() {
 
       {/* Quick Draft FAB */}
       {!(Platform.OS === 'android' && keyboardHeight > 0) && (
-        <TouchableOpacity
+        <Touchable
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareDraft(); setQuickDraftVisible(true); }}
           style={[styles.fab, { backgroundColor: isDark ? '#B45309' : '#D97706', shadowColor: isDark ? '#B45309' : '#D97706', bottom: Math.max(insets.bottom, 16) + 88, padding: 16, borderRadius: 100 }]}
         >
           <Zap size={22} color="#fff" fill="#fff" />
-        </TouchableOpacity>
+        </Touchable>
       )}
 
       <BottomNavBar />
@@ -1145,11 +1149,11 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   topBarWrapper: { paddingHorizontal: S.lg, paddingVertical: S.sm, alignItems: 'center' },
-  floatingTopBar: { borderRadius: R.full, overflow: 'hidden', borderWidth: 1.2 },
+  floatingTopBar: { borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin },
   lightTopBarShadow: { shadowColor: '#2d2f31', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 8 },
   darkTopBarShadow: { shadowColor: '#3367ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 },
   topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
-  avatarContainer: { width: scale(34), height: scale(34), borderRadius: R.full, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
+  avatarContainer: { width: scale(34), height: scale(34), borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
   heroSection: { marginBottom: S.lg },
@@ -1171,7 +1175,7 @@ const styles = StyleSheet.create({
   seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
   seeAllText: { fontSize: F.body, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: scale(24) },
-  insightCard: { width: '100%', borderRadius: R.lg + 8, padding: scale(24), borderWidth: 1, gap: scale(24) },
+  insightCard: { width: '100%', borderRadius: R.lg + 8, padding: scale(24), borderWidth: B.thin, gap: scale(24) },
   insightHeader: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
   insightIcon: { width: scale(36), height: scale(36), borderRadius: R.sm + 4, alignItems: 'center', justifyContent: 'center' },
   insightHeaderTitle: { fontSize: moderateScale(13), fontWeight: '900', letterSpacing: 1, opacity: 0.6 },
@@ -1194,7 +1198,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: R.lg,
     borderTopRightRadius: R.lg,
     padding: S.lg,
-    borderWidth: 1,
+    borderWidth: B.thin,
     borderColor: 'rgba(255,255,255,0.1)',
   },
   sheetHandle: { width: scale(40), height: scale(4), borderRadius: R.sm, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginBottom: S.md },

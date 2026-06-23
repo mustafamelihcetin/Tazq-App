@@ -26,7 +26,8 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { GlassCard } from '../components/GlassCard';
 import { AnimatedBackground } from '../components/AnimatedBackground';
 import { TazqLogo } from '../components/TazqLogo';
-import { S, R, F, scale, verticalScale, moderateScale } from '../constants/tokens';
+import { S, R, F, scale, verticalScale, moderateScale, B } from '../constants/tokens';
+import { Touchable } from '@/components/Touchable';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -113,13 +114,13 @@ export default function RegisterScreen() {
         <AnimatedBackground />
 
         <SafeAreaView style={styles.safeArea}>
-          <TouchableOpacity
+          <Touchable
             onPress={() => router.back()}
             style={[styles.backButton, { top: insets.top + 12 }]}
             activeOpacity={0.7}
           >
             <ArrowLeft size={22} color={theme.onSurface} />
-          </TouchableOpacity>
+          </Touchable>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -211,14 +212,14 @@ export default function RegisterScreen() {
                           secureTextEntry={!showPassword}
                           underlineColorAndroid="transparent"
                         />
-                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                        <Touchable onPress={() => setShowPassword(!showPassword)}>
                           {showPassword ? <EyeOff size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} /> : <Eye size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
-                        </TouchableOpacity>
+                        </Touchable>
                       </View>
                     </View>
 
                     {/* Legal consent */}
-                    <TouchableOpacity
+                    <Touchable
                       onPress={() => { Haptics.selectionAsync(); setConsentChecked(v => !v); }}
                       activeOpacity={0.7}
                       style={styles.consentRow}
@@ -251,9 +252,9 @@ export default function RegisterScreen() {
                         </Text>
                         {tr ? "'ni okudum ve kabul ediyorum." : '.'}
                       </Text>
-                    </TouchableOpacity>
+                    </Touchable>
 
-                    <TouchableOpacity
+                    <Touchable
                       onPress={handleRegister}
                       disabled={isLoading}
                       style={styles.registerButton}
@@ -271,7 +272,7 @@ export default function RegisterScreen() {
                           </>
                         )}
                       </MotiView>
-                    </TouchableOpacity>
+                    </Touchable>
 
                     <View style={styles.dividerRow}>
                       <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '40' }]} />
@@ -280,14 +281,14 @@ export default function RegisterScreen() {
                     </View>
 
                     <View style={styles.socialRow}>
-                      <TouchableOpacity style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant }]}>
+                      <Touchable style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant }]}>
                         <GoogleIcon color={theme.onSurface} />
                         <Text style={[styles.socialText, { color: theme.onSurface }]}>Google</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant }]}>
+                      </Touchable>
+                      <Touchable style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant }]}>
                         <AppleIcon color={theme.onSurface} />
                         <Text style={[styles.socialText, { color: theme.onSurface }]}>Apple</Text>
-                      </TouchableOpacity>
+                      </Touchable>
                     </View>
                   </View>
                 </GlassCard>
@@ -303,9 +304,9 @@ export default function RegisterScreen() {
                   <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
                     {t.login.alreadyHaveAccount} 
                   </Text>
-                  <TouchableOpacity onPress={() => router.push('/login')}>
+                  <Touchable onPress={() => router.push('/login')}>
                     <Text style={[styles.link, { color: theme.secondary }]}> {t.login.title}</Text>
-                  </TouchableOpacity>
+                  </Touchable>
                 </View>
               </MotiView>
             </View>
@@ -334,7 +335,7 @@ const styles = StyleSheet.create({
   form: { gap: Platform.OS === 'android' ? moderateScale(12) : moderateScale(16) },
   inputGroup: { gap: S.sm + 4 },
   label: { fontSize: F.caption, fontWeight: '800', letterSpacing: 1 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, height: Platform.OS === 'android' ? verticalScale(50) : verticalScale(56), borderRadius: R.md, borderWidth: 1, gap: S.sm + 4 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, height: Platform.OS === 'android' ? verticalScale(50) : verticalScale(56), borderRadius: R.md, borderWidth: B.thin, gap: S.sm + 4 },
   input: { flex: 1, fontSize: F.body + 1, fontWeight: '600', paddingVertical: 0 },
   consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm + 2, marginTop: verticalScale(2), marginBottom: verticalScale(2) },
   consentText: { flex: 1, fontSize: F.caption, fontFamily: 'Jakarta-SemiBold', lineHeight: verticalScale(16) },
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
   divider: { flex: 1, height: 1 },
   dividerText: { fontSize: F.caption + 1, fontWeight: '700', opacity: 0.5 },
   socialRow: { flexDirection: 'row', gap: S.md },
-  socialButton: { flex: 1, height: Platform.OS === 'android' ? verticalScale(46) : verticalScale(56), borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10), borderWidth: 1 },
+  socialButton: { flex: 1, height: Platform.OS === 'android' ? verticalScale(46) : verticalScale(56), borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10), borderWidth: B.thin },
   socialText: { fontSize: moderateScale(15), fontWeight: '700' },
   footer: { alignItems: 'center', marginTop: Platform.OS === 'android' ? verticalScale(12) : verticalScale(24) },
   footerRow: { flexDirection: 'row', alignItems: 'center' },

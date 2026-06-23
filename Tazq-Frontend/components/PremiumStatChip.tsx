@@ -10,7 +10,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
-import { R, S, F } from '../constants/tokens';
+import { R, S, F, B } from '../constants/tokens';
+import { Touchable } from '@/components/Touchable';
 
 export interface Surprise {
   icon: string;
@@ -100,7 +101,7 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
   const isCelebrate = burst && surprise?.tier === 'celebrate';
 
   return (
-    <TouchableOpacity onPress={handlePress} activeOpacity={0.9} style={{ flex: 1 }}>
+    <Touchable onPress={handlePress} activeOpacity={0.9} style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
 
         {/* ─── Floating emoji — celebrate tier only ─── */}
@@ -126,7 +127,7 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
         <View style={{
           backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
           borderRadius: R.md,
-          borderWidth: 1,
+          borderWidth: B.thin,
           borderColor: burst
             ? color + '50'
             : (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)'),
@@ -201,6 +202,6 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
           </MotiView>
         </View>
       </View>
-    </TouchableOpacity>
+    </Touchable>
   );
 });

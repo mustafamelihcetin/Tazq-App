@@ -1,4 +1,5 @@
 import React from 'react';
+import { B } from '../constants/tokens';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
 import { Zap } from 'lucide-react-native';
@@ -7,6 +8,7 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { useRouter, usePathname } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Touchable } from '@/components/Touchable';
 
 export const FocusIsland = () => {
   const { isActive, seconds, currentTask } = useFocusStore();
@@ -51,7 +53,7 @@ export const FocusIsland = () => {
           transition={{ loop: true, duration: 1800 }}
           style={[styles.dot, { backgroundColor: '#34c759' }]}
         />
-        <TouchableOpacity
+        <Touchable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.push('/focus');
@@ -66,7 +68,7 @@ export const FocusIsland = () => {
           <Text style={[styles.time, { color: theme.primary }]}>
             {formatTime(seconds)}
           </Text>
-        </TouchableOpacity>
+        </Touchable>
       </MotiView>
     </View>
   );
@@ -84,7 +86,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 100,
-    borderWidth: 1.5,
+    borderWidth: B.medium,
     paddingVertical: 8,
     paddingHorizontal: 14,
     gap: 8,

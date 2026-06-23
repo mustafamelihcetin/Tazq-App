@@ -29,13 +29,35 @@ function computeStreak(completedDates: string[] | undefined): number {
   if (!completedDates?.length) return 0;
   const set = new Set(completedDates);
   let streak = 0;
-  const d = new Date();
-  // If today not done, start streak count from yesterday
-  if (!set.has(fmtDateKey(d))) d.setDate(d.getDate() - 1);
-  while (set.has(fmtDateKey(d))) {
-    streak++;
+  let d = new Date();
+  
+  // If today is missed, check yesterday. If yesterday is also missed, streak is broken.
+  if (!set.has(fmtDateKey(d))) {
     d.setDate(d.getDate() - 1);
+    if (!set.has(fmtDateKey(d))) {
+      return 0; // 2 consecutive days missed (today & yesterday) -> broken
+    }
+  }
+  
+  while (true) {
     if (streak > 3650) break; // safety
+    
+    if (set.has(fmtDateKey(d))) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    } else {
+      // Missing day (gap). Check if the day before that was completed to forgive this gap.
+      const prevD = new Date(d);
+      prevD.setDate(prevD.getDate() - 1);
+      
+      if (set.has(fmtDateKey(prevD))) {
+        // Gap forgiven (grace period)
+        d.setDate(d.getDate() - 1);
+      } else {
+        // Two consecutive missed days
+        break;
+      }
+    }
   }
   return streak;
 }

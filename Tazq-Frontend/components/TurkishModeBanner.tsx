@@ -18,8 +18,9 @@ import { getCurrentRamadanStatus } from '../utils/ramadanDates';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { extractPlanFromText, QUICK_EMOJIS, QUICK_COLORS, DraftHabit, DraftTask } from '../utils/planExtractor';
 import { TextInput } from 'react-native';
-import { S, R, F } from '../constants/tokens';
+import { S, R, F, B } from '../constants/tokens';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { Touchable } from '@/components/Touchable';
 
 interface Props {
   mode: TurkishMode;
@@ -175,6 +176,10 @@ export const TurkishModeBanner: React.FC<Props> = ({
     if (applying || allDone) return;
     setApplying(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    // Temiz bir sayfa açmak ve eski (çifte) hedefleri önlemek için önceki planı sil:
+    onClearPlan?.();
+
     if (selectedTemplate?.dailyGoalMinutes) setDailyGoal(selectedTemplate.dailyGoalMinutes);
 
     const addedHabitIds: string[] = [];
@@ -324,16 +329,16 @@ export const TurkishModeBanner: React.FC<Props> = ({
     return (
       <>
         <View style={styles.sheetHeader}>
-          <TouchableOpacity
+          <Touchable
             onPress={() => { Haptics.selectionAsync(); setStep('template'); }}
             style={{ marginRight: S.sm, padding: 4 }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <ArrowLeft size={20} color={theme.onSurfaceVariant} />
-          </TouchableOpacity>
+          </Touchable>
           <Text style={{ fontSize: 26, lineHeight: 32 }}>✨</Text>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>
               {tr ? 'Kendi Planını Oluştur' : 'Build Your Own Plan'}
             </Text>
             <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>
@@ -344,7 +349,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
         <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
           {/* AI text suggest */}
-          <View style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, padding: S.md, marginBottom: S.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+          <View style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, padding: S.md, marginBottom: S.md, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
             <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.xs }}>
               {tr ? '✦ Planını birkaç cümleyle anlat, önerelim' : '✦ Describe your plan, we\'ll suggest habits & tasks'}
             </Text>
@@ -357,13 +362,13 @@ export const TurkishModeBanner: React.FC<Props> = ({
               placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.28)'}
               style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '500', minHeight: 54, lineHeight: 20, textAlignVertical: 'top' }}
             />
-            <TouchableOpacity
+            <Touchable
               onPress={suggest}
               style={{ alignSelf: 'flex-end', backgroundColor: modeAccent, borderRadius: R.full, paddingHorizontal: S.md, paddingVertical: S.xs + 1, marginTop: S.xs }}
               activeOpacity={0.8}
             >
               <Text style={{ color: '#fff', fontSize: F.caption, fontWeight: '800' }}>{tr ? 'Öner' : 'Suggest'}</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
 
           {/* Habits */}
@@ -372,13 +377,13 @@ export const TurkishModeBanner: React.FC<Props> = ({
           </Text>
           {customHabits.map((h, idx) => (
             <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.xs + 1 }}>
-              <TouchableOpacity
+              <Touchable
                 onPress={() => cycleEmoji(idx)}
-                style={{ width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: h.color + '20', borderWidth: 1, borderColor: h.color + '40' }}
+                style={{ width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: h.color + '20', borderWidth: B.thin, borderColor: h.color + '40' }}
                 activeOpacity={0.7}
               >
                 {renderModeEmojiIcon(h.emoji, 16, h.color)}
-              </TouchableOpacity>
+              </Touchable>
               <TextInput
                 value={h.nameTr}
                 onChangeText={v => setCustomHabits(prev => { const n = [...prev]; n[idx] = { ...n[idx], nameTr: v, name: v }; return n; })}
@@ -388,21 +393,21 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 returnKeyType="next"
                 underlineColorAndroid="transparent"
               />
-              <TouchableOpacity onPress={() => cycleColor(idx)} style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: h.color, borderWidth: 1.5, borderColor: isDark ? 'rgba(255,255,255,0.4)' : '#fff' }} activeOpacity={0.7} />
-              <TouchableOpacity onPress={() => setCustomHabits(prev => prev.filter((_, i) => i !== idx))} style={{ padding: 4 }} activeOpacity={0.7}>
+              <Touchable onPress={() => cycleColor(idx)} style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: h.color, borderWidth: B.medium, borderColor: isDark ? 'rgba(255,255,255,0.4)' : '#fff' }} activeOpacity={0.7} />
+              <Touchable onPress={() => setCustomHabits(prev => prev.filter((_, i) => i !== idx))} style={{ padding: 4 }} activeOpacity={0.7}>
                 <X size={14} color={theme.onSurfaceVariant} />
-              </TouchableOpacity>
+              </Touchable>
             </View>
           ))}
           {customHabits.length < 5 && (
-            <TouchableOpacity
+            <Touchable
               onPress={() => setCustomHabits(prev => [...prev, { name: '', nameTr: '', emoji: QUICK_EMOJIS[prev.length % QUICK_EMOJIS.length], color: QUICK_COLORS[prev.length % QUICK_COLORS.length] }])}
               style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: S.sm }}
               activeOpacity={0.7}
             >
               <Text style={{ fontSize: 18, color: modeAccent, lineHeight: 22 }}>+</Text>
               <Text style={{ fontSize: F.caption, fontWeight: '700', color: modeAccent }}>{tr ? 'Alışkanlık Ekle' : 'Add Habit'}</Text>
-            </TouchableOpacity>
+            </Touchable>
           )}
 
           {/* Tasks */}
@@ -421,37 +426,37 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   returnKeyType="next"
                   underlineColorAndroid="transparent"
                 />
-                <TouchableOpacity onPress={() => setCustomTasks(prev => prev.filter((_, i) => i !== idx))} style={{ padding: 4 }} activeOpacity={0.7}>
+                <Touchable onPress={() => setCustomTasks(prev => prev.filter((_, i) => i !== idx))} style={{ padding: 4 }} activeOpacity={0.7}>
                   <X size={14} color={theme.onSurfaceVariant} />
-                </TouchableOpacity>
+                </Touchable>
               </View>
               <View style={{ flexDirection: 'row', gap: S.xs }}>
                 {(['High', 'Medium', 'Low'] as const).map(p => {
                   const pColor = p === 'High' ? '#EF4444' : p === 'Medium' ? '#F59E0B' : (theme.onSurfaceVariant as string);
                   const pLabel = tr ? (p === 'High' ? 'Yüksek' : p === 'Medium' ? 'Orta' : 'Düşük') : p;
                   return (
-                    <TouchableOpacity
+                    <Touchable
                       key={p}
                       onPress={() => { Haptics.selectionAsync(); setCustomTasks(prev => { const n = [...prev]; n[idx] = { ...n[idx], priority: p }; return n; }); }}
-                      style={{ paddingHorizontal: S.sm, paddingVertical: 3, borderRadius: R.sm, backgroundColor: t.priority === p ? pColor + '20' : 'transparent', borderWidth: 1, borderColor: t.priority === p ? pColor + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
+                      style={{ paddingHorizontal: S.sm, paddingVertical: 3, borderRadius: R.sm, backgroundColor: t.priority === p ? pColor + '20' : 'transparent', borderWidth: B.thin, borderColor: t.priority === p ? pColor + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
                       activeOpacity={0.7}
                     >
                       <Text style={{ fontSize: 10, fontWeight: '800', color: t.priority === p ? pColor : theme.onSurfaceVariant }}>{pLabel}</Text>
-                    </TouchableOpacity>
+                    </Touchable>
                   );
                 })}
               </View>
             </View>
           ))}
           {customTasks.length < 7 && (
-            <TouchableOpacity
+            <Touchable
               onPress={() => setCustomTasks(prev => [...prev, { titleTr: '', titleEn: '', priority: 'Medium' }])}
               style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: S.sm }}
               activeOpacity={0.7}
             >
               <Text style={{ fontSize: 18, color: modeAccent, lineHeight: 22 }}>+</Text>
               <Text style={{ fontSize: F.caption, fontWeight: '700', color: modeAccent }}>{tr ? 'Görev Ekle' : 'Add Task'}</Text>
-            </TouchableOpacity>
+            </Touchable>
           )}
 
           {/* Daily goal picker */}
@@ -460,19 +465,19 @@ export const TurkishModeBanner: React.FC<Props> = ({
               {tr ? 'Günlük odak' : 'Daily focus'}
             </Text>
             {[30, 45, 60, 90, 120].map(m => (
-              <TouchableOpacity
+              <Touchable
                 key={m}
                 onPress={() => setCustomGoal(m)}
-                style={{ paddingHorizontal: S.xs + 2, paddingVertical: 3, borderRadius: R.sm, backgroundColor: customGoal === m ? modeAccent + '20' : 'transparent', borderWidth: 1, borderColor: customGoal === m ? modeAccent + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
+                style={{ paddingHorizontal: S.xs + 2, paddingVertical: 3, borderRadius: R.sm, backgroundColor: customGoal === m ? modeAccent + '20' : 'transparent', borderWidth: B.thin, borderColor: customGoal === m ? modeAccent + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
                 activeOpacity={0.7}
               >
                 <Text style={{ fontSize: 10, fontWeight: '800', color: customGoal === m ? modeAccent : theme.onSurfaceVariant }}>{m}dk</Text>
-              </TouchableOpacity>
+              </Touchable>
             ))}
           </View>
         </ScrollView>
 
-        <TouchableOpacity
+        <Touchable
           onPress={canProceed ? proceed : undefined}
           activeOpacity={canProceed ? 0.85 : 1}
           style={[styles.applyBtn, { backgroundColor: canProceed ? modeAccent : theme.surfaceContainerHigh, opacity: canProceed ? 1 : 0.5, marginTop: S.lg }]}
@@ -481,7 +486,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
           <Text style={[styles.applyBtnText, { color: canProceed ? '#fff' : theme.onSurfaceVariant }]}>
             {tr ? `Devam Et${totalItems > 0 ? ` (${totalItems} öğe)` : ''}` : `Continue${totalItems > 0 ? ` (${totalItems} items)` : ''}`}
           </Text>
-        </TouchableOpacity>
+        </Touchable>
       </>
     );
   };
@@ -492,7 +497,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
       <View style={styles.sheetHeader}>
         {renderModeEmojiIcon(mode.emoji, 36, modeAccent)}
         <View style={{ flex: 1 }}>
-          <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>
             {tr ? mode.labelTr : mode.labelEn}
           </Text>
           <Text style={[styles.sheetSub, { color: modeAccent }]}>
@@ -508,21 +513,21 @@ export const TurkishModeBanner: React.FC<Props> = ({
       {/* Progress summary row */}
       <View style={[styles.progressRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
         <View style={styles.progressStat}>
-          <Text style={[styles.progressNum, { color: modeAccent }]}>{avgHabitWeekPct}%</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.progressNum, { color: modeAccent }]}>{avgHabitWeekPct}%</Text>
           <Text style={[styles.progressLabel, { color: theme.onSurfaceVariant }]}>
             {tr ? 'haftalık alışkanlık' : 'weekly habits'}
           </Text>
         </View>
         <View style={[styles.progressDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }]} />
         <View style={styles.progressStat}>
-          <Text style={[styles.progressNum, { color: modeAccent }]}>{completedPlanTasks}/{totalPlanTasks}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.progressNum, { color: modeAccent }]}>{completedPlanTasks}/{totalPlanTasks}</Text>
           <Text style={[styles.progressLabel, { color: theme.onSurfaceVariant }]}>
             {tr ? 'görev tamamlandı' : 'tasks done'}
           </Text>
         </View>
         <View style={[styles.progressDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }]} />
         <View style={styles.progressStat}>
-          <Text style={[styles.progressNum, { color: modeAccent }]}>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.progressNum, { color: modeAccent }]}>
             {(() => {
               const best = planHabitStats.length > 0 ? Math.max(...planHabitStats.map(h => h.streak)) : 0;
               return best > 0 ? `${best}🔥` : '0';
@@ -616,7 +621,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
       <View style={styles.planViewActions}>
         <View style={{ flexDirection: 'row', gap: S.sm }}>
           {onClearPlan && (
-            <TouchableOpacity
+            <Touchable
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onClearPlan(); setSheetVisible(false); }}
               activeOpacity={0.8}
               style={[styles.clearBtn, { flex: 1, borderColor: theme.error + '40' }]}
@@ -625,9 +630,9 @@ export const TurkishModeBanner: React.FC<Props> = ({
               <Text style={[styles.clearBtnText, { color: theme.error }]}>
                 {tr ? 'Planı Kaldır' : 'Remove Plan'}
               </Text>
-            </TouchableOpacity>
+            </Touchable>
           )}
-          <TouchableOpacity
+          <Touchable
             onPress={() => setSheetVisible(false)}
             activeOpacity={0.8}
             style={[styles.clearBtn, { flex: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }]}
@@ -635,7 +640,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
             <Text style={[styles.clearBtnText, { color: theme.onSurfaceVariant }]}>
               {tr ? 'Kapat' : 'Close'}
             </Text>
-          </TouchableOpacity>
+          </Touchable>
         </View>
       </View>
     </>
@@ -676,7 +681,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
             </View>
           </View>
           <View style={styles.bannerRight}>
-            <TouchableOpacity
+            <Touchable
               onPress={openSheet}
               style={[styles.planBtn, { backgroundColor: planApplied ? modeAccent : modeAccent }]}
               activeOpacity={0.8}
@@ -686,17 +691,17 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 {planApplied ? (tr ? 'Planı Gör' : 'View Plan') : (tr ? 'Planı Seç' : 'Pick Plan')}
               </Text>
               <ChevronRight size={13} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onDismiss} style={styles.dismissBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            </Touchable>
+            <Touchable onPress={onDismiss} style={styles.dismissBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <X size={14} color={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.35)'} />
-            </TouchableOpacity>
+            </Touchable>
           </View>
         </MotiView>
       )}
 
       <Modal visible={sheetVisible} transparent animationType="none" onRequestClose={() => setSheetVisible(false)} onShow={() => slideIn()}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setSheetVisible(false)} />
+          <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setSheetVisible(false)} />
           <Animated.View
             style={[
               animatedStyle,
@@ -716,7 +721,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               <>
                 <View style={styles.sheetHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
+                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>
                       {tr ? 'Çalışma Planı Seç' : 'Choose a Study Plan'}
                     </Text>
                     <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>
@@ -726,7 +731,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 </View>
                 {/* Exam-specific tip pill */}
                 {(tr ? mode.tipTr : mode.tipEn) ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.sm, backgroundColor: modeAccent + '12', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm + 1, marginBottom: S.sm, borderWidth: 1, borderColor: modeAccent + '28' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.sm, backgroundColor: modeAccent + '12', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm + 1, marginBottom: S.sm, borderWidth: B.thin, borderColor: modeAccent + '28' }}>
                     <Text style={{ fontSize: 13 }}>💡</Text>
                     <Text style={{ flex: 1, fontSize: F.caption, fontWeight: '600', color: modeAccent, lineHeight: 17, opacity: 0.95 }}>
                       {tr ? mode.tipTr : mode.tipEn}
@@ -740,7 +745,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   {mode.templates!.map((tpl) => {
                     const isRecommended = defaultTemplateId === tpl.id;
                     return (
-                    <TouchableOpacity
+                    <Touchable
                       key={tpl.id}
                       onPress={() => selectTemplate(tpl)}
                       style={[styles.templateCard, {
@@ -791,11 +796,11 @@ export const TurkishModeBanner: React.FC<Props> = ({
                         </View>
                         <Text style={[styles.templateTarget, { color: theme.onSurfaceVariant }]}>{tr ? tpl.targetTr : tpl.targetEn}</Text>
                       </View>
-                    </TouchableOpacity>
+                    </Touchable>
                     );
                   })}
                   {/* Custom plan card */}
-                  <TouchableOpacity
+                  <Touchable
                     onPress={() => { Haptics.selectionAsync(); setStep('custom'); }}
                     style={[styles.templateCard, {
                       backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
@@ -813,7 +818,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, marginTop: 2, textAlign: 'center' }}>
                       {tr ? 'Alışkanlık ve görevleri kendin belirle' : 'Set your own habits and tasks'}
                     </Text>
-                  </TouchableOpacity>
+                  </Touchable>
                 </ScrollView>
               </>
             )}
@@ -824,17 +829,17 @@ export const TurkishModeBanner: React.FC<Props> = ({
               <>
                 <View style={styles.sheetHeader}>
                   {hasTemplates && (
-                    <TouchableOpacity
+                    <Touchable
                       onPress={() => { Haptics.selectionAsync(); setStep('template'); setSelectedTemplate(null); }}
                       style={{ marginRight: S.sm, padding: 4 }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <ArrowLeft size={20} color={theme.onSurfaceVariant} />
-                    </TouchableOpacity>
+                    </Touchable>
                   )}
                   {renderModeEmojiIcon(selectedTemplate?.emoji ?? mode.emoji, 36, modeAccent)}
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
+                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>
                       {selectedTemplate ? (tr ? selectedTemplate.titleTr : selectedTemplate.titleEn) : (tr ? mode.labelTr : mode.labelEn)}
                     </Text>
                     <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>
@@ -848,7 +853,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     const exists = existingHabitNames.has(h.name.toLowerCase());
                     const skipped = !exists && deselectedHabits.has(h.name);
                     return (
-                      <TouchableOpacity
+                      <Touchable
                         key={h.name}
                         onPress={() => {
                           if (exists) return;
@@ -872,7 +877,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                           : skipped
                           ? <X size={15} color={theme.onSurfaceVariant} strokeWidth={2} />
                           : <Check size={15} color={h.color} strokeWidth={2.5} />}
-                      </TouchableOpacity>
+                      </Touchable>
                     );
                   })}
                   <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant, marginTop: S.md }]}>{tr ? 'EKLENECEK GÖREVLER' : 'TASKS TO ADD'}</Text>
@@ -896,7 +901,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     </View>
                   )}
                 </ScrollView>
-                <TouchableOpacity
+                <Touchable
                   onPress={applied ? () => setSheetVisible(false) : applyAll}
                   activeOpacity={0.85}
                   disabled={applying || allDone}
@@ -911,7 +916,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   ) : (
                     <><Zap size={15} color="#fff" strokeWidth={2.5} /><Text style={styles.applyBtnText}>{tr ? `Uygula  (${newHabits.length + newTasks.length} öğe)` : `Apply  (${newHabits.length + newTasks.length} items)`}</Text></>
                   )}
-                </TouchableOpacity>
+                </Touchable>
               </>
             )}
           </Animated.View>
@@ -924,7 +929,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
 const styles = StyleSheet.create({
   banner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderRadius: R.lg, borderWidth: 1,
+    borderRadius: R.lg, borderWidth: B.thin,
     paddingVertical: S.sm + 2, paddingHorizontal: S.md, marginBottom: S.md,
   },
   bannerLeft: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 },
@@ -935,7 +940,7 @@ const styles = StyleSheet.create({
   planBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: S.sm + 2, paddingVertical: S.xs + 1, borderRadius: R.full },
   planBtnText: { color: '#fff', fontSize: F.caption, fontWeight: '800' },
   dismissBtn: { padding: 2 },
-  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, paddingHorizontal: S.lg },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: B.thin, paddingHorizontal: S.lg },
   dragHandle: { paddingTop: 12, paddingBottom: 8, alignItems: 'center' },
   handle: { width: 36, height: 4, borderRadius: 2 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.lg },
@@ -945,7 +950,7 @@ const styles = StyleSheet.create({
   // Progress summary
   progressRow: {
     flexDirection: 'row', alignItems: 'center', borderRadius: R.md,
-    borderWidth: 1, marginBottom: S.lg, paddingVertical: S.md,
+    borderWidth: B.thin, marginBottom: S.lg, paddingVertical: S.md,
   },
   progressStat: { flex: 1, alignItems: 'center', gap: 2 },
   progressNum: { fontSize: F.title, fontWeight: '900' },
@@ -954,7 +959,7 @@ const styles = StyleSheet.create({
   // Plan view rows
   planViewRow: {
     flexDirection: 'row', alignItems: 'center', gap: S.sm,
-    borderRadius: R.md, borderWidth: 1, padding: S.sm + 2, marginBottom: S.xs + 1,
+    borderRadius: R.md, borderWidth: B.thin, padding: S.sm + 2, marginBottom: S.xs + 1,
   },
   planViewName: { fontSize: F.body, fontWeight: '600' },
   habitIconSm: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
@@ -962,7 +967,7 @@ const styles = StyleSheet.create({
   weekDots: { flexDirection: 'row', gap: 3 },
   dot: { width: 6, height: 6, borderRadius: 3 },
   streakText: { fontSize: 11, fontWeight: '700' },
-  doneBadge: { width: 26, height: 26, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  doneBadge: { width: 26, height: 26, borderRadius: 13, borderWidth: B.thin, alignItems: 'center', justifyContent: 'center' },
   priorityChip: { borderRadius: R.sm, paddingHorizontal: S.xs + 1, paddingVertical: 2 },
   priorityChipText: { fontSize: 9, fontWeight: '900', letterSpacing: 0.3 },
   emptyPlan: { alignItems: 'center', paddingVertical: S.xl },
@@ -971,10 +976,10 @@ const styles = StyleSheet.create({
   planViewActions: { gap: S.sm, marginTop: S.lg },
   updateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.full, paddingVertical: S.md },
   updateBtnText: { color: '#fff', fontSize: F.body, fontWeight: '800' },
-  clearBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: 1 },
+  clearBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin },
   clearBtnText: { fontSize: F.caption, fontWeight: '700' },
   // Templates
-  templateCard: { borderRadius: R.md, borderWidth: 1, padding: S.md, marginBottom: S.sm, gap: S.sm },
+  templateCard: { borderRadius: R.md, borderWidth: B.thin, padding: S.md, marginBottom: S.sm, gap: S.sm },
   templateTop: { flexDirection: 'row', alignItems: 'flex-start', gap: S.md },
   templateEmoji: { fontSize: 26, lineHeight: 32 },
   templateTitle: { fontSize: F.body, fontWeight: '800', marginBottom: 2 },
@@ -986,10 +991,10 @@ const styles = StyleSheet.create({
   // Review
   sectionLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2, marginBottom: S.sm },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs + 1 },
-  itemDot: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  itemDot: { width: 34, height: 34, borderRadius: 10, borderWidth: B.thin, alignItems: 'center', justifyContent: 'center' },
   priorityDot: { width: 6, height: 6, borderRadius: 3, marginHorizontal: 4 },
   itemText: { fontSize: F.body, fontWeight: '600' },
-  goalNote: { borderRadius: R.md, borderWidth: 1, padding: S.md, marginTop: S.md },
+  goalNote: { borderRadius: R.md, borderWidth: B.thin, padding: S.md, marginTop: S.md },
   goalNoteText: { fontSize: F.caption, fontWeight: '700', lineHeight: 17 },
   applyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, marginTop: S.lg, borderRadius: R.full, paddingVertical: S.md, paddingHorizontal: S.lg },
   applyBtnText: { color: '#fff', fontSize: F.body, fontWeight: '800' },

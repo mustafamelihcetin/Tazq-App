@@ -13,7 +13,8 @@ try {
         const isFocusNotif = notification?.request?.identifier === FOCUS_NOTIF_ID;
         const isBackground = AppState.currentState !== 'active';
         return {
-          shouldShowAlert: isFocusNotif ? isBackground : true,
+          shouldShowBanner: isFocusNotif ? isBackground : true,
+          shouldShowList: isFocusNotif ? isBackground : true,
           shouldPlaySound: isFocusNotif ? false : true,
           shouldSetBadge: false,
         };

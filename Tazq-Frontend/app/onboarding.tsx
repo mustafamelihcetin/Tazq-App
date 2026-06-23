@@ -1,4 +1,5 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { B } from '../constants/tokens';
 import {
   View,
   Text,
@@ -21,6 +22,7 @@ import { ChevronRight, CheckCircle2, Clock, Zap, Activity } from 'lucide-react-n
 import * as Haptics from 'expo-haptics';
 import { Easing } from 'react-native-reanimated';
 import { TazqLogo } from '../components/TazqLogo';
+import { Touchable } from '@/components/Touchable';
 
 const SLIDES = [
   {
@@ -53,7 +55,7 @@ const SLIDES = [
   },
   {
     id: '5',
-    titleKey: 'onboardingTitle5',
+    titleKey: 'onboardingTitle4b',
     bodyKey: 'onboardingBody4b',
     color: '#f59e0b',
     type: 'momentum',
@@ -129,7 +131,7 @@ export default function OnboardingScreen() {
                   width: visualSize,
                   height: visualSize,
                   borderRadius: visualSize / 2,
-                  borderWidth: 1.5,
+                  borderWidth: B.medium,
                   borderColor: item.color,
                 }}
               />
@@ -353,7 +355,7 @@ export default function OnboardingScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
             <Text style={[styles.logoTop, { color: theme.onSurface }]}>TAZQ</Text>
-            <TouchableOpacity 
+            <Touchable 
                 onPress={async () => {
                     try { await AsyncStorage.setItem('tazq-onboarding-done', 'true'); } catch {}
                     router.replace('/login');
@@ -361,7 +363,7 @@ export default function OnboardingScreen() {
                 style={styles.skipBtn}
             >
                 <Text style={[styles.skipText, { color: theme.onSurfaceVariant }]}>{t.skip}</Text>
-            </TouchableOpacity>
+            </Touchable>
         </View>
 
         <ScrollView 
@@ -429,7 +431,7 @@ export default function OnboardingScreen() {
             )}
           </View>
 
-          <TouchableOpacity 
+          <Touchable 
             onPress={nextSlide} 
             activeOpacity={0.8} 
             style={[styles.nextBtn, { backgroundColor: theme.primary, height: isSmallDevice ? 56 : 64 }, !isDark && styles.clayShadow]}
@@ -438,7 +440,7 @@ export default function OnboardingScreen() {
                 {currentIndex === SLIDES.length - 1 ? t.welcome.getStarted : t.next}
              </Text>
              <ChevronRight size={20} color={theme.onPrimary} strokeWidth={3} />
-          </TouchableOpacity>
+          </Touchable>
         </View>
       </SafeAreaView>
     </View>
@@ -455,7 +457,7 @@ const styles = StyleSheet.create({
   slide: { height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   visualContainer: { alignItems: 'center', justifyContent: 'center', height: '35%', marginBottom: 40 },
   visualCard: { alignItems: 'center', justifyContent: 'center' },
-  withFrame: { borderRadius: 40, borderWidth: 1, overflow: 'hidden' },
+  withFrame: { borderRadius: 40, borderWidth: B.thin, overflow: 'hidden' },
   sculptureWrapper: { zIndex: 2, alignItems: 'center', justifyContent: 'center' },
   fallback: { alignItems: 'center', justifyContent: 'center' },
   glowBlob: { position: 'absolute', borderRadius: 200, zIndex: 1 },

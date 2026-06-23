@@ -3,7 +3,8 @@ import { StyleSheet, ViewStyle, StyleProp, TouchableOpacity, Platform } from 're
 import { MotiView } from 'moti';
 import { BlurView } from 'expo-blur';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { S, R } from '../constants/tokens';
+import { S, R, B } from '../constants/tokens';
+import { Touchable } from '@/components/Touchable';
 
 interface BentoCardProps {
   children: React.ReactNode;
@@ -51,15 +52,14 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
   );
 
   if (onPress) {
-    return <TouchableOpacity onPress={onPress} activeOpacity={0.85}>{card}</TouchableOpacity>;
+    return <Touchable onPress={onPress} activeOpacity={0.85}>{card}</Touchable>;
   }
   return card;
 };
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: 1,
+    borderWidth: B.thin,
     overflow: 'hidden',
-    elevation: Platform.OS === 'android' ? 3 : 0,
   },
 });

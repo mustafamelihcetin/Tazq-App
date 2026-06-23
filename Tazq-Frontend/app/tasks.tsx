@@ -29,10 +29,11 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useCompletionStore } from '../store/useCompletionStore';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
-import { S, R, F, scale, verticalScale, moderateScale } from '../constants/tokens';
+import { S, R, F, scale, verticalScale, moderateScale, B } from '../constants/tokens';
 import VoiceService from '../utils/voice';
 import { useNetworkStore } from '../store/useNetworkStore';
 import { useOfflineQueue } from '../store/useOfflineQueue';
+import { Touchable } from '@/components/Touchable';
 
 const SWIPE_THRESHOLD = -80;
 const TAG_COLORS_PALETTE = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4','#F97316'];
@@ -980,9 +981,9 @@ export default function ActionCenter() {
         <View style={styles.header}>
           {isBulkMode ? (
             <>
-              <TouchableOpacity onPress={() => { setIsBulkMode(false); setSelectedIds(new Set()); }} style={styles.backBtn}>
+              <Touchable onPress={() => { setIsBulkMode(false); setSelectedIds(new Set()); }} style={styles.backBtn}>
                 <X size={22} color={theme.onSurface} />
-              </TouchableOpacity>
+              </Touchable>
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                 <Text style={[styles.headerTitle, { color: theme.onSurface }]}>
                   {language === 'tr' ? 'Seçim' : 'Select'}
@@ -993,7 +994,7 @@ export default function ActionCenter() {
                   </View>
                 )}
               </View>
-              <TouchableOpacity
+              <Touchable
                 onPress={() => {
                   const allSelected = filteredTasks.every(task => selectedIds.has(task.id));
                   setSelectedIds(allSelected ? new Set() : new Set(filteredTasks.map(task => task.id)));
@@ -1002,37 +1003,37 @@ export default function ActionCenter() {
                 style={styles.headerIconBtn}
               >
                 <CheckSquare size={20} color={filteredTasks.every(task => selectedIds.has(task.id)) ? theme.primary : theme.onSurface} />
-              </TouchableOpacity>
+              </Touchable>
             </>
           ) : (
             <>
               {navigation.canGoBack() ? (
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <Touchable onPress={() => router.back()} style={styles.backBtn}>
                   <ArrowLeft size={24} color={theme.onSurface} />
-                </TouchableOpacity>
+                </Touchable>
               ) : (
                 <View style={styles.backBtn} />
               )}
               <Text style={[styles.headerTitle, { color: theme.onSurface }]}>{t.actionCenter}</Text>
               <View style={{ flexDirection: 'row', gap: S.xs }}>
-                <TouchableOpacity onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.headerIconBtn}>
+                <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.headerIconBtn}>
                   <Search size={20} color={showSearch ? theme.primary : theme.onSurface} />
-                </TouchableOpacity>
-                <TouchableOpacity
+                </Touchable>
+                <Touchable
                   onPress={() => { setHideCompleted(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                   style={[styles.headerIconBtn, hideCompleted && { backgroundColor: theme.primary + '18', borderRadius: 10 }]}
                   accessibilityLabel={hideCompleted ? (language === 'tr' ? 'Tamamlananları göster' : 'Show completed') : (language === 'tr' ? 'Tamamlananları gizle' : 'Hide completed')}
                 >
                   <CheckCircle2 size={20} color={hideCompleted ? theme.primary : theme.onSurface} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setShowSortMenu(!showSortMenu); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.headerIconBtn}>
+                </Touchable>
+                <Touchable onPress={() => { setShowSortMenu(!showSortMenu); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.headerIconBtn}>
                   <View>
                     <SlidersHorizontal size={20} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter) ? theme.primary : theme.onSurface} />
                     {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter) && (
                       <View style={{ position: 'absolute', top: -2, right: -2, width: 7, height: 7, borderRadius: 4, backgroundColor: theme.primary }} />
                     )}
                   </View>
-                </TouchableOpacity>
+                </Touchable>
               </View>
             </>
           )}
@@ -1060,9 +1061,9 @@ export default function ActionCenter() {
                   underlineColorAndroid="transparent"
                 />
                 {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Touchable onPress={() => setSearchQuery('')}>
                     <X size={16} color={theme.onSurfaceVariant} />
-                  </TouchableOpacity>
+                  </Touchable>
                 )}
               </View>
             </MotiView>
@@ -1071,7 +1072,7 @@ export default function ActionCenter() {
 
         {/* Sort Menu Backdrop */}
         {showSortMenu && (
-          <TouchableOpacity
+          <Touchable
             style={[StyleSheet.absoluteFill, { zIndex: 100 }]}
             onPress={() => setShowSortMenu(false)}
             activeOpacity={1}
@@ -1088,7 +1089,7 @@ export default function ActionCenter() {
               style={[styles.sortMenu, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: theme.outline }]}
             >
               {([['creation', t.sortByCreation], ['priority', t.sortByPriority], ['date', t.sortByDate]] as const).map(([key, label]) => (
-                <TouchableOpacity
+                <Touchable
                   key={key}
                   onPress={() => { setSortBy(key); setShowSortMenu(false); Haptics.selectionAsync(); }}
                   style={[styles.sortOption, { borderBottomColor: theme.outline }]}
@@ -1097,7 +1098,7 @@ export default function ActionCenter() {
                     {label}
                   </Text>
                   {sortBy === key && <Check size={16} color={theme.primary} />}
-                </TouchableOpacity>
+                </Touchable>
               ))}
             </MotiView>
           )}
@@ -1113,13 +1114,13 @@ export default function ActionCenter() {
 
           {/* Stats Row */}
           <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.md, marginBottom: S.md }}>
-            <TouchableOpacity
+            <Touchable
               onPress={() => { setFilter(filter === 'done' ? 'all' : 'done'); Haptics.selectionAsync(); }}
               style={{
                 flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm,
                 paddingVertical: S.sm + 2, paddingHorizontal: S.md, borderRadius: R.md,
                 backgroundColor: filter === 'done' ? theme.tertiary + '15' : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                borderWidth: 1,
+                borderWidth: B.thin,
                 borderColor: filter === 'done' ? theme.tertiary + '35' : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
               }}
               activeOpacity={0.7}
@@ -1131,14 +1132,14 @@ export default function ActionCenter() {
               <Text style={{ fontSize: F.caption, fontWeight: '700', color: filter === 'done' ? theme.tertiary : theme.onSurfaceVariant, opacity: 0.75, flex: 1 }} numberOfLines={1}>
                 {t.completedTasks}
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Touchable>
+            <Touchable
               onPress={() => { setFilter('all'); Haptics.selectionAsync(); }}
               style={{
                 flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm,
                 paddingVertical: S.sm + 2, paddingHorizontal: S.md, borderRadius: R.md,
                 backgroundColor: filter === 'all' ? theme.primary + '12' : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                borderWidth: 1,
+                borderWidth: B.thin,
                 borderColor: filter === 'all' ? theme.primary + '30' : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
               }}
               activeOpacity={0.7}
@@ -1150,7 +1151,7 @@ export default function ActionCenter() {
               <Text style={{ fontSize: F.caption, fontWeight: '700', color: filter === 'all' ? theme.primary : theme.onSurfaceVariant, opacity: 0.75, flex: 1 }} numberOfLines={1}>
                 {t.pendingTasks}
               </Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
 
           {/* Filter Pills */}
@@ -1163,15 +1164,15 @@ export default function ActionCenter() {
                             f === 'Low' ? t.filterLow :
                             f === 'done' ? t.filterDone : f;
               return (
-                <TouchableOpacity 
+                <Touchable 
                   key={f} 
                   onPress={() => { setFilter(f); Haptics.selectionAsync(); }}
                   style={[
                       styles.filterChip, 
                       { 
-                          backgroundColor: filter === f ? (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)') : 'transparent',
+                          backgroundColor: filter === f ? (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)') : (Platform.OS === 'android' ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') : 'transparent'),
                           borderColor: filter === f ? theme.primary : theme.outline,
-                          borderWidth: 1,
+                          borderWidth: B.thin,
                           paddingVertical: S.xs,
                           paddingHorizontal: S.md
                       }
@@ -1180,7 +1181,7 @@ export default function ActionCenter() {
                   <Text style={[styles.filterChipText, { color: filter === f ? theme.primary : theme.onSurfaceVariant, fontSize: F.body, fontWeight: filter === f ? '900' : '600' }]}>
                     {label}
                   </Text>
-                </TouchableOpacity>
+                </Touchable>
               );
             })}
           </ScrollView>
@@ -1188,24 +1189,24 @@ export default function ActionCenter() {
           {/* Tag Filter Pills */}
           {allTags.length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
-              <TouchableOpacity 
+              <Touchable 
                 onPress={() => { setTagFilter(null); Haptics.selectionAsync(); }}
-                style={[styles.filterChip, { borderColor: !tagFilter ? theme.secondary : theme.outline, borderWidth: 1, paddingVertical: S.xs, paddingHorizontal: S.md }]}
+                style={[styles.filterChip, { borderColor: !tagFilter ? theme.secondary : theme.outline, borderWidth: B.thin, paddingVertical: S.xs, paddingHorizontal: S.md }]}
               >
                 <Text style={[styles.filterChipText, { color: !tagFilter ? theme.secondary : theme.onSurfaceVariant, fontSize: F.caption }]}>
                   {t.allTags}
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
               {allTags.map((tag) => (
-                <TouchableOpacity 
+                <Touchable 
                   key={tag}
                   onPress={() => { setTagFilter(tagFilter === tag ? null : tag); Haptics.selectionAsync(); }}
-                  style={[styles.filterChip, { borderColor: tagFilter === tag ? theme.secondary : theme.outline, borderWidth: 1, paddingVertical: S.xs, paddingHorizontal: S.md }]}
+                  style={[styles.filterChip, { borderColor: tagFilter === tag ? theme.secondary : theme.outline, borderWidth: B.thin, paddingVertical: S.xs, paddingHorizontal: S.md }]}
                 >
                   <Text style={[styles.filterChipText, { color: tagFilter === tag ? theme.secondary : theme.onSurfaceVariant, fontSize: F.caption }]}>
                     #{tag}
                   </Text>
-                </TouchableOpacity>
+                </Touchable>
               ))}
             </ScrollView>
           )}
@@ -1221,12 +1222,12 @@ export default function ActionCenter() {
                 >
                     {t.upcoming}
                 </Text>
-                <TouchableOpacity
+                <Touchable
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleClearCompleted(); }}
                     style={{ padding: 4 }}
                 >
                     <Trash2 size={16} color={theme.onSurfaceVariant + '80'} />
-                </TouchableOpacity>
+                </Touchable>
             </View>
             
             <AnimatePresence>
@@ -1273,7 +1274,7 @@ export default function ActionCenter() {
                                 }}
                                 style={[styles.taskCard, { backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest, flexDirection: 'column', alignItems: 'stretch' }]}
                             >
-                                <TouchableOpacity
+                                <Touchable
                                     activeOpacity={0.9}
                                     onPress={() => {
                                       if (isBulkMode) {
@@ -1340,7 +1341,7 @@ export default function ActionCenter() {
                                                 </View>
                                             )}
                                             {task.tags?.includes('weight_entry') && (
-                                                <TouchableOpacity
+                                                <Touchable
                                                     onPress={() => { Haptics.selectionAsync(); setWeightModalTaskId(task.id); }}
                                                     style={[styles.categoryBadge, { backgroundColor: '#10B981' + '25', flexDirection: 'row', alignItems: 'center', gap: 4 }]}
                                                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
@@ -1349,7 +1350,7 @@ export default function ActionCenter() {
                                                     <Text style={[styles.categoryBadgeText, { color: '#10B981', fontWeight: '900' }]}>
                                                         {language === 'tr' ? 'KİLO GİR' : 'LOG WEIGHT'}
                                                     </Text>
-                                                </TouchableOpacity>
+                                                </Touchable>
                                             )}
                                             {(() => {
                                                 const textTags = visibleTextTags(task.tags);
@@ -1409,7 +1410,7 @@ export default function ActionCenter() {
                                                 inactiveColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}
                                             />
                                         )}
-                                        <TouchableOpacity 
+                                        <Touchable 
                                             onPress={() => handleToggle(task.id)} 
                                             style={[
                                                 styles.checkIcon,
@@ -1425,7 +1426,7 @@ export default function ActionCenter() {
                                             ) : (
                                                 <Check size={18} color={task.isCompleted ? 'white' : theme.onSurfaceVariant} strokeWidth={3} />
                                             )}
-                                        </TouchableOpacity>
+                                        </Touchable>
                                     </View>
                                 </View>
 
@@ -1485,7 +1486,7 @@ export default function ActionCenter() {
 
                                             {/* Action row: Edit + Focus */}
                                             <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
-                                                <TouchableOpacity
+                                                <Touchable
                                                     onPress={() => openEdit(task.id)}
                                                     style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: 6, paddingHorizontal: S.md, borderRadius: R.full, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
                                                     accessibilityLabel={language === 'tr' ? 'Görevi düzenle' : 'Edit task'}
@@ -1494,9 +1495,9 @@ export default function ActionCenter() {
                                                     <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
                                                         {language === 'tr' ? 'Düzenle' : 'Edit'}
                                                     </Text>
-                                                </TouchableOpacity>
+                                                </Touchable>
                                                 {!task.isCompleted && (
-                                                    <TouchableOpacity
+                                                    <Touchable
                                                         onPress={() => {
                                                             setCurrentTask(task.title);
                                                             const secs = 25 * 60;
@@ -1509,7 +1510,7 @@ export default function ActionCenter() {
                                                         <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
                                                             {language === 'tr' ? 'Odaklan' : 'Focus'}
                                                         </Text>
-                                                    </TouchableOpacity>
+                                                    </Touchable>
                                                 )}
                                             </View>
 
@@ -1518,7 +1519,7 @@ export default function ActionCenter() {
                                                 <View style={{ marginTop: S.sm, gap: S.xs }}>
                                                     <Text style={{ fontSize: F.caption, fontWeight: '900', color: theme.onSurfaceVariant, letterSpacing: 1, opacity: 0.5 }}>{t.subtasks.toUpperCase()}</Text>
                                                     {(task.subtasks || []).map((sub, si) => (
-                                                        <TouchableOpacity
+                                                        <Touchable
                                                             key={si}
                                                             onPress={() => {
                                                                 toggleSubtask(task.id, si);
@@ -1547,7 +1548,7 @@ export default function ActionCenter() {
                                                             }}>
                                                                 {sub.text}
                                                             </Text>
-                                                        </TouchableOpacity>
+                                                        </Touchable>
                                                     ))}
                                                 </View>
                                             )}
@@ -1564,7 +1565,7 @@ export default function ActionCenter() {
                                         </MotiView>
                                     )}
                                  </AnimatePresence>
-                            </TouchableOpacity>
+                            </Touchable>
                         </MotiView>
                       </SwipeableItem>
                         </RNAnimated.View>
@@ -1574,18 +1575,18 @@ export default function ActionCenter() {
             </AnimatePresence>
 
             {remainingCount > 0 && (
-              <TouchableOpacity
+              <Touchable
                 onPress={() => { setVisibleCount(v => v + TASK_PAGE_SIZE); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 style={{ alignItems: 'center', paddingVertical: S.md, marginTop: S.sm }}
                 activeOpacity={0.7}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)', backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)', backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.primary, letterSpacing: 0.3 }}>
                     {language === 'tr' ? `${remainingCount} görev daha` : `${remainingCount} more`}
                   </Text>
                   <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.6 }}>▼</Text>
                 </View>
-              </TouchableOpacity>
+              </Touchable>
             )}
 
             {filteredTasks.length > 0 && !isBulkMode && remainingCount === 0 && (
@@ -1614,11 +1615,13 @@ export default function ActionCenter() {
               },
             ]}
           >
-            <BlurView
-              intensity={isDark ? 50 : 70}
-              tint={isDark ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFill}
-            />
+            {Platform.OS !== 'android' && (
+              <BlurView
+                intensity={isDark ? 50 : 70}
+                tint={isDark ? 'dark' : 'light'}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
 
             {/* Count */}
             <View style={styles.bulkCountRow}>
@@ -1633,7 +1636,7 @@ export default function ActionCenter() {
             <View style={[styles.bulkSep, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }]} />
 
             {/* Edit — only active when exactly 1 selected */}
-            <TouchableOpacity
+            <Touchable
               onPress={() => {
                 if (selectedIds.size !== 1) {
                   showToast(language === 'tr' ? 'Düzenleme için tek görev seçin' : 'Select one task to edit', 'info');
@@ -1650,10 +1653,10 @@ export default function ActionCenter() {
               ]}
             >
               <Pencil size={17} color={selectedIds.size === 1 ? theme.primary : theme.onSurfaceVariant + '55'} />
-            </TouchableOpacity>
+            </Touchable>
 
             {/* Complete */}
-            <TouchableOpacity
+            <Touchable
               onPress={handleBulkComplete}
               disabled={selectedIds.size === 0}
               style={[
@@ -1662,10 +1665,10 @@ export default function ActionCenter() {
               ]}
             >
               <CheckCircle2 size={17} color={selectedIds.size > 0 ? theme.success : theme.onSurfaceVariant + '55'} />
-            </TouchableOpacity>
+            </Touchable>
 
             {/* Delete */}
-            <TouchableOpacity
+            <Touchable
               onPress={handleBulkDelete}
               disabled={selectedIds.size === 0}
               style={[
@@ -1674,13 +1677,13 @@ export default function ActionCenter() {
               ]}
             >
               <Trash2 size={17} color={selectedIds.size > 0 ? theme.priorityHigh : theme.onSurfaceVariant + '55'} />
-            </TouchableOpacity>
+            </Touchable>
           </MotiView>
         )}
       </AnimatePresence>
 
       {!isBulkMode && !(Platform.OS === 'android' && kbHeight > 0) && (
-        <TouchableOpacity
+        <Touchable
           onPress={openAdd}
           style={[
               styles.fab,
@@ -1696,7 +1699,7 @@ export default function ActionCenter() {
           ]}
         >
           <Plus size={32} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={3} />
-        </TouchableOpacity>
+        </Touchable>
       )}
 
       <BottomNavBar />
@@ -1710,7 +1713,7 @@ export default function ActionCenter() {
       {/* Modern Stitch Modal */}
       <Modal visible={modalVisible} transparent animationType="none" onRequestClose={() => !saving && setModalVisible(false)} onShow={() => taskSlideIn()}>
         <View style={styles.overlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && setModalVisible(false)} />
+          <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && setModalVisible(false)} />
 
           <View style={styles.sheetContainer}>
             <RNAnimated.View style={[styles.sheet, taskSlide, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', padding: S.lg, borderBottomLeftRadius: kbHeight > 0 ? S.xl : 0, borderBottomRightRadius: kbHeight > 0 ? S.xl : 0, maxHeight: height - insets.top - 16 }]}>
@@ -1719,16 +1722,16 @@ export default function ActionCenter() {
                 </View>
                 
                 <View style={[styles.sheetHeader, { marginBottom: !editingId ? S.sm : S.lg }]}>
-                    <Text style={[styles.sheetTitle, { color: theme.onSurface, fontSize: F.title }]}>
+                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface, fontSize: F.title }]}>
                         {editingId ? t.editTask : t.addTask}
                     </Text>
-                    <TouchableOpacity
+                    <Touchable
                         onPress={() => !saving && setModalVisible(false)}
                         style={[styles.closeModalBtn, saving && { opacity: 0.35 }]}
                         disabled={saving}
                     >
                         <X size={20} color={theme.onSurfaceVariant} />
-                    </TouchableOpacity>
+                    </Touchable>
                 </View>
                 {!editingId && (
                     <View style={{ flexDirection: 'row', gap: S.xs, marginBottom: S.lg, flexWrap: 'wrap' }}>
@@ -1765,10 +1768,10 @@ export default function ActionCenter() {
                                 />
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                                     {nlpHint ? <Sparkles size={16} color={theme.primary} /> : null}
-                                    <TouchableOpacity onPress={() => toggleVoice('title')} style={{ padding: S.xs, alignItems: 'center', justifyContent: 'center' }}>
+                                    <Touchable onPress={() => toggleVoice('title')} style={{ padding: S.xs, alignItems: 'center', justifyContent: 'center' }}>
                                         <VoiceWave active={isListeningTitle} theme={theme} />
                                         <Mic size={18} color={isListeningTitle ? theme.primary : theme.onSurfaceVariant} />
-                                    </TouchableOpacity>
+                                    </Touchable>
                                 </View>
                             </View>
                             {nlpHint ? (
@@ -1806,10 +1809,10 @@ export default function ActionCenter() {
                                     maxLength={500}
                                     underlineColorAndroid="transparent"
                                 />
-                                <TouchableOpacity onPress={() => toggleVoice('description')} style={{ position: 'absolute', right: S.md, top: 14, padding: S.xs, alignItems: 'center', justifyContent: 'center' }}>
+                                <Touchable onPress={() => toggleVoice('description')} style={{ position: 'absolute', right: S.md, top: 14, padding: S.xs, alignItems: 'center', justifyContent: 'center' }}>
                                     <VoiceWave active={isListeningDesc} theme={theme} />
                                     <Mic size={18} color={isListeningDesc ? theme.primary : theme.onSurfaceVariant} />
-                                </TouchableOpacity>
+                                </Touchable>
                             </View>
                     </View>
 
@@ -1819,7 +1822,7 @@ export default function ActionCenter() {
                           <View style={styles.dateTimeRow}>
                             <View style={{ flex: 1 }}>
                                 <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }]}>{t.dueDate.toUpperCase()}</Text>
-                                <TouchableOpacity
+                                <Touchable
                                     onPress={openDatePicker}
                                     style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
                                 >
@@ -1827,11 +1830,11 @@ export default function ActionCenter() {
                                     <Text style={[styles.chipText, { color: form.dueDate ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]}>
                                         {form.dueDate || t.selectDate}
                                     </Text>
-                                </TouchableOpacity>
+                                </Touchable>
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }]}>{t.dueTime.toUpperCase()}</Text>
-                                <TouchableOpacity
+                                <Touchable
                                     onPress={openTimePicker}
                                     style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
                                 >
@@ -1839,7 +1842,7 @@ export default function ActionCenter() {
                                     <Text style={[styles.chipText, { color: form.dueTime ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]}>
                                         {form.dueTime ? new Date(form.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t.selectTime}
                                     </Text>
-                                </TouchableOpacity>
+                                </Touchable>
                             </View>
                           </View>
                         )}
@@ -1851,9 +1854,9 @@ export default function ActionCenter() {
                             <View style={styles.pickerRow}>
                               <View style={styles.pickerCol}>
                                 <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.day}</Text>
-                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, day: Math.min(d.day + 1, daysInMonth(d.year, d.month)) }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
+                                <Touchable onPress={() => setPickerDate(d => ({ ...d, day: Math.min(d.day + 1, daysInMonth(d.year, d.month)) }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
                                 <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.day).padStart(2, '0')}</Text>
-                                <TouchableOpacity 
+                                <Touchable 
                                   onPress={() => setPickerDate(d => {
                                     const now = new Date();
                                     const minDay = (d.year === now.getFullYear() && d.month === (now.getMonth() + 1)) ? now.getDate() : 1;
@@ -1862,13 +1865,13 @@ export default function ActionCenter() {
                                   style={styles.pickerArrow}
                                 >
                                   <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
-                                </TouchableOpacity>
+                                </Touchable>
                               </View>
                               <View style={styles.pickerCol}>
                                 <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.month}</Text>
-                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, month: d.month === 12 ? 1 : d.month + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
+                                <Touchable onPress={() => setPickerDate(d => ({ ...d, month: d.month === 12 ? 1 : d.month + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
                                 <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.month).padStart(2, '0')}</Text>
-                                <TouchableOpacity 
+                                <Touchable 
                                   onPress={() => setPickerDate(d => {
                                     const now = new Date();
                                     const minMonth = d.year === now.getFullYear() ? (now.getMonth() + 1) : 1;
@@ -1877,18 +1880,18 @@ export default function ActionCenter() {
                                   style={styles.pickerArrow}
                                 >
                                   <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
-                                </TouchableOpacity>
+                                </Touchable>
                               </View>
                               <View style={styles.pickerCol}>
                                 <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.year}</Text>
-                                <TouchableOpacity onPress={() => setPickerDate(d => ({ ...d, year: d.year + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
+                                <Touchable onPress={() => setPickerDate(d => ({ ...d, year: d.year + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
                                 <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{pickerDate.year}</Text>
-                                <TouchableOpacity 
+                                <Touchable 
                                   onPress={() => setPickerDate(d => ({ ...d, year: Math.max(d.year - 1, new Date().getFullYear()) }))} 
                                   style={styles.pickerArrow}
                                 >
                                   <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
-                                </TouchableOpacity>
+                                </Touchable>
                               </View>
                             </View>
                             {dateError && (
@@ -1897,8 +1900,8 @@ export default function ActionCenter() {
                               </MotiView>
                             )}
                             <View style={styles.pickerActions}>
-                              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></TouchableOpacity>
-                              <TouchableOpacity onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '900' }]}>{t.save}</Text></TouchableOpacity>
+                              <Touchable onPress={() => setShowDatePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></Touchable>
+                              <Touchable onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '900' }]}>{t.save}</Text></Touchable>
                             </View>
                           </View>
                         )}
@@ -1910,21 +1913,21 @@ export default function ActionCenter() {
                             <View style={styles.pickerRow}>
                               <View style={styles.pickerCol}>
                                 <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.hour}</Text>
-                                <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 23 ? 0 : pt.hour + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
+                                <Touchable onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 23 ? 0 : pt.hour + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
                                 <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.hour).padStart(2, '0')}</Text>
-                                <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 0 ? 23 : pt.hour - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
+                                <Touchable onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 0 ? 23 : pt.hour - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></Touchable>
                               </View>
                               <Text style={[styles.pickerColon, { color: theme.onSurface }]}>:</Text>
                               <View style={styles.pickerCol}>
                                 <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.minute}</Text>
-                                <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 59 ? 0 : pt.minute + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></TouchableOpacity>
+                                <Touchable onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 59 ? 0 : pt.minute + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
                                 <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.minute).padStart(2, '0')}</Text>
-                                <TouchableOpacity onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 0 ? 59 : pt.minute - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></TouchableOpacity>
+                                <Touchable onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 0 ? 59 : pt.minute - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></Touchable>
                               </View>
                             </View>
                             <View style={styles.pickerActions}>
-                              <TouchableOpacity onPress={() => setShowTimePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></TouchableOpacity>
-                              <TouchableOpacity onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '900' }]}>{t.save}</Text></TouchableOpacity>
+                              <Touchable onPress={() => setShowTimePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></Touchable>
+                              <Touchable onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '900' }]}>{t.save}</Text></Touchable>
                             </View>
                           </View>
                         )}
@@ -1938,7 +1941,7 @@ export default function ActionCenter() {
                                 { key: 'Medium', label: t.filterMedium },
                                 { key: 'High', label: t.filterHigh }
                             ] as { key: Priority, label: string }[]).map((p) => (
-                                <TouchableOpacity
+                                <Touchable
                                     key={p.key}
                                     onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, priority: p.key })); }}
                                     style={[styles.priorityTab, { backgroundColor: form.priority === p.key ? priorityColor(p.key) : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 48 }]}
@@ -1954,7 +1957,7 @@ export default function ActionCenter() {
                                     ]}>
                                         {p.label}
                                     </Text>
-                                </TouchableOpacity>
+                                </Touchable>
                             ))}
                         </View>
                     </View>
@@ -1964,7 +1967,7 @@ export default function ActionCenter() {
                         <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.recurrence.toUpperCase()}</Text>
                         <View style={[styles.priorityRow, { gap: S.sm }]}>
                             {RECURRENCE_OPTIONS.map((r) => (
-                                <TouchableOpacity
+                                <Touchable
                                     key={r.key}
                                     onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, recurrence: r.key })); }}
                                     style={[styles.priorityTab, { backgroundColor: form.recurrence === r.key ? theme.secondary : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 42 }]}
@@ -1973,7 +1976,7 @@ export default function ActionCenter() {
                                     <Text style={[styles.priorityTabText, { color: form.recurrence === r.key ? 'white' : theme.onSurfaceVariant, fontSize: F.caption }]}>
                                         {(t as any)[r.labelKey]}
                                     </Text>
-                                </TouchableOpacity>
+                                </Touchable>
                             ))}
                         </View>
                         {/* Next occurrence hint */}
@@ -1995,7 +1998,7 @@ export default function ActionCenter() {
 
                     {/* Reminder Toggle */}
                     <View style={styles.section}>
-                        <TouchableOpacity
+                        <Touchable
                             onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, reminderEnabled: !f.reminderEnabled })); }}
                             style={[styles.inputGroup, {
                                 backgroundColor: form.reminderEnabled
@@ -2019,7 +2022,7 @@ export default function ActionCenter() {
                                     style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'white' }}
                                 />
                             </View>
-                        </TouchableOpacity>
+                        </Touchable>
                     </View>
 
                     {/* Subtasks Editor */}
@@ -2027,7 +2030,7 @@ export default function ActionCenter() {
                         <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.subtasks.toUpperCase()}</Text>
                         {form.subtasks.map((sub, i) => (
                             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
-                                <TouchableOpacity onPress={() => {
+                                <Touchable onPress={() => {
                                     const subs = [...form.subtasks];
                                     subs[i] = { ...subs[i], done: !subs[i].done };
                                     setForm(f => ({ ...f, subtasks: subs }));
@@ -2036,13 +2039,13 @@ export default function ActionCenter() {
                                         ? <CheckCircle2 size={18} color={theme.tertiary} />
                                         : <Circle size={18} color={theme.onSurfaceVariant} />
                                     }
-                                </TouchableOpacity>
+                                </Touchable>
                                 <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: theme.onSurface, textDecorationLine: sub.done ? 'line-through' : 'none', opacity: sub.done ? 0.4 : 1 }}>{sub.text}</Text>
-                                <TouchableOpacity onPress={() => {
+                                <Touchable onPress={() => {
                                     setForm(f => ({ ...f, subtasks: f.subtasks.filter((_, idx) => idx !== i) }));
                                 }}>
                                     <X size={16} color={theme.onSurfaceVariant} />
-                                </TouchableOpacity>
+                                </Touchable>
                             </View>
                         ))}
                         <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: verticalScale(44) }]}>
@@ -2062,7 +2065,7 @@ export default function ActionCenter() {
                                     }
                                 }}
                             />
-                            <TouchableOpacity
+                            <Touchable
                                 onPress={() => {
                                     if (newSubtaskText.trim() && form.subtasks.length < 15) {
                                         setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));
@@ -2072,14 +2075,14 @@ export default function ActionCenter() {
                                 hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                             >
                                 <Plus size={18} color={theme.primary} />
-                            </TouchableOpacity>
+                            </Touchable>
                         </View>
                     </View>
 
                 </ScrollView>
 
                 {/* Sticky save — always visible outside the scroll area */}
-                <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.modalSaveBtn, { marginTop: S.sm, marginBottom: 0 }]}>
+                <Touchable onPress={handleSave} disabled={saving} style={[styles.modalSaveBtn, { marginTop: S.sm, marginBottom: 0 }]}>
                     <LinearGradient colors={isDark ? [theme.primary, theme.primaryDim] : [theme.primary, theme.primaryContainer]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalSaveGradient}>
                         {saving ? <ActivityIndicator color="white" /> : (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md }}>
@@ -2094,7 +2097,7 @@ export default function ActionCenter() {
                             </View>
                         )}
                     </LinearGradient>
-                </TouchableOpacity>
+                </Touchable>
             </RNAnimated.View>
           </View>
         </View>
@@ -2110,16 +2113,13 @@ const styles = StyleSheet.create({
   headerIconBtn: { width: scale(36), height: scale(36), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   selBadge: { minWidth: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   aiBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: R.lg, borderWidth: 1, paddingHorizontal: S.md, gap: S.sm, height: verticalScale(44) },
+  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: R.lg, borderWidth: B.thin, paddingHorizontal: S.md, gap: S.sm, height: verticalScale(44) },
   searchInput: { flex: 1, fontWeight: '600', fontSize: F.body },
-  sortMenu: { position: 'absolute', top: verticalScale(56), right: S.lg, zIndex: 200, borderRadius: R.lg, borderWidth: 1, overflow: 'hidden', minWidth: scale(180), shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
+  sortMenu: { position: 'absolute', top: verticalScale(56), right: S.lg, zIndex: 200, borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', minWidth: scale(180), shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
   sortOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth },
   bulkPill: {
-    position: 'absolute', left: S.xl, right: S.xl,
-    flexDirection: 'row', alignItems: 'center',
-    borderRadius: R.full, overflow: 'hidden',
     paddingHorizontal: S.lg, paddingVertical: verticalScale(10),
-    borderWidth: 1, zIndex: 100,
+    borderWidth: B.thin, zIndex: 100,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.18, shadowRadius: 20, elevation: 14,
   },
@@ -2141,7 +2141,7 @@ const styles = StyleSheet.create({
   filterChipText: { fontWeight: '800' },
   listSection: { flex: 1 },
   sectionTitle: { fontWeight: '900', marginBottom: S.md },
-  taskCard: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', borderWidth: 1.2 },
+  taskCard: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', borderWidth: B.thin },
   priorityIndicator: { height: verticalScale(32), borderRadius: R.sm, marginRight: S.md },
   taskContent: { flex: 1 },
   taskTitleText: { fontWeight: '700' },
@@ -2167,7 +2167,7 @@ const styles = StyleSheet.create({
   categoryBadgeText: { fontSize: moderateScale(10), fontWeight: '800', textTransform: 'lowercase' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: { width: '100%' },
-  sheet: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, borderWidth: 1, borderBottomWidth: 0 },
+  sheet: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, borderWidth: B.thin, borderBottomWidth: 0 },
   handle: { width: scale(40), height: scale(4), borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sheetTitle: { fontWeight: '900', letterSpacing: -0.5 },
@@ -2187,7 +2187,7 @@ const styles = StyleSheet.create({
   modalSaveBtn: { borderRadius: R.lg, overflow: 'hidden', marginTop: S.lg, marginBottom: S.xl },
   modalSaveGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, height: verticalScale(56) },
   modalSaveText: { color: 'white', fontWeight: '900', letterSpacing: -0.5, textAlign: 'center', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
-  inlinePicker: { borderRadius: R.lg, padding: S.md, alignItems: 'center', borderWidth: 1 },
+  inlinePicker: { borderRadius: R.lg, padding: S.md, alignItems: 'center', borderWidth: B.thin },
   inlinePickerTitle: { fontSize: F.body, fontWeight: '900', marginBottom: S.md, letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 },
   pickerRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.md },
   pickerCol: { alignItems: 'center', minWidth: scale(60) },
@@ -2197,7 +2197,7 @@ const styles = StyleSheet.create({
   pickerValue: { fontSize: moderateScale(32), fontWeight: '900', letterSpacing: -1, lineHeight: verticalScale(40) },
   pickerColon: { fontSize: moderateScale(28), fontWeight: '900', marginTop: S.sm },
   pickerActions: { flexDirection: 'row', gap: S.sm, width: '100%', marginTop: S.sm },
-  pickerCancelBtn: { flex: 1, borderRadius: R.md, borderWidth: 1.5, height: verticalScale(48), alignItems: 'center', justifyContent: 'center' },
+  pickerCancelBtn: { flex: 1, borderRadius: R.md, borderWidth: B.medium, height: verticalScale(48), alignItems: 'center', justifyContent: 'center' },
   pickerConfirmBtn: { flex: 1, borderRadius: R.md, height: verticalScale(48), alignItems: 'center', justifyContent: 'center' },
   pickerBtnText: { fontWeight: '700', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
 });

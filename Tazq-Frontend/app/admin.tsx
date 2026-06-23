@@ -11,8 +11,9 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { AdminService, AdminUser, AdminStats } from '../services/api';
-import { S, R, F } from '../constants/tokens';
+import { S, R, F, B } from '../constants/tokens';
 import * as Haptics from 'expo-haptics';
+import { Touchable } from '@/components/Touchable';
 
 type SortKey = 'name' | 'tasks' | 'focus' | 'recent';
 
@@ -159,13 +160,13 @@ export default function AdminScreen() {
   const SortBtn = ({ k, label }: { k: SortKey; label: string }) => {
     const active = sortKey === k;
     return (
-      <TouchableOpacity
+      <Touchable
         onPress={() => cycleSort(k)}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: S.sm, paddingVertical: 5, borderRadius: R.full, backgroundColor: active ? theme.primary + '20' : cardBg, borderWidth: 1, borderColor: active ? theme.primary + '40' : cardBorder }}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: S.sm, paddingVertical: 5, borderRadius: R.full, backgroundColor: active ? theme.primary + '20' : cardBg, borderWidth: B.thin, borderColor: active ? theme.primary + '40' : cardBorder }}
       >
         <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? theme.primary : theme.onSurfaceVariant }}>{label}</Text>
         {active && (sortAsc ? <ChevronUp size={10} color={theme.primary} /> : <ChevronDown size={10} color={theme.primary} />)}
-      </TouchableOpacity>
+      </Touchable>
     );
   };
 
@@ -173,10 +174,10 @@ export default function AdminScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingTop: S.sm, paddingBottom: S.md, gap: S.sm }}>
-        <TouchableOpacity onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: cardBg, alignItems: 'center', justifyContent: 'center' }}>
+        <Touchable onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: cardBg, alignItems: 'center', justifyContent: 'center' }}>
           <ChevronLeft size={20} color={theme.onSurface} />
-        </TouchableOpacity>
-        <Text style={{ flex: 1, fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>
+        </Touchable>
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ flex: 1, fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>
           {tr ? 'Admin Paneli' : 'Admin Panel'}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: '#6366F115', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 4 }}>
@@ -194,14 +195,14 @@ export default function AdminScreen() {
           <Text style={{ color: theme.error, fontWeight: '700', fontSize: F.subhead }}>
             {tr ? 'Yüklenemedi' : 'Failed to load'}
           </Text>
-          <TouchableOpacity onPress={() => load()} style={{ backgroundColor: theme.primary + '15', paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full }}>
+          <Touchable onPress={() => load()} style={{ backgroundColor: theme.primary + '15', paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full }}>
             <Text style={{ color: theme.primary, fontWeight: '800' }}>{tr ? 'Tekrar Dene' : 'Retry'}</Text>
-          </TouchableOpacity>
+          </Touchable>
         </View>
       ) : (
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: S.md, paddingBottom: insets.bottom + S.xl, gap: S.md }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={theme.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}
           showsVerticalScrollIndicator={false}
         >
           {/* ── Stat cards row 1 ── */}
@@ -214,7 +215,7 @@ export default function AdminScreen() {
                   { icon: <TrendingUp size={16} color="#F59E0B" />, label: tr ? 'Bu Hafta' : 'This Week', value: stats.activeThisWeek, color: '#F59E0B' },
                 ].map(c => (
                   <MotiView key={c.label} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 350 }}
-                    style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: 1, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: 4 }}>
+                    style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: 4 }}>
                     <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: c.color + '20', alignItems: 'center', justifyContent: 'center' }}>{c.icon}</View>
                     <Text style={{ fontSize: 20, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
                     <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{c.label}</Text>
@@ -229,7 +230,7 @@ export default function AdminScreen() {
                   { icon: <Clock size={16} color="#F43F5E" />, label: tr ? 'Odak (saat)' : 'Focus (hrs)', value: Math.round(stats.totalFocusMinutes / 60), color: '#F43F5E' },
                 ].map(c => (
                   <MotiView key={c.label} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400 }}
-                    style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: 1, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: 4 }}>
+                    style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: 4 }}>
                     <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: c.color + '20', alignItems: 'center', justifyContent: 'center' }}>{c.icon}</View>
                     <Text style={{ fontSize: 20, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
                     <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{c.label}</Text>
@@ -239,7 +240,7 @@ export default function AdminScreen() {
 
               {/* ── Completion rate bar ── */}
               {stats.totalTasks > 0 && (
-                <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: 1, borderColor: cardBorder, padding: S.md }}>
+                <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: S.sm }}>
                     <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'TAMAMLANMA ORANI' : 'COMPLETION RATE'}</Text>
                     <Text style={{ fontSize: F.caption, fontWeight: '900', color: '#10B981' }}>
@@ -259,7 +260,7 @@ export default function AdminScreen() {
 
               {/* ── 7-day focus trend ── */}
               {stats.dailyTrend && (
-                <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: 1, borderColor: cardBorder, padding: S.md }}>
+                <View style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.md }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.md }}>
                     {tr ? '7 GÜNLÜK ODAK TRENDİ' : '7-DAY FOCUS TREND'}
                   </Text>
@@ -283,7 +284,7 @@ export default function AdminScreen() {
 
           {/* ── Search + Sort ── */}
           <View style={{ gap: S.sm }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: cardBg, borderRadius: R.md, borderWidth: 1, borderColor: cardBorder, paddingHorizontal: S.sm, paddingVertical: S.xs }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, paddingHorizontal: S.sm, paddingVertical: S.xs }}>
               <Search size={16} color={theme.onSurfaceVariant} />
               <TextInput
                 value={search}
@@ -321,10 +322,10 @@ export default function AdminScreen() {
                 from={{ opacity: 0, translateY: 10 }}
                 animate={{ opacity: 1, translateY: 0 }}
                 transition={{ type: 'timing', duration: 280, delay: Math.min(i * 30, 300) }}
-                style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: 1, borderColor: isAdmin ? '#6366F130' : cardBorder, overflow: 'hidden' }}
+                style={{ backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: isAdmin ? '#6366F130' : cardBorder, overflow: 'hidden' }}
               >
                 {/* Main row */}
-                <TouchableOpacity
+                <Touchable
                   onPress={() => { setExpandedUser(isExpanded ? null : user.id); Haptics.selectionAsync(); }}
                   style={{ flexDirection: 'row', alignItems: 'center', padding: S.md, gap: S.sm }}
                   activeOpacity={0.7}
@@ -362,7 +363,7 @@ export default function AdminScreen() {
                   </View>
 
                   {isExpanded ? <ChevronUp size={16} color={theme.onSurfaceVariant} /> : <ChevronDown size={16} color={theme.onSurfaceVariant} />}
-                </TouchableOpacity>
+                </Touchable>
 
                 {/* Expanded detail */}
                 {isExpanded && (
@@ -410,36 +411,36 @@ export default function AdminScreen() {
                       </View>
                     ) : (
                       <View style={{ gap: S.sm }}>
-                        <TouchableOpacity
+                        <Touchable
                           onPress={() => handleToggleRole(user)}
-                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isAdmin ? '#6366F115' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'), borderWidth: 1, borderColor: isAdmin ? '#6366F130' : cardBorder }}
+                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isAdmin ? '#6366F115' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'), borderWidth: B.thin, borderColor: isAdmin ? '#6366F130' : cardBorder }}
                         >
                           {isAdmin ? <ShieldOff size={14} color="#6366F1" /> : <Shield size={14} color={theme.onSurfaceVariant} />}
                           <Text style={{ fontSize: F.caption, fontWeight: '700', color: isAdmin ? '#6366F1' : theme.onSurfaceVariant }}>
                             {isAdmin ? (tr ? 'Admin Al' : 'Revoke Admin') : (tr ? 'Admin Yap' : 'Make Admin')}
                           </Text>
-                        </TouchableOpacity>
+                        </Touchable>
 
                         <View style={{ flexDirection: 'row', gap: S.sm }}>
-                          <TouchableOpacity
+                          <Touchable
                             onPress={() => handleToggleBan(user)}
-                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isBanned ? '#10B98115' : (isDark ? 'rgba(245,158,11,0.10)' : 'rgba(245,158,11,0.07)'), borderWidth: 1, borderColor: isBanned ? '#10B98140' : '#F59E0B40' }}
+                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isBanned ? '#10B98115' : (isDark ? 'rgba(245,158,11,0.10)' : 'rgba(245,158,11,0.07)'), borderWidth: B.thin, borderColor: isBanned ? '#10B98140' : '#F59E0B40' }}
                           >
                             {isBanned ? <CheckSquare size={14} color="#10B981" /> : <Ban size={14} color="#F59E0B" />}
                             <Text style={{ fontSize: F.caption, fontWeight: '700', color: isBanned ? '#10B981' : '#F59E0B' }}>
                               {isBanned ? (tr ? 'Banı Kaldır' : 'Unban') : (tr ? 'Banla' : 'Ban')}
                             </Text>
-                          </TouchableOpacity>
+                          </Touchable>
 
-                          <TouchableOpacity
+                          <Touchable
                             onPress={() => handleDelete(user)}
-                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.05)', borderWidth: 1, borderColor: theme.error + '30' }}
+                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.05)', borderWidth: B.thin, borderColor: theme.error + '30' }}
                           >
                             <Trash2 size={14} color={theme.error} />
                             <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.error }}>
                               {tr ? 'Hesabı Sil' : 'Delete'}
                             </Text>
-                          </TouchableOpacity>
+                          </Touchable>
                         </View>
                       </View>
                     )}

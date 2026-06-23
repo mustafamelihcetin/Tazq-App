@@ -4,6 +4,7 @@ import { MotiView, AnimatePresence } from 'moti';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react-native';
 import { useToastStore } from '../store/useToastStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Touchable } from '@/components/Touchable';
 
 const COLORS = {
   error: { bg: '#ff3b30', icon: AlertCircle },
@@ -35,13 +36,13 @@ export const Toast = () => {
           <Icon size={18} color="#fff" />
           <Text style={styles.text} numberOfLines={2}>{message}</Text>
           {actionLabel && onAction && (
-            <TouchableOpacity onPress={handleAction} style={styles.actionBtn}>
+            <Touchable onPress={handleAction} style={styles.actionBtn}>
               <Text style={styles.actionText}>{actionLabel}</Text>
-            </TouchableOpacity>
+            </Touchable>
           )}
-          <TouchableOpacity onPress={hide} style={styles.close}>
+          <Touchable onPress={hide} style={styles.close}>
             <X size={16} color="rgba(255,255,255,0.8)" />
-          </TouchableOpacity>
+          </Touchable>
         </MotiView>
       )}
     </AnimatePresence>

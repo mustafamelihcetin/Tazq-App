@@ -24,7 +24,8 @@ import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { FocusService } from '../services/api';
-import { S, R, F } from '../constants/tokens';
+import { S, R, F, B } from '../constants/tokens';
+import { Touchable } from '@/components/Touchable';
 
 const HABIT_COLORS = [
   '#6366F1', '#EC4899', '#F59E0B', '#10B981',
@@ -344,12 +345,12 @@ export default function CockpitScreen() {
               )}`}
             </Text>
           </View>
-          <TouchableOpacity
+          <Touchable
             onPress={() => { prepareAdd(); setAddVisible(true); }}
             style={[styles.addBtn, { backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F' }]}
           >
             <Plus size={18} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={2.5} />
-          </TouchableOpacity>
+          </Touchable>
         </View>
 
         <ScrollView
@@ -386,7 +387,7 @@ export default function CockpitScreen() {
                 const allDone = day.total > 0 && day.completed === day.total;
                 const hasTasks = day.total > 0;
                 return (
-                  <TouchableOpacity
+                  <Touchable
                     key={day.key}
                     onPress={() => {
                       setSelectedDay(day.key);
@@ -433,7 +434,7 @@ export default function CockpitScreen() {
                         opacity: day.isPast && !day.isToday ? 0.4 : 1,
                       },
                     ]} />
-                  </TouchableOpacity>
+                  </Touchable>
                 );
               })}
             </View>
@@ -465,7 +466,7 @@ export default function CockpitScreen() {
                 <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.5 }}>
                   {tr ? 'Planlanmış görev yok' : 'No tasks planned'}
                 </Text>
-                <TouchableOpacity
+                <Touchable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push({ pathname: '/tasks', params: { action: 'add', dateFilter: selectedDay } });
@@ -476,7 +477,7 @@ export default function CockpitScreen() {
                   <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.primary }}>
                     {tr ? 'Ekle' : 'Add'}
                   </Text>
-                </TouchableOpacity>
+                </Touchable>
               </MotiView>
             ) : (
               <MotiView
@@ -500,7 +501,7 @@ export default function CockpitScreen() {
                   <Text style={[styles.dayTasksHeading, { color: theme.onSurfaceVariant, marginBottom: 0 }]}>
                     {selectedDayLabel}
                   </Text>
-                  <TouchableOpacity
+                  <Touchable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       router.push({ pathname: '/tasks', params: { action: 'add', dateFilter: selectedDay } });
@@ -511,10 +512,10 @@ export default function CockpitScreen() {
                     <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary }}>
                       {tr ? 'Görev Ekle' : 'Add Task'}
                     </Text>
-                  </TouchableOpacity>
+                  </Touchable>
                 </View>
                 {selectedDayTasks.slice(0, 5).map((task, idx) => (
-                  <TouchableOpacity
+                  <Touchable
                     key={task.id}
                     onPress={() => {
                       Haptics.selectionAsync();
@@ -559,10 +560,10 @@ export default function CockpitScreen() {
                           : theme.priorityLow,
                       },
                     ]} />
-                  </TouchableOpacity>
+                  </Touchable>
                 ))}
                 {selectedDayTasks.length > 5 && (
-                  <TouchableOpacity
+                  <Touchable
                     onPress={() => router.push({
                       pathname: '/tasks',
                       params: selectedDay === todayKey
@@ -574,7 +575,7 @@ export default function CockpitScreen() {
                     <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.primary }}>
                       +{selectedDayTasks.length - 5} {tr ? 'daha' : 'more'}
                     </Text>
-                  </TouchableOpacity>
+                  </Touchable>
                 )}
               </MotiView>
             )}
@@ -609,14 +610,14 @@ export default function CockpitScreen() {
                       ? 'Dönemsel modun aktif. Ana ekrandaki "Planı Uygula" butonuna bas.'
                       : 'Seasonal mode is active. Tap "Apply Plan" on the Home screen.'}
                   </Text>
-                  <TouchableOpacity
+                  <Touchable
                     onPress={() => router.replace('/')}
                     style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}
                   >
                     <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>
                       {tr ? 'Ana Ekrana Git' : 'Go to Home'}
                     </Text>
-                  </TouchableOpacity>
+                  </Touchable>
                 </>
               ) : (
                 <>
@@ -628,7 +629,7 @@ export default function CockpitScreen() {
                       ? 'Küçük alışkanlıklar büyük dönüşümler yaratır.'
                       : 'Small habits create big transformations.'}
                   </Text>
-                  <TouchableOpacity
+                  <Touchable
                     onPress={() => { prepareAdd(); setAddVisible(true); }}
                     style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}
                   >
@@ -636,7 +637,7 @@ export default function CockpitScreen() {
                     <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>
                       {tr ? 'Alışkanlık Ekle' : 'Add Habit'}
                     </Text>
-                  </TouchableOpacity>
+                  </Touchable>
                 </>
               )}
             </BentoCard>
@@ -655,12 +656,12 @@ export default function CockpitScreen() {
                       {tr ? `✓ BUGÜN TAMAMLANDI (${doneHabits.length})` : `✓ DONE TODAY (${doneHabits.length})`}
                     </Text>
                     {doneHabits.map(habit => (
-                      <TouchableOpacity
+                      <Touchable
                         key={habit.id}
                         onPress={() => handleToggleHabit(habit.id)}
                         style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.lg,
                           backgroundColor: theme.success + (isDark ? '12' : '0D'),
-                          borderWidth: 1, borderColor: theme.success + '18' }}
+                          borderWidth: B.thin, borderColor: theme.success + '18' }}
                       >
                         <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
                           {renderModeEmojiIcon(habit.emoji ?? '📌', 16, habit.color ?? theme.success)}
@@ -669,7 +670,7 @@ export default function CockpitScreen() {
                           {habit.name}
                         </Text>
                         <Check size={14} color={theme.success} strokeWidth={3} />
-                      </TouchableOpacity>
+                      </Touchable>
                     ))}
                   </View>
                 );
@@ -746,7 +747,7 @@ export default function CockpitScreen() {
                       </View>
 
                       {/* Check button */}
-                      <TouchableOpacity
+                      <Touchable
                         onPress={() => handleToggleHabit(habit.id)}
                         style={[
                           styles.checkBtn,
@@ -769,23 +770,23 @@ export default function CockpitScreen() {
                             strokeWidth={3}
                           />
                         </MotiView>
-                      </TouchableOpacity>
+                      </Touchable>
 
                       {/* Delete button */}
-                      <TouchableOpacity
+                      <Touchable
                         onPress={() => handleDeleteHabit(habit.id, habit.name)}
                         style={[styles.deleteHabitBtn]}
                         accessibilityLabel={tr ? 'Alışkanlığı sil' : 'Delete habit'}
                       >
                         <Trash2 size={14} color={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)'} />
-                      </TouchableOpacity>
+                      </Touchable>
                     </View>
                   </View>
                   </Animated.View>
                 );
               })}
 
-              <TouchableOpacity
+              <Touchable
                 onPress={() => { prepareAdd(); setAddVisible(true); }}
                 style={[styles.addHabitRow, { borderColor: theme.outline + '50' }]}
               >
@@ -793,7 +794,7 @@ export default function CockpitScreen() {
                 <Text style={[styles.addHabitText, { color: theme.onSurfaceVariant }]}>
                   {tr ? 'Alışkanlık Ekle' : 'Add Habit'}
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
             </View>
           )}
 
@@ -840,7 +841,7 @@ export default function CockpitScreen() {
                   ]}
                 >
                   {stat.icon}
-                  <Text style={[styles.statValue, { color: stat.accent }]}>
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.statValue, { color: stat.accent }]}>
                     {stat.value}
                   </Text>
                   <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>
@@ -860,14 +861,14 @@ export default function CockpitScreen() {
                 <Text style={[styles.goalText, { color: theme.primary }]} numberOfLines={2}>
                   {weeklyGoal}
                 </Text>
-                <TouchableOpacity onPress={() => { setPlanGoal(weeklyGoal); preparePlan(); setPlanVisible(true); }}>
+                <Touchable onPress={() => { setPlanGoal(weeklyGoal); preparePlan(); setPlanVisible(true); }}>
                   <ChevronRight size={15} color={theme.primary} />
-                </TouchableOpacity>
+                </Touchable>
               </View>
             )}
 
             {/* Plan / Goal button */}
-            <TouchableOpacity
+            <Touchable
               onPress={() => {
                 setPlanGoal(weeklyGoal);
                 preparePlan();
@@ -886,7 +887,7 @@ export default function CockpitScreen() {
                   : (tr ? 'Haftalık Hedefi Güncelle' : 'Update Weekly Goal')}
               </Text>
               <ChevronRight size={15} color={theme.onSurfaceVariant} />
-            </TouchableOpacity>
+            </Touchable>
           </BentoCard>
         </ScrollView>
       </SafeAreaView>
@@ -903,7 +904,7 @@ export default function CockpitScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1, justifyContent: 'flex-end' }}
         >
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setAddVisible(false)} />
+          <Touchable style={{ flex: 1 }} activeOpacity={1} onPress={() => setAddVisible(false)} />
           <Animated.View
             style={[
               styles.sheet,
@@ -922,7 +923,7 @@ export default function CockpitScreen() {
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.sm }}>
-              <Text style={[styles.sheetTitle, { color: theme.onSurface, marginBottom: 0 }]}>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface, marginBottom: 0 }]}>
                 {tr ? 'Yeni Alışkanlık' : 'New Habit'}
               </Text>
               <View style={{ backgroundColor: newColor + '20', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -960,7 +961,7 @@ export default function CockpitScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: S.md }}>
               <View style={{ flexDirection: 'row', gap: S.sm, paddingVertical: 2 }}>
                 {HABIT_EMOJIS.map((e) => (
-                  <TouchableOpacity
+                  <Touchable
                     key={e}
                     onPress={() => setNewEmoji(e)}
                     style={[
@@ -972,7 +973,7 @@ export default function CockpitScreen() {
                     ]}
                   >
                     <Text style={{ fontSize: 22 }}>{e}</Text>
-                  </TouchableOpacity>
+                  </Touchable>
                 ))}
               </View>
             </ScrollView>
@@ -980,7 +981,7 @@ export default function CockpitScreen() {
             {/* Color row */}
             <View style={{ flexDirection: 'row', gap: S.md, marginBottom: S.xl }}>
               {HABIT_COLORS.map((c) => (
-                <TouchableOpacity
+                <Touchable
                   key={c}
                   onPress={() => setNewColor(c)}
                   style={[
@@ -996,7 +997,7 @@ export default function CockpitScreen() {
               ))}
             </View>
 
-            <TouchableOpacity
+            <Touchable
               onPress={handleAddHabit}
               disabled={!newName.trim()}
               style={[
@@ -1014,7 +1015,7 @@ export default function CockpitScreen() {
               ]}>
                 {tr ? 'Ekle' : 'Add'}
               </Text>
-            </TouchableOpacity>
+            </Touchable>
           </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
@@ -1031,7 +1032,7 @@ export default function CockpitScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1, justifyContent: 'flex-end' }}
         >
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setPlanVisible(false)} />
+          <Touchable style={{ flex: 1 }} activeOpacity={1} onPress={() => setPlanVisible(false)} />
           <Animated.View
             style={[
               styles.sheet,
@@ -1049,7 +1050,7 @@ export default function CockpitScreen() {
             >
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
             </View>
-            <Text style={[styles.sheetTitle, { color: theme.onSurface }]}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>
               {showPlanButton
                 ? (tr ? 'Gelecek Hafta' : 'Next Week')
                 : (tr ? 'Haftalık Hedef' : 'Weekly Goal')}
@@ -1086,7 +1087,7 @@ export default function CockpitScreen() {
               underlineColorAndroid="transparent"
             />
 
-            <TouchableOpacity
+            <Touchable
               onPress={() => {
                 setWeeklyGoal(planGoal);
                 setPlanVisible(false);
@@ -1097,7 +1098,7 @@ export default function CockpitScreen() {
               <Text style={[styles.saveBtnText, { color: theme.onPrimary }]}>
                 {tr ? 'Kaydet' : 'Save'}
               </Text>
-            </TouchableOpacity>
+            </Touchable>
           </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
@@ -1125,7 +1126,7 @@ const styles = StyleSheet.create({
   weekRow: { flexDirection: 'row', justifyContent: 'space-between' },
   dayCell: {
     flex: 1, alignItems: 'center', paddingVertical: S.sm,
-    borderRadius: R.md, borderWidth: 1, gap: 3,
+    borderRadius: R.md, borderWidth: B.thin, gap: 3,
   },
   dayAbbr: { fontSize: 9, fontWeight: '800', letterSpacing: 0.3 },
   dayCircle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
@@ -1133,10 +1134,10 @@ const styles = StyleSheet.create({
   taskDot: { width: 5, height: 5, borderRadius: 2.5 },
 
   // Day tasks card
-  dayTasksCard: { borderRadius: R.lg, borderWidth: 1, overflow: 'hidden' },
+  dayTasksCard: { borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden' },
   dayTasksHeading: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1, padding: S.md, paddingBottom: S.sm },
   dayTaskRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: 10 },
-  miniCheck: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  miniCheck: { width: 18, height: 18, borderRadius: 9, borderWidth: B.medium, alignItems: 'center', justifyContent: 'center' },
   dayTaskText: { flex: 1, fontSize: F.body, fontWeight: '600' },
   priorityPip: { width: 6, height: 6, borderRadius: 3 },
 
@@ -1155,7 +1156,7 @@ const styles = StyleSheet.create({
   emptyAddText: { fontSize: F.body, fontWeight: '800' },
 
   // Habit row
-  habitCard: { borderRadius: R.lg, borderWidth: 1, padding: S.md, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 2 },
+  habitCard: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 2 },
   habitRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   habitLeft: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 },
   habitIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
@@ -1169,13 +1170,13 @@ const styles = StyleSheet.create({
   heatCell: { width: 11, height: 11, borderRadius: 3 },
 
   // Check button
-  checkBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  checkBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: B.medium, alignItems: 'center', justifyContent: 'center' },
   deleteHabitBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
 
   // Add habit row
   addHabitRow: {
     flexDirection: 'row', alignItems: 'center', gap: S.sm,
-    borderWidth: 1, borderStyle: 'dashed', borderRadius: R.lg,
+    borderWidth: B.thin, borderStyle: 'dashed', borderRadius: R.lg,
     padding: S.md, justifyContent: 'center',
   },
   addHabitText: { fontSize: F.body, fontWeight: '700' },
@@ -1184,7 +1185,7 @@ const styles = StyleSheet.create({
   statChip: { alignItems: 'center', padding: S.md, borderRadius: R.md, gap: 4 },
   statValue: { fontSize: F.title, fontWeight: '900', letterSpacing: -0.5 },
   statLabel: { fontSize: 10, fontWeight: '700', opacity: 0.7 },
-  goalChip: { flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.md, borderRadius: R.md, borderWidth: 1 },
+  goalChip: { flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.md, borderRadius: R.md, borderWidth: B.thin },
   goalText: { flex: 1, fontSize: F.body, fontWeight: '700' },
   planBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.md, borderRadius: R.md },
   planBtnText: { fontSize: F.body, fontWeight: '800' },
@@ -1198,12 +1199,12 @@ const styles = StyleSheet.create({
 
   nameInput: {
     flexDirection: 'row', alignItems: 'center', gap: S.md,
-    borderRadius: R.md, borderWidth: 1, paddingHorizontal: S.md, paddingVertical: 12,
+    borderRadius: R.md, borderWidth: B.thin, paddingHorizontal: S.md, paddingVertical: 12,
   },
   nameInputText: { flex: 1, fontSize: F.subhead, fontWeight: '700' },
-  emojiBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  emojiBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: B.medium },
   colorDot: { width: 28, height: 28, borderRadius: 14 },
-  goalInput: { borderRadius: R.md, borderWidth: 1, padding: S.md, fontSize: F.body, fontWeight: '600', minHeight: 88 },
+  goalInput: { borderRadius: R.md, borderWidth: B.thin, padding: S.md, fontSize: F.body, fontWeight: '600', minHeight: 88 },
   saveBtn: { paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
   saveBtnText: { fontSize: F.subhead, fontWeight: '900' },
 });

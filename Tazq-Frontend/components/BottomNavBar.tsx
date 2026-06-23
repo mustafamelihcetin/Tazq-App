@@ -6,8 +6,9 @@ import { BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { R } from '../constants/tokens';
+import { R, B } from '../constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Touchable } from '@/components/Touchable';
 
 export const BottomNavBar = () => {
   const { width } = useWindowDimensions();
@@ -29,9 +30,7 @@ export const BottomNavBar = () => {
     };
   }, []);
 
-  if (keyboardVisible && Platform.OS === 'android') {
-    return null;
-  }
+
 
   const tabs = [
     { id: 'home', path: '/', icon: LayoutGrid },
@@ -71,6 +70,10 @@ export const BottomNavBar = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.replace(path as any);
   };
+
+  if (keyboardVisible && Platform.OS === 'android') {
+    return null;
+  }
 
   return (
     <View style={[styles.container, { bottom: Math.max(insets.bottom, 16) + 4 }]}>
@@ -113,7 +116,7 @@ export const BottomNavBar = () => {
             const isActive = pathname === tab.path || (tab.path === '/' && pathname === '/index');
             const Icon = tab.icon;
             return (
-              <TouchableOpacity
+              <Touchable
                 key={tab.id}
                 onPress={() => handlePress(tab.path)}
                 activeOpacity={0.7}
@@ -131,7 +134,7 @@ export const BottomNavBar = () => {
                     style={[styles.dot, { backgroundColor: theme.primary }]}
                   />
                 )}
-              </TouchableOpacity>
+              </Touchable>
             );
           })}
         </View>
@@ -151,11 +154,11 @@ const styles = StyleSheet.create({
   bar: {
     height: 68,
     borderRadius: R.full,
-    borderWidth: 1,
+    borderWidth: B.thin,
     overflow: 'hidden',
     shadowOffset: { width: 0, height: 12 },
     shadowRadius: 28,
-    elevation: 10,
+    elevation: 0,
   },
   tabsContainer: {
     flex: 1,

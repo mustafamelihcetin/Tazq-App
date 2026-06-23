@@ -13,6 +13,7 @@ import Animated, {
 import { Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { S, R } from '../constants/tokens';
+import { Touchable } from '@/components/Touchable';
 
 interface Props {
   children: React.ReactNode;
@@ -98,9 +99,9 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
     <View style={styles.container}>
       <View style={[StyleSheet.absoluteFill, styles.deleteZone]}>
         <Animated.View style={actionStyle}>
-          <TouchableOpacity onPress={onDelete} style={styles.deleteBtn}>
+          <Touchable onPress={onDelete} style={styles.deleteBtn}>
             <Trash2 size={22} color="white" />
-          </TouchableOpacity>
+          </Touchable>
         </Animated.View>
       </View>
       <GestureDetector gesture={panGesture}>

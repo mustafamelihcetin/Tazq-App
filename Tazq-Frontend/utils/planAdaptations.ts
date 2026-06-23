@@ -38,8 +38,10 @@ export function daysAgo(dateStr: string): number {
 function daysFromNow(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() + n);
-  d.setHours(9, 0, 0, 0);
-  return d.toISOString();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 /** Mevcut task listesinde tag ve başlık benzerliğine göre duplicate var mı? */
@@ -47,9 +49,12 @@ export function hasDuplicateAdaptation(
   tasks: { title: string; tags?: string[] | null; isCompleted: boolean; dueDate?: string | null }[],
   tag: string,
 ): boolean {
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
   return tasks.some(t =>
     !t.isCompleted &&
-    (t.tags ?? []).includes(tag)
+    (t.tags ?? []).includes(tag) &&
+    t.dueDate && new Date(t.dueDate) > threeDaysAgo
   );
 }
 
@@ -170,8 +175,22 @@ export function buildKiloAdaptationTasks(
     }
   }
 
-  // Her 4. hafta vücut ölçüsü hatırlatması
+  // Her 2. hafta tartı hatırlatması
   const week = Math.floor(analysis.weeksElapsed);
+  if (week > 0 && week % 2 === 0 && !hasDuplicateAdaptation(existingTasks, 'weight_entry')) {
+    tasks.push({
+      title: tr
+        ? `Hafta ${week} tartısı — sabah aç karna`
+        : `Week ${week} weigh-in — fasted morning`,
+      description: '',
+      priority: 'High',
+      dueDate: daysFromNow(0),
+      isCompleted: false,
+      tags: ['weight_entry'],
+    });
+  }
+
+  // Her 4. hafta vücut ölçüsü hatırlatması
   if (week > 0 && week % 4 === 0 && !hasDuplicateAdaptation(existingTasks, 'kilo_measure')) {
     tasks.push({
       title: tr

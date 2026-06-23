@@ -1,4 +1,5 @@
 import React from 'react';
+import { B } from '../constants/tokens';
 import { View, StyleSheet, ViewStyle, Platform } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '../constants/Colors';
@@ -31,7 +32,7 @@ export const GlassCard = ({ children, style }: GlassCardProps) => {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 24,
-    borderWidth: 1,
+    borderWidth: B.thin,
     overflow: 'hidden',
     ...(Platform.OS === 'android' ? { elevation: 2 } : {}),
   },

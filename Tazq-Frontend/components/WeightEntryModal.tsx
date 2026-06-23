@@ -20,8 +20,9 @@ import { useSporStore, getThisWeekEntry } from '../store/useSporStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useTaskStore } from '../store/useTaskStore';
 import { TaskService } from '../services/api';
-import { S, R, F } from '../constants/tokens';
+import { S, R, F, B } from '../constants/tokens';
 import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
+import { Touchable } from '@/components/Touchable';
 
 interface Props {
   visible: boolean;
@@ -124,7 +125,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1, justifyContent: 'flex-end' }}
       >
-        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
+        <Touchable style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
         <Animated.View
           style={{
             backgroundColor: isDark ? '#1C1C22' : '#FFFFFF',
@@ -164,7 +165,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
           <View style={{
             flexDirection: 'row', alignItems: 'center', gap: S.sm,
             backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-            borderRadius: R.md, borderWidth: 1,
+            borderRadius: R.md, borderWidth: B.thin,
             borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
             paddingHorizontal: S.md, paddingVertical: S.sm,
             marginBottom: S.sm,
@@ -205,7 +206,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
           )}
 
           {/* Save button */}
-          <TouchableOpacity
+          <Touchable
             onPress={handleSave}
             disabled={saving || !input}
             style={{
@@ -220,7 +221,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             <Text style={{ color: '#fff', fontWeight: '900', fontSize: F.body }}>
               {saving ? (tr ? 'Kaydediliyor…' : 'Saving…') : (tr ? 'Kaydet' : 'Save')}
             </Text>
-          </TouchableOpacity>
+          </Touchable>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
+import { B } from '../constants/tokens';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import { Sparkles, Timer as TimerIcon, Play, Zap } from 'lucide-react-native';
@@ -12,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { Touchable } from '@/components/Touchable';
 
 export const DynamicIsland = () => {
   const { width } = useWindowDimensions();
@@ -39,7 +41,7 @@ export const DynamicIsland = () => {
       animate={{ opacity: 1, scale: 1 }}
       style={styles.container}
     >
-      <TouchableOpacity
+      <Touchable
         onPress={handlePress}
         activeOpacity={0.9}
         style={[
@@ -69,12 +71,12 @@ export const DynamicIsland = () => {
                 <Text style={[styles.label, { color: isActive ? theme.primary : (isDark ? theme.secondary : theme.onSurfaceVariant) }]}>
                     {isActive ? t.activeFocus : t.dailyGoal}
                 </Text>
-                <Text style={[styles.title, { color: theme.onSurface }]} numberOfLines={1}>
+                <Text adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.title, { color: theme.onSurface }]} numberOfLines={1}>
                     {isActive ? (currentTask || t.focusSession) : t.focusReady}
                 </Text>
             </View>
 
-            <TouchableOpacity
+            <Touchable
                 onPress={handlePress}
                 style={[
                     styles.actionButton,
@@ -94,9 +96,9 @@ export const DynamicIsland = () => {
                         {isActive ? formatTime(seconds) : t.start}
                     </Text>
                 </LinearGradient>
-            </TouchableOpacity>
+            </Touchable>
         </View>
-      </TouchableOpacity>
+      </Touchable>
     </MotiView>
   );
 };
@@ -109,12 +111,12 @@ const styles = StyleSheet.create({
   wrapper: {
     borderRadius: 48,
     padding: 12,
-    borderWidth: 1.2,
+    borderWidth: B.thin,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.1,
     shadowRadius: 30,
-    elevation: 6,
+    elevation: 0,
   },
   content: {
     flexDirection: 'row',
@@ -146,7 +148,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 15,
-    elevation: 5,
+    elevation: 0,
     overflow: 'hidden',
   },
   btnGradient: {

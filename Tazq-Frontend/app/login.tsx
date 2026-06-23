@@ -28,7 +28,8 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { GlassCard } from '../components/GlassCard';
 import { AnimatedBackground } from '../components/AnimatedBackground';
 import { TazqLogo } from '../components/TazqLogo';
-import { S, R, F, scale, verticalScale, moderateScale } from '../constants/tokens';
+import { S, R, F, scale, verticalScale, moderateScale, B } from '../constants/tokens';
+import { Touchable } from '@/components/Touchable';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -209,18 +210,18 @@ export default function LoginScreen() {
                           secureTextEntry={!showPassword}
                           underlineColorAndroid="transparent"
                         />
-                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                        <Touchable onPress={() => setShowPassword(!showPassword)}>
                           {showPassword
                             ? <EyeOff size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                             : <Eye size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
-                        </TouchableOpacity>
+                        </Touchable>
                       </View>
-                      <TouchableOpacity onPress={() => setForgotVisible(true)} style={{ alignSelf: 'flex-end', marginTop: 6 }}>
+                      <Touchable onPress={() => setForgotVisible(true)} style={{ alignSelf: 'flex-end', marginTop: 6 }}>
                         <Text style={[styles.forgotText, { color: theme.primary }]}>{t.login.forgotPassword}</Text>
-                      </TouchableOpacity>
+                      </Touchable>
                     </View>
 
-                    <TouchableOpacity
+                    <Touchable
                       onPress={handleLogin}
                       disabled={isLoading}
                       style={styles.loginButton}
@@ -238,7 +239,7 @@ export default function LoginScreen() {
                           </>
                         )}
                       </MotiView>
-                    </TouchableOpacity>
+                    </Touchable>
 
                     {/* OR Divider */}
                     <View style={styles.dividerRow}>
@@ -249,22 +250,22 @@ export default function LoginScreen() {
 
                     {/* Social Buttons — Coming soon */}
                     <View style={styles.socialRow}>
-                      <TouchableOpacity
+                      <Touchable
                         style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, opacity: 0.5 }]}
                         onPress={() => Alert.alert('Yakında', 'Google ile giriş yakında eklenecek.')}
                         activeOpacity={0.7}
                       >
                         <GoogleIcon color={theme.onSurface} />
                         <Text style={[styles.socialText, { color: theme.onSurface }]}>Google</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                      </Touchable>
+                      <Touchable
                         style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, opacity: 0.5 }]}
                         onPress={() => Alert.alert('Yakında', 'Apple ile giriş yakında eklenecek.')}
                         activeOpacity={0.7}
                       >
                         <AppleIcon color={theme.onSurface} />
                         <Text style={[styles.socialText, { color: theme.onSurface }]}>Apple</Text>
-                      </TouchableOpacity>
+                      </Touchable>
                     </View>
                   </View>
                 </GlassCard>
@@ -282,9 +283,9 @@ export default function LoginScreen() {
                   <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
                     {t.login.footer}
                   </Text>
-                  <TouchableOpacity onPress={() => router.push('/register')}>
+                  <Touchable onPress={() => router.push('/register')}>
                     <Text style={[styles.link, { color: theme.primary }]}> {t.login.signUp}</Text>
-                  </TouchableOpacity>
+                  </Touchable>
                 </View>
               </MotiView>
             </View>
@@ -300,7 +301,7 @@ export default function LoginScreen() {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
             <GlassCard style={styles.modalCard}>
-              <Text style={[styles.modalTitle, { color: theme.onSurface }]}>{t.login.forgotTitle}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.modalTitle, { color: theme.onSurface }]}>{t.login.forgotTitle}</Text>
               <Text style={[styles.modalSub, { color: theme.onSurfaceVariant }]}>{t.login.forgotSub}</Text>
               
               <TextInput
@@ -324,12 +325,12 @@ export default function LoginScreen() {
               )}
 
               <View style={styles.modalActions}>
-                <TouchableOpacity onPress={closeForgotModal} style={styles.modalCancel}>
+                <Touchable onPress={closeForgotModal} style={styles.modalCancel}>
                   <Text style={{ color: theme.onSurfaceVariant }}>{t.cancel}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleForgotPassword} disabled={forgotLoading} style={[styles.modalSend, { backgroundColor: theme.primary }]}>
+                </Touchable>
+                <Touchable onPress={handleForgotPassword} disabled={forgotLoading} style={[styles.modalSend, { backgroundColor: theme.primary }]}>
                   {forgotLoading ? <ActivityIndicator color={theme.onPrimary} size="small" /> : <Text style={{ color: theme.onPrimary }}>{t.login.forgotSend}</Text>}
-                </TouchableOpacity>
+                </Touchable>
               </View>
             </GlassCard>
           </View>
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: { fontSize: F.caption, fontWeight: '800', letterSpacing: 1 },
   forgotText: { fontSize: F.caption + 1, fontWeight: '700' },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, height: Platform.OS === 'android' ? verticalScale(52) : verticalScale(56), borderRadius: R.md, borderWidth: 1, gap: S.sm + 4 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, height: Platform.OS === 'android' ? verticalScale(52) : verticalScale(56), borderRadius: R.md, borderWidth: B.thin, gap: S.sm + 4 },
   input: { flex: 1, fontSize: F.body + 2, fontWeight: '600', paddingVertical: 0 },
   loginButton: { height: Platform.OS === 'android' ? verticalScale(52) : verticalScale(56), borderRadius: R.md, overflow: 'hidden' },
   buttonInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10) },
@@ -368,7 +369,7 @@ const styles = StyleSheet.create({
   divider: { flex: 1, height: 1 },
   dividerText: { fontSize: F.caption + 1, fontWeight: '700', opacity: 0.5 },
   socialRow: { flexDirection: 'row', gap: S.md },
-  socialButton: { flex: 1, height: Platform.OS === 'android' ? verticalScale(48) : verticalScale(56), borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10), borderWidth: 1 },
+  socialButton: { flex: 1, height: Platform.OS === 'android' ? verticalScale(48) : verticalScale(56), borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10), borderWidth: B.thin },
   socialText: { fontSize: moderateScale(15), fontWeight: '700' },
   footer: { alignItems: 'center', marginTop: verticalScale(28) },
   footerRow: { flexDirection: 'row', alignItems: 'center' },
@@ -378,7 +379,7 @@ const styles = StyleSheet.create({
   modalCard: { padding: scale(24), gap: S.md },
   modalTitle: { fontSize: F.title + 2, fontWeight: '900' },
   modalSub: { fontSize: F.body, fontWeight: '500', lineHeight: verticalScale(20) },
-  modalInput: { height: verticalScale(56), borderRadius: R.md, borderWidth: 1, paddingHorizontal: S.md, fontSize: F.body + 2, fontWeight: '600' },
+  modalInput: { height: verticalScale(56), borderRadius: R.md, borderWidth: B.thin, paddingHorizontal: S.md, fontSize: F.body + 2, fontWeight: '600' },
   modalActions: { flexDirection: 'row', gap: S.md },
   modalCancel: { flex: 1, height: verticalScale(48), borderRadius: R.sm + 4, alignItems: 'center', justifyContent: 'center' },
   modalSend: { flex: 2, height: verticalScale(48), borderRadius: R.sm + 4, alignItems: 'center', justifyContent: 'center' },

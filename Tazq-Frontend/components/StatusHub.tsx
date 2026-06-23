@@ -1,4 +1,5 @@
 import React from 'react';
+import { B } from '../constants/tokens';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MotiView } from 'moti';
 import { useFocusStore } from '../store/useFocusStore';
@@ -6,6 +7,7 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { Zap, Activity } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
+import { Touchable } from '@/components/Touchable';
 
 export const StatusHub = ({ onPress }: { onPress: () => void }) => {
   const { theme, colorScheme } = useAppTheme();
@@ -15,7 +17,7 @@ export const StatusHub = ({ onPress }: { onPress: () => void }) => {
   const tr = language === 'tr';
 
   return (
-    <TouchableOpacity
+    <Touchable
       activeOpacity={0.7}
       onPress={onPress}
       style={styles.wrapper}
@@ -50,7 +52,7 @@ export const StatusHub = ({ onPress }: { onPress: () => void }) => {
           INSIGHT
         </Text>
       </View>
-    </TouchableOpacity>
+    </Touchable>
   );
 };
 
@@ -62,7 +64,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    borderWidth: 1,
+    borderWidth: B.thin,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',

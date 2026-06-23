@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { S, F, R } from '../constants/tokens';
+import { Touchable } from '@/components/Touchable';
 
 interface DayScore { date: string; score: number }
 
@@ -48,12 +49,12 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1.5, color: accentColor, opacity: 0.5 }}>
             MOMENTUM
           </Text>
-          <TouchableOpacity
+          <Touchable
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setInfoVisible(true); }}
             style={{ width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: accentColor + '22' }}
           >
             <Text style={{ fontSize: 9, fontWeight: '900', color: accentColor }}>ⓘ</Text>
-          </TouchableOpacity>
+          </Touchable>
         </View>
       </MotiView>
 
@@ -120,7 +121,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
     {/* Momentum formula info modal */}
     <Modal visible={infoVisible} transparent animationType="fade" onRequestClose={() => setInfoVisible(false)}>
-      <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 }} activeOpacity={1} onPress={() => setInfoVisible(false)}>
+      <Touchable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 }} activeOpacity={1} onPress={() => setInfoVisible(false)}>
         <MotiView
           from={{ scale: 0.92, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -145,11 +146,11 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
               <Text style={{ fontSize: 14, fontWeight: '900', color: row.color }}>{row.pct}</Text>
             </View>
           ))}
-          <TouchableOpacity onPress={() => setInfoVisible(false)} style={{ backgroundColor: accentColor, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 4 }}>
+          <Touchable onPress={() => setInfoVisible(false)} style={{ backgroundColor: accentColor, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 4 }}>
             <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>{tr ? 'Anladım' : 'Got it'}</Text>
-          </TouchableOpacity>
+          </Touchable>
         </MotiView>
-      </TouchableOpacity>
+      </Touchable>
     </Modal>
     </>
   );

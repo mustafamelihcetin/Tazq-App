@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 /**
  * Tazq Design System — v5
  *
@@ -39,8 +41,8 @@ const lightPalette = {
   surfaceContainerHigh: '#E0E0E4',      // Daha belirgin adım (eski: #E8E8EB)
   surfaceContainerHighest: '#D4D4D8',  // Zinc 300 — açıkça ayırt edilebilir (eski: #E4E4E7)
 
-  outline: 'rgba(0,0,0,0.08)',
-  outlineVariant: 'rgba(0,0,0,0.04)',
+  outline: Platform.OS === 'android' ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.08)',
+  outlineVariant: Platform.OS === 'android' ? 'rgba(0,0,0,0.03)' : 'rgba(0,0,0,0.04)',
 
   // Semantic / status tokens — tema sisteminde merkezi tanım
   warning: '#FF9500',
@@ -83,8 +85,8 @@ const darkPalette = {
   surfaceContainerHigh: '#222228',
   surfaceContainerHighest: '#2C2C34',
 
-  outline: 'rgba(255,255,255,0.07)',
-  outlineVariant: 'rgba(255,255,255,0.03)',
+  outline: Platform.OS === 'android' ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.07)',
+  outlineVariant: Platform.OS === 'android' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.03)',
 
   // Semantic / status tokens
   warning: '#FFB340',

@@ -13,7 +13,7 @@ import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '../utils/notifications';
-import { S, R, F } from '../constants/tokens';
+import { S, R, F, B } from '../constants/tokens';
 import { useToastStore } from '../store/useToastStore';
 import { AVATAR_CONFIGS, getAvatarSource } from '../utils/avatars';
 import { usePrefsStore } from '../store/usePrefsStore';
@@ -21,6 +21,7 @@ import { useAchievementStore } from '../store/useAchievementStore';
 import { ACHIEVEMENTS } from '../utils/achievements';
 import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '../utils/achievementIcons';
+import { Touchable } from '@/components/Touchable';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -205,14 +206,14 @@ export default function ProfileScreen() {
                 <Image source={getAvatarSource(user?.avatar || null)} style={{ width: 110, height: 110 }} resizeMode="cover" />
             </MotiView>
             <View style={{ alignItems: 'center', marginTop: S.md }}>
-                <Text style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{user?.name || 'Alex'}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{user?.name || 'Alex'}</Text>
                 <Text style={[styles.email, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{user?.email || 'user@tazq.com'}</Text>
                 {!!motto && (
                   <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontStyle: 'italic', marginTop: 4, textAlign: 'center', paddingHorizontal: S.lg }}>"{motto}"</Text>
                 )}
-                <TouchableOpacity onPress={openEditModal} style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: S.sm }]}>
+                <Touchable onPress={openEditModal} style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: S.sm }]}>
                     <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '900', fontSize: F.caption }]}>{t.editProfile || 'Edit Profile'}</Text>
-                </TouchableOpacity>
+                </Touchable>
             </View>
           </View>
 
@@ -223,11 +224,11 @@ export default function ProfileScreen() {
               ))}
             </View>
           ) : statsError ? (
-            <TouchableOpacity onPress={loadStats} style={{ marginTop: S.md, alignSelf: 'flex-start', paddingHorizontal: S.md, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.surfaceContainerHigh }}>
+            <Touchable onPress={loadStats} style={{ marginTop: S.md, alignSelf: 'flex-start', paddingHorizontal: S.md, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.surfaceContainerHigh }}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>
                 {language === 'tr' ? '↺ Yenile' : '↺ Retry'}
               </Text>
-            </TouchableOpacity>
+            </Touchable>
           ) : (
             <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg }}>
               {[
@@ -235,7 +236,7 @@ export default function ProfileScreen() {
                 { icon: <Target size={15} color={theme.secondary} />, value: stats.completedTasksCount, label: language === 'tr' ? 'görev tamam' : 'tasks done' },
                 { icon: <Trophy size={15} color="#ff9f0a" />, value: displayBestStreak, label: language === 'tr' ? 'en uzun seri' : 'best streak' },
               ].map((s, i) => (
-                <View key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.xs + 2, paddingVertical: S.sm + 2, paddingHorizontal: S.sm + 2, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderRadius: R.md, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
+                <View key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.xs + 2, paddingVertical: S.sm + 2, paddingHorizontal: S.sm + 2, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderRadius: R.md, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
                   {s.icon}
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={{ fontSize: F.subhead, fontWeight: '800', color: theme.onSurface, lineHeight: 20 }}>{s.value}</Text>
@@ -294,7 +295,7 @@ export default function ProfileScreen() {
                               paddingVertical: S.sm,
                               paddingHorizontal: S.xs,
                               borderRadius: R.md,
-                              borderWidth: 1,
+                              borderWidth: B.thin,
                               borderColor: ach.locked
                                 ? (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)')
                                 : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.09)'),
@@ -347,7 +348,7 @@ export default function ProfileScreen() {
           <View style={[styles.settingsSection, { marginTop: S.lg }]}>
             <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', marginBottom: S.lg }} />
             <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5, marginBottom: S.sm, marginLeft: S.xs }]}>{t.settings.toUpperCase()}</Text>
-            <View style={[styles.settingsCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', borderWidth: 1, borderRadius: R.lg, overflow: 'hidden' }]}>
+            <View style={[styles.settingsCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', borderWidth: B.thin, borderRadius: R.lg, overflow: 'hidden' }]}>
                 <SettingItem 
                     icon={<Bell size={18} color="#F59E0B" />} 
                     label={t.notifications} 
@@ -486,22 +487,22 @@ export default function ProfileScreen() {
             </View>
 
             {user?.role === 'Admin' && (
-              <TouchableOpacity
+              <Touchable
                 onPress={() => router.push('/admin')}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.08)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl, borderWidth: 1, borderColor: isDark ? 'rgba(99,102,241,0.25)' : 'rgba(99,102,241,0.15)' }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.08)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl, borderWidth: B.thin, borderColor: isDark ? 'rgba(99,102,241,0.25)' : 'rgba(99,102,241,0.15)' }}
               >
                 <Shield size={18} color="#6366F1" />
                 <Text style={{ color: '#6366F1', fontWeight: '800', fontSize: F.body, flex: 1 }}>
                   {language === 'tr' ? 'Admin Paneli' : 'Admin Panel'}
                 </Text>
                 <ChevronRight size={16} color="#6366F1" />
-              </TouchableOpacity>
+              </Touchable>
             )}
 
-            <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md }]}>
+            <Touchable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md }]}>
                 <LogOut size={18} color={theme.error} />
                 <Text style={[styles.logoutText, { color: theme.error, fontSize: F.body }]}>{t.logout}</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -510,12 +511,12 @@ export default function ProfileScreen() {
       {/* Edit Profile Modal */}
       <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} />
+            <Touchable style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} />
               <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', maxHeight: height - insets.top - 16 }]}>
                 <View {...editPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
                   <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
                 </View>
-                <Text style={[styles.modalTitle, { color: theme.onSurface, fontSize: F.subhead }]}>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.modalTitle, { color: theme.onSurface, fontSize: F.subhead }]}>
                   {t.editProfile || 'Edit Profile'}
                 </Text>
 
@@ -549,7 +550,7 @@ export default function ProfileScreen() {
                       {AVATAR_CONFIGS.map((config) => {
                         const isSelected = selectedAvatar === config.key;
                         return (
-                          <TouchableOpacity
+                          <Touchable
                             key={config.id}
                             onPress={() => { Haptics.selectionAsync(); setSelectedAvatar(config.key); }}
                             activeOpacity={0.75}
@@ -577,7 +578,7 @@ export default function ProfileScreen() {
                             }}>
                               {config.name.toUpperCase()}
                             </Text>
-                          </TouchableOpacity>
+                          </Touchable>
                         );
                       })}
                     </View>
@@ -612,7 +613,7 @@ export default function ProfileScreen() {
                         const isSelected = selectedBorderColor === colorOpt.color;
                         const isNone = colorOpt.color === 'transparent';
                         return (
-                          <TouchableOpacity
+                          <Touchable
                             key={colorOpt.key}
                             onPress={() => { Haptics.selectionAsync(); setSelectedBorderColor(colorOpt.color); }}
                             activeOpacity={0.8}
@@ -647,7 +648,7 @@ export default function ProfileScreen() {
                                 }} />
                               )}
                             </View>
-                          </TouchableOpacity>
+                          </Touchable>
                         );
                       })}
                     </ScrollView>
@@ -664,7 +665,7 @@ export default function ProfileScreen() {
                       placeholder={language === 'tr' ? 'Seni motive eden bir cümle…' : 'A sentence that motivates you…'}
                       placeholderTextColor={theme.onSurfaceVariant + '60'}
                       maxLength={60}
-                      style={{ fontSize: F.body, color: theme.onSurface, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, marginTop: S.xs }}
+                      style={{ fontSize: F.body, color: theme.onSurface, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, marginTop: S.xs }}
                     />
                     <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.4, textAlign: 'right', marginTop: 4 }}>{newMotto.length}/60</Text>
                   </View>
@@ -687,15 +688,15 @@ export default function ProfileScreen() {
                         const sel = newProductivityHour === opt.key;
                         const itemColor = sel ? theme.primary : theme.onSurfaceVariant;
                         return (
-                          <TouchableOpacity
+                          <Touchable
                             key={opt.key}
                             onPress={() => { Haptics.selectionAsync(); setNewProductivityHour(opt.key); }}
-                            style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: S.sm, borderRadius: R.md, borderWidth: 1, borderColor: sel ? theme.primary + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), backgroundColor: sel ? theme.primary + '15' : 'transparent' }}
+                            style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.thin, borderColor: sel ? theme.primary + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), backgroundColor: sel ? theme.primary + '15' : 'transparent' }}
                           >
                             {opt.icon(itemColor)}
                             <Text style={{ fontSize: 10, fontWeight: '800', color: itemColor }}>{language === 'tr' ? opt.labelTr : opt.labelEn}</Text>
                             <Text style={{ fontSize: 9, color: theme.onSurfaceVariant, opacity: 0.5 }}>{opt.hint}</Text>
-                          </TouchableOpacity>
+                          </Touchable>
                         );
                       })}
                     </View>
@@ -709,7 +710,7 @@ export default function ProfileScreen() {
                       {profileError}
                     </Text>
                   )}
-                  <TouchableOpacity
+                  <Touchable
                     onPress={handleSaveProfile}
                     disabled={savingProfile}
                     style={[styles.saveBtn, { backgroundColor: theme.primary }]}
@@ -718,7 +719,7 @@ export default function ProfileScreen() {
                       ? <ActivityIndicator color="white" />
                       : <Text style={{ color: 'white', fontWeight: '900', fontSize: F.body }}>{t.save}</Text>
                     }
-                  </TouchableOpacity>
+                  </Touchable>
                 </View>
               </Animated.View>
         </KeyboardAvoidingView>
@@ -729,13 +730,13 @@ export default function ProfileScreen() {
 
 function SettingItem({ icon, label, right, onPress, theme, bg }: any) {
     return (
-        <TouchableOpacity style={[styles.settingItem, { padding: S.md }]} onPress={onPress}>
+        <Touchable style={[styles.settingItem, { padding: S.md }]} onPress={onPress}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                 <View style={[styles.iconBox, { backgroundColor: bg || (theme.colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)') }]}>{icon}</View>
                 <Text style={[styles.settingLabel, { color: theme.onSurface, fontSize: F.body }]}>{label}</Text>
             </View>
             {right || <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.3} />}
-        </TouchableOpacity>
+        </Touchable>
     );
 }
 

@@ -97,6 +97,15 @@ function modeSubtitle(
   };
 }
 
+function daysFromNow(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function isActive(start: string, end: string, leadDays = 0): number {
   const s = new Date(start);
   s.setDate(s.getDate() - leadDays);
@@ -667,89 +676,7 @@ function buildKiloTemplate(inputs: SporInputs, days: number): StudyTemplate {
   const cwStr = cw > 0 ? `${cw} kg` : '__ kg';
   const twStr = tw > 0 ? `${tw} kg` : '__ kg';
   const rateStr = safeRate > 0 ? `${safeRate} kg` : `${defaultRate} kg`;
-  const weekStr = realWeeks > 0 ? `${realWeeks} haftada` : '';
-
-  // Plan süresi kadar görev üret — cap yok, süre ne kadarsa o dolar
-  const planWeeks = Math.max(1, Math.ceil(days / 7));
-
-  // 2 haftada 1 tartı — haftalık tartı yorgunluk yaratır, çift haftalar yeterli
-  const weighInTasks: ModeTask[] = Array.from({ length: Math.ceil(planWeeks / 2) }, (_, i) => {
-    const w = (i + 1) * 2; // Hafta 2, 4, 6, 8...
-    return {
-      titleTr: i === 0
-        ? `Hafta ${w} tartısı — sabah aç karna, başlangıç kilosunla kıyasla`
-        : `Hafta ${w} tartısı — sabah aç karna`,
-      titleEn: i === 0
-        ? `Week ${w} weigh-in — fasted morning, compare with starting weight`
-        : `Week ${w} weigh-in — fasted morning`,
-      priority: 'High' as const,
-      tags: ['weight_entry'],
-      daysFromNow: w * 7,
-    };
-  });
-
-  // Tek haftalarda (1, 3, 5...) faz bazlı alışkanlık/aktivite kontrolü
-  const weeklyHabitChecks: ModeTask[] = Array.from({ length: Math.ceil((planWeeks - 1) / 2) }, (_, i) => {
-    const w = (i + 1) * 2 - 1; // Hafta 1, 3, 5, 7...
-    if (w === 1) return null as any; // Hafta 1 setup görevlerden geliyor
-    const progress = w / planWeeks;
-    if (losing) {
-      if (progress < 0.3) return {
-        titleTr: `Hafta ${w}: bu haftaki hareketliliği değerlendir — kaç gün aktif oldun?`,
-        titleEn: `Week ${w}: review this week's activity — how many days were you active?`,
-        priority: 'Medium' as const, daysFromNow: w * 7 + 2,
-      };
-      if (progress < 0.6) return {
-        titleTr: `Hafta ${w}: porsiyon ve öğün saatlerini gözden geçir — plato var mı?`,
-        titleEn: `Week ${w}: review portions and meal timing — hitting a plateau?`,
-        priority: 'Medium' as const, daysFromNow: w * 7 + 2,
-      };
-      return {
-        titleTr: `Hafta ${w}: son sprint — kalori açığını koru, antrenman yoğunluğunu artır`,
-        titleEn: `Week ${w}: final sprint — maintain calorie deficit, increase workout intensity`,
-        priority: 'High' as const, daysFromNow: w * 7 + 2,
-      };
-    } else {
-      if (progress < 0.4) return {
-        titleTr: `Hafta ${w}: antrenman günlüğüne bak — ağırlıklar artıyor mu?`,
-        titleEn: `Week ${w}: check training log — are weights progressing?`,
-        priority: 'Medium' as const, daysFromNow: w * 7 + 2,
-      };
-      return {
-        titleTr: `Hafta ${w}: protein günlüğünü kontrol et — günlük hedefe ulaşıyor musun?`,
-        titleEn: `Week ${w}: check protein log — hitting your daily target?`,
-        priority: 'Medium' as const, daysFromNow: w * 7 + 2,
-      };
-    }
-  }).filter(Boolean) as ModeTask[];
-
-  // Aylık değerlendirme görevleri — her 4 haftada bir faz bazlı kontrol
-  const monthlyChecks: ModeTask[] = Array.from({ length: Math.floor(planWeeks / 4) }, (_, i) => {
-    const month = i + 1;
-    const w = month * 4;
-    const progress = w / planWeeks;
-    const isLast = w >= planWeeks - 2;
-    const isEarlyPhase = progress < 0.3;
-    const isMidPhase = progress >= 0.3 && progress < 0.7;
-    return {
-      titleTr: isLast
-        ? `Son aylık değerlendirme: ${cwStr} → ${twStr} hedefine ulaştın mı? Ölçüm al ve kaydet`
-        : isEarlyPhase
-        ? `Ay ${month} değerlendirmesi: tartı trendine bak — ortalama ${rateStr}/hafta mı? Rota doğru`
-        : isMidPhase
-        ? `Ay ${month} değerlendirmesi: rutinin tutarlı mı? Plato varsa kalori veya aktiviteyi gözden geçir`
-        : `Ay ${month} son sprint: hedeften kaç kg uzakta? Son düzlemeyi planla`,
-      titleEn: isLast
-        ? `Final monthly review: did you reach your ${cwStr} → ${twStr} goal? Measure and record`
-        : isEarlyPhase
-        ? `Month ${month} review: check weight trend — averaging ${rateStr}/week? On track`
-        : isMidPhase
-        ? `Month ${month} review: is your routine consistent? If plateau, recalibrate calories or activity`
-        : `Month ${month} final sprint: how many kg left? Plan the final stretch`,
-      priority: (isLast ? 'High' : 'Medium') as 'High' | 'Medium',
-      daysFromNow: w * 7 + 1,
-    };
-  });
+  const planWeeks = realWeeks;
 
   const lossSetupTasks: ModeTask[] = [
     {
@@ -805,8 +732,7 @@ function buildKiloTemplate(inputs: SporInputs, days: number): StudyTemplate {
     },
   ];
 
-  const lossTasks: ModeTask[] = [...lossSetupTasks, ...weighInTasks, ...weeklyHabitChecks, ...monthlyChecks];
-  const gainTasks: ModeTask[] = [...gainSetupTasks, ...weighInTasks, ...weeklyHabitChecks, ...monthlyChecks];
+  const tasks: ModeTask[] = losing ? lossSetupTasks : gainSetupTasks;
 
   const lossHabits = [
     { name: 'Hareket', nameTr: 'Günlük hareket (yürüyüş / egzersiz)', emoji: '🚶', color: '#10B981' },
@@ -837,7 +763,7 @@ function buildKiloTemplate(inputs: SporInputs, days: number): StudyTemplate {
     emoji: '⚖️',
     dailyGoalMinutes: 40,
     habits: losing ? lossHabits : gainHabits,
-    tasks: losing ? lossTasks : gainTasks,
+    tasks: tasks,
   };
 }
 

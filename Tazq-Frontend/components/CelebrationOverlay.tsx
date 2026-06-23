@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { useAchievementStore } from '../store/useAchievementStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
-import { F, R, S } from '../constants/tokens';
+import { F, R, S, B } from '../constants/tokens';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '../utils/achievementIcons';
 
 const CONFETTI_COLORS = [
@@ -269,7 +269,7 @@ export const CelebrationOverlay: React.FC = () => {
               width: 120,
               height: 120,
               borderRadius: 60,
-              borderWidth: 1.5,
+              borderWidth: B.medium,
               borderColor: (ACHIEVEMENT_ICONS[pending.id]?.color || theme.primary) + '30', // 19% opacity colored border
               backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
               alignItems: 'center',
@@ -285,7 +285,7 @@ export const CelebrationOverlay: React.FC = () => {
             }}>
               {renderAchievementIcon(pending.id, 56)}
             </Animated.View>
-            <Text style={[styles.title, { color: theme.onSurface }]}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.title, { color: theme.onSurface }]}>
               {tr ? pending.titleTr : pending.titleEn}
             </Text>
             <Text style={[styles.subtitle, { color: theme.onSurfaceVariant }]}>
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   card: {
     width: 288,
     borderRadius: R.lg + 6,
-    borderWidth: 1,
+    borderWidth: B.thin,
     padding: S.xl + 4,
     alignItems: 'center',
     gap: S.sm,

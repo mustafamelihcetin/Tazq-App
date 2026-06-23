@@ -1,4 +1,4 @@
-﻿import 'react-native-gesture-handler';
+import 'react-native-gesture-handler';
 import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
 
@@ -10,8 +10,20 @@ import '../global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { useColorScheme, View, LogBox, AppState } from 'react-native';
+import { useColorScheme, View, LogBox, AppState, Text, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// --- GLOBAL TYPOGRAPHY PROTECTION ---
+if ((Text as any).defaultProps == null) {
+  (Text as any).defaultProps = {};
+}
+(Text as any).defaultProps.maxFontSizeMultiplier = 1.15;
+
+if ((TextInput as any).defaultProps == null) {
+  (TextInput as any).defaultProps = {};
+}
+(TextInput as any).defaultProps.maxFontSizeMultiplier = 1.15;
+// ------------------------------------
 import { Colors } from '../constants/Colors';
 import { useAuthStore } from '../store/useAuthStore';
 import { AuthService, FocusService, api } from '../services/api';
@@ -66,14 +78,14 @@ const safeSystemUI = async (color: string) => {
   }
 };
 
-const safeNavigationBar = async (color: string, style: 'light' | 'dark') => {
+const safeNavigationBar = async (style: 'light' | 'dark') => {
   if (Platform.OS !== 'android' || isExpoGo) return;
   try {
     const NavigationBar = require('expo-navigation-bar');
     if (NavigationBar && NavigationBar.setBackgroundColorAsync) {
-      await NavigationBar.setBackgroundColorAsync(color);
+      await NavigationBar.setPositionAsync('absolute');
+      await NavigationBar.setBackgroundColorAsync('transparent');
       await NavigationBar.setButtonStyleAsync(style);
-      await NavigationBar.setBehaviorAsync('overlay-pan');
     }
   } catch (e) {
     // Silently ignore
@@ -406,7 +418,7 @@ export default function RootLayout() {
     const backgroundColor = isDark ? '#09090B' : '#FFFFFF';
     const navStyle = isDark ? 'light' : 'dark';
     safeSystemUI(backgroundColor);
-    safeNavigationBar(backgroundColor, navStyle);
+    safeNavigationBar(navStyle);
   }, [isDark]);
 
   if (showSplash || !fontsLoaded || !assetsLoaded) {
