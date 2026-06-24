@@ -33,6 +33,15 @@ interface SporState {
   resetInputs: () => void;
 }
 
+function getLocalDateString(d: Date = new Date()): string {
+  const adjusted = new Date(d);
+  adjusted.setHours(adjusted.getHours() - 3); // 3-hour buffer for night owls
+  const y = adjusted.getFullYear();
+  const m = String(adjusted.getMonth() + 1).padStart(2, '0');
+  const day = String(adjusted.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export const useSporStore = create<SporState>()(
   persist(
     (set) => ({
@@ -54,7 +63,7 @@ export const useSporStore = create<SporState>()(
       setTargetEvent: (v) => set({ targetEvent: v }),
       setTrainingDays: (v) => set({ trainingDays: v }),
       addWeightEntry: (weight) => set((s) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         const filtered = s.weightLog.filter(e => e.date !== today);
         return { weightLog: [...filtered, { date: today, weight }].sort((a, b) => b.date.localeCompare(a.date)) };
       }),

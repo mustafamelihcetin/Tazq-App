@@ -28,7 +28,7 @@ describe('parseTaskHint', () => {
 
   it('detects "meeting" tag', () => {
     const result = parseTaskHint('prepare for meeting');
-    expect(result.tags).toContain('toplantı');
+    expect(result.tags).toContain('meeting');
   });
 
   it('detects "kod" tag for dev tasks', () => {

@@ -93,22 +93,22 @@ describe('VoiceService', () => {
       expect(onResults).not.toHaveBeenCalled();
     });
 
-    it('calls onEnded after speech results are processed', async () => {
+    it('calls onEnded after stop is called', async () => {
       const onEnded = jest.fn();
       await VoiceService.start({ language: 'tr-TR', onEnded });
-      mockVoice.onSpeechResults?.({ value: ['test'] });
+      await VoiceService.stop();
       expect(onEnded).toHaveBeenCalled();
     });
   });
 
   describe('error handling', () => {
-    it('treats Android error code 7 ("No match") as silent end, not crash', async () => {
+    it('treats Android error code 7 ("No match") as silent restart, not crash', async () => {
       const onError = jest.fn();
       const onEnded = jest.fn();
       await VoiceService.start({ language: 'tr-TR', onError, onEnded });
       mockVoice.onSpeechError?.({ error: { code: '7' } });
       expect(onError).not.toHaveBeenCalled();
-      expect(onEnded).toHaveBeenCalled();
+      expect(onEnded).not.toHaveBeenCalled();
     });
 
     it('treats numeric error code 7 the same as string "7"', async () => {
@@ -117,7 +117,7 @@ describe('VoiceService', () => {
       await VoiceService.start({ language: 'tr-TR', onError, onEnded });
       mockVoice.onSpeechError?.({ error: { code: 7 } });
       expect(onError).not.toHaveBeenCalled();
-      expect(onEnded).toHaveBeenCalled();
+      expect(onEnded).not.toHaveBeenCalled();
     });
 
     it('fires onError for non-7 error codes', async () => {
@@ -130,9 +130,8 @@ describe('VoiceService', () => {
     it('does not double-fire events after session ends', async () => {
       const onEnded = jest.fn();
       await VoiceService.start({ language: 'tr-TR', onEnded });
-      // First result fires → ends session
-      mockVoice.onSpeechResults?.({ value: ['hello'] });
-      // Second spurious result must be ignored
+      await VoiceService.stop();
+      // Any spurious result after session ends must be ignored
       mockVoice.onSpeechResults?.({ value: ['world'] });
       expect(onEnded).toHaveBeenCalledTimes(1);
     });
@@ -157,12 +156,12 @@ describe('VoiceService', () => {
   });
 
   describe('onSpeechEnd', () => {
-    it('terminates session when speech ends naturally', async () => {
+    it('schedules restart when speech ends naturally', async () => {
       const onEnded = jest.fn();
       await VoiceService.start({ language: 'tr-TR', onEnded });
       mockVoice.onSpeechEnd?.({});
-      expect(onEnded).toHaveBeenCalled();
-      expect((VoiceService as any)._isListening).toBe(false);
+      expect(onEnded).not.toHaveBeenCalled();
+      expect((VoiceService as any)._restarting).toBe(true);
     });
   });
 });

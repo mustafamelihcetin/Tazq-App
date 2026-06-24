@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useSporStore } from '../store/useSporStore';
@@ -40,11 +41,20 @@ import { runPlanMigrationOnce } from '../utils/planMigration';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
 
+function getLocalDateString(d: Date = new Date()): string {
+  const adjusted = new Date(d);
+  adjusted.setHours(adjusted.getHours() - 3); // 3-hour buffer for night owls
+  const y = adjusted.getFullYear();
+  const m = String(adjusted.getMonth() + 1).padStart(2, '0');
+  const day = String(adjusted.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 async function shouldRunToday(): Promise<boolean> {
   try {
     const last = await AsyncStorage.getItem(LAST_RUN_KEY);
     if (!last) return true;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     return last !== today;
   } catch {
     return true;
@@ -52,7 +62,7 @@ async function shouldRunToday(): Promise<boolean> {
 }
 
 async function markRanToday() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
   await AsyncStorage.setItem(LAST_RUN_KEY, today);
 }
 
@@ -103,7 +113,20 @@ export function usePlanAdaptations() {
     currentTaskIds: number[],
     currentHabitIds: string[],
   ) => {
-    if (!newTasks.length) return;
+    // Prune deleted tasks and habits to keep preference arrays clean and prevent cloud/local bloat
+    const existingTaskIds = new Set(useTaskStore.getState().tasks.map(t => t.id));
+    const prunedTaskIds = currentTaskIds.filter(id => existingTaskIds.has(id));
+
+    const existingHabitIds = new Set(useHabitStore.getState().habits.map(h => h.id));
+    const prunedHabitIds = currentHabitIds.filter(id => existingHabitIds.has(id));
+
+    if (!newTasks.length) {
+      if (prunedTaskIds.length !== currentTaskIds.length || prunedHabitIds.length !== currentHabitIds.length) {
+        setPlanIds(planMode, prunedHabitIds, prunedTaskIds);
+      }
+      return;
+    }
+
     const created: number[] = [];
     for (const payload of newTasks) {
       try {
@@ -114,9 +137,7 @@ export function usePlanAdaptations() {
         }
       } catch {}
     }
-    if (created.length) {
-      setPlanIds(planMode, currentHabitIds, [...currentTaskIds, ...created]);
-    }
+    setPlanIds(planMode, prunedHabitIds, [...prunedTaskIds, ...created]);
   }, [addTask, setPlanIds]);
 
   const run = useCallback(async (force = false) => {
@@ -255,9 +276,55 @@ export function usePlanAdaptations() {
 
     if (!force && !(await shouldRunToday())) return;
 
-    const existing = useTaskStore.getState().tasks;
+    let existing = useTaskStore.getState().tasks;
     const activePrefs = usePrefsStore.getState();
     const activeSeasonal = activePrefs.seasonal;
+
+    // ── AUTO-CLEANUP OVERDUE INCOMPLETE PLAN TASKS ─────────────────────────
+    const logicalToday = new Date();
+    logicalToday.setHours(logicalToday.getHours() - 3);
+    const todayStart = new Date(logicalToday);
+    todayStart.setHours(0, 0, 0, 0);
+
+    const planTaskIdSet = new Set<number>([
+      ...activePrefs.examPlanTaskIds,
+      ...activePrefs.exam2PlanTaskIds,
+      ...activePrefs.exam3PlanTaskIds,
+      ...activePrefs.tezPlanTaskIds,
+      ...activePrefs.mulakatPlanTaskIds,
+      ...activePrefs.mulakat2PlanTaskIds,
+      ...activePrefs.mulakat3PlanTaskIds,
+      ...activePrefs.sporPlanTaskIds,
+      ...activePrefs.spor2PlanTaskIds,
+      ...activePrefs.spor3PlanTaskIds,
+      ...activePrefs.ramazanPlanTaskIds,
+    ]);
+
+    const oldPlanTasks = existing.filter(t => {
+      if (t.isCompleted) return false;
+      if (!t.dueDate || t.dueDate.startsWith('0001')) return false;
+
+      const isPast = new Date(t.dueDate).getTime() < todayStart.getTime();
+      if (!isPast) return false;
+
+      const isPlanTask = planTaskIdSet.has(t.id) || (t.tags && t.tags.some(tag =>
+        ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss'].includes(tag)
+      ));
+      
+      const isWeightEntry = t.tags?.includes('weight_entry');
+
+      return isPlanTask && !isWeightEntry;
+    });
+
+    oldPlanTasks.forEach(task => {
+      const modeTag = task.tags?.find(tag =>
+        ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss'].includes(tag)
+      );
+      retirePlanTask(task.id, modeTag);
+    });
+
+    // Refresh existing list after cleanup to avoid duplication downstream
+    existing = useTaskStore.getState().tasks;
 
     // ── KILO ────────────────────────────────────────────────────────────────
     if (activeSeasonal.sporMode && activeSeasonal.sporGoal) {
@@ -329,8 +396,8 @@ export function usePlanAdaptations() {
 
     // ── RAMAZAN ─────────────────────────────────────────────────────────────
     if (activeSeasonal.ramazan && ramazanPlanTaskIds.length > 0) {
-      const today = new Date().toISOString().split('T')[0];
-      const activeRamazan = RAMAZAN.find(r => today >= r.start && today <= r.end);
+      const todayStr = getLocalDateString();
+      const activeRamazan = RAMAZAN.find(r => todayStr >= r.start && todayStr <= r.end);
       if (activeRamazan) {
         const daysToEnd = daysUntil(activeRamazan.end);
         const newTasks = buildRamazanAdaptationTasks(daysToEnd, existing, lang);
@@ -342,6 +409,7 @@ export function usePlanAdaptations() {
     // Her aktif plan için BUGÜNÜN görevlerini üretir (faz/ilerlemeye göre).
     // hasDailyToday içte kontrol edildiği için aynı gün tekrar çağrılsa da çoğaltmaz.
     const today = new Date();
+    today.setHours(today.getHours() - 3); // 3-hour buffer for night owls
     const fresh = useTaskStore.getState().tasks;
 
     const sporKind = (goal: string): PlanKind => {
@@ -392,7 +460,7 @@ export function usePlanAdaptations() {
     }
     // Ramazan (aktif dönemdeyse)
     if (activeSeasonal.ramazan) {
-      const todayStr = today.toISOString().split('T')[0];
+      const todayStr = getLocalDateString(today);
       const activeRamazan = RAMAZAN.find(r => todayStr >= r.start && todayStr <= r.end);
       if (activeRamazan) {
         dailySlots.push({
@@ -433,7 +501,21 @@ export function usePlanAdaptations() {
       // sonra günlük üretimi çalıştır.
       runPlanMigrationOnce().finally(() => run());
     }
-  }, []); // Yalnızca mount'ta
+
+    const handleAppStateChange = (nextStatus: string) => {
+      if (nextStatus === 'active') {
+        const { user: currentUser } = useAuthStore.getState();
+        if (currentUser) {
+          run();
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, [run]);
 
   return { runAdaptations: run };
 }

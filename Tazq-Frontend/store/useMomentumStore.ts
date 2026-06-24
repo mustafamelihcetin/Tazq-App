@@ -10,12 +10,21 @@ interface MomentumState {
   getLastNDays: (n: number) => DayScore[];
 }
 
-const todayISO = () => new Date().toISOString().split('T')[0];
+function getLocalDateString(d: Date = new Date()): string {
+  const adjusted = new Date(d);
+  adjusted.setHours(adjusted.getHours() - 3); // 3-hour buffer for night owls
+  const y = adjusted.getFullYear();
+  const m = String(adjusted.getMonth() + 1).padStart(2, '0');
+  const day = String(adjusted.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const todayISO = () => getLocalDateString();
 
 const cutoffISO = (days: number) => {
   const d = new Date();
   d.setDate(d.getDate() - days);
-  return d.toISOString().split('T')[0];
+  return getLocalDateString(d);
 };
 
 export const useMomentumStore = create<MomentumState>()(
@@ -39,7 +48,7 @@ export const useMomentumStore = create<MomentumState>()(
         return Array.from({ length: n }, (_, i) => {
           const d = new Date();
           d.setDate(d.getDate() - (n - 1 - i));
-          const date = d.toISOString().split('T')[0];
+          const date = getLocalDateString(d);
           const found = hist.find(h => h.date === date);
           return { date, score: found?.score ?? -1 };
         });

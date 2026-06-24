@@ -36,7 +36,16 @@ interface FocusState {
   checkStreakFreezeReset: () => void;
 }
 
-const getISODate = () => new Date().toISOString().split('T')[0];
+function getLocalDateString(d: Date = new Date()): string {
+  const adjusted = new Date(d);
+  adjusted.setHours(adjusted.getHours() - 3); // 3-hour buffer for night owls
+  const y = adjusted.getFullYear();
+  const m = String(adjusted.getMonth() + 1).padStart(2, '0');
+  const day = String(adjusted.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const getISODate = () => getLocalDateString();
 
 const getISOWeek = () => {
   const d = new Date();
