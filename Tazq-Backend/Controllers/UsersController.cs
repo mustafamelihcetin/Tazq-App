@@ -76,6 +76,7 @@ namespace Tazq_App.Controllers
                 ProfilePicture = user.ProfilePicture ?? "/default-profile.png",
                 user.Motto,
                 user.AvatarBorderColor,
+                user.Preferences,
                 NotificationPreferences = user.NotificationPreferences
             });
         }
@@ -125,7 +126,7 @@ namespace Tazq_App.Controllers
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
 
-            var success = await _userService.UpdateProfileAsync(userId.Value, dto.Name, dto.Avatar, dto.Motto, dto.AvatarBorderColor);
+            var success = await _userService.UpdateProfileAsync(userId.Value, dto.Name, dto.Avatar, dto.Motto, dto.AvatarBorderColor, dto.Preferences);
             return success ? Ok("Profile updated.") : NotFound();
         }
 
@@ -154,6 +155,6 @@ namespace Tazq_App.Controllers
         }
         public class ResetPasswordRequest { public string Token { get; set; } = string.Empty; public string NewPassword { get; set; } = string.Empty; }
         public class RefreshRequest { public string RefreshToken { get; set; } = string.Empty; }
-        public class UpdateProfileDto { public string? Name { get; set; } public string? Avatar { get; set; } public string? Motto { get; set; } public string? AvatarBorderColor { get; set; } }
+        public class UpdateProfileDto { public string? Name { get; set; } public string? Avatar { get; set; } public string? Motto { get; set; } public string? AvatarBorderColor { get; set; } public string? Preferences { get; set; } }
     }
 }

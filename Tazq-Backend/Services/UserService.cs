@@ -226,7 +226,7 @@ namespace Tazq_App.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
-        public async Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar, string? motto, string? avatarBorderColor)
+        public async Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar, string? motto, string? avatarBorderColor, string? preferences)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return false;
@@ -243,6 +243,10 @@ namespace Tazq_App.Services
 
             if (avatarBorderColor != null)
                 user.AvatarBorderColor = avatarBorderColor.Trim() is { Length: > 0 } c ? c[..Math.Min(c.Length, 32)] : null;
+
+            // null = değiştirme; boş string = temizle. JSON içeriği frontend tarafından üretilir/doğrulanır.
+            if (preferences != null)
+                user.Preferences = preferences.Length > 0 ? preferences : null;
 
             _context.Users.Update(user);
             return await _context.SaveChangesAsync() > 0;

@@ -14,7 +14,7 @@ namespace Tazq_App.Services
         Task<AuthTokens?> RotateRefreshTokenAsync(string refreshToken);
         Task RevokeRefreshTokenAsync(string refreshToken);
         Task<bool> DeleteUserAsync(int userId);
-        Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar, string? motto, string? avatarBorderColor);
+        Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar, string? motto, string? avatarBorderColor, string? preferences);
     }
 
     // Access (kısa ömürlü JWT) + Refresh (uzun ömürlü, DB-destekli) token çifti

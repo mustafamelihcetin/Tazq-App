@@ -38,6 +38,10 @@ namespace Tazq_App.Models
 		[MaxLength(32)]
 		public string? AvatarBorderColor { get; set; } // Profil avatar çerçeve rengi (hex)
 
+		// Cihazlar arası eşitlenen kullanıcı tercihleri (mod seçimleri, planlar, üretkenlik saati vb.)
+		// JSON string olarak tutulur; şema frontend usePrefsStore tarafından yönetilir.
+		public string? Preferences { get; set; }
+
 		public bool IsBanned { get; set; } = false; // Admin tarafından askıya alındı mı
 
 		[JsonIgnore]
