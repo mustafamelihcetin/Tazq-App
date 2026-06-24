@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
@@ -14,6 +14,7 @@ import { AdminService, AdminUser, AdminStats } from '../services/api';
 import { S, R, F, B } from '../constants/tokens';
 import * as Haptics from 'expo-haptics';
 import { Touchable } from '@/components/Touchable';
+import { CustomAlert as Alert } from '../components/CustomAlert';
 
 type SortKey = 'name' | 'tasks' | 'focus' | 'recent';
 

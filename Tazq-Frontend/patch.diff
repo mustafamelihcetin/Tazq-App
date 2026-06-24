@@ -1,0 +1,891 @@
+﻿diff --git a/Tazq-Frontend/app/tasks.tsx b/Tazq-Frontend/app/tasks.tsx
+index 4ba9821..133ea20 100644
+--- a/Tazq-Frontend/app/tasks.tsx
++++ b/Tazq-Frontend/app/tasks.tsx
+@@ -1,19 +1,23 @@
+ import React, { useEffect, useState, useRef, useMemo } from 'react';
+-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard } from 'react-native';
++import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard, FlatList } from 'react-native';
+ import { LinearGradient } from 'expo-linear-gradient';
+ import { BlurView } from 'expo-blur';
+ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { MotiView, MotiText, AnimatePresence } from 'moti';
+-import Animated, { Layout } from 'react-native-reanimated';
+-import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, ArrowLeft, Search, SlidersHorizontal, CheckSquare, Scale, Target } from 'lucide-react-native';
++import Animated, { Layout, LinearTransition, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, withTiming } from 'react-native-reanimated';
++import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, ArrowLeft, Search, SlidersHorizontal, CheckSquare, Scale, Target, Archive } from 'lucide-react-native';
+ import { SubtaskProgressRing } from '../components/SubtaskProgressRing';
+ import { BentoCard } from '../components/BentoCard';
+ import { BottomNavBar } from '../components/BottomNavBar';
+ import { WeightEntryModal } from '../components/WeightEntryModal';
+ import { useTaskStore } from '../store/useTaskStore';
++import { useShallow } from 'zustand/react/shallow';
+ import { useAuthStore } from '../store/useAuthStore';
+ import { useLanguageStore } from '../store/useLanguageStore';
+ import { useFocusStore } from '../store/useFocusStore';
++import { usePrefsStore } from '../store/usePrefsStore';
++import { getModeInfoForTask } from '../utils/modeHelpers';
++
+ import * as Haptics from 'expo-haptics';
+ import { createAudioPlayer } from 'expo-audio';
+ import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
+@@ -26,7 +30,6 @@ import { SwipeableItem } from '../components/SwipeableItem';
+ import { useToastStore } from '../store/useToastStore';
+ import { categorizeTask } from '../utils/taskIntelligence';
+ import { useAppTheme } from '../hooks/useAppTheme';
+-import { usePrefsStore } from '../store/usePrefsStore';
+ import { useCompletionStore } from '../store/useCompletionStore';
+ import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
+ import { S, R, F, scale, verticalScale, moderateScale, B } from '../constants/tokens';
+@@ -113,10 +116,245 @@ function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrenc
+   return prefix + next.toLocaleDateString(tr ? 'tr-TR' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+ }
+ 
++
++const MemoizedTaskItem = React.memo((props: any) => {
++    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, subtaskSaveTimers } = props;
++    
++    const modeInfo = useMemo(() => {
++        return getModeInfoForTask(task.id, usePrefsStore.getState(), theme);
++    }, [task.id, theme]);
++
++    const finalLeftColor = modeInfo?.color || priorityColor(task.priority);
++
++    return (
++        <Animated.View>
++            <SwipeableItem
++                onDelete={() => handleDelete(task.id)}
++                disabled={isBulkMode}
++                showPeekHint={showSwipePeek && i === 0}
++            >
++                <MotiView
++                    animate={{
++                        opacity: 1,
++                        scale: isBulkMode && !isSelected ? 0.96 : 1,
++                    }}
++                    transition={{ type: 'spring', damping: 14, stiffness: 150 }}
++                >
++                    <Touchable
++                        activeOpacity={0.9}
++                        onPress={() => {
++                            if (isBulkMode) {
++                                handleBulkSelect(task.id);
++                            } else {
++                                handleToggleExpand(task.id);
++                            }
++                        }}
++                        onLongPress={() => handleLongPress(task.id)}
++                        style={[[styles.taskCard, { backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest, flexDirection: 'column', alignItems: 'stretch' }], {
++                            borderColor: highlightedId === task.id ? theme.secondary : (isBulkMode && isSelected ? theme.primary : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)')),
++                            borderWidth: (highlightedId === task.id || (isBulkMode && isSelected)) ? 2 : 1,
++                        }]}
++                    >
++                        <View style={{ flexDirection: 'row', alignItems: 'center', padding: S.md }}>
++                            {isBulkMode && (
++                                <View style={[{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: isSelected ? theme.primary : theme.outline, backgroundColor: isSelected ? theme.primary : 'transparent', justifyContent: 'center', alignItems: 'center', marginRight: S.sm }]}>
++                                    {isSelected && <Check size={12} color={theme.onPrimary || '#fff'} />}
++                                </View>
++                            )}
++                            <View style={[styles.priorityIndicator, { backgroundColor: finalLeftColor, width: S.xs, height: '100%', borderRadius: R.sm, marginRight: S.sm, opacity: task.isCompleted || completingIds.has(task.id) ? 0.3 : 1 }]} />
++                            
++                            <View style={styles.taskContent}>
++                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
++                                    <MotiView
++                                        animate={{ opacity: task.isCompleted || completingIds.has(task.id) ? 0.4 : 1, scale: task.isCompleted || completingIds.has(task.id) ? 0.97 : 1 }}
++                                        transition={{ type: 'timing', duration: 300 }}
++                                        style={{ flexShrink: 1 }}
++                                    >
++                                        <Text style={[
++                                            styles.taskTitleText,
++                                            { color: theme.onSurface, fontSize: F.body, flexShrink: 1 },
++                                            (task.isCompleted || completingIds.has(task.id)) && { textDecorationLine: 'line-through' }
++                                        ]} numberOfLines={expandedId === task.id ? 0 : 1}>
++                                            {task.title}
++                                        </Text>
++                                    </MotiView>
++                                    {task.tags && task.tags.includes('weight_entry') && (
++                                        <View style={{ backgroundColor: theme.primary + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
++                                            <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>{language === 'tr' ? 'KİLO' : 'WEIGHT'}</Text>
++                                        </View>
++                                    )}
++                                    {task.tags && task.tags.includes('auto_generated') && (
++                                        <View style={{ backgroundColor: theme.tertiary + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
++                                            <Text style={{ fontSize: 10, fontWeight: '700', color: theme.tertiary }}>{language === 'tr' ? 'OTO' : 'AUTO'}</Text>
++                                        </View>
++                                    )}
++                                </View>
++
++                                {(task.description || task.dueDate || task.dueTime || modeInfo) && (
++                                    <MotiView
++                                        animate={{ opacity: task.isCompleted || completingIds.has(task.id) ? 0.4 : 1 }}
++                                        transition={{ type: 'timing', duration: 300 }}
++                                        style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 2 }}
++                                    >
++                                        {modeInfo && (
++                                            <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: modeInfo.color + '1A', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
++                                                <Sparkles size={12} color={modeInfo.color} opacity={0.9} />
++                                                <Text style={[{ fontSize: 11 }, { color: modeInfo.color, fontWeight: '700' }]}>
++                                                    {language === 'tr' ? modeInfo.labelTr : modeInfo.labelEn}
++                                                </Text>
++                                            </View>
++                                        )}
++                                        {task.dueDate && (
++                                            <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
++                                                <Calendar size={12} color={theme.onSurfaceVariant} opacity={0.7} />
++                                                <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
++                                                    {new Date(task.dueDate).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short' })}
++                                                </Text>
++                                            </View>
++                                        )}
++                                        {task.dueTime && (
++                                            <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
++                                                <Clock size={12} color={theme.onSurfaceVariant} opacity={0.7} />
++                                                <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
++                                                    {task.dueTime}
++                                                </Text>
++                                            </View>
++                                        )}
++                                    </MotiView>
++                                )}
++                            </View>
++
++                            <Touchable
++                                onPress={() => handleToggle(task.id)}
++                                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
++                                style={[
++                                    { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginLeft: S.sm },
++                                    {
++                                        backgroundColor: (task.isCompleted || completingIds.has(task.id)) ? theme.success : 'transparent',
++                                        borderColor: (task.isCompleted || completingIds.has(task.id)) ? theme.success : (isDark ? theme.outline : 'rgba(0,0,0,0.2)'),
++                                    }
++                                ]}
++                            >
++                                {(task.isCompleted || completingIds.has(task.id)) && <Check size={16} color="white" />}
++                            </Touchable>
++                        </View>
++
++                        {/* Expanded Content */}
++                        <AnimatePresence>
++                            {expandedId === task.id && (
++                                <MotiView
++                                    from={{ opacity: 0, height: 0 }}
++                                    animate={{ opacity: 1, height: 'auto' }}
++                                    exit={{ opacity: 0, height: 0 }}
++                                    transition={{ type: 'timing', duration: 250 }}
++                                    style={{ overflow: 'hidden', paddingHorizontal: S.md, paddingBottom: S.md }}
++                                >
++                                    <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', marginBottom: S.md }} />
++                                    
++                                    {task.description && (
++                                        <Text style={{ fontSize: F.subhead, color: theme.onSurfaceVariant, lineHeight: 20, marginBottom: S.sm }}>
++                                            {task.description}
++                                        </Text>
++                                    )}
++
++                                    {/* Subtasks */}
++                                    {task.subtasks && task.subtasks.length > 0 && (
++                                        <View style={{ gap: 4, marginTop: S.xs }}>
++                                            {task.subtasks.map((sub: any, sIndex: number) => (
++                                                <Touchable
++                                                    key={sIndex}
++                                                    onPress={() => {
++                                                        toggleSubtask(task.id, sIndex);
++                                                    }}
++                                                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs }}
++                                                >
++                                                    {sub.done 
++                                                        ? <CheckCircle2 size={16} color={theme.tertiary} />
++                                                        : <Circle size={16} color={theme.onSurfaceVariant} />
++                                                    }
++                                                    <Text style={{
++                                                        fontSize: F.body, fontWeight: '600', color: theme.onSurface,
++                                                        textDecorationLine: sub.done ? 'line-through' : 'none',
++                                                        opacity: sub.done ? 0.4 : 0.9
++                                                    }}>
++                                                        {sub.text}
++                                                    </Text>
++                                                </Touchable>
++                                            ))}
++                                        </View>
++                                    )}
++
++                                    {/* Recurrence Info */}
++                                    {task.recurrence && task.recurrence !== 'None' && (
++                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm }}>
++                                            <Repeat size={12} color={theme.secondary} />
++                                            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.secondary }}>
++                                                {(t as any)[`recurrence${task.recurrence}`] || task.recurrence}
++                                            </Text>
++                                        </View>
++                                    )}
++                                </MotiView>
++                            )}
++                        </AnimatePresence>
++                    </Touchable>
++                </MotiView>
++            </SwipeableItem>
++        </Animated.View>
++    );
++}, (prevProps, nextProps) => {
++    return (
++        prevProps.task === nextProps.task &&
++        prevProps.isDark === nextProps.isDark &&
++        prevProps.highlightedId === nextProps.highlightedId &&
++        prevProps.isBulkMode === nextProps.isBulkMode &&
++        prevProps.isSelected === nextProps.isSelected &&
++        prevProps.completingIds === nextProps.completingIds &&
++        prevProps.language === nextProps.language &&
++        (prevProps.expandedId === prevProps.task.id) === (nextProps.expandedId === nextProps.task.id)
++    );
++});
++
+ export default function ActionCenter() {
+   const { theme, colorScheme } = useAppTheme();
+   const isDark = colorScheme === 'dark';
+-  const { tasks, toggleTaskCompletion, addTask, removeTask, updateTask, setTasks, setLoading, isLoading, toggleSubtask } = useTaskStore();
++
++  const scrollY = useSharedValue(0);
++  const scrollDir = useSharedValue(0); // 0 = up, 1 = down
++  
++  const scrollHandler = useAnimatedScrollHandler({
++    onScroll: (event: any) => {
++      const currentScrollY = event.contentOffset.y;
++      if (currentScrollY > scrollY.value + 5 && currentScrollY > 50) {
++        scrollDir.value = 1; // scrolling down
++      } else if (currentScrollY < scrollY.value - 5) {
++        scrollDir.value = 0; // scrolling up
++      }
++      scrollY.value = currentScrollY;
++    }
++  });
++
++  const headerAnimatedStyle = useAnimatedStyle(() => {
++    return {
++      transform: [{ translateY: withTiming(scrollDir.value === 1 ? -300 : 0, { duration: 300 }) }],
++      position: 'absolute',
++      top: 0,
++      left: 0,
++      right: 0,
++      zIndex: 10,
++      backgroundColor: theme.background
++    };
++  });
++  const { tasks, toggleTaskCompletion, addTask, removeTask, updateTask, setTasks, setLoading, isLoading, toggleSubtask } = useTaskStore(useShallow(state => ({
++    tasks: state.tasks,
++    toggleTaskCompletion: state.toggleTaskCompletion,
++    addTask: state.addTask,
++    removeTask: state.removeTask,
++    updateTask: state.updateTask,
++    setTasks: state.setTasks,
++    setLoading: state.setLoading,
++    isLoading: state.isLoading,
++    toggleSubtask: state.toggleSubtask
++  })));
+   const { t, language } = useLanguageStore();
+   const { show: showToast } = useToastStore();
+   const isOnline = useNetworkStore((s) => s.isOnline);
+@@ -978,139 +1216,29 @@ export default function ActionCenter() {
+   return (
+     <View style={{ flex: 1, backgroundColor: theme.background }}>
+       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+-        <View style={styles.header}>
+-          {isBulkMode ? (
+-            <>
+-              <Touchable onPress={() => { setIsBulkMode(false); setSelectedIds(new Set()); }} style={styles.backBtn}>
+-                <X size={22} color={theme.onSurface} />
+-              </Touchable>
+-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+-                <Text style={[styles.headerTitle, { color: theme.onSurface }]}>
+-                  {language === 'tr' ? 'Seçim' : 'Select'}
+-                </Text>
+-                {selectedIds.size > 0 && (
+-                  <View style={[styles.selBadge, { backgroundColor: theme.primary }]}>
+-                    <Text style={{ color: theme.onPrimary, fontSize: 11, fontWeight: '900' }}>{selectedIds.size}</Text>
+-                  </View>
+-                )}
+-              </View>
+-              <Touchable
+-                onPress={() => {
+-                  const allSelected = filteredTasks.every(task => selectedIds.has(task.id));
+-                  setSelectedIds(allSelected ? new Set() : new Set(filteredTasks.map(task => task.id)));
+-                  Haptics.selectionAsync();
+-                }}
+-                style={styles.headerIconBtn}
+-              >
+-                <CheckSquare size={20} color={filteredTasks.every(task => selectedIds.has(task.id)) ? theme.primary : theme.onSurface} />
+-              </Touchable>
+-            </>
+-          ) : (
+-            <>
+-              {navigation.canGoBack() ? (
+-                <Touchable onPress={() => router.back()} style={styles.backBtn}>
+-                  <ArrowLeft size={24} color={theme.onSurface} />
+-                </Touchable>
+-              ) : (
+-                <View style={styles.backBtn} />
+-              )}
+-              <Text style={[styles.headerTitle, { color: theme.onSurface }]}>{t.actionCenter}</Text>
+-              <View style={{ flexDirection: 'row', gap: S.xs }}>
+-                <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.headerIconBtn}>
+-                  <Search size={20} color={showSearch ? theme.primary : theme.onSurface} />
+-                </Touchable>
+-                <Touchable
+-                  onPress={() => { setHideCompleted(v => !v); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+-                  style={[styles.headerIconBtn, hideCompleted && { backgroundColor: theme.primary + '18', borderRadius: 10 }]}
+-                  accessibilityLabel={hideCompleted ? (language === 'tr' ? 'Tamamlananları göster' : 'Show completed') : (language === 'tr' ? 'Tamamlananları gizle' : 'Hide completed')}
+-                >
+-                  <CheckCircle2 size={20} color={hideCompleted ? theme.primary : theme.onSurface} />
+-                </Touchable>
+-                <Touchable onPress={() => { setShowSortMenu(!showSortMenu); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }} style={styles.headerIconBtn}>
+-                  <View>
+-                    <SlidersHorizontal size={20} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter) ? theme.primary : theme.onSurface} />
+-                    {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter) && (
+-                      <View style={{ position: 'absolute', top: -2, right: -2, width: 7, height: 7, borderRadius: 4, backgroundColor: theme.primary }} />
+-                    )}
+-                  </View>
+-                </Touchable>
+-              </View>
+-            </>
+-          )}
+-        </View>
+-
+-        {/* Search Bar */}
+-        <AnimatePresence>
+-          {showSearch && (
+-            <MotiView
+-              from={{ opacity: 0, height: 0 }}
+-              animate={{ opacity: 1, height: 52 }}
+-              exit={{ opacity: 0, height: 0 }}
+-              style={{ paddingHorizontal: S.lg, marginBottom: S.xs, overflow: 'hidden' }}
+-            >
+-              <View style={[styles.searchBar, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: theme.outline }]}>
+-                <Search size={16} color={theme.onSurfaceVariant} />
+-                <TextInput
+-                  autoFocus
+-                  value={searchQuery}
+-                  onChangeText={setSearchQuery}
+-                  placeholder={t.searchPlaceholder}
+-                  placeholderTextColor={theme.onSurfaceVariant}
+-                  style={[styles.searchInput, { color: theme.onSurface }]}
+-                  returnKeyType="search"
+-                  underlineColorAndroid="transparent"
+-                />
+-                {searchQuery.length > 0 && (
+-                  <Touchable onPress={() => setSearchQuery('')}>
+-                    <X size={16} color={theme.onSurfaceVariant} />
+-                  </Touchable>
+-                )}
+-              </View>
+-            </MotiView>
+-          )}
+-        </AnimatePresence>
+-
+-        {/* Sort Menu Backdrop */}
+-        {showSortMenu && (
+-          <Touchable
+-            style={[StyleSheet.absoluteFill, { zIndex: 100 }]}
+-            onPress={() => setShowSortMenu(false)}
+-            activeOpacity={1}
+-          />
+-        )}
+-
+-        {/* Sort Menu */}
+-        <AnimatePresence>
+-          {showSortMenu && (
+-            <MotiView
+-              from={{ opacity: 0, translateY: -8 }}
+-              animate={{ opacity: 1, translateY: 0 }}
+-              exit={{ opacity: 0, translateY: -8 }}
+-              style={[styles.sortMenu, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: theme.outline }]}
+-            >
+-              {([['creation', t.sortByCreation], ['priority', t.sortByPriority], ['date', t.sortByDate]] as const).map(([key, label]) => (
+-                <Touchable
+-                  key={key}
+-                  onPress={() => { setSortBy(key); setShowSortMenu(false); Haptics.selectionAsync(); }}
+-                  style={[styles.sortOption, { borderBottomColor: theme.outline }]}
+-                >
+-                  <Text style={[{ color: sortBy === key ? theme.primary : theme.onSurface, fontSize: F.body, fontWeight: sortBy === key ? '700' : '400' }]}>
+-                    {label}
+-                  </Text>
+-                  {sortBy === key && <Check size={16} color={theme.primary} />}
+-                </Touchable>
+-              ))}
+-            </MotiView>
+-          )}
+-        </AnimatePresence>
++        <MotiView 
++          key="list" 
++          from={{ opacity: 0, translateY: 20 }} 
++          animate={{ opacity: 1, translateY: 0 }} 
++          style={{ flex: 1 }}
++          transition={{ type: 'timing', duration: 400 }}
++        >
++          
++        <Animated.FlatList itemLayoutAnimation={LinearTransition.springify().damping(18).stiffness(90)}
+ 
+-        <ScrollView
+-            ref={scrollViewRef}
+             style={{ flex: 1 }}
+-            showsVerticalScrollIndicator={false}
+-            contentContainerStyle={{ paddingTop: 10, paddingBottom: 140, paddingHorizontal: S.lg }}
+-        >
+-          <Text style={[styles.subHeadline, { color: theme.onSurfaceVariant }]}>{t.allTasksReady}</Text>
++            data={filteredTasks}
++            keyExtractor={(item: any) => item.id.toString()}
++            initialNumToRender={15}
++            maxToRenderPerBatch={10}
++            windowSize={5}
++            removeClippedSubviews={false} // Must be false for itemLayoutAnimation to work when items jump large distances
++            contentContainerStyle={{ gap: S.sm, paddingBottom: 100, paddingTop: 10, paddingHorizontal: S.lg }}
++            extraData={{ highlightedId, isBulkMode, selectedIds, completingIds, language, expandedId }}
++            ListHeaderComponent={() => (
++        <React.Fragment>
++            <View style={{ paddingBottom: S.md }}>
++<Text style={[styles.subHeadline, { color: theme.onSurfaceVariant }]}>{t.allTasksReady}</Text>
+ 
+           {/* Stats Row */}
+           <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.md, marginBottom: S.md }}>
+@@ -1212,8 +1340,8 @@ export default function ActionCenter() {
+           )}
+ 
+           {/* Task List */}
+-          <View style={styles.listSection}>
+-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: S.md }}>
++          
++<View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: S.md }}>
+                 <Text
+                     style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, flex: 1 }]}
+                     numberOfLines={1}
+@@ -1230,372 +1358,69 @@ export default function ActionCenter() {
+                 </Touchable>
+             </View>
+             
+-            <AnimatePresence>
+-                {filteredTasks.length === 0 ? (
+-                    <MotiView key="empty" from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.emptyState}>
+-                        <MotiView
+-                            animate={{ rotate: ['0deg', '5deg', '-5deg', '0deg'] }}
+-                            transition={{ loop: true, duration: 4000 }}
+-                            style={{ marginBottom: 16, opacity: 0.25 }}
+-                        >
+-                            <Sparkles size={40} color={theme.primary} />
+-                        </MotiView>
+-                        <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>{searchQuery.trim() ? t.noResults : t.allTasksReady}</Text>
+-                        <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>{searchQuery.trim() ? (language === 'tr' ? `"${searchQuery}" için sonuç bulunamadı` : `No results for "${searchQuery}"`) : t.noTasksHint}</Text>
+-                    </MotiView>
+-                ) : (
+-                    visibleTasks.map((task, i) => {
+-                        const exitAnim = exitAnimMap.current.get(task.id);
+-                        return (
+-                        <RNAnimated.View
+-                            key={task.id}
+-                            style={exitAnim ? { opacity: exitAnim.opacity, transform: [{ translateY: exitAnim.translateY }] } : undefined}
+-                        >
+-                        <SwipeableItem
+-                            onDelete={() => handleDelete(task.id)}
+-                            disabled={isBulkMode}
+-                            showPeekHint={showSwipePeek && i === 0}
+-                        >
+-                            <MotiView
+-                                from={{ opacity: 0, translateY: 10 }}
+-                                animate={{
+-                                    opacity: 1,
+-                                    translateY: 0,
+-                                    scale: task.isCompleted ? [1, 1.03, 1] : 1,
+-                                    borderColor: highlightedId === task.id ? theme.secondary : (isBulkMode && selectedIds.has(task.id) ? theme.primary : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)')),
+-                                    borderWidth: (highlightedId === task.id || (isBulkMode && selectedIds.has(task.id))) ? 2 : 1,
+-                                }}
+-                                transition={{
+-                                    type: 'spring',
+-                                    damping: 15,
+-                                    stiffness: 150,
+-                                    borderColor: { type: 'timing', duration: 200 },
+-                                    borderWidth: { type: 'timing', duration: 200 },
+-                                }}
+-                                style={[styles.taskCard, { backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest, flexDirection: 'column', alignItems: 'stretch' }]}
+-                            >
+-                                <Touchable
+-                                    activeOpacity={0.9}
+-                                    onPress={() => {
+-                                      if (isBulkMode) {
+-                                        Haptics.selectionAsync();
+-                                        setSelectedIds(prev => {
+-                                          const next = new Set(prev);
+-                                          next.has(task.id) ? next.delete(task.id) : next.add(task.id);
+-                                          return next;
+-                                        });
+-                                      } else {
+-                                        handleToggleExpand(task.id);
+-                                      }
+-                                    }}
+-                                    onLongPress={() => {
+-                                      if (!isBulkMode) {
+-                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+-                                        setIsBulkMode(true);
+-                                        setSelectedIds(new Set([task.id]));
+-                                      }
+-                                    }}
+-                                    style={{ padding: S.md, flexDirection: 'column', alignItems: 'stretch' }}
+-                                >
+-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+-                                    {isBulkMode && (
+-                                      <View style={[{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: selectedIds.has(task.id) ? theme.primary : theme.outline, backgroundColor: selectedIds.has(task.id) ? theme.primary : 'transparent', justifyContent: 'center', alignItems: 'center', marginRight: S.sm }]}>
+-                                        {selectedIds.has(task.id) && <Check size={12} color={theme.onPrimary || '#fff'} />}
+-                                      </View>
+-                                    )}
+-                                    <View style={[styles.priorityIndicator, { backgroundColor: priorityColor(task.priority), width: S.xs, height: '100%', borderRadius: R.sm, marginRight: S.sm }]} />
+-                                    
+-                                    <View style={styles.taskContent}>
+-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+-                                            <MotiView
+-                                                animate={{ opacity: task.isCompleted ? 0.4 : 1, scale: task.isCompleted ? 0.97 : 1 }}
+-                                                transition={{ type: 'timing', duration: 300 }}
+-                                                style={{ flexShrink: 1 }}
+-                                            >
+-                                                <Text style={[
+-                                                    styles.taskTitleText,
+-                                                    { color: theme.onSurface, fontSize: F.body, flexShrink: 1 },
+-                                                    task.isCompleted && { textDecorationLine: 'line-through' }
+-                                                ]} numberOfLines={expandedId === task.id ? 0 : 1}>
+-                                                    {task.title}
+-                                                </Text>
+-                                            </MotiView>
+-                                            {task.recurrence && task.recurrence !== 'None' && (
+-                                                <View style={[styles.categoryBadge, { backgroundColor: theme.secondary + '20' }]}>
+-                                                    <Repeat size={9} color={theme.secondary} />
+-                                                </View>
+-                                            )}
+-                                            {(task.tags?.includes('hatırlatıcı') || task.tags?.includes('reminder')) && (
+-                                                <View style={[styles.categoryBadge, { backgroundColor: theme.priorityMedium + '20' }]}>
+-                                                    <Bell size={10} color={theme.priorityMedium} />
+-                                                </View>
+-                                            )}
+-                                            {(task.tags?.includes('etkinlik') || task.tags?.includes('event')) && (
+-                                                <View style={[styles.categoryBadge, { backgroundColor: theme.secondary + '20' }]}>
+-                                                    <Calendar size={10} color={theme.secondary} />
+-                                                </View>
+-                                            )}
+-                                            {(task.tags?.includes('not') || task.tags?.includes('note')) && (
+-                                                <View style={[styles.categoryBadge, { backgroundColor: theme.info + '20' }]}>
+-                                                    <Tag size={10} color={theme.info} />
+-                                                </View>
+-                                            )}
+-                                            {task.tags?.includes('weight_entry') && (
+-                                                <Touchable
+-                                                    onPress={() => { Haptics.selectionAsync(); setWeightModalTaskId(task.id); }}
+-                                                    style={[styles.categoryBadge, { backgroundColor: '#10B981' + '25', flexDirection: 'row', alignItems: 'center', gap: 4 }]}
+-                                                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+-                                                >
+-                                                    <Scale size={10} color="#10B981" />
+-                                                    <Text style={[styles.categoryBadgeText, { color: '#10B981', fontWeight: '900' }]}>
+-                                                        {language === 'tr' ? 'KİLO GİR' : 'LOG WEIGHT'}
+-                                                    </Text>
+-                                                </Touchable>
+-                                            )}
+-                                            {(() => {
+-                                                const textTags = visibleTextTags(task.tags);
+-                                                const shown = textTags.slice(0, 2);
+-                                                const overflow = textTags.length - shown.length;
+-                                                return (
+-                                                    <>
+-                                                        {shown.map((tag, ti) => {
+-                                                            const tc = getTagColor(tag);
+-                                                            return (
+-                                                              <View key={ti} style={[styles.categoryBadge, { backgroundColor: tc + '25' }]}>
+-                                                                <Text style={[styles.categoryBadgeText, { color: tc, fontWeight: '900' }]}>
+-                                                                    #{tag.toUpperCase()}
+-                                                                </Text>
+-                                                              </View>
+-                                                            );
+-                                                        })}
+-                                                        {overflow > 0 && (
+-                                                            <View style={[styles.categoryBadge, { backgroundColor: theme.onSurfaceVariant + '20' }]}>
+-                                                                <Text style={[styles.categoryBadgeText, { color: theme.onSurfaceVariant }]}>+{overflow}</Text>
+-                                                            </View>
+-                                                        )}
+-                                                    </>
+-                                                );
+-                                            })()}
+-                                        </View>
+-                                        <View style={styles.taskMetaRow}>
+-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+-                                                {task.dueDate?.includes('T') && (new Date(task.dueDate).getTime() - new Date().getTime() < 86400000 && new Date(task.dueDate).getTime() - new Date().getTime() > 0) ? (
+-                                                    <Clock size={11} color={getDateColor(task.dueDate, theme)} />
+-                                                ) : (
+-                                                    <Calendar size={11} color={getDateColor(task.dueDate, theme)} />
+-                                                )}
+-                                                <Text style={[styles.taskMetaText, { color: getDateColor(task.dueDate, theme), fontSize: F.caption, marginLeft: 0 }]}>
+-                                                    {formatSmartDate(task.dueDate)}
+-                                                </Text>
+-                                            </View>
+-                                            {!(task.tags?.includes('etkinlik') || task.tags?.includes('event') || task.tags?.includes('not') || task.tags?.includes('note')) && (
+-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 10 }}>
+-                                                    <Timer size={11} color={theme.onSurfaceVariant} style={{ opacity: 0.6 }} />
+-                                                    <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.6, fontWeight: '600' }}>
+-                                                        {estimateDuration(task)}
+-                                                    </Text>
+-                                                </View>
+-                                            )}
+-                                        </View>
+-                                    </View>
+-                                    
+-                                    <View style={[styles.taskActions, { marginLeft: S.sm, width: 36, height: 36, justifyContent: 'center', alignItems: 'center' }]}>
+-                                        {!(task.tags?.includes('not') || task.tags?.includes('note')) && (
+-                                            <SubtaskProgressRing 
+-                                                total={(task.subtasks || []).length}
+-                                                completed={(task.subtasks || []).filter(s => s.done).length}
+-                                                size={44}
+-                                                strokeWidth={1.5}
+-                                                activeColor={theme.primary}
+-                                                inactiveColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}
+-                                            />
+-                                        )}
+-                                        <Touchable 
+-                                            onPress={() => handleToggle(task.id)} 
+-                                            style={[
+-                                                styles.checkIcon,
+-                                                {
+-                                                    width: 36,
+-                                                    height: 36,
+-                                                    backgroundColor: task.isCompleted ? theme.tertiary : (task.tags?.includes('not') || task.tags?.includes('note') ? theme.info + '20' : theme.surfaceContainerHigh)
+-                                                }
+-                                            ]}
+-                                        >
+-                                            {task.tags?.includes('not') || task.tags?.includes('note') ? (
+-                                                <Tag size={18} color={task.isCompleted ? 'white' : theme.info} strokeWidth={3} />
+-                                            ) : (
+-                                                <Check size={18} color={task.isCompleted ? 'white' : theme.onSurfaceVariant} strokeWidth={3} />
+-                                            )}
+-                                        </Touchable>
+-                                    </View>
+-                                </View>
+-
+-                                {/* Expanded Details */}
+-                                <AnimatePresence>
+-                                    {expandedId === task.id && (
+-                                        <MotiView
+-                                            from={{ opacity: 0, maxHeight: 0 }}
+-                                            animate={{ opacity: 1, maxHeight: 600 }}
+-                                            exit={{ opacity: 0, maxHeight: 0 }}
+-                                            transition={{ type: 'timing', duration: 300 }}
+-                                            style={{ overflow: 'hidden', marginTop: S.md, paddingTop: S.md, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)' }}
+-                                        >
+-                                            {task.description ? (
+-                                                <Text style={{ color: theme.onSurface, fontSize: F.body, lineHeight: 20, opacity: 0.8, marginBottom: S.sm }}>
+-                                                    {task.description}
+-                                                </Text>
+-                                            ) : (
+-                                                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontStyle: 'italic', marginBottom: S.sm }}>
+-                                                    {t.noDescription}
+-                                                </Text>
+-                                            )}
+-                                            
+-                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.md, opacity: 0.7 }}>
+-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+-                                                    <Calendar size={13} color={theme.onSurfaceVariant} />
+-                                                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
+-                                                        {formatSmartDate(task.dueDate)}
+-                                                    </Text>
+-                                                </View>
+-
+-                                                {task.dueTime && (
+-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+-                                                        <Clock size={13} color={theme.onSurfaceVariant} />
+-                                                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
+-                                                            {new Date(task.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+-                                                        </Text>
+-                                                    </View>
+-                                                )}
+-
+-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+-                                                    <TrendingUp size={13} color={priorityColor(task.priority)} />
+-                                                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
+-                                                        {task.priority === 'High' ? t.priorityHigh :
+-                                                         task.priority === 'Medium' ? t.priorityMedium :
+-                                                         t.priorityLow}
+-                                                    </Text>
+-                                                </View>
+-
+-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+-                                                    <Timer size={13} color={theme.tertiary} />
+-                                                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.tertiary }}>
+-                                                        {estimateDuration(task)}
+-                                                    </Text>
+-                                                </View>
+-                                            </View>
+-
+-                                            {/* Action row: Edit + Focus */}
+-                                            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
+-                                                <Touchable
+-                                                    onPress={() => openEdit(task.id)}
+-                                                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: 6, paddingHorizontal: S.md, borderRadius: R.full, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }}
+-                                                    accessibilityLabel={language === 'tr' ? 'Görevi düzenle' : 'Edit task'}
+-                                                >
+-                                                    <Pencil size={12} color={theme.onSurfaceVariant} />
+-                                                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
+-                                                        {language === 'tr' ? 'Düzenle' : 'Edit'}
+-                                                    </Text>
+-                                                </Touchable>
+-                                                {!task.isCompleted && (
+-                                                    <Touchable
+-                                                        onPress={() => {
+-                                                            setCurrentTask(task.title);
+-                                                            const secs = 25 * 60;
+-                                                            useFocusStore.setState({ totalSeconds: secs, seconds: secs, isActive: true, lastActiveAt: Date.now() });
+-                                                            router.replace('/focus');
+-                                                        }}
+-                                                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingVertical: 6, paddingHorizontal: S.md, borderRadius: R.full, backgroundColor: theme.primary + '18' }}
+-                                                    >
+-                                                        <Sparkles size={12} color={theme.primary} />
+-                                                        <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
+-                                                            {language === 'tr' ? 'Odaklan' : 'Focus'}
+-                                                        </Text>
+-                                                    </Touchable>
+-                                                )}
+-                                            </View>
+-
+-                                            {/* Subtasks Checklist */}
+-                                            {(task.subtasks || []).length > 0 && (
+-                                                <View style={{ marginTop: S.sm, gap: S.xs }}>
+-                                                    <Text style={{ fontSize: F.caption, fontWeight: '900', color: theme.onSurfaceVariant, letterSpacing: 1, opacity: 0.5 }}>{t.subtasks.toUpperCase()}</Text>
+-                                                    {(task.subtasks || []).map((sub, si) => (
+-                                                        <Touchable
+-                                                            key={si}
+-                                                            onPress={() => {
+-                                                                toggleSubtask(task.id, si);
+-                                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+-                                                                // Debounce: batch rapid subtask toggles into a single API call
+-                                                                if (subtaskSaveTimers.current[task.id]) {
+-                                                                    clearTimeout(subtaskSaveTimers.current[task.id]);
+-                                                                }
+-                                                                subtaskSaveTimers.current[task.id] = setTimeout(() => {
+-                                                                    const latest = useTaskStore.getState().tasks.find(t => t.id === task.id);
+-                                                                    if (latest) {
+-                                                                        TaskService.updateTask(task.id, { ...latest, priority: latest.priority as any, subtasks: latest.subtasks }).catch(() => {});
+-                                                                    }
+-                                                                }, 300);
+-                                                            }}
+-                                                            style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs }}
+-                                                        >
+-                                                            {sub.done 
+-                                                                ? <CheckCircle2 size={16} color={theme.tertiary} />
+-                                                                : <Circle size={16} color={theme.onSurfaceVariant} />
+-                                                            }
+-                                                            <Text style={{
+-                                                                fontSize: F.body, fontWeight: '600', color: theme.onSurface,
+-                                                                textDecorationLine: sub.done ? 'line-through' : 'none',
+-                                                                opacity: sub.done ? 0.4 : 0.9
+-                                                            }}>
+-                                                                {sub.text}
+-                                                            </Text>
+-                                                        </Touchable>
+-                                                    ))}
+-                                                </View>
+-                                            )}
+-
+-                                            {/* Recurrence Info */}
+-                                            {task.recurrence && task.recurrence !== 'None' && (
+-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm }}>
+-                                                    <Repeat size={12} color={theme.secondary} />
+-                                                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.secondary }}>
+-                                                        {(t as any)[`recurrence${task.recurrence}`] || task.recurrence}
+-                                                    </Text>
+-                                                </View>
+-                                            )}
+-                                        </MotiView>
+-                                    )}
+-                                 </AnimatePresence>
+-                            </Touchable>
+-                        </MotiView>
+-                      </SwipeableItem>
+-                        </RNAnimated.View>
+-                        );
+-                    })
+-                )}
+-            </AnimatePresence>
+-
+-            {remainingCount > 0 && (
+-              <Touchable
+-                onPress={() => { setVisibleCount(v => v + TASK_PAGE_SIZE); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+-                style={{ alignItems: 'center', paddingVertical: S.md, marginTop: S.sm }}
+-                activeOpacity={0.7}
+-              >
+-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)', backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' }}>
+-                  <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.primary, letterSpacing: 0.3 }}>
+-                    {language === 'tr' ? `${remainingCount} görev daha` : `${remainingCount} more`}
+-                  </Text>
+-                  <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.6 }}>▼</Text>
++            
+                 </View>
+-              </Touchable>
++        </React.Fragment>
++    )}
++            ListEmptyComponent={() => (
++                <MotiView key="empty" from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.emptyState}>
++                    <MotiView
++                        animate={{ rotate: ['0deg', '5deg', '-5deg', '0deg'] }}
++                        transition={{ loop: true, duration: 4000 }}
++                        style={{ marginBottom: 16, opacity: 0.25 }}
++                    >
++                        <Sparkles size={40} color={theme.primary} />
++                    </MotiView>
++                    <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>{searchQuery.trim() ? t.noResults : t.allTasksReady}</Text>
++                    <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>{searchQuery.trim() ? (language === 'tr' ? `"${searchQuery}" için sonuç bulunamadı` : `No results for "${searchQuery}"`) : t.noTasksHint}</Text>
++                </MotiView>
+             )}
+-
+-            {filteredTasks.length > 0 && !isBulkMode && remainingCount === 0 && (
+-              <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: isDark ? 0.5 : 0.35, textAlign: 'center', marginTop: S.md, fontWeight: '600', letterSpacing: 0.3 }}>
+-                {t.swipeHint}
+-              </Text>
++            renderItem={({ item: task, index: i }: any) => (
++                <MemoizedTaskItem
++                    task={task}
++                    i={i}
++                    theme={theme}
++                    isDark={isDark}
++                    highlightedId={highlightedId}
++                    isBulkMode={isBulkMode}
++                    isSelected={selectedIds.has(task.id)}
++                    language={language}
++                    t={t}
++                    showSwipePeek={showSwipePeek}
++                    priorityColor={priorityColor}
++                    handleDelete={handleDelete}
++                    handleToggleExpand={handleToggleExpand}
++                    handleLongPress={(id: number) => {
++                        if (!isBulkMode) {
++                            import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
++                            setIsBulkMode(true);
++                            setSelectedIds(new Set([id]));
++                        }
++                    }}
++                    handleBulkSelect={(id: number) => {
++                        import('expo-haptics').then(Haptics => Haptics.selectionAsync());
++                        setSelectedIds(prev => {
++                            const next = new Set(prev);
++                            next.has(id) ? next.delete(id) : next.add(id);
++                            return next;
++                        });
++                    }}
++                    handleToggle={handleToggle}
++                    toggleSubtask={toggleSubtask}
++                    completingIds={completingIds}
++                    expandedId={expandedId}
++                    subtaskSaveTimers={subtaskSaveTimers}
++                />
+             )}
+-          </View>
+-        </ScrollView>
++            ListFooterComponent={() => (
++                filteredTasks.length > 0 && !isBulkMode ? (
++                    <Text style={{ fontSize: 12, color: theme.onSurfaceVariant, opacity: isDark ? 0.5 : 0.35, textAlign: 'center', marginTop: 16, fontWeight: '600', letterSpacing: 0.3 }}>
++                        {t.swipeHint}
++                    </Text>
++                ) : null
++            )}
++        />
++        </MotiView>
+       </SafeAreaView>
+ 
+       {/* Bulk Action Bar — floating pill */}

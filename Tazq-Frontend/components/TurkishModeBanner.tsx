@@ -31,7 +31,7 @@ interface Props {
   planApplied?: boolean;
   planHabitIds?: string[];
   planTaskIds?: number[];
-  onClearPlan?: () => void;
+  onClearPlan?: (preserveMeta?: boolean) => void;
   defaultTemplateId?: string;
 }
 
@@ -178,7 +178,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
     // Temiz bir sayfa açmak ve eski (çifte) hedefleri önlemek için önceki planı sil:
-    onClearPlan?.();
+    onClearPlan?.(true);
 
     if (selectedTemplate?.dailyGoalMinutes) setDailyGoal(selectedTemplate.dailyGoalMinutes);
 
@@ -1000,3 +1000,4 @@ const styles = StyleSheet.create({
   applyBtnText: { color: '#fff', fontSize: F.body, fontWeight: '800' },
   expertNote: { fontSize: 10, fontWeight: '600', opacity: 0.4, letterSpacing: 0.3, marginBottom: S.md, marginTop: S.xs },
 });
+

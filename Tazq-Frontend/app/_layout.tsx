@@ -56,6 +56,7 @@ import { OfflineBanner } from '../components/OfflineBanner';
 import { FocusIsland } from '../components/FocusIsland';
 import { Toast } from '../components/Toast';
 import { CelebrationOverlay } from '../components/CelebrationOverlay';
+import { CustomAlertModal } from '../components/CustomAlert';
 import { Asset } from 'expo-asset';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
@@ -78,13 +79,14 @@ const safeSystemUI = async (color: string) => {
   }
 };
 
-const safeNavigationBar = async (style: 'light' | 'dark') => {
+const safeNavigationBar = async (style: 'light' | 'dark', bgColor: string) => {
   if (Platform.OS !== 'android' || isExpoGo) return;
   try {
     const NavigationBar = require('expo-navigation-bar');
     if (NavigationBar && NavigationBar.setBackgroundColorAsync) {
-      await NavigationBar.setPositionAsync('absolute');
-      await NavigationBar.setBackgroundColorAsync('transparent');
+      // Samsung devices ignore button style if background is transparent/absolute.
+      // Explicitly setting a solid background color forces the correct button style.
+      await NavigationBar.setBackgroundColorAsync(bgColor);
       await NavigationBar.setButtonStyleAsync(style);
     }
   } catch (e) {
@@ -418,7 +420,7 @@ export default function RootLayout() {
     const backgroundColor = isDark ? '#09090B' : '#FFFFFF';
     const navStyle = isDark ? 'light' : 'dark';
     safeSystemUI(backgroundColor);
-    safeNavigationBar(navStyle);
+    safeNavigationBar(navStyle, backgroundColor);
   }, [isDark]);
 
   if (showSplash || !fontsLoaded || !assetsLoaded) {
@@ -462,6 +464,7 @@ export default function RootLayout() {
         <FocusIsland />
         <Toast />
         <CelebrationOverlay />
+        <CustomAlertModal />
       </View>
     </SafeAreaProvider>
     </ErrorBoundary>

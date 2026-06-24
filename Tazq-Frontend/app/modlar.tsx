@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { BookOpen, ChevronRight, CalendarDays, X } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { MotiView, AnimatePresence } from 'moti';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BookOpen, ChevronRight, CalendarDays, X, ArrowLeft, Info } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useLanguageStore } from '../store/useLanguageStore';
@@ -11,7 +13,7 @@ import { usePrefsStore } from '../store/usePrefsStore';
 import { useTaskStore } from '../store/useTaskStore';
 import { useCompletionStore } from '../store/useCompletionStore';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   cancelExamCountdownNotifs,
   scheduleExamCountdownNotifs,
@@ -54,6 +56,8 @@ const getEmojiFromLabel = (str: string): string => {
 };
 
 export default function ModlarScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const screenWidth = Dimensions.get('window').width;
@@ -423,27 +427,6 @@ export default function ModlarScreen() {
           }, 600);
         }
       }
-      return () => {
-        const s = seasonalRef.current;
-        if (s.examMode && (!s.examName?.trim() || !s.examDate)) {
-          setSeasonalPref('examMode', false); setSeasonalPref('examName', ''); setSeasonalPref('examDate', null);
-        }
-        if (s.tezMode && (!s.tezName?.trim() || !s.tezDate)) {
-          setSeasonalPref('tezMode', false); setSeasonalPref('tezName', ''); setSeasonalPref('tezDate', null);
-        }
-        if (s.mulakatMode && (!s.mulakatName?.trim() || !s.mulakatDate)) {
-          setSeasonalPref('mulakatMode', false); setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null);
-        }
-        if (s.sporMode) {
-          const sGoal = s.sporGoal?.trim() ?? '';
-          const sType = sGoal ? detectSporType(sGoal) : null;
-          // kilo tipi için tarih otomatik hesaplanır, store'da olmayabilir — sadece hedef seçilmişse geçerli say
-          const incomplete = !sGoal || (sType !== 'kilo' && !s.sporDate);
-          if (incomplete) {
-            setSeasonalPref('sporMode', false); setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null);
-          }
-        }
-      };
     }, [examReviewShown, language, closeExamModeWithReview])
   );
 
@@ -496,47 +479,83 @@ export default function ModlarScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          ref={scrollViewRef}
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: S.lg, paddingTop: S.xl }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          scrollEventThrottle={16}
-          onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
+      <MotiView 
+            from={{ opacity: 0, translateY: -20 }} 
+            animate={{ opacity: 1, translateY: 0 }} 
+            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            style={[
+                styles.floatingTopBar,
+                {
+                    position: 'absolute',
+                    top: insets.top + S.sm,
+                    left: S.lg,
+                    right: S.lg,
+                    zIndex: 100,
+                    backgroundColor: Platform.OS === 'android' ? (isDark ? 'rgba(28,28,30,0.96)' : 'rgba(255,255,255,0.96)') : 'transparent',
+                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                    elevation: Platform.OS === 'android' ? 4 : 0,
+                },
+                Platform.OS !== 'android' && {
+                    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 24,
+                }
+            ]}
         >
-          {/* Screen Header */}
-          <View style={{ marginBottom: S.lg }}>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.hero, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>
-              {language === 'tr' ? 'Dönemsel Modlar' : 'Seasonal Modes'}
-            </Text>
-            <Text style={{ fontSize: F.body, color: theme.onSurfaceVariant, marginTop: S.xs, opacity: 0.6 }}>
-              {language === 'tr' ? 'Hedefine özel plan & alışkanlık paketleri' : 'Curated plan & habit bundles for your goals'}
-            </Text>
-          </View>
-
-          {/* Info row */}
-          <Touchable
-            onPress={() => Alert.alert(
-              language === 'tr' ? 'Dönemsel Modlar Nedir?' : 'What are Seasonal Modes?',
-              language === 'tr'
-                ? 'Dönemsel modlar belirli bir hedef veya dönem için hazırlanmış alışkanlık ve görev paketleridir. Aktif ettiğinde ilgili plan otomatik olarak Haftalık Merkez\'e ve görevlerine eklenir. Mod kapatıldığında eklenen içerikler kaldırılır.'
-                : 'Seasonal modes are curated habit and task bundles for specific goals or periods. When activated, the plan is automatically added to your Weekly Hub and tasks. Disabling the mode removes the added content.',
-              [{ text: language === 'tr' ? 'Anladım' : 'Got it' }]
+            {Platform.OS === 'ios' && (
+              <BlurView 
+                  intensity={isDark ? 30 : 60} 
+                  tint={colorScheme}
+                  style={StyleSheet.absoluteFill}
+              />
             )}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.lg, alignSelf: 'flex-start' }}
-            activeOpacity={0.7}
-          >
-            <View style={{ width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
-              <Text style={{ fontSize: 11, fontWeight: '900', color: theme.onSurfaceVariant, lineHeight: 20 }}>i</Text>
-            </View>
-            <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.6, fontWeight: '600' }}>
-              {language === 'tr' ? 'Modlar nasıl çalışır?' : 'How do modes work?'}
-            </Text>
-          </Touchable>
+            <View style={[styles.topBarContent, { paddingHorizontal: S.sm, minHeight: 48 }]}>
+              {/* Left Side (Fixed Width for Perfect Centering) */}
+              <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
+                  {router.canGoBack() ? (
+                      <Touchable onPress={() => router.back()} hitSlop={{top:10, bottom:10, left:10, right:10}} style={styles.headerIconBtn}>
+                          <ArrowLeft size={24} color={theme.onSurface} />
+                      </Touchable>
+                  ) : <View style={{ width: 40, height: 40 }} />}
+              </View>
 
+              {/* Center Title (Takes remaining space, perfectly centered) */}
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2 }}>
+                  <Text 
+                    numberOfLines={1} 
+                    adjustsFontSizeToFit
+                    style={{ fontSize: 20, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}
+                  >
+                      {language === 'tr' ? 'DÖNEMSEL MODLAR' : 'SEASONAL MODES'}
+                  </Text>
+              </View>
+
+              {/* Right Side Buttons (Fixed Width for Perfect Centering) */}
+              <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                 <Touchable 
+                   onPress={() => Alert.alert(
+                      language === 'tr' ? 'Modlar Hakkında' : 'About Seasonal Modes',
+                      language === 'tr'
+                        ? 'Dönemsel modlar belirli bir hedef veya dönem için hazırlanmış alışkanlık ve görev paketleridir. Aktif ettiğinde ilgili plan otomatik olarak Haftalık Merkez\'e ve görevlerine eklenir. Mod kapatıldığında eklenen içerikler kaldırılır.'
+                        : 'Seasonal modes are curated bundles of tasks and habits for a specific goal or period. When activated, the plan is automatically added to your Weekly Hub. Deactivating the mode removes the added content.'
+                   )}
+                   style={styles.headerIconBtn}
+                 >
+                     <Info size={24} color={theme.onSurfaceVariant} />
+                 </Touchable>
+              </View>
+            </View>
+        </MotiView>
+
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView
+            ref={scrollViewRef}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: S.lg, paddingTop: 80 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            scrollEventThrottle={16}
+            onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
+          >
           <View style={{ gap: S.md }}>
             {/* ── Ramazan Modu ── only show within 30 days of start or when user has it enabled */}
             {(seasonal.ramazan || ramadanStatus.daysUntilStart <= 7 || ramadanStatus.isActive) && <View style={[styles.modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.ramazan ? (isDark ? 'rgba(99,102,241,0.30)' : 'rgba(99,102,241,0.20)') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
@@ -1904,43 +1923,8 @@ export default function ModlarScreen() {
               gender: gender || undefined,
             } : undefined,
           })}
-          onDismiss={() => {
-            const t = modePreview.type;
-            if (t === 'ramazan' && ramazanPlanHabitIds.length === 0) { setSeasonalPref('ramazan', false); }
-            else if (t === 'tez' && tezPlanHabitIds.length === 0) { setSeasonalPref('tezMode', false); setSeasonalPref('tezName', ''); setSeasonalPref('tezDate', null); setTezNameInput(''); setTezDateInput(''); }
-            else if (t === 'mulakat') {
-              const slot = modePreview.mulakatSlot ?? 'mulakat';
-              if (slot === 'mulakat2' && mulakat2PlanHabitIds.length === 0) { setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); setMulakat2NameInput(''); setMulakat2DateInput(''); }
-              else if (slot === 'mulakat3' && mulakat3PlanHabitIds.length === 0) { setSeasonalPref('mulakat3Name', ''); setSeasonalPref('mulakat3Date', null); setMulakat3NameInput(''); setMulakat3DateInput(''); }
-              else if (slot === 'mulakat' && mulakatPlanHabitIds.length === 0) { setSeasonalPref('mulakatMode', false); setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null); setMulakatNameInput(''); setMulakatDateInput(''); }
-            }
-            else if (t === 'spor') {
-              const slot = modePreview.sporSlot ?? 'spor';
-              if (slot === 'spor2' && spor2PlanHabitIds.length === 0) { setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); setSpor2GoalInput(''); setSpor2DateInput(''); }
-              else if (slot === 'spor3' && spor3PlanHabitIds.length === 0) { setSeasonalPref('spor3Goal', ''); setSeasonalPref('spor3Date', null); setSpor3GoalInput(''); setSpor3DateInput(''); }
-              else if (slot === 'spor' && sporPlanHabitIds.length === 0) { setSeasonalPref('sporMode', false); setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null); setSporGoalInput(''); setSporDateInput(''); resetSporInputs(); }
-            }
-            setModePreview(null);
-          }}
-          onSheetClose={() => {
-            const t = modePreview?.type;
-            if (!t) return;
-            if (t === 'ramazan' && ramazanPlanHabitIds.length === 0) { setSeasonalPref('ramazan', false); }
-            else if (t === 'tez' && tezPlanHabitIds.length === 0) { setSeasonalPref('tezMode', false); setSeasonalPref('tezName', ''); setSeasonalPref('tezDate', null); setTezNameInput(''); setTezDateInput(''); }
-            else if (t === 'mulakat') {
-              const slot = modePreview?.mulakatSlot ?? 'mulakat';
-              if (slot === 'mulakat2' && mulakat2PlanHabitIds.length === 0) { setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); setMulakat2NameInput(''); setMulakat2DateInput(''); }
-              else if (slot === 'mulakat3' && mulakat3PlanHabitIds.length === 0) { setSeasonalPref('mulakat3Name', ''); setSeasonalPref('mulakat3Date', null); setMulakat3NameInput(''); setMulakat3DateInput(''); }
-              else if (slot === 'mulakat' && mulakatPlanHabitIds.length === 0) { setSeasonalPref('mulakatMode', false); setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null); setMulakatNameInput(''); setMulakatDateInput(''); }
-            }
-            else if (t === 'spor') {
-              const slot = modePreview?.sporSlot ?? 'spor';
-              if (slot === 'spor2' && spor2PlanHabitIds.length === 0) { setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); setSpor2GoalInput(''); setSpor2DateInput(''); }
-              else if (slot === 'spor3' && spor3PlanHabitIds.length === 0) { setSeasonalPref('spor3Goal', ''); setSeasonalPref('spor3Date', null); setSpor3GoalInput(''); setSpor3DateInput(''); }
-              else if (slot === 'spor' && sporPlanHabitIds.length === 0) { setSeasonalPref('sporMode', false); setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null); setSporGoalInput(''); setSporDateInput(''); resetSporInputs(); }
-            }
-            setModePreview(null);
-          }}
+          onDismiss={() => { setModePreview(null); }}
+          onSheetClose={() => { setModePreview(null); }}
           showSheetImmediately
           planApplied={(() => {
             const t = modePreview.type;
@@ -1999,7 +1983,7 @@ export default function ModlarScreen() {
             }
             return ramazanPlanTaskIds;
           })()}
-          onClearPlan={() => {
+          onClearPlan={(preserveMeta?: boolean) => {
             const t = modePreview.type;
             if (t === 'exam' || t === 'yks' || t === 'kpss') {
               const slot = modePreview.examSlot ?? 'exam';
@@ -2008,14 +1992,18 @@ export default function ModlarScreen() {
               hIds.forEach(id => removeHabit(id));
               tIds.forEach(id => retirePlanTask(id, slot));
               clearPlanIds(slot);
-              if (slot === 'exam2') { setSeasonalPref('exam2Name', ''); setSeasonalPref('exam2Date', null); setExam2NameInput(''); setExam2DateInput(''); }
-              else if (slot === 'exam3') { setSeasonalPref('exam3Name', ''); setSeasonalPref('exam3Date', null); setExam3NameInput(''); setExam3DateInput(''); }
-              else { setSeasonalPref('examMode', false); setSeasonalPref('examName', ''); setSeasonalPref('examDate', null); setExamNameInput(''); setExamDateInput(''); }
+              if (!preserveMeta) {
+                if (slot === 'exam2') { setSeasonalPref('exam2Name', ''); setSeasonalPref('exam2Date', null); setExam2NameInput(''); setExam2DateInput(''); }
+                else if (slot === 'exam3') { setSeasonalPref('exam3Name', ''); setSeasonalPref('exam3Date', null); setExam3NameInput(''); setExam3DateInput(''); }
+                else { setSeasonalPref('examMode', false); setSeasonalPref('examName', ''); setSeasonalPref('examDate', null); setExamNameInput(''); setExamDateInput(''); }
+              }
             } else if (t === 'tez') {
               tezPlanHabitIds.forEach(id => removeHabit(id));
               tezPlanTaskIds.forEach(id => retirePlanTask(id, 'tez'));
               clearPlanIds('tez');
-              setSeasonalPref('tezMode', false); setSeasonalPref('tezName', ''); setSeasonalPref('tezDate', null); setTezNameInput(''); setTezDateInput('');
+              if (!preserveMeta) {
+                setSeasonalPref('tezMode', false); setSeasonalPref('tezName', ''); setSeasonalPref('tezDate', null); setTezNameInput(''); setTezDateInput('');
+              }
             } else if (t === 'mulakat') {
               const slot = modePreview.mulakatSlot ?? 'mulakat';
               const hIds = slot === 'mulakat2' ? mulakat2PlanHabitIds : slot === 'mulakat3' ? mulakat3PlanHabitIds : mulakatPlanHabitIds;
@@ -2023,9 +2011,11 @@ export default function ModlarScreen() {
               hIds.forEach(id => removeHabit(id));
               tIds.forEach(id => retirePlanTask(id, slot));
               clearPlanIds(slot);
-              if (slot === 'mulakat2') { setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); setMulakat2NameInput(''); setMulakat2DateInput(''); }
-              else if (slot === 'mulakat3') { setSeasonalPref('mulakat3Name', ''); setSeasonalPref('mulakat3Date', null); setMulakat3NameInput(''); setMulakat3DateInput(''); }
-              else { setSeasonalPref('mulakatMode', false); setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null); setMulakatNameInput(''); setMulakatDateInput(''); }
+              if (!preserveMeta) {
+                if (slot === 'mulakat2') { setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); setMulakat2NameInput(''); setMulakat2DateInput(''); }
+                else if (slot === 'mulakat3') { setSeasonalPref('mulakat3Name', ''); setSeasonalPref('mulakat3Date', null); setMulakat3NameInput(''); setMulakat3DateInput(''); }
+                else { setSeasonalPref('mulakatMode', false); setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null); setMulakatNameInput(''); setMulakatDateInput(''); }
+              }
             } else if (t === 'spor') {
               const slot = modePreview.sporSlot ?? 'spor';
               const hIds = slot === 'spor2' ? spor2PlanHabitIds : slot === 'spor3' ? spor3PlanHabitIds : sporPlanHabitIds;
@@ -2089,6 +2079,9 @@ export default function ModlarScreen() {
 }
 
 const styles = StyleSheet.create({
+  floatingTopBar: { borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin },
+  topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
+  headerIconBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   modeCard: {
     borderWidth: B.thin,
     borderRadius: R.lg,

@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleS
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTaskStore } from '../store/useTaskStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore } from '../store/useAuthStore';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { BentoCard } from '../components/BentoCard';
@@ -36,11 +37,19 @@ import { scheduleWeeklySummary } from '../utils/notifications';
 import { useAchievementStore } from '../store/useAchievementStore';
 import { checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS } from '../utils/achievements';
 import { Touchable } from '@/components/Touchable';
+import { DottedBackground } from '../components/DottedBackground';
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
   const isSmallScreen = width < 380 || height < 700;
-  const { tasks, isLoading, setTasks, setLoading, addTask, toggleTaskCompletion } = useTaskStore();
+  const { tasks, isLoading, setTasks, setLoading, addTask, toggleTaskCompletion } = useTaskStore(useShallow(state => ({
+    tasks: state.tasks,
+    isLoading: state.isLoading,
+    setTasks: state.setTasks,
+    setLoading: state.setLoading,
+    addTask: state.addTask,
+    toggleTaskCompletion: state.toggleTaskCompletion
+  })));
   const { user } = useAuthStore();
   const { t, language } = useLanguageStore();
   const { theme, colorScheme } = useAppTheme();
@@ -494,6 +503,7 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
       {/* TopBar — sibling of SafeAreaView, uses insets.top to clear status bar */}
       <MotiView
           from={{ translateY: -20, opacity: 0 }}
@@ -762,7 +772,7 @@ export default function HomeScreen() {
                     {todayTasksIncomplete.slice(0, 3).map((task, i) => (
                       <Touchable
                         key={task.id}
-                        onPress={() => handleCheckTask(task.id)}
+                        onPress={() => router.push({ pathname: '/tasks', params: { highlightId: task.id } })}
                         activeOpacity={0.7}
                         style={{
                           flexDirection: 'row', alignItems: 'center',
@@ -773,9 +783,7 @@ export default function HomeScreen() {
                       >
                         <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: priorityColor(task.priority), marginRight: S.md }} />
                         <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: theme.onSurface }} numberOfLines={1}>{task.title}</Text>
-                        <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: B.medium, borderColor: priorityColor(task.priority) + '55', alignItems: 'center', justifyContent: 'center', marginLeft: S.sm }}>
-                          <Check size={11} color={priorityColor(task.priority) + '70'} strokeWidth={2.5} />
-                        </View>
+                        <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
                       </Touchable>
                     ))}
                     {todayTasksIncomplete.length > 3 && (

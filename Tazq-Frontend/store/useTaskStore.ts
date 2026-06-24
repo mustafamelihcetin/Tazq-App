@@ -14,6 +14,7 @@ export interface Task {
   subtasks?: SubtaskItem[];
   recurrence?: RecurrenceType;
   sortOrder?: number;
+  isArchived?: boolean;
 }
 
 interface TaskState {

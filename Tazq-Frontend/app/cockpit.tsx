@@ -1,16 +1,13 @@
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Modal, KeyboardAvoidingView, Platform, Alert, Dimensions,
-  Animated, useWindowDimensions,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Modal, KeyboardAvoidingView, Platform, Dimensions, Animated, useWindowDimensions } from 'react-native';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
+import { BlurView } from 'expo-blur';
 import {
   Plus, Check, Flame, Clock, Target,
-  ChevronRight, Sparkles, CalendarDays, Trash2,
+  ChevronRight, Sparkles, CalendarDays, Trash2, ArrowLeft,
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -26,6 +23,8 @@ import { BottomNavBar } from '../components/BottomNavBar';
 import { FocusService } from '../services/api';
 import { S, R, F, B } from '../constants/tokens';
 import { Touchable } from '@/components/Touchable';
+import { DottedBackground } from '../components/DottedBackground';
+import { CustomAlert as Alert } from '../components/CustomAlert';
 
 const HABIT_COLORS = [
   '#6366F1', '#EC4899', '#F59E0B', '#10B981',
@@ -332,30 +331,72 @@ export default function CockpitScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.headerTitle, { color: theme.onSurface }]}>
-              {tr ? 'HAFTALIK MERKEZ' : 'WEEKLY HUB'}
-            </Text>
-            <Text style={[styles.headerSub, { color: theme.onSurfaceVariant }]}>
-              {`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${weekDays[6].toLocaleString(
-                tr ? 'tr-TR' : 'en-US', { month: 'long' }
-              )}`}
-            </Text>
-          </View>
-          <Touchable
-            onPress={() => { prepareAdd(); setAddVisible(true); }}
-            style={[styles.addBtn, { backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F' }]}
-          >
-            <Plus size={18} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={2.5} />
-          </Touchable>
-        </View>
+      <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
 
+      <MotiView 
+            from={{ opacity: 0, translateY: -20 }} 
+            animate={{ opacity: 1, translateY: 0 }} 
+            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            style={[
+                styles.floatingTopBar,
+                {
+                    position: 'absolute',
+                    top: insets.top + S.sm,
+                    left: S.lg,
+                    right: S.lg,
+                    zIndex: 100,
+                    backgroundColor: Platform.OS === 'android' ? (isDark ? 'rgba(28,28,30,0.96)' : 'rgba(255,255,255,0.96)') : 'transparent',
+                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                    elevation: Platform.OS === 'android' ? 4 : 0,
+                },
+                Platform.OS !== 'android' && {
+                    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 24,
+                }
+            ]}
+        >
+            {Platform.OS === 'ios' && (
+              <BlurView 
+                  intensity={isDark ? 30 : 60} 
+                  tint={colorScheme}
+                  style={StyleSheet.absoluteFill}
+              />
+            )}
+            <View style={[styles.topBarContent, { paddingHorizontal: S.sm, minHeight: 48 }]}>
+              {/* Left Side (Fixed Width for Centering, Empty since no back button needed) */}
+              <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
+                  <View style={{ width: 40, height: 40 }} />
+              </View>
+
+              {/* Center Title */}
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2 }}>
+                  <Text 
+                    numberOfLines={1} 
+                    adjustsFontSizeToFit
+                    style={{ fontSize: 20, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}
+                  >
+                      {tr ? 'HAFTALIK MERKEZ' : 'WEEKLY HUB'}
+                  </Text>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary, letterSpacing: 0.5, marginTop: 1 }}>
+                    {`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }).toUpperCase()}`}
+                  </Text>
+              </View>
+
+              {/* Right Side */}
+              <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                  <Touchable
+                    onPress={() => { prepareAdd(); setAddVisible(true); }}
+                    style={styles.headerIconBtn}
+                  >
+                    <Plus size={24} color={theme.onSurface} />
+                  </Touchable>
+              </View>
+            </View>
+        </MotiView>
+
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: 140 }}
+          contentContainerStyle={{ paddingTop: 80, paddingHorizontal: S.lg, paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
         >
           {/* ── WEEK STRIP ── */}
@@ -1108,6 +1149,9 @@ export default function CockpitScreen() {
 }
 
 const styles = StyleSheet.create({
+  floatingTopBar: { borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin },
+  topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
+  headerIconBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   // Header
   header: {
     flexDirection: 'row',
@@ -1208,3 +1252,4 @@ const styles = StyleSheet.create({
   saveBtn: { paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
   saveBtnText: { fontSize: F.subhead, fontWeight: '900' },
 });
+

@@ -22,6 +22,7 @@ import { ACHIEVEMENTS } from '../utils/achievements';
 import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '../utils/achievementIcons';
 import { Touchable } from '@/components/Touchable';
+import { DottedBackground } from '../components/DottedBackground';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -193,6 +194,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
           ref={scrollViewRef}
@@ -776,4 +778,5 @@ const styles = StyleSheet.create({
   goalChip: { flex: 1, paddingVertical: S.sm, borderRadius: R.md, alignItems: 'center' },
   saveBtn: { width: '100%', paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
 });
+
 

@@ -13,35 +13,19 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export const Touchable = forwardRef<View, TouchableOpacityProps>((props, ref) => {
   const { style, activeOpacity, onPress, disabled, children, ...rest } = props;
 
-  // iOS uses the standard TouchableOpacity behavior natively.
-  if (Platform.OS === 'ios') {
-    return (
-      <TouchableOpacity
-        ref={ref}
-        style={style}
-        activeOpacity={activeOpacity ?? 0.7}
-        onPress={onPress}
-        disabled={disabled}
-        {...rest}
-      >
-        {children}
-      </TouchableOpacity>
-    );
-  }
-
-  // Android uses AnimatedPressable to ensure 100% style/flex compatibility
-  // while delivering the native Material ripple effect (without double opacity feedback).
+  // Use TouchableOpacity universally to avoid Android ripple overflow bugs
+  // and maintain consistent visual feedback across platforms.
   return (
-    <AnimatedPressable
-      ref={ref as any}
+    <TouchableOpacity
+      ref={ref}
+      style={style}
+      activeOpacity={activeOpacity ?? 0.7}
       onPress={onPress}
       disabled={disabled}
-      android_ripple={{ color: 'rgba(150, 150, 150, 0.2)', borderless: false }}
-      style={style}
-      {...(rest as any)}
+      {...rest}
     >
       {children}
-    </AnimatedPressable>
+    </TouchableOpacity>
   );
 });
 

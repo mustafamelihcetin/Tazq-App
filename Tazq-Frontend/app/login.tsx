@@ -1,20 +1,5 @@
 import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  useWindowDimensions,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  TouchableWithoutFeedback,
-  Keyboard,
-  Modal,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, useWindowDimensions, KeyboardAvoidingView, Platform, ActivityIndicator, TouchableWithoutFeedback, Keyboard, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
@@ -30,6 +15,7 @@ import { AnimatedBackground } from '../components/AnimatedBackground';
 import { TazqLogo } from '../components/TazqLogo';
 import { S, R, F, scale, verticalScale, moderateScale, B } from '../constants/tokens';
 import { Touchable } from '@/components/Touchable';
+import { CustomAlert as Alert } from '../components/CustomAlert';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
