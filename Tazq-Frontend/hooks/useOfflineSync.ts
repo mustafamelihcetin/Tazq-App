@@ -28,11 +28,11 @@ export function useOfflineSync() {
           }
 
           if (op.type === 'create-task') {
-            const created = await TaskService.createTask(op.payload as any);
-            idMap.set(op.tempId, created.id);
+            const created = await TaskService.createTask((op as any).payload as any);
+            idMap.set((op as any).tempId, created.id);
             // Replace tempId with realId in local store
             const tasks = useTaskStore.getState().tasks;
-            const updatedTasks = tasks.map(t => t.id === op.tempId ? { ...t, ...created } : t);
+            const updatedTasks = tasks.map(t => t.id === (op as any).tempId ? { ...t, ...created } : t);
             useTaskStore.getState().setTasks(updatedTasks);
           } else if (op.type === 'update-task') {
             await TaskService.updateTask(op.id, op.payload as any);

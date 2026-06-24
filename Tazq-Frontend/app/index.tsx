@@ -38,6 +38,8 @@ import { useAchievementStore } from '../store/useAchievementStore';
 import { checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS } from '../utils/achievements';
 import { Touchable } from '@/components/Touchable';
 import { DottedBackground } from '../components/DottedBackground';
+import { useNetworkStore } from '../store/useNetworkStore';
+import { useOfflineQueue } from '../store/useOfflineQueue';
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
@@ -166,35 +168,57 @@ export default function HomeScreen() {
     setIsSavingDraft(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
+    const hint = parseTaskHint(draftTitle.trim(), language as 'tr' | 'en');
+    const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
+    
+    const payload = {
+        title: draftTitle.trim(),
+        description: '',
+        priority: hint.priority || 'Medium',
+        isCompleted: false,
+        dueDate: hint.dueDate || (isReminder ? new Date().toISOString() : null),
+        dueTime: hint.dueTime || null,
+        tags: hint.tags?.length ? hint.tags : ['Draft']
+    };
+
     try {
-        const hint = parseTaskHint(draftTitle.trim(), language as 'tr' | 'en');
-        const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
-        
-        const payload = {
-            title: draftTitle.trim(),
-            description: '',
-            priority: hint.priority || 'Medium',
-            isCompleted: false,
-            dueDate: hint.dueDate || (isReminder ? new Date().toISOString() : null),
-            dueTime: hint.dueTime || null,
-            tags: hint.tags?.length ? hint.tags : ['Draft']
-        };
-
-        const created = await TaskService.createTask(payload as any);
-        addTask(created);
-
-        // Schedule notification if it's a reminder
-        if (created.id && isReminder) {
+        const isOnline = useNetworkStore.getState().isOnline;
+        if (!isOnline) {
+          const tempId = -Date.now();
+          useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload });
+          addTask({ ...payload, id: tempId } as any);
+          if (isReminder) {
             const { scheduleTaskNotification } = require('../utils/notifications');
-            await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
-        }
+            await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
+          }
+          setDraftTitle('');
+          setQuickDraftVisible(false);
+          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+        } else {
+          const created = await TaskService.createTask(payload as any);
+          addTask(created);
 
-        setDraftTitle('');
-        setQuickDraftVisible(false);
-        showToast(`"${payload.title}" ${t.toastTaskAdded}`, 'success');
+          // Schedule notification if it's a reminder
+          if (created.id && isReminder) {
+              const { scheduleTaskNotification } = require('../utils/notifications');
+              await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
+          }
+          setDraftTitle('');
+          setQuickDraftVisible(false);
+          showToast(`"${payload.title}" ${t.toastTaskAdded}`, 'success');
+        }
     } catch (error: any) {
         if (!error.response) {
-          showToast(t.toastNoConnection, 'error');
+          const tempId = -Date.now();
+          useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload });
+          addTask({ ...payload, id: tempId } as any);
+          if (isReminder) {
+            const { scheduleTaskNotification } = require('../utils/notifications');
+            await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
+          }
+          setDraftTitle('');
+          setQuickDraftVisible(false);
+          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
         } else {
           showToast(t.saveError, 'error');
         }

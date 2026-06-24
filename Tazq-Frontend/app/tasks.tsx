@@ -1191,7 +1191,17 @@ export default function ActionCenter() {
           for (const id of Array.from(selectedIds)) {
             const task = tasks.find(tk => tk.id === id);
             if (task?.isCompleted) recordCompletion(task.id, task.title, task.completedAt ?? undefined);
-            try { await TaskService.deleteTask(id); removeTask(id); } catch {}
+            removeTask(id);
+            if (!isOnline) {
+              enqueueOffline({ type: 'delete-task', id });
+            } else {
+              try { await TaskService.deleteTask(id); }
+              catch (err: any) {
+                if (!err.response) {
+                  enqueueOffline({ type: 'delete-task', id });
+                }
+              }
+            }
           }
           setSelectedIds(new Set());
           setIsBulkMode(false);
@@ -1238,7 +1248,17 @@ export default function ActionCenter() {
         { text: t.delete, style: 'destructive', onPress: async () => {
           completedTasks.forEach(task => recordCompletion(task.id, task.title, task.completedAt ?? undefined));
           for (const task of completedTasks) {
-            try { await TaskService.deleteTask(task.id); removeTask(task.id); } catch {}
+            removeTask(task.id);
+            if (!isOnline) {
+              enqueueOffline({ type: 'delete-task', id: task.id });
+            } else {
+              try { await TaskService.deleteTask(task.id); }
+              catch (err: any) {
+                if (!err.response) {
+                  enqueueOffline({ type: 'delete-task', id: task.id });
+                }
+              }
+            }
           }
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }},
@@ -1684,7 +1704,7 @@ export default function ActionCenter() {
             ]}
           >
             {Platform.OS !== 'android' && (
-              <BlurView intensity={isDark ? 30 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFillObject} />
+              <BlurView intensity={isDark ? 30 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
             )}
             
             {/* Edit (only if 1 selected and not mode task) */}

@@ -5,6 +5,7 @@ import { BlurView } from 'expo-blur';
 import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookOpen, ChevronRight, CalendarDays, X, ArrowLeft, Info } from 'lucide-react-native';
+import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useLanguageStore } from '../store/useLanguageStore';
@@ -31,6 +32,22 @@ import { TurkishModeBanner } from '../components/TurkishModeBanner';
 import { TaskService } from '../services/api';
 import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
 import { Touchable } from '@/components/Touchable';
+
+const MarsIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M16 3h5v5" />
+    <Path d="M21 3 14.5 9.5" />
+    <Circle cx="11" cy="17" r="5" />
+  </Svg>
+);
+
+const VenusIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="12" cy="9" r="5" />
+    <Line x1="12" x2="12" y1="14" y2="22" />
+    <Line x1="9" x2="15" y1="18" y2="18" />
+  </Svg>
+);
 
 const stripEmojiPrefix = (str: string): string => {
   if (!str) return '';
@@ -725,13 +742,21 @@ export default function ModlarScreen() {
 
                   {examIsComplete && !examExpanded && (
                     <View style={{ gap: S.sm }}>
-                      <Touchable onPress={() => { Haptics.selectionAsync(); setExamExpanded(true); }} style={{ borderRadius: R.md, overflow: 'hidden', borderWidth: B.thin, borderColor: (examDatePast ? theme.error : urgencyColor) + '30', backgroundColor: (examDatePast ? theme.error : urgencyColor) + '08' }} activeOpacity={0.85}>
+                      <View style={{ borderRadius: R.md, overflow: 'hidden', borderWidth: B.thin, borderColor: (examDatePast ? theme.error : urgencyColor) + '30', backgroundColor: (examDatePast ? theme.error : urgencyColor) + '08' }}>
                         <View style={{ height: 3, backgroundColor: examDatePast ? theme.error : urgencyColor }} />
                         <View style={{ padding: S.md }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                             {renderModeEmojiIcon('🎯', 16, urgencyColor)}
-                            <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }}>{examNameInput}</Text>
-                            <Text style={{ color: examDatePast ? theme.error : urgencyColor, fontSize: F.caption, fontWeight: '600' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
+                            <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{examNameInput}</Text>
+                            <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const templateId = (examPlanHabitIds.length === 0 && examPlanTaskIds.length === 0) ? recommendTemplateId(examDaysLeft, selectedExamPreset?.category ?? 'other', selectedExamPreset?.preferredTemplates ?? [], examDailyMinutes ?? selectedExamPreset?.defaultDailyMinutes ?? 90) : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam', examTipTr: selectedExamPreset?.tipTr, examTipEn: selectedExamPreset?.tipEn, examName: examNameInput, examDate: examDateInput }); }} activeOpacity={0.7}>
+                              <Text style={{ color: urgencyColor, fontSize: F.caption, fontWeight: '600' }}>
+                                {(examPlanHabitIds.length > 0 || examPlanTaskIds.length > 0) ? (language === 'tr' ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (language === 'tr' ? 'Plan Oluştur ›' : 'Create Plan ›')}
+                              </Text>
+                            </Touchable>
+                            <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                            <Touchable onPress={() => { Haptics.selectionAsync(); setExamExpanded(true); }} activeOpacity={0.7}>
+                              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', opacity: 0.8 }}>{language === 'tr' ? 'Düzenle' : 'Edit'}</Text>
+                            </Touchable>
                             <Touchable
                               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Sınavı Sil' : 'Delete Exam', language === 'tr' ? `"${examNameInput}" silinecek. Emin misin?` : `"${examNameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { examPlanHabitIds.forEach(id => removeHabit(id)); examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam')); clearPlanIds('exam'); setExamNameInput(''); setExamDateInput(''); setSelectedExamPreset(null); setExamExpanded(false); setSeasonalPref('examName', ''); setSeasonalPref('examDate', null); if (!exam2IsComplete && !exam3IsComplete) { setSeasonalPref('examMode', false); } } }]); }}
                               hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
@@ -777,14 +802,7 @@ export default function ModlarScreen() {
                             </View>
                           )}
                         </View>
-                      </Touchable>
-
-                      {!examDatePast && (
-                        <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const templateId = examPlanHabits.length === 0 ? recommendTemplateId(examDaysLeft, selectedExamPreset?.category ?? 'other', selectedExamPreset?.preferredTemplates ?? [], examDailyMinutes ?? selectedExamPreset?.defaultDailyMinutes ?? 90) : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam', examTipTr: selectedExamPreset?.tipTr, examTipEn: selectedExamPreset?.tipEn, examName: examNameInput, examDate: examDateInput }); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: urgencyColor + '12', borderRadius: R.md, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: urgencyColor + '22' }} activeOpacity={0.75}>
-                          <BookOpen size={14} color={urgencyColor} />
-                          <Text style={{ color: urgencyColor, fontWeight: '600', fontSize: F.caption }}>{examPlanHabits.length > 0 ? (language === 'tr' ? 'Planı Görüntüle & Güncelle' : 'View & Update Plan') : (language === 'tr' ? 'Çalışma Planı Oluştur' : 'Create Study Plan')}</Text>
-                        </Touchable>
-                      )}
+                      </View>
 
                       {/* İkinci Sınav */}
                       <View style={{ marginTop: S.xs }}>
@@ -1020,10 +1038,22 @@ export default function ModlarScreen() {
                   {!tezIsComplete && !tezExpanded && (<Touchable onPress={() => { Haptics.selectionAsync(); setTezExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>{renderModeEmojiIcon('📝', 16, theme.onSurfaceVariant)}<Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.body, flex: 1 }}>{language === 'tr' ? 'Proje ekle' : 'Add project'}</Text><ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.4} /></Touchable>)}
                   {tezIsComplete && !tezExpanded && (
                     <View style={{ gap: S.sm }}>
-                      <Touchable onPress={() => { Haptics.selectionAsync(); setTezExpanded(true); }} style={{ borderRadius: R.md, overflow: 'hidden', borderWidth: B.thin, borderColor: (tezDatePast ? theme.error : tezUrgencyColor) + '30', backgroundColor: (tezDatePast ? theme.error : tezUrgencyColor) + '08' }} activeOpacity={0.85}>
+                      <View style={{ borderRadius: R.md, overflow: 'hidden', borderWidth: B.thin, borderColor: (tezDatePast ? theme.error : tezUrgencyColor) + '30', backgroundColor: (tezDatePast ? theme.error : tezUrgencyColor) + '08' }}>
                         <View style={{ height: 3, backgroundColor: tezDatePast ? theme.error : tezUrgencyColor }} />
                         <View style={{ padding: S.md }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>{renderModeEmojiIcon('📝', 16, tezUrgencyColor)}<Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }}>{tezNameInput}</Text><Text style={{ color: tezDatePast ? theme.error : tezUrgencyColor, fontSize: F.caption, fontWeight: '600' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text></View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
+                            {renderModeEmojiIcon('📝', 16, tezUrgencyColor)}
+                            <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{tezNameInput}</Text>
+                            <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setModePreview({ type: 'tez', key: Date.now() }); }} activeOpacity={0.7}>
+                              <Text style={{ color: tezUrgencyColor, fontSize: F.caption, fontWeight: '600' }}>
+                                {(tezPlanHabitIds.length > 0 || tezPlanTaskIds.length > 0) ? (language === 'tr' ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (language === 'tr' ? 'Plan Oluştur ›' : 'Create Plan ›')}
+                              </Text>
+                            </Touchable>
+                            <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                            <Touchable onPress={() => { Haptics.selectionAsync(); setTezExpanded(true); }} activeOpacity={0.7}>
+                              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', opacity: 0.8 }}>{language === 'tr' ? 'Düzenle' : 'Edit'}</Text>
+                            </Touchable>
+                          </View>
                           {tezDatePast ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                               {renderModeEmojiIcon('📅', 14, theme.error)}
@@ -1044,11 +1074,7 @@ export default function ModlarScreen() {
                             </View>
                           )}
                         </View>
-                      </Touchable>
-                      <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setModePreview({ type: 'tez', key: Date.now() }); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: tezUrgencyColor + '12', borderRadius: R.md, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: tezUrgencyColor + '22' }} activeOpacity={0.75}>
-                        <BookOpen size={14} color={tezUrgencyColor} />
-                        <Text style={{ color: tezUrgencyColor, fontWeight: '600', fontSize: F.caption }}>{tezPlanHabits.length > 0 ? (language === 'tr' ? 'Planı Görüntüle & Güncelle' : 'View & Update Plan') : (language === 'tr' ? 'Çalışma Planı Oluştur' : 'Create Work Plan')}</Text>
-                      </Touchable>
+                      </View>
 
                     </View>
                   )}
@@ -1097,10 +1123,22 @@ export default function ModlarScreen() {
                   {!mulakatIsComplete && !mulakatExpanded && (<Touchable onPress={() => { Haptics.selectionAsync(); setMulakatExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>{renderModeEmojiIcon('💼', 16, theme.onSurfaceVariant)}<Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.body, flex: 1 }}>{language === 'tr' ? 'Mülakat ekle' : 'Add interview'}</Text><ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.4} /></Touchable>)}
                   {mulakatIsComplete && !mulakatExpanded && (
                     <View style={{ gap: S.sm }}>
-                      <Touchable onPress={() => { Haptics.selectionAsync(); setMulakatExpanded(true); }} style={{ borderRadius: R.md, overflow: 'hidden', borderWidth: B.thin, borderColor: (mulakatDatePast ? theme.error : mulakatUrgencyColor) + '30', backgroundColor: (mulakatDatePast ? theme.error : mulakatUrgencyColor) + '08' }} activeOpacity={0.85}>
+                      <View style={{ borderRadius: R.md, overflow: 'hidden', borderWidth: B.thin, borderColor: (mulakatDatePast ? theme.error : mulakatUrgencyColor) + '30', backgroundColor: (mulakatDatePast ? theme.error : mulakatUrgencyColor) + '08' }}>
                         <View style={{ height: 3, backgroundColor: mulakatDatePast ? theme.error : mulakatUrgencyColor }} />
                         <View style={{ padding: S.md }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>{renderModeEmojiIcon('💼', 16, mulakatUrgencyColor)}<Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }}>{mulakatNameInput}</Text><Text style={{ color: mulakatDatePast ? theme.error : mulakatUrgencyColor, fontSize: F.caption, fontWeight: '600' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text></View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
+                            {renderModeEmojiIcon('💼', 16, mulakatUrgencyColor)}
+                            <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{mulakatNameInput}</Text>
+                            <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setModePreview({ type: 'mulakat', key: Date.now(), mulakatSlot: 'mulakat' }); }} activeOpacity={0.7}>
+                              <Text style={{ color: mulakatUrgencyColor, fontSize: F.caption, fontWeight: '600' }}>
+                                {(mulakatPlanHabitIds.length > 0 || mulakatPlanTaskIds.length > 0) ? (language === 'tr' ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (language === 'tr' ? 'Plan Oluştur ›' : 'Create Plan ›')}
+                              </Text>
+                            </Touchable>
+                            <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                            <Touchable onPress={() => { Haptics.selectionAsync(); setMulakatExpanded(true); }} activeOpacity={0.7}>
+                              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', opacity: 0.8 }}>{language === 'tr' ? 'Düzenle' : 'Edit'}</Text>
+                            </Touchable>
+                          </View>
                           {mulakatDatePast ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                               {renderModeEmojiIcon('📅', 14, theme.error)}
@@ -1121,11 +1159,7 @@ export default function ModlarScreen() {
                             </View>
                           )}
                         </View>
-                      </Touchable>
-                      <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setModePreview({ type: 'mulakat', key: Date.now(), mulakatSlot: 'mulakat' }); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: mulakatUrgencyColor + '12', borderRadius: R.md, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: mulakatUrgencyColor + '22' }} activeOpacity={0.75}>
-                        <BookOpen size={14} color={mulakatUrgencyColor} />
-                        <Text style={{ color: mulakatUrgencyColor, fontWeight: '600', fontSize: F.caption }}>{mulakatPlanHabits.length > 0 ? (language === 'tr' ? 'Planı Görüntüle & Güncelle' : 'View & Update Plan') : (language === 'tr' ? 'Hazırlık Planı Oluştur' : 'Create Prep Plan')}</Text>
-                      </Touchable>
+                      </View>
 
                       {/* İkinci Mülakat */}
                       <View style={{ marginTop: S.xs }}>
@@ -1304,13 +1338,21 @@ export default function ModlarScreen() {
 
                   {sporIsComplete && !sporExpanded && (
                     <View style={{ gap: S.sm }}>
-                      <Touchable onPress={() => { Haptics.selectionAsync(); setSporExpanded(true); }} style={{ borderRadius: R.md, overflow: 'hidden', borderWidth: B.thin, borderColor: (sporDatePast ? theme.error : sporColor) + '30', backgroundColor: (sporDatePast ? theme.error : sporColor) + '08' }} activeOpacity={0.85}>
+                      <View style={{ borderRadius: R.md, overflow: 'hidden', borderWidth: B.thin, borderColor: (sporDatePast ? theme.error : sporColor) + '30', backgroundColor: (sporDatePast ? theme.error : sporColor) + '08' }}>
                         <View style={{ height: 3, backgroundColor: sporDatePast ? theme.error : sporColor }} />
                         <View style={{ padding: S.md }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                             {renderModeEmojiIcon(sporType === 'kilo' ? '⚖️' : sporType === 'maraton' ? '🏃' : sporType === 'yaris' ? '🏆' : sporType === 'genel' ? '✨' : '💪', 16, sporColor)}
-                            <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }}>{stripEmojiPrefix(sporGoalInput)}</Text>
-                            <Text style={{ color: sporDatePast ? theme.error : sporColor, fontSize: F.caption, fontWeight: '600' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
+                            <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{stripEmojiPrefix(sporGoalInput)}</Text>
+                            <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setModePreview({ type: 'spor', key: Date.now(), sporSlot: 'spor' }); }} activeOpacity={0.7}>
+                              <Text style={{ color: sporColor, fontSize: F.caption, fontWeight: '600' }}>
+                                {(sporPlanHabitIds.length > 0 || sporPlanTaskIds.length > 0) ? (language === 'tr' ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (language === 'tr' ? 'Plan Oluştur ›' : 'Create Plan ›')}
+                              </Text>
+                            </Touchable>
+                            <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
+                            <Touchable onPress={() => { Haptics.selectionAsync(); setSporExpanded(true); }} activeOpacity={0.7}>
+                              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', opacity: 0.8 }}>{language === 'tr' ? 'Düzenle' : 'Edit'}</Text>
+                            </Touchable>
                           </View>
                           {sporDatePast ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1345,7 +1387,7 @@ export default function ModlarScreen() {
                             </View>
                           )}
                         </View>
-                      </Touchable>
+                      </View>
 
                       {/* ── Weight log (kilo modu) ── */}
                       {sporType === 'kilo' && !sporDatePast && (
@@ -1422,12 +1464,7 @@ export default function ModlarScreen() {
                         </View>
                       )}
 
-                      {!sporDatePast && (
-                        <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setModePreview({ type: 'spor', key: Date.now(), sporSlot: 'spor' }); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: sporColor + '12', borderRadius: R.md, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: sporColor + '22' }} activeOpacity={0.75}>
-                          {renderModeEmojiIcon(sporType === 'kilo' ? '⚖️' : sporType === 'maraton' ? '🏃' : sporType === 'genel' ? '✨' : '💪', 14, sporColor)}
-                          <Text style={{ color: sporColor, fontWeight: '600', fontSize: F.caption }}>{sporPlanHabits.length > 0 ? (language === 'tr' ? 'Planı Görüntüle & Güncelle' : 'View & Update Plan') : (language === 'tr' ? 'Antrenman Planı Oluştur' : 'Create Training Plan')}</Text>
-                        </Touchable>
-                      )}
+                      {/* Preview button is integrated into the header above */}
 
                       {/* İkinci Spor Hedefi */}
                       <View style={{ marginTop: S.xs }}>
@@ -1711,7 +1748,11 @@ export default function ModlarScreen() {
                                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, borderRadius: R.md, height: 40, borderWidth: B.medium, backgroundColor: gender === g ? (sporColor + '20') : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), borderColor: gender === g ? sporColor : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
                                 activeOpacity={0.75}
                               >
-                                <Text style={{ fontSize: 15 }}>{g === 'male' ? '👨' : '👩'}</Text>
+                                {g === 'male' ? (
+                                  <MarsIcon size={16} color={gender === 'male' ? sporColor : theme.onSurfaceVariant} strokeWidth={2.5} />
+                                ) : (
+                                  <VenusIcon size={16} color={gender === 'female' ? sporColor : theme.onSurfaceVariant} strokeWidth={2.5} />
+                                )}
                                 <Text style={{ fontSize: F.caption, fontWeight: '600', color: gender === g ? sporColor : theme.onSurfaceVariant }}>
                                   {language === 'tr' ? (g === 'male' ? 'Erkek' : 'Kadın') : (g === 'male' ? 'Male' : 'Female')}
                                 </Text>

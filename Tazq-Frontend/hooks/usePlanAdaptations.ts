@@ -31,6 +31,10 @@ import {
   Language,
 } from '../utils/planAdaptations';
 import { RAMAZAN } from '../utils/turkishModes';
+import { useCompletionStore } from '../store/useCompletionStore';
+import { useOfflineQueue } from '../store/useOfflineQueue';
+import { useNetworkStore } from '../store/useNetworkStore';
+import { useHabitStore } from '../store/useHabitStore';
 import { buildDailyTasks, DailyPlanSpec, PlanKind } from '../utils/dailyPlanEngine';
 import { runPlanMigrationOnce } from '../utils/planMigration';
 
@@ -74,6 +78,25 @@ export function usePlanAdaptations() {
   const { language } = useLanguageStore();
   const lang = (language || 'tr') as Language;
 
+  const retirePlanTask = useCallback((taskId: number, planMode?: string) => {
+    const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
+    if (task?.isCompleted) {
+      useCompletionStore.getState().record(task.id, task.title, task.completedAt ?? undefined, planMode);
+    }
+    useTaskStore.getState().removeTask(taskId);
+    
+    const isOnline = useNetworkStore.getState().isOnline;
+    if (!isOnline) {
+      useOfflineQueue.getState().enqueue({ type: 'delete-task', id: taskId });
+    } else {
+      TaskService.deleteTask(taskId).catch(err => {
+        if (!err.response) {
+          useOfflineQueue.getState().enqueue({ type: 'delete-task', id: taskId });
+        }
+      });
+    }
+  }, []);
+
   const applyTasks = useCallback(async (
     newTasks: ReturnType<typeof buildKiloAdaptationTasks>,
     planMode: 'spor' | 'spor2' | 'spor3' | 'exam' | 'exam2' | 'exam3' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'ramazan',
@@ -97,13 +120,148 @@ export function usePlanAdaptations() {
   }, [addTask, setPlanIds]);
 
   const run = useCallback(async (force = false) => {
+    // ── PLAN AUTO-CLEANUP ON EXPIRATION ────────────────────────────────────
+    const freshPrefs = usePrefsStore.getState();
+    const freshSeasonal = freshPrefs.seasonal;
+    const now = Date.now();
+    const removeHabitFn = useHabitStore.getState().removeHabit;
+
+    // RAMAZAN
+    if (freshSeasonal.ramazan) {
+      const stillActive = RAMAZAN.some(r => {
+        const s = new Date(r.start);
+        s.setDate(s.getDate() - 7);
+        s.setHours(0, 0, 0, 0);
+        const e = new Date(r.end);
+        e.setHours(23, 59, 59, 999);
+        return now >= s.getTime() && now <= e.getTime();
+      });
+      if (!stillActive) {
+        freshPrefs.ramazanPlanHabitIds.forEach(id => removeHabitFn(id));
+        freshPrefs.ramazanPlanTaskIds.forEach(id => retirePlanTask(id, 'ramazan'));
+        freshPrefs.clearPlanIds('ramazan');
+        freshPrefs.setSeasonalPref('ramazan', false);
+      }
+    }
+
+    // EXAMS
+    // Exam 1
+    if (freshSeasonal.examMode && freshSeasonal.examDate && new Date(freshSeasonal.examDate).setHours(23, 59, 59, 999) < now) {
+      freshPrefs.examPlanHabitIds.forEach(id => removeHabitFn(id));
+      freshPrefs.examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam'));
+      freshPrefs.clearPlanIds('exam');
+      freshPrefs.setSeasonalPref('examName', '');
+      freshPrefs.setSeasonalPref('examDate', null);
+    }
+    // Exam 2
+    if (freshSeasonal.exam2Name && freshSeasonal.exam2Date && new Date(freshSeasonal.exam2Date).setHours(23, 59, 59, 999) < now) {
+      freshPrefs.exam2PlanHabitIds.forEach(id => removeHabitFn(id));
+      freshPrefs.exam2PlanTaskIds.forEach(id => retirePlanTask(id, 'exam2'));
+      freshPrefs.clearPlanIds('exam2');
+      freshPrefs.setSeasonalPref('exam2Name', '');
+      freshPrefs.setSeasonalPref('exam2Date', null);
+    }
+    // Exam 3
+    if (freshSeasonal.exam3Name && freshSeasonal.exam3Date && new Date(freshSeasonal.exam3Date).setHours(23, 59, 59, 999) < now) {
+      freshPrefs.exam3PlanHabitIds.forEach(id => removeHabitFn(id));
+      freshPrefs.exam3PlanTaskIds.forEach(id => retirePlanTask(id, 'exam3'));
+      freshPrefs.clearPlanIds('exam3');
+      freshPrefs.setSeasonalPref('exam3Name', '');
+      freshPrefs.setSeasonalPref('exam3Date', null);
+    }
+    // Turn off examMode globally if all slots are cleared
+    const updatedPrefsAfterExams = usePrefsStore.getState();
+    if (updatedPrefsAfterExams.seasonal.examMode && !updatedPrefsAfterExams.seasonal.examDate && !updatedPrefsAfterExams.seasonal.exam2Date && !updatedPrefsAfterExams.seasonal.exam3Date) {
+      freshPrefs.setSeasonalPref('examMode', false);
+    }
+
+    // TEZ
+    if (freshSeasonal.tezMode && freshSeasonal.tezDate && new Date(freshSeasonal.tezDate).setHours(23, 59, 59, 999) < now) {
+      freshPrefs.tezPlanHabitIds.forEach(id => removeHabitFn(id));
+      freshPrefs.tezPlanTaskIds.forEach(id => retirePlanTask(id, 'tez'));
+      freshPrefs.clearPlanIds('tez');
+      freshPrefs.setSeasonalPref('tezMode', false);
+      freshPrefs.setSeasonalPref('tezName', '');
+      freshPrefs.setSeasonalPref('tezDate', null);
+    }
+
+    // MULAKATS
+    // Mulakat 1
+    if (freshSeasonal.mulakatMode && freshSeasonal.mulakatDate && new Date(freshSeasonal.mulakatDate).setHours(23, 59, 59, 999) < now) {
+      freshPrefs.mulakatPlanHabitIds.forEach(id => removeHabitFn(id));
+      freshPrefs.mulakatPlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat'));
+      freshPrefs.clearPlanIds('mulakat');
+      freshPrefs.setSeasonalPref('mulakatName', '');
+      freshPrefs.setSeasonalPref('mulakatDate', null);
+    }
+    // Mulakat 2
+    if (freshSeasonal.mulakat2Name && freshSeasonal.mulakat2Date && new Date(freshSeasonal.mulakat2Date).setHours(23, 59, 59, 999) < now) {
+      freshPrefs.mulakat2PlanHabitIds.forEach(id => removeHabitFn(id));
+      freshPrefs.mulakat2PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat2'));
+      freshPrefs.clearPlanIds('mulakat2');
+      freshPrefs.setSeasonalPref('mulakat2Name', '');
+      freshPrefs.setSeasonalPref('mulakat2Date', null);
+    }
+    // Mulakat 3
+    if (freshSeasonal.mulakat3Name && freshSeasonal.mulakat3Date && new Date(freshSeasonal.mulakat3Date).setHours(23, 59, 59, 999) < now) {
+      freshPrefs.mulakat3PlanHabitIds.forEach(id => removeHabitFn(id));
+      freshPrefs.mulakat3PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat3'));
+      freshPrefs.clearPlanIds('mulakat3');
+      freshPrefs.setSeasonalPref('mulakat3Name', '');
+      freshPrefs.setSeasonalPref('mulakat3Date', null);
+    }
+    // Turn off mulakatMode globally if all slots are cleared
+    const updatedPrefsAfterMulakats = usePrefsStore.getState();
+    if (updatedPrefsAfterMulakats.seasonal.mulakatMode && !updatedPrefsAfterMulakats.seasonal.mulakatDate && !updatedPrefsAfterMulakats.seasonal.mulakat2Date && !updatedPrefsAfterMulakats.seasonal.mulakat3Date) {
+      freshPrefs.setSeasonalPref('mulakatMode', false);
+    }
+
+    // SPORS
+    // Spor 1
+    if (freshSeasonal.sporMode && freshSeasonal.sporDate && new Date(freshSeasonal.sporDate).setHours(23, 59, 59, 999) < now) {
+      freshPrefs.sporPlanHabitIds.forEach(id => removeHabitFn(id));
+      freshPrefs.sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor'));
+      freshPrefs.clearPlanIds('spor');
+      freshPrefs.setSeasonalPref('sporGoal', '');
+      freshPrefs.setSeasonalPref('sporDate', null);
+    }
+    // Spor 2
+    if (freshSeasonal.spor2Goal && freshSeasonal.spor2Date && new Date(freshSeasonal.spor2Date).setHours(23, 59, 59, 999) < now) {
+      freshPrefs.spor2PlanHabitIds.forEach(id => removeHabitFn(id));
+      freshPrefs.spor2PlanTaskIds.forEach(id => retirePlanTask(id, 'spor2'));
+      freshPrefs.clearPlanIds('spor2');
+      freshPrefs.setSeasonalPref('spor2Goal', '');
+      freshPrefs.setSeasonalPref('spor2Date', null);
+    }
+    // Spor 3
+    if (freshSeasonal.spor3Goal && freshSeasonal.spor3Date && new Date(freshSeasonal.spor3Date).setHours(23, 59, 59, 999) < now) {
+      freshPrefs.spor3PlanHabitIds.forEach(id => removeHabitFn(id));
+      freshPrefs.spor3PlanTaskIds.forEach(id => retirePlanTask(id, 'spor3'));
+      freshPrefs.clearPlanIds('spor3');
+      freshPrefs.setSeasonalPref('spor3Goal', '');
+      freshPrefs.setSeasonalPref('spor3Date', null);
+    }
+    // Turn off sporMode globally if all slots are cleared
+    const updatedPrefsAfterSpors = usePrefsStore.getState();
+    if (updatedPrefsAfterSpors.seasonal.sporMode && !updatedPrefsAfterSpors.seasonal.sporDate && !updatedPrefsAfterSpors.seasonal.spor2Date && !updatedPrefsAfterSpors.seasonal.spor3Date) {
+      freshPrefs.setSeasonalPref('sporMode', false);
+    }
+
+    // Sync to cloud if any preferences were changed
+    const finalPrefs = usePrefsStore.getState();
+    if (JSON.stringify(freshSeasonal) !== JSON.stringify(finalPrefs.seasonal)) {
+      finalPrefs.syncToCloud().catch(() => {});
+    }
+
     if (!force && !(await shouldRunToday())) return;
 
     const existing = useTaskStore.getState().tasks;
+    const activePrefs = usePrefsStore.getState();
+    const activeSeasonal = activePrefs.seasonal;
 
     // ── KILO ────────────────────────────────────────────────────────────────
-    if (seasonal.sporMode && seasonal.sporGoal) {
-      const sporType = detectSporTypeLocal(seasonal.sporGoal);
+    if (activeSeasonal.sporMode && activeSeasonal.sporGoal) {
+      const sporType = detectSporTypeLocal(activeSeasonal.sporGoal);
 
       if (sporType === 'kilo') {
         const cw = parseFloat(currentWeight) || 0;
@@ -114,7 +272,7 @@ export function usePlanAdaptations() {
           await applyTasks(newTasks, 'spor', sporPlanTaskIds, sporPlanHabitIds);
         }
       } else if (sporType === 'maraton') {
-        const daysLeft = seasonal.sporDate ? daysUntil(seasonal.sporDate) : 0;
+        const daysLeft = activeSeasonal.sporDate ? daysUntil(activeSeasonal.sporDate) : 0;
         const sporState = useSporStore.getState();
         const wkm = parseFloat(sporState.weeklyKm) || 30;
         const targetEvent = sporState.targetEvent || '10K';
@@ -122,9 +280,9 @@ export function usePlanAdaptations() {
         const weeksIn = 0;
         const newTasks = buildMaratonAdaptationTasks(wkm, targetEvent, daysLeft, weeksIn, 0.7, existing, lang);
         await applyTasks(newTasks, 'spor', sporPlanTaskIds, sporPlanHabitIds);
-      } else if ((sporType === 'guc' || sporType === 'genel') && seasonal.sporDate) {
+      } else if ((sporType === 'guc' || sporType === 'genel') && activeSeasonal.sporDate) {
         // Plan başlangıcını tahmin et: sporDate'den geriye 12 hafta
-        const daysLeft = daysUntil(seasonal.sporDate);
+        const daysLeft = daysUntil(activeSeasonal.sporDate);
         const PLAN_WEEKS = 12;
         const weeksLeft = Math.ceil(daysLeft / 7);
         const weeksElapsed = Math.max(0, PLAN_WEEKS - weeksLeft);
@@ -136,9 +294,9 @@ export function usePlanAdaptations() {
 
     // ── SINAV ───────────────────────────────────────────────────────────────
     const examSlots = [
-      { active: seasonal.examMode, name: seasonal.examName, date: seasonal.examDate, taskIds: examPlanTaskIds, habitIds: examPlanHabitIds, mode: 'exam' as const },
-      { active: !!seasonal.exam2Name && !!seasonal.exam2Date, name: seasonal.exam2Name, date: seasonal.exam2Date, taskIds: exam2PlanTaskIds, habitIds: exam2PlanHabitIds, mode: 'exam2' as const },
-      { active: !!seasonal.exam3Name && !!seasonal.exam3Date, name: seasonal.exam3Name, date: seasonal.exam3Date, taskIds: exam3PlanTaskIds, habitIds: exam3PlanHabitIds, mode: 'exam3' as const },
+      { active: activeSeasonal.examMode, name: activeSeasonal.examName, date: activeSeasonal.examDate, taskIds: examPlanTaskIds, habitIds: examPlanHabitIds, mode: 'exam' as const },
+      { active: !!activeSeasonal.exam2Name && !!activeSeasonal.exam2Date, name: activeSeasonal.exam2Name, date: activeSeasonal.exam2Date, taskIds: exam2PlanTaskIds, habitIds: exam2PlanHabitIds, mode: 'exam2' as const },
+      { active: !!activeSeasonal.exam3Name && !!activeSeasonal.exam3Date, name: activeSeasonal.exam3Name, date: activeSeasonal.exam3Date, taskIds: exam3PlanTaskIds, habitIds: exam3PlanHabitIds, mode: 'exam3' as const },
     ];
     for (const slot of examSlots) {
       if (slot.active && slot.name && slot.date) {
@@ -149,17 +307,17 @@ export function usePlanAdaptations() {
     }
 
     // ── TEZ ─────────────────────────────────────────────────────────────────
-    if (seasonal.tezMode && seasonal.tezName && seasonal.tezDate) {
-      const daysLeft = daysUntil(seasonal.tezDate);
-      const newTasks = buildTezAdaptationTasks(seasonal.tezName, daysLeft, existing, lang);
+    if (activeSeasonal.tezMode && activeSeasonal.tezName && activeSeasonal.tezDate) {
+      const daysLeft = daysUntil(activeSeasonal.tezDate);
+      const newTasks = buildTezAdaptationTasks(activeSeasonal.tezName, daysLeft, existing, lang);
       await applyTasks(newTasks, 'tez', tezPlanTaskIds, tezPlanHabitIds);
     }
 
     // ── MÜLAKAT ─────────────────────────────────────────────────────────────
     const mulakatSlots = [
-      { active: seasonal.mulakatMode, name: seasonal.mulakatName, date: seasonal.mulakatDate, taskIds: mulakatPlanTaskIds, habitIds: mulakatPlanHabitIds, mode: 'mulakat' as const },
-      { active: !!seasonal.mulakat2Name && !!seasonal.mulakat2Date, name: seasonal.mulakat2Name, date: seasonal.mulakat2Date, taskIds: mulakat2PlanTaskIds, habitIds: mulakat2PlanHabitIds, mode: 'mulakat2' as const },
-      { active: !!seasonal.mulakat3Name && !!seasonal.mulakat3Date, name: seasonal.mulakat3Name, date: seasonal.mulakat3Date, taskIds: mulakat3PlanTaskIds, habitIds: mulakat3PlanHabitIds, mode: 'mulakat3' as const },
+      { active: activeSeasonal.mulakatMode, name: activeSeasonal.mulakatName, date: activeSeasonal.mulakatDate, taskIds: mulakatPlanTaskIds, habitIds: mulakatPlanHabitIds, mode: 'mulakat' as const },
+      { active: !!activeSeasonal.mulakat2Name && !!activeSeasonal.mulakat2Date, name: activeSeasonal.mulakat2Name, date: activeSeasonal.mulakat2Date, taskIds: mulakat2PlanTaskIds, habitIds: mulakat2PlanHabitIds, mode: 'mulakat2' as const },
+      { active: !!activeSeasonal.mulakat3Name && !!activeSeasonal.mulakat3Date, name: activeSeasonal.mulakat3Name, date: activeSeasonal.mulakat3Date, taskIds: mulakat3PlanTaskIds, habitIds: mulakat3PlanHabitIds, mode: 'mulakat3' as const },
     ];
     for (const slot of mulakatSlots) {
       if (slot.active && slot.name && slot.date) {
@@ -170,7 +328,7 @@ export function usePlanAdaptations() {
     }
 
     // ── RAMAZAN ─────────────────────────────────────────────────────────────
-    if (seasonal.ramazan && ramazanPlanTaskIds.length > 0) {
+    if (activeSeasonal.ramazan && ramazanPlanTaskIds.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       const activeRamazan = RAMAZAN.find(r => today >= r.start && today <= r.end);
       if (activeRamazan) {
@@ -203,9 +361,9 @@ export function usePlanAdaptations() {
       }
     }
     // Tez
-    if (seasonal.tezMode && seasonal.tezName && seasonal.tezDate) {
+    if (activeSeasonal.tezMode && activeSeasonal.tezName && activeSeasonal.tezDate) {
       dailySlots.push({
-        spec: { kind: 'tez', name: seasonal.tezName, daysLeft: daysUntil(seasonal.tezDate), dailyMinutes: planSpecs.tez?.dailyMinutes, templateId: planSpecs.tez?.templateId },
+        spec: { kind: 'tez', name: activeSeasonal.tezName, daysLeft: daysUntil(activeSeasonal.tezDate), dailyMinutes: planSpecs.tez?.dailyMinutes, templateId: planSpecs.tez?.templateId },
         mode: 'tez', taskIds: tezPlanTaskIds, habitIds: tezPlanHabitIds,
       });
     }
@@ -220,9 +378,9 @@ export function usePlanAdaptations() {
     }
     // Spor slotları (kilo/maraton/güç/genel)
     const sporSlots = [
-      { goal: seasonal.sporMode ? seasonal.sporGoal : '', date: seasonal.sporDate, taskIds: sporPlanTaskIds, habitIds: sporPlanHabitIds, mode: 'spor' as const },
-      { goal: seasonal.spor2Goal, date: seasonal.spor2Date, taskIds: spor2PlanTaskIds, habitIds: spor2PlanHabitIds, mode: 'spor2' as const },
-      { goal: seasonal.spor3Goal, date: seasonal.spor3Date, taskIds: spor3PlanTaskIds, habitIds: spor3PlanHabitIds, mode: 'spor3' as const },
+      { goal: activeSeasonal.sporMode ? activeSeasonal.sporGoal : '', date: activeSeasonal.sporDate, taskIds: sporPlanTaskIds, habitIds: sporPlanHabitIds, mode: 'spor' as const },
+      { goal: activeSeasonal.spor2Goal, date: activeSeasonal.spor2Date, taskIds: spor2PlanTaskIds, habitIds: spor2PlanHabitIds, mode: 'spor2' as const },
+      { goal: activeSeasonal.spor3Goal, date: activeSeasonal.spor3Date, taskIds: spor3PlanTaskIds, habitIds: spor3PlanHabitIds, mode: 'spor3' as const },
     ];
     for (const slot of sporSlots) {
       if (slot.goal && slot.date) {
@@ -233,7 +391,7 @@ export function usePlanAdaptations() {
       }
     }
     // Ramazan (aktif dönemdeyse)
-    if (seasonal.ramazan) {
+    if (activeSeasonal.ramazan) {
       const todayStr = today.toISOString().split('T')[0];
       const activeRamazan = RAMAZAN.find(r => todayStr >= r.start && todayStr <= r.end);
       if (activeRamazan) {

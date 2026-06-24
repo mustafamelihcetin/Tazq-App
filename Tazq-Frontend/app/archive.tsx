@@ -7,6 +7,9 @@ import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { S, F, R, B } from '../constants/tokens';
+import { TaskService } from '../services/api';
+import { useNetworkStore } from '../store/useNetworkStore';
+import { useOfflineQueue } from '../store/useOfflineQueue';
 
 export default function ArchiveScreen() {
     const { theme, isDark } = useAppTheme();
@@ -15,18 +18,43 @@ export default function ArchiveScreen() {
     
     const tasks = useTaskStore(state => state.tasks);
     const updateTask = useTaskStore(state => state.updateTask);
-    const deleteTask = useTaskStore(state => state.deleteTask);
-    const enqueueOffline = useTaskStore(state => state.enqueueOffline);
+    const removeTask = useTaskStore(state => state.removeTask);
 
     const archivedTasks = tasks.filter(t => t.isArchived);
 
-    const handleRestore = (task: any) => {
+    const handleRestore = async (task: any) => {
+        const payload = { ...task, isArchived: false };
         updateTask(task.id, { isArchived: false });
-        enqueueOffline('update', { ...task, isArchived: false });
+        
+        const isOnline = useNetworkStore.getState().isOnline;
+        if (!isOnline) {
+            useOfflineQueue.getState().enqueue({ type: 'update-task', id: task.id, payload });
+        } else {
+            try {
+                await TaskService.updateTask(task.id, payload);
+            } catch (err: any) {
+                if (!err.response) {
+                    useOfflineQueue.getState().enqueue({ type: 'update-task', id: task.id, payload });
+                }
+            }
+        }
     };
 
-    const handleDelete = (id: number) => {
-        deleteTask(id);
+    const handleDelete = async (id: number) => {
+        removeTask(id);
+        
+        const isOnline = useNetworkStore.getState().isOnline;
+        if (!isOnline) {
+            useOfflineQueue.getState().enqueue({ type: 'delete-task', id });
+        } else {
+            try {
+                await TaskService.deleteTask(id);
+            } catch (err: any) {
+                if (!err.response) {
+                    useOfflineQueue.getState().enqueue({ type: 'delete-task', id });
+                }
+            }
+        }
     };
 
     return (
@@ -97,7 +125,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         flex: 1,
         textAlign: 'center',
-        fontSize: F.head,
+        fontSize: F.title,
         fontWeight: '800',
     },
     taskCard: {
