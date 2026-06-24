@@ -162,8 +162,11 @@ export const useFocusStore = create<FocusState>()(
       name: 'tazq-focus-storage',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
+        // NOTE: 'seconds' is intentionally NOT persisted.
+        // Persisting it caused AsyncStorage writes every second (via tick()),
+        // which caused severe CPU/thermal issues on iOS. Instead, we persist
+        // 'lastActiveAt' and recompute remaining time on rehydration.
         isActive: state.isActive,
-        seconds: state.seconds,
         totalSeconds: state.totalSeconds,
         currentTask: state.currentTask,
         lastActiveAt: state.lastActiveAt,

@@ -35,7 +35,7 @@ interface TaskState {
 
 export const useTaskStore = create<TaskState>()(persist((set, get) => ({
   tasks: [],
-  isLoading: true, // Start as loading to prevent empty-state flash on cold start
+  isLoading: false, // false: persisted tasks are available immediately on cold start
   dailyProgressText: '',
 
   setTasks: (tasks) => {
@@ -140,6 +140,26 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
 }), {
   name: 'tazq-task-store',
   storage: createJSONStorage(() => AsyncStorage),
+  // Only persist the minimum needed — exclude subtasks to keep the stored JSON small.
+  // Subtasks are re-fetched from the server on next online sync.
+  partialize: (state) => ({
+    tasks: state.tasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      dueDate: t.dueDate,
+      dueTime: t.dueTime,
+      isCompleted: t.isCompleted,
+      completedAt: t.completedAt,
+      priority: t.priority,
+      tags: t.tags,
+      recurrence: t.recurrence,
+      sortOrder: t.sortOrder,
+      isArchived: t.isArchived,
+      // subtasks intentionally omitted to keep storage lean
+    })),
+    dailyProgressText: state.dailyProgressText,
+  }),
   // Merge state carefully so offline tasks aren't wiped when reloading
   merge: (persisted: any, current) => {
     return { ...current, tasks: persisted?.tasks || [], dailyProgressText: persisted?.dailyProgressText || '' };
