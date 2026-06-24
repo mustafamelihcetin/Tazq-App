@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AuthService } from '../services/api';
 
 interface SeasonalPrefs {
   ramazan: boolean;
@@ -87,11 +88,36 @@ interface PrefsState {
   setAvatarBorderColor: (v: string) => void;
   setPlanIds: (mode: PlanMode, habitIds: string[], taskIds: number[]) => void;
   clearPlanIds: (mode: PlanMode) => void;
+  // Cihazlar arası eşitleme: seçili tercihleri backend'e gönderir / login sonrası geri yükler.
+  syncToCloud: () => Promise<void>;
+  hydrateFromCloud: (prefsJson?: string | null) => void;
 }
+
+// Buluta eşitlenecek tercih alanları. (motto/avatarBorderColor kendi backend kolonlarıyla
+// updateProfile üzerinden gider; soundEffects/dismissedBannerKey/examReviewShown cihaza özeldir.)
+const CLOUD_PREF_KEYS = [
+  'seasonal',
+  'planSpecs',
+  'productivityHour',
+  'weeklyNotification',
+  'morningBrief',
+  'eveningBrief',
+  'examPlanHabitIds', 'examPlanTaskIds',
+  'exam2PlanHabitIds', 'exam2PlanTaskIds',
+  'exam3PlanHabitIds', 'exam3PlanTaskIds',
+  'ramazanPlanHabitIds', 'ramazanPlanTaskIds',
+  'tezPlanHabitIds', 'tezPlanTaskIds',
+  'mulakatPlanHabitIds', 'mulakatPlanTaskIds',
+  'mulakat2PlanHabitIds', 'mulakat2PlanTaskIds',
+  'mulakat3PlanHabitIds', 'mulakat3PlanTaskIds',
+  'sporPlanHabitIds', 'sporPlanTaskIds',
+  'spor2PlanHabitIds', 'spor2PlanTaskIds',
+  'spor3PlanHabitIds', 'spor3PlanTaskIds',
+] as const;
 
 export const usePrefsStore = create<PrefsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       seasonal: {
         ramazan: false,
         examMode: false,
@@ -199,6 +225,33 @@ export const usePrefsStore = create<PrefsState>()(
           if (mode === 'spor3') return { spor3PlanHabitIds: [], spor3PlanTaskIds: [], planSpecs };
           return { ramazanPlanHabitIds: [], ramazanPlanTaskIds: [], planSpecs };
         });
+      },
+
+      syncToCloud: async () => {
+        const state = get() as any;
+        const snapshot: Record<string, any> = {};
+        for (const key of CLOUD_PREF_KEYS) snapshot[key] = state[key];
+        try {
+          await AuthService.updateProfile({ preferences: JSON.stringify(snapshot) });
+        } catch (err) {
+          // Çevrimdışı/başarısız: sessizce geç, tercihler lokalde zaten kalıcı.
+          console.log('[Prefs Sync] cloud push failed (will retry on next change)', err);
+        }
+      },
+
+      hydrateFromCloud: (prefsJson) => {
+        if (!prefsJson) return;
+        try {
+          const parsed = JSON.parse(prefsJson);
+          if (!parsed || typeof parsed !== 'object') return;
+          const patch: Record<string, any> = {};
+          for (const key of CLOUD_PREF_KEYS) {
+            if (parsed[key] !== undefined) patch[key] = parsed[key];
+          }
+          if (Object.keys(patch).length > 0) set(patch as any);
+        } catch (err) {
+          console.log('[Prefs Sync] hydrate parse failed', err);
+        }
       },
     }),
     {

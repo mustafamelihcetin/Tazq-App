@@ -120,9 +120,10 @@ function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrenc
 const MemoizedTaskItem = React.memo((props: any) => {
     const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, subtaskSaveTimers } = props;
     
+    const prefs = usePrefsStore();
     const modeInfo = useMemo(() => {
-        return getModeInfoForTask(task.id, usePrefsStore.getState(), theme);
-    }, [task.id, theme]);
+        return getModeInfoForTask(task.id, prefs, theme);
+    }, [task.id, theme, prefs]);
 
     const finalLeftColor = modeInfo?.color || priorityColor(task.priority);
 
@@ -133,13 +134,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                 disabled={isBulkMode}
                 showPeekHint={showSwipePeek && i === 0}
             >
-                <MotiView
-                    animate={{
-                        opacity: 1,
-                        scale: isBulkMode && !isSelected ? 0.96 : 1,
-                    }}
-                    transition={{ type: 'spring', damping: 14, stiffness: 150 }}
-                >
+                <View style={{ transform: [{ scale: isBulkMode && !isSelected ? 0.96 : 1 }] }}>
                     <Touchable
                         activeOpacity={0.9}
                         onPress={() => {
@@ -180,12 +175,12 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                     </MotiView>
                                     {task.tags && task.tags.includes('weight_entry') && (
                                         <View style={{ backgroundColor: theme.primary + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                            <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>{language === 'tr' ? 'KİLO' : 'WEIGHT'}</Text>
+                                            <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary }}>{language === 'tr' ? 'KİLO' : 'WEIGHT'}</Text>
                                         </View>
                                     )}
                                     {task.tags && task.tags.includes('auto_generated') && (
                                         <View style={{ backgroundColor: theme.tertiary + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                            <Text style={{ fontSize: 10, fontWeight: '700', color: theme.tertiary }}>{language === 'tr' ? 'OTO' : 'AUTO'}</Text>
+                                            <Text style={{ fontSize: 10, fontWeight: '600', color: theme.tertiary }}>{language === 'tr' ? 'OTO' : 'AUTO'}</Text>
                                         </View>
                                     )}
                                 </View>
@@ -199,7 +194,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                         {modeInfo && (
                                             <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: modeInfo.color + '1A', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
                                                 <Sparkles size={12} color={modeInfo.color} opacity={0.9} />
-                                                <Text style={[{ fontSize: 11 }, { color: modeInfo.color, fontWeight: '700' }]}>
+                                                <Text style={[{ fontSize: 11 }, { color: modeInfo.color, fontWeight: '600' }]}>
                                                     {language === 'tr' ? modeInfo.labelTr : modeInfo.labelEn}
                                                 </Text>
                                             </View>
@@ -288,7 +283,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                     {task.recurrence && task.recurrence !== 'None' && (
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm }}>
                                             <Repeat size={12} color={theme.secondary} />
-                                            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.secondary }}>
+                                            <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.secondary }}>
                                                 {(t as any)[`recurrence${task.recurrence}`] || task.recurrence}
                                             </Text>
                                         </View>
@@ -297,7 +292,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                             )}
                         </AnimatePresence>
                     </Touchable>
-                </MotiView>
+                </View>
             </SwipeableItem>
         </Animated.View>
     );
@@ -377,6 +372,14 @@ export default function ActionCenter() {
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+  useEffect(() => {
+    if (showSearch) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 150);
+    }
+  }, [showSearch]);
   const [sortBy, setSortBy] = useState<'priority' | 'date' | 'creation'>('creation');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
@@ -1051,20 +1054,39 @@ export default function ActionCenter() {
 
     try {
       if (editingId !== null) {
-        await TaskService.updateTask(editingId, payload);
-        updateTask(editingId, { ...payload, id: editingId });
-        
-        if (form.reminderEnabled && !payload.isCompleted) {
-            await scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language);
+        if (!isOnline) {
+          enqueueOffline({ type: 'update-task', id: editingId, payload });
+          updateTask(editingId, { ...payload, id: editingId } as any);
+          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          if (form.reminderEnabled && !payload.isCompleted) {
+              scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language);
+          } else {
+              cancelTaskNotification(editingId);
+          }
         } else {
-            await cancelTaskNotification(editingId);
+          await TaskService.updateTask(editingId, payload);
+          updateTask(editingId, { ...payload, id: editingId } as any);
+          if (form.reminderEnabled && !payload.isCompleted) {
+              scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language);
+          } else {
+              cancelTaskNotification(editingId);
+          }
         }
       } else {
-        const created = await TaskService.createTask(payload);
-        addTask({ ...created, title: form.title.trim() });
-        
-        if (created.id && form.reminderEnabled) {
-          await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
+        if (!isOnline) {
+          const tempId = -Date.now();
+          enqueueOffline({ type: 'create-task', tempId, payload });
+          addTask({ ...payload, id: tempId, title: form.title.trim() } as any);
+          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          if (form.reminderEnabled) {
+            scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
+          }
+        } else {
+          const created = await TaskService.createTask(payload);
+          addTask({ ...created, title: form.title.trim() } as any);
+          if (created.id && form.reminderEnabled) {
+            scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
+          }
         }
       }
       setModalVisible(false);
@@ -1072,7 +1094,18 @@ export default function ActionCenter() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
       if (!err.response) {
-        showToast(t.toastSaveFailed, 'error');
+        if (editingId !== null) {
+          enqueueOffline({ type: 'update-task', id: editingId, payload });
+          updateTask(editingId, { ...payload, id: editingId } as any);
+          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          setModalVisible(false);
+        } else {
+          const tempId = -Date.now();
+          enqueueOffline({ type: 'create-task', tempId, payload });
+          addTask({ ...payload, id: tempId, title: form.title.trim() } as any);
+          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          setModalVisible(false);
+        }
       } else if (err.response?.status === 429) {
         const msg = language === 'tr' ? 'Maksimum görev sayısına ulaştın (200). Eski görevleri tamamla veya sil.' : 'Task limit reached (200). Complete or delete existing tasks.';
         Alert.alert(language === 'tr' ? 'Limit Doldu' : 'Limit Reached', msg);
@@ -1263,32 +1296,22 @@ export default function ActionCenter() {
                   <Text 
                     numberOfLines={1} 
                     adjustsFontSizeToFit
-                    style={{ fontSize: 20, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}
+                    style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}
                   >
-                      {isBulkMode ? (language === 'tr' ? 'Seçim' : 'Select') : t.actionCenter}
+                      {t.actionCenter}
                   </Text>
               </View>
 
               {/* Right Side Buttons (Fixed Width for Perfect Centering) */}
               <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
                   {isBulkMode ? (
-                      <>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
                           {selectedIds.size > 0 && (
-                              <View style={[styles.selBadge, { backgroundColor: theme.primary, marginRight: 8 }]}>
-                                  <Text style={{ color: theme.onPrimary, fontSize: 11, fontWeight: '900' }}>{selectedIds.size}</Text>
+                              <View style={[styles.selBadge, { backgroundColor: theme.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }]}>
+                                  <Text style={{ color: theme.onPrimary, fontSize: 13, fontWeight: '700' }}>{selectedIds.size}</Text>
                               </View>
                           )}
-                          <Touchable
-                              onPress={() => {
-                                  const allSelected = filteredTasks.every(task => selectedIds.has(task.id));
-                                  setSelectedIds(allSelected ? new Set() : new Set(filteredTasks.map(task => task.id)));
-                                  import('expo-haptics').then(Haptics => Haptics.selectionAsync());
-                              }}
-                              style={styles.headerIconBtn}
-                          >
-                              <CheckSquare size={22} color={filteredTasks.every(task => selectedIds.has(task.id)) ? theme.primary : theme.onSurface} />
-                          </Touchable>
-                      </>
+                      </View>
                   ) : (
                       <>
                           <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn}>
@@ -1328,7 +1351,7 @@ export default function ActionCenter() {
                     onPress={() => { setHideCompleted(v => !v); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
                 >
-                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '700' }]}>
+                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
                         {language === 'tr' ? 'Tamamlananları Gizle' : 'Hide Completed'}
                     </Text>
                     {hideCompleted && <Check size={18} color={theme.primary} />}
@@ -1339,7 +1362,7 @@ export default function ActionCenter() {
                     onPress={() => { setShowSortMenu(false); router.push('/archive'); }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
                 >
-                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '700' }]}>
+                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
                         {language === 'tr' ? 'Arşiv Klasörü' : 'Archive Folder'}
                     </Text>
                     <Archive size={18} color={theme.onSurfaceVariant} />
@@ -1347,7 +1370,7 @@ export default function ActionCenter() {
 
                 {/* Sorting Options */}
                 <View style={{ paddingHorizontal: S.lg, paddingVertical: S.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
-                   <Text style={{ fontSize: 11, fontWeight: '800', opacity: 0.5, letterSpacing: 1 }}>{language === 'tr' ? 'SIRALAMA' : 'SORTING'}</Text>
+                   <Text style={{ fontSize: 11, fontWeight: '600', opacity: 0.5, letterSpacing: 1 }}>{language === 'tr' ? 'SIRALAMA' : 'SORTING'}</Text>
                 </View>
 
                 {([['creation', t.sortByCreation], ['priority', t.sortByPriority], ['date', t.sortByDate]] as const).map(([key, label]) => (
@@ -1370,6 +1393,56 @@ export default function ActionCenter() {
 
 
 
+        
+        <AnimatePresence>
+          {showSearch && (
+            <MotiView
+              from={{ opacity: 0, translateY: -8, scale: 0.95 }}
+              animate={{ opacity: 1, translateY: 0, scale: 1 }}
+              exit={{ opacity: 0, translateY: -8, scale: 0.95 }}
+              style={{ 
+                  position: 'absolute', top: insets.top + 70, left: S.lg, right: S.lg, zIndex: 90,
+                  shadowColor: isDark ? '#000' : theme.onSurface,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: isDark ? 0.3 : 0.08,
+                  shadowRadius: 16,
+                  elevation: 8
+              }}
+            >
+              <View style={[styles.searchBar, { 
+                  overflow: 'hidden', 
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
+                  backgroundColor: Platform.OS === 'android' ? (isDark ? theme.surfaceContainerHighest : '#FFFFFF') : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)') 
+                }]}>
+                {Platform.OS !== 'android' && (
+                  <BlurView
+                      intensity={isDark ? 40 : 20}
+                      tint={isDark ? 'dark' : 'light'}
+                      style={StyleSheet.absoluteFill}
+                  />
+                )}
+                <Search size={18} color={theme.onSurfaceVariant} opacity={0.6} />
+                <TextInput
+                  ref={searchInputRef}
+                  style={[styles.searchInput, { color: theme.onSurface }]}
+                  placeholder={t.searchPlaceholder}
+                  placeholderTextColor={theme.onSurfaceVariant + '80'}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoFocus
+                  returnKeyType="search"
+                />
+                {searchQuery.length > 0 && (
+                  <Touchable onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <X size={16} color={theme.onSurfaceVariant} />
+                  </Touchable>
+                )}
+              </View>
+            </MotiView>
+          )}
+        </AnimatePresence>
+        
         <MotiView 
           key="list" 
           from={{ opacity: 0, translateY: 20 }} 
@@ -1391,6 +1464,7 @@ export default function ActionCenter() {
             extraData={{ highlightedId, isBulkMode, selectedIds, completingIds, language, expandedId }}
             ListHeaderComponent={() => (
         <React.Fragment>
+            <MotiView animate={{ height: showSearch ? 52 : 0 }} transition={{ type: 'timing', duration: 250 }} />
             <View style={{ paddingBottom: S.md }}>
 <Text style={[styles.subHeadline, { color: theme.onSurfaceVariant }]}>{t.allTasksReady}</Text>
 
@@ -1408,10 +1482,10 @@ export default function ActionCenter() {
               activeOpacity={0.7}
             >
               <TrendingUp size={13} color={filter === 'done' ? theme.tertiary : theme.onSurfaceVariant} opacity={0.7} />
-              <Text style={{ fontSize: F.subhead, fontWeight: '900', color: filter === 'done' ? theme.tertiary : theme.onSurface }}>
+              <Text style={{ fontSize: F.subhead, fontWeight: '600', color: filter === 'done' ? theme.tertiary : theme.onSurface }}>
                 {tasks.filter(tk => tk.isCompleted).length}
               </Text>
-              <Text style={{ fontSize: F.caption, fontWeight: '700', color: filter === 'done' ? theme.tertiary : theme.onSurfaceVariant, opacity: 0.75, flex: 1 }} numberOfLines={1}>
+              <Text style={{ fontSize: F.caption, fontWeight: '600', color: filter === 'done' ? theme.tertiary : theme.onSurfaceVariant, opacity: 0.75, flex: 1 }} numberOfLines={1}>
                 {t.completedTasks}
               </Text>
             </Touchable>
@@ -1427,10 +1501,10 @@ export default function ActionCenter() {
               activeOpacity={0.7}
             >
               <Clock size={13} color={filter === 'all' ? theme.primary : theme.onSurfaceVariant} opacity={0.7} />
-              <Text style={{ fontSize: F.subhead, fontWeight: '900', color: filter === 'all' ? theme.primary : theme.onSurface }}>
+              <Text style={{ fontSize: F.subhead, fontWeight: '600', color: filter === 'all' ? theme.primary : theme.onSurface }}>
                 {tasks.filter(tk => !tk.isCompleted).length}
               </Text>
-              <Text style={{ fontSize: F.caption, fontWeight: '700', color: filter === 'all' ? theme.primary : theme.onSurfaceVariant, opacity: 0.75, flex: 1 }} numberOfLines={1}>
+              <Text style={{ fontSize: F.caption, fontWeight: '600', color: filter === 'all' ? theme.primary : theme.onSurfaceVariant, opacity: 0.75, flex: 1 }} numberOfLines={1}>
                 {t.pendingTasks}
               </Text>
             </Touchable>
@@ -1495,7 +1569,7 @@ export default function ActionCenter() {
 
           {/* Task List */}
           
-<View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: S.md }}>
+<View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: -12 }}>
                 <Text
                     style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, flex: 1 }]}
                     numberOfLines={1}
@@ -1577,85 +1651,77 @@ export default function ActionCenter() {
         </MotiView>
       </SafeAreaView>
 
-      {/* Bulk Action Bar — floating pill */}
+            {/* Minimalist Premium Bulk Action Pill */}
       <AnimatePresence>
         {isBulkMode && (
           <MotiView
-            from={{ translateY: 80, opacity: 0, scale: 0.95 }}
+            from={{ translateY: 80, opacity: 0, scale: 0.9 }}
             animate={{ translateY: 0, opacity: 1, scale: 1 }}
-            exit={{ translateY: 80, opacity: 0, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 22, stiffness: 260 }}
+            exit={{ translateY: 80, opacity: 0, scale: 0.9 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
             style={[
-              styles.bulkPill,
               {
+                position: 'absolute',
                 bottom: 90 + insets.bottom,
-                borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)',
-                shadowColor: isDark ? theme.primary : '#000',
-              },
+                alignSelf: 'center',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 16,
+                paddingHorizontal: 24,
+                paddingVertical: 14,
+                borderRadius: 999,
+                backgroundColor: isDark ? 'rgba(30,30,30,0.85)' : 'rgba(255,255,255,0.85)',
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.15,
+                shadowRadius: 20,
+                elevation: 10,
+                zIndex: 100
+              }
             ]}
           >
             {Platform.OS !== 'android' && (
-              <BlurView
-                intensity={isDark ? 50 : 70}
-                tint={isDark ? 'dark' : 'light'}
-                style={StyleSheet.absoluteFill}
-              />
+              <BlurView intensity={isDark ? 30 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFillObject} />
             )}
-
-            {/* Count */}
-            <View style={styles.bulkCountRow}>
-              <View style={[styles.bulkDot, { backgroundColor: selectedIds.size > 0 ? theme.primary : theme.onSurfaceVariant }]} />
-              <Text style={[styles.bulkCountText, { color: theme.onSurface }]}>
-                {selectedIds.size > 0
-                  ? `${selectedIds.size} ${language === 'tr' ? 'seçildi' : 'selected'}`
-                  : (language === 'tr' ? 'Seç' : 'Select')}
-              </Text>
-            </View>
-
-            <View style={[styles.bulkSep, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }]} />
-
-            {/* Edit — only active when exactly 1 selected */}
+            
+            {/* Edit (only if 1 selected and not mode task) */}
             <Touchable
               onPress={() => {
-                if (selectedIds.size !== 1) {
-                  showToast(language === 'tr' ? 'Düzenleme için tek görev seçin' : 'Select one task to edit', 'info');
-                  return;
-                }
+                if (selectedIds.size !== 1) return;
                 const id = Array.from(selectedIds)[0];
+                const modeInfo = getModeInfoForTask(id, usePrefsStore.getState(), theme);
+                if (modeInfo) {
+                    import('expo-haptics').then(Haptics => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
+                    return;
+                }
                 setIsBulkMode(false);
                 setSelectedIds(new Set());
                 openEdit(id);
               }}
-              style={[
-                styles.bulkIconBtn,
-                { backgroundColor: selectedIds.size === 1 ? theme.primary + '1A' : 'transparent' },
-              ]}
+              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: selectedIds.size === 1 && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme) ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
             >
-              <Pencil size={17} color={selectedIds.size === 1 ? theme.primary : theme.onSurfaceVariant + '55'} />
+              <Pencil size={20} color={selectedIds.size === 1 && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme) ? theme.onSurface : theme.onSurfaceVariant + '40'} />
             </Touchable>
 
             {/* Complete */}
             <Touchable
               onPress={handleBulkComplete}
               disabled={selectedIds.size === 0}
-              style={[
-                styles.bulkIconBtn,
-                { backgroundColor: selectedIds.size > 0 ? theme.success + '1A' : 'transparent' },
-              ]}
+              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: selectedIds.size > 0 ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
             >
-              <CheckCircle2 size={17} color={selectedIds.size > 0 ? theme.success : theme.onSurfaceVariant + '55'} />
+              <CheckCircle2 size={22} color={selectedIds.size > 0 ? theme.success : theme.onSurfaceVariant + '40'} />
             </Touchable>
 
             {/* Delete */}
             <Touchable
               onPress={handleBulkDelete}
               disabled={selectedIds.size === 0}
-              style={[
-                styles.bulkIconBtn,
-                { backgroundColor: selectedIds.size > 0 ? theme.priorityHigh + '1A' : 'transparent' },
-              ]}
+              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: selectedIds.size > 0 ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
             >
-              <Trash2 size={17} color={selectedIds.size > 0 ? theme.priorityHigh : theme.onSurfaceVariant + '55'} />
+              <Trash2 size={20} color={selectedIds.size > 0 ? theme.priorityHigh : theme.onSurfaceVariant + '40'} />
             </Touchable>
           </MotiView>
         )}
@@ -1721,7 +1787,7 @@ export default function ActionCenter() {
                         ].map((chip) => (
                             <View key={chip.text} style={{ backgroundColor: theme.primary + '14', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                                 {chip.icon}
-                                <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary, letterSpacing: 0.3 }}>{chip.text}</Text>
+                                <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary, letterSpacing: 0.3 }}>{chip.text}</Text>
                             </View>
                         ))}
                     </View>
@@ -1757,7 +1823,7 @@ export default function ActionCenter() {
                                 <MotiText
                                     from={{ opacity: 0, translateY: -5 }}
                                     animate={{ opacity: 1, translateY: 0 }}
-                                    style={{ color: theme.primary, fontSize: F.caption, marginTop: S.sm, marginLeft: S.md, fontWeight: '800', letterSpacing: 0.5 }}
+                                    style={{ color: theme.primary, fontSize: F.caption, marginTop: S.sm, marginLeft: S.md, fontWeight: '600', letterSpacing: 0.5 }}
                                 >
                                     {nlpHint}
                                 </MotiText>
@@ -1768,7 +1834,7 @@ export default function ActionCenter() {
                                     style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm, marginLeft: S.md }}
                                 >
                                     <Sparkles size={11} color={theme.primary} />
-                                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700', opacity: 0.75 }}>
+                                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '600', opacity: 0.75 }}>
                                         {language === 'tr'
                                             ? '"yarın", "acil", "hatırlatıcı" gibi kelimeler otomatik algılanır'
                                             : '"tomorrow", "urgent", "reminder" are auto-detected'}
@@ -1800,7 +1866,7 @@ export default function ActionCenter() {
                         {!showDatePicker && !showTimePicker && (
                           <View style={styles.dateTimeRow}>
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }]}>{t.dueDate.toUpperCase()}</Text>
+                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.md }]}>{t.dueDate.toUpperCase()}</Text>
                                 <Touchable
                                     onPress={openDatePicker}
                                     style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
@@ -1812,7 +1878,7 @@ export default function ActionCenter() {
                                 </Touchable>
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }]}>{t.dueTime.toUpperCase()}</Text>
+                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.md }]}>{t.dueTime.toUpperCase()}</Text>
                                 <Touchable
                                     onPress={openTimePicker}
                                     style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
@@ -1875,12 +1941,12 @@ export default function ActionCenter() {
                             </View>
                             {dateError && (
                               <MotiView from={{ opacity: 0, translateY: -4 }} animate={{ opacity: 1, translateY: 0 }} style={[{ backgroundColor: theme.error + '15', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, marginBottom: S.sm, flexDirection: 'row', alignItems: 'center', gap: S.sm }]}>
-                                <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '700' }}>{t.invalidDate}</Text>
+                                <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '600' }}>{t.invalidDate}</Text>
                               </MotiView>
                             )}
                             <View style={styles.pickerActions}>
                               <Touchable onPress={() => setShowDatePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></Touchable>
-                              <Touchable onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '900' }]}>{t.save}</Text></Touchable>
+                              <Touchable onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '600' }]}>{t.save}</Text></Touchable>
                             </View>
                           </View>
                         )}
@@ -1906,7 +1972,7 @@ export default function ActionCenter() {
                             </View>
                             <View style={styles.pickerActions}>
                               <Touchable onPress={() => setShowTimePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></Touchable>
-                              <Touchable onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '900' }]}>{t.save}</Text></Touchable>
+                              <Touchable onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '600' }]}>{t.save}</Text></Touchable>
                             </View>
                           </View>
                         )}
@@ -1987,7 +2053,7 @@ export default function ActionCenter() {
                             }]}
                         >
                             <Bell size={18} color={form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant} />
-                            <Text style={{ flex: 1, fontSize: F.body, fontWeight: '700', color: form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant, marginLeft: S.sm }}>
+                            <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant, marginLeft: S.sm }}>
                                 {t.reminderLabel}
                             </Text>
                             <View style={{
@@ -2088,12 +2154,12 @@ export default function ActionCenter() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.lg, paddingVertical: S.sm },
   backBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontWeight: '900', letterSpacing: -0.5, flex: 1, textAlign: 'center' },
+  headerTitle: { fontWeight: '600', letterSpacing: -0.5, flex: 1, textAlign: 'center' },
   headerIconBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   selBadge: { minWidth: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   aiBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: R.lg, borderWidth: B.thin, paddingHorizontal: S.md, gap: S.sm, height: verticalScale(44) },
-  searchInput: { flex: 1, fontWeight: '600', fontSize: F.body },
+  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: S.lg, gap: S.sm, height: verticalScale(46) },
+  searchInput: { flex: 1, fontWeight: '400', fontSize: F.body, letterSpacing: -0.2 },
   sortMenu: { position: 'absolute', top: verticalScale(56), right: S.lg, zIndex: 200, borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', minWidth: scale(180), shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
   sortOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth },
   bulkPill: {
@@ -2104,34 +2170,34 @@ const styles = StyleSheet.create({
   },
   bulkCountRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 },
   bulkDot: { width: scale(7), height: scale(7), borderRadius: scale(4) },
-  bulkCountText: { fontSize: F.body, fontWeight: '800' },
+  bulkCountText: { fontSize: F.body, fontWeight: '600' },
   bulkSep: { width: 1, height: verticalScale(22), marginHorizontal: S.sm },
   bulkIconBtn: { width: scale(40), height: scale(40), borderRadius: scale(20), alignItems: 'center', justifyContent: 'center' },
-  headline: { fontWeight: '900', letterSpacing: -1.5 },
+  headline: { fontWeight: '600', letterSpacing: -1.5 },
   subHeadline: { fontWeight: '600', opacity: 0.7, marginTop: S.xs },
   statsGrid: { flexDirection: 'row' },
-  statLabel: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1 },
+  statLabel: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1 },
   statValueRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginVertical: S.xs },
-  statValue: { fontWeight: '900', letterSpacing: -1 },
+  statValue: { fontWeight: '600', letterSpacing: -1 },
   trendBadge: { padding: S.xs, borderRadius: R.sm },
-  statSub: { fontWeight: '700' },
+  statSub: { fontWeight: '600' },
   filterScroll: { marginBottom: S.lg },
   filterChip: { borderRadius: 100 },
-  filterChipText: { fontWeight: '800' },
+  filterChipText: { fontWeight: '600' },
   listSection: { flex: 1 },
-  sectionTitle: { fontWeight: '900', marginBottom: S.md },
-  taskCard: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', borderWidth: B.thin },
+  sectionTitle: { fontWeight: '600', marginBottom: S.md },
+  taskCard: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', borderWidth: 0 },
   priorityIndicator: { height: verticalScale(32), borderRadius: R.sm, marginRight: S.md },
   taskContent: { flex: 1 },
-  taskTitleText: { fontWeight: '700' },
+  taskTitleText: { fontWeight: '600' },
   taskMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   taskMetaText: { fontWeight: '600' },
   taskActions: { flexDirection: 'row', alignItems: 'center' },
   editBtn: { borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
   checkIcon: { borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
   fab: { position: 'absolute', alignItems: 'center', justifyContent: 'center', elevation: 10, zIndex: 100 },
-  emptyState: { padding: S.xl, alignItems: 'center', gap: 6 },
-  emptyTitle: { fontSize: F.subhead, fontWeight: '800', letterSpacing: -0.3 },
+  emptyState: { padding: S.xl, alignItems: 'center', gap: 16 },
+  emptyTitle: { fontSize: F.subhead, fontWeight: '600', letterSpacing: -0.3 },
   emptyText: { fontSize: F.body, fontWeight: '500', opacity: 0.6, textAlign: 'center' },
   deleteAction: {
     width: scale(80),
@@ -2143,13 +2209,13 @@ const styles = StyleSheet.create({
     paddingLeft: S.sm,
   },
   categoryBadge: { paddingHorizontal: S.sm, paddingVertical: 2, borderRadius: R.sm },
-  categoryBadgeText: { fontSize: moderateScale(10), fontWeight: '800', textTransform: 'lowercase' },
+  categoryBadgeText: { fontSize: moderateScale(10), fontWeight: '600', textTransform: 'lowercase' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: { width: '100%' },
   sheet: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, borderWidth: B.thin, borderBottomWidth: 0 },
   handle: { width: scale(40), height: scale(4), borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sheetTitle: { fontWeight: '900', letterSpacing: -0.5 },
+  sheetTitle: { fontWeight: '600', letterSpacing: -0.5 },
   closeModalBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   formContainer: { paddingHorizontal: 4 },
   section: { marginBottom: S.md },
@@ -2158,30 +2224,30 @@ const styles = StyleSheet.create({
   modalTextArea: { alignItems: 'flex-start' },
   dateTimeRow: { flexDirection: 'row', gap: S.sm },
   dateTimeChip: { flex: 1, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, gap: scale(10) },
-  chipText: { flex: 1, fontWeight: '700' },
-  optionLabel: { fontWeight: '900', letterSpacing: 1.2, marginBottom: S.sm, marginLeft: S.xs, opacity: 0.6 },
+  chipText: { flex: 1, fontWeight: '600' },
+  optionLabel: { fontWeight: '600', letterSpacing: 1.2, marginBottom: S.sm, marginLeft: S.xs, opacity: 0.6 },
   priorityRow: { flexDirection: 'row' },
   priorityTab: { flex: 1, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
-  priorityTabText: { fontWeight: '800' },
+  priorityTabText: { fontWeight: '600' },
   modalSaveBtn: { borderRadius: R.lg, overflow: 'hidden', marginTop: S.lg, marginBottom: S.xl },
   modalSaveGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, height: verticalScale(56) },
-  modalSaveText: { color: 'white', fontWeight: '900', letterSpacing: -0.5, textAlign: 'center', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
+  modalSaveText: { color: 'white', fontWeight: '600', letterSpacing: -0.5, textAlign: 'center', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
   inlinePicker: { borderRadius: R.lg, padding: S.md, alignItems: 'center', borderWidth: B.thin },
-  inlinePickerTitle: { fontSize: F.body, fontWeight: '900', marginBottom: S.md, letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 },
+  inlinePickerTitle: { fontSize: F.body, fontWeight: '600', marginBottom: S.md, letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 },
   pickerRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.md },
   pickerCol: { alignItems: 'center', minWidth: scale(60) },
-  pickerColLabel: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1, marginBottom: S.sm, opacity: 0.5 },
+  pickerColLabel: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1, marginBottom: S.sm, opacity: 0.5 },
   pickerArrow: { padding: S.sm },
-  pickerArrowText: { fontSize: F.body, fontWeight: '900' },
-  pickerValue: { fontSize: moderateScale(32), fontWeight: '900', letterSpacing: -1, lineHeight: verticalScale(40) },
-  pickerColon: { fontSize: moderateScale(28), fontWeight: '900', marginTop: S.sm },
+  pickerArrowText: { fontSize: F.body, fontWeight: '600' },
+  pickerValue: { fontSize: moderateScale(32), fontWeight: '600', letterSpacing: -1, lineHeight: verticalScale(40) },
+  pickerColon: { fontSize: moderateScale(28), fontWeight: '600', marginTop: S.sm },
   pickerActions: { flexDirection: 'row', gap: S.sm, width: '100%', marginTop: S.sm },
   pickerCancelBtn: { flex: 1, borderRadius: R.md, borderWidth: B.medium, height: verticalScale(48), alignItems: 'center', justifyContent: 'center' },
   pickerConfirmBtn: { flex: 1, borderRadius: R.md, height: verticalScale(48), alignItems: 'center', justifyContent: 'center' },
-  pickerBtnText: { fontWeight: '700', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
+  pickerBtnText: { fontWeight: '600', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
 
     floatingTopBar: { borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin },
-    lightTopBarShadow: { shadowColor: '#2d2f31', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 8 },
+    lightTopBarShadow: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 8 },
     darkTopBarShadow: { shadowColor: '#3367ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 },
     topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
 });

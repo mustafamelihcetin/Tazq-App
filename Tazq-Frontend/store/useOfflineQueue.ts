@@ -6,7 +6,8 @@ export type OfflineOp =
   | { type: 'toggle-task'; id: number; isCompleted: boolean; completedAt: string | null }
   | { type: 'delete-task'; id: number }
   | { type: 'reorder-tasks'; ids: number[] }
-  | { type: 'update-task'; id: number; payload: Record<string, any> };
+  | { type: 'update-task'; id: number; payload: Record<string, any> }
+  | { type: 'create-task'; tempId: number; payload: Record<string, any> };
 
 interface OfflineQueueState {
   ops: OfflineOp[];

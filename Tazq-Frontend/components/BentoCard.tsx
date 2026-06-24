@@ -27,13 +27,16 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
         styles.card,
         {
           backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
-          borderColor: isDark ? theme.outline : 'rgba(0,0,0,0.05)',
+          borderColor: isDark ? theme.outline : 'transparent',
+          borderWidth: isDark ? B.thin : 0,
           ...(Platform.OS === 'ios' ? {
-            shadowColor: isDark ? theme.primary : '#000',
-            shadowOpacity: isDark ? 0.12 : 0.05,
-            shadowOffset: { width: 0, height: 8 },
-            shadowRadius: 24,
-          } : {}),
+            shadowColor: isDark ? '#000' : '#000',
+            shadowOpacity: isDark ? 0.2 : 0.04,
+            shadowOffset: { width: 0, height: 6 },
+            shadowRadius: 16,
+          } : {
+            elevation: isDark ? 2 : 1,
+          }),
           padding: S.lg,
           borderRadius: R.lg,
         },
@@ -59,7 +62,6 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: B.thin,
     overflow: 'hidden',
   },
 });

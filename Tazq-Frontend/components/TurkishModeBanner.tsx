@@ -350,7 +350,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
         <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
           {/* AI text suggest */}
           <View style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, padding: S.md, marginBottom: S.md, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
-            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.xs }}>
+            <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, marginBottom: S.xs }}>
               {tr ? '✦ Planını birkaç cümleyle anlat, önerelim' : '✦ Describe your plan, we\'ll suggest habits & tasks'}
             </Text>
             <TextInput
@@ -367,7 +367,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               style={{ alignSelf: 'flex-end', backgroundColor: modeAccent, borderRadius: R.full, paddingHorizontal: S.md, paddingVertical: S.xs + 1, marginTop: S.xs }}
               activeOpacity={0.8}
             >
-              <Text style={{ color: '#fff', fontSize: F.caption, fontWeight: '800' }}>{tr ? 'Öner' : 'Suggest'}</Text>
+              <Text style={{ color: '#fff', fontSize: F.caption, fontWeight: '500' }}>{tr ? 'Öner' : 'Suggest'}</Text>
             </Touchable>
           </View>
 
@@ -389,7 +389,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 onChangeText={v => setCustomHabits(prev => { const n = [...prev]; n[idx] = { ...n[idx], nameTr: v, name: v }; return n; })}
                 placeholder={tr ? 'Alışkanlık adı...' : 'Habit name...'}
                 placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.28)'}
-                style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '600', height: 34, paddingVertical: 0, borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }}
+                style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '500', height: 34, paddingVertical: 0, borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }}
                 returnKeyType="next"
                 underlineColorAndroid="transparent"
               />
@@ -406,7 +406,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               activeOpacity={0.7}
             >
               <Text style={{ fontSize: 18, color: modeAccent, lineHeight: 22 }}>+</Text>
-              <Text style={{ fontSize: F.caption, fontWeight: '700', color: modeAccent }}>{tr ? 'Alışkanlık Ekle' : 'Add Habit'}</Text>
+              <Text style={{ fontSize: F.caption, fontWeight: '600', color: modeAccent }}>{tr ? 'Alışkanlık Ekle' : 'Add Habit'}</Text>
             </Touchable>
           )}
 
@@ -422,7 +422,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   onChangeText={v => setCustomTasks(prev => { const n = [...prev]; n[idx] = { ...n[idx], titleTr: v, titleEn: v }; return n; })}
                   placeholder={tr ? 'Görev başlığı...' : 'Task title...'}
                   placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.28)'}
-                  style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '600', height: 34, paddingVertical: 0, borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }}
+                  style={{ flex: 1, color: theme.onSurface, fontSize: F.body, fontWeight: '500', height: 34, paddingVertical: 0, borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }}
                   returnKeyType="next"
                   underlineColorAndroid="transparent"
                 />
@@ -441,7 +441,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                       style={{ paddingHorizontal: S.sm, paddingVertical: 3, borderRadius: R.sm, backgroundColor: t.priority === p ? pColor + '20' : 'transparent', borderWidth: B.thin, borderColor: t.priority === p ? pColor + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
                       activeOpacity={0.7}
                     >
-                      <Text style={{ fontSize: 10, fontWeight: '800', color: t.priority === p ? pColor : theme.onSurfaceVariant }}>{pLabel}</Text>
+                      <Text style={{ fontSize: 10, fontWeight: '500', color: t.priority === p ? pColor : theme.onSurfaceVariant }}>{pLabel}</Text>
                     </Touchable>
                   );
                 })}
@@ -455,13 +455,13 @@ export const TurkishModeBanner: React.FC<Props> = ({
               activeOpacity={0.7}
             >
               <Text style={{ fontSize: 18, color: modeAccent, lineHeight: 22 }}>+</Text>
-              <Text style={{ fontSize: F.caption, fontWeight: '700', color: modeAccent }}>{tr ? 'Görev Ekle' : 'Add Task'}</Text>
+              <Text style={{ fontSize: F.caption, fontWeight: '600', color: modeAccent }}>{tr ? 'Görev Ekle' : 'Add Task'}</Text>
             </Touchable>
           )}
 
           {/* Daily goal picker */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm, paddingTop: S.sm, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
-            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, flex: 1 }}>
+            <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, flex: 1 }}>
               {tr ? 'Günlük odak' : 'Daily focus'}
             </Text>
             {[30, 45, 60, 90, 120].map(m => (
@@ -471,7 +471,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 style={{ paddingHorizontal: S.xs + 2, paddingVertical: 3, borderRadius: R.sm, backgroundColor: customGoal === m ? modeAccent + '20' : 'transparent', borderWidth: B.thin, borderColor: customGoal === m ? modeAccent + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
                 activeOpacity={0.7}
               >
-                <Text style={{ fontSize: 10, fontWeight: '800', color: customGoal === m ? modeAccent : theme.onSurfaceVariant }}>{m}dk</Text>
+                <Text style={{ fontSize: 10, fontWeight: '500', color: customGoal === m ? modeAccent : theme.onSurfaceVariant }}>{m}dk</Text>
               </Touchable>
             ))}
           </View>
@@ -733,7 +733,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 {(tr ? mode.tipTr : mode.tipEn) ? (
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.sm, backgroundColor: modeAccent + '12', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm + 1, marginBottom: S.sm, borderWidth: B.thin, borderColor: modeAccent + '28' }}>
                     <Text style={{ fontSize: 13 }}>💡</Text>
-                    <Text style={{ flex: 1, fontSize: F.caption, fontWeight: '600', color: modeAccent, lineHeight: 17, opacity: 0.95 }}>
+                    <Text style={{ flex: 1, fontSize: F.caption, fontWeight: '500', color: modeAccent, lineHeight: 17, opacity: 0.95 }}>
                       {tr ? mode.tipTr : mode.tipEn}
                     </Text>
                   </View>
@@ -761,7 +761,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                       {isRecommended && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: S.sm, backgroundColor: modeAccent + '20', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 4, alignSelf: 'flex-start' }}>
                           <Star size={11} color={modeAccent} fill={modeAccent} strokeWidth={0} />
-                          <Text style={{ fontSize: 10, fontWeight: '900', color: modeAccent, letterSpacing: 0.5 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '600', color: modeAccent, letterSpacing: 0.5 }}>
                             {tr ? `${mode.labelTr.split(' ')[0]} İÇİN ÖNERİLEN` : `RECOMMENDED FOR ${mode.labelEn.split(' ')[0].toUpperCase()}`}
                           </Text>
                         </View>
@@ -780,13 +780,13 @@ export const TurkishModeBanner: React.FC<Props> = ({
                         {tpl.habits.slice(0, 4).map((h) => (
                           <View key={h.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: h.color + '18', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 3 }}>
                             {renderModeEmojiIcon(h.emoji, 10, h.color)}
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: h.color, letterSpacing: 0.2 }}>{tr ? h.nameTr : h.name}</Text>
+                            <Text style={{ fontSize: 10, fontWeight: '600', color: h.color, letterSpacing: 0.2 }}>{tr ? h.nameTr : h.name}</Text>
                           </View>
                         ))}
                         {tpl.tasks.length > 0 && (
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: modeAccent + '12', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 3 }}>
                             <Text style={{ fontSize: 10 }}>✓</Text>
-                            <Text style={{ fontSize: 10, fontWeight: '700', color: modeAccent, letterSpacing: 0.2 }}>{tpl.tasks.length} {tr ? 'görev' : 'tasks'}</Text>
+                            <Text style={{ fontSize: 10, fontWeight: '600', color: modeAccent, letterSpacing: 0.2 }}>{tpl.tasks.length} {tr ? 'görev' : 'tasks'}</Text>
                           </View>
                         )}
                       </View>
@@ -812,7 +812,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     activeOpacity={0.75}
                   >
                     <Text style={{ fontSize: 24, marginBottom: S.xs }}>✏️</Text>
-                    <Text style={{ fontSize: F.body, fontWeight: '800', color: theme.onSurface }}>
+                    <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurface }}>
                       {tr ? 'Kendi Planını Oluştur' : 'Build Your Own Plan'}
                     </Text>
                     <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, marginTop: 2, textAlign: 'center' }}>
@@ -934,18 +934,18 @@ const styles = StyleSheet.create({
   },
   bannerLeft: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 },
   bannerEmoji: { fontSize: 22 },
-  bannerTitle: { fontSize: F.body, fontWeight: '700' },
-  bannerSub: { fontSize: F.caption, fontWeight: '600', marginTop: 1 },
+  bannerTitle: { fontSize: F.body, fontWeight: '600' },
+  bannerSub: { fontSize: F.caption, fontWeight: '500', marginTop: 1 },
   bannerRight: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   planBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: S.sm + 2, paddingVertical: S.xs + 1, borderRadius: R.full },
-  planBtnText: { color: '#fff', fontSize: F.caption, fontWeight: '800' },
+  planBtnText: { color: '#fff', fontSize: F.caption, fontWeight: '500' },
   dismissBtn: { padding: 2 },
   sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: B.thin, paddingHorizontal: S.lg },
   dragHandle: { paddingTop: 12, paddingBottom: 8, alignItems: 'center' },
   handle: { width: 36, height: 4, borderRadius: 2 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.lg },
   sheetEmoji: { fontSize: 36 },
-  sheetTitle: { fontSize: F.title, fontWeight: '800' },
+  sheetTitle: { fontSize: F.title, fontWeight: '500' },
   sheetSub: { fontSize: F.caption, fontWeight: '500', marginTop: 2 },
   // Progress summary
   progressRow: {
@@ -953,51 +953,51 @@ const styles = StyleSheet.create({
     borderWidth: B.thin, marginBottom: S.lg, paddingVertical: S.md,
   },
   progressStat: { flex: 1, alignItems: 'center', gap: 2 },
-  progressNum: { fontSize: F.title, fontWeight: '900' },
-  progressLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.3, textAlign: 'center' },
+  progressNum: { fontSize: F.title, fontWeight: '600' },
+  progressLabel: { fontSize: 9, fontWeight: '600', letterSpacing: 0.3, textAlign: 'center' },
   progressDivider: { width: 1, height: 32 },
   // Plan view rows
   planViewRow: {
     flexDirection: 'row', alignItems: 'center', gap: S.sm,
     borderRadius: R.md, borderWidth: B.thin, padding: S.sm + 2, marginBottom: S.xs + 1,
   },
-  planViewName: { fontSize: F.body, fontWeight: '600' },
+  planViewName: { fontSize: F.body, fontWeight: '500' },
   habitIconSm: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   habitMeta: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: 3 },
   weekDots: { flexDirection: 'row', gap: 3 },
   dot: { width: 6, height: 6, borderRadius: 3 },
-  streakText: { fontSize: 11, fontWeight: '700' },
+  streakText: { fontSize: 11, fontWeight: '600' },
   doneBadge: { width: 26, height: 26, borderRadius: 13, borderWidth: B.thin, alignItems: 'center', justifyContent: 'center' },
   priorityChip: { borderRadius: R.sm, paddingHorizontal: S.xs + 1, paddingVertical: 2 },
-  priorityChipText: { fontSize: 9, fontWeight: '900', letterSpacing: 0.3 },
+  priorityChipText: { fontSize: 9, fontWeight: '600', letterSpacing: 0.3 },
   emptyPlan: { alignItems: 'center', paddingVertical: S.xl },
   emptyPlanText: { fontSize: F.body, textAlign: 'center', opacity: 0.6 },
   // Plan view actions
   planViewActions: { gap: S.sm, marginTop: S.lg },
   updateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.full, paddingVertical: S.md },
-  updateBtnText: { color: '#fff', fontSize: F.body, fontWeight: '800' },
+  updateBtnText: { color: '#fff', fontSize: F.body, fontWeight: '500' },
   clearBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin },
-  clearBtnText: { fontSize: F.caption, fontWeight: '700' },
+  clearBtnText: { fontSize: F.caption, fontWeight: '600' },
   // Templates
   templateCard: { borderRadius: R.md, borderWidth: B.thin, padding: S.md, marginBottom: S.sm, gap: S.sm },
   templateTop: { flexDirection: 'row', alignItems: 'flex-start', gap: S.md },
   templateEmoji: { fontSize: 26, lineHeight: 32 },
-  templateTitle: { fontSize: F.body, fontWeight: '800', marginBottom: 2 },
+  templateTitle: { fontSize: F.body, fontWeight: '500', marginBottom: 2 },
   templateDesc: { fontSize: F.caption, fontWeight: '500', lineHeight: 17, opacity: 0.75 },
   templateMeta: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flexWrap: 'wrap' },
   metaChip: { borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 3 },
-  metaChipText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.3 },
-  templateTarget: { fontSize: 10, fontWeight: '600', opacity: 0.55, flex: 1 },
+  metaChipText: { fontSize: 10, fontWeight: '600', letterSpacing: 0.3 },
+  templateTarget: { fontSize: 10, fontWeight: '500', opacity: 0.55, flex: 1 },
   // Review
-  sectionLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.2, marginBottom: S.sm },
+  sectionLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 1.2, marginBottom: S.sm },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs + 1 },
   itemDot: { width: 34, height: 34, borderRadius: 10, borderWidth: B.thin, alignItems: 'center', justifyContent: 'center' },
   priorityDot: { width: 6, height: 6, borderRadius: 3, marginHorizontal: 4 },
-  itemText: { fontSize: F.body, fontWeight: '600' },
+  itemText: { fontSize: F.body, fontWeight: '500' },
   goalNote: { borderRadius: R.md, borderWidth: B.thin, padding: S.md, marginTop: S.md },
-  goalNoteText: { fontSize: F.caption, fontWeight: '700', lineHeight: 17 },
+  goalNoteText: { fontSize: F.caption, fontWeight: '600', lineHeight: 17 },
   applyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, marginTop: S.lg, borderRadius: R.full, paddingVertical: S.md, paddingHorizontal: S.lg },
-  applyBtnText: { color: '#fff', fontSize: F.body, fontWeight: '800' },
-  expertNote: { fontSize: 10, fontWeight: '600', opacity: 0.4, letterSpacing: 0.3, marginBottom: S.md, marginTop: S.xs },
+  applyBtnText: { color: '#fff', fontSize: F.body, fontWeight: '500' },
+  expertNote: { fontSize: 10, fontWeight: '500', opacity: 0.4, letterSpacing: 0.3, marginBottom: S.md, marginTop: S.xs },
 });
 

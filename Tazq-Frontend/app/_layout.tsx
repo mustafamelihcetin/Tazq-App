@@ -59,6 +59,7 @@ import { CelebrationOverlay } from '../components/CelebrationOverlay';
 import { CustomAlertModal } from '../components/CustomAlert';
 import { Asset } from 'expo-asset';
 import { useOfflineSync } from '../hooks/useOfflineSync';
+import { usePrefsSync } from '../hooks/usePrefsSync';
 import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
 
 // Prevent the native splash screen from auto-hiding
@@ -125,6 +126,7 @@ export default function RootLayout() {
 
   // Replay queued offline operations when connection is restored
   useOfflineSync();
+  usePrefsSync();
   usePlanAdaptations();
   const [assetsLoaded, setAssetsLoaded] = useState(false);
 

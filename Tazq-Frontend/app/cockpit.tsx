@@ -372,11 +372,11 @@ export default function CockpitScreen() {
                   <Text 
                     numberOfLines={1} 
                     adjustsFontSizeToFit
-                    style={{ fontSize: 20, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}
+                    style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}
                   >
-                      {tr ? 'HAFTALIK MERKEZ' : 'WEEKLY HUB'}
+                      {tr ? 'Haftalık Merkez' : 'Weekly Hub'}
                   </Text>
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary, letterSpacing: 0.5, marginTop: 1 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary, letterSpacing: 0.5, marginTop: 1 }}>
                     {`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }).toUpperCase()}`}
                   </Text>
               </View>
@@ -415,7 +415,7 @@ export default function CockpitScreen() {
                     transition={{ type: 'timing', duration: 400 }}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}
                   >
-                    <Text style={{ fontSize: 10, color: theme.primary, fontWeight: '800' }}>
+                    <Text style={{ fontSize: 10, color: theme.primary, fontWeight: '600' }}>
                       {tr ? '← Geçmiş günlere dokun' : '← Tap past days'}
                     </Text>
                   </MotiView>
@@ -504,7 +504,7 @@ export default function CockpitScreen() {
                   },
                 ]}
               >
-                <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.5 }}>
                   {tr ? 'Planlanmış görev yok' : 'No tasks planned'}
                 </Text>
                 <Touchable
@@ -515,7 +515,7 @@ export default function CockpitScreen() {
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary + '18', paddingHorizontal: S.sm, paddingVertical: 5, borderRadius: R.full }}
                 >
                   <Plus size={12} color={theme.primary} />
-                  <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.primary }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.primary }}>
                     {tr ? 'Ekle' : 'Add'}
                   </Text>
                 </Touchable>
@@ -550,7 +550,7 @@ export default function CockpitScreen() {
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary + '18', paddingHorizontal: S.sm, paddingVertical: 4, borderRadius: R.full }}
                   >
                     <Plus size={11} color={theme.primary} />
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary }}>
                       {tr ? 'Görev Ekle' : 'Add Task'}
                     </Text>
                   </Touchable>
@@ -613,7 +613,7 @@ export default function CockpitScreen() {
                     })}
                     style={[styles.dayTaskRow, { borderTopColor: theme.outline + '20', borderTopWidth: 1, justifyContent: 'center' }]}
                   >
-                    <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.primary }}>
+                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.primary }}>
                       +{selectedDayTasks.length - 5} {tr ? 'daha' : 'more'}
                     </Text>
                   </Touchable>
@@ -693,7 +693,7 @@ export default function CockpitScreen() {
                 if (doneHabits.length === 0) return null;
                 return (
                   <View style={{ gap: S.xs, marginBottom: S.sm }}>
-                    <Text style={{ fontSize: 10, fontWeight: '900', color: theme.success, opacity: 0.7, letterSpacing: 1, paddingHorizontal: S.sm }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.success, opacity: 0.7, letterSpacing: 1, paddingHorizontal: S.sm }}>
                       {tr ? `✓ BUGÜN TAMAMLANDI (${doneHabits.length})` : `✓ DONE TODAY (${doneHabits.length})`}
                     </Text>
                     {doneHabits.map(habit => (
@@ -707,7 +707,7 @@ export default function CockpitScreen() {
                         <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
                           {renderModeEmojiIcon(habit.emoji ?? '📌', 16, habit.color ?? theme.success)}
                         </View>
-                        <Text style={{ flex: 1, fontSize: F.body, fontWeight: '700', color: theme.onSurfaceVariant, textDecorationLine: 'line-through', opacity: 0.55 }} numberOfLines={1}>
+                        <Text style={{ flex: 1, fontSize: F.body, fontWeight: '500', color: theme.onSurfaceVariant, textDecorationLine: 'line-through', opacity: 0.55 }} numberOfLines={1}>
                           {habit.name}
                         </Text>
                         <Check size={14} color={theme.success} strokeWidth={3} />
@@ -842,7 +842,7 @@ export default function CockpitScreen() {
           {/* ── WEEKLY REVIEW ── */}
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
-              {tr ? 'HAFTALIK ÖZET' : 'WEEKLY REVIEW'}
+              {tr ? 'Haftalık Özet' : 'Weekly Review'}
             </Text>
           </View>
 
@@ -969,7 +969,7 @@ export default function CockpitScreen() {
               </Text>
               <View style={{ backgroundColor: newColor + '20', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Text style={{ fontSize: 10 }}>🔄</Text>
-                <Text style={{ fontSize: 10, fontWeight: '800', color: newColor, letterSpacing: 0.3 }}>
+                <Text style={{ fontSize: 10, fontWeight: '600', color: newColor, letterSpacing: 0.3 }}>
                   {tr ? 'Her gün takip edilir' : 'Tracked daily'}
                 </Text>
               </View>
@@ -1161,25 +1161,25 @@ const styles = StyleSheet.create({
     gap: S.md,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5 },
+  headerTitle: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1.5 },
   headerSub: { fontSize: 11, fontWeight: '600', marginTop: 1 },
   addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
 
   // Week strip
-  sectionLabel: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5, marginBottom: S.md },
+  sectionLabel: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1.5, marginBottom: S.md },
   weekRow: { flexDirection: 'row', justifyContent: 'space-between' },
   dayCell: {
     flex: 1, alignItems: 'center', paddingVertical: S.sm,
     borderRadius: R.md, borderWidth: B.thin, gap: 3,
   },
-  dayAbbr: { fontSize: 9, fontWeight: '800', letterSpacing: 0.3 },
+  dayAbbr: { fontSize: 9, fontWeight: '600', letterSpacing: 0.3 },
   dayCircle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  dayNum: { fontSize: 13, fontWeight: '800' },
+  dayNum: { fontSize: 13, fontWeight: '600' },
   taskDot: { width: 5, height: 5, borderRadius: 2.5 },
 
   // Day tasks card
   dayTasksCard: { borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden' },
-  dayTasksHeading: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1, padding: S.md, paddingBottom: S.sm },
+  dayTasksHeading: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1, padding: S.md, paddingBottom: S.sm },
   dayTaskRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: 10 },
   miniCheck: { width: 18, height: 18, borderRadius: 9, borderWidth: B.medium, alignItems: 'center', justifyContent: 'center' },
   dayTaskText: { flex: 1, fontSize: F.body, fontWeight: '600' },
@@ -1190,23 +1190,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'baseline',
     justifyContent: 'space-between', marginBottom: S.sm,
   },
-  sectionTitle: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5 },
+  sectionTitle: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1.5 },
   sectionSub: { fontSize: 11, fontWeight: '600' },
 
   // Empty state
-  emptyTitle: { fontSize: F.subhead, fontWeight: '800', marginBottom: 6, textAlign: 'center' },
+  emptyTitle: { fontSize: F.subhead, fontWeight: '600', marginBottom: 6, textAlign: 'center' },
   emptySub: { fontSize: F.body, textAlign: 'center', marginBottom: S.lg, lineHeight: 20, paddingHorizontal: S.md },
   emptyAddBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: 12, borderRadius: R.full },
-  emptyAddText: { fontSize: F.body, fontWeight: '800' },
+  emptyAddText: { fontSize: F.body, fontWeight: '600' },
 
   // Habit row
   habitCard: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 2 },
   habitRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   habitLeft: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 },
   habitIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  habitName: { fontSize: F.body, fontWeight: '800' },
+  habitName: { fontSize: F.body, fontWeight: '600' },
   streakRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
-  streakText: { fontSize: 11, fontWeight: '800' },
+  streakText: { fontSize: 11, fontWeight: '600' },
 
   // Heatmap
   heatmapGrid: { gap: 2 },
@@ -1223,33 +1223,33 @@ const styles = StyleSheet.create({
     borderWidth: B.thin, borderStyle: 'dashed', borderRadius: R.lg,
     padding: S.md, justifyContent: 'center',
   },
-  addHabitText: { fontSize: F.body, fontWeight: '700' },
+  addHabitText: { fontSize: F.body, fontWeight: '500' },
 
   // Weekly stats
   statChip: { alignItems: 'center', padding: S.md, borderRadius: R.md, gap: 4 },
-  statValue: { fontSize: F.title, fontWeight: '900', letterSpacing: -0.5 },
-  statLabel: { fontSize: 10, fontWeight: '700', opacity: 0.7 },
+  statValue: { fontSize: F.title, fontWeight: '600', letterSpacing: -0.5 },
+  statLabel: { fontSize: 10, fontWeight: '500', opacity: 0.7 },
   goalChip: { flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.md, borderRadius: R.md, borderWidth: B.thin },
-  goalText: { flex: 1, fontSize: F.body, fontWeight: '700' },
+  goalText: { flex: 1, fontSize: F.body, fontWeight: '500' },
   planBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.md, borderRadius: R.md },
-  planBtnText: { fontSize: F.body, fontWeight: '800' },
+  planBtnText: { fontSize: F.body, fontWeight: '600' },
 
   // Sheets
   sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: S.xl, paddingTop: S.md, gap: S.md },
   handleArea: { paddingTop: 14, paddingBottom: 18, alignItems: 'center' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2 },
-  sheetTitle: { fontSize: F.title, fontWeight: '900', letterSpacing: -0.5 },
+  sheetTitle: { fontSize: F.title, fontWeight: '600', letterSpacing: -0.5 },
   sheetSub: { fontSize: F.body, marginTop: -S.sm },
 
   nameInput: {
     flexDirection: 'row', alignItems: 'center', gap: S.md,
     borderRadius: R.md, borderWidth: B.thin, paddingHorizontal: S.md, paddingVertical: 12,
   },
-  nameInputText: { flex: 1, fontSize: F.subhead, fontWeight: '700' },
+  nameInputText: { flex: 1, fontSize: F.subhead, fontWeight: '500' },
   emojiBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: B.medium },
   colorDot: { width: 28, height: 28, borderRadius: 14 },
   goalInput: { borderRadius: R.md, borderWidth: B.thin, padding: S.md, fontSize: F.body, fontWeight: '600', minHeight: 88 },
   saveBtn: { paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
-  saveBtnText: { fontSize: F.subhead, fontWeight: '900' },
+  saveBtnText: { fontSize: F.subhead, fontWeight: '600' },
 });
 

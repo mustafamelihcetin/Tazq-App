@@ -1,49 +1,74 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useNetworkStore } from '../store/useNetworkStore';
 import { useOfflineQueue } from '../store/useOfflineQueue';
-import { TaskService } from '../services/api';
 import { useTaskStore } from '../store/useTaskStore';
+import { TaskService } from '../services/api';
 
 export function useOfflineSync() {
-  const isOnline = useNetworkStore((s) => s.isOnline);
-  const { ops, dequeue, clear } = useOfflineQueue();
-  const isFlushing = useRef(false);
-
+  const isOnline = useNetworkStore(s => s.isOnline);
+  
   useEffect(() => {
-    if (!isOnline || ops.length === 0 || isFlushing.current) return;
+    if (!isOnline) return;
 
-    const flush = async () => {
-      isFlushing.current = true;
+    const processQueue = async () => {
+      const queueState = useOfflineQueue.getState();
+      const ops = queueState.ops;
+      if (ops.length === 0) return;
+
+      console.log(`[Offline Sync] Starting sync of ${ops.length} items`);
       let processed = 0;
-      for (const op of ops) {
+      const idMap = new Map<number, number>(); // Map tempId -> realId
+
+      for (let i = 0; i < ops.length; i++) {
+        let op = ops[i];
         try {
-          if (op.type === 'toggle-task') {
+          // If a previous operation remapped an ID, update this operation
+          if ('id' in op && idMap.has(op.id)) {
+            op = { ...op, id: idMap.get(op.id)! } as any;
+          }
+
+          if (op.type === 'create-task') {
+            const created = await TaskService.createTask(op.payload as any);
+            idMap.set(op.tempId, created.id);
+            // Replace tempId with realId in local store
+            const tasks = useTaskStore.getState().tasks;
+            const updatedTasks = tasks.map(t => t.id === op.tempId ? { ...t, ...created } : t);
+            useTaskStore.getState().setTasks(updatedTasks);
+          } else if (op.type === 'update-task') {
+            await TaskService.updateTask(op.id, op.payload as any);
+          } else if (op.type === 'toggle-task') {
             await TaskService.updateTask(op.id, { isCompleted: op.isCompleted } as any);
           } else if (op.type === 'delete-task') {
             await TaskService.deleteTask(op.id);
-            // Only remove from local store if still present (may have already been removed)
-          } else if (op.type === 'update-task') {
-            await TaskService.updateTask(op.id, op.payload as any);
-          } else if (op.type === 'reorder-tasks') {
-            // Reorder is best-effort; no dedicated endpoint
           }
+          // Note: reorder-tasks is not fully implemented in API yet, skipping for now
+          
           processed++;
-        } catch {
-          // On failure, stop flushing — will retry next reconnect
-          break;
+          // Dequeue one by one so if it crashes, remaining ops are saved
+          useOfflineQueue.getState().dequeue(1);
+        } catch (err: any) {
+          // If it's a 404 (Not Found), it means we're trying to update/delete a task that doesn't exist.
+          // Safely discard it from the queue.
+          if (err.response && err.response.status === 404) {
+            console.log(`[Offline Sync] Discarding operation due to 404:`, op);
+            useOfflineQueue.getState().dequeue(1);
+            processed++;
+          } else {
+            console.error(`[Offline Sync] Sync failed at item ${i}`, err);
+            break; // Stop processing, wait for next online event
+          }
         }
       }
-      if (processed > 0) dequeue(processed);
-      // After syncing, refresh task list
+
       if (processed > 0) {
+        console.log(`[Offline Sync] Successfully processed ${processed} operations. Fetching latest tasks...`);
         try {
-          const data = await TaskService.getTasks();
-          useTaskStore.getState().setTasks(data);
+          const freshTasks = await TaskService.getTasks();
+          useTaskStore.getState().setTasks(freshTasks);
         } catch {}
       }
-      isFlushing.current = false;
     };
 
-    flush();
+    processQueue();
   }, [isOnline]);
 }

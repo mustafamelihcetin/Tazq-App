@@ -678,10 +678,10 @@ export default function HomeScreen() {
                     <View style={{ flex: 1, gap: 6 }}>
                         <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>{t.todayLabel}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
-                            <Text style={{ fontSize: isSmallScreen ? 34 : 44, fontWeight: '900', letterSpacing: -2.5, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: isSmallScreen ? 38 : 48 }}>
+                            <Text style={{ fontSize: isSmallScreen ? 34 : 44, fontWeight: '600', letterSpacing: -2.5, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: isSmallScreen ? 38 : 48 }}>
                                 {todayCompleted}
                             </Text>
-                            <Text style={{ fontSize: 18, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.45, letterSpacing: -0.5 }}>
+                            <Text style={{ fontSize: 18, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.45, letterSpacing: -0.5 }}>
                                 /{dailyGoal}
                             </Text>
                         </View>
@@ -691,7 +691,7 @@ export default function HomeScreen() {
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ type: 'spring', damping: 11, stiffness: 220 }}
                         >
-                            <Text style={{ fontSize: F.caption, fontWeight: '800', letterSpacing: 0.3,
+                            <Text style={{ fontSize: F.caption, fontWeight: '600', letterSpacing: 0.3,
                                 color: todayHighlight ? (todayCompleted >= dailyGoal ? theme.tertiary : theme.primary) : theme.onSurfaceVariant,
                                 opacity: todayHighlight ? 1 : 0.55 }}>
                                 {todayHighlight
@@ -710,7 +710,7 @@ export default function HomeScreen() {
                                     style={{ height: '100%', borderRadius: 2, backgroundColor: theme.primary }}
                                 />
                             </View>
-                            <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.4 }}>
+                            <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.4 }}>
                                 {dailyFocusMinutes}{language === 'tr' ? 'dk' : 'm'}
                             </Text>
                         </View>
@@ -740,10 +740,10 @@ export default function HomeScreen() {
                             </G>
                         </Svg>
                         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={{ fontSize: 22, fontWeight: '900', letterSpacing: -1.2, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: 24 }}>
+                            <Text style={{ fontSize: 22, fontWeight: '600', letterSpacing: -1.2, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: 24 }}>
                                 {Math.round((todayCompleted / Math.max(dailyGoal, 1)) * 100)}
                             </Text>
-                            <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant, opacity: 0.45 }}>%</Text>
+                            <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.45 }}>%</Text>
                         </View>
                     </View>
                 </View>
@@ -761,7 +761,7 @@ export default function HomeScreen() {
                     style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm, paddingHorizontal: 2 }}
                   >
                     <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: theme.error }} />
-                    <Text style={{ fontSize: 11, fontWeight: '800', color: theme.error, opacity: 0.85, flex: 1 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: theme.error, opacity: 0.85, flex: 1 }}>
                       {overdueCount} {language === 'tr' ? 'gecikmiş görev' : overdueCount === 1 ? 'overdue task' : 'overdue tasks'}
                     </Text>
                     <ChevronRight size={12} color={theme.error} opacity={0.5} />
@@ -792,7 +792,7 @@ export default function HomeScreen() {
                         activeOpacity={0.7}
                         style={{ paddingHorizontal: S.md, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}
                       >
-                        <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.4, flex: 1 }}>
+                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.4, flex: 1 }}>
                           {language === 'tr' ? `+${todayTasksIncomplete.length - 3} görev daha` : `+${todayTasksIncomplete.length - 3} more`}
                         </Text>
                         <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} />
@@ -813,7 +813,7 @@ export default function HomeScreen() {
                     animate={{ opacity: 1, translateY: 0 }}
                     transition={{ type: 'spring', damping: 15 }}
                 >
-                    <BentoCard index={1} style={[styles.nextMissionCard, { minHeight: 180 }]}>
+                    <BentoCard index={1} style={[styles.nextMissionCard, { minHeight: 140 }]}>
                         <LinearGradient
                             colors={!topTask
                                 ? ['#8e8e93', 'transparent']
@@ -861,7 +861,7 @@ export default function HomeScreen() {
                                     style={[styles.startBtn, { backgroundColor: theme.primary, flex: 2, height: 52, justifyContent: 'center' }]}
                                 >
                                     <Play size={18} color={theme.onPrimary} fill={theme.onPrimary} />
-                                    <Text style={[styles.startBtnText, { color: theme.onPrimary, fontSize: F.subhead, fontWeight: '900' }]}>{t.deepFocus.toUpperCase()}</Text>
+                                    <Text style={[styles.startBtnText, { color: theme.onPrimary, fontSize: F.subhead, fontWeight: '600' }]}>{t.deepFocus.toUpperCase()}</Text>
                                 </Touchable>
                             ) : (
                                 <Touchable 
@@ -869,7 +869,7 @@ export default function HomeScreen() {
                                     style={[styles.startBtn, { backgroundColor: theme.surfaceContainerHigh, flex: 2, height: 52, justifyContent: 'center' }]}
                                 >
                                     <Plus size={18} color={theme.onSurface} />
-                                    <Text style={[styles.startBtnText, { color: theme.onSurface, fontSize: F.subhead, fontWeight: '900' }]}>{t.addTask.toUpperCase()}</Text>
+                                    <Text style={[styles.startBtnText, { color: theme.onSurface, fontSize: F.subhead, fontWeight: '600' }]}>{t.addTask.toUpperCase()}</Text>
                                 </Touchable>
                             )}
                             <Touchable 
@@ -930,10 +930,10 @@ export default function HomeScreen() {
             {headerHighlight && (
               <Touchable onPress={handleHeaderDoubleTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
                 <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
-                  <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1.8, color: theme.primary }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', letterSpacing: 1.8, color: theme.primary }}>
                     {language === 'tr' ? '✦ İYİ GİDİYOR' : '✦ LOOKING GOOD'}
                   </Text>
-                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.primary, opacity: 0.7 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: theme.primary, opacity: 0.7 }}>
                     {language === 'tr' ? 'devam et →' : 'keep going →'}
                   </Text>
                 </Animated.View>
@@ -980,10 +980,10 @@ export default function HomeScreen() {
                     {/* Header row */}
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: S.md }}>
                         <View>
-                            <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1.5, color: theme.onSurfaceVariant, opacity: 0.5, marginBottom: 3 }}>
+                            <Text style={{ fontSize: 9, fontWeight: '500', letterSpacing: 1.5, color: theme.onSurfaceVariant, opacity: 0.5, marginBottom: 3 }}>
                                 {t.weeklyFocusLabel?.toUpperCase() ?? 'HAFTALIK ODAK'}
                             </Text>
-                            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '900', letterSpacing: -1.2, color: theme.onSurface, lineHeight: 26 }}>
+                            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '600', letterSpacing: -1.2, color: theme.onSurface, lineHeight: 26 }}>
                                 {statsLoading ? '--' : weeklyMinutes >= 60
                                     ? `${Math.floor(weeklyMinutes / 60)}sa ${weeklyMinutes % 60 > 0 ? weeklyMinutes % 60 + 'dk' : ''}`
                                     : `${weeklyMinutes}dk`}
@@ -995,10 +995,10 @@ export default function HomeScreen() {
                                 backgroundColor: weekTrend >= 0 ? theme.tertiary + '1C' : theme.error + '1C',
                                 borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 5,
                             }}>
-                                <Text style={{ fontSize: 13, fontWeight: '900', color: weekTrend >= 0 ? theme.tertiary : theme.error }}>
+                                <Text style={{ fontSize: 13, fontWeight: '600', color: weekTrend >= 0 ? theme.tertiary : theme.error }}>
                                     {weekTrend >= 0 ? '↑' : '↓'} {Math.abs(weekTrend)}%
                                 </Text>
-                                <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.55 }}>
+                                <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.55 }}>
                                     {language === 'tr' ? 'geçen hf' : 'vs last wk'}
                                 </Text>
                             </View>
@@ -1018,7 +1018,7 @@ export default function HomeScreen() {
                             return (
                                 <View key={i} style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}>
                                     {isToday && hasData && (
-                                        <Text style={{ fontSize: 8, fontWeight: '900', color: theme.primary, marginBottom: 3, letterSpacing: 0.1 }}>
+                                        <Text style={{ fontSize: 8, fontWeight: '600', color: theme.primary, marginBottom: 3, letterSpacing: 0.1 }}>
                                             {d.minutes}dk
                                         </Text>
                                     )}
@@ -1111,7 +1111,7 @@ export default function HomeScreen() {
                                 underlineColorAndroid="transparent"
                             />
                         </View>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#F59E0B', opacity: 0.55, marginTop: S.sm, letterSpacing: 0.2 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '600', color: '#F59E0B', opacity: 0.55, marginTop: S.sm, letterSpacing: 0.2 }}>
                             {language === 'tr' ? '📌 Görevler ekranına taslak olarak eklenir' : '📌 Saved as a draft in your task list'}
                         </Text>
                         
@@ -1122,7 +1122,7 @@ export default function HomeScreen() {
                                 style={[styles.quickSave, { backgroundColor: draftTitle.trim() ? '#F59E0B' : theme.surfaceContainerHigh, flex: 1 }]}
                             >
                                 {isSavingDraft ? <ActivityIndicator color="white" /> : (
-                                    <Text style={{ color: draftTitle.trim() ? 'white' : theme.onSurfaceVariant, fontWeight: '900' }}>{t.save}</Text>
+                                    <Text style={{ color: draftTitle.trim() ? 'white' : theme.onSurfaceVariant, fontWeight: '600' }}>{t.save}</Text>
                                 )}
                             </Touchable>
                         </View>
@@ -1165,40 +1165,40 @@ const styles = StyleSheet.create({
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
   heroSection: { marginBottom: S.lg },
-  greeting: { fontWeight: '900', letterSpacing: -1.5 },
+  greeting: { fontWeight: '800', letterSpacing: -1.5 },
   subGreeting: { fontWeight: '500', marginTop: S.xs, opacity: 0.7 },
-  metricLabel: { fontSize: moderateScale(9), fontWeight: '900', letterSpacing: 1.2, opacity: 0.45, marginBottom: S.xs },
-  metricValue: { fontSize: F.title, fontWeight: '900', letterSpacing: -1 },
+  metricLabel: { fontSize: moderateScale(9), fontWeight: '500', letterSpacing: 1.2, opacity: 0.45, marginBottom: S.xs },
+  metricValue: { fontSize: F.title, fontWeight: '600', letterSpacing: -1 },
   metricSub: { fontSize: F.caption, fontWeight: '600', opacity: 0.6, marginTop: 2 },
   nextMissionCard: { padding: S.lg, justifyContent: 'space-between', overflow: 'hidden' },
   missionHeader: { flexDirection: 'row', gap: S.sm },
   missionBadge: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.md },
-  missionBadgeText: { fontSize: F.caption, fontWeight: '900', letterSpacing: 0.5 },
-  missionContent: { marginTop: S.sm },
-  missionTitle: { fontWeight: '900', letterSpacing: -0.5 },
+  missionBadgeText: { fontSize: F.caption, fontWeight: '500', letterSpacing: 0.5 },
+  missionContent: { marginTop: 2 },
+  missionTitle: { fontWeight: '500', letterSpacing: -0.5 },
   missionSub: { fontSize: F.body, fontWeight: '500', marginTop: S.xs, opacity: 0.8 },
   missionFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: S.md },
   startBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full },
-  startBtnText: { color: 'white', fontWeight: '900', fontSize: F.body },
+  startBtnText: { color: 'white', fontWeight: '600', fontSize: F.body },
   seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
-  seeAllText: { fontSize: F.body, fontWeight: '700' },
+  seeAllText: { fontSize: F.body, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: scale(24) },
   insightCard: { width: '100%', borderRadius: R.lg + 8, padding: scale(24), borderWidth: B.thin, gap: scale(24) },
   insightHeader: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
   insightIcon: { width: scale(36), height: scale(36), borderRadius: R.sm + 4, alignItems: 'center', justifyContent: 'center' },
-  insightHeaderTitle: { fontSize: moderateScale(13), fontWeight: '900', letterSpacing: 1, opacity: 0.6 },
+  insightHeaderTitle: { fontSize: moderateScale(13), fontWeight: '600', letterSpacing: 1, opacity: 0.6 },
   insightBody: { gap: scale(16) },
   bentoMini: { padding: scale(16), borderRadius: R.md + 4 },
-  insightMainText: { fontSize: moderateScale(16), fontWeight: '800', lineHeight: verticalScale(24), letterSpacing: -0.3 },
+  insightMainText: { fontSize: moderateScale(16), fontWeight: '600', lineHeight: verticalScale(24), letterSpacing: -0.3 },
   insightStats: { gap: scale(12) },
   statBento: { padding: scale(16), borderRadius: R.md + 4, alignItems: 'center', gap: 4 },
-  statValue: { fontSize: moderateScale(18), fontWeight: '900' },
-  statLabel: { fontSize: moderateScale(10), fontWeight: '800', opacity: 0.5, letterSpacing: 0.5 },
+  statValue: { fontSize: moderateScale(18), fontWeight: '600' },
+  statLabel: { fontSize: moderateScale(10), fontWeight: '500', opacity: 0.5, letterSpacing: 0.5 },
   cockpitActions: { gap: scale(12) },
   actionButtonMain: { height: verticalScale(60), borderRadius: R.md + 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scale(12) },
-  actionButtonText: { fontSize: moderateScale(16), fontWeight: '900', letterSpacing: 0.5 },
+  actionButtonText: { fontSize: moderateScale(16), fontWeight: '500', letterSpacing: 0.5 },
   actionButtonSecondary: { height: verticalScale(52), borderRadius: R.md + 4, alignItems: 'center', justifyContent: 'center' },
-  actionButtonTextSecondary: { fontSize: moderateScale(14), fontWeight: '800' },
+  actionButtonTextSecondary: { fontSize: moderateScale(14), fontWeight: '600' },
   draftOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   bottomSheetWrapper: { width: '100%' },
   quickDraftSheet: {
@@ -1212,14 +1212,14 @@ const styles = StyleSheet.create({
   sheetHandle: { width: scale(40), height: scale(4), borderRadius: R.sm, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginBottom: S.md },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   sheetIcon: { width: scale(40), height: scale(40), borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
-  quickDraftTitle: { fontSize: F.title, fontWeight: '900', letterSpacing: -0.5 },
+  quickDraftTitle: { fontSize: F.title, fontWeight: '600', letterSpacing: -0.5 },
   quickInputGroup: { borderRadius: R.lg, paddingHorizontal: S.md, height: verticalScale(64), justifyContent: 'center' },
-  quickInput: { fontWeight: '700', fontSize: F.subhead },
+  quickInput: { fontWeight: '600', fontSize: F.subhead },
   quickActions: { flexDirection: 'row', gap: S.sm, marginTop: S.lg },
   quickSave: { flex: 1, height: verticalScale(56), borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
   actionRow: { flexDirection: 'row', paddingHorizontal: S.lg, gap: S.md, marginTop: S.md },
   actionBtn: { flex: 1, borderRadius: R.lg, alignItems: 'center', gap: S.sm },
-  actionLabel: { fontWeight: '800' },
+  actionLabel: { fontWeight: '600' },
   fab: { position: 'absolute', right: S.lg, minHeight: scale(50), elevation: 10, zIndex: 100, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16 },
 });
 

@@ -131,7 +131,7 @@ export const AuthService = {
     // Map backend profilePicture field to frontend avatar field
     return { ...data, avatar: data.profilePicture ?? data.avatar };
   },
-  updateProfile: async (data: { name?: string, avatar?: string, motto?: string, avatarBorderColor?: string }) => {
+  updateProfile: async (data: { name?: string, avatar?: string, motto?: string, avatarBorderColor?: string, preferences?: string }) => {
     const response = await api.put('/api/users/profile', data);
     return response.data;
   },

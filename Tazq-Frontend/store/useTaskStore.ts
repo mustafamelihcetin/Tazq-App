@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubtaskItem, RecurrenceType } from '../services/api';
 
 export interface Task {
@@ -31,7 +33,7 @@ interface TaskState {
   setLoading: (loading: boolean) => void;
 }
 
-export const useTaskStore = create<TaskState>((set, get) => ({
+export const useTaskStore = create<TaskState>()(persist((set, get) => ({
   tasks: [],
   isLoading: true, // Start as loading to prevent empty-state flash on cold start
   dailyProgressText: '',
@@ -135,5 +137,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   setLoading: (isLoading) => set({ isLoading }),
+}), {
+  name: 'tazq-task-store',
+  storage: createJSONStorage(() => AsyncStorage),
+  // Merge state carefully so offline tasks aren't wiped when reloading
+  merge: (persisted: any, current) => {
+    return { ...current, tasks: persisted?.tasks || [], dailyProgressText: persisted?.dailyProgressText || '' };
+  }
 }));
 

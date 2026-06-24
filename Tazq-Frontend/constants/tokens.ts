@@ -48,14 +48,14 @@ export const B = {
 export const getPremiumShadow = (elevation = 5, color = '#000000') => {
   if (Platform.OS === 'android') {
     return {
-      elevation,
+      elevation: elevation * 1.5,
       shadowColor: color,
     };
   }
   return {
     shadowColor: color,
-    shadowOffset: { width: 0, height: elevation / 2 },
-    shadowOpacity: 0.1 + (elevation * 0.01),
-    shadowRadius: elevation,
+    shadowOffset: { width: 0, height: elevation * 0.8 },
+    shadowOpacity: 0.04 + (elevation * 0.005), // softer opacity
+    shadowRadius: elevation * 1.5, // wider blur radius
   };
 };

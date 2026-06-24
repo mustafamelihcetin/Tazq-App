@@ -71,6 +71,7 @@ interface User {
   role?: string;
   motto?: string;
   avatarBorderColor?: string;
+  preferences?: string; // Cihazlar arası eşitlenen tercihler (JSON string)
   totalFocusHours?: number;
   completedTasksCount?: number;
   activeStreak?: number;
@@ -85,6 +86,8 @@ function hydrateProfilePrefs(user: User | null) {
     const prefs = require('./usePrefsStore').usePrefsStore.getState();
     if (typeof user.motto === 'string' && user.motto.trim()) prefs.setMotto(user.motto);
     if (typeof user.avatarBorderColor === 'string' && user.avatarBorderColor.trim()) prefs.setAvatarBorderColor(user.avatarBorderColor);
+    // Mod seçimleri, planlar, üretkenlik saati vb. — DB'de doluysa yerele hidrate et.
+    if (typeof user.preferences === 'string' && user.preferences.trim()) prefs.hydrateFromCloud(user.preferences);
   } catch {}
 }
 
