@@ -11,7 +11,7 @@
  */
 
 import { CreateTaskPayload } from '../services/api';
-import { getPhase, StudyPhase } from './examPresets';
+import { getPhase, StudyPhase, matchExamName } from './examPresets';
 
 export type Language = 'tr' | 'en';
 
@@ -23,6 +23,16 @@ export interface DailyPlanSpec {
   daysLeft: number;       // hedef tarihe kalan gün
   dailyMinutes?: number;  // kullanıcının seçtiği günlük süre → görev yoğunluğu
   templateId?: string;    // (opsiyonel) ileride faz override için
+  /**
+   * Slot kimliği (exam/exam2/exam3/spor/spor2/…). Görev etiketi ve günlük
+   * dedupe ANAHTARI bu değerdir. Verilmezse `kind`'e düşer.
+   *
+   * Neden gerekli: aynı `kind`'i paylaşan alt-planlar (KPSS=exam, YDS=exam2)
+   * tek bir 'exam' tag'inde çakışıp birbirinin günlük üretimini bloke ediyordu.
+   * Ayrıca spor için `kind` ('kilo'/'genel'…) PLAN_TAGS'te olmadığından
+   * dedupe/temizlik bu görevleri tanıyamıyordu; slot ('spor') ise tanınıyor.
+   */
+  slot?: string;
 }
 
 type Pool = { tr: string; en: string }[];
@@ -75,6 +85,61 @@ const EXAM_POOLS: Record<StudyPhase, Pool> = {
     { tr: '{name}: bugün tam deneme çöz — gerçek sınav koşullarında', en: '{name}: take a full mock today — real exam conditions' },
     { tr: '{name}: yeni konu YOK — sadece tekrar ve hata analizi', en: '{name}: NO new topics — only review and error analysis' },
     { tr: '{name}: en sık yaptığın 3 hatayı gözden geçir', en: '{name}: review your 3 most frequent mistakes' },
+  ],
+};
+
+// ── Dil sınavı havuzları (YDS/IELTS/TOEFL/PTE/YÖKDİL) ────────────────────────────
+// Genel soru-bankası yerine: kelime + 4 beceri (reading/listening/speaking/writing).
+const LANG_EXAM_POOLS: Record<StudyPhase, Pool> = {
+  foundation: [
+    { tr: '{name}: bugün 20 yeni kelime öğren ve örnek cümleyle kaydet', en: '{name}: learn 20 new words today and save them with example sentences' },
+    { tr: '{name}: temel bir gramer konusunu çalış ve 10 örnek çöz', en: '{name}: study one core grammar topic and do 10 examples' },
+    { tr: '{name}: 15 dk İngilizce dinle (podcast/dizi) ve 3 yeni kelime not al', en: '{name}: listen 15 min of English (podcast/show) and note 3 new words' },
+  ],
+  deepen: [
+    { tr: '{name}: 1 reading parçası çöz, bilmediğin kelimeleri kart yap', en: '{name}: do 1 reading passage, turn unknown words into cards' },
+    { tr: '{name}: dünkü kelimeleri aralıklı tekrar et (Anki/Quizlet)', en: '{name}: spaced-review yesterday\'s words (Anki/Quizlet)' },
+    { tr: '{name}: 1 listening alıştırması yap ve transkriptle karşılaştır', en: '{name}: do 1 listening exercise and compare with the transcript' },
+  ],
+  reinforce: [
+    { tr: '{name}: en zayıf becerine (reading/listening) 30 dk odaklan', en: '{name}: focus 30 min on your weakest skill (reading/listening)' },
+    { tr: '{name}: 1 writing görevi yaz (kısa paragraf) ve kendini düzelt', en: '{name}: write 1 writing task (short paragraph) and self-correct' },
+    { tr: '{name}: kelime hata defterindeki son kelimeleri tekrar çöz', en: '{name}: re-test the latest words in your vocab error log' },
+  ],
+  accelerate: [
+    { tr: '{name}: 1 tam bölüm denemesi çöz (zamanlı) ve hatalarını analiz et', en: '{name}: take 1 full section test (timed) and analyze errors' },
+    { tr: '{name}: speaking için 2 dk konuş, kaydet ve dinle', en: '{name}: speak 2 min for speaking, record and listen back' },
+    { tr: '{name}: sık çıkan kelime köklerini/ifadeleri tekrar et', en: '{name}: review frequent word roots/collocations' },
+  ],
+  sprint: [
+    { tr: '{name}: gerçek koşullarda tam deneme çöz — süreyi tut', en: '{name}: take a full mock in real conditions — keep time' },
+    { tr: '{name}: writing/speaking şablonlarını son kez gözden geçir', en: '{name}: review your writing/speaking templates one last time' },
+    { tr: '{name}: yeni kelime YOK — bildiğin kelimeleri pekiştir', en: '{name}: NO new words — consolidate what you already know' },
+  ],
+};
+
+// ── Tıp/uzmanlık havuzları (TUS/DUS/USMLE) ───────────────────────────────────────
+// Kart sistemi (Anki) + soru bankası (Qbank) + klinik akıl yürütme.
+const MEDICAL_EXAM_POOLS: Record<StudyPhase, Pool> = {
+  foundation: [
+    { tr: '{name}: bugünkü sistemi sistematik oku ve Anki destesini başlat', en: '{name}: read today\'s system systematically and start an Anki deck' },
+    { tr: '{name}: okuduğun konunun yüksek-verimli (high-yield) notunu çıkar', en: '{name}: make a high-yield note of today\'s topic' },
+  ],
+  deepen: [
+    { tr: '{name}: bugünkü Anki tekrarlarını bitir (due kartlar)', en: '{name}: finish today\'s Anki reviews (due cards)' },
+    { tr: '{name}: 1 Qbank bloğu çöz (konu bazlı) ve açıklamaları oku', en: '{name}: do 1 Qbank block (topic-based) and read the explanations' },
+  ],
+  reinforce: [
+    { tr: '{name}: en zayıf sistemden 1 Qbank bloğu çöz, hata defterine işle', en: '{name}: do 1 Qbank block on your weakest system, log mistakes' },
+    { tr: '{name}: Anki due kartlar + dünkü yanlış konuları tekrar et', en: '{name}: Anki due cards + review yesterday\'s wrong topics' },
+  ],
+  accelerate: [
+    { tr: '{name}: zamanlı 1 Qbank bloğu (random) + klinik vaka analizi', en: '{name}: 1 timed Qbank block (random) + clinical vignette analysis' },
+    { tr: '{name}: en sık yaptığın 3 hata kalıbını gözden geçir', en: '{name}: review your 3 most frequent error patterns' },
+  ],
+  sprint: [
+    { tr: '{name}: tam uzunlukta deneme çöz — gerçek sınav temposu', en: '{name}: take a full-length mock — real exam pace' },
+    { tr: '{name}: yeni konu YOK — high-yield tekrar + Anki', en: '{name}: NO new topics — high-yield review + Anki' },
   ],
 };
 
@@ -157,9 +222,19 @@ const RAMAZAN_POOL: Pool = [
   { tr: 'Bugün 3 şükür notu yaz', en: 'Write 3 gratitude notes today' },
 ];
 
+// Sınav adından kategoriyi türet (ekstra alan saklamadan): dil ve tıp sınavları
+// kendi pedagojilerine uygun havuz alır; diğerleri jenerik soru-bankası havuzu.
+function examPoolFor(spec: DailyPlanSpec): Pool {
+  const phase = getPhase(spec.daysLeft);
+  const category = spec.name ? matchExamName(spec.name)[0]?.category : undefined;
+  if (category === 'language') return LANG_EXAM_POOLS[phase];
+  if (category === 'medical') return MEDICAL_EXAM_POOLS[phase];
+  return EXAM_POOLS[phase];
+}
+
 function poolFor(spec: DailyPlanSpec): Pool {
   switch (spec.kind) {
-    case 'exam': return EXAM_POOLS[getPhase(spec.daysLeft)];
+    case 'exam': return examPoolFor(spec);
     case 'tez': return TEZ_POOLS[getPhase(spec.daysLeft)];
     case 'mulakat': return MULAKAT_POOLS[mulakatBand(spec.daysLeft)];
     case 'kilo': return KILO_POOL;
@@ -173,14 +248,14 @@ function poolFor(spec: DailyPlanSpec): Pool {
 /** O gün ilgili plandan zaten günlük görev üretilmiş mi? */
 export function hasDailyToday(
   tasks: { tags?: string[] | null; dueDate?: string | null; isCompleted: boolean }[],
-  kind: PlanKind,
+  key: PlanKind | string,
   today: Date,
 ): boolean {
   const d0 = new Date(today); d0.setHours(0, 0, 0, 0);
   const d1 = new Date(today); d1.setHours(23, 59, 59, 999);
   return tasks.some(t => {
     const tags = t.tags ?? [];
-    if (!tags.includes('daily') || !tags.includes(kind)) return false;
+    if (!tags.includes('daily') || !tags.includes(key)) return false;
     if (!t.dueDate) return false;
     const due = new Date(t.dueDate).getTime();
     return due >= d0.getTime() && due <= d1.getTime();
@@ -197,7 +272,9 @@ export function buildDailyTasks(
   today: Date = new Date(),
 ): CreateTaskPayload[] {
   if (spec.daysLeft < 0) return [];
-  if (hasDailyToday(existingTasks, spec.kind, today)) return [];
+  // Dedupe/etiket anahtarı slot'tur (alt-planlar çakışmasın); yoksa kind'e düşer.
+  const tagKey = spec.slot ?? spec.kind;
+  if (hasDailyToday(existingTasks, tagKey, today)) return [];
 
   const tr = lang === 'tr';
   const pool = poolFor(spec);
@@ -218,7 +295,7 @@ export function buildDailyTasks(
       priority: i === 0 ? 'High' : 'Medium',
       dueDate: due,
       isCompleted: false,
-      tags: [spec.kind, 'daily'],
+      tags: [tagKey, 'daily'],
     });
   }
   return out;

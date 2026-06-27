@@ -38,6 +38,9 @@ type PlanMode = 'exam' | 'exam2' | 'exam3' | 'ramazan' | 'tez' | 'mulakat' | 'mu
 export interface PlanSpec {
   templateId?: string;     // seçilen şablon (faz override / başlangıç fazı)
   dailyMinutes?: number;   // kullanıcının seçtiği günlük çalışma süresi → görev yoğunluğu
+  startDate?: string;      // planın oluşturulduğu an (ISO) — "kaçıncı hafta" hesabının
+                           // tek kaynağı. Spor (güç deload döngüsü / maraton rampası)
+                           // bunu kullanır; ilk setPlanSpec'te damgalanır, sonra korunur.
 }
 
 interface PrefsState {
@@ -149,7 +152,17 @@ export const usePrefsStore = create<PrefsState>()(
         set((s) => ({ seasonal: { ...s.seasonal, [key]: value } })),
       planSpecs: {},
       setPlanSpec: (mode, spec) =>
-        set((s) => ({ planSpecs: { ...s.planSpecs, [mode]: { ...s.planSpecs[mode], ...spec } } })),
+        set((s) => {
+          const prev = s.planSpecs[mode];
+          // startDate ilk oluşturmada damgalanır, sonraki güncellemelerde korunur
+          // (spec açıkça yeni bir startDate vermedikçe).
+          return {
+            planSpecs: {
+              ...s.planSpecs,
+              [mode]: { startDate: prev?.startDate ?? new Date().toISOString(), ...prev, ...spec },
+            },
+          };
+        }),
       clearPlanSpec: (mode) =>
         set((s) => {
           const next = { ...s.planSpecs };

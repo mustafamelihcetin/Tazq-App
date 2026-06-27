@@ -65,6 +65,25 @@ describe('dailyPlanEngine - buildDailyTasks', () => {
     expect(out.every(t => !/[ğşçöİı]/.test(t.title))).toBe(true);
   });
 
+  it('uses language-specific content for language exams (YDS/IELTS)', () => {
+    const out = buildDailyTasks(specFor(400, { name: 'IELTS' }), [], 'tr', TODAY);
+    const text = out.map(t => t.title).join(' ').toLowerCase();
+    expect(text).toMatch(/kelime|dinle|gramer/);
+  });
+
+  it('uses flashcard/Qbank content for medical exams (TUS/USMLE)', () => {
+    const out = buildDailyTasks(specFor(200, { name: 'TUS' }), [], 'tr', TODAY);
+    const text = out.map(t => t.title).join(' ').toLowerCase();
+    expect(text).toMatch(/anki|qbank|high-yield|yüksek-verimli/);
+  });
+
+  it('falls back to generic content for non-preset / public exams (KPSS)', () => {
+    const out = buildDailyTasks(specFor(400, { name: 'KPSS' }), [], 'tr', TODAY);
+    const text = out.map(t => t.title).join(' ').toLowerCase();
+    // Jenerik foundation havuzu: kavram/oku/özet
+    expect(text).toMatch(/kavram|oku|özet|soru/);
+  });
+
   it('generates daily tasks for fitness kinds too', () => {
     const kilo = buildDailyTasks({ kind: 'kilo', daysLeft: 60, dailyMinutes: 90 }, [], 'tr', TODAY);
     expect(kilo.length).toBe(2);

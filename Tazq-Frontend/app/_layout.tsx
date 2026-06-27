@@ -52,7 +52,6 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
 import { AnimatedSplash } from '../components/AnimatedSplash';
-import { OfflineBanner } from '../components/OfflineBanner';
 import { FocusIsland } from '../components/FocusIsland';
 import { Toast } from '../components/Toast';
 import { CelebrationOverlay } from '../components/CelebrationOverlay';
@@ -462,7 +461,6 @@ export default function RootLayout() {
           <Stack.Screen name="legal" options={{ animation: 'slide_from_right' }} />
         </Stack>
 
-        <OfflineBanner />
         <FocusIsland />
         <Toast />
         <CelebrationOverlay />

@@ -3,6 +3,8 @@ import { useNetworkStore } from '../store/useNetworkStore';
 import { useOfflineQueue } from '../store/useOfflineQueue';
 import { useTaskStore } from '../store/useTaskStore';
 import { TaskService } from '../services/api';
+import { useLanguageStore } from '../store/useLanguageStore';
+import { useToastStore } from '../store/useToastStore';
 
 export function useOfflineSync() {
   const isOnline = useNetworkStore(s => s.isOnline);
@@ -66,6 +68,14 @@ export function useOfflineSync() {
           const freshTasks = await TaskService.getTasks();
           useTaskStore.getState().setTasks(freshTasks);
         } catch {}
+
+        if (useOfflineQueue.getState().ops.length === 0) {
+          const language = useLanguageStore.getState().language;
+          useToastStore.getState().show(
+            language === 'tr' ? 'Değişiklikler senkronize edildi' : 'Changes synced',
+            'success'
+          );
+        }
       }
     };
 

@@ -106,6 +106,23 @@ namespace Tazq_App.Services
 
         public async Task<TaskItem> CreateTaskAsync(int userId, TaskItem task)
         {
+            // Idempotency: ağ kopması/timeout sonrası istemci aynı görevi tekrar
+            // gönderebilir. Aynı kullanıcıda tamamlanmamış aynı ClientKey'li görev
+            // varsa yenisini oluşturmadan mevcudu döndür (at-least-once → exactly-once).
+            if (!string.IsNullOrEmpty(task.ClientKey))
+            {
+                var existing = await _context.Tasks
+                    .FirstOrDefaultAsync(t => t.UserId == userId
+                        && t.ClientKey == task.ClientKey
+                        && !t.IsCompleted);
+                if (existing != null)
+                {
+                    var existingKey = _cryptoService.GetKeyForUser(userId)!;
+                    DecryptTask(existing, existingKey);
+                    return existing;
+                }
+            }
+
             var taskCount = await _context.Tasks.CountAsync(t => t.UserId == userId);
             if (taskCount >= MaxTasksPerUser)
                 throw new InvalidOperationException($"TASK_LIMIT_REACHED:{MaxTasksPerUser}");

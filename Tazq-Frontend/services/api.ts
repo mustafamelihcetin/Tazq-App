@@ -26,6 +26,25 @@ api.interceptors.request.use(async (config) => {
 const RETRY_STATUS_CODES = [502, 503, 504];
 const MAX_RETRIES = 2;
 
+function isLikelyConnectivityError(error: any): boolean {
+  if (error.response) return false;
+
+  const code = String(error.code ?? '').toUpperCase();
+  const message = String(error.message ?? '').toLowerCase();
+
+  // Timeouts often mean the API is slow, not that the device has no internet.
+  if (code === 'ECONNABORTED' || message.includes('timeout')) return false;
+
+  return (
+    code === 'ERR_NETWORK' ||
+    code === 'ENOTFOUND' ||
+    code === 'EAI_AGAIN' ||
+    message.includes('network error') ||
+    message.includes('network request failed') ||
+    message.includes('internet connection appears to be offline')
+  );
+}
+
 // Tek seferlik token yenileme — JWT 60 dk'da doluyor; eşzamanlı 401'lerde
 // tek bir refresh isteği paylaşılır (deduplication).
 let refreshPromise: Promise<string | null> | null = null;
@@ -65,10 +84,11 @@ api.interceptors.response.use(
   async (error) => {
     const config = error.config as typeof error.config & { _retryCount?: number; _retriedAuth?: boolean };
 
-    // Network failure (no response at all) → mark offline
-    if (!error.response) {
+    // Only mark offline for likely device connectivity failures. Server/API
+    // timeouts should not show a misleading "no internet" banner.
+    if (isLikelyConnectivityError(error)) {
       useNetworkStore.getState().setOnline(false);
-    } else {
+    } else if (error.response) {
       useNetworkStore.getState().setOnline(true);
     }
 
@@ -164,6 +184,12 @@ export interface CreateTaskPayload {
   subtasks?: SubtaskItem[];
   recurrence?: RecurrenceType;
   sortOrder?: number;
+  /**
+   * İstemci-tarafı idempotency anahtarı (deterministik). Plan/günlük görevler için
+   * set edilir; backend aynı kullanıcıda tamamlanmamış aynı clientKey'li görev varsa
+   * yenisini oluşturmaz. Ağ kopması/timeout sonrası tekrar denemelerde çift kaydı önler.
+   */
+  clientKey?: string;
 }
 
 export interface DailyFocusData {

@@ -5,7 +5,7 @@ import { BlurView } from 'expo-blur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import Animated, { Layout, LinearTransition, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, ArrowLeft, Search, SlidersHorizontal, CheckSquare, Scale, Target, Archive } from 'lucide-react-native';
+import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, Search, SlidersHorizontal, CheckSquare, Scale, Target, Archive } from 'lucide-react-native';
 import { SubtaskProgressRing } from '../components/SubtaskProgressRing';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
@@ -20,7 +20,7 @@ import { getModeInfoForTask } from '../utils/modeHelpers';
 
 import * as Haptics from 'expo-haptics';
 import { createAudioPlayer } from 'expo-audio';
-import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '../services/api';
 import { parseTaskHint } from '../utils/taskParser';
 import { visibleTextTags } from '../utils/taskTags';
@@ -359,7 +359,6 @@ export default function ActionCenter() {
   const { setCurrentTask } = useFocusStore();
   const { width, height } = useWindowDimensions();
   const router = useRouter();
-  const navigation = useNavigation();
   const { action, highlightId, dateFilter } = useLocalSearchParams<{ action?: string; highlightId?: string; dateFilter?: string }>();
   const insets = useSafeAreaInsets();
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
@@ -1303,11 +1302,9 @@ export default function ActionCenter() {
                           <X size={24} color={theme.onSurface} />
                       </Touchable>
                   ) : (
-                      navigation.canGoBack() ? (
-                          <Touchable onPress={() => router.back()} hitSlop={{top:10, bottom:10, left:10, right:10}} style={styles.headerIconBtn}>
-                              <ArrowLeft size={24} color={theme.onSurface} />
-                          </Touchable>
-                      ) : <View style={{ width: 32 }} />
+                      // Ana sekme — alt navigasyondan gezilir; header'da back butonu YOK
+                      // (cockpit/Haftalık Merkez ile tutarlı). Sabit boşluk başlığı ortalar.
+                      <View style={{ width: 40, height: 40 }} />
                   )}
               </View>
 

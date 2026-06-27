@@ -40,6 +40,7 @@ import { buildDailyTasks, DailyPlanSpec, PlanKind } from '../utils/dailyPlanEngi
 import { runPlanMigrationOnce } from '../utils/planMigration';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
+const PLAN_TAGS = ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss', 'daily'];
 
 function getLocalDateString(d: Date = new Date()): string {
   const adjusted = new Date(d);
@@ -64,6 +65,41 @@ async function shouldRunToday(): Promise<boolean> {
 async function markRanToday() {
   const today = getLocalDateString();
   await AsyncStorage.setItem(LAST_RUN_KEY, today);
+}
+
+function dateKey(date?: string | null): string {
+  if (!date) return '';
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date.slice(0, 10);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function isPlanGeneratedTask(task: { tags?: string[] | null }): boolean {
+  return (task.tags ?? []).some(tag => PLAN_TAGS.includes(tag));
+}
+
+// Deterministik idempotency anahtarı: aynı (etiketler|gün|başlık) için aynı sonucu
+// verir → backend çift kaydı reddedebilir. FNV-1a tabanlı kısa hash (<=64 char).
+function fnv1a(str: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+function makeClientKey(payload: { title: string; dueDate?: string | null; tags?: string[] | null }): string {
+  const tags = (payload.tags ?? []).slice().sort().join(',');
+  const day = dateKey(payload.dueDate);
+  const basis = `${tags}|${day}|${payload.title.trim().toLocaleLowerCase('tr')}`;
+  // Çift FNV (ileri + ters) ile çakışma riskini düşür; okunur bir önek ekle.
+  return `${day}:${fnv1a(basis)}${fnv1a(basis.split('').reverse().join(''))}`.slice(0, 64);
+}
+
+function planDedupeKey(task: { title: string; dueDate?: string | null; tags?: string[] | null }): string {
+  const tags = (task.tags ?? []).filter(tag => PLAN_TAGS.includes(tag)).sort().join(',');
+  return `${task.title.trim().toLocaleLowerCase('tr')}|${dateKey(task.dueDate)}|${tags}`;
 }
 
 export function usePlanAdaptations() {
@@ -128,16 +164,40 @@ export function usePlanAdaptations() {
     }
 
     const created: number[] = [];
-    for (const payload of newTasks) {
+    for (const rawPayload of newTasks) {
+      // Idempotency anahtarı ekle (backend çift kaydı reddetsin; offline retry güvenli).
+      const payload = { ...rawPayload, clientKey: rawPayload.clientKey ?? makeClientKey(rawPayload) };
+      const currentTasks = useTaskStore.getState().tasks;
+      const duplicate = currentTasks.some(task =>
+        !task.isCompleted &&
+        isPlanGeneratedTask(task) &&
+        planDedupeKey(task) === planDedupeKey(payload)
+      );
+      if (duplicate) continue;
+
       try {
         const t = await TaskService.createTask(payload);
         if (t?.id) {
           addTask(t);
           created.push(t.id);
         }
-      } catch {}
+      } catch {
+        // Cihaz gerçekten offline ise görevi KAYBETME: optimistik ekle + kuyruğa al
+        // ki online olunca tek senkron yolundan (useOfflineSync) yazılsın. Böylece
+        // manuel görevlerle aynı offline-first modeli izler.
+        // Timeout/5xx gibi "sunucu görmüş olabilir" durumlarında kuyruğa ALMIYORUZ
+        // (çift kayıt riski); o görevler bir sonraki açılışta yeniden üretilir ve
+        // her açılışta çalışan dedupe pass'i olası kopyaları zaten temizler.
+        if (!useNetworkStore.getState().isOnline) {
+          const tempId = -Date.now() - created.length;
+          useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload });
+          addTask({ ...payload, id: tempId } as any);
+          created.push(tempId);
+        }
+      }
     }
-    setPlanIds(planMode, prunedHabitIds, [...prunedTaskIds, ...created]);
+    const taskIds = Array.from(new Set([...prunedTaskIds, ...created]));
+    setPlanIds(planMode, prunedHabitIds, taskIds);
   }, [addTask, setPlanIds]);
 
   const run = useCallback(async (force = false) => {
@@ -274,11 +334,54 @@ export function usePlanAdaptations() {
       finalPrefs.syncToCloud().catch(() => {});
     }
 
-    if (!force && !(await shouldRunToday())) return;
-
+    // NOT: shouldRunToday kapısı buradan KALDIRILDI. Aşağıdaki duplicate-dedupe
+    // ve geçmiş-tarih temizliği HER açılışta çalışmalı (ucuz + idempotent),
+    // yoksa gün içinde ikinci açılışta bayat/çift görevler temizlenmeden kalıyordu.
+    // Kapı, yalnızca görev ÜRETIMINI günde 1 kez sınırlamak için KILO bloğunun
+    // hemen öncesine taşındı.
     let existing = useTaskStore.getState().tasks;
     const activePrefs = usePrefsStore.getState();
     const activeSeasonal = activePrefs.seasonal;
+
+    // ── DEDUPE PLAN TASKS CREATED DURING OFFLINE / BLOCKED API PERIODS ─────
+    const seenPlanTasks = new Set<string>();
+    const duplicatePlanTasks = existing.filter(task => {
+      if (task.isCompleted || !isPlanGeneratedTask(task)) return false;
+      const key = planDedupeKey(task);
+      if (!key) return false;
+      if (seenPlanTasks.has(key)) return true;
+      seenPlanTasks.add(key);
+      return false;
+    });
+
+    duplicatePlanTasks.forEach(task => {
+      retirePlanTask(task.id, task.tags?.find(tag => PLAN_TAGS.includes(tag)));
+    });
+
+    if (duplicatePlanTasks.length > 0) {
+      const removedIds = new Set(duplicatePlanTasks.map(task => task.id));
+      const updatedPrefs = usePrefsStore.getState();
+      const slots = [
+        { mode: 'exam' as const, taskIds: updatedPrefs.examPlanTaskIds, habitIds: updatedPrefs.examPlanHabitIds },
+        { mode: 'exam2' as const, taskIds: updatedPrefs.exam2PlanTaskIds, habitIds: updatedPrefs.exam2PlanHabitIds },
+        { mode: 'exam3' as const, taskIds: updatedPrefs.exam3PlanTaskIds, habitIds: updatedPrefs.exam3PlanHabitIds },
+        { mode: 'tez' as const, taskIds: updatedPrefs.tezPlanTaskIds, habitIds: updatedPrefs.tezPlanHabitIds },
+        { mode: 'mulakat' as const, taskIds: updatedPrefs.mulakatPlanTaskIds, habitIds: updatedPrefs.mulakatPlanHabitIds },
+        { mode: 'mulakat2' as const, taskIds: updatedPrefs.mulakat2PlanTaskIds, habitIds: updatedPrefs.mulakat2PlanHabitIds },
+        { mode: 'mulakat3' as const, taskIds: updatedPrefs.mulakat3PlanTaskIds, habitIds: updatedPrefs.mulakat3PlanHabitIds },
+        { mode: 'spor' as const, taskIds: updatedPrefs.sporPlanTaskIds, habitIds: updatedPrefs.sporPlanHabitIds },
+        { mode: 'spor2' as const, taskIds: updatedPrefs.spor2PlanTaskIds, habitIds: updatedPrefs.spor2PlanHabitIds },
+        { mode: 'spor3' as const, taskIds: updatedPrefs.spor3PlanTaskIds, habitIds: updatedPrefs.spor3PlanHabitIds },
+        { mode: 'ramazan' as const, taskIds: updatedPrefs.ramazanPlanTaskIds, habitIds: updatedPrefs.ramazanPlanHabitIds },
+      ];
+      slots.forEach(slot => {
+        const nextIds = slot.taskIds.filter(id => !removedIds.has(id));
+        if (nextIds.length !== slot.taskIds.length) {
+          updatedPrefs.setPlanIds(slot.mode, slot.habitIds, nextIds);
+        }
+      });
+      existing = useTaskStore.getState().tasks;
+    }
 
     // ── AUTO-CLEANUP OVERDUE INCOMPLETE PLAN TASKS ─────────────────────────
     const logicalToday = new Date();
@@ -326,6 +429,10 @@ export function usePlanAdaptations() {
     // Refresh existing list after cleanup to avoid duplication downstream
     existing = useTaskStore.getState().tasks;
 
+    // ── ÜRETIM KAPISI ─────────────────────────────────────────────────────────
+    // Temizlik/dedupe yukarıda her açılışta çalıştı; görev üretimi ise günde 1 kez.
+    if (!force && !(await shouldRunToday())) return;
+
     // ── KILO ────────────────────────────────────────────────────────────────
     if (activeSeasonal.sporMode && activeSeasonal.sporGoal) {
       const sporType = detectSporTypeLocal(activeSeasonal.sporGoal);
@@ -343,16 +450,21 @@ export function usePlanAdaptations() {
         const sporState = useSporStore.getState();
         const wkm = parseFloat(sporState.weeklyKm) || 30;
         const targetEvent = sporState.targetEvent || '10K';
-        // Plan başlangıcından bu yana geçen hafta sayısı
-        const weeksIn = 0;
+        // Plan başlangıcından bu yana geçen hafta sayısı (gerçek planStartDate'ten)
+        const mStart = planSpecs.spor?.startDate;
+        const weeksIn = mStart
+          ? Math.max(0, Math.floor((Date.now() - new Date(mStart).getTime()) / (7 * 86400000)))
+          : 0;
         const newTasks = buildMaratonAdaptationTasks(wkm, targetEvent, daysLeft, weeksIn, 0.7, existing, lang);
         await applyTasks(newTasks, 'spor', sporPlanTaskIds, sporPlanHabitIds);
       } else if ((sporType === 'guc' || sporType === 'genel') && activeSeasonal.sporDate) {
-        // Plan başlangıcını tahmin et: sporDate'den geriye 12 hafta
-        const daysLeft = daysUntil(activeSeasonal.sporDate);
-        const PLAN_WEEKS = 12;
-        const weeksLeft = Math.ceil(daysLeft / 7);
-        const weeksElapsed = Math.max(0, PLAN_WEEKS - weeksLeft);
+        // Geçen hafta sayısını GERÇEK plan başlangıcından hesapla (planStartDate).
+        // Eski kod 12 haftalık sabit varsayımla tahmin ediyordu; hedef 12 haftadan
+        // uzaksa weeksElapsed 0'da takılıp DELOAD (her 4 hafta) hiç tetiklenmiyordu.
+        const startDate = planSpecs.spor?.startDate;
+        const weeksElapsed = startDate
+          ? Math.max(0, Math.floor((Date.now() - new Date(startDate).getTime()) / (7 * 86400000)))
+          : 0;
         const td = useSporStore.getState().trainingDays ?? 3;
         const newTasks = buildGucAdaptationTasks(weeksElapsed, td, existing, lang);
         await applyTasks(newTasks, 'spor', sporPlanTaskIds, sporPlanHabitIds);
@@ -408,8 +520,12 @@ export function usePlanAdaptations() {
     // ── GÜNLÜK PLAN MOTORU ────────────────────────────────────────────────────
     // Her aktif plan için BUGÜNÜN görevlerini üretir (faz/ilerlemeye göre).
     // hasDailyToday içte kontrol edildiği için aynı gün tekrar çağrılsa da çoğaltmaz.
+    // Günlük görevler GERÇEK yerel güne tarihlenir (buffer YOK). Eskiden buradaki
+    // -3 saatlik gece buffer'ı dueDate'e sızıyor, gece 00:00–03:00 üretilen görev
+    // "dün" damgalanıp ("26 Haz" sorunu) aynı sabah geçmiş-temizliğine takılıyordu.
+    // Gece-kuşu buffer'ı yalnızca üretim-kapısında (shouldRunToday) ve geçmiş-tarih
+    // temizliği eşiğinde (todayStart) korunur; görev damgasını kaydırmaz.
     const today = new Date();
-    today.setHours(today.getHours() - 3); // 3-hour buffer for night owls
     const fresh = useTaskStore.getState().tasks;
 
     const sporKind = (goal: string): PlanKind => {
@@ -423,7 +539,7 @@ export function usePlanAdaptations() {
     for (const slot of examSlots) {
       if (slot.active && slot.name && slot.date) {
         dailySlots.push({
-          spec: { kind: 'exam', name: slot.name, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
+          spec: { kind: 'exam', slot: slot.mode, name: slot.name, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
           mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
         });
       }
@@ -431,7 +547,7 @@ export function usePlanAdaptations() {
     // Tez
     if (activeSeasonal.tezMode && activeSeasonal.tezName && activeSeasonal.tezDate) {
       dailySlots.push({
-        spec: { kind: 'tez', name: activeSeasonal.tezName, daysLeft: daysUntil(activeSeasonal.tezDate), dailyMinutes: planSpecs.tez?.dailyMinutes, templateId: planSpecs.tez?.templateId },
+        spec: { kind: 'tez', slot: 'tez', name: activeSeasonal.tezName, daysLeft: daysUntil(activeSeasonal.tezDate), dailyMinutes: planSpecs.tez?.dailyMinutes, templateId: planSpecs.tez?.templateId },
         mode: 'tez', taskIds: tezPlanTaskIds, habitIds: tezPlanHabitIds,
       });
     }
@@ -439,7 +555,7 @@ export function usePlanAdaptations() {
     for (const slot of mulakatSlots) {
       if (slot.active && slot.name && slot.date) {
         dailySlots.push({
-          spec: { kind: 'mulakat', name: slot.name, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
+          spec: { kind: 'mulakat', slot: slot.mode, name: slot.name, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
           mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
         });
       }
@@ -453,7 +569,7 @@ export function usePlanAdaptations() {
     for (const slot of sporSlots) {
       if (slot.goal && slot.date) {
         dailySlots.push({
-          spec: { kind: sporKind(slot.goal), daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
+          spec: { kind: sporKind(slot.goal), slot: slot.mode, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
           mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
         });
       }
@@ -464,7 +580,7 @@ export function usePlanAdaptations() {
       const activeRamazan = RAMAZAN.find(r => todayStr >= r.start && todayStr <= r.end);
       if (activeRamazan) {
         dailySlots.push({
-          spec: { kind: 'ramazan', daysLeft: daysUntil(activeRamazan.end), dailyMinutes: planSpecs.ramazan?.dailyMinutes, templateId: planSpecs.ramazan?.templateId },
+          spec: { kind: 'ramazan', slot: 'ramazan', daysLeft: daysUntil(activeRamazan.end), dailyMinutes: planSpecs.ramazan?.dailyMinutes, templateId: planSpecs.ramazan?.templateId },
           mode: 'ramazan', taskIds: ramazanPlanTaskIds, habitIds: ramazanPlanHabitIds,
         });
       }

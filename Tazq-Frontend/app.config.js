@@ -13,7 +13,7 @@ module.exports = {
         '@sentry/react-native/expo',
         {
           // Upload source maps during EAS builds for readable stack traces
-          // Requires SENTRY_AUTH_TOKEN and SENTRY_ORG/SENTRY_PROJECT env vars in eas.json
+          // Disabled in eas.json unless SENTRY_AUTH_TOKEN is configured for EAS.
           url: 'https://sentry.io/',
           project: 'tazq',
           organization: 'tazq-org',

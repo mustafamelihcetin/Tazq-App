@@ -4,7 +4,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { BlurView } from 'expo-blur';
 import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, ChevronRight, CalendarDays, X, ArrowLeft, Info } from 'lucide-react-native';
+import { BookOpen, ChevronRight, CalendarDays, X, Info } from 'lucide-react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { BottomNavBar } from '../components/BottomNavBar';
@@ -527,11 +527,9 @@ export default function ModlarScreen() {
             <View style={[styles.topBarContent, { paddingHorizontal: S.sm, minHeight: 48 }]}>
               {/* Left Side (Fixed Width for Perfect Centering) */}
               <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
-                  {router.canGoBack() ? (
-                      <Touchable onPress={() => router.back()} hitSlop={{top:10, bottom:10, left:10, right:10}} style={styles.headerIconBtn}>
-                          <ArrowLeft size={24} color={theme.onSurface} />
-                      </Touchable>
-                  ) : <View style={{ width: 40, height: 40 }} />}
+                  {/* Ana sekme — alt navigasyondan gezilir; header'da back butonu YOK
+                      (cockpit/Haftalık Merkez ile tutarlı). Sabit boşluk başlığı ortalar. */}
+                  <View style={{ width: 40, height: 40 }} />
               </View>
 
               {/* Center Title (Takes remaining space, perfectly centered) */}
