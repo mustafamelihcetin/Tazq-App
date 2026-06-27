@@ -27,7 +27,7 @@ export default function LegalScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.outlineVariant + '30' }]}>
-        <Touchable onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7}>
+        <Touchable onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'}>
           <ArrowLeft size={22} color={theme.onSurface} />
         </Touchable>
         <Text style={[styles.headerTitle, { color: theme.onSurface }]} numberOfLines={1}>

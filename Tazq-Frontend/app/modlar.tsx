@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList } from 'react-native';
+import { CustomAlert as Alert } from '../components/CustomAlert';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { BlurView } from 'expo-blur';
 import { MotiView, AnimatePresence } from 'moti';
@@ -553,6 +554,8 @@ export default function ModlarScreen() {
                         : 'Seasonal modes are curated bundles of tasks and habits for a specific goal or period. When activated, the plan is automatically added to your Weekly Hub. Deactivating the mode removes the added content.'
                    )}
                    style={styles.headerIconBtn}
+                   accessibilityRole="button"
+                   accessibilityLabel={language === 'tr' ? 'Modlar hakkında bilgi' : 'About modes'}
                  >
                      <Info size={24} color={theme.onSurfaceVariant} />
                  </Touchable>
@@ -759,6 +762,8 @@ export default function ModlarScreen() {
                               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Sınavı Sil' : 'Delete Exam', language === 'tr' ? `"${examNameInput}" silinecek. Emin misin?` : `"${examNameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { examPlanHabitIds.forEach(id => removeHabit(id)); examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam')); clearPlanIds('exam'); setExamNameInput(''); setExamDateInput(''); setSelectedExamPreset(null); setExamExpanded(false); setSeasonalPref('examName', ''); setSeasonalPref('examDate', null); if (!exam2IsComplete && !exam3IsComplete) { setSeasonalPref('examMode', false); } } }]); }}
                               hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
                               style={{ marginLeft: S.sm }}
+                              accessibilityRole="button"
+                              accessibilityLabel={language === 'tr' ? 'Sil' : 'Delete'}
                             >
                               <X size={14} color={theme.onSurfaceVariant} strokeWidth={2.5} />
                             </Touchable>
@@ -816,6 +821,8 @@ export default function ModlarScreen() {
                             <Touchable
                               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Sınavı Sil' : 'Delete Exam', language === 'tr' ? `"${exam2NameInput}" silinecek. Emin misin?` : `"${exam2NameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { exam2PlanHabitIds.forEach(id => removeHabit(id)); exam2PlanTaskIds.forEach(id => retirePlanTask(id, 'exam2')); clearPlanIds('exam2'); setExam2NameInput(''); setExam2DateInput(''); setSelectedExam2Preset(null); setExam2Expanded(false); setSeasonalPref('exam2Name', ''); setSeasonalPref('exam2Date', null); } }]); }}
                               hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
+                              accessibilityRole="button"
+                              accessibilityLabel={language === 'tr' ? 'Sil' : 'Delete'}
                             >
                               <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
                             </Touchable>
@@ -891,6 +898,8 @@ export default function ModlarScreen() {
                               <Touchable
                                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Sınavı Sil' : 'Delete Exam', language === 'tr' ? `"${exam3NameInput}" silinecek. Emin misin?` : `"${exam3NameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { exam3PlanHabitIds.forEach(id => removeHabit(id)); exam3PlanTaskIds.forEach(id => retirePlanTask(id, 'exam3')); clearPlanIds('exam3'); setExam3NameInput(''); setExam3DateInput(''); setSelectedExam3Preset(null); setExam3Expanded(false); setSeasonalPref('exam3Name', ''); setSeasonalPref('exam3Date', null); } }]); }}
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
+                                accessibilityRole="button"
+                                accessibilityLabel={language === 'tr' ? 'Sil' : 'Delete'}
                               >
                                 <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
                               </Touchable>
@@ -1170,7 +1179,7 @@ export default function ModlarScreen() {
                               <Text style={{ color: mulakat2DatePast ? theme.error : mulakat2UrgencyColor, fontSize: 11, fontWeight: '500' }}>{mulakat2DatePast ? (language === 'tr' ? 'Tarih geçti' : 'Date passed') : (language === 'tr' ? `${mulakat2DaysLeft} gün kaldı` : `${mulakat2DaysLeft} days left`)}</Text>
                             </View>
                             <Text style={{ color: mulakat2UrgencyColor, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
-                            <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Mülakatı Sil' : 'Delete Interview', language === 'tr' ? `"${mulakat2NameInput}" silinecek. Emin misin?` : `"${mulakat2NameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { mulakat2PlanHabitIds.forEach(id => removeHabit(id)); mulakat2PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat2')); clearPlanIds('mulakat2'); setMulakat2NameInput(''); setMulakat2DateInput(''); setMulakat2Expanded(false); setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}>
+                            <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Mülakatı Sil' : 'Delete Interview', language === 'tr' ? `"${mulakat2NameInput}" silinecek. Emin misin?` : `"${mulakat2NameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { mulakat2PlanHabitIds.forEach(id => removeHabit(id)); mulakat2PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat2')); clearPlanIds('mulakat2'); setMulakat2NameInput(''); setMulakat2DateInput(''); setMulakat2Expanded(false); setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sil' : 'Delete'}>
                               <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
                             </Touchable>
                           </Touchable>
@@ -1216,7 +1225,7 @@ export default function ModlarScreen() {
                                 <Text style={{ color: mulakat3DatePast ? theme.error : mulakat3UrgencyColor, fontSize: 11, fontWeight: '500' }}>{mulakat3DatePast ? (language === 'tr' ? 'Tarih geçti' : 'Date passed') : (language === 'tr' ? `${mulakat3DaysLeft} gün kaldı` : `${mulakat3DaysLeft} days left`)}</Text>
                               </View>
                               <Text style={{ color: mulakat3UrgencyColor, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
-                              <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Mülakatı Sil' : 'Delete Interview', language === 'tr' ? `"${mulakat3NameInput}" silinecek. Emin misin?` : `"${mulakat3NameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { mulakat3PlanHabitIds.forEach(id => removeHabit(id)); mulakat3PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat3')); clearPlanIds('mulakat3'); setMulakat3NameInput(''); setMulakat3DateInput(''); setMulakat3Expanded(false); setSeasonalPref('mulakat3Name', ''); setSeasonalPref('mulakat3Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}>
+                              <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Mülakatı Sil' : 'Delete Interview', language === 'tr' ? `"${mulakat3NameInput}" silinecek. Emin misin?` : `"${mulakat3NameInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { mulakat3PlanHabitIds.forEach(id => removeHabit(id)); mulakat3PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat3')); clearPlanIds('mulakat3'); setMulakat3NameInput(''); setMulakat3DateInput(''); setMulakat3Expanded(false); setSeasonalPref('mulakat3Name', ''); setSeasonalPref('mulakat3Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sil' : 'Delete'}>
                                 <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
                               </Touchable>
                             </Touchable>
@@ -1475,7 +1484,7 @@ export default function ModlarScreen() {
                               <Text style={{ color: spor2DatePast ? theme.error : sporColor, fontSize: 11, fontWeight: '500' }}>{spor2DatePast ? (language === 'tr' ? 'Tarih geçti' : 'Date passed') : (language === 'tr' ? `${spor2DaysLeft} gün kaldı` : `${spor2DaysLeft} days left`)}</Text>
                             </View>
                             <Text style={{ color: sporColor, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
-                            <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Hedefi Sil' : 'Delete Goal', language === 'tr' ? `"${spor2GoalInput}" silinecek. Emin misin?` : `"${spor2GoalInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { spor2PlanHabitIds.forEach(id => removeHabit(id)); spor2PlanTaskIds.forEach(id => retirePlanTask(id, 'spor2')); clearPlanIds('spor2'); setSpor2GoalInput(''); setSpor2DateInput(''); setSpor2Expanded(false); setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}>
+                            <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Hedefi Sil' : 'Delete Goal', language === 'tr' ? `"${spor2GoalInput}" silinecek. Emin misin?` : `"${spor2GoalInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { spor2PlanHabitIds.forEach(id => removeHabit(id)); spor2PlanTaskIds.forEach(id => retirePlanTask(id, 'spor2')); clearPlanIds('spor2'); setSpor2GoalInput(''); setSpor2DateInput(''); setSpor2Expanded(false); setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sil' : 'Delete'}>
                               <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
                             </Touchable>
                           </Touchable>
@@ -1559,7 +1568,7 @@ export default function ModlarScreen() {
                                 <Text style={{ color: spor3DatePast ? theme.error : sporColor, fontSize: 11, fontWeight: '500' }}>{spor3DatePast ? (language === 'tr' ? 'Tarih geçti' : 'Date passed') : (language === 'tr' ? `${spor3DaysLeft} gün kaldı` : `${spor3DaysLeft} days left`)}</Text>
                               </View>
                               <Text style={{ color: sporColor, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Düzenle ›' : 'Edit ›'}</Text>
-                              <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Hedefi Sil' : 'Delete Goal', language === 'tr' ? `"${spor3GoalInput}" silinecek. Emin misin?` : `"${spor3GoalInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { spor3PlanHabitIds.forEach(id => removeHabit(id)); spor3PlanTaskIds.forEach(id => retirePlanTask(id, 'spor3')); clearPlanIds('spor3'); setSpor3GoalInput(''); setSpor3DateInput(''); setSpor3Expanded(false); setSeasonalPref('spor3Goal', ''); setSeasonalPref('spor3Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}>
+                              <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(language === 'tr' ? 'Hedefi Sil' : 'Delete Goal', language === 'tr' ? `"${spor3GoalInput}" silinecek. Emin misin?` : `"${spor3GoalInput}" will be deleted. Are you sure?`, [{ text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => { spor3PlanHabitIds.forEach(id => removeHabit(id)); spor3PlanTaskIds.forEach(id => retirePlanTask(id, 'spor3')); clearPlanIds('spor3'); setSpor3GoalInput(''); setSpor3DateInput(''); setSpor3Expanded(false); setSeasonalPref('spor3Goal', ''); setSeasonalPref('spor3Date', null); } }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sil' : 'Delete'}>
                                 <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
                               </Touchable>
                             </Touchable>

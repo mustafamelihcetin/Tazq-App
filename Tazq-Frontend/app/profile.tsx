@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Alert, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, Switch } from 'react-native';
+import { CustomAlert as Alert } from '../components/CustomAlert';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
@@ -513,7 +514,7 @@ export default function ProfileScreen() {
       {/* Edit Profile Modal */}
       <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <Touchable style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} />
+            <Touchable style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
               <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', maxHeight: height - insets.top - 16 }]}>
                 <View {...editPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
                   <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
@@ -556,6 +557,9 @@ export default function ProfileScreen() {
                             key={config.id}
                             onPress={() => { Haptics.selectionAsync(); setSelectedAvatar(config.key); }}
                             activeOpacity={0.75}
+                            accessibilityRole="imagebutton"
+                            accessibilityLabel={(language === 'tr' ? 'Avatar ' : 'Avatar ') + config.key}
+                            accessibilityState={{ selected: isSelected }}
                             style={{ alignItems: 'center', gap: 5 }}
                           >
                             <View style={{

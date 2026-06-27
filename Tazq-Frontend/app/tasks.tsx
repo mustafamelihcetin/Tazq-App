@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard, FlatList } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard, FlatList } from 'react-native';
+import { CustomAlert as Alert } from '../components/CustomAlert';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -1298,7 +1299,7 @@ export default function ActionCenter() {
               {/* Left Side (Fixed Width for Perfect Centering) */}
               <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
                   {isBulkMode ? (
-                      <Touchable onPress={() => { setIsBulkMode(false); setSelectedIds(new Set()); }} hitSlop={{top:10, bottom:10, left:10, right:10}} style={styles.headerIconBtn}>
+                      <Touchable onPress={() => { setIsBulkMode(false); setSelectedIds(new Set()); }} hitSlop={{top:10, bottom:10, left:10, right:10}} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Seçimi iptal et' : 'Cancel selection'}>
                           <X size={24} color={theme.onSurface} />
                       </Touchable>
                   ) : (
@@ -1331,10 +1332,10 @@ export default function ActionCenter() {
                       </View>
                   ) : (
                       <>
-                          <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn}>
+                          <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
                               <Search size={22} color={showSearch ? theme.primary : theme.onSurface} />
                           </Touchable>
-                          <Touchable onPress={() => { setShowSortMenu(!showSortMenu); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn}>
+                          <Touchable onPress={() => { setShowSortMenu(!showSortMenu); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
                               <View>
                                   <SlidersHorizontal size={22} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
                                   {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) && (
@@ -1451,7 +1452,7 @@ export default function ActionCenter() {
                   returnKeyType="search"
                 />
                 {searchQuery.length > 0 && (
-                  <Touchable onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Touchable onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Aramayı temizle' : 'Clear search'}>
                     <X size={16} color={theme.onSurfaceVariant} />
                   </Touchable>
                 )}
@@ -1791,6 +1792,8 @@ export default function ActionCenter() {
                         onPress={() => !saving && setModalVisible(false)}
                         style={[styles.closeModalBtn, saving && { opacity: 0.35 }]}
                         disabled={saving}
+                        accessibilityRole="button"
+                        accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'}
                     >
                         <X size={20} color={theme.onSurfaceVariant} />
                     </Touchable>
@@ -1830,7 +1833,7 @@ export default function ActionCenter() {
                                 />
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                                     {nlpHint ? <Sparkles size={16} color={theme.primary} /> : null}
-                                    <Touchable onPress={() => toggleVoice('title')} style={{ padding: S.xs, alignItems: 'center', justifyContent: 'center' }}>
+                                    <Touchable onPress={() => toggleVoice('title')} style={{ padding: S.xs, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={isListeningTitle ? (language === 'tr' ? 'Dinlemeyi durdur' : 'Stop listening') : (language === 'tr' ? 'Sesle yaz' : 'Voice input')} accessibilityState={{ busy: isListeningTitle }}>
                                         <VoiceWave active={isListeningTitle} theme={theme} />
                                         <Mic size={18} color={isListeningTitle ? theme.primary : theme.onSurfaceVariant} />
                                     </Touchable>
@@ -1871,7 +1874,7 @@ export default function ActionCenter() {
                                     maxLength={500}
                                     underlineColorAndroid="transparent"
                                 />
-                                <Touchable onPress={() => toggleVoice('description')} style={{ position: 'absolute', right: S.md, top: 14, padding: S.xs, alignItems: 'center', justifyContent: 'center' }}>
+                                <Touchable onPress={() => toggleVoice('description')} style={{ position: 'absolute', right: S.md, top: 14, padding: S.xs, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={isListeningDesc ? (language === 'tr' ? 'Dinlemeyi durdur' : 'Stop listening') : (language === 'tr' ? 'Sesle yaz' : 'Voice input')} accessibilityState={{ busy: isListeningDesc }}>
                                     <VoiceWave active={isListeningDesc} theme={theme} />
                                     <Mic size={18} color={isListeningDesc ? theme.primary : theme.onSurfaceVariant} />
                                 </Touchable>
@@ -2105,7 +2108,7 @@ export default function ActionCenter() {
                                 <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: theme.onSurface, textDecorationLine: sub.done ? 'line-through' : 'none', opacity: sub.done ? 0.4 : 1 }}>{sub.text}</Text>
                                 <Touchable onPress={() => {
                                     setForm(f => ({ ...f, subtasks: f.subtasks.filter((_, idx) => idx !== i) }));
-                                }}>
+                                }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Alt görevi kaldır' : 'Remove subtask'}>
                                     <X size={16} color={theme.onSurfaceVariant} />
                                 </Touchable>
                             </View>

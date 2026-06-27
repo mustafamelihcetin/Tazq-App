@@ -118,6 +118,8 @@ export default function RegisterScreen() {
             onPress={() => router.back()}
             style={[styles.backButton, { top: insets.top + 12 }]}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'}
           >
             <ArrowLeft size={22} color={theme.onSurface} />
           </Touchable>
@@ -212,7 +214,7 @@ export default function RegisterScreen() {
                           secureTextEntry={!showPassword}
                           underlineColorAndroid="transparent"
                         />
-                        <Touchable onPress={() => setShowPassword(!showPassword)}>
+                        <Touchable onPress={() => setShowPassword(!showPassword)} accessibilityRole="button" accessibilityLabel={showPassword ? (language === 'tr' ? 'Şifreyi gizle' : 'Hide password') : (language === 'tr' ? 'Şifreyi göster' : 'Show password')}>
                           {showPassword ? <EyeOff size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} /> : <Eye size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
                         </Touchable>
                       </View>

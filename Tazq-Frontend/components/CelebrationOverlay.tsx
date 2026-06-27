@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableWithoutFeedback, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, TouchableWithoutFeedback, useWindowDimensions, Platform, BackHandler } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useAchievementStore } from '../store/useAchievementStore';
@@ -28,7 +28,7 @@ interface Particle {
 }
 
 export const CelebrationOverlay: React.FC = () => {
-  const { pending, clearPending } = useAchievementStore();
+  const { pending, clearPending, queue } = useAchievementStore();
   const { theme, colorScheme } = useAppTheme();
   const { language } = useLanguageStore();
   const isDark = colorScheme === 'dark';
@@ -184,9 +184,19 @@ export const CelebrationOverlay: React.FC = () => {
       }, delay + 380 + Math.random() * 300);
     });
 
-    // Auto-dismiss after 3 seconds
-    dismissTimer.current = setTimeout(dismiss, 3000);
-    return () => { if (dismissTimer.current) clearTimeout(dismissTimer.current); };
+    // Oto-kapanış: sırada başka kutlama varsa daha kısa (akışı 6sn+ bloklamasın)
+    dismissTimer.current = setTimeout(dismiss, queue.length > 0 ? 1800 : 3000);
+
+    // Android donanım geri tuşu kutlamayı kapatsın (overlay RN Modal değil, absolute View)
+    const backSub = BackHandler.addEventListener('hardwareBackPress', () => {
+      dismiss();
+      return true; // varsayılan geri davranışını engelle
+    });
+
+    return () => {
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+      backSub.remove();
+    };
   }, [pending?.id]);
 
   if (!pending) return null;
@@ -243,7 +253,7 @@ export const CelebrationOverlay: React.FC = () => {
             style={[
               styles.card,
               {
-                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
                 borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
                 opacity: cardOpacity,
                 transform: [{ scale: cardScale }],

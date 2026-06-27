@@ -61,7 +61,7 @@ export default function ArchiveScreen() {
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
             {/* Header */}
             <View style={[styles.header, { borderBottomColor: theme.outline }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'}>
                     <ArrowLeft size={24} color={theme.onBackground} />
                 </TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: theme.onBackground }]}>
@@ -94,10 +94,10 @@ export default function ArchiveScreen() {
                             )}
                         </View>
                         <View style={{ flexDirection: 'row', gap: S.sm }}>
-                            <TouchableOpacity onPress={() => handleRestore(item)} style={[styles.actionBtn, { backgroundColor: theme.primary + '1A' }]}>
+                            <TouchableOpacity onPress={() => handleRestore(item)} style={[styles.actionBtn, { backgroundColor: theme.primary + '1A' }]} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri yükle' : 'Restore'}>
                                 <RotateCcw size={18} color={theme.primary} />
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleDelete(item.id)} style={[styles.actionBtn, { backgroundColor: theme.error + '1A' }]}>
+                            <TouchableOpacity onPress={() => handleDelete(item.id)} style={[styles.actionBtn, { backgroundColor: theme.error + '1A' }]} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kalıcı sil' : 'Delete permanently'}>
                                 <Trash2 size={18} color={theme.error} />
                             </TouchableOpacity>
                         </View>

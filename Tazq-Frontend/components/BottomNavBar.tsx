@@ -9,6 +9,16 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { R, B } from '../constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/components/Touchable';
+import { useLanguageStore } from '../store/useLanguageStore';
+
+// Ekran okuyucu (VoiceOver/TalkBack) için sekme etiketleri
+const TAB_LABELS: Record<string, { tr: string; en: string }> = {
+  home: { tr: 'Ana Sayfa', en: 'Home' },
+  tasks: { tr: 'Görevler', en: 'Tasks' },
+  focus: { tr: 'Odak', en: 'Focus' },
+  cockpit: { tr: 'Haftalık Merkez', en: 'Weekly Hub' },
+  modlar: { tr: 'Modlar', en: 'Modes' },
+};
 
 export const BottomNavBar = () => {
   const { width } = useWindowDimensions();
@@ -17,6 +27,8 @@ export const BottomNavBar = () => {
   const router = useRouter();
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
+  const { language } = useLanguageStore();
+  const tr = language === 'tr';
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
@@ -121,6 +133,9 @@ export const BottomNavBar = () => {
                 onPress={() => handlePress(tab.path)}
                 activeOpacity={0.7}
                 style={styles.tab}
+                accessibilityRole="tab"
+                accessibilityLabel={tr ? TAB_LABELS[tab.id].tr : TAB_LABELS[tab.id].en}
+                accessibilityState={{ selected: isActive }}
               >
                 <Icon
                   size={22}

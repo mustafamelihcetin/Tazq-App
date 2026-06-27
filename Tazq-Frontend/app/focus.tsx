@@ -707,6 +707,8 @@ export default function FocusScreen() {
                 }, 350);
               }}
               style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}
+              accessibilityRole="button"
+              accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'}
             >
               <X size={20} color={theme.onSurface} />
             </Touchable>
@@ -1012,6 +1014,8 @@ export default function FocusScreen() {
                     <Touchable
                       onPress={resetTimer}
                       disabled={!sessionStarted}
+                      accessibilityRole="button"
+                      accessibilityLabel={language === 'tr' ? 'Sıfırla' : 'Reset'}
                       style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg, opacity: sessionStarted ? 1 : 0.3 }]}
                     >
                       <RotateCcw size={24} color={theme.onSurfaceVariant} />
@@ -1023,6 +1027,8 @@ export default function FocusScreen() {
 
             <Touchable
               onPress={toggleTimer}
+              accessibilityRole="button"
+              accessibilityLabel={isActive ? (language === 'tr' ? 'Duraklat' : 'Pause') : (language === 'tr' ? 'Başlat' : 'Start')}
               style={{
                 width: 72,
                 height: 72,

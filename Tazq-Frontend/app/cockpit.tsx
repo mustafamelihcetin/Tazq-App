@@ -386,6 +386,8 @@ export default function CockpitScreen() {
                   <Touchable
                     onPress={() => { prepareAdd(); setAddVisible(true); }}
                     style={styles.headerIconBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={tr ? 'Ekle' : 'Add'}
                   >
                     <Plus size={24} color={theme.onSurface} />
                   </Touchable>
@@ -945,7 +947,7 @@ export default function CockpitScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1, justifyContent: 'flex-end' }}
         >
-          <Touchable style={{ flex: 1 }} activeOpacity={1} onPress={() => setAddVisible(false)} />
+          <Touchable style={{ flex: 1 }} activeOpacity={1} onPress={() => setAddVisible(false)} accessibilityRole="button" accessibilityLabel={tr ? 'Kapat' : 'Close'} />
           <Animated.View
             style={[
               styles.sheet,

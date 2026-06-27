@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
+import { CustomAlert as Alert } from '../components/CustomAlert';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTaskStore } from '../store/useTaskStore';
@@ -60,7 +61,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { show: showToast } = useToastStore();
   const { recordScore, getLastNDays } = useMomentumStore();
-  const { trigger: triggerAchievement } = useAchievementStore();
+  const { trigger: triggerAchievement, baseline: baselineAchievements } = useAchievementStore();
+  const achHydrated = useAchievementStore(s => s._hasHydrated);
   const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor } = usePrefsStore();
 
   // Focus Store
@@ -344,22 +346,35 @@ export default function HomeScreen() {
       scheduleWeeklySummary(momentum, streak, language);
     }
 
-    // Streak achievements
-    const streakAch = checkStreakAchievement(streak);
-    if (streakAch) triggerAchievement(streakAch);
+    // ── BAŞARIMLAR ────────────────────────────────────────────────────────────
+    // Hidrasyon tamamlanmadan değerlendirme YAPMA (unlocked yüklenmeden tetiklenirse
+    // tekrar kutlama olur).
+    if (!achHydrated) return;
 
-    // Momentum achievements
+    const streakAch = checkStreakAchievement(streak);
     const momAch = checkMomentumAchievement(momentum);
+
+    // İlk gözlemde SESSİZ baseline: kullanıcının şu an zaten hak ettiği eşikleri
+    // kutlamadan kilitle (eski kullanıcı / hafıza kaybı sonrası konfeti yağmuru olmasın).
+    // baselined=true ise no-op.
+    const earned: string[] = [];
+    if (streakAch) earned.push(streakAch.id);
+    if (momAch) earned.push(momAch.id);
+    baselineAchievements(earned);
+
+    // Yalnız GERÇEKTEN yeni açılan eşikler kutlanır (trigger içte unlocked'ı kontrol eder;
+    // baseline ile kilitlenenler burada no-op olur → "durum" değil "geçiş" kutlanır).
+    if (streakAch) triggerAchievement(streakAch);
     if (momAch) triggerAchievement(momAch);
-  }, [momentum, streak, statsLoading]);
+  }, [momentum, streak, statsLoading, achHydrated]);
 
   // Daily perfect: all of today's tasks completed
   useEffect(() => {
-    if (statsLoading || todayTasks.length === 0) return;
+    if (statsLoading || !achHydrated || todayTasks.length === 0) return;
     if (todayTasks.every(t => t.isCompleted)) {
       triggerAchievement(ACHIEVEMENTS.daily_perfect);
     }
-  }, [todayTasks, statsLoading]);
+  }, [todayTasks, statsLoading, achHydrated]);
 
   // Smart Logic: Prioritize Today's Tasks
   const todayDateString = new Date().toDateString();
@@ -563,6 +578,8 @@ export default function HomeScreen() {
 
               <Touchable
                   onPress={() => router.push('/profile')}
+                  accessibilityRole="button"
+                  accessibilityLabel={language === 'tr' ? 'Profil' : 'Profile'}
                   style={[
                       styles.avatarContainer,
                       {
@@ -586,7 +603,7 @@ export default function HomeScreen() {
         {/* Smart Cockpit Modal — bottom sheet */}
         <Modal visible={statusHubVisible} transparent animationType="none" onRequestClose={() => setStatusHubVisible(false)} onShow={() => hubSlideIn()}>
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
-                <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setStatusHubVisible(false)} />
+                <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setStatusHubVisible(false)} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
                 <Animated.View style={[hubSlide, styles.insightCard, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant + '40', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderRadius: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
                     <View {...hubPan.panHandlers} style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}>
                         <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }} />
@@ -1100,7 +1117,7 @@ export default function HomeScreen() {
         {/* Quick Draft Modal */}
         <Modal visible={quickDraftVisible} transparent animationType="none" onRequestClose={() => setQuickDraftVisible(false)} onShow={() => draftSlideIn()}>
           <View style={styles.draftOverlay}>
-            <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} />
+            <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
                 <View style={[styles.bottomSheetWrapper, { marginBottom: Platform.OS === 'ios' ? keyboardHeight : 0 }]}>
                     <Animated.View style={[draftSlide, styles.quickDraftSheet, {
                           backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
@@ -1161,6 +1178,8 @@ export default function HomeScreen() {
       {!(Platform.OS === 'android' && keyboardHeight > 0) && (
         <Touchable
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareDraft(); setQuickDraftVisible(true); }}
+          accessibilityRole="button"
+          accessibilityLabel={language === 'tr' ? 'Hızlı taslak ekle' : 'Quick add draft'}
           style={[styles.fab, { backgroundColor: isDark ? '#B45309' : '#D97706', shadowColor: isDark ? '#B45309' : '#D97706', bottom: Math.max(insets.bottom, 16) + 88, padding: 16, borderRadius: 100 }]}
         >
           <Zap size={22} color="#fff" fill="#fff" />

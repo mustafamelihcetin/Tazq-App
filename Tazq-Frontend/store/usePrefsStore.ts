@@ -244,6 +244,12 @@ export const usePrefsStore = create<PrefsState>()(
         const state = get() as any;
         const snapshot: Record<string, any> = {};
         for (const key of CLOUD_PREF_KEYS) snapshot[key] = state[key];
+        // Başarımları da aynı transport ile taşı (sahibi useAchievementStore).
+        // Böylece "kutlandı" hafızası, kutladığı metrik (sunucudaki streak) kadar kalıcı olur.
+        try {
+          const ach = require('./useAchievementStore').useAchievementStore.getState();
+          snapshot.__achievements = { unlocked: ach.unlocked, baselined: ach.baselined };
+        } catch {}
         try {
           await AuthService.updateProfile({ preferences: JSON.stringify(snapshot) });
         } catch (err) {
@@ -262,6 +268,14 @@ export const usePrefsStore = create<PrefsState>()(
             if (parsed[key] !== undefined) patch[key] = parsed[key];
           }
           if (Object.keys(patch).length > 0) set(patch as any);
+          // Buluttaki başarım durumunu achievement store'a birleştir (union).
+          // Yeni kurulum/cihazda streak ile birlikte "kutlandı" bilgisi de geri gelir →
+          // tekrar kutlama olmaz.
+          if (parsed.__achievements && typeof parsed.__achievements === 'object') {
+            try {
+              require('./useAchievementStore').useAchievementStore.getState().applyCloud(parsed.__achievements);
+            } catch {}
+          }
         } catch (err) {
           console.log('[Prefs Sync] hydrate parse failed', err);
         }
