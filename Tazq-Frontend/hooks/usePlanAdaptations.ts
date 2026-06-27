@@ -38,9 +38,41 @@ import { useNetworkStore } from '../store/useNetworkStore';
 import { useHabitStore } from '../store/useHabitStore';
 import { buildDailyTasks, DailyPlanSpec, PlanKind } from '../utils/dailyPlanEngine';
 import { runPlanMigrationOnce } from '../utils/planMigration';
+import { findExamCurriculum, pickSubject, subjectExamLabel } from '../utils/curriculum';
+import { useSubjectStore } from '../store/useSubjectStore';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
+
+// Persist-middleware'li bir store'un AsyncStorage hidrasyonunu bekler.
+// Zaten hidrate ise hemen, değilse onFinishHydration ile çözülür (güvenli fallback).
+function whenHydrated(store: any): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const p = store?.persist;
+    if (!p || typeof p.hasHydrated !== 'function') return resolve();
+    if (p.hasHydrated()) return resolve();
+    let settled = false;
+    const done = () => { if (!settled) { settled = true; resolve(); } };
+    try {
+      const unsub = p.onFinishHydration?.(() => { unsub?.(); done(); });
+    } catch { done(); }
+    // Güvenlik ağı: hidrasyon sinyali kaçarsa 3 sn sonra yine de devam et.
+    setTimeout(done, 3000);
+  });
+}
 const PLAN_TAGS = ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss', 'daily'];
+
+// Mod başına o moda ait TÜM görev etiketleri (günlük slotlar + adaptasyon görevleri).
+// Kapalı modlara ait artık görevleri tag ile süpürmek için kullanılır — id-takibi
+// (offline tempId→realId kayması vb.) bozulsa bile artık kalmamasını GARANTİ eder.
+// NOT: 'weight_entry' bilinçli dışarıda (kilo geçmişi korunur); 'daily' modlar arası
+// ortak olduğundan tek başına kullanılmaz (slot tag'leri daily görevleri zaten kapsar).
+const MODE_TASK_TAGS: Record<string, string[]> = {
+  exam: ['exam', 'exam2', 'exam3', 'yks', 'kpss', 'sinav_eve', 'sinav_week', 'sinav_sprint_start', 'sinav_60'],
+  tez: ['tez', 'tez_weekly', 'tez_final_2weeks', 'tez_sprint_30', 'tez_60'],
+  mulakat: ['mulakat', 'mulakat2', 'mulakat3', 'mulakat_day', 'mulakat_eve', 'mulakat_3days', 'mulakat_week', 'mulakat_2weeks'],
+  spor: ['spor', 'spor2', 'spor3', 'kilo', 'maraton', 'guc', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress'],
+  ramazan: ['ramazan', 'ramazan_kadir'],
+};
 
 function getLocalDateString(d: Date = new Date()): string {
   const adjusted = new Date(d);
@@ -87,6 +119,25 @@ function fnv1a(str: string): string {
     h = Math.imul(h, 0x01000193);
   }
   return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+// Adaptif zorluk sinyali: son tamamlama davranışından (plan görevleri).
+// activeDays7 = son 7 günde en az 1 plan görevi tamamlanan gün sayısı.
+// total14 = son 14 gündeki plan tamamlaması sayısı (yeterli geçmiş eşiği).
+function computeAdherenceSignal(): { activeDays7: number; total14: number } {
+  const events = useCompletionStore.getState().events;
+  const now = Date.now();
+  const d7 = now - 7 * 86400000;
+  const d14 = now - 14 * 86400000;
+  const days = new Set<string>();
+  let total14 = 0;
+  for (const e of events) {
+    if (!e.planMode) continue;
+    const t = new Date(e.completedAt).getTime();
+    if (t >= d14) total14++;
+    if (t >= d7) days.add(e.completedAt.slice(0, 10));
+  }
+  return { activeDays7: days.size, total14 };
 }
 
 function makeClientKey(payload: { title: string; dueDate?: string | null; tags?: string[] | null }): string {
@@ -226,6 +277,10 @@ export function usePlanAdaptations() {
     }
 
     // EXAMS
+    // anyExamExpired: bu çalışmada bir slot GERÇEKTEN süresi dolup temizlendi mi?
+    // Global-off yalnız bu durumda yapılır → kullanıcının YENİ açtığı (tarih girmemiş)
+    // boş modu yanlışlıkla kapatılmaz (toggle'ın geri snap'lemesi bug'ı çözülür).
+    let anyExamExpired = false;
     // Exam 1
     if (freshSeasonal.examMode && freshSeasonal.examDate && new Date(freshSeasonal.examDate).setHours(23, 59, 59, 999) < now) {
       freshPrefs.examPlanHabitIds.forEach(id => removeHabitFn(id));
@@ -233,6 +288,7 @@ export function usePlanAdaptations() {
       freshPrefs.clearPlanIds('exam');
       freshPrefs.setSeasonalPref('examName', '');
       freshPrefs.setSeasonalPref('examDate', null);
+      anyExamExpired = true;
     }
     // Exam 2
     if (freshSeasonal.exam2Name && freshSeasonal.exam2Date && new Date(freshSeasonal.exam2Date).setHours(23, 59, 59, 999) < now) {
@@ -241,6 +297,7 @@ export function usePlanAdaptations() {
       freshPrefs.clearPlanIds('exam2');
       freshPrefs.setSeasonalPref('exam2Name', '');
       freshPrefs.setSeasonalPref('exam2Date', null);
+      anyExamExpired = true;
     }
     // Exam 3
     if (freshSeasonal.exam3Name && freshSeasonal.exam3Date && new Date(freshSeasonal.exam3Date).setHours(23, 59, 59, 999) < now) {
@@ -249,10 +306,11 @@ export function usePlanAdaptations() {
       freshPrefs.clearPlanIds('exam3');
       freshPrefs.setSeasonalPref('exam3Name', '');
       freshPrefs.setSeasonalPref('exam3Date', null);
+      anyExamExpired = true;
     }
-    // Turn off examMode globally if all slots are cleared
+    // Turn off examMode globally ONLY after a real expiration cleared the last slot.
     const updatedPrefsAfterExams = usePrefsStore.getState();
-    if (updatedPrefsAfterExams.seasonal.examMode && !updatedPrefsAfterExams.seasonal.examDate && !updatedPrefsAfterExams.seasonal.exam2Date && !updatedPrefsAfterExams.seasonal.exam3Date) {
+    if (anyExamExpired && updatedPrefsAfterExams.seasonal.examMode && !updatedPrefsAfterExams.seasonal.examDate && !updatedPrefsAfterExams.seasonal.exam2Date && !updatedPrefsAfterExams.seasonal.exam3Date) {
       freshPrefs.setSeasonalPref('examMode', false);
     }
 
@@ -267,6 +325,7 @@ export function usePlanAdaptations() {
     }
 
     // MULAKATS
+    let anyMulakatExpired = false;
     // Mulakat 1
     if (freshSeasonal.mulakatMode && freshSeasonal.mulakatDate && new Date(freshSeasonal.mulakatDate).setHours(23, 59, 59, 999) < now) {
       freshPrefs.mulakatPlanHabitIds.forEach(id => removeHabitFn(id));
@@ -274,6 +333,7 @@ export function usePlanAdaptations() {
       freshPrefs.clearPlanIds('mulakat');
       freshPrefs.setSeasonalPref('mulakatName', '');
       freshPrefs.setSeasonalPref('mulakatDate', null);
+      anyMulakatExpired = true;
     }
     // Mulakat 2
     if (freshSeasonal.mulakat2Name && freshSeasonal.mulakat2Date && new Date(freshSeasonal.mulakat2Date).setHours(23, 59, 59, 999) < now) {
@@ -282,6 +342,7 @@ export function usePlanAdaptations() {
       freshPrefs.clearPlanIds('mulakat2');
       freshPrefs.setSeasonalPref('mulakat2Name', '');
       freshPrefs.setSeasonalPref('mulakat2Date', null);
+      anyMulakatExpired = true;
     }
     // Mulakat 3
     if (freshSeasonal.mulakat3Name && freshSeasonal.mulakat3Date && new Date(freshSeasonal.mulakat3Date).setHours(23, 59, 59, 999) < now) {
@@ -290,14 +351,16 @@ export function usePlanAdaptations() {
       freshPrefs.clearPlanIds('mulakat3');
       freshPrefs.setSeasonalPref('mulakat3Name', '');
       freshPrefs.setSeasonalPref('mulakat3Date', null);
+      anyMulakatExpired = true;
     }
-    // Turn off mulakatMode globally if all slots are cleared
+    // Turn off mulakatMode globally ONLY after a real expiration cleared the last slot.
     const updatedPrefsAfterMulakats = usePrefsStore.getState();
-    if (updatedPrefsAfterMulakats.seasonal.mulakatMode && !updatedPrefsAfterMulakats.seasonal.mulakatDate && !updatedPrefsAfterMulakats.seasonal.mulakat2Date && !updatedPrefsAfterMulakats.seasonal.mulakat3Date) {
+    if (anyMulakatExpired && updatedPrefsAfterMulakats.seasonal.mulakatMode && !updatedPrefsAfterMulakats.seasonal.mulakatDate && !updatedPrefsAfterMulakats.seasonal.mulakat2Date && !updatedPrefsAfterMulakats.seasonal.mulakat3Date) {
       freshPrefs.setSeasonalPref('mulakatMode', false);
     }
 
     // SPORS
+    let anySporExpired = false;
     // Spor 1
     if (freshSeasonal.sporMode && freshSeasonal.sporDate && new Date(freshSeasonal.sporDate).setHours(23, 59, 59, 999) < now) {
       freshPrefs.sporPlanHabitIds.forEach(id => removeHabitFn(id));
@@ -305,6 +368,7 @@ export function usePlanAdaptations() {
       freshPrefs.clearPlanIds('spor');
       freshPrefs.setSeasonalPref('sporGoal', '');
       freshPrefs.setSeasonalPref('sporDate', null);
+      anySporExpired = true;
     }
     // Spor 2
     if (freshSeasonal.spor2Goal && freshSeasonal.spor2Date && new Date(freshSeasonal.spor2Date).setHours(23, 59, 59, 999) < now) {
@@ -313,6 +377,7 @@ export function usePlanAdaptations() {
       freshPrefs.clearPlanIds('spor2');
       freshPrefs.setSeasonalPref('spor2Goal', '');
       freshPrefs.setSeasonalPref('spor2Date', null);
+      anySporExpired = true;
     }
     // Spor 3
     if (freshSeasonal.spor3Goal && freshSeasonal.spor3Date && new Date(freshSeasonal.spor3Date).setHours(23, 59, 59, 999) < now) {
@@ -321,11 +386,99 @@ export function usePlanAdaptations() {
       freshPrefs.clearPlanIds('spor3');
       freshPrefs.setSeasonalPref('spor3Goal', '');
       freshPrefs.setSeasonalPref('spor3Date', null);
+      anySporExpired = true;
     }
-    // Turn off sporMode globally if all slots are cleared
+    // Turn off sporMode globally ONLY after a real expiration cleared the last slot.
     const updatedPrefsAfterSpors = usePrefsStore.getState();
-    if (updatedPrefsAfterSpors.seasonal.sporMode && !updatedPrefsAfterSpors.seasonal.sporDate && !updatedPrefsAfterSpors.seasonal.spor2Date && !updatedPrefsAfterSpors.seasonal.spor3Date) {
+    if (anySporExpired && updatedPrefsAfterSpors.seasonal.sporMode && !updatedPrefsAfterSpors.seasonal.sporDate && !updatedPrefsAfterSpors.seasonal.spor2Date && !updatedPrefsAfterSpors.seasonal.spor3Date) {
       freshPrefs.setSeasonalPref('sporMode', false);
+    }
+
+    // ── ORPHAN SWEEP ──────────────────────────────────────────────────────────
+    // KAPALI modlara ait artık görevleri tag ile süpür. Mod kapatılırken id-tabanlı
+    // temizlik kaçırmış olabilir (offline tempId→realId kayması, başarısız silme vb.).
+    // Bu, her açılışta çalışan kendini-iyileştiren bir garanti katmanıdır.
+    {
+      const sSeasonal = usePrefsStore.getState().seasonal;
+      const sweepTags = new Set<string>();
+      if (!sSeasonal.examMode) MODE_TASK_TAGS.exam.forEach(t => sweepTags.add(t));
+      if (!sSeasonal.tezMode) MODE_TASK_TAGS.tez.forEach(t => sweepTags.add(t));
+      if (!sSeasonal.mulakatMode) MODE_TASK_TAGS.mulakat.forEach(t => sweepTags.add(t));
+      if (!sSeasonal.sporMode) MODE_TASK_TAGS.spor.forEach(t => sweepTags.add(t));
+      if (!sSeasonal.ramazan) MODE_TASK_TAGS.ramazan.forEach(t => sweepTags.add(t));
+      if (sweepTags.size > 0) {
+        const orphans = useTaskStore.getState().tasks.filter(t =>
+          (t.tags ?? []).some(tag => sweepTags.has(tag))
+        );
+        orphans.forEach(t => {
+          const modeTag = (t.tags ?? []).find(tag => sweepTags.has(tag));
+          retirePlanTask(t.id, modeTag);
+        });
+      }
+
+      // ── ALIŞKANLIK ORPHAN SWEEP ──────────────────────────────────────────────
+      // Kapalı modlara ait alışkanlıkları sil. Mod tespiti: yeni alışkanlıklarda
+      // `planMode`, eski (legacy) olanlarda id öneki (`habit_<modtype>_...`).
+      // Manuel alışkanlıklar (id `habit_<timestamp>_...`) etkilenmez → yanlış-pozitif yok.
+      const offModes = new Set<string>();
+      if (!sSeasonal.examMode) { offModes.add('exam'); offModes.add('yks'); offModes.add('kpss'); }
+      if (!sSeasonal.tezMode) offModes.add('tez');
+      if (!sSeasonal.mulakatMode) offModes.add('mulakat');
+      if (!sSeasonal.sporMode) offModes.add('spor');
+      if (!sSeasonal.ramazan) offModes.add('ramazan');
+      if (offModes.size > 0) {
+        const removeHabitOrphan = useHabitStore.getState().removeHabit;
+        useHabitStore.getState().habits.forEach(h => {
+          const idMode = h.id.match(/^habit_(ramazan|yks|kpss|exam|tez|mulakat|spor)_/)?.[1];
+          const mode = h.planMode ?? idMode;
+          if (mode && offModes.has(mode)) removeHabitOrphan(h.id);
+        });
+      }
+
+      // ── ARTIK PLAN ID TEMİZLİĞİ ─────────────────────────────────────────────
+      // Kapalı modların prefs'teki plan id'lerini de temizle. Eski global-off bug'ı
+      // modu kapatıp id'leri bırakıyordu → `planApplied` yanlış true kalıyor, mod
+      // tekrar açılınca banner'da şablon/review/custom adımlarının HİÇBİRİ render
+      // edilmiyor (hepsi !planApplied koşullu) → "plan gelmedi" boş sheet.
+      {
+        const cp = usePrefsStore.getState();
+        const clearIfStale = (off: boolean, modes: string[]) => {
+          if (!off) return;
+          modes.forEach(m => {
+            const hIds = (cp as any)[`${m}PlanHabitIds`] as any[] | undefined;
+            const tIds = (cp as any)[`${m}PlanTaskIds`] as any[] | undefined;
+            if ((hIds?.length ?? 0) > 0 || (tIds?.length ?? 0) > 0) cp.clearPlanIds(m as any);
+          });
+        };
+        clearIfStale(!sSeasonal.examMode, ['exam', 'exam2', 'exam3']);
+        clearIfStale(!sSeasonal.tezMode, ['tez']);
+        clearIfStale(!sSeasonal.mulakatMode, ['mulakat', 'mulakat2', 'mulakat3']);
+        clearIfStale(!sSeasonal.sporMode, ['spor', 'spor2', 'spor3']);
+        clearIfStale(!sSeasonal.ramazan, ['ramazan']);
+      }
+
+      // ── HAYALET KONFIG TEMİZLİĞİ ────────────────────────────────────────────
+      // Master mod KAPALI ama config (ad/tarih/hedef) hâlâ doluysa temizle. Eski
+      // global-off bug'ı modu kapatıp config'i bırakıyordu → kapalı mod tekrar
+      // açılınca eski plan "hayalet" geliyordu. Kapalı mod = config olmamalı.
+      const zp = usePrefsStore.getState();
+      const zs = zp.seasonal;
+      if (!zs.examMode) {
+        if (zs.examName || zs.examDate) { zp.setSeasonalPref('examName', ''); zp.setSeasonalPref('examDate', null); }
+        if (zs.exam2Name || zs.exam2Date) { zp.setSeasonalPref('exam2Name', ''); zp.setSeasonalPref('exam2Date', null); }
+        if (zs.exam3Name || zs.exam3Date) { zp.setSeasonalPref('exam3Name', ''); zp.setSeasonalPref('exam3Date', null); }
+      }
+      if (!zs.tezMode && (zs.tezName || zs.tezDate)) { zp.setSeasonalPref('tezName', ''); zp.setSeasonalPref('tezDate', null); }
+      if (!zs.mulakatMode) {
+        if (zs.mulakatName || zs.mulakatDate) { zp.setSeasonalPref('mulakatName', ''); zp.setSeasonalPref('mulakatDate', null); }
+        if (zs.mulakat2Name || zs.mulakat2Date) { zp.setSeasonalPref('mulakat2Name', ''); zp.setSeasonalPref('mulakat2Date', null); }
+        if (zs.mulakat3Name || zs.mulakat3Date) { zp.setSeasonalPref('mulakat3Name', ''); zp.setSeasonalPref('mulakat3Date', null); }
+      }
+      if (!zs.sporMode) {
+        if (zs.sporGoal || zs.sporDate) { zp.setSeasonalPref('sporGoal', ''); zp.setSeasonalPref('sporDate', null); }
+        if (zs.spor2Goal || zs.spor2Date) { zp.setSeasonalPref('spor2Goal', ''); zp.setSeasonalPref('spor2Date', null); }
+        if (zs.spor3Goal || zs.spor3Date) { zp.setSeasonalPref('spor3Goal', ''); zp.setSeasonalPref('spor3Date', null); }
+      }
     }
 
     // Sync to cloud if any preferences were changed
@@ -533,14 +686,29 @@ export function usePlanAdaptations() {
       return t === 'yaris' ? 'genel' : t;
     };
 
-    const dailySlots: { spec: DailyPlanSpec; mode: Parameters<typeof applyTasks>[1]; taskIds: number[]; habitIds: string[] }[] = [];
+    const dailySlots: { spec: DailyPlanSpec; mode: Parameters<typeof applyTasks>[1]; taskIds: number[]; habitIds: string[]; subjectId?: string }[] = [];
 
-    // Sınav slotları
+    // Konu/müfredat takibi için bugünün gün indeksi (deterministik rotasyon)
+    const subjectDayIndex = Math.floor(today.getTime() / 86400000);
+    const subjectProgress = useSubjectStore.getState().progress;
+
+    // Sınav slotları — bilinen sınavda günün konusunu seç ("KPSS — Türkçe"),
+    // bilinmeyen sınavda düz ad (jenerik akış). Görev üretilirse ilerleme güncellenir.
     for (const slot of examSlots) {
       if (slot.active && slot.name && slot.date) {
+        let planName = slot.name;
+        let subjectId: string | undefined;
+        const curriculum = findExamCurriculum(slot.name);
+        if (curriculum) {
+          const subject = pickSubject(curriculum, subjectProgress, subjectDayIndex);
+          if (subject) {
+            planName = subjectExamLabel(slot.name, subject, lang);
+            subjectId = subject.id;
+          }
+        }
         dailySlots.push({
-          spec: { kind: 'exam', slot: slot.mode, name: slot.name, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
-          mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
+          spec: { kind: 'exam', slot: slot.mode, name: planName, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
+          mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds, subjectId,
         });
       }
     }
@@ -586,9 +754,16 @@ export function usePlanAdaptations() {
       }
     }
 
+    // Adaptif zorluk sinyali (tüm planlar için ortak) — günlük üretimi modüle eder.
+    const adherence = computeAdherenceSignal();
+    const subjectTodayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     for (const ds of dailySlots) {
-      const daily = buildDailyTasks(ds.spec, fresh, lang, today);
+      const daily = buildDailyTasks({ ...ds.spec, adherence }, fresh, lang, today);
       await applyTasks(daily, ds.mode, ds.taskIds, ds.habitIds);
+      // Konu çalışıldıysa ilerlemeyi işaretle → yarın rotasyon bir sonraki konuya geçer.
+      if (daily.length > 0 && ds.subjectId) {
+        useSubjectStore.getState().markStudied(ds.subjectId, subjectTodayKey);
+      }
     }
 
     await markRanToday();
@@ -613,9 +788,21 @@ export function usePlanAdaptations() {
     // Kullanıcı giriş yapmış ve task'lar yüklenmişse çalıştır
     const { user } = useAuthStore.getState();
     if (user) {
-      // Önce tek seferlik migrasyon (eski gelecek-tarihli döküm görevlerini temizle),
-      // sonra günlük üretimi çalıştır.
-      runPlanMigrationOnce().finally(() => run());
+      // ── HİDRASYON KAPISI ────────────────────────────────────────────────
+      // run() kapalı modlara ait plan/alışkanlık/config'i süpürür. AsyncStorage
+      // rehydrate'i async; prefs HENÜZ yüklenmeden çalışırsa seasonal = VARSAYILAN
+      // (tüm modlar kapalı) görünür → tüm planlar yanlışlıkla silinir ("ilerleme
+      // gelip gidiyor, hiçbir planda kalmıyor"). Bu yüzden önce ilgili kalıcı
+      // store'ların hidrasyonunu bekle.
+      Promise.all([
+        whenHydrated(usePrefsStore),
+        whenHydrated(useHabitStore),
+        whenHydrated(useTaskStore),
+      ]).then(() => {
+        // Önce tek seferlik migrasyon (eski gelecek-tarihli döküm görevlerini temizle),
+        // sonra günlük üretimi çalıştır.
+        runPlanMigrationOnce().finally(() => run());
+      });
     }
 
     const handleAppStateChange = (nextStatus: string) => {

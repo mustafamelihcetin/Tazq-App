@@ -55,6 +55,7 @@ export const useAchievementStore = create<AchievementState>()(
       trigger: (achievement) => {
         const { unlocked, pending } = get();
         if (unlocked.includes(achievement.id)) return; // idempotent — bir kez
+        try { require('../utils/analytics').track('achievement_unlocked', { id: achievement.id }); } catch {}
         const nextUnlocked = [...unlocked, achievement.id];
         if (pending) {
           // Zaten gösterimde bir kutlama var → sıraya al

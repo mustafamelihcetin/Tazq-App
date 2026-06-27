@@ -67,6 +67,13 @@ export const ACHIEVEMENTS: Record<string, Achievement> = {
     subtitleTr: 'Uzmanlık birikime dayanır.', subtitleEn: 'Mastery is built on accumulation.',
   },
 
+  // ── İlk değer (onboarding ilk-zafer) ─────────────────────
+  first_task: {
+    id: 'first_task', emoji: '🎉',
+    titleTr: 'İlk Adım Atıldı!', titleEn: 'First Step Taken!',
+    subtitleTr: 'İlk görevini tamamladın — yolculuk başladı.', subtitleEn: 'You completed your first task — the journey begins.',
+  },
+
   // ── Daily ────────────────────────────────────────────────
   daily_perfect: {
     id: 'daily_perfect', emoji: '✅',

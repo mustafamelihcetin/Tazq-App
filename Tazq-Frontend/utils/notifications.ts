@@ -147,11 +147,8 @@ export async function scheduleMorningBrief(
     // Don't schedule if nothing to show
     if (todayTaskCount === 0 && streak === 0) return;
 
-    const trigger = new Date();
-    trigger.setHours(PRODUCTIVITY_HOUR[productivityHour] ?? 8, 0, 0, 0);
-    if (trigger <= new Date()) {
-      trigger.setDate(trigger.getDate() + 1);
-    }
+    // Üretkenlik saatine göre tetikle — kullanıcının en uygun anında hatırlat.
+    const briefHour = PRODUCTIVITY_HOUR[productivityHour] ?? 8;
 
     const streakLine = streak > 1
       ? (isTR ? ` · 🔥 ${streak} günlük seri` : ` · 🔥 ${streak}-day streak`)
@@ -163,17 +160,24 @@ export async function scheduleMorningBrief(
           : `You have ${todayTaskCount} task${todayTaskCount > 1 ? 's' : ''} today.${streakLine}`)
       : (isTR ? `Serin devam ediyor.${streakLine}` : `Keep the streak alive.${streakLine}`);
 
+    // Selamlamayı saate göre seç (üretkenlik saati akşam/gece olabilir)
+    const greeting = briefHour < 12
+      ? (isTR ? 'Günaydın' : 'Good morning')
+      : briefHour < 18
+        ? (isTR ? 'İyi günler' : 'Good afternoon')
+        : (isTR ? 'İyi akşamlar' : 'Good evening');
+
     await Notifications.scheduleNotificationAsync({
       identifier: 'morning-brief',
       content: {
-        title: isTR ? 'Günaydın' : 'Good morning',
+        title: greeting,
         body,
         sound: true,
         categoryIdentifier: 'morning-brief',
       },
       trigger: {
         type: 'daily',
-        hour: 8,
+        hour: briefHour,
         minute: 0,
         repeats: true,
       } as any,
@@ -467,7 +471,7 @@ export async function scheduleWeeklySummary(
     await Notifications.cancelScheduledNotificationAsync('weekly-summary').catch(() => {});
     await Notifications.scheduleNotificationAsync({
       identifier: 'weekly-summary',
-      content: { title, body, sound: true, categoryIdentifier: 'daily-summary' },
+      content: { title, body, sound: true, data: { type: 'weekly' }, categoryIdentifier: 'daily-summary' },
       trigger: { type: 'date', date: trigger } as any,
     });
   } catch (_) {}

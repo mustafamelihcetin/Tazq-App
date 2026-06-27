@@ -5,13 +5,16 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { BlurView } from 'expo-blur';
 import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, ChevronRight, CalendarDays, X, Info } from 'lucide-react-native';
+import { BookOpen, ChevronRight, CalendarDays, X, Info, BarChart3 } from 'lucide-react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
 import { usePrefsStore } from '../store/usePrefsStore';
+import { track } from '../utils/analytics';
+import { useNetworkStore } from '../store/useNetworkStore';
+import { useOfflineQueue } from '../store/useOfflineQueue';
 import { useTaskStore } from '../store/useTaskStore';
 import { useCompletionStore } from '../store/useCompletionStore';
 import * as Haptics from 'expo-haptics';
@@ -29,6 +32,16 @@ import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { useSporStore, getThisWeekEntry } from '../store/useSporStore';
 import { getCurrentRamadanStatus, formatRamadanDate } from '../utils/ramadanDates';
 import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '../utils/examPresets';
+
+// Kullanıcının seçtiği günlük süreyi, eşleşen SEVİYE şablonuna (Temel/Standart/Yoğun)
+// bağlar. Böylece "1 saat seçtim ama plan 2+ saat Yoğun çıkıyor" çelişkisi olmaz —
+// önerilen/önseçili şablon her zaman seçilen saatle tutarlıdır.
+function levelTemplateIdFromMinutes(min?: number): string {
+  const m = min ?? 90;
+  if (m <= 60) return 'level-temel';   // 30–60 dk
+  if (m <= 120) return 'level-orta';   // 60–120 dk
+  return 'level-ileri';                 // 2+ saat
+}
 import { TurkishModeBanner } from '../components/TurkishModeBanner';
 import { TaskService } from '../services/api';
 import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
@@ -114,7 +127,16 @@ export default function ModlarScreen() {
       recordCompletion(task.id, task.title, task.completedAt ?? undefined, planMode);
     }
     removeTask(taskId);
-    TaskService.deleteTask(taskId).catch(() => {});
+    // Offline-first: çevrimdışıysa silmeyi kuyruğa al, yoksa sunucudaki görev silinmeden
+    // kalır ve bir sonraki sync'te geri gelir (artık-görev bug'ı). Ağ hatasında da kuyruğa al.
+    const isOnline = useNetworkStore.getState().isOnline;
+    if (!isOnline) {
+      useOfflineQueue.getState().enqueue({ type: 'delete-task', id: taskId });
+    } else {
+      TaskService.deleteTask(taskId).catch(err => {
+        if (!err?.response) useOfflineQueue.getState().enqueue({ type: 'delete-task', id: taskId });
+      });
+    }
   }, [removeTask, recordCompletion]);
 
   const [modePreview, setModePreview] = useState<{ type: ModeType; key: number; templateId?: string; examTipTr?: string; examTipEn?: string; examName?: string; examDate?: string; examSlot?: 'exam' | 'exam2' | 'exam3'; mulakatSlot?: 'mulakat' | 'mulakat2' | 'mulakat3'; sporSlot?: 'spor' | 'spor2' | 'spor3' } | null>(null);
@@ -128,6 +150,15 @@ export default function ModlarScreen() {
   const [exam3Suggestions, setExam3Suggestions] = useState<ExamPreset[]>([]);
   const [selectedExam3Preset, setSelectedExam3Preset] = useState<ExamPreset | null>(() => detectExamFromInput(seasonal.exam3Name || ''));
   const [exam3DailyMinutes, setExam3DailyMinutes] = useState<number | null>(null);
+
+  // ── AKILLI VARSAYILANLAR ───────────────────────────────────────────────────
+  // Bir sınav preset'i belirlenince (yazarken/öneriden), o sınavın önerilen günlük
+  // süresini saat seçicide otomatik önseç → kullanıcı tahmin etmesin, sadece onaylasın.
+  // Tüm seçim noktalarını (input/öneri/submit) tek yerden kapsar.
+  useEffect(() => { if (selectedExamPreset) setExamDailyMinutes(selectedExamPreset.defaultDailyMinutes); }, [selectedExamPreset?.id]);
+  useEffect(() => { if (selectedExam2Preset) setExam2DailyMinutes(selectedExam2Preset.defaultDailyMinutes); }, [selectedExam2Preset?.id]);
+  useEffect(() => { if (selectedExam3Preset) setExam3DailyMinutes(selectedExam3Preset.defaultDailyMinutes); }, [selectedExam3Preset?.id]);
+
   const [examDateInput, setExamDateInput] = useState(seasonal.examDate || '');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [examExpanded, setExamExpanded] = useState(false);
@@ -201,7 +232,14 @@ export default function ModlarScreen() {
     });
     if (wTaskId) {
       useTaskStore.getState().toggleTaskCompletion(wTaskId);
-      TaskService.updateTask(wTaskId, { isCompleted: true }).catch(() => {});
+      // Offline-first: çevrimdışıysa kuyruğa al (tamamlama kaybolmasın)
+      if (!useNetworkStore.getState().isOnline) {
+        useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: wTaskId, isCompleted: true, completedAt: new Date().toISOString() });
+      } else {
+        TaskService.updateTask(wTaskId, { isCompleted: true }).catch(err => {
+          if (!err?.response) useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: wTaskId, isCompleted: true, completedAt: new Date().toISOString() });
+        });
+      }
     }
 
     // bir sonraki Pazartesi için yeni kilo görevi oluştur (spor slot aktifse)
@@ -400,6 +438,64 @@ export default function ModlarScreen() {
   const sporHabitsActiveThisWeek = sporPlanHabits.filter(h => (Array.isArray(h.completedDates) ? h.completedDates : []).some(d => thisWeekKeys.has(d))).length;
   const sporWeekPct = sporPlanHabits.length > 0 ? Math.round(sporHabitsActiveThisWeek / sporPlanHabits.length * 100) : 0;
 
+  // ── BU HAFTAKİ İLERLEME (alışkanlık + plan görevi birleşik) ────────────
+  // Çoğu plan yalnızca GÖREV içeriyor (alışkanlık yok). Eski çubuk sadece
+  // alışkanlık sayardı → görev-tabanlı planlarda hiç görünmezdi. Artık bu
+  // haftaya düşen plan görevlerinin tamamlanması da ilerlemeye katılır.
+  const weekPlanTaskStat = (taskIds: number[]) => {
+    if (!taskIds || taskIds.length === 0) return { done: 0, total: 0 };
+    const wk = useTaskStore.getState().tasks.filter(t => taskIds.includes(t.id) && t.dueDate && thisWeekKeys.has(fmtDateKey(new Date(t.dueDate))));
+    return { done: wk.filter(t => t.isCompleted).length, total: wk.length };
+  };
+  const mkProgress = (habitCount: number, habitDone: number, taskIds: number[]) => {
+    const tk = weekPlanTaskStat(taskIds);
+    const total = habitCount + tk.total;
+    const done = habitDone + tk.done;
+    return { done, total, pct: total > 0 ? Math.round((done / total) * 100) : 0 };
+  };
+  const examProg = mkProgress(examPlanHabits.length, examHabitsActiveThisWeek, examPlanTaskIds);
+  const ramazanProg = mkProgress(ramazanPlanHabits.length, ramazanHabitsActiveThisWeek, ramazanPlanTaskIds);
+  const tezProg = mkProgress(tezPlanHabits.length, tezHabitsActiveThisWeek, tezPlanTaskIds);
+  const mulakatProg = mkProgress(mulakatPlanHabits.length, mulakatHabitsActiveThisWeek, mulakatPlanTaskIds);
+  const sporProg = mkProgress(sporPlanHabits.length, sporHabitsActiveThisWeek, sporPlanTaskIds);
+
+  // ── DURUM ÖZETİ (sayfa başı dinamik kart) ──────────────────────────────
+  // Aktif mod sayısı + en yakın hedef geri sayımı + bugünkü plan ilerlemesi.
+  // Ucuz hesap; her render'da tazelenir (görev tamamlamada da güncel kalır).
+  const statusActiveCount = [seasonal.examMode, seasonal.tezMode, seasonal.mulakatMode, seasonal.sporMode, seasonal.ramazan].filter(Boolean).length;
+  const statusCands: Array<{ days: number; label: string; color: string; emoji: string }> = [];
+  const pushCand = (on: boolean, past: boolean, dateStr: string, days: number, label: string, color: string, emoji: string) => {
+    if (on && dateStr && !past && days >= 0) statusCands.push({ days, label, color, emoji });
+  };
+  pushCand(seasonal.examMode, examDatePast, examDateInput, examDaysLeft, examNameInput || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, '🎯');
+  pushCand(seasonal.examMode, exam2DatePast, exam2DateInput, exam2DaysLeft, exam2NameInput || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, '🎯');
+  pushCand(seasonal.examMode, exam3DatePast, exam3DateInput, exam3DaysLeft, exam3NameInput || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, '🎯');
+  pushCand(seasonal.tezMode, tezDatePast, tezDateInput, tezDaysLeft, tezNameInput || (language === 'tr' ? 'Tez' : 'Thesis'), tezUrgencyColor, '📚');
+  pushCand(seasonal.mulakatMode, mulakatDatePast, mulakatDateInput, mulakatDaysLeft, mulakatNameInput || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, '💼');
+  pushCand(seasonal.mulakatMode, mulakat2DatePast, mulakat2DateInput, mulakat2DaysLeft, mulakat2NameInput || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, '💼');
+  pushCand(seasonal.mulakatMode, mulakat3DatePast, mulakat3DateInput, mulakat3DaysLeft, mulakat3NameInput || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, '💼');
+  pushCand(seasonal.sporMode, sporDatePast, effectiveSporDate, sporDaysLeft, sporGoalInput || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, '💪');
+  pushCand(seasonal.sporMode, spor2DatePast, spor2DateInput, spor2DaysLeft, spor2GoalInput || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, '💪');
+  pushCand(seasonal.sporMode, spor3DatePast, spor3DateInput, spor3DaysLeft, spor3GoalInput || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, '💪');
+  const statusNearest = statusCands.length ? statusCands.reduce((a, b) => (b.days < a.days ? b : a)) : null;
+  const statusNow = new Date();
+  const statusIsToday = (d?: string | null) => { if (!d) return false; const x = new Date(d); return x.getFullYear() === statusNow.getFullYear() && x.getMonth() === statusNow.getMonth() && x.getDate() === statusNow.getDate(); };
+  const statusTodayTasks = useTaskStore.getState().tasks.filter(t => t.tags?.includes('daily') && statusIsToday(t.dueDate));
+  const statusTodayTotal = statusTodayTasks.length;
+  const statusTodayDone = statusTodayTasks.filter(t => t.isCompleted).length;
+  const statusTodayPct = statusTodayTotal > 0 ? Math.round(statusTodayDone / statusTodayTotal * 100) : 0;
+  const statusGreeting = statusTodayTotal === 0
+    ? (language === 'tr' ? 'Planın hazır 👍' : 'Your plan is ready 👍')
+    : statusTodayPct >= 80 ? (language === 'tr' ? 'Harika gidiyorsun! 🔥' : 'Crushing it! 🔥')
+    : statusTodayPct >= 40 ? (language === 'tr' ? 'İyi gidiyorsun 💪' : "You're doing great 💪")
+    : (language === 'tr' ? 'Bugün biraz hızlanalım ⚡' : "Let's pick up the pace ⚡");
+  const statusMotiv = !statusNearest ? ''
+    : statusNearest.days <= 3
+      ? (language === 'tr' ? `Son düzlük! "${statusNearest.label}" çok yakın — bugün her şey sayar.` : `Final stretch! "${statusNearest.label}" is close — today counts.`)
+    : statusNearest.days <= 14
+      ? (language === 'tr' ? `"${statusNearest.label}" için her gün bir adım — sonunda fark olur.` : `One step a day toward "${statusNearest.label}" — it adds up.`)
+      : (language === 'tr' ? `Erken başlamak en büyük avantajın — "${statusNearest.label}" yolundasın.` : `Starting early is your edge — you're on track for "${statusNearest.label}".`);
+
   const closeExamModeWithReview = useCallback(() => {
     cancelExamCountdownNotifs();
     examPlanHabitIds.forEach(id => removeHabit(id));
@@ -528,9 +624,15 @@ export default function ModlarScreen() {
             <View style={[styles.topBarContent, { paddingHorizontal: S.sm, minHeight: 48 }]}>
               {/* Left Side (Fixed Width for Perfect Centering) */}
               <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
-                  {/* Ana sekme — alt navigasyondan gezilir; header'da back butonu YOK
-                      (cockpit/Haftalık Merkez ile tutarlı). Sabit boşluk başlığı ortalar. */}
-                  <View style={{ width: 40, height: 40 }} />
+                  {/* Sol: Modların Özeti (içgörü) sayfası. Back butonu YOK — alt navigasyondan gezilir. */}
+                  <Touchable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/mod-ozet'); }}
+                    style={styles.headerIconBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={language === 'tr' ? 'Modların özeti' : 'Modes overview'}
+                  >
+                    <BarChart3 size={24} color={theme.onSurfaceVariant} />
+                  </Touchable>
               </View>
 
               {/* Center Title (Takes remaining space, perfectly centered) */}
@@ -575,6 +677,79 @@ export default function ModlarScreen() {
             onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
           >
           <View style={{ gap: S.md }}>
+            {/* ── DURUM ÖZETİ KARTI ── aktif modlar: geri sayım + bugünkü plan + motivasyon; boşken davet. */}
+            {statusActiveCount > 0 ? (
+              <MotiView
+                from={{ opacity: 0, translateY: -8 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 350 }}
+                style={[styles.modeCard, {
+                  backgroundColor: statusNearest ? (isDark ? statusNearest.color + '1A' : statusNearest.color + '12') : (isDark ? '#1C1C22' : theme.surfaceContainerLowest),
+                  borderColor: statusNearest ? statusNearest.color + (isDark ? '40' : '30') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'),
+                  padding: S.md,
+                }]}
+              >
+                {/* üst satır: selam + aktif mod çipi */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{statusGreeting}</Text>
+                  <View style={{ backgroundColor: (statusNearest?.color ?? urgencyColor) + (isDark ? '26' : '1A'), paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                    <Text style={{ color: statusNearest?.color ?? urgencyColor, fontSize: 11, fontWeight: '700' }}>{statusActiveCount} {language === 'tr' ? 'mod' : 'modes'}</Text>
+                  </View>
+                </View>
+
+                {/* ana satır: emoji + hedef + geri sayım | bugünkü plan noktaları */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: S.md, gap: S.md }}>
+                  <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: (statusNearest?.color ?? urgencyColor) + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 24 }}>{statusNearest?.emoji ?? '🗓️'}</Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{statusNearest?.label ?? (language === 'tr' ? 'Süresiz hedef' : 'Open-ended goal')}</Text>
+                    {statusNearest ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 1 }}>
+                        <Text style={{ color: statusNearest.color, fontWeight: '800', fontSize: 22, letterSpacing: -0.5 }}>{statusNearest.days}</Text>
+                        <Text style={{ color: statusNearest.color, fontWeight: '600', fontSize: F.caption }}>{language === 'tr' ? (statusNearest.days === 0 ? 'bugün!' : 'gün kaldı') : (statusNearest.days === 0 ? 'today!' : 'days left')}</Text>
+                      </View>
+                    ) : (
+                      <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, marginTop: 2 }}>{language === 'tr' ? 'tarih yok — kendi tempon' : 'no deadline — your pace'}</Text>
+                    )}
+                  </View>
+                  {/* bugünkü plan: noktalar (betimsel) */}
+                  <View style={{ alignItems: 'flex-end' }}>
+                    {statusTodayTotal > 0 ? (
+                      <>
+                        <View style={{ flexDirection: 'row', gap: 5 }}>
+                          {Array.from({ length: Math.min(statusTodayTotal, 6) }).map((_, i) => {
+                            const shown = Math.min(statusTodayTotal, 6);
+                            const filled = Math.round((statusTodayDone / statusTodayTotal) * shown);
+                            const on = i < filled;
+                            return <View key={i} style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: on ? (statusNearest?.color ?? urgencyColor) : theme.onSurfaceVariant + '30' }} />;
+                          })}
+                        </View>
+                        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', marginTop: 6 }}>{language === 'tr' ? `bugün ${statusTodayDone}/${statusTodayTotal}` : `today ${statusTodayDone}/${statusTodayTotal}`}</Text>
+                      </>
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10B981' + (isDark ? '22' : '15'), paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 }}>
+                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '700' }}>✓ {language === 'tr' ? 'bugün boş' : 'clear'}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {statusMotiv ? (
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '500', marginTop: S.md, lineHeight: 17 }}>{statusMotiv}</Text>
+                ) : null}
+              </MotiView>
+            ) : (
+              <MotiView
+                from={{ opacity: 0, translateY: -8 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 350 }}
+                style={[styles.modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', padding: S.md }]}
+              >
+                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? '✨ Bir hedef seç, gerisini bize bırak' : '✨ Pick a goal, leave the rest to us'}</Text>
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '500', marginTop: 6, lineHeight: 18 }}>{language === 'tr' ? 'Sınav, tez, mülakat ya da spor — birini aç, hazır plan otomatik olarak Haftalık Merkez ve görevlerine düşsün.' : 'Exam, thesis, interview or fitness — turn one on and a ready plan flows into your Weekly Hub and tasks automatically.'}</Text>
+              </MotiView>
+            )}
             {/* ── Ramazan Modu ── only show within 30 days of start or when user has it enabled */}
             {(seasonal.ramazan || ramadanStatus.daysUntilStart <= 7 || ramadanStatus.isActive) && <View style={[styles.modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.ramazan ? (isDark ? 'rgba(99,102,241,0.30)' : 'rgba(99,102,241,0.20)') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
               <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.ramazan ? S.sm : S.md }}>
@@ -648,14 +823,14 @@ export default function ModlarScreen() {
                       <Text style={{ color: ramazanAccent, fontSize: F.caption, fontWeight: '600', flex: 1 }}>{language === 'tr' ? 'Planı şimdiden hazırla' : 'Set up your plan in advance'}</Text>
                       <ChevronRight size={12} color={ramazanAccent} />
                     </Touchable>
-                  ) : ramazanPlanHabits.length > 0 ? (
+                  ) : ramazanProg.total > 0 ? (
                     <View style={{ gap: S.sm }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{language === 'tr' ? 'Bu haftaki ilerleme' : "This week's progress"}</Text>
-                        <Text style={{ color: ramazanAccent, fontSize: F.caption, fontWeight: '600' }}>{ramazanHabitsActiveThisWeek}/{ramazanPlanHabits.length} · {ramazanWeekPct}%</Text>
+                        <Text style={{ color: ramazanAccent, fontSize: F.caption, fontWeight: '600' }}>{ramazanProg.done}/{ramazanProg.total} · {ramazanProg.pct}%</Text>
                       </View>
                       <View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.10)', overflow: 'hidden' }}>
-                        <View style={{ height: 5, borderRadius: 3, backgroundColor: ramazanAccent, width: `${ramazanWeekPct}%` as any }} />
+                        <View style={{ height: 5, borderRadius: 3, backgroundColor: ramazanAccent, width: `${ramazanProg.pct}%` as any }} />
                       </View>
                     </View>
                   ) : (
@@ -749,7 +924,7 @@ export default function ModlarScreen() {
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                             {renderModeEmojiIcon('🎯', 16, urgencyColor)}
                             <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{examNameInput}</Text>
-                            <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const templateId = (examPlanHabitIds.length === 0 && examPlanTaskIds.length === 0) ? recommendTemplateId(examDaysLeft, selectedExamPreset?.category ?? 'other', selectedExamPreset?.preferredTemplates ?? [], examDailyMinutes ?? selectedExamPreset?.defaultDailyMinutes ?? 90) : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam', examTipTr: selectedExamPreset?.tipTr, examTipEn: selectedExamPreset?.tipEn, examName: examNameInput, examDate: examDateInput }); }} activeOpacity={0.7}>
+                            <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); const templateId = (examPlanHabitIds.length === 0 && examPlanTaskIds.length === 0) ? levelTemplateIdFromMinutes(examDailyMinutes ?? selectedExamPreset?.defaultDailyMinutes ?? 90) : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam', examTipTr: selectedExamPreset?.tipTr, examTipEn: selectedExamPreset?.tipEn, examName: examNameInput, examDate: examDateInput }); }} activeOpacity={0.7}>
                               <Text style={{ color: urgencyColor, fontSize: F.caption, fontWeight: '600' }}>
                                 {(examPlanHabitIds.length > 0 || examPlanTaskIds.length > 0) ? (language === 'tr' ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (language === 'tr' ? 'Plan Oluştur ›' : 'Create Plan ›')}
                               </Text>
@@ -790,14 +965,14 @@ export default function ModlarScreen() {
                                   {renderModeEmojiIcon('📅', 13, theme.onSurfaceVariant)}
                                   <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{formatExamDate(examDateInput)}</Text>
                                 </View>
-                                {examPlanHabits.length > 0 && (
+                                {examProg.total > 0 && (
                                   <View style={{ marginTop: S.sm, gap: 4 }}>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                       <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Bu haftaki ilerleme' : "This week's progress"}</Text>
-                                      <Text style={{ color: urgencyColor, fontSize: 11, fontWeight: '600' }}>{examHabitsActiveThisWeek}/{examPlanHabits.length} · {examWeekPct}%</Text>
+                                      <Text style={{ color: urgencyColor, fontSize: 11, fontWeight: '600' }}>{examProg.done}/{examProg.total} · {examProg.pct}%</Text>
                                     </View>
                                     <View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                                      <View style={{ height: 5, borderRadius: 3, backgroundColor: urgencyColor, width: `${examWeekPct}%` as any }} />
+                                      <View style={{ height: 5, borderRadius: 3, backgroundColor: urgencyColor, width: `${examProg.pct}%` as any }} />
                                     </View>
                                   </View>
                                 )}
@@ -873,7 +1048,7 @@ export default function ModlarScreen() {
                                 <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
                               </Touchable>
                               {exam2IsComplete && (
-                                <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExam2Expanded(false); const templateId = selectedExam2Preset ? recommendTemplateId(exam2DaysLeft, selectedExam2Preset.category, selectedExam2Preset.preferredTemplates, exam2DailyMinutes ?? selectedExam2Preset.defaultDailyMinutes) : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam2', examTipTr: selectedExam2Preset?.tipTr, examTipEn: selectedExam2Preset?.tipEn, examName: exam2NameInput, examDate: exam2DateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: exam2UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}>
+                                <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExam2Expanded(false); const templateId = levelTemplateIdFromMinutes(exam2DailyMinutes ?? selectedExam2Preset?.defaultDailyMinutes); setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam2', examTipTr: selectedExam2Preset?.tipTr, examTipEn: selectedExam2Preset?.tipEn, examName: exam2NameInput, examDate: exam2DateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: exam2UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}>
                                   <BookOpen size={13} color="#fff" />
                                   <Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text>
                                 </Touchable>
@@ -945,7 +1120,7 @@ export default function ModlarScreen() {
                                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
                                 </Touchable>
                                 {exam3IsComplete && (
-                                  <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExam3Expanded(false); const templateId = selectedExam3Preset ? recommendTemplateId(exam3DaysLeft, selectedExam3Preset.category, selectedExam3Preset.preferredTemplates, exam3DailyMinutes ?? selectedExam3Preset.defaultDailyMinutes) : undefined; setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam3', examTipTr: selectedExam3Preset?.tipTr, examTipEn: selectedExam3Preset?.tipEn, examName: exam3NameInput, examDate: exam3DateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: exam3UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}>
+                                  <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExam3Expanded(false); const templateId = levelTemplateIdFromMinutes(exam3DailyMinutes ?? selectedExam3Preset?.defaultDailyMinutes); setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam3', examTipTr: selectedExam3Preset?.tipTr, examTipEn: selectedExam3Preset?.tipEn, examName: exam3NameInput, examDate: exam3DateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: exam3UrgencyColor, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}>
                                     <BookOpen size={13} color="#fff" />
                                     <Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text>
                                   </Touchable>
@@ -1009,7 +1184,7 @@ export default function ModlarScreen() {
                           <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
                         </Touchable>
                         {examIsComplete && (
-                          <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExamExpanded(false); const templateId = recommendTemplateId(examDaysLeft, selectedExamPreset?.category ?? 'other', selectedExamPreset?.preferredTemplates ?? [], examDailyMinutes ?? selectedExamPreset?.defaultDailyMinutes ?? 90); setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam', examTipTr: selectedExamPreset?.tipTr, examTipEn: selectedExamPreset?.tipEn, examName: examNameInput, examDate: examDateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: urgencyColor, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>
+                          <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExamExpanded(false); const templateId = levelTemplateIdFromMinutes(examDailyMinutes ?? selectedExamPreset?.defaultDailyMinutes ?? 90); setModePreview({ type: 'exam', key: Date.now(), templateId, examSlot: 'exam', examTipTr: selectedExamPreset?.tipTr, examTipEn: selectedExamPreset?.tipEn, examName: examNameInput, examDate: examDateInput }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: urgencyColor, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>
                             <BookOpen size={14} color="#fff" />
                             <Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{language === 'tr' ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text>
                           </Touchable>
@@ -1076,7 +1251,7 @@ export default function ModlarScreen() {
                                   {renderModeEmojiIcon('📅', 13, theme.onSurfaceVariant)}
                                   <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{formatExamDate(tezDateInput)}</Text>
                                 </View>
-                                {tezPlanHabits.length > 0 && (<View style={{ marginTop: S.sm, gap: 4 }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Bu haftaki ilerleme' : "This week's progress"}</Text><Text style={{ color: tezUrgencyColor, fontSize: 11, fontWeight: '600' }}>{tezHabitsActiveThisWeek}/{tezPlanHabits.length} · {tezWeekPct}%</Text></View><View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}><View style={{ height: 5, borderRadius: 3, backgroundColor: tezUrgencyColor, width: `${tezWeekPct}%` as any }} /></View></View>)}
+                                {tezProg.total > 0 && (<View style={{ marginTop: S.sm, gap: 4 }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Bu haftaki ilerleme' : "This week's progress"}</Text><Text style={{ color: tezUrgencyColor, fontSize: 11, fontWeight: '600' }}>{tezProg.done}/{tezProg.total} · {tezProg.pct}%</Text></View><View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}><View style={{ height: 5, borderRadius: 3, backgroundColor: tezUrgencyColor, width: `${tezProg.pct}%` as any }} /></View></View>)}
                               </View>
                             </View>
                           )}
@@ -1161,7 +1336,7 @@ export default function ModlarScreen() {
                                   {renderModeEmojiIcon('📅', 13, theme.onSurfaceVariant)}
                                   <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{formatExamDate(mulakatDateInput)}</Text>
                                 </View>
-                                {mulakatPlanHabits.length > 0 && (<View style={{ marginTop: S.sm, gap: 4 }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Bu haftaki ilerleme' : "This week's progress"}</Text><Text style={{ color: mulakatUrgencyColor, fontSize: 11, fontWeight: '600' }}>{mulakatHabitsActiveThisWeek}/{mulakatPlanHabits.length} · {mulakatWeekPct}%</Text></View><View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}><View style={{ height: 5, borderRadius: 3, backgroundColor: mulakatUrgencyColor, width: `${mulakatWeekPct}%` as any }} /></View></View>)}
+                                {mulakatProg.total > 0 && (<View style={{ marginTop: S.sm, gap: 4 }}><View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Bu haftaki ilerleme' : "This week's progress"}</Text><Text style={{ color: mulakatUrgencyColor, fontSize: 11, fontWeight: '600' }}>{mulakatProg.done}/{mulakatProg.total} · {mulakatProg.pct}%</Text></View><View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}><View style={{ height: 5, borderRadius: 3, backgroundColor: mulakatUrgencyColor, width: `${mulakatProg.pct}%` as any }} /></View></View>)}
                               </View>
                             </View>
                           )}
@@ -1379,14 +1554,14 @@ export default function ModlarScreen() {
                                   {renderModeEmojiIcon('📅', 13, theme.onSurfaceVariant)}
                                   <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{formatExamDate(sporDateInput)}</Text>
                                 </View>
-                                {sporPlanHabits.length > 0 && (
+                                {sporProg.total > 0 && (
                                   <View style={{ marginTop: S.sm, gap: 4 }}>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                                       <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{language === 'tr' ? 'Bu haftaki ilerleme' : "This week's progress"}</Text>
-                                      <Text style={{ color: sporColor, fontSize: 11, fontWeight: '600' }}>{sporHabitsActiveThisWeek}/{sporPlanHabits.length} · {sporWeekPct}%</Text>
+                                      <Text style={{ color: sporColor, fontSize: 11, fontWeight: '600' }}>{sporProg.done}/{sporProg.total} · {sporProg.pct}%</Text>
                                     </View>
                                     <View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                                      <View style={{ height: 5, borderRadius: 3, backgroundColor: sporColor, width: `${sporWeekPct}%` as any }} />
+                                      <View style={{ height: 5, borderRadius: 3, backgroundColor: sporColor, width: `${sporProg.pct}%` as any }} />
                                     </View>
                                   </View>
                                 )}
@@ -2071,20 +2246,23 @@ export default function ModlarScreen() {
               hIds.forEach(id => removeHabit(id));
               tIds.forEach(id => retirePlanTask(id, slot));
               clearPlanIds(slot);
-              if (slot === 'spor2') { setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); setSpor2GoalInput(''); setSpor2DateInput(''); }
-              else if (slot === 'spor3') { setSeasonalPref('spor3Goal', ''); setSeasonalPref('spor3Date', null); setSpor3GoalInput(''); setSpor3DateInput(''); }
-              else { setSeasonalPref('sporMode', false); setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null); setSporGoalInput(''); setSporDateInput(''); resetSporInputs(); }
+              if (!preserveMeta) {
+                if (slot === 'spor2') { setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); setSpor2GoalInput(''); setSpor2DateInput(''); }
+                else if (slot === 'spor3') { setSeasonalPref('spor3Goal', ''); setSeasonalPref('spor3Date', null); setSpor3GoalInput(''); setSpor3DateInput(''); }
+                else { setSeasonalPref('sporMode', false); setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null); setSporGoalInput(''); setSporDateInput(''); resetSporInputs(); }
+              }
             } else {
               ramazanPlanHabitIds.forEach(id => removeHabit(id));
               habits.filter(h => RAMAZAN_HABIT_NAMES.some(n => n.toLowerCase() === h.name.toLowerCase())).forEach(h => removeHabit(h.id));
               ramazanPlanTaskIds.forEach(id => retirePlanTask(id, 'ramazan'));
               clearPlanIds('ramazan');
-              setSeasonalPref('ramazan', false);
+              if (!preserveMeta) setSeasonalPref('ramazan', false);
             }
             setModePreview(null);
           }}
           onApplied={(habitIds, taskIds, meta) => {
             const t = modePreview.type;
+            track('mode_activated', { type: t });
             if (t === 'exam' || t === 'yks' || t === 'kpss') {
               const slot = modePreview.examSlot ?? 'exam';
               const prevHabits = slot === 'exam2' ? exam2PlanHabitIds : slot === 'exam3' ? exam3PlanHabitIds : examPlanHabitIds;
@@ -2164,7 +2342,7 @@ function WeightWheelPicker({ value, onChange, min = 30, max = 220, theme, isDark
   const scrollViewRef = useRef<ScrollView>(null);
   const isMounted = useRef(false);
 
-  // Scroll to value
+  // Scroll to value (dışarıdan value değişince hizala).
   useEffect(() => {
     if (initialIndex !== -1 && scrollViewRef.current) {
       const timer = setTimeout(() => {
@@ -2219,6 +2397,9 @@ function WeightWheelPicker({ value, onChange, min = 30, max = 220, theme, isDark
         showsVerticalScrollIndicator={false}
         snapToInterval={itemHeight}
         decelerationRate="fast"
+        // Android: ana sayfa ScrollView'i içinde nested → bu olmadan çark dönmez.
+        nestedScrollEnabled={true}
+        onScrollEndDrag={handleMomentumScrollEnd}
         onMomentumScrollEnd={handleMomentumScrollEnd}
         contentContainerStyle={{
           paddingVertical: itemHeight,

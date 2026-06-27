@@ -1,27 +1,69 @@
-export const getModeInfoForTask = (taskId: number, prefsStoreState: any, theme: any) => {
-    const p = prefsStoreState;
-    if (!p) return null;
+/**
+ * Bir görevin hangi dönemsel mod planına ait olduğunu (renk + etiket) belirler.
+ *
+ * İKİ SİNYAL (tutarlılık için): önce plan-id takibi (kesin slot adı), sonra TAG fallback.
+ * Tag'ler oluşturulurken sabitlenir ve asla kaymaz (id'ler offline sync'te kayabilir).
+ * Böylece bir modun TÜM görevleri (setup, haftalık, günlük, adaptasyon) aynı rengi ve
+ * plan adını gösterir — kullanıcının gördüğü "kimi kırmızı/etiketsiz, kimi mavi/KPSS"
+ * tutarsızlığı ortadan kalkar.
+ *
+ * `task`: görev objesi ({ id, tags }) veya geriye uyumluluk için sadece id (number).
+ *
+ * RENKLER: Dönemsel Modlar sayfasındaki kart renkleriyle BİREBİR aynı sabit palet
+ * kullanılır (tema token'ları DEĞİL) → bir modun görev şeridi/çipi ile o modun kartı
+ * her zaman aynı rengi gösterir. Eski hâlde theme.primary/secondary/... kullanıldığı
+ * için spor yeşil, mülakat mor görünüp kartlarla çelişiyordu.
+ */
+type TaskLike = { id: number; tags?: string[] | null };
 
-    // Exam Modes
-    if (p.examPlanTaskIds?.includes(taskId)) return { color: theme.primary, labelTr: p.seasonal?.examName || 'Sınav Planı', labelEn: p.seasonal?.examName || 'Exam Plan' };
-    if (p.exam2PlanTaskIds?.includes(taskId)) return { color: theme.primary, labelTr: p.seasonal?.exam2Name || 'Sınav Planı 2', labelEn: p.seasonal?.exam2Name || 'Exam Plan 2' };
-    if (p.exam3PlanTaskIds?.includes(taskId)) return { color: theme.primary, labelTr: p.seasonal?.exam3Name || 'Sınav Planı 3', labelEn: p.seasonal?.exam3Name || 'Exam Plan 3' };
-    
-    // Thesis / Project
-    if (p.tezPlanTaskIds?.includes(taskId)) return { color: theme.tertiary, labelTr: p.seasonal?.tezName || 'Tez/Proje', labelEn: p.seasonal?.tezName || 'Thesis' };
-    
-    // Interview
-    if (p.mulakatPlanTaskIds?.includes(taskId)) return { color: theme.secondary, labelTr: p.seasonal?.mulakatName || 'Mülakat Planı', labelEn: p.seasonal?.mulakatName || 'Interview Plan' };
-    if (p.mulakat2PlanTaskIds?.includes(taskId)) return { color: theme.secondary, labelTr: p.seasonal?.mulakat2Name || 'Mülakat Planı 2', labelEn: p.seasonal?.mulakat2Name || 'Interview Plan 2' };
-    if (p.mulakat3PlanTaskIds?.includes(taskId)) return { color: theme.secondary, labelTr: p.seasonal?.mulakat3Name || 'Mülakat Planı 3', labelEn: p.seasonal?.mulakat3Name || 'Interview Plan 3' };
-    
-    // Sports
-    if (p.sporPlanTaskIds?.includes(taskId)) return { color: theme.success || '#10B981', labelTr: p.seasonal?.sporGoal || 'Spor Planı', labelEn: p.seasonal?.sporGoal || 'Workout Plan' };
-    if (p.spor2PlanTaskIds?.includes(taskId)) return { color: theme.success || '#10B981', labelTr: p.seasonal?.spor2Goal || 'Spor Planı 2', labelEn: p.seasonal?.spor2Goal || 'Workout Plan 2' };
-    if (p.spor3PlanTaskIds?.includes(taskId)) return { color: theme.success || '#10B981', labelTr: p.seasonal?.spor3Goal || 'Spor Planı 3', labelEn: p.seasonal?.spor3Goal || 'Workout Plan 3' };
-    
-    // Ramadan
-    if (p.ramazanPlanTaskIds?.includes(taskId)) return { color: '#6366F1', labelTr: 'Ramazan Planı', labelEn: 'Ramadan Plan' };
-    
-    return null;
+// modlar.tsx kart paleti ile eşleşir.
+const MODE_COLORS = {
+  exam: '#3B82F6',
+  tez: '#8B5CF6',
+  mulakat: '#10B981',
+  spor: '#F97316',
+  ramazan: '#6366F1',
+} as const;
+
+export const getModeInfoForTask = (task: TaskLike | number, prefsStoreState: any, _theme?: any) => {
+  const p = prefsStoreState;
+  if (!p) return null;
+
+  const taskId = typeof task === 'number' ? task : task?.id;
+  const tags: string[] = typeof task === 'number' ? [] : (task?.tags ?? []);
+  const has = (...ts: string[]) => ts.some(t => tags.includes(t));
+
+  // ── SINAV (exam) ── slot 2/3 önce (daha spesifik), sonra slot 1 + grup tag'leri
+  if (p.exam2PlanTaskIds?.includes(taskId) || has('exam2'))
+    return { color: MODE_COLORS.exam, labelTr: p.seasonal?.exam2Name || 'Sınav Planı 2', labelEn: p.seasonal?.exam2Name || 'Exam Plan 2' };
+  if (p.exam3PlanTaskIds?.includes(taskId) || has('exam3'))
+    return { color: MODE_COLORS.exam, labelTr: p.seasonal?.exam3Name || 'Sınav Planı 3', labelEn: p.seasonal?.exam3Name || 'Exam Plan 3' };
+  if (p.examPlanTaskIds?.includes(taskId) || has('exam', 'yks', 'kpss', 'sinav_eve', 'sinav_week', 'sinav_60', 'sinav_sprint_start'))
+    return { color: MODE_COLORS.exam, labelTr: p.seasonal?.examName || 'Sınav Planı', labelEn: p.seasonal?.examName || 'Exam Plan' };
+
+  // ── TEZ / PROJE ──
+  if (p.tezPlanTaskIds?.includes(taskId) || has('tez', 'tez_weekly', 'tez_final_2weeks', 'tez_sprint_30', 'tez_60'))
+    return { color: MODE_COLORS.tez, labelTr: p.seasonal?.tezName || 'Tez/Proje', labelEn: p.seasonal?.tezName || 'Thesis' };
+
+  // ── MÜLAKAT ──
+  if (p.mulakat2PlanTaskIds?.includes(taskId) || has('mulakat2'))
+    return { color: MODE_COLORS.mulakat, labelTr: p.seasonal?.mulakat2Name || 'Mülakat Planı 2', labelEn: p.seasonal?.mulakat2Name || 'Interview Plan 2' };
+  if (p.mulakat3PlanTaskIds?.includes(taskId) || has('mulakat3'))
+    return { color: MODE_COLORS.mulakat, labelTr: p.seasonal?.mulakat3Name || 'Mülakat Planı 3', labelEn: p.seasonal?.mulakat3Name || 'Interview Plan 3' };
+  if (p.mulakatPlanTaskIds?.includes(taskId) || has('mulakat', 'mulakat_day', 'mulakat_eve', 'mulakat_3days', 'mulakat_week', 'mulakat_2weeks'))
+    return { color: MODE_COLORS.mulakat, labelTr: p.seasonal?.mulakatName || 'Mülakat Planı', labelEn: p.seasonal?.mulakatName || 'Interview Plan' };
+
+  // ── SPOR ──
+  if (p.spor2PlanTaskIds?.includes(taskId) || has('spor2'))
+    return { color: MODE_COLORS.spor, labelTr: p.seasonal?.spor2Goal || 'Spor Planı 2', labelEn: p.seasonal?.spor2Goal || 'Workout Plan 2' };
+  if (p.spor3PlanTaskIds?.includes(taskId) || has('spor3'))
+    return { color: MODE_COLORS.spor, labelTr: p.seasonal?.spor3Goal || 'Spor Planı 3', labelEn: p.seasonal?.spor3Goal || 'Workout Plan 3' };
+  if (p.sporPlanTaskIds?.includes(taskId) || has('spor', 'kilo', 'maraton', 'guc', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress'))
+    return { color: MODE_COLORS.spor, labelTr: p.seasonal?.sporGoal || 'Spor Planı', labelEn: p.seasonal?.sporGoal || 'Workout Plan' };
+
+  // ── RAMAZAN ──
+  if (p.ramazanPlanTaskIds?.includes(taskId) || has('ramazan', 'ramazan_kadir'))
+    return { color: MODE_COLORS.ramazan, labelTr: 'Ramazan Planı', labelEn: 'Ramadan Plan' };
+
+  return null;
 };

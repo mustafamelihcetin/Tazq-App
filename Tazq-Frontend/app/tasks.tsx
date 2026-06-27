@@ -17,6 +17,9 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useFocusStore } from '../store/useFocusStore';
 import { usePrefsStore } from '../store/usePrefsStore';
+import { useAchievementStore } from '../store/useAchievementStore';
+import { ACHIEVEMENTS } from '../utils/achievements';
+import { track } from '../utils/analytics';
 import { getModeInfoForTask } from '../utils/modeHelpers';
 
 import * as Haptics from 'expo-haptics';
@@ -123,7 +126,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
     
     const prefs = usePrefsStore();
     const modeInfo = useMemo(() => {
-        return getModeInfoForTask(task.id, prefs, theme);
+        return getModeInfoForTask(task, prefs, theme);
     }, [task.id, theme, prefs]);
 
     const finalLeftColor = modeInfo?.color || priorityColor(task.priority);
@@ -224,7 +227,9 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                 onPress={() => handleToggle(task.id)}
                                 hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                                 style={[
-                                    { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginLeft: S.sm },
+                                    // Yuvarlatılmış KARE kutu = "görev" (listeden tikle, biter). Alışkanlıklar
+                                    // DAİRE/halka kullanır (günlük tekrarlayan ritim) → şekil grameri farkı betimsel anlatır.
+                                    { width: 24, height: 24, borderRadius: 7, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginLeft: S.sm },
                                     {
                                         backgroundColor: (task.isCompleted || completingIds.has(task.id)) ? theme.success : 'transparent',
                                         borderColor: (task.isCompleted || completingIds.has(task.id)) ? theme.success : (isDark ? theme.outline : 'rgba(0,0,0,0.2)'),
@@ -773,6 +778,17 @@ export default function ActionCenter() {
 
     if (isCompleting) {
       recordCompletion(task.id, task.title);
+      // İlk-zafer: kullanıcının HAYATTAKİ ilk görev tamamlaması → milestone + (Pro'da)
+      // ilk kutlama. Onboarding'in "anında değer" vaadini gerçek bir aksiyona bağlar.
+      const prefsState = usePrefsStore.getState();
+      if (!prefsState.firstWinAt) {
+        prefsState.markFirstWin();
+        track('first_task_completed');
+        track('first_win');
+        if (prefsState.uiMode !== 'lite') {
+          useAchievementStore.getState().trigger(ACHIEVEMENTS.first_task);
+        }
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (soundEffects) try {
         const p = createAudioPlayer(require('../assets/sounds/success.mp3'));
@@ -1303,9 +1319,15 @@ export default function ActionCenter() {
                           <X size={24} color={theme.onSurface} />
                       </Touchable>
                   ) : (
-                      // Ana sekme — alt navigasyondan gezilir; header'da back butonu YOK
-                      // (cockpit/Haftalık Merkez ile tutarlı). Sabit boşluk başlığı ortalar.
-                      <View style={{ width: 40, height: 40 }} />
+                      // Sol: Sırala & Filtrele. Sağ: Ara (büyüteç). Back butonu YOK — alt navigasyondan gezilir.
+                      <Touchable onPress={() => { setShowSortMenu(!showSortMenu); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
+                          <View>
+                              <SlidersHorizontal size={22} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
+                              {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) && (
+                                  <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: theme.primary }} />
+                              )}
+                          </View>
+                      </Touchable>
                   )}
               </View>
 
@@ -1331,19 +1353,9 @@ export default function ActionCenter() {
                           )}
                       </View>
                   ) : (
-                      <>
-                          <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
-                              <Search size={22} color={showSearch ? theme.primary : theme.onSurface} />
-                          </Touchable>
-                          <Touchable onPress={() => { setShowSortMenu(!showSortMenu); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
-                              <View>
-                                  <SlidersHorizontal size={22} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
-                                  {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) && (
-                                      <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: theme.primary }} />
-                                  )}
-                              </View>
-                          </Touchable>
-                      </>
+                      <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
+                          <Search size={22} color={showSearch ? theme.primary : theme.onSurface} />
+                      </Touchable>
                   )}
               </View>
             </View>

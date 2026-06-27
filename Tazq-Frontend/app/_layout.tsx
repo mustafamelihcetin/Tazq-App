@@ -316,6 +316,8 @@ export default function RootLayout() {
           router.push('/focus');
         } else if (data.type === 'habit-risk' || data.type === 'habit-reminder') {
           router.push('/cockpit');
+        } else if (data.type === 'weekly') {
+          router.push('/report');
         } else {
           router.push('/tasks');
         }
@@ -459,6 +461,7 @@ export default function RootLayout() {
           <Stack.Screen name="cockpit" options={{ gestureEnabled: false, animation: 'none' }} />
           <Stack.Screen name="modlar" options={{ gestureEnabled: false, animation: 'none' }} />
           <Stack.Screen name="legal" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="report" options={{ animation: 'slide_from_right' }} />
         </Stack>
 
         <FocusIsland />

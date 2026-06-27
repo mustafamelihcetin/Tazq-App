@@ -9,12 +9,17 @@ export interface Habit {
   color: string;
   completedDates: string[]; // 'YYYY-MM-DD'
   createdAt: string;
+  /**
+   * Bu alışkanlık hangi dönemsel moda ait (exam/yks/kpss/tez/mulakat/spor/ramazan)?
+   * Mod kapatılınca güvenilir temizlik için kullanılır. Manuel alışkanlıklarda undefined.
+   */
+  planMode?: string;
 }
 
 interface HabitState {
   habits: Habit[];
   weeklyGoal: string;
-  addHabit: (name: string, emoji: string, color: string, id?: string) => void;
+  addHabit: (name: string, emoji: string, color: string, id?: string, planMode?: string) => void;
   removeHabit: (id: string) => void;
   toggleDate: (habitId: string, date: string) => void;
   setWeeklyGoal: (goal: string) => void;
@@ -67,20 +72,28 @@ export const useHabitStore = create<HabitState>()(
     (set) => ({
       habits: [],
       weeklyGoal: '',
-      addHabit: (name, emoji, color, id) =>
-        set((s) => ({
-          habits: [
-            ...s.habits,
-            {
-              id: id ?? `habit_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-              name,
-              emoji,
-              color,
-              completedDates: [],
-              createdAt: new Date().toISOString(),
-            },
-          ],
-        })),
+      addHabit: (name, emoji, color, id, planMode) =>
+        set((s) => {
+          // Çift-isim koruması (büyük/küçük harf duyarsız) — aynı alışkanlık iki kez eklenmez.
+          const key = name.trim().toLocaleLowerCase('tr');
+          if (s.habits.some(h => h.name.trim().toLocaleLowerCase('tr') === key)) {
+            return s;
+          }
+          return {
+            habits: [
+              ...s.habits,
+              {
+                id: id ?? `habit_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+                name,
+                emoji,
+                color,
+                completedDates: [],
+                createdAt: new Date().toISOString(),
+                ...(planMode ? { planMode } : {}),
+              },
+            ],
+          };
+        }),
       removeHabit: (id) =>
         set((s) => ({ habits: s.habits.filter((h) => h.id !== id) })),
       toggleDate: (habitId, date) =>

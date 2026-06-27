@@ -283,6 +283,26 @@ export const AdminService = {
   },
 };
 
+export interface ContentDoc {
+  key: string;
+  version: number;
+  json: string;
+  updatedAt: string;
+}
+
+export const ContentService = {
+  // İstemci senkronu: güncel içerik belgesi (ör. "curriculum").
+  get: async (key: string): Promise<ContentDoc> => {
+    const r = await api.get(`/api/content/${key}`);
+    return r.data;
+  },
+  // Admin: içerik oluştur/güncelle.
+  update: async (key: string, json: string, version?: number): Promise<ContentDoc> => {
+    const r = await api.put(`/api/content/${key}`, { json, version });
+    return r.data;
+  },
+};
+
 export const AiService = {
   parseTasks: async (text: string) => {
     const response = await api.post('/api/ai/parse-tasks', { text });

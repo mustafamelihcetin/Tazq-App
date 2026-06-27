@@ -21,6 +21,7 @@ import { extractPlanFromText, QUICK_EMOJIS, QUICK_COLORS, DraftHabit, DraftTask 
 import { TextInput } from 'react-native';
 import { S, R, F, B } from '../constants/tokens';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { useToastStore } from '../store/useToastStore';
 import { Touchable } from '@/components/Touchable';
 
 interface Props {
@@ -70,7 +71,12 @@ export const TurkishModeBanner: React.FC<Props> = ({
   onSheetCloseRef.current = onSheetClose;
 
   const [step, setStep] = useState<'template' | 'review' | 'custom'>(() => {
-    if (planApplied || !mode.templates?.length) return 'review';
+    // "Uygulanmış" sayılması için plan id'leri GERÇEK öğelere karşılık gelmeli.
+    // Aksi halde (id var ama görev/alışkanlık silinmiş — eski global-off kalıntısı)
+    // oluşturma akışını göster; yoksa boş sheet kalır ("plan gelmedi").
+    const hasItems = habits.some(h => planHabitIds.includes(h.id)) || tasks.some(t => planTaskIds.includes(t.id));
+    const reallyApplied = !!planApplied && hasItems;
+    if (reallyApplied || !mode.templates?.length) return 'review';
     if (defaultTemplateId && mode.templates?.some(t => t.id === defaultTemplateId)) return 'review';
     return 'template';
   });
@@ -133,6 +139,10 @@ export const TurkishModeBanner: React.FC<Props> = ({
     () => tasks.filter(t => planTaskIds.includes(t.id)),
     [tasks, planTaskIds]
   );
+
+  // GERÇEK uygulanmış durum: id'ler var AMA karşılık gelen öğeler de mevcut.
+  // Stale id (öğeler silinmiş) → uygulanmamış say → oluşturma/şablon akışı açılır.
+  const effectiveApplied = !!planApplied && (planHabits.length + planTasks.length > 0);
 
   // Last 7 days keys for weekly stats
   const last7Keys = useMemo(() => {
@@ -362,7 +372,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
     const addedHabitIds: string[] = [];
     for (const h of newHabits.filter(h => !deselectedHabits.has(h.name))) {
       const hid = `habit_${mode.type}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      addHabit(h.name, h.emoji, h.color, hid);
+      addHabit(h.name, h.emoji, h.color, hid, mode.type);
       addedHabitIds.push(hid);
     }
 
@@ -454,7 +464,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
   // ── Custom Plan Step ──
   const renderCustomStep = () => {
-    const totalItems = customHabits.length + customTasks.length;
+    // Yalnız DOLU öğeleri say (boş satırlar "3 öğe" gibi yanıltmasın).
+    const totalItems = customHabits.filter(h => h.nameTr.trim()).length + customTasks.filter(t => t.titleTr.trim()).length;
     const canProceed = customHabits.some(h => h.nameTr.trim()) || customTasks.some(t => t.titleTr.trim());
 
     const cycleEmoji = (idx: number) => {
@@ -476,11 +487,21 @@ export const TurkishModeBanner: React.FC<Props> = ({
     };
 
     const suggest = () => {
-      if (!customAiText.trim()) return;
+      const toast = useToastStore.getState().show;
+      if (!customAiText.trim()) {
+        toast(tr ? 'Önce planını birkaç cümleyle yaz' : 'Describe your plan first', 'info');
+        return;
+      }
       const { habits: hs, tasks: ts } = extractPlanFromText(customAiText, tr);
       if (hs.length) setCustomHabits(prev => [...prev, ...hs].slice(0, 5));
       if (ts.length) setCustomTasks(prev => [...prev, ...ts].slice(0, 7));
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (hs.length + ts.length > 0) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // Net geri bildirim: kaç öğe eklendi → "çalışıyor mu" belirsizliği biter.
+        toast(tr ? `${hs.length} alışkanlık · ${ts.length} görev eklendi` : `${hs.length} habits · ${ts.length} tasks added`, 'success');
+      } else {
+        toast(tr ? 'Bundan öneri çıkaramadık — aşağıdan elle ekleyebilirsin' : "Couldn't extract — add manually below", 'info');
+      }
     };
 
     const proceed = () => {
@@ -971,11 +992,11 @@ export const TurkishModeBanner: React.FC<Props> = ({
               <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
             </View>
 
-            {/* Plan already applied → show smart plan view */}
-            {planApplied && renderPlanView()}
+            {/* Plan already applied (gerçek öğelerle) → show smart plan view */}
+            {effectiveApplied && renderPlanView()}
 
             {/* Plan not applied → template selection or review to add */}
-            {!planApplied && step === 'template' && hasTemplates && (
+            {!effectiveApplied && step === 'template' && hasTemplates && (
               <>
                 <View style={styles.sheetHeader}>
                   <View style={{ flex: 1 }}>
@@ -1081,9 +1102,9 @@ export const TurkishModeBanner: React.FC<Props> = ({
               </>
             )}
 
-            {!planApplied && step === 'custom' && renderCustomStep()}
+            {!effectiveApplied && step === 'custom' && renderCustomStep()}
 
-            {!planApplied && step === 'review' && (
+            {!effectiveApplied && step === 'review' && (
               <>
                 <View style={styles.sheetHeader}>
                   {hasTemplates && (

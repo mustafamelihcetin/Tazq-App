@@ -1,4 +1,26 @@
-import { buildDailyTasks, hasDailyToday, DailyPlanSpec } from '../utils/dailyPlanEngine';
+import { buildDailyTasks, hasDailyToday, adaptiveTaskCount, DailyPlanSpec } from '../utils/dailyPlanEngine';
+
+describe('adaptiveTaskCount (adaptif zorluk — yalnız hafifletir)', () => {
+  it('returns base when no signal', () => {
+    expect(adaptiveTaskCount(3)).toBe(3);
+  });
+  it('returns base when not enough history (<4 in 14d)', () => {
+    expect(adaptiveTaskCount(3, { activeDays7: 0, total14: 2 })).toBe(3);
+  });
+  it('lightens by 1 when struggling (activeDays7 <= 2 with history)', () => {
+    expect(adaptiveTaskCount(3, { activeDays7: 1, total14: 6 })).toBe(2);
+    expect(adaptiveTaskCount(2, { activeDays7: 2, total14: 5 })).toBe(1);
+  });
+  it('never goes below 1', () => {
+    expect(adaptiveTaskCount(1, { activeDays7: 0, total14: 8 })).toBe(1);
+  });
+  it('keeps base when consistent (activeDays7 > 2)', () => {
+    expect(adaptiveTaskCount(3, { activeDays7: 5, total14: 12 })).toBe(3);
+  });
+  it('never increases above base', () => {
+    expect(adaptiveTaskCount(2, { activeDays7: 7, total14: 20 })).toBe(2);
+  });
+});
 
 const TODAY = new Date('2026-06-23T08:00:00.000Z');
 

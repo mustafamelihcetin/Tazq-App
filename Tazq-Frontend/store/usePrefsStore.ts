@@ -89,8 +89,23 @@ interface PrefsState {
   setProductivityHour: (v: 'morning' | 'afternoon' | 'evening' | 'night') => void;
   avatarBorderColor: string;
   setAvatarBorderColor: (v: string) => void;
+  // ── Ürün katmanları (Faz 1) ───────────────────────────────────────────────
+  // Lite: sade to-do görünümü (gamification gizli). Pro: tam deneyim.
+  uiMode: 'lite' | 'pro';
+  setUiMode: (v: 'lite' | 'pro') => void;
+  // Kademeli özellik açımı (AI koç, sosyal vb.) — cloud-sync.
+  featureFlags: Record<string, boolean>;
+  setFeatureFlag: (key: string, value: boolean) => void;
+  // İlk-değer akışı izleme
+  onboardingCompleted: boolean;
+  setOnboardingCompleted: (v: boolean) => void;
+  firstWinAt: string | null;
+  markFirstWin: () => void;
   setPlanIds: (mode: PlanMode, habitIds: string[], taskIds: number[]) => void;
   clearPlanIds: (mode: PlanMode) => void;
+  // Offline senkron sonrası: bir plan görevinin tempId'sini gerçek id ile değiştir
+  // (tüm slot dizilerinde). Böylece mod kapatma/temizlik doğru id'yi siler.
+  remapPlanTaskId: (oldId: number, newId: number) => void;
   // Cihazlar arası eşitleme: seçili tercihleri backend'e gönderir / login sonrası geri yükler.
   syncToCloud: () => Promise<void>;
   hydrateFromCloud: (prefsJson?: string | null) => void;
@@ -105,6 +120,10 @@ const CLOUD_PREF_KEYS = [
   'weeklyNotification',
   'morningBrief',
   'eveningBrief',
+  'uiMode',
+  'featureFlags',
+  'onboardingCompleted',
+  'firstWinAt',
   'examPlanHabitIds', 'examPlanTaskIds',
   'exam2PlanHabitIds', 'exam2PlanTaskIds',
   'exam3PlanHabitIds', 'exam3PlanTaskIds',
@@ -209,6 +228,16 @@ export const usePrefsStore = create<PrefsState>()(
       setProductivityHour: (v) => set({ productivityHour: v }),
       avatarBorderColor: 'transparent',
       setAvatarBorderColor: (v) => set({ avatarBorderColor: v }),
+      // Ürün katmanları — varsayılan 'pro' (mevcut kullanıcıların deneyimi değişmesin;
+      // yeni kullanıcı onboarding'de seçer).
+      uiMode: 'pro',
+      setUiMode: (v) => set({ uiMode: v }),
+      featureFlags: {},
+      setFeatureFlag: (key, value) => set((s) => ({ featureFlags: { ...s.featureFlags, [key]: value } })),
+      onboardingCompleted: false,
+      setOnboardingCompleted: (v) => set({ onboardingCompleted: v }),
+      firstWinAt: null,
+      markFirstWin: () => { if (!get().firstWinAt) set({ firstWinAt: new Date().toISOString() }); },
       setPlanIds: (mode, habitIds, taskIds) => {
         if (mode === 'exam') return set({ examPlanHabitIds: habitIds, examPlanTaskIds: taskIds });
         if (mode === 'exam2') return set({ exam2PlanHabitIds: habitIds, exam2PlanTaskIds: taskIds });
@@ -239,6 +268,23 @@ export const usePrefsStore = create<PrefsState>()(
           return { ramazanPlanHabitIds: [], ramazanPlanTaskIds: [], planSpecs };
         });
       },
+
+      remapPlanTaskId: (oldId, newId) => set((s) => {
+        const fix = (arr: number[]) => (arr.includes(oldId) ? arr.map(id => (id === oldId ? newId : id)) : arr);
+        return {
+          examPlanTaskIds: fix(s.examPlanTaskIds),
+          exam2PlanTaskIds: fix(s.exam2PlanTaskIds),
+          exam3PlanTaskIds: fix(s.exam3PlanTaskIds),
+          tezPlanTaskIds: fix(s.tezPlanTaskIds),
+          mulakatPlanTaskIds: fix(s.mulakatPlanTaskIds),
+          mulakat2PlanTaskIds: fix(s.mulakat2PlanTaskIds),
+          mulakat3PlanTaskIds: fix(s.mulakat3PlanTaskIds),
+          sporPlanTaskIds: fix(s.sporPlanTaskIds),
+          spor2PlanTaskIds: fix(s.spor2PlanTaskIds),
+          spor3PlanTaskIds: fix(s.spor3PlanTaskIds),
+          ramazanPlanTaskIds: fix(s.ramazanPlanTaskIds),
+        };
+      }),
 
       syncToCloud: async () => {
         const state = get() as any;

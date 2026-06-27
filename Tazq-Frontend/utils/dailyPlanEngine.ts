@@ -24,6 +24,12 @@ export interface DailyPlanSpec {
   dailyMinutes?: number;  // kullanıcının seçtiği günlük süre → görev yoğunluğu
   templateId?: string;    // (opsiyonel) ileride faz override için
   /**
+   * Adaptif zorluk sinyali. Kullanıcının son tamamlama davranışına göre günlük
+   * görev sayısı YALNIZCA hafifletilir (asla aşırı yüklenmez). Verilmezse temel
+   * sayı kullanılır. Detay: {@link adaptiveTaskCount}.
+   */
+  adherence?: { activeDays7: number; total14: number };
+  /**
    * Slot kimliği (exam/exam2/exam3/spor/spor2/…). Görev etiketi ve günlük
    * dedupe ANAHTARI bu değerdir. Verilmezse `kind`'e düşer.
    *
@@ -43,6 +49,21 @@ function taskCountFor(dailyMinutes?: number): number {
   if (dailyMinutes <= 60) return 1;
   if (dailyMinutes <= 120) return 2;
   return 3;
+}
+
+/**
+ * Adaptif zorluk: temel görev sayısını kullanıcının son davranışına göre ayarlar.
+ * GÜVENLİ TASARIM — yalnızca HAFİFLETİR, asla artırmaz (aşırı yükleme/demoralizasyon
+ * önlenir; kullanıcının seçtiği günlük süre zaten tavanı belirler).
+ *
+ * - signal yoksa veya yeterli geçmiş yoksa (son 14 günde < 4 plan tamamlaması) → temel sayı.
+ * - son 7 günde plan tamamlanan gün ≤ 2 ise (zorlanıyor) → sayı 1 azaltılır (min 1).
+ * - aksi halde → temel sayı.
+ */
+export function adaptiveTaskCount(base: number, signal?: { activeDays7: number; total14: number }): number {
+  if (!signal || signal.total14 < 4) return base;
+  if (signal.activeDays7 <= 2) return Math.max(1, base - 1);
+  return base;
 }
 
 // Bugün 09:00 (yerel) ISO — günlük görevler güne tarihlenir
@@ -280,7 +301,7 @@ export function buildDailyTasks(
   const pool = poolFor(spec);
   if (!pool.length) return [];
 
-  const count = Math.min(taskCountFor(spec.dailyMinutes), pool.length);
+  const count = Math.min(adaptiveTaskCount(taskCountFor(spec.dailyMinutes), spec.adherence), pool.length);
   const offset = dayIndex(today);
   const due = todayAt9(today);
   const name = spec.name?.trim() || (tr ? 'Hedefin' : 'Your goal');

@@ -93,7 +93,13 @@ export function CustomAlertModal() {
       })
     ]).start(() => {
       setVisible(false);
-      if (callback) callback();
+      // Callback'i bir sonraki tick'e ertele + izole et: buton onPress'i istisna atsa
+      // bile overlay kapanır ve uygulama kilitlenmez (dokunuş bloklanmaz).
+      if (callback) {
+        setTimeout(() => {
+          try { callback(); } catch (e) { console.warn('[CustomAlert] onPress error', e); }
+        }, 0);
+      }
     });
   };
 
@@ -163,9 +169,10 @@ export function CustomAlertModal() {
                   activeOpacity={0.8}
                   onPress={() => hide(btn.onPress)}
                   style={[
-                    styles.button, 
-                    { 
-                      width: isVertical ? '100%' : '48%',
+                    styles.button,
+                    {
+                      // Tek buton tam genişlik (ortalı); 2 buton yan yana %48; 3+ dikey %100.
+                      width: (isVertical || buttons.length === 1) ? '100%' : '48%',
                       backgroundColor: btnBg,
                       marginBottom: isVertical && idx < buttons.length - 1 ? S.sm : 0,
                     }

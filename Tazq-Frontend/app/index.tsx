@@ -63,6 +63,7 @@ export default function HomeScreen() {
   const { recordScore, getLastNDays } = useMomentumStore();
   const { trigger: triggerAchievement, baseline: baselineAchievements } = useAchievementStore();
   const achHydrated = useAchievementStore(s => s._hasHydrated);
+  const uiMode = usePrefsStore(s => s.uiMode);
   const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor } = usePrefsStore();
 
   // Focus Store
@@ -347,6 +348,9 @@ export default function HomeScreen() {
     }
 
     // ── BAŞARIMLAR ────────────────────────────────────────────────────────────
+    // Lite modda gamification kapalı — kutlama/baseline çalışmaz (Pro'ya geçince
+    // ilk değerlendirmede sessiz baseline alınır, spam olmaz).
+    if (uiMode === 'lite') return;
     // Hidrasyon tamamlanmadan değerlendirme YAPMA (unlocked yüklenmeden tetiklenirse
     // tekrar kutlama olur).
     if (!achHydrated) return;
@@ -366,15 +370,15 @@ export default function HomeScreen() {
     // baseline ile kilitlenenler burada no-op olur → "durum" değil "geçiş" kutlanır).
     if (streakAch) triggerAchievement(streakAch);
     if (momAch) triggerAchievement(momAch);
-  }, [momentum, streak, statsLoading, achHydrated]);
+  }, [momentum, streak, statsLoading, achHydrated, uiMode]);
 
   // Daily perfect: all of today's tasks completed
   useEffect(() => {
-    if (statsLoading || !achHydrated || todayTasks.length === 0) return;
+    if (uiMode === 'lite' || statsLoading || !achHydrated || todayTasks.length === 0) return;
     if (todayTasks.every(t => t.isCompleted)) {
       triggerAchievement(ACHIEVEMENTS.daily_perfect);
     }
-  }, [todayTasks, statsLoading, achHydrated]);
+  }, [todayTasks, statsLoading, achHydrated, uiMode]);
 
   // Smart Logic: Prioritize Today's Tasks
   const todayDateString = new Date().toDateString();
@@ -414,10 +418,23 @@ export default function HomeScreen() {
     if (task.isCompleted) return; // aksiyon merkezi sadece tamamlar, hiç geri almaz
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     toggleTaskCompletion(taskId);
+    // Offline-first: çevrimdışıysa tamamlamayı kuyruğa al (optimistik UI korunur);
+    // yoksa kullanıcının tamamlaması kaybolur.
+    const isOnline = useNetworkStore.getState().isOnline;
+    if (!isOnline) {
+      useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt: new Date().toISOString() });
+      return;
+    }
     try {
       await TaskService.updateTask(taskId, { isCompleted: true });
-    } catch {
-      toggleTaskCompletion(taskId);
+    } catch (e: any) {
+      if (!e?.response) {
+        // Ağ hatası → kuyruğa al, optimistik tamamlamayı KORU
+        useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt: new Date().toISOString() });
+      } else {
+        // Gerçek sunucu hatası → geri al
+        toggleTaskCompletion(taskId);
+      }
     }
   };
 

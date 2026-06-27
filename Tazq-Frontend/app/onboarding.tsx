@@ -23,6 +23,8 @@ import * as Haptics from 'expo-haptics';
 import { Easing } from 'react-native-reanimated';
 import { TazqLogo } from '../components/TazqLogo';
 import { Touchable } from '@/components/Touchable';
+import { track } from '../utils/analytics';
+import { usePrefsStore } from '../store/usePrefsStore';
 
 const SLIDES = [
   {
@@ -100,6 +102,8 @@ export default function OnboardingScreen() {
       } catch (e) {
         console.warn('Failed to save onboarding status');
       }
+      usePrefsStore.getState().setOnboardingCompleted(true);
+      track('onboarding_completed', { skipped: false, lastStep: currentIndex });
       router.replace('/login');
     }
   };
@@ -358,8 +362,10 @@ export default function OnboardingScreen() {
             <Touchable 
                 onPress={async () => {
                     try { await AsyncStorage.setItem('tazq-onboarding-done', 'true'); } catch {}
+                    usePrefsStore.getState().setOnboardingCompleted(true);
+                    track('onboarding_completed', { skipped: true, lastStep: currentIndex });
                     router.replace('/login');
-                }} 
+                }}
                 style={styles.skipBtn}
             >
                 <Text style={[styles.skipText, { color: theme.onSurfaceVariant }]}>{t.skip}</Text>

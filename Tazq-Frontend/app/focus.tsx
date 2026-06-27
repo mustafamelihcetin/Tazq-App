@@ -18,6 +18,7 @@ import { FocusService } from '../services/api';
 import { useAchievementStore } from '../store/useAchievementStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { checkFocusAchievement } from '../utils/achievements';
+import { track } from '../utils/analytics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { getRandomQuote } from '../constants/Quotes';
@@ -527,6 +528,7 @@ export default function FocusScreen() {
           const minutes = Math.round(totalSeconds / 60);
           FocusService.saveSession('Focus', minutes, true).catch(() => {});
           addFocusMinutes(minutes);
+          track('focus_completed', { minutes, pomodoro: true });
 
           // Check focus achievements using lifetime total
           FocusService.getStats().then(s => {
@@ -563,6 +565,7 @@ export default function FocusScreen() {
         const minutes = Math.round(totalSeconds / 60);
         FocusService.saveSession('Focus', minutes, true).catch(() => {});
         addFocusMinutes(minutes);
+        track('focus_completed', { minutes, pomodoro: false });
         FocusService.getStats().then(s => {
           const total = Math.round((s.totalFocusHours || 0) * 60);
           const ach = checkFocusAchievement(total);

@@ -23,6 +23,8 @@ export const ACHIEVEMENT_ICONS: Record<string, IconMapping> = {
   focus_25h: { Icon: Lucide.Award, color: '#FF9500' },      // Orange/Gold Award
 
   daily_perfect: { Icon: Lucide.CheckCircle2, color: '#34C759' }, // Emerald Green
+
+  first_task: { Icon: Lucide.PartyPopper, color: '#6366F1' }, // İlk zafer — Indigo
 };
 
 export function renderAchievementIcon(id: string, size = 24, locked = false) {

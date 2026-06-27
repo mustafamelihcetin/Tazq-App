@@ -7,7 +7,7 @@ import { MotiView, AnimatePresence } from 'moti';
 import { BlurView } from 'expo-blur';
 import {
   Plus, Check, Flame, Clock, Target,
-  ChevronRight, Sparkles, CalendarDays, Trash2, ArrowLeft,
+  ChevronRight, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3,
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -26,6 +26,8 @@ import { Touchable } from '@/components/Touchable';
 import { DottedBackground } from '../components/DottedBackground';
 import { CustomAlert as Alert } from '../components/CustomAlert';
 
+// Alışkanlık odaklı kalmalı — mantıklı üst sınır (plan + manuel toplam).
+const MAX_HABITS = 15;
 const HABIT_COLORS = [
   '#6366F1', '#EC4899', '#F59E0B', '#10B981',
   '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4',
@@ -239,9 +241,27 @@ export default function CockpitScreen() {
   const showPlanButton = todayDow === 0 || todayDow >= 4;
 
   const handleAddHabit = () => {
-    if (!newName.trim()) return;
+    const name = newName.trim();
+    if (!name) return;
+    // Üst sınır — alışkanlık odaklı olmalı, sınırsız liste değil
+    if (habits.length >= MAX_HABITS) {
+      Alert.alert(
+        tr ? 'Sınıra ulaşıldı' : 'Limit reached',
+        tr ? `En fazla ${MAX_HABITS} alışkanlık takip edebilirsin. Odaklı kalmak için birini sil, sonra yenisini ekle.` : `You can track up to ${MAX_HABITS} habits. Remove one to add another and stay focused.`
+      );
+      return;
+    }
+    // Aynı alışkanlık iki kez eklenmesin (büyük/küçük harf duyarsız)
+    const dup = habits.some(h => h.name.trim().toLocaleLowerCase('tr') === name.toLocaleLowerCase('tr'));
+    if (dup) {
+      Alert.alert(
+        tr ? 'Zaten ekli' : 'Already added',
+        tr ? `"${name}" alışkanlığı zaten listende.` : `"${name}" is already in your list.`
+      );
+      return;
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    addHabit(newName.trim(), newEmoji, newColor);
+    addHabit(name, newEmoji, newColor);
     setNewName('');
     setNewEmoji('💪');
     setNewColor(HABIT_COLORS[0]);
@@ -362,9 +382,16 @@ export default function CockpitScreen() {
               />
             )}
             <View style={[styles.topBarContent, { paddingHorizontal: S.sm, minHeight: 48 }]}>
-              {/* Left Side (Fixed Width for Centering, Empty since no back button needed) */}
+              {/* Left Side — Haftalık rapor (denge için sola alındı) */}
               <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
-                  <View style={{ width: 40, height: 40 }} />
+                  <Touchable
+                    onPress={() => router.push('/report')}
+                    style={styles.headerIconBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={tr ? 'Haftalık rapor' : 'Weekly report'}
+                  >
+                    <BarChart3 size={22} color={theme.onSurface} />
+                  </Touchable>
               </View>
 
               {/* Center Title */}
@@ -381,7 +408,7 @@ export default function CockpitScreen() {
                   </Text>
               </View>
 
-              {/* Right Side */}
+              {/* Right Side — Ekle (denge için tek buton) */}
               <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
                   <Touchable
                     onPress={() => { prepareAdd(); setAddVisible(true); }}
@@ -643,34 +670,15 @@ export default function CockpitScreen() {
               >
                 <Flame size={40} color={theme.primary} />
               </MotiView>
-              {hasActiveSeasonalMode ? (
-                <>
-                  <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>
-                    {tr ? 'Planı Ana Ekrandan Uygula' : 'Apply Plan from Home'}
-                  </Text>
-                  <Text style={[styles.emptySub, { color: theme.onSurfaceVariant }]}>
-                    {tr
-                      ? 'Dönemsel modun aktif. Ana ekrandaki "Planı Uygula" butonuna bas.'
-                      : 'Seasonal mode is active. Tap "Apply Plan" on the Home screen.'}
-                  </Text>
-                  <Touchable
-                    onPress={() => router.replace('/')}
-                    style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}
-                  >
-                    <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>
-                      {tr ? 'Ana Ekrana Git' : 'Go to Home'}
-                    </Text>
-                  </Touchable>
-                </>
-              ) : (
+              {(
                 <>
                   <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>
                     {tr ? 'İlk alışkanlığını ekle' : 'Add your first habit'}
                   </Text>
                   <Text style={[styles.emptySub, { color: theme.onSurfaceVariant }]}>
-                    {tr
-                      ? 'Küçük alışkanlıklar büyük dönüşümler yaratır.'
-                      : 'Small habits create big transformations.'}
+                    {hasActiveSeasonalMode
+                      ? (tr ? 'Manuel ekle veya ana ekrandan mod planını uygula.' : 'Add manually or apply your mode plan from Home.')
+                      : (tr ? 'Küçük alışkanlıklar büyük dönüşümler yaratır.' : 'Small habits create big transformations.')}
                   </Text>
                   <Touchable
                     onPress={() => { prepareAdd(); setAddVisible(true); }}

@@ -10,6 +10,10 @@ import { R, B } from '../constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/components/Touchable';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { usePrefsStore } from '../store/usePrefsStore';
+
+// Lite modda gösterilecek sekmeler (sade to-do deneyimi). Pro'da hepsi görünür.
+const LITE_TAB_IDS = ['home', 'tasks', 'focus'];
 
 // Ekran okuyucu (VoiceOver/TalkBack) için sekme etiketleri
 const TAB_LABELS: Record<string, { tr: string; en: string }> = {
@@ -29,6 +33,7 @@ export const BottomNavBar = () => {
   const isDark = colorScheme === 'dark';
   const { language } = useLanguageStore();
   const tr = language === 'tr';
+  const uiMode = usePrefsStore(s => s.uiMode);
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
@@ -44,20 +49,22 @@ export const BottomNavBar = () => {
 
 
 
-  const tabs = [
+  const allTabs = [
     { id: 'home', path: '/', icon: LayoutGrid },
     { id: 'tasks', path: '/tasks', icon: CheckSquare },
     { id: 'focus', path: '/focus', icon: Sparkles },
     { id: 'cockpit', path: '/cockpit', icon: CalendarDays },
     { id: 'modlar', path: '/modlar', icon: Layers },
   ];
+  // Lite modda sade sekme seti; Pro'da hepsi.
+  const tabs = uiMode === 'lite' ? allTabs.filter(t => LITE_TAB_IDS.includes(t.id)) : allTabs;
 
   const activeIndex = tabs.findIndex(
     tab => pathname === tab.path || (tab.path === '/' && pathname === '/index')
   );
 
   const barWidth = width * 0.92;
-  const segW = barWidth / 5;
+  const segW = barWidth / tabs.length;
 
   const indicatorSlide = useRef(new Animated.Value(activeIndex >= 0 ? activeIndex : 0)).current;
 
@@ -72,9 +79,10 @@ export const BottomNavBar = () => {
     }
   }, [activeIndex]);
 
+  // Sekme sayısına göre dinamik gösterge konumu (Lite/Pro sekme sayısı değişebilir)
   const indicatorTranslateX = indicatorSlide.interpolate({
-    inputRange: [0, 1, 2, 3, 4],
-    outputRange: [0, segW, segW * 2, segW * 3, segW * 4],
+    inputRange: tabs.map((_, i) => i),
+    outputRange: tabs.map((_, i) => segW * i),
   });
 
   const handlePress = (path: string) => {

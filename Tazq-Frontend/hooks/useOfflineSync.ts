@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNetworkStore } from '../store/useNetworkStore';
 import { useOfflineQueue } from '../store/useOfflineQueue';
 import { useTaskStore } from '../store/useTaskStore';
+import { usePrefsStore } from '../store/usePrefsStore';
 import { TaskService } from '../services/api';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useToastStore } from '../store/useToastStore';
@@ -31,11 +32,15 @@ export function useOfflineSync() {
 
           if (op.type === 'create-task') {
             const created = await TaskService.createTask((op as any).payload as any);
-            idMap.set((op as any).tempId, created.id);
+            const tempId = (op as any).tempId;
+            idMap.set(tempId, created.id);
             // Replace tempId with realId in local store
             const tasks = useTaskStore.getState().tasks;
-            const updatedTasks = tasks.map(t => t.id === (op as any).tempId ? { ...t, ...created } : t);
+            const updatedTasks = tasks.map(t => t.id === tempId ? { ...t, ...created } : t);
             useTaskStore.getState().setTasks(updatedTasks);
+            // Plan görevleri: prefs'teki tempId'yi de gerçek id ile değiştir ki mod
+            // kapatma/temizlik artık bırakmasın (offline-first artık-bug'ı kökten çözülür).
+            try { usePrefsStore.getState().remapPlanTaskId(tempId, created.id); } catch {}
           } else if (op.type === 'update-task') {
             await TaskService.updateTask(op.id, op.payload as any);
           } else if (op.type === 'toggle-task') {
