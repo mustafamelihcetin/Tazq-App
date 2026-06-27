@@ -33,7 +33,7 @@ interface SporState {
   resetInputs: () => void;
 }
 
-function getLocalDateString(d: Date = new Date()): string {
+export function getLocalDateString(d: Date = new Date()): string {
   const adjusted = new Date(d);
   adjusted.setHours(adjusted.getHours() - 3); // 3-hour buffer for night owls
   const y = adjusted.getFullYear();

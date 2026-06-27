@@ -30,6 +30,7 @@ import { useToastStore } from '../store/useToastStore';
 import { getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, RAMAZAN } from '../utils/turkishModes';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { useSporStore, getThisWeekEntry } from '../store/useSporStore';
+import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '../utils/weightCheckin';
 import { getCurrentRamadanStatus, formatRamadanDate } from '../utils/ramadanDates';
 import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '../utils/examPresets';
 
@@ -215,59 +216,26 @@ export default function ModlarScreen() {
   } = useSporStore();
 
   const saveWeightEntry = useCallback((kg: number) => {
-    addWeightEntry(kg);
-    setWeightEntryInput('');
-    setShowWeightEntry(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // Kilo girişinden hemen sonra adaptasyon motorunu zorla çalıştır
-    setTimeout(() => runAdaptations(true), 300);
-
-    const allTasks = useTaskStore.getState().tasks;
-    const allSporTaskIds = [...sporPlanTaskIds, ...spor2PlanTaskIds, ...spor3PlanTaskIds];
-
-    // mevcut açık weight_entry görevini tamamla
-    const wTaskId = allSporTaskIds.find(id => {
-      const tk = allTasks.find(t => t.id === id);
-      return tk && !tk.isCompleted && (tk.tags?.includes('weight_entry') || tk.title === 'Güncel kilonu gir' || tk.title === 'Log current weight');
-    });
-    if (wTaskId) {
-      useTaskStore.getState().toggleTaskCompletion(wTaskId);
-      // Offline-first: çevrimdışıysa kuyruğa al (tamamlama kaybolmasın)
-      if (!useNetworkStore.getState().isOnline) {
-        useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: wTaskId, isCompleted: true, completedAt: new Date().toISOString() });
-      } else {
-        TaskService.updateTask(wTaskId, { isCompleted: true }).catch(err => {
-          if (!err?.response) useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: wTaskId, isCompleted: true, completedAt: new Date().toISOString() });
-        });
+    // 7-gün kadansı + görev tamamlama + bir sonraki haftalık görev → tek kaynak.
+    recordWeeklyWeight(kg, language as 'tr' | 'en').then(ok => {
+      if (!ok) {
+        // 7 gün dolmadı — kullanıcıyı bilgilendir, girişi geri al.
+        setShowWeightEntry(false);
+        setWeightEntryInput('');
+        const left = daysUntilNextWeight(useSporStore.getState().weightLog);
+        Alert.alert(
+          language === 'tr' ? 'Tartım zaten alındı' : 'Already logged',
+          language === 'tr' ? `Kilo 7 günde bir girilir. ${left} gün sonra tekrar gir.` : `Weight is logged every 7 days. Try again in ${left} day(s).`,
+        );
+        return;
       }
-    }
-
-    // bir sonraki Pazartesi için yeni kilo görevi oluştur (spor slot aktifse)
-    if (sporPlanTaskIds.length > 0 || sporPlanHabitIds.length > 0) {
-      const now = new Date();
-      const nextMonday = new Date(now);
-      nextMonday.setDate(now.getDate() + 7);
-      nextMonday.setHours(8, 0, 0, 0);
-      const title = language === 'tr' ? 'Güncel kilonu gir' : 'Log current weight';
-      TaskService.createTask({
-        title,
-        description: '',
-        priority: 'Medium',
-        dueDate: nextMonday.toISOString(),
-        isCompleted: false,
-        tags: ['weight_entry'],
-      }).then(newTask => {
-        if (newTask?.id) {
-          useTaskStore.getState().addTask(newTask);
-          const prev = usePrefsStore.getState();
-          // sporPlanTaskIds güncellemek için setPlanIds'i çağıramayız (hook dışı),
-          // doğrudan store'a yazıyoruz
-          const updated = [...sporPlanTaskIds, newTask.id];
-          usePrefsStore.getState().setPlanIds('spor', sporPlanHabitIds, updated);
-        }
-      }).catch(() => {});
-    }
-  }, [addWeightEntry, runAdaptations, sporPlanTaskIds, spor2PlanTaskIds, spor3PlanTaskIds, sporPlanHabitIds, language]);
+      setWeightEntryInput('');
+      setShowWeightEntry(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Kilo girişinden hemen sonra adaptasyon motorunu zorla çalıştır
+      setTimeout(() => runAdaptations(true), 300);
+    });
+  }, [runAdaptations, language]);
 
   const sporType = sporGoalInput ? detectSporType(sporGoalInput) : null;
   const cwNum = parseFloat(currentWeight);
@@ -1635,14 +1603,27 @@ export default function ModlarScreen() {
                                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{language === 'tr' ? 'İptal' : 'Cancel'}</Text>
                               </Touchable>
                             </View>
-                          ) : (
-                            <Touchable onPress={() => { Haptics.selectionAsync(); setShowWeightEntry(true); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', backgroundColor: thisWeekWeight ? 'transparent' : sporColor + '08' }} activeOpacity={0.7}>
-                              {renderModeEmojiIcon('⚖️', 14, thisWeekWeight ? theme.onSurfaceVariant : sporColor)}
-                              <Text style={{ fontSize: F.caption, fontWeight: '600', color: thisWeekWeight ? theme.onSurfaceVariant : sporColor }}>
-                                {thisWeekWeight ? (language === 'tr' ? `Bu hafta kaydedildi · ${thisWeekWeight.weight} kg` : `Logged this week · ${thisWeekWeight.weight} kg`) : (language === 'tr' ? 'Bu haftaki tartımı gir' : 'Log this week\'s weight')}
+                          ) : (() => {
+                            // 7-GÜN KADANSI: son tartımın üstünden 7 gün geçmeden tekrar girilemez.
+                            const unlocked = canLogWeight(weightLog);
+                            const left = daysUntilNextWeight(weightLog);
+                            const lastKg = weightLog.length ? weightLog.reduce((a, b) => (a.date > b.date ? a : b)).weight : null;
+                            return (
+                            <Touchable
+                              disabled={!unlocked}
+                              onPress={() => { if (!unlocked) return; Haptics.selectionAsync(); setShowWeightEntry(true); }}
+                              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', backgroundColor: unlocked ? sporColor + '08' : 'transparent' }}
+                              activeOpacity={0.7}
+                            >
+                              {renderModeEmojiIcon('⚖️', 14, unlocked ? sporColor : theme.onSurfaceVariant)}
+                              <Text style={{ fontSize: F.caption, fontWeight: '600', color: unlocked ? sporColor : theme.onSurfaceVariant }}>
+                                {unlocked
+                                  ? (language === 'tr' ? 'Bu haftaki tartımı gir' : 'Log this week\'s weight')
+                                  : (language === 'tr' ? `Kaydedildi${lastKg ? ` · ${lastKg} kg` : ''} · ${left} gün sonra tekrar` : `Logged${lastKg ? ` · ${lastKg} kg` : ''} · again in ${left}d`)}
                               </Text>
                             </Touchable>
-                          )}
+                            );
+                          })()}
                         </View>
                       )}
 
@@ -2290,6 +2271,12 @@ export default function ModlarScreen() {
               if (slot === 'spor' && effectiveSporDate) {
                 setSeasonalPref('sporDate', effectiveSporDate);
                 setSporDateInput(effectiveSporDate);
+              }
+              // KILO: plan kurulur kurulmaz görevlere haftalık tartım görevini ekle
+              // (bugün dolu kayıt yoksa bugüne, varsa +7 güne). Basılınca kilo girilir.
+              if (slot === 'spor' && sporType === 'kilo') {
+                const due = canLogWeight(weightLog) ? new Date() : (() => { const d = new Date(); d.setDate(d.getDate() + Math.max(1, daysUntilNextWeight(weightLog))); d.setHours(8, 0, 0, 0); return d; })();
+                ensureWeeklyWeightTask(due, language as 'tr' | 'en');
               }
             } else {
               setPlanIds('ramazan', [...new Set([...ramazanPlanHabitIds, ...habitIds])], [...new Set([...ramazanPlanTaskIds, ...taskIds])]);

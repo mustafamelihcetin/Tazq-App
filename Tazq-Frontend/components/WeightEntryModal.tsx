@@ -17,12 +17,10 @@ import { Activity } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useSporStore, getThisWeekEntry } from '../store/useSporStore';
-import { usePrefsStore } from '../store/usePrefsStore';
-import { useTaskStore } from '../store/useTaskStore';
-import { TaskService } from '../services/api';
 import { S, R, F, B } from '../constants/tokens';
 import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
 import { Touchable } from '@/components/Touchable';
+import { recordWeeklyWeight, daysUntilNextWeight } from '../utils/weightCheckin';
 
 interface Props {
   visible: boolean;
@@ -38,13 +36,12 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
   const { language } = useLanguageStore();
   const tr = language === 'tr';
 
-  const { weightLog, addWeightEntry, currentWeight: storedCW } = useSporStore();
-  const { sporPlanTaskIds, sporPlanHabitIds, setPlanIds } = usePrefsStore();
-  const { toggleTaskCompletion } = useTaskStore();
+  const { weightLog } = useSporStore();
   const { runAdaptations } = usePlanAdaptations();
 
   const [input, setInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
   const slideAnim = useRef(new Animated.Value(300)).current;
 
   const thisWeek = getThisWeekEntry(weightLog);
@@ -52,6 +49,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
 
   useEffect(() => {
     if (visible) {
+      setErr('');
       setInput(lastWeight ? String(lastWeight) : '');
       Animated.spring(slideAnim, {
         toValue: 0,
@@ -72,39 +70,18 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
     }
     setSaving(true);
     try {
-      addWeightEntry(kg);
-
-      // Mevcut weight_entry görevini tamamla
-      if (taskId) {
-        toggleTaskCompletion(taskId);
-        await TaskService.updateTask(taskId, { isCompleted: true }).catch(() => {});
+      // Tek kaynak: 7-gün kadansı + görevi tamamla + bir sonraki haftalık görevi planla.
+      const ok = await recordWeeklyWeight(kg, tr ? 'tr' : 'en');
+      if (!ok) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        const left = daysUntilNextWeight(useSporStore.getState().weightLog);
+        setErr(tr ? `Kilo 7 günde bir girilir. ${left} gün sonra tekrar gir.` : `Weight is logged every 7 days. Try again in ${left} day(s).`);
+        setSaving(false);
+        return;
       }
-
-      // 7 gün sonraya yeni tartı görevi oluştur
-      if (sporPlanTaskIds.length > 0 || sporPlanHabitIds.length > 0) {
-        const next = new Date();
-        next.setDate(next.getDate() + 7);
-        next.setHours(8, 0, 0, 0);
-        try {
-          const newTask = await TaskService.createTask({
-            title: tr ? 'Haftalık tartı zamanı — sabah aç karna' : 'Weekly weigh-in — morning fasted',
-            description: '',
-            priority: 'Medium',
-            dueDate: next.toISOString(),
-            isCompleted: false,
-            tags: ['weight_entry'],
-          });
-          if (newTask?.id) {
-            useTaskStore.getState().addTask(newTask);
-            setPlanIds('spor', sporPlanHabitIds, [...sporPlanTaskIds, newTask.id]);
-          }
-        } catch {}
-      }
-
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSaved?.();
       onClose();
-
       // Adaptasyon motoru çalıştır
       setTimeout(() => runAdaptations(true), 400);
     } finally {
@@ -204,6 +181,11 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
               ))}
             </View>
           )}
+
+          {/* 7-gün uyarısı */}
+          {err ? (
+            <Text style={{ color: '#EF4444', fontSize: F.caption, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>{err}</Text>
+          ) : null}
 
           {/* Save button */}
           <Touchable

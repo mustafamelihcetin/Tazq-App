@@ -30,6 +30,7 @@ import { getAvatarSource } from '../utils/avatars';
 import { useToastStore } from '../store/useToastStore';
 import { useMomentumStore } from '../store/useMomentumStore';
 import { usePrefsStore } from '../store/usePrefsStore';
+import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
 import { TurkishModeBanner } from '../components/TurkishModeBanner';
 import { MomentumPulse } from '../components/MomentumPulse';
 import { WeightEntryModal } from '../components/WeightEntryModal';
@@ -65,6 +66,13 @@ export default function HomeScreen() {
   const achHydrated = useAchievementStore(s => s._hasHydrated);
   const uiMode = usePrefsStore(s => s.uiMode);
   const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor } = usePrefsStore();
+
+  // Alışkanlıklar (dashboard hızlı giriş şeridi) — tek dokunuşla bugünü işaretle.
+  const habits = useHabitStore(s => s.habits);
+  const toggleHabitDate = useHabitStore(s => s.toggleDate);
+  const getHabitStreak = useHabitStore(s => s.getStreak);
+  const habitTodayKey = fmtDateKey();
+  const habitsDoneToday = habits.filter(h => (h.completedDates ?? []).includes(habitTodayKey)).length;
 
   // Focus Store
   const { isActive, seconds, setCurrentTask, setDuration, setIsActive, dailyFocusMinutes, dailyGoalMinutes, updateBestStreak } = useFocusStore();
@@ -942,6 +950,46 @@ export default function HomeScreen() {
                 </MotiView>
             </View>
 
+            {/* ── ALIŞKANLIK ŞERİDİ ── günlük aksiyon → öncelikli konumda (görev/görevlerin hemen altı).
+                Yalnız alışkanlık varsa; tek dokunuş = bugün yaptım. */}
+            {habits.length > 0 && (
+              <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
+                <BentoCard index={2} style={{ padding: S.md, overflow: 'hidden' }}>
+                    <Touchable onPress={() => router.push('/cockpit')} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.md }} accessibilityRole="button" accessibilityLabel={tr ? 'Alışkanlıkları yönet' : 'Manage habits'}>
+                        <Text style={{ fontSize: 9, fontWeight: '500', letterSpacing: 1.5, color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                            {tr ? 'BUGÜN · ALIŞKANLIKLAR' : 'TODAY · HABITS'}
+                        </Text>
+                        <Text style={{ fontSize: F.caption, fontWeight: '700', color: habitsDoneToday === habits.length ? '#10B981' : theme.onSurfaceVariant }}>
+                            {habitsDoneToday}/{habits.length}{habitsDoneToday === habits.length ? '  ✓' : ''}
+                        </Text>
+                    </Touchable>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingRight: 4 }} keyboardShouldPersistTaps="handled">
+                        {habits.map(h => {
+                            const done = (h.completedDates ?? []).includes(habitTodayKey);
+                            const streak = getHabitStreak(h);
+                            return (
+                                <Touchable
+                                    key={h.id}
+                                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleHabitDate(h.id, habitTodayKey); }}
+                                    style={{ alignItems: 'center', width: 60 }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`${h.name}${done ? (tr ? ', bugün yapıldı' : ', done today') : (tr ? ', bugün işaretle' : ', mark today')}`}
+                                >
+                                    <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: done ? h.color : theme.outlineVariant, backgroundColor: done ? h.color : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Text style={{ fontSize: 22, opacity: done ? 1 : 0.9 }}>{h.emoji}</Text>
+                                    </View>
+                                    <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: '700', color: streak > 0 ? '#F97316' : theme.onSurfaceVariant + '70', marginTop: 5 }}>
+                                        {streak > 0 ? `${streak}🔥` : '—'}
+                                    </Text>
+                                    <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.7, width: 60, textAlign: 'center' }}>{h.name}</Text>
+                                </Touchable>
+                            );
+                        })}
+                    </ScrollView>
+                </BentoCard>
+              </View>
+            )}
+
             {/* ── Momentum Pulse ── */}
             <MomentumPulse
               score={momentum}
@@ -1126,7 +1174,6 @@ export default function HomeScreen() {
                         })}
                     </View>
                 </BentoCard>
-
 
             </View>
         </ScrollView>
