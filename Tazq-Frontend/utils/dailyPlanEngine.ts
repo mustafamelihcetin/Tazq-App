@@ -309,7 +309,9 @@ export function buildDailyTasks(
   const out: CreateTaskPayload[] = [];
   for (let i = 0; i < count; i++) {
     const item = pool[(offset + i) % pool.length];
-    const title = (tr ? item.tr : item.en).replace('{name}', name);
+    const titleTr = item.tr.replace('{name}', name);
+    const titleEn = item.en.replace('{name}', name);
+    const title = tr ? titleTr : titleEn;
     out.push({
       title,
       description: '',
@@ -317,7 +319,23 @@ export function buildDailyTasks(
       dueDate: due,
       isCompleted: false,
       tags: [tagKey, 'daily'],
-    });
+      titleTr,
+      titleEn,
+    } as any);
   }
   return out;
+}
+
+export function getAllDailyPlanPairs(): Array<{ tr: string; en: string }> {
+  const pairs: Array<{ tr: string; en: string }> = [];
+  const addRecord = (rec: Record<string, { tr: string; en: string }[]>) => {
+    Object.values(rec).forEach(pool => pairs.push(...pool));
+  };
+  addRecord(EXAM_POOLS);
+  addRecord(LANG_EXAM_POOLS);
+  addRecord(MEDICAL_EXAM_POOLS);
+  addRecord(TEZ_POOLS);
+  addRecord(MULAKAT_POOLS);
+  pairs.push(...KILO_POOL, ...MARATON_POOL, ...GUC_POOL, ...GENEL_POOL, ...RAMAZAN_POOL);
+  return pairs;
 }

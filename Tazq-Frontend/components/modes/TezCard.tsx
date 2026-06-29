@@ -39,7 +39,12 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const removeHabit = useHabitStore(s => s.removeHabit);
   const tasks = useTaskStore(s => s.tasks);
 
-  const [expanded, setExpanded] = useState(() => !(usePrefsStore.getState().tezPlanHabitIds.length > 0 || usePrefsStore.getState().tezPlanTaskIds.length > 0));
+  const [expanded, setExpanded] = useState(() => {
+    const s = usePrefsStore.getState().seasonal;
+    const comp = (s.tezName || '').trim() !== '' && (s.tezDate || '') !== '';
+    if (!comp) return true;
+    return !(usePrefsStore.getState().tezPlanHabitIds.length > 0 || usePrefsStore.getState().tezPlanTaskIds.length > 0);
+  });
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const name = seasonal.tezName || '';

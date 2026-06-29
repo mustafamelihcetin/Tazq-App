@@ -226,10 +226,12 @@ export default function RegisterScreen() {
                       activeOpacity={0.7}
                       style={styles.consentRow}
                     >
-                      {consentChecked
-                        ? <CheckSquare size={18} color={theme.primary} />
-                        : <Square size={18} color={theme.outlineVariant} />
-                      }
+                      <View style={{ marginTop: Platform.OS === 'ios' ? 1 : 2 }}>
+                        {consentChecked
+                          ? <CheckSquare size={18} color={theme.primary} />
+                          : <Square size={18} color={theme.outlineVariant} />
+                        }
+                      </View>
                       <Text style={[styles.consentText, { color: theme.onSurfaceVariant }]}>
                         {tr ? '' : 'I have read and agree to the '}
                         <Text
@@ -339,7 +341,7 @@ const styles = StyleSheet.create({
   label: { fontSize: F.caption, fontWeight: '800', letterSpacing: 1 },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, height: Platform.OS === 'android' ? verticalScale(50) : verticalScale(56), borderRadius: R.md, borderWidth: B.thin, gap: S.sm + 4 },
   input: { flex: 1, fontSize: F.body + 1, fontWeight: '600', paddingVertical: 0 },
-  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm + 2, marginTop: verticalScale(2), marginBottom: verticalScale(2) },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm + 2, paddingHorizontal: 4, marginTop: verticalScale(2), marginBottom: verticalScale(2) },
   consentText: { flex: 1, fontSize: F.caption, fontFamily: 'Jakarta-SemiBold', lineHeight: verticalScale(16) },
   registerButton: { height: Platform.OS === 'android' ? verticalScale(50) : verticalScale(56), borderRadius: R.md, overflow: 'hidden', marginTop: verticalScale(4) },
   buttonInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10) },

@@ -2033,3 +2033,34 @@ export const RAMAZAN_HABIT_NAMES: string[] = [
   ...TEMPLATE_RAMAZAN_GECE.habits.map(h => h.name),
   ...TEMPLATE_RAMAZAN_SABAH.habits.map(h => h.name),
 ];
+
+export function getAllKnownModePairs(): Array<{ tr: string; en: string }> {
+  const pairs: Array<{ tr: string; en: string }> = [];
+  const addTpl = (tpl: StudyTemplate) => {
+    tpl.tasks.forEach(t => pairs.push({ tr: t.titleTr, en: t.titleEn }));
+    tpl.habits.forEach(h => pairs.push({ tr: h.nameTr, en: h.name }));
+  };
+  const dummy = "";
+  const dummyInputs: SporInputs = { currentWeight: '70', targetWeight: '65', heightCm: '170', ageYears: '25', trainingDaysPerWeek: 3 };
+  [
+    TEMPLATE_RAMAZAN_GECE, TEMPLATE_RAMAZAN_SABAH,
+    TEMPLATE_ACTIVE_RECALL(dummy), TEMPLATE_SPACED_REPETITION(dummy), TEMPLATE_DEEP_WORK(dummy), TEMPLATE_SPRINT(dummy),
+    TEMPLATE_FOUNDATION(dummy),
+    TEMPLATE_TEZ_WRITING(dummy), TEMPLATE_TEZ_MILESTONE(dummy), TEMPLATE_TEZ_SOFTWARE(dummy), TEMPLATE_TEZ_IS(dummy), TEMPLATE_TEZ_SPRINT(dummy),
+    TEMPLATE_MULAKAT_TEKNIK(dummy), TEMPLATE_MULAKAT_BEHAVIORAL(dummy), TEMPLATE_MULAKAT_CASE(dummy), TEMPLATE_MULAKAT_AKADEMIK(dummy), TEMPLATE_MULAKAT_SPRINT(dummy),
+    buildKiloTemplate(dummyInputs, 30),
+    buildMaratonTemplate(dummyInputs, 30),
+    buildGucTemplateWithProgram(dummyInputs, 30, 'guc'),
+    buildGucTemplateWithProgram(dummyInputs, 30, 'genel'),
+    buildGucTemplateWithProgram(dummyInputs, 30, 'yaris'),
+  ].forEach(addTpl);
+
+  Object.values(EXAM_CONTENT).forEach(c => {
+    c.temelHabits.forEach(h => pairs.push({ tr: h.nameTr, en: h.name }));
+    c.ortaHabits.forEach(h => pairs.push({ tr: h.nameTr, en: h.name }));
+    c.ileriHabits.forEach(h => pairs.push({ tr: h.nameTr, en: h.name }));
+    c.setupTasks.forEach(t => pairs.push({ tr: t.titleTr, en: t.titleEn }));
+    c.sprintTasks.forEach(t => pairs.push({ tr: t.titleTr, en: t.titleEn }));
+  });
+  return pairs;
+}

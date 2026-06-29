@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
 import i18n, { Language, translations, TranslationKeys } from '../constants/i18n';
+import { syncTasksAndHabitsLanguage } from '../utils/systemTaskTranslator';
 
 interface LanguageState {
   language: Language;
@@ -31,10 +32,12 @@ export const useLanguageStore = create<LanguageState>()(
           language: lang,
           t: translations[lang]
         });
+        setTimeout(() => syncTasksAndHabitsLanguage(lang), 50);
       },
       sync: () => {
         const lang = get().language;
         i18n.locale = lang;
+        setTimeout(() => syncTasksAndHabitsLanguage(lang), 50);
       }
     }),
     {
@@ -44,6 +47,7 @@ export const useLanguageStore = create<LanguageState>()(
         if (state) {
           i18n.locale = state.language;
           state.t = translations[state.language];
+          setTimeout(() => syncTasksAndHabitsLanguage(state.language), 200);
         }
       },
     }

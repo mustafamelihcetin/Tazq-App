@@ -32,6 +32,7 @@ import { AuthService, FocusService, api } from '../services/api';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { syncTasksAndHabitsLanguage } from '../utils/systemTaskTranslator';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { initIntelligence } from '../utils/taskIntelligence';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -162,6 +163,10 @@ export default function RootLayout() {
       // We don't hide the splash here anymore, we wait for AnimatedSplash to mount
     }
   }, [fontsLoaded, assetsLoaded]);
+
+  useEffect(() => {
+    syncTasksAndHabitsLanguage(language);
+  }, [language]);
 
   // Global focus timer — keeps ticking across all screens without re-rendering layout
   useEffect(() => {

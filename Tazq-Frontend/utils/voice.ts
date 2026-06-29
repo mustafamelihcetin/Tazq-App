@@ -14,6 +14,7 @@ if (isNativeModuleAvailable) {
 
 export interface VoiceOptions {
   language?: string;
+  initialText?: string;
   onResults?: (results: string[]) => void;
   onError?: (err: any) => void;
   onEnded?: () => void;
@@ -39,21 +40,58 @@ async function requestAndroidMicPermission(): Promise<boolean> {
   }
 }
 
+/**
+ * Foolproof speech merge function that prevents duplicate repetition bugs
+ * when voice engines restart or fire repeated partial/final hypotheses.
+ */
+function mergeSpeechText(existing: string, incoming: string): string {
+  if (!existing || !existing.trim()) return incoming.trim();
+  if (!incoming || !incoming.trim()) return existing.trim();
+
+  const ext = existing.trim();
+  const inc = incoming.trim();
+  const extLower = ext.toLowerCase();
+  const incLower = inc.toLowerCase();
+
+  // 1. Exact match (e.g. repeated result upon restart)
+  if (extLower === incLower) return ext;
+
+  // 2. Incoming already starts with existing (e.g. continuous dictation return)
+  if (incLower.startsWith(extLower)) {
+    return inc;
+  }
+
+  // 3. Existing already ends with incoming (e.g. trailing word repetition)
+  if (extLower.endsWith(incLower)) {
+    return ext;
+  }
+
+  // 4. Check word overlap at boundary
+  const extWords = ext.split(/\s+/);
+  const incWords = inc.split(/\s+/);
+  const maxOverlap = Math.min(extWords.length, incWords.length);
+
+  for (let overlap = maxOverlap; overlap > 0; overlap--) {
+    const extSuffix = extWords.slice(-overlap).join(' ').toLowerCase();
+    const incPrefix = incWords.slice(0, overlap).join(' ').toLowerCase();
+    if (extSuffix === incPrefix) {
+      const remainingInc = incWords.slice(overlap).join(' ');
+      return remainingInc ? `${ext} ${remainingInc}` : ext;
+    }
+  }
+
+  // 5. No overlap found, concatenate seamlessly
+  return `${ext} ${inc}`;
+}
+
 class VoiceService {
   private _isListening = false;
   private _options: VoiceOptions | null = null;
   private _ended = false;
   private _timeout: ReturnType<typeof setTimeout> | null = null;
   private _restartHandle: ReturnType<typeof setTimeout> | null = null;
-  private _accumulated = '';
-  // Accumulated text at the start of the current recognition session.
-  // onSpeechResults replaces from this base so multiple results within
-  // the same session overwrite each other instead of stacking.
-  private _sessionBase = '';
-  // True between onSpeechEnd and the next Voice.start().
-  // Any onSpeechResults arriving in this window are late deliveries
-  // from the closed session and must be discarded.
-  private _restarting = false;
+  private _committedText = '';
+  private _currentSessionText = '';
 
   constructor() {
     if (Voice) {
@@ -66,33 +104,23 @@ class VoiceService {
 
   private onSpeechResults(e: any) {
     if (this._ended) return;
-    // Discard late arrivals from the just-closed session during restart window.
-    if (this._restarting) return;
 
     const phrase = e.value?.[0]?.trim();
     if (!phrase) return;
 
-    // Cross-session duplicate guard: Android sometimes re-recognizes the previous
-    // session's audio in the first result of the new session.
-    const ph = phrase.toLowerCase().trim();
-    const base = this._sessionBase.toLowerCase().trim();
-    if (base && (ph === base || base.endsWith(' ' + ph))) return;
-
-    // Replace this session's contribution so multiple onSpeechResults within
-    // one session converge to the latest (best) hypothesis instead of stacking.
-    this._accumulated = this._sessionBase
-      ? `${this._sessionBase} ${phrase}`
-      : phrase;
-
-    this._options?.onResults?.([this._accumulated]);
+    const merged = mergeSpeechText(this._committedText, phrase);
+    this._currentSessionText = merged;
+    this._options?.onResults?.([merged]);
   }
 
   private onSpeechPartialResults(e: any) {
-    if (this._ended || this._restarting) return;
+    if (this._ended) return;
     const partial = e.value?.[0]?.trim();
     if (!partial || !this._options?.onResults) return;
-    const display = this._accumulated ? `${this._accumulated} ${partial}` : partial;
-    this._options.onResults([display]);
+
+    const merged = mergeSpeechText(this._committedText, partial);
+    this._currentSessionText = merged;
+    this._options.onResults([merged]);
   }
 
   private onSpeechError(e: any) {
@@ -116,35 +144,33 @@ class VoiceService {
   private _scheduleRestart() {
     if (this._ended || !this._options || this._restartHandle) return;
     const lang = this._options.language || 'tr-TR';
-    // Capture the accumulated text that belongs to the session that just ended.
-    const baseAtRestart = this._accumulated;
-    // Mark restart window: onSpeechResults will discard anything arriving now.
-    this._restarting = true;
+    
+    // Commit the text recognized up to the end of this session
+    if (this._currentSessionText) {
+      this._committedText = this._currentSessionText;
+    }
+
     this._restartHandle = setTimeout(async () => {
       this._restartHandle = null;
       if (this._ended || !this._options) return;
-      // Commit the new session base and clear the restart window.
-      this._sessionBase = baseAtRestart;
-      this._restarting = false;
       try {
         await Voice.start(lang);
       } catch {
         this._terminate();
       }
-    }, 1200);
+    }, 1000);
   }
 
   private _terminate() {
     if (this._ended) return;
     this._ended = true;
     this._isListening = false;
-    this._restarting = false;
     if (this._timeout) { clearTimeout(this._timeout); this._timeout = null; }
     if (this._restartHandle) { clearTimeout(this._restartHandle); this._restartHandle = null; }
     const opts = this._options;
     this._options = null;
-    this._accumulated = '';
-    this._sessionBase = '';
+    this._committedText = '';
+    this._currentSessionText = '';
     if (Voice) Voice.stop().catch(() => {});
     opts?.onEnded?.();
   }
@@ -154,9 +180,8 @@ class VoiceService {
 
     this._options = options;
     this._ended = false;
-    this._restarting = false;
-    this._accumulated = '';
-    this._sessionBase = '';
+    this._committedText = options.initialText ? options.initialText.trim() : '';
+    this._currentSessionText = this._committedText;
 
     if (!isNativeModuleAvailable || !Voice) {
       options.onError?.(new Error('not-available'));
@@ -189,12 +214,11 @@ class VoiceService {
     if (!Voice) {
       this._ended = true;
       this._isListening = false;
-      this._restarting = false;
       if (this._timeout) { clearTimeout(this._timeout); this._timeout = null; }
       if (this._restartHandle) { clearTimeout(this._restartHandle); this._restartHandle = null; }
       this._options = null;
-      this._accumulated = '';
-      this._sessionBase = '';
+      this._committedText = '';
+      this._currentSessionText = '';
       return;
     }
     this._terminate();

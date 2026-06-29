@@ -171,7 +171,16 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
     weightLog, resetInputs: resetSporInputs,
   } = useSporStore();
 
-  const [expanded, setExpanded] = useState(() => !(usePrefsStore.getState().sporPlanHabitIds.length > 0 || usePrefsStore.getState().sporPlanTaskIds.length > 0));
+  const [expanded, setExpanded] = useState(() => {
+    const state = usePrefsStore.getState();
+    const s = state.seasonal;
+    const goalVal = s.sporGoal || '';
+    const dateVal = s.sporDate || '';
+    const typeVal = goalVal ? detectSporType(goalVal) : null;
+    const comp = goalVal.trim() !== '' && (typeVal === 'kilo' ? true : dateVal !== '');
+    if (!comp) return true;
+    return !(state.sporPlanHabitIds.length > 0 || state.sporPlanTaskIds.length > 0);
+  });
   const [showPicker, setShowPicker] = useState(false);
   const [weightEntryInput, setWeightEntryInput] = useState('');
   const [showWeightEntry, setShowWeightEntry] = useState(false);

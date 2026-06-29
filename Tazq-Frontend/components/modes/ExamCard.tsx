@@ -235,7 +235,12 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
   const exam2Complete = (seasonal.exam2Name || '').trim() !== '' && !!seasonal.exam2Date;
   const exam3Complete = (seasonal.exam3Name || '').trim() !== '' && !!seasonal.exam3Date;
 
-  const [expanded, setExpanded] = useState(() => !(usePrefsStore.getState().examPlanHabitIds.length > 0 || usePrefsStore.getState().examPlanTaskIds.length > 0));
+  const [expanded, setExpanded] = useState(() => {
+    const s = usePrefsStore.getState().seasonal;
+    const comp = (s.examName || '').trim() !== '' && (s.examDate || '') !== '';
+    if (!comp) return true;
+    return !(usePrefsStore.getState().examPlanHabitIds.length > 0 || usePrefsStore.getState().examPlanTaskIds.length > 0);
+  });
   const [showPicker, setShowPicker] = useState(false);
   const [preset, setPreset] = useState<ExamPreset | null>(() => detectExamFromInput(name));
   const [suggestions, setSuggestions] = useState<ExamPreset[]>([]);

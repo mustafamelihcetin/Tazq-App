@@ -14,16 +14,19 @@ export interface Habit {
    * Mod kapatılınca güvenilir temizlik için kullanılır. Manuel alışkanlıklarda undefined.
    */
   planMode?: string;
+  nameTr?: string;
+  nameEn?: string;
 }
 
 interface HabitState {
   habits: Habit[];
   weeklyGoal: string;
-  addHabit: (name: string, emoji: string, color: string, id?: string, planMode?: string) => void;
+  addHabit: (name: string, emoji: string, color: string, id?: string, planMode?: string, nameTr?: string, nameEn?: string) => void;
   removeHabit: (id: string) => void;
   toggleDate: (habitId: string, date: string) => void;
   setWeeklyGoal: (goal: string) => void;
   getStreak: (habit: Habit) => number;
+  setHabits: (habits: Habit[]) => void;
 }
 
 export function fmtDateKey(d: Date = new Date()): string {
@@ -72,7 +75,8 @@ export const useHabitStore = create<HabitState>()(
     (set) => ({
       habits: [],
       weeklyGoal: '',
-      addHabit: (name, emoji, color, id, planMode) =>
+      setHabits: (habits) => set({ habits }),
+      addHabit: (name, emoji, color, id, planMode, nameTr, nameEn) =>
         set((s) => {
           // Çift-isim koruması (büyük/küçük harf duyarsız) — aynı alışkanlık iki kez eklenmez.
           const key = name.trim().toLocaleLowerCase('tr');
@@ -90,6 +94,8 @@ export const useHabitStore = create<HabitState>()(
                 completedDates: [],
                 createdAt: new Date().toISOString(),
                 ...(planMode ? { planMode } : {}),
+                ...(nameTr ? { nameTr } : {}),
+                ...(nameEn ? { nameEn } : {}),
               },
             ],
           };

@@ -137,7 +137,12 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
   const removeHabit = useHabitStore(s => s.removeHabit);
   const tasks = useTaskStore(s => s.tasks);
 
-  const [expanded, setExpanded] = useState(() => !(usePrefsStore.getState().mulakatPlanHabitIds.length > 0 || usePrefsStore.getState().mulakatPlanTaskIds.length > 0));
+  const [expanded, setExpanded] = useState(() => {
+    const s = usePrefsStore.getState().seasonal;
+    const comp = (s.mulakatName || '').trim() !== '' && (s.mulakatDate || '') !== '';
+    if (!comp) return true;
+    return !(usePrefsStore.getState().mulakatPlanHabitIds.length > 0 || usePrefsStore.getState().mulakatPlanTaskIds.length > 0);
+  });
   const [showPicker, setShowPicker] = useState(false);
 
   const name = seasonal.mulakatName || '';

@@ -461,6 +461,7 @@ export default function ActionCenter() {
 
     await VoiceService.start({
       language: language === 'tr' ? 'tr-TR' : 'en-US',
+      initialText: field === 'title' ? form.title : form.description,
       onResults: (results: string[]) => {
         if (results.length > 0) {
           const text = results[0];
@@ -1366,8 +1367,8 @@ export default function ActionCenter() {
                   {isBulkMode ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
                           {selectedIds.size > 0 && (
-                              <View style={[styles.selBadge, { backgroundColor: theme.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }]}>
-                                  <Text style={{ color: theme.onPrimary, fontSize: 13, fontWeight: '700' }}>{selectedIds.size}</Text>
+                              <View style={[styles.selBadge, { backgroundColor: theme.primary }]}>
+                                  <Text style={{ color: theme.onPrimary, fontSize: 11, fontWeight: '700', textAlign: 'center' }}>{selectedIds.size}</Text>
                               </View>
                           )}
                       </View>

@@ -372,24 +372,24 @@ export const TurkishModeBanner: React.FC<Props> = ({
     const addedHabitIds: string[] = [];
     for (const h of newHabits.filter(h => !deselectedHabits.has(h.name))) {
       const hid = `habit_${mode.type}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      addHabit(h.name, h.emoji, h.color, hid, mode.type);
+      const habitName = tr ? h.nameTr : h.name;
+      addHabit(habitName, h.emoji, h.color, hid, mode.type, h.nameTr, h.name);
       addedHabitIds.push(hid);
     }
 
     // Smart scheduling: tasks drip in over multiple days, not all at once
     // High priority → today, Medium → +1/+2/... days, Low → +4 days, weight_entry → +7 days
-    // Yerel tarih string'i üret — toISOString UTC'ye çevirir, timezone kayması yapar
     const localDateStr = (d: Date) => {
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
       return `${y}-${m}-${day}`;
     };
-    const scheduleBase = new Date();
-    scheduleBase.setHours(0, 0, 0, 0);
-    const dayOffset = (n: number) => {
-      const d = new Date(scheduleBase);
-      d.setDate(d.getDate() + n);
+    const today = new Date();
+    let mediumOffset = 1;
+    const dayOffset = (days: number) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + days);
       return localDateStr(d);
     };
 
@@ -398,7 +398,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
       ? (ramazanStatus.period?.start ?? undefined)
       : undefined;
 
-    let mediumOffset = 1; // Fallback: first medium task appears tomorrow, increments per task
     const getTaskDueDate = (task: ModeTask): string | undefined => {
       if (ramazanStartDate) return ramazanStartDate;
       // weight_entry zinciri WeightEntryModal/saveWeightEntry tarafından sürdürülür — ilk görevi +7'ye sabitle
@@ -422,7 +421,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
           isCompleted: false, tags: [mode.type, ...(task.tags ?? [])], subtasks: [],
           ...(dueDate && { dueDate }),
         } as any);
-        addTask({ ...created, title });
+        addTask({ ...created, title, titleTr: task.titleTr, titleEn: task.titleEn } as any);
         addedTaskIds.push(created.id);
       } catch {
         const localId = Math.floor(Date.now() + Math.random() * 1000);
@@ -430,6 +429,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
           id: localId, title, description: '', priority: task.priority,
           isCompleted: false, tags: [mode.type, ...(task.tags ?? [])], subtasks: [],
           ...(dueDate && { dueDate }),
+          titleTr: task.titleTr, titleEn: task.titleEn,
         } as any);
         addedTaskIds.push(localId);
       }

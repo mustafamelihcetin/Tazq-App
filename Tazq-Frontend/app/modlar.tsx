@@ -361,10 +361,13 @@ export default function ModlarScreen() {
       const y = cardY.current[key];
       if (y != null) {
         scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
+      } else {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
       }
     };
-    setTimeout(scroll, 120);
-    setTimeout(scroll, 320);
+    setTimeout(scroll, 100);
+    setTimeout(scroll, 300);
+    setTimeout(scroll, 600);
   }, []);
 
   const formatExamDate = (iso: string) => {
@@ -517,6 +520,16 @@ export default function ModlarScreen() {
     seasonal.sporMode && (sporApplied || spor2Applied || spor3Applied),
     seasonal.ramazan && ramazanApplied,
   ].filter(Boolean).length;
+
+  const hasAnyActiveMode = !!(
+    seasonal.examMode ||
+    seasonal.tezMode ||
+    seasonal.mulakatMode ||
+    seasonal.sporMode ||
+    seasonal.ramazan ||
+    seasonal.tasarrufMode ||
+    seasonal.birakmaMode
+  );
   // Etiket adlarındaki ham emoji'leri temizle (ör. preset adı "⚖️ Kilo Yönetimi").
   // İkon zaten flat olarak ayrı gösteriliyor; metinde ham emoji tema ile çelişir.
   const stripEmoji = (s: string) => s
@@ -799,7 +812,7 @@ export default function ModlarScreen() {
               </MotiView>
             )}
             {/* ── KATMAN 1: AKTİF HEDEFLERİM ── */}
-            {statusActiveCount > 0 && (
+            {(statusActiveCount > 0 || hasAnyActiveMode) && (
               <View style={{ gap: S.md, marginTop: S.sm }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 4 }}>
                   <Flame size={16} color="#F97316" />
