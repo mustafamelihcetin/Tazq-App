@@ -114,6 +114,9 @@ interface PrefsState {
   markFirstWin: () => void;
   setPlanIds: (mode: PlanMode, habitIds: string[], taskIds: number[]) => void;
   clearPlanIds: (mode: PlanMode) => void;
+  // Çıkışta cihazdaki kullanıcı-özel tercihleri (dönemsel modlar + plan id'leri) sıfırlar
+  // → başka hesapla giriş yapınca önceki kullanıcının modları sızmaz.
+  resetUserData: () => void;
   // Offline senkron sonrası: bir plan görevinin tempId'sini gerçek id ile değiştir
   // (tüm slot dizilerinde). Böylece mod kapatma/temizlik doğru id'yi siler.
   remapPlanTaskId: (oldId: number, newId: number) => void;
@@ -294,6 +297,36 @@ export const usePrefsStore = create<PrefsState>()(
           return { ramazanPlanHabitIds: [], ramazanPlanTaskIds: [], planSpecs };
         });
       },
+
+      resetUserData: () => set({
+        seasonal: {
+          ramazan: false,
+          examMode: false, examName: '', examDate: null,
+          exam2Name: '', exam2Date: null, exam3Name: '', exam3Date: null,
+          tezMode: false, tezName: '', tezDate: null,
+          mulakatMode: false, mulakatName: '', mulakatDate: null,
+          mulakat2Name: '', mulakat2Date: null, mulakat3Name: '', mulakat3Date: null,
+          sporMode: false, sporGoal: '', sporDate: null,
+          spor2Goal: '', spor2Date: null, spor3Goal: '', spor3Date: null,
+          tasarrufMode: false, tasarrufName: '', tasarrufDate: null,
+          birakmaMode: false, birakmaName: '',
+        },
+        planSpecs: {},
+        examReviewShown: false,
+        examPlanHabitIds: [], examPlanTaskIds: [],
+        exam2PlanHabitIds: [], exam2PlanTaskIds: [],
+        exam3PlanHabitIds: [], exam3PlanTaskIds: [],
+        ramazanPlanHabitIds: [], ramazanPlanTaskIds: [],
+        tezPlanHabitIds: [], tezPlanTaskIds: [],
+        mulakatPlanHabitIds: [], mulakatPlanTaskIds: [],
+        mulakat2PlanHabitIds: [], mulakat2PlanTaskIds: [],
+        mulakat3PlanHabitIds: [], mulakat3PlanTaskIds: [],
+        sporPlanHabitIds: [], sporPlanTaskIds: [],
+        spor2PlanHabitIds: [], spor2PlanTaskIds: [],
+        spor3PlanHabitIds: [], spor3PlanTaskIds: [],
+        tasarrufPlanHabitIds: [], tasarrufPlanTaskIds: [],
+        birakmaPlanHabitIds: [], birakmaPlanTaskIds: [],
+      }),
 
       remapPlanTaskId: (oldId, newId) => set((s) => {
         const fix = (arr: number[]) => (arr.includes(oldId) ? arr.map(id => (id === oldId ? newId : id)) : arr);

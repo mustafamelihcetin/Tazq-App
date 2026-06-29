@@ -18,6 +18,35 @@ import { localizeSporGoal } from './turkishModes';
 
 type TaskLike = { id: number; tags?: string[] | null };
 
+/**
+ * Bir dönemsel mod slotunun tarih türevlerini tek yerden hesaplar.
+ * modlar.tsx içinde her slot (exam/exam2/exam3, mulakat×3, spor×3...) için kopyalanan
+ * "gün sonu + geçti mi + kaç gün kaldı + dateObj" matematiğinin tek kaynağı.
+ *
+ * `labelInput`: slotun adı/hedefi (boşsa slot tamamlanmamış sayılır).
+ * `fallbackDays`: tarih girilmemişse picker'ın açılacağı varsayılan ileri gün sayısı.
+ */
+export interface DateSlotDerived {
+  isComplete: boolean;
+  datePast: boolean;
+  daysLeft: number;
+  dateObj: Date;
+}
+
+export function deriveDateSlot(
+  labelInput: string,
+  dateInput: string,
+  fallbackDays: number,
+  now: number = Date.now(),
+): DateSlotDerived {
+  const isComplete = labelInput.trim() !== '' && dateInput !== '';
+  const endOfDay = dateInput ? new Date(dateInput).setHours(23, 59, 59, 999) : 0;
+  const datePast = dateInput ? endOfDay < now : false;
+  const daysLeft = dateInput && !datePast ? Math.max(0, Math.ceil((endOfDay - now) / 86400000)) : 0;
+  const dateObj = dateInput ? new Date(dateInput) : new Date(now + fallbackDays * 86400000);
+  return { isComplete, datePast, daysLeft, dateObj };
+}
+
 // modlar.tsx kart paleti ile eşleşir.
 const MODE_COLORS = {
   exam: '#3B82F6',

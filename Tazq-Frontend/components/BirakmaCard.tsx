@@ -19,7 +19,7 @@ import { CustomAlert as Alert } from './CustomAlert';
 import { Touchable } from '@/components/Touchable';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { S, R, F, B } from '../constants/tokens';
-import { buildBirakmaPlan, birakmaTypeLabel, BIRAKMA_COLOR } from '../utils/lifeModePlans';
+import { buildBirakmaPlan, birakmaTypeTasks, birakmaTypeLabel, BIRAKMA_COLOR } from '../utils/lifeModePlans';
 
 export function BirakmaCard() {
   const { theme, isDark } = useAppTheme();
@@ -73,9 +73,13 @@ export function BirakmaCard() {
     return null;
   };
 
-  // İlk ekleme: paylaşılan plan alışkanlık + görevlerini bir kez oluştur.
-  const ensureSharedPlan = async () => {
-    if (birakmaPlanHabitIds.length > 0 || birakmaPlanTaskIds.length > 0) return;
+  // Temel (paylaşılan, türden bağımsız) planı yoksa bir kez oluşturur; ister yeni
+  // ister var olan, güncel id'leri döndürür ki çağıran tipe özel görevleri ekleyip
+  // tek bir setPlanIds ile birleştirebilsin.
+  const ensureBasePlan = async (): Promise<{ habitIds: string[]; taskIds: number[] }> => {
+    if (birakmaPlanHabitIds.length > 0 || birakmaPlanTaskIds.length > 0) {
+      return { habitIds: [...birakmaPlanHabitIds], taskIds: [...birakmaPlanTaskIds] };
+    }
     const content = buildBirakmaPlan('' as QuitType);
     const habitIds: string[] = [];
     content.habits.forEach((h, i) => {
@@ -88,8 +92,7 @@ export function BirakmaCard() {
       const id = await createPlanTask({ title: tr ? t.title : t.titleEn, description: '', priority: t.priority, isCompleted: false, tags: t.tags });
       if (id != null) taskIds.push(id);
     }
-    setPlanIds('birakma', habitIds, taskIds);
-    setSeasonalPref('birakmaMode', true);
+    return { habitIds, taskIds };
   };
 
   const refreshName = () => {
@@ -101,7 +104,17 @@ export function BirakmaCard() {
   const addSelected = async () => {
     if (!addValid) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await ensureSharedPlan();
+    const { habitIds, taskIds } = await ensureBasePlan();
+    // Yeni seçilen her tür için TİPE ÖZEL görevleri paylaşılan plana ekle.
+    // (Tür çipleri zaten eklenmişse devre dışı → aynı türün görevleri tekrarlanmaz.)
+    for (const k of selectedKeys) {
+      for (const t of birakmaTypeTasks(k)) {
+        const id = await createPlanTask({ title: tr ? t.title : t.titleEn, description: '', priority: t.priority, isCompleted: false, tags: t.tags });
+        if (id != null) taskIds.push(id);
+      }
+    }
+    setPlanIds('birakma', habitIds, taskIds);
+    setSeasonalPref('birakmaMode', true);
     selectedKeys.forEach(k => {
       const label = k === 'ozel' ? customName.trim() : birakmaTypeLabel(k, tr);
       if (k === 'ozel' && !label) return;

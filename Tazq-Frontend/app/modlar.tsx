@@ -29,6 +29,7 @@ import { S, R, F, B, TRACKING, SPRING } from '../constants/tokens';
 import { useToastStore } from '../store/useToastStore';
 import { getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, localizeSporGoal, RAMAZAN } from '../utils/turkishModes';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
+import { deriveDateSlot } from '../utils/modeHelpers';
 import { useSporStore, getThisWeekEntry } from '../store/useSporStore';
 import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '../utils/weightCheckin';
 import { getCurrentRamadanStatus, formatRamadanDate } from '../utils/ramadanDates';
@@ -335,19 +336,32 @@ export default function ModlarScreen() {
   const sporDatePast = effectiveSporDate ? new Date(effectiveSporDate).setHours(23, 59, 59, 999) < Date.now() : false;
   const sporDaysLeft = effectiveSporDate && !sporDatePast ? Math.max(0, Math.ceil((new Date(effectiveSporDate).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
   const sporColor = '#F97316';
-  const spor2IsComplete = spor2GoalInput.trim() !== '' && spor2DateInput !== '';
-  const spor2DatePast = spor2DateInput ? new Date(spor2DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const spor2DaysLeft = spor2DateInput && !spor2DatePast ? Math.max(0, Math.ceil((new Date(spor2DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
-  const spor2DateObj = spor2DateInput ? new Date(spor2DateInput) : new Date(Date.now() + 60 * 86400000);
-  const spor3IsComplete = spor3GoalInput.trim() !== '' && spor3DateInput !== '';
-  const spor3DatePast = spor3DateInput ? new Date(spor3DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const spor3DaysLeft = spor3DateInput && !spor3DatePast ? Math.max(0, Math.ceil((new Date(spor3DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
-  const spor3DateObj = spor3DateInput ? new Date(spor3DateInput) : new Date(Date.now() + 90 * 86400000);
-  const examDateObj = examDateInput ? new Date(examDateInput) : new Date(Date.now() + 30 * 86400000);
-  const exam2DateObj = exam2DateInput ? new Date(exam2DateInput) : new Date(Date.now() + 60 * 86400000);
-  const exam3DateObj = exam3DateInput ? new Date(exam3DateInput) : new Date(Date.now() + 90 * 86400000);
-  const tezDateObj = tezDateInput ? new Date(tezDateInput) : new Date(Date.now() + 90 * 86400000);
-  const mulakatDateObj = mulakatDateInput ? new Date(mulakatDateInput) : new Date(Date.now() + 14 * 86400000);
+  // Tarih türevleri tek kaynaktan (deriveDateSlot) — slot başına kopyalanan gün-sonu/
+  // geçti-mi/kaç-gün/dateObj matematiği yerine. Değişken adları korunur (JSX'e dokunulmaz).
+  const spor2Slot = deriveDateSlot(spor2GoalInput, spor2DateInput, 60);
+  const spor2IsComplete = spor2Slot.isComplete;
+  const spor2DatePast = spor2Slot.datePast;
+  const spor2DaysLeft = spor2Slot.daysLeft;
+  const spor2DateObj = spor2Slot.dateObj;
+  const spor3Slot = deriveDateSlot(spor3GoalInput, spor3DateInput, 90);
+  const spor3IsComplete = spor3Slot.isComplete;
+  const spor3DatePast = spor3Slot.datePast;
+  const spor3DaysLeft = spor3Slot.daysLeft;
+  const spor3DateObj = spor3Slot.dateObj;
+  // Sınav/tez/mülakat slotlarının tarih türevleri — tek kaynak (deriveDateSlot).
+  // Değişken adları korunur ki aşağıdaki JSX ve hesaplar aynen çalışsın.
+  const examSlot = deriveDateSlot(examNameInput, examDateInput, 30);
+  const exam2Slot = deriveDateSlot(exam2NameInput, exam2DateInput, 60);
+  const exam3Slot = deriveDateSlot(exam3NameInput, exam3DateInput, 90);
+  const tezSlot = deriveDateSlot(tezNameInput, tezDateInput, 90);
+  const mulakatSlot = deriveDateSlot(mulakatNameInput, mulakatDateInput, 14);
+  const mulakat2Slot = deriveDateSlot(mulakat2NameInput, mulakat2DateInput, 14);
+  const mulakat3Slot = deriveDateSlot(mulakat3NameInput, mulakat3DateInput, 21);
+  const examDateObj = examSlot.dateObj;
+  const exam2DateObj = exam2Slot.dateObj;
+  const exam3DateObj = exam3Slot.dateObj;
+  const tezDateObj = tezSlot.dateObj;
+  const mulakatDateObj = mulakatSlot.dateObj;
 
   const scrollViewRef = useRef<ScrollView>(null);
   const examInputViewRef = useRef<View>(null);
@@ -379,8 +393,8 @@ export default function ModlarScreen() {
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  const examIsComplete = examNameInput.trim() !== '' && examDateInput !== '';
-  const examDatePast = examDateInput ? new Date(examDateInput).setHours(23, 59, 59, 999) < Date.now() : false;
+  const examIsComplete = examSlot.isComplete;
+  const examDatePast = examSlot.datePast;
 
   const thisWeekKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -400,38 +414,38 @@ export default function ModlarScreen() {
   const ramazanHabitsActiveThisWeek = ramazanPlanHabits.filter(h => (Array.isArray(h.completedDates) ? h.completedDates : []).some(d => thisWeekKeys.has(d))).length;
   const ramazanWeekPct = ramazanPlanHabits.length > 0 ? Math.round(ramazanHabitsActiveThisWeek / ramazanPlanHabits.length * 100) : 0;
 
-  const examDaysLeft = examDateInput && !examDatePast ? Math.max(0, Math.ceil((new Date(examDateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const examDaysLeft = examSlot.daysLeft;
   const urgencyColor = '#3B82F6';
 
-  const exam2IsComplete = exam2NameInput.trim() !== '' && exam2DateInput !== '';
-  const exam2DatePast = exam2DateInput ? new Date(exam2DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const exam2DaysLeft = exam2DateInput && !exam2DatePast ? Math.max(0, Math.ceil((new Date(exam2DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const exam2IsComplete = exam2Slot.isComplete;
+  const exam2DatePast = exam2Slot.datePast;
+  const exam2DaysLeft = exam2Slot.daysLeft;
   const exam2UrgencyColor = '#3B82F6';
 
-  const exam3IsComplete = exam3NameInput.trim() !== '' && exam3DateInput !== '';
-  const exam3DatePast = exam3DateInput ? new Date(exam3DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const exam3DaysLeft = exam3DateInput && !exam3DatePast ? Math.max(0, Math.ceil((new Date(exam3DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const exam3IsComplete = exam3Slot.isComplete;
+  const exam3DatePast = exam3Slot.datePast;
+  const exam3DaysLeft = exam3Slot.daysLeft;
   const exam3UrgencyColor = '#3B82F6';
 
-  const tezIsComplete = tezNameInput.trim() !== '' && tezDateInput !== '';
-  const tezDatePast = tezDateInput ? new Date(tezDateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const tezDaysLeft = tezDateInput && !tezDatePast ? Math.max(0, Math.ceil((new Date(tezDateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const tezIsComplete = tezSlot.isComplete;
+  const tezDatePast = tezSlot.datePast;
+  const tezDaysLeft = tezSlot.daysLeft;
   const tezUrgencyColor = '#8B5CF6';
 
-  const mulakatIsComplete = mulakatNameInput.trim() !== '' && mulakatDateInput !== '';
-  const mulakatDatePast = mulakatDateInput ? new Date(mulakatDateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const mulakatDaysLeft = mulakatDateInput && !mulakatDatePast ? Math.max(0, Math.ceil((new Date(mulakatDateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const mulakatIsComplete = mulakatSlot.isComplete;
+  const mulakatDatePast = mulakatSlot.datePast;
+  const mulakatDaysLeft = mulakatSlot.daysLeft;
   const mulakatUrgencyColor = '#10B981';
-  const mulakat2IsComplete = mulakat2NameInput.trim() !== '' && mulakat2DateInput !== '';
-  const mulakat2DatePast = mulakat2DateInput ? new Date(mulakat2DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const mulakat2DaysLeft = mulakat2DateInput && !mulakat2DatePast ? Math.max(0, Math.ceil((new Date(mulakat2DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const mulakat2IsComplete = mulakat2Slot.isComplete;
+  const mulakat2DatePast = mulakat2Slot.datePast;
+  const mulakat2DaysLeft = mulakat2Slot.daysLeft;
   const mulakat2UrgencyColor = '#10B981';
-  const mulakat2DateObj = mulakat2DateInput ? new Date(mulakat2DateInput) : new Date(Date.now() + 14 * 86400000);
-  const mulakat3IsComplete = mulakat3NameInput.trim() !== '' && mulakat3DateInput !== '';
-  const mulakat3DatePast = mulakat3DateInput ? new Date(mulakat3DateInput).setHours(23, 59, 59, 999) < Date.now() : false;
-  const mulakat3DaysLeft = mulakat3DateInput && !mulakat3DatePast ? Math.max(0, Math.ceil((new Date(mulakat3DateInput).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const mulakat2DateObj = mulakat2Slot.dateObj;
+  const mulakat3IsComplete = mulakat3Slot.isComplete;
+  const mulakat3DatePast = mulakat3Slot.datePast;
+  const mulakat3DaysLeft = mulakat3Slot.daysLeft;
   const mulakat3UrgencyColor = '#10B981';
-  const mulakat3DateObj = mulakat3DateInput ? new Date(mulakat3DateInput) : new Date(Date.now() + 21 * 86400000);
+  const mulakat3DateObj = mulakat3Slot.dateObj;
 
   const tezPlanHabits = useMemo(() => habits.filter(h => tezPlanHabitIds.includes(h.id)), [habits, tezPlanHabitIds]);
   const tezHabitsActiveThisWeek = tezPlanHabits.filter(h => (Array.isArray(h.completedDates) ? h.completedDates : []).some(d => thisWeekKeys.has(d))).length;

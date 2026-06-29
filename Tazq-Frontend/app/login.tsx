@@ -16,6 +16,7 @@ import { TazqLogo } from '../components/TazqLogo';
 import { S, R, F, scale, verticalScale, moderateScale, B } from '../constants/tokens';
 import { Touchable } from '@/components/Touchable';
 import { CustomAlert as Alert } from '../components/CustomAlert';
+import { validateLogin, isValidEmail } from '../utils/validation';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -56,8 +57,13 @@ export default function LoginScreen() {
   const passwordRef = useRef<TextInput>(null);
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    const invalid = validateLogin(email, password);
+    if (invalid === 'empty') {
       setError(t.login.error);
+      return;
+    }
+    if (invalid === 'invalidEmail') {
+      setError(t.login.invalidEmail);
       return;
     }
 
@@ -91,6 +97,10 @@ export default function LoginScreen() {
 
   const handleForgotPassword = async () => {
     if (!forgotEmail.trim()) return;
+    if (!isValidEmail(forgotEmail)) {
+      setForgotMsg({ text: t.login.invalidEmail, success: false });
+      return;
+    }
     setForgotLoading(true);
     try {
       await AuthService.forgotPassword(forgotEmail.trim());

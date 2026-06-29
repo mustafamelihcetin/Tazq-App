@@ -77,6 +77,27 @@ interface User {
   activeStreak?: number;
 }
 
+// Cihazdaki TÜM kullanıcı-özel yerel veriyi temizler. İki yerden çağrılır:
+//  1) logout — kullanıcı çıkış yapınca.
+//  2) setAuth — farklı bir hesap giriş yapınca (oturum düşmesi/uygulama kapanması
+//     nedeniyle logout çalışmamış olsa bile sızıntıyı kapatır).
+// Dil/tema gibi CIHAZ tercihleri korunur; profil tercihleri girişte buluttan gelir.
+function clearLocalUserData() {
+  const safe = (fn: () => void) => { try { fn(); } catch {} };
+  safe(() => require('./useTaskStore').useTaskStore.setState({ tasks: [], isLoading: false }));
+  safe(() => require('./useFocusStore').useFocusStore.getState().reset());
+  safe(() => require('./useHabitStore').useHabitStore.setState({ habits: [] }));
+  safe(() => require('./usePrefsStore').usePrefsStore.getState().resetUserData());
+  safe(() => require('./useBudgetStore').useBudgetStore.getState().reset());
+  safe(() => require('./useQuitStore').useQuitStore.getState().reset());
+  safe(() => require('./useSporStore').useSporStore.getState().resetInputs());
+  safe(() => require('./useSubjectStore').useSubjectStore.getState().reset());
+  safe(() => require('./useOfflineQueue').useOfflineQueue.getState().clear());
+  safe(() => require('./useCompletionStore').useCompletionStore.setState({ events: [] }));
+  safe(() => require('./useMomentumStore').useMomentumStore.setState({ history: [] }));
+  safe(() => require('./useAchievementStore').useAchievementStore.setState({ unlocked: [], pending: null }));
+}
+
 // Backend'den gelen profil tercihlerini prefs store'a hidrate et.
 // Yalnızca DB'de dolu (non-empty) değer varsa uygula — ilk migrasyonda DB null iken
 // kullanıcının yerel motto/çerçeve rengini ezme.
@@ -97,6 +118,7 @@ interface AuthState {
   refreshToken: string | null;
   isLoggedIn: boolean;
   _hasHydrated: boolean;
+  lastUserId: number | null; // bu cihazda en son giriş yapan kullanıcı (hesap değişimi tespiti)
   setAuth: (user: User, token: string, refreshToken?: string | null) => void;
   setUser: (user: User) => void;
   logout: () => void;
@@ -111,9 +133,16 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isLoggedIn: false,
       _hasHydrated: false,
+      lastUserId: null,
       setAuth: (user, token, refreshToken) => {
+        // Bu cihazda FARKLI bir hesap giriş yapıyorsa, önceki kullanıcının yerel verisini
+        // temizle (logout çalışmamış olsa bile sızıntıyı kapatır).
+        const prevId = useAuthStore.getState().lastUserId;
+        if (prevId != null && user?.id != null && prevId !== user.id) {
+          clearLocalUserData();
+        }
         hydrateProfilePrefs(user);
-        set({ user, token, ...(refreshToken !== undefined ? { refreshToken } : {}), isLoggedIn: true });
+        set({ user, token, ...(refreshToken !== undefined ? { refreshToken } : {}), isLoggedIn: true, lastUserId: user?.id ?? null });
       },
       setUser: (user) => { hydrateProfilePrefs(user); set({ user }); },
       logout: () => {
@@ -122,11 +151,10 @@ export const useAuthStore = create<AuthState>()(
           const rt = useAuthStore.getState().refreshToken;
           if (rt) require('../services/api').AuthService.logout(rt);
         } catch {}
+        // isLoggedIn=false; lastUserId KORUNUR ki bir sonraki girişte hesap değişimi
+        // tespit edilebilsin (aynı kullanıcı geri girerse veri sıfırlanmasın).
         set({ user: null, token: null, refreshToken: null, isLoggedIn: false });
-        // Clear other stores so previous user's data isn't visible after re-login
-        try { require('./useTaskStore').useTaskStore.setState({ tasks: [], isLoading: false }); } catch {}
-        try { require('./useFocusStore').useFocusStore.getState().reset(); } catch {}
-        try { require('./useHabitStore').useHabitStore?.setState({ habits: [] }); } catch {}
+        clearLocalUserData();
       },
       setHasHydrated: (val) => set({ _hasHydrated: val }),
     }),

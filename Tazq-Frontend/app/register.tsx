@@ -28,6 +28,7 @@ import { AnimatedBackground } from '../components/AnimatedBackground';
 import { TazqLogo } from '../components/TazqLogo';
 import { S, R, F, scale, verticalScale, moderateScale, B } from '../constants/tokens';
 import { Touchable } from '@/components/Touchable';
+import { validateRegister } from '../utils/validation';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -65,15 +66,20 @@ export default function RegisterScreen() {
   const [consentChecked, setConsentChecked] = useState(false);
 
   const handleRegister = async () => {
-    if (!name || !email || !password) {
+    const invalid = validateRegister(name, email, password, consentChecked);
+    if (invalid === 'empty') {
       setError(tr ? 'Tüm alanları doldurun.' : 'Please fill in all fields.');
       return;
     }
-    if (password.length < 6) {
+    if (invalid === 'invalidEmail') {
+      setError(t.login.invalidEmail);
+      return;
+    }
+    if (invalid === 'weakPassword') {
       setError(t.login.registerWeakPassword);
       return;
     }
-    if (!consentChecked) {
+    if (invalid === 'consent') {
       setError(tr ? 'Devam etmek için sözleşmeleri onaylamanız gerekir.' : 'You must accept the agreements to continue.');
       return;
     }
@@ -96,7 +102,11 @@ export default function RegisterScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const status = err?.response?.status;
       const body = err?.response?.data ?? '';
-      if (status === 400 && typeof body === 'string' && body.includes('zaten')) {
+      // Yapısal hata kodunu tercih et; eski düz-metin yanıt için geriye dönük yedek.
+      const isEmailTaken =
+        (body && typeof body === 'object' && body.error === 'email_taken') ||
+        (typeof body === 'string' && body.includes('zaten'));
+      if (status === 400 && isEmailTaken) {
         setError(t.login.registerEmailTaken);
       } else if (status === 400) {
         setError(t.login.registerWeakPassword);

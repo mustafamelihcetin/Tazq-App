@@ -25,6 +25,7 @@ import { StatusHub } from '../components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { parseTaskHint } from '../utils/taskParser';
 import { getSmartInsight } from '../utils/insights';
+import { computeMomentum } from '../utils/momentum';
 import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING } from '../constants/tokens';
 import { getAvatarSource } from '../utils/avatars';
 import { useToastStore } from '../store/useToastStore';
@@ -256,58 +257,19 @@ export default function HomeScreen() {
     return Math.round(((secondHalf - firstHalf) / firstHalf) * 100);
   })();
   // ── Professional Momentum Score ────────────────────────────────────────────
-  // Priority weights: High=3pts, Medium=2pts, Low=1pt (prevents gaming with 1 easy task)
-  const PRIORITY_WEIGHTS: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
-  // Recency decay: tasks from today count 100%, yesterday 90%, 2d ago 80%... (10% per day)
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
-  const weeklyTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate) >= sevenDaysAgo);
-  const totalCount = weeklyTasks.length;
-  const completedCount = weeklyTasks.filter(t => t.isCompleted).length;
-
-  // Priority-weighted completion rate with recency decay
-  const weightedCompletion = (() => {
-    if (weeklyTasks.length === 0) return 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let earnedPts = 0;
-    let totalPts = 0;
-    for (const task of weeklyTasks) {
-      const taskDate = task.dueDate ? new Date(task.dueDate) : new Date();
-      const daysAgo = Math.floor((today.getTime() - taskDate.getTime()) / 86400000);
-      const recency = Math.max(0.3, 1 - daysAgo * 0.1); // 100% today → 30% min at 7d
-      const weight = (PRIORITY_WEIGHTS[task.priority] || 1) * recency;
-      totalPts += weight;
-      if (task.isCompleted) earnedPts += weight;
-    }
-    return totalPts > 0 ? earnedPts / totalPts : 0;
-  })();
-
-  // Focus consistency bonus: daily distribution matters, not just total minutes
-  // Reward spreading sessions across more days (up to 7)
-  const focusActiveDays = weeklyFocus.filter((d: any) => (d.minutes || 0) >= 10).length;
-  const focusVolumeScore = Math.min(weeklyMinutes / 280, 1); // 280 min/week = full score (4hrs/day × 70% efficiency)
-  const focusConsistencyScore = focusActiveDays / 7;
-  const focusScore = focusVolumeScore * 0.6 + focusConsistencyScore * 0.4;
-
-  // Streak score with diminishing returns above 14 days (prevents purely streak-gaming)
-  const streakScore = streak <= 14
-    ? Math.min(streak / 14, 1)
-    : 1 + Math.min((streak - 14) / 28, 0.15); // small bonus up to 1.15x for long streaks, capped
-
-  // Habit activity component — SON 7 GÜN (bugün HARİÇ).
-  // Bugünü dahil edersek döngü olur: recordScore(momentum) bugünü geçmişe yazar,
-  // bu da habitScore'u artırıp momentumu değiştirir → sonsuz 27↔28 salınımı.
-  // getLastNDays(8)'in ilk 7'si = dünden 7 gün öncesine (bugün indeks 7'de, atılır).
+  // Hesap utils/momentum.ts'e taşındı (saf + test edilebilir). Habit bileşeni
+  // BUGÜN HARİÇ verilir: bugünü dahil edersek recordScore(momentum) bugünü geçmişe
+  // yazar → habitScore'u artırır → sonsuz 27↔28 salınımı. getLastNDays(8)'in ilk 7'si
+  // dünden 7 gün öncesine denk gelir (bugün indeks 7'de, atılır).
   const completionHistory = getLastNDays(8).slice(0, 7);
   const habitActivityDays = completionHistory.filter(d => d.score >= 0).length;
-  const habitScore = habitActivityDays / 7;
-
-  // Final weighted score (0-100)
-  // Completion 38% | Focus 32% | Streak 20% | Habit activity 10%
-  const rawMomentum = weightedCompletion * 38 + focusScore * 32 + Math.min(streakScore, 1.15) * 20 + habitScore * 10;
-  const momentum = Math.min(100, Math.round(rawMomentum));
+  const { momentum, totalCount, completedCount, focusVolumeScore } = computeMomentum({
+    tasks,
+    weeklyFocus,
+    weeklyMinutes,
+    streak,
+    habitActivityDays,
+  });
   const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? theme.warning : theme.primary;
 
   // Momentum history (last 7 days for sparkline)

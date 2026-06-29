@@ -43,6 +43,12 @@ function resetService() {
     clearTimeout((VoiceService as any)._timeout);
     (VoiceService as any)._timeout = null;
   }
+  // Doğal bitişte kurulan yeniden-başlatma zamanlayıcısını da temizle; aksi halde
+  // 1 sn'lik setTimeout test bittikten sonra ateşlenip worker'ı sızdırır.
+  if ((VoiceService as any)._restartHandle) {
+    clearTimeout((VoiceService as any)._restartHandle);
+    (VoiceService as any)._restartHandle = null;
+  }
 }
 
 beforeEach(() => {
@@ -50,6 +56,12 @@ beforeEach(() => {
   mockVoice.stop.mockClear();
   mockVoice.start.mockResolvedValue(undefined);
   mockVoice.stop.mockResolvedValue(undefined);
+  resetService();
+});
+
+// Son testte kurulan zamanlayıcının suite bittikten sonra sızmaması için her testten
+// SONRA da temizle (beforeEach yalnız bir sonraki testten önce çalışır).
+afterEach(() => {
   resetService();
 });
 
@@ -161,7 +173,8 @@ describe('VoiceService', () => {
       await VoiceService.start({ language: 'tr-TR', onEnded });
       mockVoice.onSpeechEnd?.({});
       expect(onEnded).not.toHaveBeenCalled();
-      expect((VoiceService as any)._restarting).toBe(true);
+      // Doğal bitiş yeniden-başlatma zamanlar: servis _restartHandle kurar (onEnded YOK).
+      expect((VoiceService as any)._restartHandle).not.toBeNull();
     });
   });
 });

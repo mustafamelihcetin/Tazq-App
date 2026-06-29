@@ -9,7 +9,6 @@ import {
   ScrollView,
   NativeSyntheticEvent,
   NativeScrollEvent,
-  DimensionValue,
   Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,7 +17,7 @@ import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
-import { ChevronRight, CheckCircle2, Clock, Zap, Activity } from 'lucide-react-native';
+import { ChevronRight, Clock } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Easing } from 'react-native-reanimated';
 import { TazqLogo } from '../components/TazqLogo';
@@ -163,43 +162,6 @@ export default function OnboardingScreen() {
             />
           </View>
         );
-      case 'tasks':
-        return (
-          <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
-            <View style={styles.simContainer}>
-                {[0, 1, 2].map((i) => (
-                    <MotiView 
-                        key={i}
-                        animate={{ translateX: isActive ? 0 : 40, opacity: isActive ? 1 : 0 }}
-                        transition={{ delay: 300 + (i * 150), type: 'spring' }}
-                        style={[styles.cinematicTask, { backgroundColor: theme.surfaceContainerHighest, height: isSmallDevice ? 38 : 52 }]}
-                    >
-                        <MotiView 
-                            animate={{ 
-                                scale: (isActive && i === 0) ? [1, 1.2, 1] : 1, 
-                                backgroundColor: (isActive && i === 0) ? theme.primary : 'transparent' 
-                            }}
-                            transition={{ delay: 2000 }}
-                            style={[styles.cinematicCheck, { borderColor: theme.primary }]}
-                        >
-                           {i === 0 && isActive && <CheckCircle2 size={12} color="white" />}
-                        </MotiView>
-                        <View style={styles.taskContent}>
-                            <View style={[styles.cinematicLine, { backgroundColor: theme.outlineVariant, width: i === 1 ? '70%' : '50%' }]} />
-                            <View style={[styles.cinematicLineShort, { backgroundColor: theme.outlineVariant, width: i === 0 ? '40%' : '30%' }]} />
-                        </View>
-                        {i === 0 && (
-                            <MotiView 
-                                animate={{ opacity: isActive ? [0, 1, 0] : 0 }}
-                                transition={{ loop: true, duration: 2000 }}
-                                style={styles.activeIndicator}
-                            />
-                        )}
-                    </MotiView>
-                ))}
-            </View>
-          </View>
-        );
       case 'focus':
         return (
           <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
@@ -214,31 +176,6 @@ export default function OnboardingScreen() {
                     {`24:${(59 - timerSeconds % 60).toString().padStart(2, '0')}`}
                 </Text>
              </View>
-          </View>
-        );
-      case 'stats':
-        return (
-          <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
-            <View style={styles.centeredSim}>
-                <View style={styles.cinematicChart}>
-                    {[40, 75, 50, 100, 65].map((h, i) => (
-                        <MotiView 
-                            key={i}
-                            animate={{ height: isActive ? (`${h}%` as DimensionValue) : ('10%' as DimensionValue) }}
-                            transition={{ delay: 400 + (i * 100), type: 'spring' }}
-                            style={[styles.cinematicBar, { backgroundColor: theme.primary, width: isSmallDevice ? 10 : 16 }]}
-                        />
-                    ))}
-                </View>
-                <MotiView 
-                    animate={{ scale: isActive ? 1 : 0, translateY: isActive ? 0 : 10 }}
-                    transition={{ delay: 1500, type: 'spring' }}
-                    style={[styles.floatingBadge, { backgroundColor: theme.secondaryContainer }]}
-                >
-                    <Activity size={14} color={theme.onSecondary} />
-                    <Text style={[styles.floatingBadgeText, { color: theme.onSecondary, fontSize: 12 }]}>Peak Focus</Text>
-                </MotiView>
-            </View>
           </View>
         );
       case 'smart_input':
@@ -266,28 +203,6 @@ export default function OnboardingScreen() {
                   >
                     <Text style={{ fontSize: 9, fontWeight: '800', color: row.color }}>{row.badge}</Text>
                   </MotiView>
-                </MotiView>
-              ))}
-            </View>
-          </View>
-        );
-      case 'pomodoro':
-        return (
-          <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
-            <View style={{ alignItems: 'center', justifyContent: 'center', gap: 12, flex: 1 }}>
-              {[
-                { label: '🧠 Çalışma', value: '25:00', color: '#ff2d55' },
-                { label: '☕ Mola', value: '05:00', color: theme.tertiary },
-                { label: '😴 Uzun Mola', value: '15:00', color: '#ff9500' },
-              ].map((row, i) => (
-                <MotiView
-                  key={i}
-                  animate={{ translateY: isActive ? 0 : 20, opacity: isActive ? 1 : 0 }}
-                  transition={{ delay: 300 + i * 150, type: 'spring' }}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '80%', backgroundColor: row.color + '18', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}
-                >
-                  <Text style={{ fontSize: isSmallDevice ? 11 : 13, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
-                  <Text style={{ fontSize: isSmallDevice ? 13 : 15, fontWeight: '900', color: row.color }}>{row.value}</Text>
                 </MotiView>
               ))}
             </View>

@@ -29,7 +29,10 @@ namespace Tazq_App.Controllers
 
 
             var success = await _userService.RegisterAsync(userDto);
-            return success ? Ok("Kullanıcı başarıyla kaydedildi.") : BadRequest("E-posta adresi zaten kullanımda.");
+            // Yapısal hata kodu: istemci sunucu mesaj metnine bağımlı kalmasın.
+            return success
+                ? Ok("Kullanıcı başarıyla kaydedildi.")
+                : BadRequest(new { error = "email_taken", message = "E-posta adresi zaten kullanımda." });
         }
 
         [HttpPost("login")]

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { useTaskStore } from '../store/useTaskStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
@@ -10,6 +10,8 @@ import { S, F, R, B } from '../constants/tokens';
 import { TaskService } from '../services/api';
 import { useNetworkStore } from '../store/useNetworkStore';
 import { useOfflineQueue } from '../store/useOfflineQueue';
+import { Touchable } from '@/components/Touchable';
+import { CustomAlert as Alert } from '../components/CustomAlert';
 
 export default function ArchiveScreen() {
     const { theme, isDark } = useAppTheme();
@@ -40,9 +42,9 @@ export default function ArchiveScreen() {
         }
     };
 
-    const handleDelete = async (id: number) => {
+    const performDelete = async (id: number) => {
         removeTask(id);
-        
+
         const isOnline = useNetworkStore.getState().isOnline;
         if (!isOnline) {
             useOfflineQueue.getState().enqueue({ type: 'delete-task', id });
@@ -57,13 +59,25 @@ export default function ArchiveScreen() {
         }
     };
 
+    // Kalıcı silme geri alınamaz → açık onay iste (uygulamanın geri kalanıyla aynı desen).
+    const handleDelete = (id: number) => {
+        Alert.alert(
+            language === 'tr' ? 'Kalıcı olarak sil?' : 'Delete permanently?',
+            language === 'tr' ? 'Bu görev kalıcı olarak silinecek. Bu işlem geri alınamaz.' : 'This task will be permanently deleted. This cannot be undone.',
+            [
+                { text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' },
+                { text: language === 'tr' ? 'Sil' : 'Delete', style: 'destructive', onPress: () => performDelete(id) },
+            ],
+        );
+    };
+
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
             {/* Header */}
             <View style={[styles.header, { borderBottomColor: theme.outline }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'}>
+                <Touchable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'}>
                     <ArrowLeft size={24} color={theme.onBackground} />
-                </TouchableOpacity>
+                </Touchable>
                 <Text style={[styles.headerTitle, { color: theme.onBackground }]}>
                     {language === 'tr' ? 'Arşiv' : 'Archive'}
                 </Text>
@@ -94,12 +108,12 @@ export default function ArchiveScreen() {
                             )}
                         </View>
                         <View style={{ flexDirection: 'row', gap: S.sm }}>
-                            <TouchableOpacity onPress={() => handleRestore(item)} style={[styles.actionBtn, { backgroundColor: theme.primary + '1A' }]} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri yükle' : 'Restore'}>
+                            <Touchable onPress={() => handleRestore(item)} style={[styles.actionBtn, { backgroundColor: theme.primary + '1A' }]} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri yükle' : 'Restore'}>
                                 <RotateCcw size={18} color={theme.primary} />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleDelete(item.id)} style={[styles.actionBtn, { backgroundColor: theme.error + '1A' }]} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kalıcı sil' : 'Delete permanently'}>
+                            </Touchable>
+                            <Touchable onPress={() => handleDelete(item.id)} style={[styles.actionBtn, { backgroundColor: theme.error + '1A' }]} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kalıcı sil' : 'Delete permanently'}>
                                 <Trash2 size={18} color={theme.error} />
-                            </TouchableOpacity>
+                            </Touchable>
                         </View>
                     </View>
                 )}

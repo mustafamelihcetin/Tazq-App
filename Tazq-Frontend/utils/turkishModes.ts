@@ -287,6 +287,53 @@ const TEMPLATE_RAMAZAN_SABAH: StudyTemplate = {
   ],
 };
 
+// Persona temelli profiller — Gece/Sahur vakit odaklıyken bunlar yaşam durumuna göre.
+const TEMPLATE_RAMAZAN_OGRENCI: StudyTemplate = {
+  id: 'ramazan-ogrenci',
+  titleTr: 'Öğrenci Dengesi',
+  titleEn: 'Student Balance',
+  descTr: 'Ramazan okul/sınav dönemine denk geldiğinde düşük enerjiyi yönetmek esastır. Kısa ama düzenli çalışma bloklarını ibadet ritmiyle harmanlayan, sürdürülebilir bir rutin.',
+  descEn: 'When Ramadan overlaps with school/exams, managing low energy is key. A sustainable routine blending short, regular study blocks with a worship rhythm.',
+  targetTr: '🎓 Okul/sınav dönemi · Oruçluyken derse odaklanmakta zorlanan öğrenciler',
+  targetEn: '🎓 School/exam season · Students who struggle to focus on lessons while fasting',
+  emoji: '🎓',
+  dailyGoalMinutes: 50,
+  habits: [
+    { name: 'Sabah Tekrar', nameTr: 'Sabah Tekrar', emoji: '📖', color: '#3B82F6' },
+    { name: 'Öğleden Sonra Kısa Çalışma', nameTr: 'Öğleden Sonra Kısa Çalışma', emoji: '✏️', color: '#8B5CF6' },
+    { name: 'Teravih / Akşam İbadeti', nameTr: 'Teravih / Akşam İbadeti', emoji: '🤲', color: '#6366F1' },
+    { name: 'Dua & Zikir', nameTr: 'Dua & Zikir', emoji: '☪️', color: '#10B981' },
+  ],
+  tasks: [
+    { titleTr: 'Haftalık ders programını oruç saatlerine göre yeniden düzenle', titleEn: 'Rearrange your weekly study plan around fasting hours', priority: 'High' },
+    { titleTr: 'En verimli olduğun saati belirle ve ağır dersleri o saate koy', titleEn: 'Find your most productive hour and place hard subjects there', priority: 'Medium' },
+    { titleTr: 'Sınav/ödev tarihlerini takvime işle ve geri sayım kur', titleEn: 'Add exam/assignment dates to the calendar and set a countdown', priority: 'Medium' },
+  ],
+};
+
+const TEMPLATE_RAMAZAN_CALISAN: StudyTemplate = {
+  id: 'ramazan-calisan',
+  titleTr: 'Çalışan Ritmi',
+  titleEn: 'Working Rhythm',
+  descTr: 'Tam gün iş + oruç enerji yönetimi ister. Zorlu işleri yüksek enerjili sabah saatlerine alıp ibadeti güne yedirerek hem verimi hem huzuru korur.',
+  descEn: 'A full workday plus fasting demands energy management. Schedule hard work in high-energy morning hours and weave worship into the day to protect both output and peace.',
+  targetTr: '💼 Tam zamanlı çalışan · Oruçluyken iş verimini korumak isteyenler',
+  targetEn: '💼 Full-time worker · Those who want to keep work performance while fasting',
+  emoji: '💼',
+  dailyGoalMinutes: 40,
+  habits: [
+    { name: 'Sahur + Güne Niyet', nameTr: 'Sahur + Güne Niyet', emoji: '⏰', color: '#F59E0B' },
+    { name: 'Öğle Mini Dinlenme', nameTr: 'Öğle Mini Dinlenme', emoji: '☕', color: '#3B82F6' },
+    { name: 'İş Sonrası İbadet Bloğu', nameTr: 'İş Sonrası İbadet Bloğu', emoji: '🤲', color: '#6366F1' },
+    { name: 'Su & Beslenme Dengesi', nameTr: 'Su & Beslenme Dengesi', emoji: '💧', color: '#10B981' },
+  ],
+  tasks: [
+    { titleTr: 'En zorlu işleri sabahın ilk saatlerine al (enerji yüksekken)', titleEn: 'Move the hardest tasks to early morning (when energy is highest)', priority: 'High' },
+    { titleTr: 'Toplantıları mümkünse öğleden önceye çek', titleEn: 'Shift meetings to before noon where possible', priority: 'Medium' },
+    { titleTr: 'İftar sonrası 30 dk dinlenme + ibadet bloğu planla', titleEn: 'Plan a 30-min rest + worship block after iftar', priority: 'Medium' },
+  ],
+};
+
 // Default habits/tasks for modes that don't use template selection
 const RAMAZAN_DEFAULT_HABITS: ModeHabit[] = [
   { name: 'Teravih Namazı', nameTr: 'Teravih Namazı', emoji: '🤲', color: '#6366F1' },
@@ -313,7 +360,7 @@ const RAMAZAN_MODE = (days: number): TurkishMode => ({
   daysLeft: days,
   habits: RAMAZAN_DEFAULT_HABITS,
   tasks: RAMAZAN_DEFAULT_TASKS,
-  templates: [TEMPLATE_RAMAZAN_GECE, TEMPLATE_RAMAZAN_SABAH],
+  templates: [TEMPLATE_RAMAZAN_GECE, TEMPLATE_RAMAZAN_SABAH, TEMPLATE_RAMAZAN_OGRENCI, TEMPLATE_RAMAZAN_CALISAN],
 });
 
 const YKS_MODE = (days: number): TurkishMode => ({
@@ -2032,6 +2079,8 @@ export function detectTurkishMode(): TurkishMode | null {
 export const RAMAZAN_HABIT_NAMES: string[] = [
   ...TEMPLATE_RAMAZAN_GECE.habits.map(h => h.name),
   ...TEMPLATE_RAMAZAN_SABAH.habits.map(h => h.name),
+  ...TEMPLATE_RAMAZAN_OGRENCI.habits.map(h => h.name),
+  ...TEMPLATE_RAMAZAN_CALISAN.habits.map(h => h.name),
 ];
 
 export function getAllKnownModePairs(): Array<{ tr: string; en: string }> {
@@ -2041,9 +2090,9 @@ export function getAllKnownModePairs(): Array<{ tr: string; en: string }> {
     tpl.habits.forEach(h => pairs.push({ tr: h.nameTr, en: h.name }));
   };
   const dummy = "";
-  const dummyInputs: SporInputs = { currentWeight: '70', targetWeight: '65', heightCm: '170', ageYears: '25', trainingDaysPerWeek: 3 };
+  const dummyInputs: SporInputs = { currentWeight: 70, targetWeight: 65, weeklyKm: 20, targetEvent: '10K', trainingDays: 3 };
   [
-    TEMPLATE_RAMAZAN_GECE, TEMPLATE_RAMAZAN_SABAH,
+    TEMPLATE_RAMAZAN_GECE, TEMPLATE_RAMAZAN_SABAH, TEMPLATE_RAMAZAN_OGRENCI, TEMPLATE_RAMAZAN_CALISAN,
     TEMPLATE_ACTIVE_RECALL(dummy), TEMPLATE_SPACED_REPETITION(dummy), TEMPLATE_DEEP_WORK(dummy), TEMPLATE_SPRINT(dummy),
     TEMPLATE_FOUNDATION(dummy),
     TEMPLATE_TEZ_WRITING(dummy), TEMPLATE_TEZ_MILESTONE(dummy), TEMPLATE_TEZ_SOFTWARE(dummy), TEMPLATE_TEZ_IS(dummy), TEMPLATE_TEZ_SPRINT(dummy),

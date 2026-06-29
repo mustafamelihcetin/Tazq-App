@@ -85,6 +85,18 @@ export function TasarrufCard() {
     budgetType === 'acilfon' ? (monthlyExp > 0 && computedTarget > computedStart) :
     (computedTarget > computedStart) // birikim: hedef, mevcut birikimden büyük olmalı
   );
+  // "Planı Uygula" pasifse NEDENİNİ söyle — sessiz pasif buton kafa karıştırıyordu.
+  const disabledHint = (() => {
+    if (configValid) return '';
+    if (!durationMonths) return tr ? 'Bir süre seç' : 'Pick a duration';
+    if (budgetType === 'borc') return computedStart > 0 ? '' : (tr ? 'Borç tutarını gir' : 'Enter the debt amount');
+    if (budgetType === 'acilfon') {
+      if (monthlyExp <= 0) return tr ? 'Aylık gideri gir' : 'Enter your monthly expenses';
+      return tr ? 'Hedef, mevcut tutardan büyük olmalı' : 'Target must exceed the current amount';
+    }
+    // birikim
+    return tr ? 'Hedef tutar, mevcut birikimden büyük olmalı' : 'Target must be higher than current savings';
+  })();
   // ₺ önekli, alt-çizgisiz, ÜST SINIRLI temiz para girişi. Inline fonksiyon (component
   // değil) → her tuşta remount/focus kaybı olmaz.
   const MAX_AMOUNT = 1_000_000_000; // 1 milyar ₺ üst sınır
@@ -324,6 +336,11 @@ export function TasarrufCard() {
               );
             })}
           </View>
+          {!!disabledHint && (
+            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, textAlign: 'center', marginTop: 4, opacity: 0.8 }}>
+              {disabledHint}
+            </Text>
+          )}
           <Touchable disabled={!configValid} onPress={apply} style={{ marginTop: 4, backgroundColor: configValid ? C : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2, alignItems: 'center' }}>
             <Text style={{ color: configValid ? '#fff' : theme.onSurfaceVariant, fontWeight: '800', fontSize: F.body }}>{tr ? 'Planı Uygula' : 'Apply Plan'}</Text>
           </Touchable>
