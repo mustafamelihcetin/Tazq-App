@@ -598,3 +598,18 @@ export async function cancelAllNotifications(): Promise<void> {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch (_) {}
 }
+
+export async function sendAdminSupportNotification(userName: string, tr: boolean): Promise<void> {
+  if (!Notifications) return;
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: tr ? '🚨 Yeni Destek Mesajı!' : '🚨 New Support Message!',
+        body: tr ? `${userName} bir destek mesajı gönderdi.` : `${userName} sent a support request.`,
+        sound: true,
+      },
+      trigger: null, // send immediately
+    });
+  } catch (_) {}
+}
+

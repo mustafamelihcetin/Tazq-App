@@ -163,6 +163,10 @@ export const AuthService = {
   logout: async (refreshToken: string) => {
     try { await axios.post(`${BASE_URL}/api/users/logout`, { refreshToken }, { headers: { 'X-App-Signature': 'tazq-expo-frontend' }, timeout: 8000 }); } catch {}
   },
+  // Hesabı sil — best-effort
+  deleteAccount: async () => {
+    try { await api.delete('/api/users/me'); } catch {}
+  },
 };
 
 export type Priority = 'Low' | 'Medium' | 'High';
@@ -282,6 +286,34 @@ export const AdminService = {
     await api.patch(`/api/admin/users/${id}/ban`, { banned });
   },
 };
+
+export interface SupportMessageItem {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  message: string;
+  createdAt: string;
+  isRead: boolean;
+}
+
+export const SupportService = {
+  sendMessage: async (message: string): Promise<{ success: boolean; id: number }> => {
+    const r = await api.post('/api/support', { message });
+    return r.data;
+  },
+  getAllMessages: async (): Promise<{ messages: SupportMessageItem[]; unreadCount: number }> => {
+    const r = await api.get('/api/support/admin/all');
+    return r.data;
+  },
+  markAsRead: async (id: number): Promise<void> => {
+    await api.patch(`/api/support/admin/${id}/read`);
+  },
+  deleteMessage: async (id: number): Promise<void> => {
+    await api.delete(`/api/support/admin/${id}`);
+  },
+};
+
 
 export interface ContentDoc {
   key: string;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { MotiView } from 'moti';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { S, F, R } from '../constants/tokens';
@@ -133,16 +133,19 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           </Text>
           <Text style={{ fontSize: 13, fontWeight: '500', color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)', lineHeight: 20 }}>
             {tr
-              ? 'Günlük performansını üç faktörün ağırlıklı ortalamasıyla ölçeriz.'
-              : 'Your daily performance is measured by a weighted average of three factors.'}
+              ? 'Momentum, takip etmen gereken tek skor. Görevlerin, odağın ve serin bir araya gelip onu besler:'
+              : 'Momentum is the one score to watch. Your tasks, focus, and streak come together to feed it:'}
           </Text>
           {[
-            { label: tr ? '✅ Görev Tamamlama' : '✅ Task Completion', pct: '40%', color: theme.success },
-            { label: tr ? '⚡ Odak Süresi' : '⚡ Focus Time', pct: '35%', color: accentColor },
-            { label: tr ? '🔥 Günlük Seri' : '🔥 Daily Streak', pct: '25%', color: theme.streak },
+            { icon: <CheckCircle2 size={16} color={theme.success} />, label: tr ? 'Görev Tamamlama' : 'Task Completion', pct: '40%', color: theme.success },
+            { icon: <Zap size={16} color={accentColor} />, label: tr ? 'Odak Süresi' : 'Focus Time', pct: '35%', color: accentColor },
+            { icon: <Flame size={16} color={theme.streak} />, label: tr ? 'Günlük Seri' : 'Daily Streak', pct: '25%', color: theme.streak },
           ].map((row) => (
             <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)' }}>{row.label}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {row.icon}
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)' }}>{row.label}</Text>
+              </View>
               <Text style={{ fontSize: 14, fontWeight: '900', color: row.color }}>{row.pct}</Text>
             </View>
           ))}

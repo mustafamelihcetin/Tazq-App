@@ -29,9 +29,16 @@ interface SeasonalPrefs {
   spor2Date: string | null;
   spor3Goal: string;
   spor3Date: string | null;
+  // Tasarruf/Bütçe (tek slot) — tutarlar useBudgetStore'da; burada toggle/ad/hedef tarih.
+  tasarrufMode: boolean;
+  tasarrufName: string;
+  tasarrufDate: string | null;
+  // Bırakma (tek slot) — tip/başlangıç useQuitStore'da; burada toggle/ad. Deadline yok (seri).
+  birakmaMode: boolean;
+  birakmaName: string;
 }
 
-type PlanMode = 'exam' | 'exam2' | 'exam3' | 'ramazan' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'spor' | 'spor2' | 'spor3';
+type PlanMode = 'exam' | 'exam2' | 'exam3' | 'ramazan' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'spor' | 'spor2' | 'spor3' | 'tasarruf' | 'birakma';
 
 // Günlük plan motorunun ihtiyaç duyduğu kompakt plan tarifi.
 // Görevler artık önceden materyalize edilmiyor; bu spec'ten her gün üretiliyor.
@@ -79,6 +86,10 @@ interface PrefsState {
   spor2PlanTaskIds: number[];
   spor3PlanHabitIds: string[];
   spor3PlanTaskIds: number[];
+  tasarrufPlanHabitIds: string[];
+  tasarrufPlanTaskIds: number[];
+  birakmaPlanHabitIds: string[];
+  birakmaPlanTaskIds: number[];
   examReviewShown: boolean;
   setExamReviewShown: (v: boolean) => void;
   dismissedBannerKey: string;
@@ -135,6 +146,8 @@ const CLOUD_PREF_KEYS = [
   'sporPlanHabitIds', 'sporPlanTaskIds',
   'spor2PlanHabitIds', 'spor2PlanTaskIds',
   'spor3PlanHabitIds', 'spor3PlanTaskIds',
+  'tasarrufPlanHabitIds', 'tasarrufPlanTaskIds',
+  'birakmaPlanHabitIds', 'birakmaPlanTaskIds',
 ] as const;
 
 export const usePrefsStore = create<PrefsState>()(
@@ -166,6 +179,11 @@ export const usePrefsStore = create<PrefsState>()(
         spor2Date: null,
         spor3Goal: '',
         spor3Date: null,
+        tasarrufMode: false,
+        tasarrufName: '',
+        tasarrufDate: null,
+        birakmaMode: false,
+        birakmaName: '',
       },
       setSeasonalPref: (key, value) =>
         set((s) => ({ seasonal: { ...s.seasonal, [key]: value } })),
@@ -218,6 +236,10 @@ export const usePrefsStore = create<PrefsState>()(
       spor2PlanTaskIds: [],
       spor3PlanHabitIds: [],
       spor3PlanTaskIds: [],
+      tasarrufPlanHabitIds: [],
+      tasarrufPlanTaskIds: [],
+      birakmaPlanHabitIds: [],
+      birakmaPlanTaskIds: [],
       examReviewShown: false,
       setExamReviewShown: (v) => set({ examReviewShown: v }),
       dismissedBannerKey: '',
@@ -249,6 +271,8 @@ export const usePrefsStore = create<PrefsState>()(
         if (mode === 'spor') return set({ sporPlanHabitIds: habitIds, sporPlanTaskIds: taskIds });
         if (mode === 'spor2') return set({ spor2PlanHabitIds: habitIds, spor2PlanTaskIds: taskIds });
         if (mode === 'spor3') return set({ spor3PlanHabitIds: habitIds, spor3PlanTaskIds: taskIds });
+        if (mode === 'tasarruf') return set({ tasarrufPlanHabitIds: habitIds, tasarrufPlanTaskIds: taskIds });
+        if (mode === 'birakma') return set({ birakmaPlanHabitIds: habitIds, birakmaPlanTaskIds: taskIds });
         return set({ ramazanPlanHabitIds: habitIds, ramazanPlanTaskIds: taskIds });
       },
       clearPlanIds: (mode) => {
@@ -265,6 +289,8 @@ export const usePrefsStore = create<PrefsState>()(
           if (mode === 'spor') return { sporPlanHabitIds: [], sporPlanTaskIds: [], planSpecs };
           if (mode === 'spor2') return { spor2PlanHabitIds: [], spor2PlanTaskIds: [], planSpecs };
           if (mode === 'spor3') return { spor3PlanHabitIds: [], spor3PlanTaskIds: [], planSpecs };
+          if (mode === 'tasarruf') return { tasarrufPlanHabitIds: [], tasarrufPlanTaskIds: [], planSpecs };
+          if (mode === 'birakma') return { birakmaPlanHabitIds: [], birakmaPlanTaskIds: [], planSpecs };
           return { ramazanPlanHabitIds: [], ramazanPlanTaskIds: [], planSpecs };
         });
       },
@@ -309,9 +335,30 @@ export const usePrefsStore = create<PrefsState>()(
         try {
           const parsed = JSON.parse(prefsJson);
           if (!parsed || typeof parsed !== 'object') return;
+
+          // ── LOCAL-OTORİTER PLAN KORUMASI ──────────────────────────────────
+          // Bu fonksiyon her açılışta (getCurrentUser → setUser) çağrılıyor.
+          // Eskiden bulut `seasonal`/plan id'lerini local'in üzerine KOŞULSUZ yazıyordu.
+          // Bulut kopyası bayatsa (ör. senkron 429 yiyip güncellenmediyse), kullanıcının
+          // YENİ açtığı aktif modları her açılışta SİLİYORDU. Offline-first'te local
+          // otoriterdir: local'de aktif plan/mod varsa bulut plan anahtarlarını EZMEZ
+          // (bulut yalnızca local boşken — yeni cihaz/ilk kurulum — doldurur).
+          const local = get() as any;
+          const s = local.seasonal || {};
+          const localHasPlans =
+            !!(s.examMode || s.tezMode || s.mulakatMode || s.sporMode || s.ramazan || s.tasarrufMode || s.birakmaMode ||
+               s.examName || s.tezName || s.mulakatName || s.sporGoal || s.tasarrufName || s.birakmaName) ||
+            CLOUD_PREF_KEYS.some(k =>
+              (k.endsWith('PlanHabitIds') || k.endsWith('PlanTaskIds')) &&
+              Array.isArray(local[k]) && local[k].length > 0);
+          const isPlanKey = (k: string) =>
+            k === 'seasonal' || k === 'planSpecs' || k.endsWith('PlanHabitIds') || k.endsWith('PlanTaskIds');
+
           const patch: Record<string, any> = {};
           for (const key of CLOUD_PREF_KEYS) {
-            if (parsed[key] !== undefined) patch[key] = parsed[key];
+            if (parsed[key] === undefined) continue;
+            if (localHasPlans && isPlanKey(key)) continue; // local kazanır → bayat bulut aktif planları ezmesin
+            patch[key] = parsed[key];
           }
           if (Object.keys(patch).length > 0) set(patch as any);
           // Buluttaki başarım durumunu achievement store'a birleştir (union).
@@ -359,6 +406,11 @@ export const usePrefsStore = create<PrefsState>()(
           spor2Date: null,
           spor3Goal: '',
           spor3Date: null,
+          tasarrufMode: false,
+          tasarrufName: '',
+          tasarrufDate: null,
+          birakmaMode: false,
+          birakmaName: '',
           ...(persisted?.seasonal ?? {}),
         },
         motto: (persisted as any)?.motto ?? '',

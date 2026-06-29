@@ -21,10 +21,11 @@ import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { FocusService } from '../services/api';
-import { S, R, F, B } from '../constants/tokens';
+import { S, R, F, B, TRACKING } from '../constants/tokens';
 import { Touchable } from '@/components/Touchable';
 import { DottedBackground } from '../components/DottedBackground';
 import { CustomAlert as Alert } from '../components/CustomAlert';
+import { useUiDepth } from '../hooks/useUiDepth';
 
 // Alışkanlık odaklı kalmalı — mantıklı üst sınır (plan + manuel toplam).
 const MAX_HABITS = 15;
@@ -69,7 +70,10 @@ export default function CockpitScreen() {
   const isDark = colorScheme === 'dark';
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { height: screenHeight } = useWindowDimensions();
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+  // Küçük ekranlarda boşlukları bir kademe sık → dikey kaydırma azalır.
+  const isSmallScreen = screenWidth < 380 || screenHeight < 700;
+  const compactPad = isSmallScreen ? S.sm : S.md;
   const { language } = useLanguageStore();
   const { tasks } = useTaskStore();
   const { habits, addHabit, removeHabit, toggleDate, weeklyGoal, setWeeklyGoal, getStreak } = useHabitStore();
@@ -126,6 +130,7 @@ export default function CockpitScreen() {
   const [addVisible, setAddVisible] = useState(false);
   const [showDayHint, setShowDayHint] = useState(false);
   const [planVisible, setPlanVisible] = useState(false);
+  useUiDepth(addVisible || planVisible);
   const [completingHabitIds, setCompletingHabitIds] = useState<Set<string>>(new Set());
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('💪');
@@ -399,7 +404,7 @@ export default function CockpitScreen() {
                   <Text 
                     numberOfLines={1} 
                     adjustsFontSizeToFit
-                    style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}
+                    style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
                   >
                       {tr ? 'Haftalık Merkez' : 'Weekly Hub'}
                   </Text>
@@ -425,11 +430,11 @@ export default function CockpitScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingTop: 80, paddingHorizontal: S.lg, paddingBottom: 140 }}
+          contentContainerStyle={{ paddingTop: 80, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
         >
           {/* ── WEEK STRIP ── */}
-          <BentoCard index={0} style={{ padding: S.md, marginBottom: S.md }}>
+          <BentoCard index={0} style={{ padding: compactPad, marginBottom: S.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
                 {tr ? 'BU HAFTA' : 'THIS WEEK'}
@@ -511,6 +516,24 @@ export default function CockpitScreen() {
           </BentoCard>
 
           {/* ── SELECTED DAY TASKS ── */}
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
+              {selectedDayLabel.toUpperCase()}
+            </Text>
+            <Touchable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push({ pathname: '/tasks', params: { action: 'add', dateFilter: selectedDay } });
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: theme.primary + '18', paddingHorizontal: 12, paddingVertical: 6, borderRadius: R.full }}
+            >
+              <Plus size={13} color={theme.primary} strokeWidth={2.5} />
+              <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
+                {tr ? 'Görev Ekle' : 'Add Task'}
+              </Text>
+            </Touchable>
+          </View>
+
           <AnimatePresence>
             {selectedDayTasks.length === 0 ? (
               <MotiView
@@ -524,30 +547,16 @@ export default function CockpitScreen() {
                   {
                     backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
                     borderColor: theme.outline + '30',
-                    marginBottom: S.md,
+                    marginBottom: S.lg,
+                    paddingVertical: 24,
                     alignItems: 'center',
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    paddingVertical: S.md,
-                    paddingHorizontal: S.md,
+                    justifyContent: 'center',
                   },
                 ]}
               >
-                <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.5 }}>
                   {tr ? 'Planlanmış görev yok' : 'No tasks planned'}
                 </Text>
-                <Touchable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push({ pathname: '/tasks', params: { action: 'add', dateFilter: selectedDay } });
-                  }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary + '18', paddingHorizontal: S.sm, paddingVertical: 5, borderRadius: R.full }}
-                >
-                  <Plus size={12} color={theme.primary} />
-                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.primary }}>
-                    {tr ? 'Ekle' : 'Add'}
-                  </Text>
-                </Touchable>
               </MotiView>
             ) : (
               <MotiView
@@ -563,27 +572,10 @@ export default function CockpitScreen() {
                       ? theme.surfaceContainerHigh
                       : theme.surfaceContainerLowest,
                     borderColor: theme.outline + '30',
-                    marginBottom: S.md,
+                    marginBottom: S.lg,
                   },
                 ]}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.xs }}>
-                  <Text style={[styles.dayTasksHeading, { color: theme.onSurfaceVariant, marginBottom: 0 }]}>
-                    {selectedDayLabel}
-                  </Text>
-                  <Touchable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push({ pathname: '/tasks', params: { action: 'add', dateFilter: selectedDay } });
-                    }}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary + '18', paddingHorizontal: S.sm, paddingVertical: 4, borderRadius: R.full }}
-                  >
-                    <Plus size={11} color={theme.primary} />
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary }}>
-                      {tr ? 'Görev Ekle' : 'Add Task'}
-                    </Text>
-                  </Touchable>
-                </View>
                 {selectedDayTasks.slice(0, 5).map((task, idx) => (
                   <Touchable
                     key={task.id}
@@ -741,7 +733,7 @@ export default function CockpitScreen() {
                 const habitExitAnim = habitExitAnimMap.current.get(habit.id);
                 return (
                   <Animated.View key={habit.id} style={habitExitAnim ? { opacity: habitExitAnim.opacity, transform: [{ translateY: habitExitAnim.translateY }] } : undefined}>
-                  <View style={[styles.habitCard, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
+                  <View style={[styles.habitCard, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }, isSmallScreen && { padding: S.sm }]}>
                     <View style={styles.habitRow}>
                       {/* Emoji + name + streak */}
                       <View style={styles.habitLeft}>

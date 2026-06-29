@@ -892,12 +892,13 @@ export default function FocusScreen() {
 
             <Animated.View
               pointerEvents={zenMode && isActive ? "box-none" : "auto"}
-              style={{
+              style={[styles.timerCircle, {
                 width: '100%',
                 height: '100%',
                 zIndex: 10,
+                borderRadius: timerSize / 2,
                 transform: [{ scale: circleScaleAnim }]
-              }}
+              }]}
             >
               <Touchable
                 activeOpacity={0.9}
@@ -907,10 +908,15 @@ export default function FocusScreen() {
                     setZenMode(!zenMode);
                   }
                 }}
-                style={[styles.timerCircle, {
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest,
                   borderRadius: timerSize / 2,
-                }]}
+                  overflow: 'hidden',
+                }}
               >
                 {/* Standard Timer View (Fades out when Zen Mode is active) */}
                 <MotiView

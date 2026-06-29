@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard, FlatList } from 'react-native';
 import { CustomAlert as Alert } from '../components/CustomAlert';
+import { useUiDepth } from '../hooks/useUiDepth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,7 +37,7 @@ import { categorizeTask } from '../utils/taskIntelligence';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useCompletionStore } from '../store/useCompletionStore';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
-import { S, R, F, scale, verticalScale, moderateScale, B } from '../constants/tokens';
+import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING } from '../constants/tokens';
 import VoiceService from '../utils/voice';
 import { useNetworkStore } from '../store/useNetworkStore';
 import { useOfflineQueue } from '../store/useOfflineQueue';
@@ -388,9 +389,11 @@ export default function ActionCenter() {
   const [sortBy, setSortBy] = useState<'priority' | 'date' | 'creation'>('creation');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [showFutureManualTasks, setShowFutureManualTasks] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  useUiDepth(modalVisible || weightModalTaskId !== null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
   const [titleError, setTitleError] = useState(false);
@@ -974,6 +977,17 @@ export default function ActionCenter() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
+    const modeInfo = getModeInfoForTask(task, usePrefsStore.getState(), theme);
+    if (modeInfo) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        language === 'tr' ? 'Otomatik Plan Görevi' : 'Automated Plan Task',
+        language === 'tr' 
+          ? `Bu görev "${modeInfo.labelTr}" tarafından otomatik yönetildiği için manuel düzenlenemez. Ayarlarını değiştirmek için Modlar sayfasından hedef kartını kullanabilirsin.` 
+          : `This task is automatically managed by "${modeInfo.labelEn}". To adjust its behavior, please modify your settings in the Modes overview.`
+      );
+      return;
+    }
     setEditingId(id);
     setForm({
       title: task.title,
@@ -1159,9 +1173,14 @@ export default function ActionCenter() {
         if (d < todayStart || d > todayEnd) return false;
       }
       else if (filter !== 'all') { if (task.priority !== filter || task.isCompleted) return false; }
-      // Tarihi gelmemiş görevleri gizle — sadece bugün ve geçmiş olanlar görünür
+      // Tarihi gelmemiş görevleri gizle — dönemsel mod görevleri günü gelene kadar gizlenir, manuel görevler seçeneğe bağlı
       else if (filter === 'all' && !task.isCompleted && task.dueDate && !task.dueDate.startsWith('0001')) {
-        if (new Date(task.dueDate).getTime() > todayEndMs) return false;
+        const isFuture = new Date(task.dueDate).getTime() > todayEndMs;
+        if (isFuture) {
+          const modeInfo = getModeInfoForTask(task, usePrefsStore.getState(), theme);
+          if (modeInfo) return false;
+          if (!showFutureManualTasks) return false;
+        }
       }
       // dateFilter from cockpit "+N more" button (YYYY-MM-DD)
       if (dateFilter && task.dueDate) {
@@ -1189,7 +1208,7 @@ export default function ActionCenter() {
       });
     }
     return result;
-  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds]);
+  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds, showFutureManualTasks, theme]);
 
   const filteredTasks = filteredAndSortedTasks;
   const visibleTasks = useMemo(() => filteredTasks.slice(0, visibleCount), [filteredTasks, visibleCount]);
@@ -1336,9 +1355,9 @@ export default function ActionCenter() {
                   <Text 
                     numberOfLines={1} 
                     adjustsFontSizeToFit
-                    style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}
+                    style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
                   >
-                      {t.actionCenter}
+                      {isBulkMode ? (language === 'tr' ? 'Seçim' : 'Selection') : t.actionCenter}
                   </Text>
               </View>
 
@@ -1385,6 +1404,17 @@ export default function ActionCenter() {
                         {language === 'tr' ? 'Tamamlananları Gizle' : 'Hide Completed'}
                     </Text>
                     {hideCompleted && <Check size={18} color={theme.primary} />}
+                </Touchable>
+
+                {/* Show Future Manual Tasks Toggle */}
+                <Touchable
+                    onPress={() => { setShowFutureManualTasks(v => !v); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }}
+                    style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
+                >
+                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
+                        {language === 'tr' ? 'İleri Tarihli Eklenenleri Göster' : 'Show Future Manual Tasks'}
+                    </Text>
+                    {showFutureManualTasks && <Check size={18} color={theme.primary} />}
                 </Touchable>
 
                 {/* Archive Button */}
@@ -1620,19 +1650,47 @@ export default function ActionCenter() {
                 </View>
         </React.Fragment>
     )}
-            ListEmptyComponent={() => (
-                <MotiView key="empty" from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.emptyState}>
-                    <MotiView
-                        animate={{ rotate: ['0deg', '5deg', '-5deg', '0deg'] }}
-                        transition={{ loop: true, duration: 4000 }}
-                        style={{ marginBottom: 16, opacity: 0.25 }}
-                    >
-                        <Sparkles size={40} color={theme.primary} />
-                    </MotiView>
-                    <Text style={[styles.emptyTitle, { color: theme.onSurface }]}>{searchQuery.trim() ? t.noResults : t.allTasksReady}</Text>
-                    <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>{searchQuery.trim() ? (language === 'tr' ? `"${searchQuery}" için sonuç bulunamadı` : `No results for "${searchQuery}"`) : t.noTasksHint}</Text>
-                </MotiView>
-            )}
+            ListEmptyComponent={() => {
+                const isSearch = !!searchQuery.trim();
+                const hasCompletedTasks = tasks.some(t => t.isCompleted);
+                const titleText = isSearch
+                  ? t.noResults
+                  : hasCompletedTasks
+                  ? (language === 'tr' ? 'Bugün Dünyayı Kurtardın! ✨' : 'You Saved the Day! ✨')
+                  : (language === 'tr' ? 'Huzurlu bir boşluk 🌿' : 'Peaceful Canvas 🌿');
+                const bodyText = isSearch
+                  ? (language === 'tr' ? `"${searchQuery}" için sonuç bulunamadı` : `No results for "${searchQuery}"`)
+                  : hasCompletedTasks
+                  ? (language === 'tr' ? 'Tüm görevleri tertemiz bitirdin. Şimdi en sevdiğin kahveyi koy ve hiçbir şey düşünmeden dinlen ☕' : 'All cleared up! Time to grab your favorite coffee and relax your mind ☕')
+                  : (language === 'tr' ? 'Henüz planlanmış bir işin yok. Aklına gelen bir fikri sesle veya yazarak ekleyebilirsin.' : 'No tasks scheduled yet. Tap + or use your voice to capture your thoughts.');
+
+                return (
+                  <MotiView key="empty" from={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.emptyState}>
+                      <MotiView
+                          animate={{ scale: [1, 1.15, 1], rotate: ['0deg', '8deg', '-8deg', '0deg'] }}
+                          transition={{ loop: true, duration: 3500 }}
+                          style={{ marginBottom: 16, opacity: hasCompletedTasks ? 0.9 : 0.4 }}
+                      >
+                          <Sparkles size={44} color={hasCompletedTasks ? '#F59E0B' : theme.primary} />
+                      </MotiView>
+                      <Text style={[styles.emptyTitle, { color: theme.onSurface, textAlign: 'center' }]}>{titleText}</Text>
+                      <Text style={[styles.emptyText, { color: theme.onSurfaceVariant, textAlign: 'center', marginTop: 6, maxWidth: 280, lineHeight: 20 }]}>{bodyText}</Text>
+                      {!isSearch && !hasCompletedTasks && (
+                        <Touchable
+                          onPress={openAdd}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.primary, paddingHorizontal: S.lg, paddingVertical: S.sm + 2, borderRadius: R.full, marginTop: S.lg }}
+                          accessibilityRole="button"
+                          accessibilityLabel={language === 'tr' ? 'İlk görevini ekle' : 'Add your first task'}
+                        >
+                          <Plus size={18} color={theme.onPrimary} strokeWidth={2.5} />
+                          <Text style={{ color: theme.onPrimary, fontWeight: '800', fontSize: F.body }}>
+                            {language === 'tr' ? 'İlk görevini ekle' : 'Add your first task'}
+                          </Text>
+                        </Touchable>
+                      )}
+                  </MotiView>
+                );
+            }}
             renderItem={({ item: task, index: i }: any) => (
                 <MemoizedTaskItem
                     task={task}
@@ -1725,6 +1783,12 @@ export default function ActionCenter() {
                 const modeInfo = getModeInfoForTask(id, usePrefsStore.getState(), theme);
                 if (modeInfo) {
                     import('expo-haptics').then(Haptics => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
+                    Alert.alert(
+                      language === 'tr' ? 'Otomatik Plan Görevi' : 'Automated Plan Task',
+                      language === 'tr' 
+                        ? `Bu görev "${modeInfo.labelTr}" tarafından otomatik yönetildiği için manuel düzenlenemez. Ayarlarını değiştirmek için Modlar sayfasından hedef kartını kullanabilirsin.` 
+                        : `This task is automatically managed by "${modeInfo.labelEn}". To adjust its behavior, please modify your settings in the Modes overview.`
+                    );
                     return;
                 }
                 setIsBulkMode(false);

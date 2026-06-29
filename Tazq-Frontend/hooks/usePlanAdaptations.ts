@@ -252,6 +252,18 @@ export function usePlanAdaptations() {
   }, [addTask, setPlanIds]);
 
   const run = useCallback(async (force = false) => {
+    // ── HİDRASYON GÜVENLİĞİ (HER ÇAĞRI İÇİN) ───────────────────────────────
+    // run() aşağıda kapalı modlara ait plan/alışkanlık/config'i siler. Store'lar
+    // AsyncStorage'dan yüklenmeden çalışırsa seasonal=VARSAYILAN (tüm modlar kapalı)
+    // görünür → TÜM planlar yanlışlıkla silinir (cold boot'ta veri kaybı).
+    // Mount efekti zaten bekliyor; ama AppState 'active' dinleyicisi run()'ı kapısız
+    // çağırabiliyor → bu yüzden güvenliği run()'ın İÇİNE koyuyoruz (tüm yollar kapsanır).
+    // hasHydrated zustand 4.5 persist API'sinde garanti; yoksa (?? true) üretimi bloklamayız.
+    const prefsHyd = (usePrefsStore as any).persist?.hasHydrated?.() ?? true;
+    const habitHyd = (useHabitStore as any).persist?.hasHydrated?.() ?? true;
+    const taskHyd = (useTaskStore as any).persist?.hasHydrated?.() ?? true;
+    if (!prefsHyd || !habitHyd || !taskHyd) return;
+
     // ── PLAN AUTO-CLEANUP ON EXPIRATION ────────────────────────────────────
     const freshPrefs = usePrefsStore.getState();
     const freshSeasonal = freshPrefs.seasonal;
@@ -359,40 +371,12 @@ export function usePlanAdaptations() {
       freshPrefs.setSeasonalPref('mulakatMode', false);
     }
 
-    // SPORS
-    let anySporExpired = false;
-    // Spor 1
-    if (freshSeasonal.sporMode && freshSeasonal.sporDate && new Date(freshSeasonal.sporDate).setHours(23, 59, 59, 999) < now) {
-      freshPrefs.sporPlanHabitIds.forEach(id => removeHabitFn(id));
-      freshPrefs.sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor'));
-      freshPrefs.clearPlanIds('spor');
-      freshPrefs.setSeasonalPref('sporGoal', '');
-      freshPrefs.setSeasonalPref('sporDate', null);
-      anySporExpired = true;
-    }
-    // Spor 2
-    if (freshSeasonal.spor2Goal && freshSeasonal.spor2Date && new Date(freshSeasonal.spor2Date).setHours(23, 59, 59, 999) < now) {
-      freshPrefs.spor2PlanHabitIds.forEach(id => removeHabitFn(id));
-      freshPrefs.spor2PlanTaskIds.forEach(id => retirePlanTask(id, 'spor2'));
-      freshPrefs.clearPlanIds('spor2');
-      freshPrefs.setSeasonalPref('spor2Goal', '');
-      freshPrefs.setSeasonalPref('spor2Date', null);
-      anySporExpired = true;
-    }
-    // Spor 3
-    if (freshSeasonal.spor3Goal && freshSeasonal.spor3Date && new Date(freshSeasonal.spor3Date).setHours(23, 59, 59, 999) < now) {
-      freshPrefs.spor3PlanHabitIds.forEach(id => removeHabitFn(id));
-      freshPrefs.spor3PlanTaskIds.forEach(id => retirePlanTask(id, 'spor3'));
-      freshPrefs.clearPlanIds('spor3');
-      freshPrefs.setSeasonalPref('spor3Goal', '');
-      freshPrefs.setSeasonalPref('spor3Date', null);
-      anySporExpired = true;
-    }
-    // Turn off sporMode globally ONLY after a real expiration cleared the last slot.
-    const updatedPrefsAfterSpors = usePrefsStore.getState();
-    if (anySporExpired && updatedPrefsAfterSpors.seasonal.sporMode && !updatedPrefsAfterSpors.seasonal.sporDate && !updatedPrefsAfterSpors.seasonal.spor2Date && !updatedPrefsAfterSpors.seasonal.spor3Date) {
-      freshPrefs.setSeasonalPref('sporMode', false);
-    }
+    // SPORS — deadline'da SESSİZ SİLME YOK.
+    // Spor/fiziksel hedef tarihinin geçmesi artık modlar ekranında kullanıcıya
+    // "Hedef Sonucu" diyaloğu (özet + Uzat/Kapat) olarak gösterilir; emeğin sonucu
+    // (ör. kilo: başlangıç→son) görünür olur. Otomatik temizlik kullanıcının
+    // kararını ezmesin diye buradan kaldırıldı (kapatma kararını review veriyor).
+    // Üretim tarafında süresi geçmiş spor için yeni görev üretilmez (aşağıda guard).
 
     // ── ORPHAN SWEEP ──────────────────────────────────────────────────────────
     // KAPALI modlara ait artık görevleri tag ile süpür. Mod kapatılırken id-tabanlı
@@ -587,7 +571,8 @@ export function usePlanAdaptations() {
     if (!force && !(await shouldRunToday())) return;
 
     // ── KILO ────────────────────────────────────────────────────────────────
-    if (activeSeasonal.sporMode && activeSeasonal.sporGoal) {
+    const sporDeadlinePast = !!activeSeasonal.sporDate && new Date(activeSeasonal.sporDate).setHours(23, 59, 59, 999) < Date.now();
+    if (activeSeasonal.sporMode && activeSeasonal.sporGoal && !sporDeadlinePast) {
       const sporType = detectSporTypeLocal(activeSeasonal.sporGoal);
 
       if (sporType === 'kilo') {

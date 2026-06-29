@@ -10,7 +10,8 @@ import '../global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { useColorScheme, View, LogBox, AppState, Text, TextInput } from 'react-native';
+import { useColorScheme, View, LogBox, AppState, Text, TextInput, Animated, StyleSheet } from 'react-native';
+import { uiDepth } from '../constants/uiDepth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- GLOBAL TYPOGRAPHY PROTECTION ---
@@ -446,23 +447,35 @@ export default function RootLayout() {
       <View style={{ flex: 1, backgroundColor: theme.background }}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
 
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: 'transparent' },
-            animation: 'fade_from_bottom',
+        {/* iOS PageSheet derinliği: bir sheet açılınca arka ekran küçülüp köşeleri
+            yuvarlanır ve kararır (uiDepth 0→1). RN Modal'lar üstte kalır → arka plan geri iter. */}
+        <Animated.View
+          style={{
+            flex: 1,
+            overflow: 'hidden',
+            borderRadius: uiDepth.interpolate({ inputRange: [0, 1], outputRange: [0, 16] }),
+            transform: [{ scale: uiDepth.interpolate({ inputRange: [0, 1], outputRange: [1, 0.93] }) }],
           }}
         >
-          <Stack.Screen name="onboarding" options={{ gestureEnabled: false, animation: 'none' }} />
-          <Stack.Screen name="login" options={{ gestureEnabled: false, animation: 'none' }} />
-          <Stack.Screen name="register" options={{ gestureEnabled: false, animation: 'none' }} />
-          <Stack.Screen name="index" options={{ gestureEnabled: false, animation: 'none' }} />
-          <Stack.Screen name="tasks" options={{ gestureEnabled: false, animation: 'none' }} />
-          <Stack.Screen name="cockpit" options={{ gestureEnabled: false, animation: 'none' }} />
-          <Stack.Screen name="modlar" options={{ gestureEnabled: false, animation: 'none' }} />
-          <Stack.Screen name="legal" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="report" options={{ animation: 'slide_from_right' }} />
-        </Stack>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: 'transparent' },
+              animation: 'fade_from_bottom',
+            }}
+          >
+            <Stack.Screen name="onboarding" options={{ gestureEnabled: false, animation: 'none' }} />
+            <Stack.Screen name="login" options={{ gestureEnabled: false, animation: 'none' }} />
+            <Stack.Screen name="register" options={{ gestureEnabled: false, animation: 'none' }} />
+            <Stack.Screen name="index" options={{ gestureEnabled: false, animation: 'none' }} />
+            <Stack.Screen name="tasks" options={{ gestureEnabled: false, animation: 'none' }} />
+            <Stack.Screen name="cockpit" options={{ gestureEnabled: false, animation: 'none' }} />
+            <Stack.Screen name="modlar" options={{ gestureEnabled: false, animation: 'none' }} />
+            <Stack.Screen name="legal" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="report" options={{ animation: 'slide_from_right' }} />
+          </Stack>
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: uiDepth.interpolate({ inputRange: [0, 1], outputRange: [0, 0.18] }) }]} />
+        </Animated.View>
 
         <FocusIsland />
         <Toast />

@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, Switch } from 'react-native';
 import { CustomAlert as Alert } from '../components/CustomAlert';
+import { useUiDepth } from '../hooks/useUiDepth';
 import { track } from '../utils/analytics';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { AuthService, FocusService } from '../services/api';
+import { AuthService, FocusService, SupportService } from '../services/api';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useAuthStore } from '../store/useAuthStore';
 import { useLanguageStore } from '../store/useLanguageStore';
@@ -28,6 +29,18 @@ import { DottedBackground } from '../components/DottedBackground';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
+// Kilitli rozetin "nasıl açılır" ipucu (id eşiği kodluyor: streak_3, momentum_50, focus_5h...).
+function achievementHint(id: string, tr: boolean): string {
+  if (id.startsWith('streak_')) { const n = id.split('_')[1]; return tr ? `${n} günlük seri yakala.` : `Reach a ${n}-day streak.`; }
+  if (id.startsWith('momentum_')) { const n = id.split('_')[1]; return tr ? `Momentum'u %${n} seviyesine çıkar.` : `Get momentum to ${n}%.`; }
+  if (id === 'focus_first') return tr ? 'İlk odak seansını başlat.' : 'Start your first focus session.';
+  if (id === 'focus_5h') return tr ? 'Toplam 5 saat odaklan.' : 'Focus for 5 hours in total.';
+  if (id === 'focus_25h') return tr ? 'Toplam 25 saat odaklan.' : 'Focus for 25 hours in total.';
+  if (id === 'first_task') return tr ? 'İlk görevini tamamla.' : 'Complete your first task.';
+  if (id === 'daily_perfect') return tr ? 'Bir günün tüm görevlerini bitir.' : "Complete all of a day's tasks.";
+  return tr ? 'Uygulamayı kullanmaya devam et.' : 'Keep using the app.';
+}
+
 export default function ProfileScreen() {
   const { theme, colorScheme, setTheme, currentSetting } = useAppTheme();
   const { user, setUser, logout } = useAuthStore();
@@ -44,6 +57,11 @@ export default function ProfileScreen() {
   const { unlocked: unlockedAchievements } = useAchievementStore();
 
   const [editModalVisible, setEditModalVisible] = useState(false);
+  useUiDepth(editModalVisible);
+  const [supportModalVisible, setSupportModalVisible] = useState(false);
+  const [supportText, setSupportText] = useState('');
+  const [sendingSupport, setSendingSupport] = useState(false);
+  useUiDepth(supportModalVisible);
   const [selectedAvatar, setSelectedAvatar] = useState(user?.avatar || 'm1');
   const [newName, setNewName] = useState(user?.name || '');
   const [selectedGoal, setSelectedGoal] = useState(dailyGoalMinutes);
@@ -165,6 +183,41 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account'), t.confirmDeleteAccount || (language === 'tr' ? 'Hesabınızı ve tüm verilerinizi kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.' : 'Are you sure you want to permanently delete your account and all associated data? This action cannot be undone.'), [
+      { text: t.cancel, style: "cancel" },
+      { 
+        text: t.yesDelete || (language === 'tr' ? 'Evet, Hesabımı Sil' : 'Yes, Delete Account'), 
+        style: "destructive", 
+        onPress: async () => { 
+          try { await AuthService.deleteAccount(); } catch {} 
+          logout(); 
+          router.replace('/login'); 
+        } 
+      }
+    ]);
+  };
+
+  const handleSendSupport = async () => {
+    if (!supportText.trim()) {
+      Alert.alert(language === 'tr' ? 'Hata' : 'Error', (t as any).support?.emptyError || 'Lütfen bir mesaj yaz.');
+      return;
+    }
+    setSendingSupport(true);
+    try {
+      await SupportService.sendMessage(supportText);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setSupportModalVisible(false);
+      setSupportText('');
+      Alert.alert(language === 'tr' ? 'Başarılı' : 'Success', (t as any).support?.success || 'Mesajın destek ekibine iletildi.');
+    } catch {
+      Alert.alert(language === 'tr' ? 'Hata' : 'Error', (t as any).support?.error || 'Mesaj gönderilemedi.');
+    } finally {
+      setSendingSupport(false);
+    }
+  };
+
+
   const toggleLanguage = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLanguage(language === 'tr' ? 'en' : 'tr');
@@ -201,7 +254,7 @@ export default function ProfileScreen() {
         <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 140, paddingHorizontal: S.lg, paddingTop: S.xl }}
+          contentContainerStyle={{ paddingBottom: 190, paddingHorizontal: S.lg, paddingTop: S.xl }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -290,8 +343,18 @@ export default function ProfileScreen() {
                     {Array.from({ length: Math.ceil(chips.length / 3) }, (_, rowIdx) => (
                       <View key={rowIdx} style={{ flexDirection: 'row', gap: S.xs }}>
                         {chips.slice(rowIdx * 3, rowIdx * 3 + 3).map(ach => (
-                          <View
+                          <Touchable
                             key={ach.id}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              Alert.alert(
+                                tr ? ach.titleTr : ach.titleEn,
+                                ach.locked
+                                  ? (tr ? `🔒 Nasıl açılır: ${achievementHint(ach.id, true)}` : `🔒 How to unlock: ${achievementHint(ach.id, false)}`)
+                                  : (tr ? `✓ Açıldı — ${ach.subtitleTr}` : `✓ Unlocked — ${ach.subtitleEn}`)
+                              );
+                            }}
                             style={{
                               flex: 1,
                               alignItems: 'center',
@@ -334,7 +397,7 @@ export default function ProfileScreen() {
                             }} numberOfLines={2}>
                               {tr ? ach.titleTr : ach.titleEn}
                             </Text>
-                          </View>
+                          </Touchable>
                         ))}
                         {chips.slice(rowIdx * 3, rowIdx * 3 + 3).length < 3 &&
                           Array.from({ length: 3 - chips.slice(rowIdx * 3, rowIdx * 3 + 3).length }, (_, i) => (
@@ -351,164 +414,149 @@ export default function ProfileScreen() {
 
           <View style={[styles.settingsSection, { marginTop: S.lg }]}>
             <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', marginBottom: S.lg }} />
-            <Text style={[styles.sectionTitle, { color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5, marginBottom: S.sm, marginLeft: S.xs }]}>{t.settings.toUpperCase()}</Text>
-            <View style={[styles.settingsCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', borderWidth: B.thin, borderRadius: R.lg, overflow: 'hidden' }]}>
-                <SettingItem 
-                    icon={<Bell size={18} color="#F59E0B" />} 
-                    label={t.notifications} 
+            <Text style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, fontWeight: '900', letterSpacing: -0.5, marginBottom: S.lg, marginLeft: S.xs }]}>{t.settings}</Text>
+
+            {/* ── BİLDİRİMLER ── */}
+            <SectionHeader title={language === 'tr' ? 'BİLDİRİMLER' : 'NOTIFICATIONS'} theme={theme} />
+            <SettingsCard theme={theme} isDark={isDark}>
+                <SettingItem
+                    icon={<Bell size={18} color="#F59E0B" />}
+                    label={t.notifications}
+                    sub={language === 'tr' ? 'Sistem izinleri' : 'System permission'}
                     bg={isDark ? "rgba(245, 158, 11, 0.1)" : "#F59E0B15"}
-                    right={<Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{notifEnabled ? t.notificationsEnabled : t.notificationsDisabled}</Text>}
-                    onPress={toggleNotifications} 
-                    theme={theme} 
+                    right={<Text style={{ color: notifEnabled ? '#10B981' : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{notifEnabled ? t.notificationsEnabled : t.notificationsDisabled}</Text>}
+                    onPress={toggleNotifications}
+                    theme={theme}
                 />
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
-                <SettingItem 
-                    icon={<Moon size={18} color="#818CF8" />} 
-                    label={t.appearance} 
+                <RowDivider isDark={isDark} />
+                <ToggleRow
+                    icon={<Sunrise size={18} color={theme.primary} />}
+                    bg={theme.primary + '15'}
+                    title={language === 'tr' ? 'Sabah Özeti' : 'Morning Brief'}
+                    subtitle={language === 'tr' ? 'Her sabah 08:00 — bugünkü görevler' : 'Daily at 08:00 — today\'s tasks'}
+                    value={morningBrief}
+                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setMorningBrief(v); if (!v) cancelMorningBrief(); }}
+                    theme={theme} isDark={isDark}
+                />
+                <RowDivider isDark={isDark} />
+                <ToggleRow
+                    icon={<Sunset size={18} color={theme.primary} />}
+                    bg={theme.primary + '15'}
+                    title={language === 'tr' ? 'Akşam Özeti' : 'Evening Brief'}
+                    subtitle={language === 'tr' ? 'Her gün 21:00 — günlük tamamlanma' : 'Daily at 21:00 — day completion'}
+                    value={eveningBrief}
+                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setEveningBrief(v); if (!v) cancelEveningBrief(); }}
+                    theme={theme} isDark={isDark}
+                />
+                <RowDivider isDark={isDark} />
+                <ToggleRow
+                    icon={<CalendarDays size={18} color={theme.primary} />}
+                    bg={theme.primary + '15'}
+                    title={language === 'tr' ? 'Haftalık Özet' : 'Weekly Summary'}
+                    subtitle={language === 'tr' ? 'Her Pazar akşamı momentum özeti' : 'Momentum recap every Sunday'}
+                    value={weeklyNotification}
+                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setWeeklyNotification(v); if (!v) cancelWeeklySummary(); }}
+                    theme={theme} isDark={isDark}
+                />
+            </SettingsCard>
+
+            {/* ── GÖRÜNÜM & DİL ── */}
+            <SectionHeader title={language === 'tr' ? 'GÖRÜNÜM & DİL' : 'APPEARANCE & LANGUAGE'} theme={theme} style={{ marginTop: S.lg }} />
+            <SettingsCard theme={theme} isDark={isDark}>
+                <SettingItem
+                    icon={<Moon size={18} color="#818CF8" />}
+                    label={t.appearance}
                     bg={isDark ? "rgba(129, 140, 248, 0.1)" : "#818CF815"}
-                    right={<Text style={{ color: theme.primary, fontWeight: '800', fontSize: F.body }}>{((t as any)[`theme${currentSetting.charAt(0).toUpperCase() + currentSetting.slice(1)}`] || currentSetting).toUpperCase()}</Text>} 
-                    onPress={toggleTheme} 
-                    theme={theme} 
+                    right={<Text style={{ color: theme.primary, fontWeight: '800', fontSize: F.caption }}>{((t as any)[`theme${currentSetting.charAt(0).toUpperCase() + currentSetting.slice(1)}`] || currentSetting).toUpperCase()}</Text>}
+                    onPress={toggleTheme}
+                    theme={theme}
                 />
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
-                <SettingItem 
-                    icon={<Languages size={18} color="#10B981" />} 
-                    label={t.language} 
+                <RowDivider isDark={isDark} />
+                <SettingItem
+                    icon={<Languages size={18} color="#10B981" />}
+                    label={t.language}
                     bg={isDark ? "rgba(16, 185, 129, 0.1)" : "#10B98115"}
-                    right={<Text style={{ color: theme.onSurface, fontWeight: '800', fontSize: F.body }}>{language.toUpperCase()}</Text>} 
-                    onPress={toggleLanguage} 
-                    theme={theme} 
+                    right={<Text style={{ color: theme.onSurface, fontWeight: '800', fontSize: F.caption }}>{language.toUpperCase()}</Text>}
+                    onPress={toggleLanguage}
+                    theme={theme}
                 />
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
+                <RowDivider isDark={isDark} />
+                <ToggleRow
+                    icon={<Zap size={18} color={theme.primary} />}
+                    bg={theme.primary + '15'}
+                    title={language === 'tr' ? 'Sade Mod' : 'Lite Mode'}
+                    subtitle={language === 'tr' ? 'Oyunlaştırma ve modları gizler — sadece görevler' : 'Hides gamification & modes — tasks only'}
+                    value={uiMode === 'lite'}
+                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
+                    theme={theme} isDark={isDark}
+                />
+            </SettingsCard>
+
+            {/* ── DENEYİM ── */}
+            <SectionHeader title={language === 'tr' ? 'DENEYİM' : 'EXPERIENCE'} theme={theme} style={{ marginTop: S.lg }} />
+            <SettingsCard theme={theme} isDark={isDark}>
+                <ToggleRow
+                    icon={<Volume2 size={18} color={theme.primary} />}
+                    bg={theme.primary + '15'}
+                    title={language === 'tr' ? 'Ses Efektleri' : 'Sound Effects'}
+                    subtitle={language === 'tr' ? 'Görev & timer tamamlama sesleri' : 'Task & timer completion sounds'}
+                    value={soundEffects}
+                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setSoundEffects(v); }}
+                    theme={theme} isDark={isDark}
+                />
+                <RowDivider isDark={isDark} />
                 <SettingItem
                     icon={<Shield size={18} color={isDark ? "#2DD4BF" : "#0D9488"} />}
-                    label={t.streakFreeze || 'Streak Shield'}
+                    label={t.streakFreeze}
+                    sub={language === 'tr' ? (streakFreezeAvailable ? '1 kalkan hazır — seriyi korur' : 'Bu hafta kullanıldı') : (streakFreezeAvailable ? '1 shield ready — protects streak' : 'Used this week')}
                     bg={isDark ? "rgba(45, 212, 191, 0.12)" : "rgba(13, 148, 136, 0.12)"}
-                    right={<Text style={{ color: streakFreezeAvailable ? (isDark ? '#2DD4BF' : '#0D9488') : theme.onSurface, fontWeight: '800', fontSize: F.body }}>{streakFreezeAvailable ? t.streakFreezeAvail || 'Ready' : t.streakFreezeUsed || 'Used'}</Text>}
+                    right={<Text style={{ color: streakFreezeAvailable ? (isDark ? '#2DD4BF' : '#0D9488') : theme.onSurfaceVariant, fontWeight: '800', fontSize: F.caption }}>{streakFreezeAvailable ? (language === 'tr' ? 'Hazır' : 'Ready') : (language === 'tr' ? 'Kullanıldı' : 'Used')}</Text>}
                     onPress={handleStreakFreeze}
                     theme={theme}
                 />
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
+            </SettingsCard>
+
+            {/* ── MERKEZ ── */}
+            <SectionHeader title={language === 'tr' ? 'MERKEZ' : 'HUB'} theme={theme} style={{ marginTop: S.lg }} />
+            <SettingsCard theme={theme} isDark={isDark}>
                 <SettingItem
                     icon={<CalendarDays size={18} color={theme.primary} />}
                     label={language === 'tr' ? 'Haftalık Merkez' : 'Weekly Hub'}
+                    sub={language === 'tr' ? 'Momentum, seri ve haftalık bakış' : 'Momentum, streak & weekly view'}
                     bg={theme.primary + '15'}
                     onPress={() => router.push('/cockpit')}
                     theme={theme}
                 />
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
-                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: theme.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
-                    <Sunrise size={18} color={theme.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
-                      {language === 'tr' ? 'Sabah Özeti' : 'Morning Brief'}
-                    </Text>
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
-                      {language === 'tr' ? 'Her sabah 08:00 — bugünkü görevler' : 'Daily at 08:00 — today\'s tasks'}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={morningBrief}
-                    onValueChange={(v) => {
-                      Haptics.selectionAsync();
-                      setMorningBrief(v);
-                      if (!v) cancelMorningBrief();
-                    }}
-                    trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: theme.primary + '80' }}
-                    thumbColor={morningBrief ? theme.primary : (isDark ? '#636366' : '#fff')}
-                  />
-                </View>
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
-                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: theme.secondary + '15', alignItems: 'center', justifyContent: 'center' }}>
-                    <Sunset size={18} color={theme.secondary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
-                      {language === 'tr' ? 'Akşam Özeti' : 'Evening Brief'}
-                    </Text>
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
-                      {language === 'tr' ? 'Her gün 21:00 — günlük tamamlanma' : 'Daily at 21:00 — day completion'}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={eveningBrief}
-                    onValueChange={(v) => {
-                      Haptics.selectionAsync();
-                      setEveningBrief(v);
-                      if (!v) cancelEveningBrief();
-                    }}
-                    trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: theme.secondary + '80' }}
-                    thumbColor={eveningBrief ? theme.secondary : (isDark ? '#636366' : '#fff')}
-                  />
-                </View>
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
-                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#F59E0B15', alignItems: 'center', justifyContent: 'center' }}>
-                    <CalendarDays size={18} color="#F59E0B" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
-                      {language === 'tr' ? 'Haftalık Özet' : 'Weekly Summary'}
-                    </Text>
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
-                      {language === 'tr' ? 'Her Pazar akşamı momentum özeti' : 'Momentum recap every Sunday'}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={weeklyNotification}
-                    onValueChange={(v) => {
-                      Haptics.selectionAsync();
-                      setWeeklyNotification(v);
-                      if (!v) cancelWeeklySummary();
-                    }}
-                    trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: theme.primary + '80' }}
-                    thumbColor={weeklyNotification ? theme.primary : (isDark ? '#636366' : '#fff')}
-                  />
-                </View>
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
-                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#6366F115', alignItems: 'center', justifyContent: 'center' }}>
-                    <Volume2 size={18} color="#6366F1" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
-                      {language === 'tr' ? 'Ses Efektleri' : 'Sound Effects'}
-                    </Text>
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
-                      {language === 'tr' ? 'Görev & timer tamamlama sesleri' : 'Task & timer completion sounds'}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={soundEffects}
-                    onValueChange={(v) => { Haptics.selectionAsync(); setSoundEffects(v); }}
-                    trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: '#6366F180' }}
-                    thumbColor={soundEffects ? '#6366F1' : (isDark ? '#636366' : '#fff')}
-                  />
-                </View>
-                <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.md }}>
-                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#6366F115', alignItems: 'center', justifyContent: 'center' }}>
-                    <Zap size={18} color="#6366F1" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
-                      {language === 'tr' ? 'Sade Mod' : 'Lite Mode'}
-                    </Text>
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
-                      {language === 'tr' ? 'Oyunlaştırma ve modları gizler — sadece görevler' : 'Hides gamification & modes — tasks only'}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={uiMode === 'lite'}
-                    onValueChange={(v) => { Haptics.selectionAsync(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
-                    trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: '#6366F180' }}
-                    thumbColor={uiMode === 'lite' ? '#6366F1' : (isDark ? '#636366' : '#fff')}
-                  />
-                </View>
-            </View>
+            </SettingsCard>
+
+            {/* ── YASAL & GİZLİLİK ── */}
+            <SectionHeader title={t.legalAndPrivacy || (language === 'tr' ? 'YASAL & GİZLİLİK' : 'LEGAL & PRIVACY')} theme={theme} style={{ marginTop: S.lg }} />
+            <SettingsCard theme={theme} isDark={isDark}>
+                <SettingItem
+                    icon={<FileText size={18} color="#8B5CF6" />}
+                    label={t.termsOfService || (language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service')}
+                    bg="#8B5CF615"
+                    onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
+                    theme={theme}
+                />
+                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
+                <SettingItem
+                    icon={<Shield size={18} color="#10B981" />}
+                    label={t.privacyPolicy || (language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy')}
+                    bg="#10B98115"
+                    onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
+                    theme={theme}
+                />
+                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
+                <SettingItem
+                    icon={<MessageSquare size={18} color="#3B82F6" />}
+                    label={(t as any).support?.title || (language === 'tr' ? 'Destek & İletişim' : 'Support & Contact')}
+                    sub={(t as any).support?.sub || (language === 'tr' ? 'Soru ve önerilerini ilet' : 'Send questions & feedback')}
+                    bg="#3B82F615"
+                    onPress={() => setSupportModalVisible(true)}
+                    theme={theme}
+                />
+            </SettingsCard>
 
             {user?.role === 'Admin' && (
               <Touchable
@@ -523,9 +571,14 @@ export default function ProfileScreen() {
               </Touchable>
             )}
 
-            <Touchable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md }]}>
+            <Touchable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
                 <LogOut size={18} color={theme.error} />
                 <Text style={[styles.logoutText, { color: theme.error, fontSize: F.body }]}>{t.logout}</Text>
+            </Touchable>
+
+            <Touchable onPress={handleDeleteAccount} style={[styles.logoutBtn, { backgroundColor: 'transparent', marginTop: S.sm, paddingVertical: S.sm, paddingHorizontal: S.md }]}>
+                <Trash2 size={16} color={theme.onSurfaceVariant} opacity={0.6} />
+                <Text style={[styles.logoutText, { color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6 }]}>{t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account')}</Text>
             </Touchable>
           </View>
         </ScrollView>
@@ -751,18 +804,110 @@ export default function ProfileScreen() {
               </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Support Modal */}
+      <Modal visible={supportModalVisible} transparent animationType="slide" onRequestClose={() => setSupportModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+            <Touchable style={StyleSheet.absoluteFill} onPress={() => setSupportModalVisible(false)} />
+            <View style={[styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', paddingBottom: insets.bottom + S.lg }]}>
+              <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
+              <Text style={[styles.modalTitle, { color: theme.onSurface, fontSize: F.subhead }]}>
+                {(t as any).support?.title || (language === 'tr' ? 'Destek & İletişim' : 'Support & Contact')}
+              </Text>
+              <View style={{ paddingHorizontal: S.lg, gap: S.md }}>
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center' }}>
+                  {(t as any).support?.sub || (language === 'tr' ? 'Soru, öneri ve destek taleplerini doğrudan ekibimize ilet.' : 'Send us your questions, feedback, or support requests.')}
+                </Text>
+                <View style={[styles.inputGroup, { height: 120, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, paddingVertical: S.sm, alignItems: 'flex-start' }]}>
+                  <TextInput
+                    value={supportText}
+                    onChangeText={setSupportText}
+                    placeholder={(t as any).support?.placeholder || (language === 'tr' ? 'Mesajını buraya yaz...' : 'Write your message here...')}
+                    placeholderTextColor={theme.onSurfaceVariant + '99'}
+                    style={[{ color: theme.onSurface, fontSize: F.body, width: '100%', height: '100%' }]}
+                    multiline
+                    textAlignVertical="top"
+                    underlineColorAndroid="transparent"
+                  />
+                </View>
+                <Touchable
+                  onPress={handleSendSupport}
+                  disabled={sendingSupport}
+                  style={[styles.saveBtn, { backgroundColor: '#3B82F6', flexDirection: 'row', gap: S.sm, justifyContent: 'center' }]}
+                >
+                  {sendingSupport ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <>
+                      <Send size={18} color="white" />
+                      <Text style={{ color: 'white', fontWeight: '900', fontSize: F.body }}>{(t as any).support?.send || (language === 'tr' ? 'Mesajı Gönder' : 'Send Message')}</Text>
+                    </>
+                  )}
+                </Touchable>
+              </View>
+            </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
 
-function SettingItem({ icon, label, right, onPress, theme, bg }: any) {
+// iOS tarzı bölüm başlığı (kartın üstünde küçük, harf aralıklı etiket)
+function SectionHeader({ title, theme, style }: any) {
     return (
-        <Touchable style={[styles.settingItem, { padding: S.md }]} onPress={onPress}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                <View style={[styles.iconBox, { backgroundColor: bg || (theme.colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)') }]}>{icon}</View>
-                <Text style={[styles.settingLabel, { color: theme.onSurface, fontSize: F.body }]}>{label}</Text>
+        <Text style={[{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.2, opacity: 0.6, marginLeft: S.md, marginBottom: S.sm, textTransform: 'uppercase' }, style]}>
+            {title}
+        </Text>
+    );
+}
+
+// Gruplanmış ayar kartı sarmalayıcı
+function SettingsCard({ children, theme, isDark, style }: any) {
+    return (
+        <View style={[{ backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', borderWidth: B.thin, borderRadius: R.lg, overflow: 'hidden' }, style]}>
+            {children}
+        </View>
+    );
+}
+
+// Kart içi satır ayıracı
+function RowDivider({ isDark }: any) {
+    return <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />;
+}
+
+// İkon + başlık + alt açıklama + Switch satırı (tek aksan rengi)
+function ToggleRow({ icon, bg, title, subtitle, value, onValueChange, theme, isDark }: any) {
+    return (
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 14, gap: 12 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
+            <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body, lineHeight: 20 }}>{title}</Text>
+                {!!subtitle && <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 2, lineHeight: 15 }}>{subtitle}</Text>}
             </View>
-            {right || <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.3} />}
+            <Switch
+                value={value}
+                onValueChange={onValueChange}
+                trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: theme.primary + '80' }}
+                thumbColor={value ? theme.primary : (isDark ? '#636366' : '#fff')}
+            />
+        </View>
+    );
+}
+
+function SettingItem({ icon, label, sub, right, onPress, theme, bg }: any) {
+    return (
+        <Touchable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: 14 }} onPress={onPress}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: bg || (theme.colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body, lineHeight: 20 }}>{label}</Text>
+                    {!!sub && <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 2, lineHeight: 15 }}>{sub}</Text>}
+                </View>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginLeft: 8 }}>
+                {right}
+                <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.3} />
+            </View>
         </Touchable>
     );
 }

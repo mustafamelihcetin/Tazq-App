@@ -629,6 +629,28 @@ export function detectSporType(goalLabel: string): SporType {
   return 'genel';
 }
 
+export function localizeSporGoal(goal: string | null | undefined, tr: boolean): string {
+  if (!goal) return '';
+  const g = goal.trim();
+  const hasEmoji = g.startsWith('🏃') || g.startsWith('💪') || g.startsWith('⚖️') || g.startsWith('✨') || g.startsWith('🏆');
+  if (g.includes('Kilo') || g.includes('Weight')) {
+    return hasEmoji ? (tr ? '⚖️ Kilo Yönetimi' : '⚖️ Weight Management') : (tr ? 'Kilo Yönetimi' : 'Weight Management');
+  }
+  if (g.includes('Maraton') || g.includes('Marathon') || g.includes('Koşu') || g.includes('Running')) {
+    return hasEmoji ? (tr ? '🏃 Maraton / Koşu' : '🏃 Marathon / Running') : (tr ? 'Maraton / Koşu' : 'Marathon / Running');
+  }
+  if (g.includes('Güç') || g.includes('Strength') || g.includes('Kas') || g.includes('Muscle')) {
+    return hasEmoji ? (tr ? '💪 Güç & Kas' : '💪 Strength & Muscle') : (tr ? 'Güç & Kas' : 'Strength & Muscle');
+  }
+  if (g.includes('Genel Form') || g.includes('General Fitness')) {
+    return hasEmoji ? (tr ? '✨ Genel Form' : '✨ General Fitness') : (tr ? 'Genel Form' : 'General Fitness');
+  }
+  if (g.includes('Spor Yarışması') || g.includes('Sport Competition') || g.includes('Yarışma') || g.includes('Competition')) {
+    return hasEmoji ? (tr ? '🏆 Spor Yarışması' : '🏆 Sport Competition') : (tr ? 'Spor Yarışması' : 'Sport Competition');
+  }
+  return goal;
+}
+
 // Returns the split label for a given day count and day index (0-based Mon)
 function splitDay(days: number, idx: number, lang: 'tr' | 'en'): string {
   const splits3 = lang === 'tr'
@@ -1043,8 +1065,8 @@ export function getSporMode(goalLabel: string, goalDate: string, inputs?: SporIn
 
   return {
     type: 'spor',
-    labelTr: cleanName,
-    labelEn: cleanName,
+    labelTr: localizeSporGoal(cleanName, true),
+    labelEn: localizeSporGoal(cleanName, false),
     subtitleTr: sporSub.tr,
     subtitleEn: sporSub.en,
     emoji: sporType === 'kilo' ? '⚖️' : sporType === 'maraton' ? '🏃' : sporType === 'yaris' ? '🏆' : sporType === 'genel' ? '✨' : '💪',

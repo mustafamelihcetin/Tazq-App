@@ -26,6 +26,24 @@ export function renderModeEmojiIcon(emoji: string, size = 16, color?: string) {
       return <Lucide.BarChart4 size={size} color={color} />;
     case '⚡':
       return <Lucide.Zap size={size} color={color} />;
+    case '🔥':
+      return <Lucide.Flame size={size} color={color} />;
+    case '💥':
+      return <Lucide.Zap size={size} color={color} />;
+    case '🚀':
+      return <Lucide.Rocket size={size} color={color} />;
+    case '👍':
+      return <Lucide.CheckCircle2 size={size} color={color} />;
+    case '🌱':
+      return <Lucide.Sprout size={size} color={color} />;
+    case '📈':
+      return <Lucide.TrendingUp size={size} color={color} />;
+    case '📉':
+      return <Lucide.TrendingDown size={size} color={color} />;
+    case '👑':
+      return <Lucide.Crown size={size} color={color} />;
+    case '💤':
+      return <Lucide.Moon size={size} color={color} />;
     case '🏗️':
       return <Lucide.Hammer size={size} color={color} />;
     case '🧪':
@@ -68,6 +86,28 @@ export function renderModeEmojiIcon(emoji: string, size = 16, color?: string) {
       return <Lucide.Activity size={size} color={color} />;
     case '🧠':
       return <Lucide.Brain size={size} color={color} />;
+    case '💰':
+      return <Lucide.PiggyBank size={size} color={color} />;
+    case '💸':
+      return <Lucide.Wallet size={size} color={color} />;
+    case '💵':
+      return <Lucide.Banknote size={size} color={color} />;
+    case '🚭':
+      return <Lucide.Ban size={size} color={color} />;
+    case '🚫':
+      return <Lucide.CircleSlash size={size} color={color} />;
+    case '🛡️':
+      return <Lucide.Shield size={size} color={color} />;
+    case '🚬':
+      return <Lucide.Cigarette size={size} color={color} />;
+    case '📱':
+      return <Lucide.Smartphone size={size} color={color} />;
+    case '🍬':
+      return <Lucide.Candy size={size} color={color} />;
+    case '🍷':
+      return <Lucide.Wine size={size} color={color} />;
+    case '🎲':
+      return <Lucide.Dices size={size} color={color} />;
 
     // Habits & Tasks
     case '🚶':

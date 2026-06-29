@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useMemo, useRef } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, CalendarClock, Layers, Flame } from 'lucide-react-native';
 import { MotiView } from 'moti';
@@ -9,8 +10,10 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useHabitStore } from '../store/useHabitStore';
 import { useTaskStore } from '../store/useTaskStore';
-import { S, R, F, B } from '../constants/tokens';
+import { S, R, F, B, TRACKING, SPRING } from '../constants/tokens';
 import { track } from '../utils/analytics';
+import { renderModeEmojiIcon } from '../utils/modeIcons';
+import { localizeSporGoal } from '../utils/turkishModes';
 
 // Bu haftanın (Pzt–Paz) 'YYYY-MM-DD' anahtarları.
 function thisWeekKeys(): Set<string> {
@@ -26,6 +29,12 @@ function thisWeekKeys(): Set<string> {
   }
   return keys;
 }
+
+// Etiketteki ham emoji'leri temizle (preset adı "⚖️ Kilo Yönetimi" gibi).
+const stripEmoji = (s: string) => s
+  .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
+  .replace(/\s+/g, ' ')
+  .trim();
 
 function daysLeftOf(dateStr: string | null): number | null {
   if (!dateStr) return null;
@@ -49,6 +58,7 @@ export default function ModOzetScreen() {
   const { language } = useLanguageStore();
   const tr = language === 'tr';
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const prefs = usePrefsStore();
   const seasonal = prefs.seasonal;
@@ -82,9 +92,9 @@ export default function ModOzetScreen() {
     if (seasonal.mulakat3Name) entries.push({ key: 'mulakat3', label: seasonal.mulakat3Name, color: '#10B981', emoji: '💼', days: daysLeftOf(seasonal.mulakat3Date), habitIds: prefs.mulakat3PlanHabitIds, taskIds: prefs.mulakat3PlanTaskIds });
   }
   if (seasonal.sporMode) {
-    entries.push({ key: 'spor', label: seasonal.sporGoal || sporLbl, color: '#F97316', emoji: '💪', days: daysLeftOf(seasonal.sporDate), habitIds: prefs.sporPlanHabitIds, taskIds: prefs.sporPlanTaskIds });
-    if (seasonal.spor2Goal) entries.push({ key: 'spor2', label: seasonal.spor2Goal, color: '#F97316', emoji: '💪', days: daysLeftOf(seasonal.spor2Date), habitIds: prefs.spor2PlanHabitIds, taskIds: prefs.spor2PlanTaskIds });
-    if (seasonal.spor3Goal) entries.push({ key: 'spor3', label: seasonal.spor3Goal, color: '#F97316', emoji: '💪', days: daysLeftOf(seasonal.spor3Date), habitIds: prefs.spor3PlanHabitIds, taskIds: prefs.spor3PlanTaskIds });
+    entries.push({ key: 'spor', label: localizeSporGoal(seasonal.sporGoal || '', tr) || sporLbl, color: '#F97316', emoji: '💪', days: daysLeftOf(seasonal.sporDate), habitIds: prefs.sporPlanHabitIds, taskIds: prefs.sporPlanTaskIds });
+    if (seasonal.spor2Goal) entries.push({ key: 'spor2', label: localizeSporGoal(seasonal.spor2Goal, tr), color: '#F97316', emoji: '💪', days: daysLeftOf(seasonal.spor2Date), habitIds: prefs.spor2PlanHabitIds, taskIds: prefs.spor2PlanTaskIds });
+    if (seasonal.spor3Goal) entries.push({ key: 'spor3', label: localizeSporGoal(seasonal.spor3Goal, tr), color: '#F97316', emoji: '💪', days: daysLeftOf(seasonal.spor3Date), habitIds: prefs.spor3PlanHabitIds, taskIds: prefs.spor3PlanTaskIds });
   }
   if (seasonal.ramazan) entries.push({ key: 'ramazan', label: tr ? 'Ramazan' : 'Ramadan', color: '#6366F1', emoji: '🌙', days: null, habitIds: prefs.ramazanPlanHabitIds, taskIds: prefs.ramazanPlanTaskIds });
 
@@ -118,6 +128,18 @@ export default function ModOzetScreen() {
     return tr ? 'Kendi tempondasın — düzenli küçük adımlar fark yaratır.' : 'At your own pace — steady small steps win.';
   })();
 
+  // ── iOS HIG: büyük başlık çöküşü + buzlu cam header (her iki platform) ──
+  const HEADER_H = 52;
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const frostOpacity = scrollY.interpolate({ inputRange: [0, 40], outputRange: [0, 1], extrapolate: 'clamp' });
+  const compactOpacity = scrollY.interpolate({ inputRange: [44, 72], outputRange: [0, 1], extrapolate: 'clamp' });
+  const compactTranslate = scrollY.interpolate({ inputRange: [44, 72], outputRange: [8, 0], extrapolate: 'clamp' });
+  const largeOpacity = scrollY.interpolate({ inputRange: [0, 52], outputRange: [1, 0], extrapolate: 'clamp' });
+  const largeScale = scrollY.interpolate({ inputRange: [0, 52], outputRange: [1, 0.94], extrapolate: 'clamp' });
+  const largeTranslate = scrollY.interpolate({ inputRange: [0, 52], outputRange: [0, -6], extrapolate: 'clamp' });
+  const onScroll = Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true });
+  const navTitle = tr ? 'Modların Özeti' : 'Modes Overview';
+
   const Stat = ({ icon, value, label, color }: { icon: React.ReactNode; value: string; label: string; color: string }) => (
     <View style={[styles.statCard, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
       <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: color + '18', alignItems: 'center', justifyContent: 'center', marginBottom: S.xs }}>{icon}</View>
@@ -127,17 +149,27 @@ export default function ModOzetScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'}>
-          <ArrowLeft size={24} color={theme.onSurface} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.onSurface }]}>{tr ? 'Modların Özeti' : 'Modes Overview'}</Text>
-        <View style={{ width: 40 }} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['left', 'right']}>
+      {/* Buzlu cam header — tepede şeffaf, kaydırınca belirginleşir (iOS BlurView / Android opak). */}
+      <View style={[styles.headerAbs, { height: HEADER_H + insets.top }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: frostOpacity }]}>
+          {Platform.OS === 'ios'
+            ? <BlurView intensity={40} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            : <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(18,18,22,0.94)' : 'rgba(255,255,255,0.96)' }]} />}
+          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
+        </Animated.View>
+        <View style={[styles.headerRow, { paddingTop: insets.top }]}>
+          <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'}>
+            <View style={styles.iconBtn}>
+              <ArrowLeft size={24} color={theme.onSurface} />
+            </View>
+            <Text numberOfLines={1} style={{ fontSize: 20, fontWeight: '800', color: theme.onSurface, letterSpacing: -0.5 }}>{navTitle}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {activeCount === 0 ? (
-        <View style={styles.center}>
+        <View style={[styles.center, { paddingTop: HEADER_H + insets.top }]}>
           <Text style={{ fontSize: 40, marginBottom: S.md }}>🧭</Text>
           <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', textAlign: 'center', marginBottom: 6 }}>{tr ? 'Henüz aktif mod yok' : 'No active modes yet'}</Text>
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center', lineHeight: 20, marginBottom: S.lg }}>{tr ? 'Bir hedef aç — buradan tüm modlarının gidişatını tek bakışta görürsün.' : 'Turn on a goal — track all your modes at a glance here.'}</Text>
@@ -146,7 +178,14 @@ export default function ModOzetScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 120, gap: S.lg }} showsVerticalScrollIndicator={false}>
+        <Animated.ScrollView
+          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: HEADER_H + insets.top + S.xs, paddingBottom: 120, gap: S.lg }}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={onScroll}
+        >
+
+
           {/* İçgörü satırı */}
           {coachLine ? (
             <View style={[styles.coach, { backgroundColor: (nearest?.color ?? theme.primary) + '14', borderColor: (nearest?.color ?? theme.primary) + '33' }]}>
@@ -183,15 +222,15 @@ export default function ModOzetScreen() {
                 key={c.key}
                 from={{ opacity: 0, translateY: 8 }}
                 animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: 'timing', duration: 300, delay: i * 60 }}
+                transition={{ ...SPRING, delay: i * 60 }}
                 style={[styles.modeRow, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: c.color + (isDark ? '33' : '22') }]}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                   <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: c.color + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 20 }}>{c.emoji}</Text>
+                    {renderModeEmojiIcon(c.emoji, 20, c.color)}
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{c.label}</Text>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{stripEmoji(c.label) || c.label}</Text>
                     <Text style={{ color: c.days === -1 ? theme.error : c.color, fontSize: F.caption, fontWeight: '600', marginTop: 1 }}>
                       {c.days === null ? (tr ? 'Süresiz' : 'Open-ended') : c.days === -1 ? (tr ? 'Tarih geçti' : 'Date passed') : c.days === 0 ? (tr ? 'Bugün!' : 'Today!') : (tr ? `${c.days} gün kaldı` : `${c.days} days left`)}
                     </Text>
@@ -218,7 +257,7 @@ export default function ModOzetScreen() {
               </MotiView>
             ))}
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
       )}
     </SafeAreaView>
   );
@@ -226,8 +265,12 @@ export default function ModOzetScreen() {
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.sm },
+  headerAbs: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
+  headerRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md },
+  compactTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', letterSpacing: TRACKING.subhead },
+  largeTitle: { fontSize: 30, fontWeight: '800', letterSpacing: TRACKING.hero, includeFontPadding: false },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
+  title: { fontSize: 20, fontWeight: '800', letterSpacing: TRACKING.title },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl },
   statCard: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: 2 },
   section: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md },

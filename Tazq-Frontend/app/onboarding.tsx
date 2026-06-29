@@ -42,6 +42,13 @@ const SLIDES = [
     type: 'smart_input',
   },
   {
+    id: 'modes',
+    titleKey: 'onboardingTitleModes',
+    bodyKey: 'onboardingBodyModes',
+    color: '#8b5cf6',
+    type: 'modes',
+  },
+  {
     id: '3',
     titleKey: 'onboardingTitle3',
     bodyKey: 'onboardingBody3b',
@@ -310,6 +317,34 @@ export default function OnboardingScreen() {
                 >
                   <Text style={{ fontSize: 11, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
                   <Text style={{ fontSize: 11, fontWeight: '900', color: item.color }}>{row.pct}</Text>
+                </MotiView>
+              ))}
+            </View>
+          </View>
+        );
+      case 'modes':
+        return (
+          <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
+            <View style={{ alignItems: 'center', justifyContent: 'center', gap: 10, flex: 1, paddingHorizontal: 20 }}>
+              {[
+                { emoji: '🚭', label: 'Sigarayı Bırak', sub: 'Gün gün plan', color: '#ff2d55' },
+                { emoji: '💰', label: 'Tasarruf', sub: 'Birikim hedefi', color: '#00cc88' },
+                { emoji: '🎓', label: 'Sınava Hazırlık', sub: 'Günlük program', color: item.color },
+              ].map((row, i) => (
+                <MotiView
+                  key={i}
+                  animate={{ translateX: isActive ? 0 : 36, opacity: isActive ? 1 : 0 }}
+                  transition={{ delay: 300 + i * 130, type: 'spring' }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%', backgroundColor: row.color + '14', borderRadius: 14, paddingHorizontal: 14, paddingVertical: isSmallDevice ? 9 : 12 }}
+                >
+                  <Text style={{ fontSize: isSmallDevice ? 22 : 26 }}>{row.emoji}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: isSmallDevice ? 12 : 14, fontWeight: '800', color: theme.onSurface }}>{row.label}</Text>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.7 }}>{row.sub}</Text>
+                  </View>
+                  <View style={{ width: 30, height: 18, borderRadius: 9, backgroundColor: row.color, alignItems: 'flex-end', justifyContent: 'center', paddingHorizontal: 2 }}>
+                    <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#fff' }} />
+                  </View>
                 </MotiView>
               ))}
             </View>

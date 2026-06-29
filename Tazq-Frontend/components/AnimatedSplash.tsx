@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Easing, useWindowDimensions } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { TazqLogo } from './TazqLogo';
 
 const DARK_BG = '#0A0A0A';
@@ -26,6 +27,7 @@ export const AnimatedSplash = ({
 
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoY = useRef(new Animated.Value(14)).current;
+  const logoScale = useRef(new Animated.Value(1)).current;
   const lineScale = useRef(new Animated.Value(0)).current;
   const lineOpacity = useRef(new Animated.Value(0)).current;
   const screenOpacity = useRef(new Animated.Value(1)).current;
@@ -33,8 +35,16 @@ export const AnimatedSplash = ({
   useEffect(() => {
     onReady();
 
+    // Avuç İçinde Atan Kalp (Heartbeat Haptic Pulse) — Logo otururken minik çift titreşim
+    const hapticTimer = setTimeout(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(() => {});
+      setTimeout(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }, 140);
+    }, 650);
+
     Animated.sequence([
-      // Logo fades in + rises (0–700ms)
+      // 1. Logo fades in + rises (0–700ms)
       Animated.parallel([
         Animated.timing(logoOpacity, {
           toValue: 1,
@@ -50,10 +60,23 @@ export const AnimatedSplash = ({
         }),
       ]),
 
-      // Hold briefly
-      Animated.delay(200),
+      // 2. Kinetic Typographic Breath (Haptic ile senkronize mikroskopik kalp atışı)
+      Animated.sequence([
+        Animated.timing(logoScale, {
+          toValue: 1.035,
+          duration: 160,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoScale, {
+          toValue: 1,
+          duration: 240,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
 
-      // Line grows from center outward (900–1300ms)
+      // 3. Line grows from center outward
       Animated.parallel([
         Animated.timing(lineOpacity, {
           toValue: 1,
@@ -68,17 +91,19 @@ export const AnimatedSplash = ({
         }),
       ]),
 
-      // Hold
-      Animated.delay(700),
+      // 4. Hold
+      Animated.delay(600),
 
-      // Fade out everything
+      // 5. Fade out everything
       Animated.timing(screenOpacity, {
         toValue: 0,
-        duration: 600,
+        duration: 500,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start(() => onFinish());
+
+    return () => clearTimeout(hapticTimer);
   }, []);
 
   return (
@@ -86,7 +111,7 @@ export const AnimatedSplash = ({
       <Animated.View
         style={{
           opacity: logoOpacity,
-          transform: [{ translateY: logoY }],
+          transform: [{ translateY: logoY }, { scale: logoScale }],
           alignItems: 'center',
         }}
       >

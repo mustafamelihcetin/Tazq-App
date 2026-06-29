@@ -40,6 +40,32 @@ export const LH = {
   relaxed: 1.65,
 } as const;
 
+// ── Optik harf aralığı (SF Pro tracking) ──────────────────────────────────
+// Apple HIG: büyük başlıklar sıkı (negatif), küçük metin hafif açık (pozitif).
+// iOS'ta native his verir; Android'de de okunabilirliği bozmadan tutarlı durur.
+export const TRACKING = {
+  hero: -0.8,     // ~34pt büyük başlık
+  title: -0.4,    // 20–24pt başlık
+  subhead: -0.2,  // 17pt
+  body: -0.1,     // 14–16pt gövde
+  caption: 0.2,   // 11–13pt küçük ipucu / rozet (okunabilirlik için açılır)
+} as const;
+
+// ── Yay fiziği (Apple HIG damped spring) ──────────────────────────────────
+// Mekanik duration/easing yerine kütle-temelli yay → parmak ucunda "canlı" his.
+// Moti/Reanimated ile iki platformda da BİREBİR aynı çalışır.
+export const SPRING = { type: 'spring', mass: 1, stiffness: 140, damping: 18 } as const;       // tatlı esneme (kart/giriş)
+export const SPRING_SNAPPY = { type: 'spring', mass: 0.7, stiffness: 220, damping: 22 } as const; // hızlı/keskin (buton/sheet)
+export const SPRING_SOFT = { type: 'spring', mass: 1.1, stiffness: 90, damping: 18 } as const;    // yumuşak (büyük katman)
+
+// Punto → optik tracking eşlemesi (genel kullanım).
+export const trackingFor = (fontSize: number): number =>
+  fontSize >= 30 ? TRACKING.hero
+  : fontSize >= 20 ? TRACKING.title
+  : fontSize >= 16 ? TRACKING.body
+  : fontSize <= 12 ? TRACKING.caption
+  : TRACKING.subhead;
+
 export const B = {
   thin: Platform.OS === 'android' ? 1 : 1,
   medium: Platform.OS === 'android' ? 1.5 : 1.5,

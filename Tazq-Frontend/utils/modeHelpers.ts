@@ -14,6 +14,8 @@
  * her zaman aynı rengi gösterir. Eski hâlde theme.primary/secondary/... kullanıldığı
  * için spor yeşil, mülakat mor görünüp kartlarla çelişiyordu.
  */
+import { localizeSporGoal } from './turkishModes';
+
 type TaskLike = { id: number; tags?: string[] | null };
 
 // modlar.tsx kart paleti ile eşleşir.
@@ -25,7 +27,20 @@ const MODE_COLORS = {
   ramazan: '#6366F1',
 } as const;
 
+// Etiket adlarındaki ham emoji'leri temizler (ör. preset adı "⚖️ Kilo Yönetimi").
+// İkon/çip zaten flat tema ikonu gösteriyor; metinde ham emoji tutarsız durur.
+const stripEmoji = (s: string) => s
+  .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
+  .replace(/\s+/g, ' ')
+  .trim();
+
 export const getModeInfoForTask = (task: TaskLike | number, prefsStoreState: any, _theme?: any) => {
+  const r = getModeInfoForTaskRaw(task, prefsStoreState);
+  if (!r) return r;
+  return { ...r, labelTr: stripEmoji(r.labelTr) || r.labelTr, labelEn: stripEmoji(r.labelEn) || r.labelEn };
+};
+
+const getModeInfoForTaskRaw = (task: TaskLike | number, prefsStoreState: any) => {
   const p = prefsStoreState;
   if (!p) return null;
 
@@ -55,11 +70,19 @@ export const getModeInfoForTask = (task: TaskLike | number, prefsStoreState: any
 
   // ── SPOR ──
   if (p.spor2PlanTaskIds?.includes(taskId) || has('spor2'))
-    return { color: MODE_COLORS.spor, labelTr: p.seasonal?.spor2Goal || 'Spor Planı 2', labelEn: p.seasonal?.spor2Goal || 'Workout Plan 2' };
+    return { color: MODE_COLORS.spor, labelTr: localizeSporGoal(p.seasonal?.spor2Goal || 'Spor Planı 2', true), labelEn: localizeSporGoal(p.seasonal?.spor2Goal || 'Workout Plan 2', false) };
   if (p.spor3PlanTaskIds?.includes(taskId) || has('spor3'))
-    return { color: MODE_COLORS.spor, labelTr: p.seasonal?.spor3Goal || 'Spor Planı 3', labelEn: p.seasonal?.spor3Goal || 'Workout Plan 3' };
+    return { color: MODE_COLORS.spor, labelTr: localizeSporGoal(p.seasonal?.spor3Goal || 'Spor Planı 3', true), labelEn: localizeSporGoal(p.seasonal?.spor3Goal || 'Workout Plan 3', false) };
   if (p.sporPlanTaskIds?.includes(taskId) || has('spor', 'kilo', 'maraton', 'guc', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress'))
-    return { color: MODE_COLORS.spor, labelTr: p.seasonal?.sporGoal || 'Spor Planı', labelEn: p.seasonal?.sporGoal || 'Workout Plan' };
+    return { color: MODE_COLORS.spor, labelTr: localizeSporGoal(p.seasonal?.sporGoal || 'Spor Planı', true), labelEn: localizeSporGoal(p.seasonal?.sporGoal || 'Workout Plan', false) };
+
+  // ── TASARRUF / BÜTÇE ──
+  if (p.tasarrufPlanTaskIds?.includes(taskId) || has('tasarruf', 'budget_entry'))
+    return { color: '#06B6D4', labelTr: p.seasonal?.tasarrufName || 'Tasarruf', labelEn: p.seasonal?.tasarrufName || 'Savings' };
+
+  // ── BIRAKMA ──
+  if (p.birakmaPlanTaskIds?.includes(taskId) || has('birakma'))
+    return { color: '#EF4444', labelTr: p.seasonal?.birakmaName || 'Bırakma', labelEn: p.seasonal?.birakmaName || 'Quit' };
 
   // ── RAMAZAN ──
   if (p.ramazanPlanTaskIds?.includes(taskId) || has('ramazan', 'ramazan_kadir'))

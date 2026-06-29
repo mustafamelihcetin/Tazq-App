@@ -5,12 +5,13 @@ import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
 import {
   ChevronLeft, Users, CheckSquare, Clock, Trash2, Shield, ShieldOff,
-  Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban,
+  Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Mail
 } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { AdminService, AdminUser, AdminStats } from '../services/api';
+import { AdminService, AdminUser, AdminStats, SupportService, SupportMessageItem } from '../services/api';
+import { sendAdminSupportNotification } from '../utils/notifications';
 import { S, R, F, B } from '../constants/tokens';
 import * as Haptics from 'expo-haptics';
 import { Touchable } from '@/components/Touchable';
@@ -27,6 +28,9 @@ export default function AdminScreen() {
   const tr = language === 'tr';
   const myId = useAuthStore(s => s.user?.id);
 
+  const [activeTab, setActiveTab] = useState<'users' | 'support'>('users');
+  const [messages, setMessages] = useState<SupportMessageItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,16 +45,43 @@ export default function AdminScreen() {
     if (!silent) setLoading(true);
     setError(false);
     try {
-      const [s, u] = await Promise.all([AdminService.getStats(), AdminService.getUsers()]);
+      const [s, u, m] = await Promise.all([
+        AdminService.getStats(),
+        AdminService.getUsers(),
+        SupportService.getAllMessages().catch(() => ({ messages: [], unreadCount: 0 })),
+      ]);
       setStats(s);
       setUsers(u);
+      setMessages(m.messages);
+      setUnreadCount(m.unreadCount);
+      if (m.unreadCount > 0 && m.messages[0] && !m.messages[0].isRead) {
+        sendAdminSupportNotification(m.messages[0].userName, tr);
+      }
     } catch {
       setError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [tr]);
+
+  const handleMarkRead = async (msg: SupportMessageItem) => {
+    Haptics.selectionAsync();
+    try {
+      await SupportService.markAsRead(msg.id);
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isRead: true } : m));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch {}
+  };
+
+  const handleDeleteMessage = async (msg: SupportMessageItem) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await SupportService.deleteMessage(msg.id);
+      setMessages(prev => prev.filter(m => m.id !== msg.id));
+      if (!msg.isRead) setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch {}
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -283,8 +314,37 @@ export default function AdminScreen() {
             </>
           )}
 
-          {/* ── Search + Sort ── */}
-          <View style={{ gap: S.sm }}>
+          {/* Tab Switcher */}
+          <View style={{ flexDirection: 'row', backgroundColor: cardBg, borderRadius: R.full, padding: 4, borderWidth: B.thin, borderColor: cardBorder }}>
+            <Touchable
+              onPress={() => { Haptics.selectionAsync(); setActiveTab('users'); }}
+              style={{ flex: 1, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: activeTab === 'users' ? theme.primary : 'transparent', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.xs }}
+            >
+              <Users size={16} color={activeTab === 'users' ? '#FFF' : theme.onSurfaceVariant} />
+              <Text style={{ color: activeTab === 'users' ? '#FFF' : theme.onSurfaceVariant, fontWeight: '800', fontSize: F.body }}>
+                {tr ? 'Kullanıcılar' : 'Users'} ({stats?.totalUsers || users.length})
+              </Text>
+            </Touchable>
+            <Touchable
+              onPress={() => { Haptics.selectionAsync(); setActiveTab('support'); }}
+              style={{ flex: 1, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: activeTab === 'support' ? theme.primary : 'transparent', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.xs }}
+            >
+              <MessageSquare size={16} color={activeTab === 'support' ? '#FFF' : theme.onSurfaceVariant} />
+              <Text style={{ color: activeTab === 'support' ? '#FFF' : theme.onSurfaceVariant, fontWeight: '800', fontSize: F.body }}>
+                {tr ? 'Destek Mesajları' : 'Support'}
+              </Text>
+              {unreadCount > 0 && (
+                <View style={{ backgroundColor: '#EF4444', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900' }}>{unreadCount}</Text>
+                </View>
+              )}
+            </Touchable>
+          </View>
+
+          {activeTab === 'users' ? (
+            <>
+              {/* ── Search + Sort ── */}
+              <View style={{ gap: S.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, paddingHorizontal: S.sm, paddingVertical: S.xs }}>
               <Search size={16} color={theme.onSurfaceVariant} />
               <TextInput
@@ -456,6 +516,70 @@ export default function AdminScreen() {
               <Text style={{ color: theme.onSurfaceVariant, opacity: 0.5, fontWeight: '600' }}>
                 {tr ? 'Kullanıcı bulunamadı' : 'No users found'}
               </Text>
+            </View>
+          )}
+            </>
+          ) : (
+            <View style={{ gap: S.md }}>
+              {messages.length === 0 ? (
+                <View style={{ alignItems: 'center', paddingVertical: S.xl }}>
+                  <Text style={{ color: theme.onSurfaceVariant, opacity: 0.5, fontWeight: '600' }}>
+                    {tr ? 'Henüz destek mesajı bulunmuyor.' : 'No support messages yet.'}
+                  </Text>
+                </View>
+              ) : (
+                messages.map((m) => (
+                  <View
+                    key={m.id}
+                    style={{
+                      backgroundColor: m.isRead ? cardBg : (isDark ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.08)'),
+                      borderRadius: R.lg,
+                      borderWidth: m.isRead ? B.thin : 2,
+                      borderColor: m.isRead ? cardBorder : '#3B82F680',
+                      padding: S.md,
+                      gap: S.sm,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                          <Text style={{ color: theme.onSurface, fontWeight: '900', fontSize: F.body }}>{m.userName}</Text>
+                          {!m.isRead && (
+                            <View style={{ backgroundColor: '#3B82F6', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                              <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>{tr ? 'YENİ' : 'NEW'}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.7 }}>{m.userEmail}</Text>
+                      </View>
+                      <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.5 }}>
+                        {new Date(m.createdAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </View>
+                    <Text style={{ color: theme.onSurface, fontSize: F.body, lineHeight: 20, paddingVertical: 4 }}>
+                      {m.message}
+                    </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: S.sm, marginTop: 4 }}>
+                      {!m.isRead && (
+                        <Touchable
+                          onPress={() => handleMarkRead(m)}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10B98115', paddingHorizontal: S.sm, paddingVertical: 6, borderRadius: R.md, borderWidth: B.thin, borderColor: '#10B98140' }}
+                        >
+                          <Check size={14} color="#10B981" />
+                          <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '800' }}>{tr ? 'Okundu Yap' : 'Mark Read'}</Text>
+                        </Touchable>
+                      )}
+                      <Touchable
+                        onPress={() => handleDeleteMessage(m)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.error + '15', paddingHorizontal: S.sm, paddingVertical: 6, borderRadius: R.md, borderWidth: B.thin, borderColor: theme.error + '40' }}
+                      >
+                        <Trash2 size={14} color={theme.error} />
+                        <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '800' }}>{tr ? 'Sil' : 'Delete'}</Text>
+                      </Touchable>
+                    </View>
+                  </View>
+                ))
+              )}
             </View>
           )}
         </ScrollView>

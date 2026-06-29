@@ -9,7 +9,7 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useMomentumStore } from '../store/useMomentumStore';
 import { FocusService, UserStatsResponse } from '../services/api';
-import { S, R, F, B } from '../constants/tokens';
+import { S, R, F, B, TRACKING } from '../constants/tokens';
 import { generateWeeklyTips, computeWeeklyMetrics, getCoachAction, ProductivityHour } from '../utils/insights';
 import { track } from '../utils/analytics';
 
@@ -80,28 +80,39 @@ export default function ReportScreen() {
     </View>
   );
 
+  if (loading || error) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'}>
+            <ArrowLeft size={24} color={theme.onSurface} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: theme.onSurface }]}>{tr ? 'Haftalık Rapor' : 'Weekly Report'}</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        {loading ? (
+          <View style={styles.center}><ActivityIndicator color={theme.primary} /></View>
+        ) : (
+          <View style={styles.center}>
+            <Text style={{ color: theme.onSurfaceVariant, marginBottom: S.md }}>{tr ? 'Rapor yüklenemedi.' : 'Could not load report.'}</Text>
+            <TouchableOpacity onPress={load} style={{ paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.surfaceContainerHigh }} accessibilityRole="button" accessibilityLabel={tr ? 'Yeniden dene' : 'Retry'}>
+              <Text style={{ color: theme.onSurface, fontWeight: '700' }}>{tr ? '↺ Yeniden dene' : '↺ Retry'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { justifyContent: 'flex-start', gap: S.md }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'}>
           <ArrowLeft size={24} color={theme.onSurface} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.onSurface }]}>{tr ? 'Haftalık Rapor' : 'Weekly Report'}</Text>
-        <View style={{ width: 40 }} />
       </View>
-
-      {loading ? (
-        <View style={styles.center}><ActivityIndicator color={theme.primary} /></View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={{ color: theme.onSurfaceVariant, marginBottom: S.md }}>{tr ? 'Rapor yüklenemedi.' : 'Could not load report.'}</Text>
-          <TouchableOpacity onPress={load} style={{ paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.surfaceContainerHigh }} accessibilityRole="button" accessibilityLabel={tr ? 'Yeniden dene' : 'Retry'}>
-            <Text style={{ color: theme.onSurface, fontWeight: '700' }}>{tr ? '↺ Yeniden dene' : '↺ Retry'}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 120, gap: S.lg }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: 120, gap: S.lg }} showsVerticalScrollIndicator={false}>
           {/* Koç kartı — "şimdi ne yapmalıyım?" (kural-tabanlı, ücretsiz) */}
           {(() => {
             const c = TONE_COLOR[coach.tone] ?? theme.primary;
@@ -180,8 +191,7 @@ export default function ReportScreen() {
               );
             })}
           </View>
-        </ScrollView>
-      )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -189,7 +199,7 @@ export default function ReportScreen() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.sm },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
+  title: { fontSize: 20, fontWeight: '800', letterSpacing: TRACKING.title },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl },
   statCard: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: 2 },
   section: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md },

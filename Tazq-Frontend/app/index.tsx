@@ -25,12 +25,14 @@ import { StatusHub } from '../components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { parseTaskHint } from '../utils/taskParser';
 import { getSmartInsight } from '../utils/insights';
-import { S, R, F, scale, verticalScale, moderateScale, B } from '../constants/tokens';
+import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING } from '../constants/tokens';
 import { getAvatarSource } from '../utils/avatars';
 import { useToastStore } from '../store/useToastStore';
 import { useMomentumStore } from '../store/useMomentumStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
+import { renderModeEmojiIcon } from '../utils/modeIcons';
+import { useUiDepth } from '../hooks/useUiDepth';
 import { TurkishModeBanner } from '../components/TurkishModeBanner';
 import { MomentumPulse } from '../components/MomentumPulse';
 import { WeightEntryModal } from '../components/WeightEntryModal';
@@ -46,6 +48,8 @@ import { useOfflineQueue } from '../store/useOfflineQueue';
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
   const isSmallScreen = width < 380 || height < 700;
+  // Küçük ekranlarda kart içi boşlukları bir kademe sık → dikey kaydırma azalır.
+  const bentoPad = isSmallScreen ? S.sm : S.md;
   const { tasks, isLoading, setTasks, setLoading, addTask, toggleTaskCompletion } = useTaskStore(useShallow(state => ({
     tasks: state.tasks,
     isLoading: state.isLoading,
@@ -81,6 +85,7 @@ export default function HomeScreen() {
   const [statusHubVisible, setStatusHubVisible] = useState(false);
   const [weightModalTaskId, setWeightModalTaskId] = useState<number | null>(null);
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
+  useUiDepth(quickDraftVisible);
   const [draftTitle, setDraftTitle] = useState('');
   const [headerHighlight, setHeaderHighlight] = useState(false);
   const [todayHighlight, setTodayHighlight] = useState(false);
@@ -291,8 +296,11 @@ export default function HomeScreen() {
     ? Math.min(streak / 14, 1)
     : 1 + Math.min((streak - 14) / 28, 0.15); // small bonus up to 1.15x for long streaks, capped
 
-  // Habit completion component (from completion journal: last 7 days)
-  const completionHistory = getLastNDays(7);
+  // Habit activity component — SON 7 GÜN (bugün HARİÇ).
+  // Bugünü dahil edersek döngü olur: recordScore(momentum) bugünü geçmişe yazar,
+  // bu da habitScore'u artırıp momentumu değiştirir → sonsuz 27↔28 salınımı.
+  // getLastNDays(8)'in ilk 7'si = dünden 7 gün öncesine (bugün indeks 7'de, atılır).
+  const completionHistory = getLastNDays(8).slice(0, 7);
   const habitActivityDays = completionHistory.filter(d => d.score >= 0).length;
   const habitScore = habitActivityDays / 7;
 
@@ -699,7 +707,7 @@ export default function HomeScreen() {
 
         <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={[styles.scrollContent, { paddingTop: Platform.OS === 'android' ? insets.top + 68 + S.lg : S.sm + 68 + S.lg, paddingBottom: 120 }]}
+            contentContainerStyle={[styles.scrollContent, { paddingTop: Platform.OS === 'android' ? insets.top + 68 + S.md : S.sm + 68 + S.md, paddingBottom: 120 }]}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={isDark ? '#1a1b1e' : '#ffffff'} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
@@ -726,10 +734,18 @@ export default function HomeScreen() {
                 </Text>
             </MotiView>
 
+            {/* ── Momentum Pulse — günün tek skoru; en üstte "kuzey yıldızı" konumu ── */}
+            <MomentumPulse
+              score={momentum}
+              history={momentumHistory}
+              language={language}
+              loading={statsLoading}
+            />
+
             {/* ── TODAY CARD ── */}
             <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
             <Touchable onPress={handleTodayDoubleTap} activeOpacity={1}>
-            <BentoCard index={0} style={{ overflow: 'hidden', padding: S.md }}>
+            <BentoCard index={0} style={{ overflow: 'hidden', padding: bentoPad }}>
                 <LinearGradient
                     colors={todayHighlight
                         ? (isDark ? [theme.tertiary + '45', 'transparent'] : [theme.tertiary + '30', 'transparent'])
@@ -872,14 +888,40 @@ export default function HomeScreen() {
             {/* Focus Widget */}
             <DynamicIsland />
 
+            {/* İlk açılış — soğuk başlangıç kartı: görev ve alışkanlık yokken kullanıcıya net 3 giriş noktası sunar */}
+            {tasks.length === 0 && habits.length === 0 && (
+              <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
+                <BentoCard index={1} style={{ padding: isSmallScreen ? S.md : S.lg, gap: S.sm }}>
+                    <Text style={{ fontSize: F.subhead, fontWeight: '800', color: theme.onSurface, letterSpacing: -0.3, marginBottom: S.xs }}>
+                        {tr ? 'Hoş geldin 👋 Nereden başlamak istersin?' : 'Welcome 👋 Where would you like to start?'}
+                    </Text>
+                    {[
+                        { icon: <Plus size={18} color={theme.primary} />, label: tr ? 'İlk görevini ekle' : 'Add your first task', sub: tr ? 'Aklındakini yaz, gerisini Tazq halletsin' : 'Jot it down, Tazq handles the rest', onPress: () => router.push('/tasks') },
+                        { icon: <Rocket size={18} color="#8b5cf6" />, label: tr ? 'Bir mod seç' : 'Choose a mode', sub: tr ? 'Sigara bırak, tasarruf, sınava hazırlık…' : 'Quit smoking, save, exam prep…', onPress: () => router.push('/modlar') },
+                        { icon: <Flame size={18} color="#F59E0B" />, label: tr ? 'Bir alışkanlık başlat' : 'Start a habit', sub: tr ? 'Her gün tek dokunuşla işaretle' : 'Check in daily with one tap', onPress: () => router.push('/cockpit') },
+                    ].map((row, i) => (
+                        <Touchable key={i} onPress={row.onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.xs + 2 }} accessibilityRole="button" accessibilityLabel={row.label}>
+                            <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}>{row.icon}</View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
+                                <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.6 }}>{row.sub}</Text>
+                            </View>
+                            <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.4} />
+                        </Touchable>
+                    ))}
+                </BentoCard>
+              </View>
+            )}
+
             {/* Next Mission Widget */}
+            {!(tasks.length === 0 && habits.length === 0) && (
             <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <MotiView
                     from={{ opacity: 0, translateY: 8 }}
                     animate={{ opacity: 1, translateY: 0 }}
                     transition={{ type: 'spring', damping: 15 }}
                 >
-                    <BentoCard index={1} style={[styles.nextMissionCard, { minHeight: 140 }]}>
+                    <BentoCard index={1} style={[styles.nextMissionCard, { minHeight: isSmallScreen ? 120 : 140, padding: isSmallScreen ? S.md : S.lg }]}>
                         <LinearGradient
                             colors={!topTask
                                 ? ['#8e8e93', 'transparent']
@@ -949,12 +991,13 @@ export default function HomeScreen() {
                     </BentoCard>
                 </MotiView>
             </View>
+            )}
 
             {/* ── ALIŞKANLIK ŞERİDİ ── günlük aksiyon → öncelikli konumda (görev/görevlerin hemen altı).
                 Yalnız alışkanlık varsa; tek dokunuş = bugün yaptım. */}
             {habits.length > 0 && (
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
-                <BentoCard index={2} style={{ padding: S.md, overflow: 'hidden' }}>
+                <BentoCard index={2} style={{ padding: bentoPad, overflow: 'hidden' }}>
                     <Touchable onPress={() => router.push('/cockpit')} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.md }} accessibilityRole="button" accessibilityLabel={tr ? 'Alışkanlıkları yönet' : 'Manage habits'}>
                         <Text style={{ fontSize: 9, fontWeight: '500', letterSpacing: 1.5, color: theme.onSurfaceVariant, opacity: 0.5 }}>
                             {tr ? 'BUGÜN · ALIŞKANLIKLAR' : 'TODAY · HABITS'}
@@ -963,25 +1006,43 @@ export default function HomeScreen() {
                             {habitsDoneToday}/{habits.length}{habitsDoneToday === habits.length ? '  ✓' : ''}
                         </Text>
                     </Touchable>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingRight: 4 }} keyboardShouldPersistTaps="handled">
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingRight: 4 }} keyboardShouldPersistTaps="handled">
                         {habits.map(h => {
                             const done = (h.completedDates ?? []).includes(habitTodayKey);
                             const streak = getHabitStreak(h);
                             return (
                                 <Touchable
                                     key={h.id}
-                                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleHabitDate(h.id, habitTodayKey); }}
-                                    style={{ alignItems: 'center', width: 60 }}
+                                    onPress={() => { Haptics.impactAsync(done ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium); toggleHabitDate(h.id, habitTodayKey); }}
+                                    style={{ alignItems: 'center', width: 58 }}
                                     accessibilityRole="button"
+                                    accessibilityState={{ checked: done }}
                                     accessibilityLabel={`${h.name}${done ? (tr ? ', bugün yapıldı' : ', done today') : (tr ? ', bugün işaretle' : ', mark today')}`}
                                 >
-                                    <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: done ? h.color : theme.outlineVariant, backgroundColor: done ? h.color : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Text style={{ fontSize: 22, opacity: done ? 1 : 0.9 }}>{h.emoji}</Text>
+                                    <View style={{
+                                        width: 54, height: 54, borderRadius: 27,
+                                        borderWidth: done ? 0 : 1.5,
+                                        borderColor: h.color + '40',
+                                        backgroundColor: done ? h.color : h.color + (isDark ? '1F' : '14'),
+                                        alignItems: 'center', justifyContent: 'center',
+                                    }}>
+                                        {/* Haftalık Merkez ile aynı ikon seti (renderModeEmojiIcon) */}
+                                        {done
+                                            ? renderModeEmojiIcon(h.emoji ?? '📌', 24, '#fff')
+                                            : renderModeEmojiIcon(h.emoji ?? '📌', 23, h.color)}
                                     </View>
-                                    <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: '700', color: streak > 0 ? '#F97316' : theme.onSurfaceVariant + '70', marginTop: 5 }}>
-                                        {streak > 0 ? `${streak}🔥` : '—'}
-                                    </Text>
-                                    <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.7, width: 60, textAlign: 'center' }}>{h.name}</Text>
+                                    {/* Seri — yalnız anlamlıyken: 3+ alev, 1-2 sade, 0 boş (hizalama korunur) */}
+                                    <View style={{ height: 15, marginTop: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                                        {streak >= 3 ? (
+                                            <>
+                                                <Flame size={11} color="#F97316" fill="#F97316" />
+                                                <Text style={{ fontSize: 11, fontWeight: '800', color: '#F97316' }}>{streak}</Text>
+                                            </>
+                                        ) : streak >= 1 ? (
+                                            <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.55 }}>{streak} {tr ? 'gün' : 'd'}</Text>
+                                        ) : null}
+                                    </View>
+                                    <Text numberOfLines={1} style={{ fontSize: 10.5, fontWeight: '600', color: done ? h.color : theme.onSurfaceVariant, opacity: done ? 1 : 0.75, width: 58, textAlign: 'center' }}>{h.name}</Text>
                                 </Touchable>
                             );
                         })}
@@ -989,14 +1050,6 @@ export default function HomeScreen() {
                 </BentoCard>
               </View>
             )}
-
-            {/* ── Momentum Pulse ── */}
-            <MomentumPulse
-              score={momentum}
-              history={momentumHistory}
-              language={language}
-              loading={statsLoading}
-            />
 
             {/* ── Turkish Mode Banner (opt-in) ── */}
             {activeMode && !modeDismissed && (
@@ -1074,7 +1127,7 @@ export default function HomeScreen() {
                 </View>
 
                 {/* ── WEEKLY FOCUS CHART ── */}
-                <BentoCard index={2} style={{ padding: S.md, overflow: 'hidden' }}>
+                <BentoCard index={2} style={{ padding: bentoPad, overflow: 'hidden' }}>
                     <LinearGradient
                         colors={isDark
                             ? [theme.primary + '12', 'transparent']
@@ -1272,8 +1325,8 @@ const styles = StyleSheet.create({
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
   heroSection: { marginBottom: S.lg },
-  greeting: { fontWeight: '800', letterSpacing: -1.5 },
-  subGreeting: { fontWeight: '500', marginTop: S.xs, opacity: 0.7 },
+  greeting: { fontWeight: '800', letterSpacing: TRACKING.hero, includeFontPadding: false },
+  subGreeting: { fontWeight: '500', marginTop: S.xs, opacity: 0.7, includeFontPadding: false },
   metricLabel: { fontSize: moderateScale(9), fontWeight: '500', letterSpacing: 1.2, opacity: 0.45, marginBottom: S.xs },
   metricValue: { fontSize: F.title, fontWeight: '600', letterSpacing: -1 },
   metricSub: { fontSize: F.caption, fontWeight: '600', opacity: 0.6, marginTop: 2 },

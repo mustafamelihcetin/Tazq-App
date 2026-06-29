@@ -14,6 +14,7 @@ namespace Tazq_App.Data
 		public DbSet<FocusSession> FocusSessions { get; set; }
 		public DbSet<RefreshToken> RefreshTokens { get; set; }
 		public DbSet<ContentDocument> ContentDocuments { get; set; }
+		public DbSet<SupportMessage> SupportMessages { get; set; }
 
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
