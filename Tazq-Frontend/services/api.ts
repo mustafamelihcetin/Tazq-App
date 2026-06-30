@@ -334,6 +334,32 @@ export const SupportService = {
   },
 };
 
+// ── Admin Sistem Konsolu ─────────────────────────────────────────────────────
+export interface SystemHealth {
+  status: string; dbOk: boolean; redisOk: boolean | null;
+  environment: string; serverTimeUtc: string; uptimeSeconds: number;
+  latestMigration: string | null; pendingMigrations: number;
+  warnings: number; errors: number;
+}
+export interface SystemLogEntry { timestamp: string; level: string; category: string; message: string; }
+export interface SystemStats { users: number; tasks: number; focusSessions: number; supportMessages: number; supportUnread: number; contentDocuments: number; }
+export interface SentryIssue { title: string; count: string | null; level: string | null; lastSeen: string | null; permalink: string | null; }
+export interface SentrySummary { configured: boolean; ok?: boolean; count?: number; issues?: SentryIssue[]; dashboard?: string; message?: string; error?: string; status?: number; }
+
+export const AdminSystemService = {
+  health: async (): Promise<SystemHealth> => (await api.get('/api/admin/system/health')).data,
+  stats: async (): Promise<SystemStats> => (await api.get('/api/admin/system/stats')).data,
+  logs: async (lines = 200, level?: string): Promise<{ logs: SystemLogEntry[] }> =>
+    (await api.get('/api/admin/system/logs', { params: { lines, ...(level ? { level } : {}) } })).data,
+  sentry: async (): Promise<SentrySummary> => (await api.get('/api/admin/system/sentry')).data,
+  migrate: async (): Promise<{ success: boolean; applied: string[]; message?: string }> =>
+    (await api.post('/api/admin/system/migrate')).data,
+  clearCache: async (): Promise<{ success: boolean; message?: string }> =>
+    (await api.post('/api/admin/system/clear-cache')).data,
+  restart: async (): Promise<{ success: boolean; message?: string }> =>
+    (await api.post('/api/admin/system/restart')).data,
+};
+
 
 export interface ContentDoc {
   key: string;

@@ -1,16 +1,17 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
 import {
   ChevronLeft, Users, CheckSquare, Clock, Trash2, Shield, ShieldOff,
-  Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Mail, Send, CornerDownRight
+  Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Mail, Send, CornerDownRight,
+  Server, RefreshCw, Power, Database, AlertTriangle, FileText, ExternalLink, BarChart3
 } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { AdminService, AdminUser, AdminStats, SupportService, SupportMessageItem } from '../services/api';
+import { AdminService, AdminUser, AdminStats, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary } from '../services/api';
 import { sendAdminSupportNotification } from '../utils/notifications';
 import { S, R, F, B } from '../constants/tokens';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +19,27 @@ import { Touchable } from '@/components/Touchable';
 import { CustomAlert as Alert } from '../components/CustomAlert';
 
 type SortKey = 'name' | 'tasks' | 'focus' | 'recent';
+
+// Göreli zaman (kısa): "az önce / 5dk / 3sa / 2g"
+const timeAgo = (iso: string, tr: boolean) => {
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return tr ? 'az önce' : 'now';
+  const m = Math.floor(s / 60); if (m < 60) return `${m}${tr ? 'dk' : 'm'}`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}${tr ? 'sa' : 'h'}`;
+  return `${Math.floor(h / 24)}${tr ? 'g' : 'd'}`;
+};
+const sentryLevelStyle = (lvl?: string | null) => {
+  const l = (lvl || '').toLowerCase();
+  if (l === 'fatal') return { color: '#DC2626', label: 'FATAL' };
+  if (l === 'error') return { color: '#EF4444', label: 'ERROR' };
+  if (l === 'warning') return { color: '#F59E0B', label: 'WARN' };
+  return { color: '#6B7280', label: (lvl || 'INFO').toUpperCase() };
+};
+const logLevelStyle = (lvl: string) => {
+  if (lvl === 'Error' || lvl === 'Critical') return { color: '#EF4444', label: 'ERR' };
+  if (lvl === 'Warning') return { color: '#F59E0B', label: 'WARN' };
+  return { color: '#6B7280', label: 'INFO' };
+};
 
 export default function AdminScreen() {
   const { theme, colorScheme } = useAppTheme();
@@ -28,7 +50,14 @@ export default function AdminScreen() {
   const tr = language === 'tr';
   const myId = useAuthStore(s => s.user?.id);
 
-  const [activeTab, setActiveTab] = useState<'users' | 'support'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stats' | 'support' | 'system'>('users');
+  const [sysHealth, setSysHealth] = useState<SystemHealth | null>(null);
+  const [sysStats, setSysStats] = useState<SystemStats | null>(null);
+  const [sysLogs, setSysLogs] = useState<SystemLogEntry[]>([]);
+  const [sysSentry, setSysSentry] = useState<SentrySummary | null>(null);
+  const [sysLogLevel, setSysLogLevel] = useState<string | null>(null);
+  const [sysLoading, setSysLoading] = useState(false);
+  const [sysBusy, setSysBusy] = useState<string | null>(null);
   const [messages, setMessages] = useState<SupportMessageItem[]>([]);
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
   const [replyingId, setReplyingId] = useState<number | null>(null);
@@ -117,6 +146,48 @@ export default function AdminScreen() {
   };
 
   useEffect(() => { load(); }, [load]);
+
+  // ── Sistem konsolu ──────────────────────────────────────────────────────────
+  const loadSystem = useCallback(async () => {
+    setSysLoading(true);
+    try {
+      const [h, s, l, se] = await Promise.all([
+        AdminSystemService.health().catch(() => null),
+        AdminSystemService.stats().catch(() => null),
+        AdminSystemService.logs(200, sysLogLevel || undefined).catch(() => ({ logs: [] as SystemLogEntry[] })),
+        AdminSystemService.sentry().catch(() => null),
+      ]);
+      setSysHealth(h);
+      setSysStats(s);
+      setSysLogs(l.logs || []);
+      setSysSentry(se);
+    } finally {
+      setSysLoading(false);
+    }
+  }, [sysLogLevel]);
+
+  useEffect(() => { if (activeTab === 'system') loadSystem(); }, [activeTab, loadSystem]);
+
+  const runMaintenance = (key: string, fn: () => Promise<any>, title: string, body: string) => {
+    Alert.alert(title, body, [
+      { text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' },
+      {
+        text: tr ? 'Devam' : 'Proceed', style: 'destructive', onPress: async () => {
+          setSysBusy(key);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          try {
+            const r = await fn();
+            Alert.alert(tr ? 'Tamam' : 'Done', r?.message || (tr ? 'İşlem tamamlandı.' : 'Operation completed.'));
+            setTimeout(loadSystem, 1500);
+          } catch {
+            Alert.alert(tr ? 'Hata' : 'Error', tr ? 'İşlem başarısız oldu.' : 'Operation failed.');
+          } finally {
+            setSysBusy(null);
+          }
+        }
+      },
+    ]);
+  };
 
   const filteredUsers = useMemo(() => {
     let list = [...users];
@@ -270,8 +341,34 @@ export default function AdminScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Stat cards row 1 ── */}
-          {stats && (
+          {/* Tab Switcher (4 sekme) */}
+          <View style={{ flexDirection: 'row', backgroundColor: cardBg, borderRadius: R.full, padding: 4, borderWidth: B.thin, borderColor: cardBorder }}>
+            {([
+              { key: 'users', icon: Users, label: tr ? 'Kullanıcı' : 'Users' },
+              { key: 'stats', icon: BarChart3, label: tr ? 'İstatistik' : 'Stats' },
+              { key: 'support', icon: MessageSquare, label: tr ? 'Destek' : 'Support', badge: unreadCount },
+              { key: 'system', icon: Server, label: tr ? 'Sistem' : 'System', dot: !!sysHealth && (sysHealth.errors > 0 || !sysHealth.dbOk) },
+            ] as const).map((tb) => {
+              const active = activeTab === tb.key;
+              const Icon = tb.icon;
+              return (
+                <Touchable key={tb.key} onPress={() => { Haptics.selectionAsync(); setActiveTab(tb.key as any); }}
+                  style={{ flex: 1, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: active ? theme.primary : 'transparent', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 3 }}>
+                  <Icon size={14} color={active ? '#FFF' : theme.onSurfaceVariant} />
+                  <Text numberOfLines={1} style={{ color: active ? '#FFF' : theme.onSurfaceVariant, fontWeight: '800', fontSize: 11 }}>{tb.label}</Text>
+                  {'badge' in tb && (tb as any).badge > 0 && (
+                    <View style={{ backgroundColor: '#EF4444', borderRadius: 8, paddingHorizontal: 4, paddingVertical: 1 }}>
+                      <Text style={{ color: '#FFF', fontSize: 8, fontWeight: '900' }}>{(tb as any).badge}</Text>
+                    </View>
+                  )}
+                  {'dot' in tb && (tb as any).dot && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' }} />}
+                </Touchable>
+              );
+            })}
+          </View>
+
+          {/* ── İSTATİSTİK sekmesi: genel bakış ── */}
+          {activeTab === 'stats' && stats && (
             <>
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 {[
@@ -295,6 +392,21 @@ export default function AdminScreen() {
                   { icon: <Clock size={16} color="#F43F5E" />, label: tr ? 'Odak (saat)' : 'Focus (hrs)', value: Math.round(stats.totalFocusMinutes / 60), color: '#F43F5E' },
                 ].map(c => (
                   <MotiView key={c.label} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400 }}
+                    style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: 4 }}>
+                    <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: c.color + '20', alignItems: 'center', justifyContent: 'center' }}>{c.icon}</View>
+                    <Text style={{ fontSize: 20, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{c.label}</Text>
+                  </MotiView>
+                ))}
+              </View>
+
+              {/* ── Destek (Sistem'den taşındı) ── */}
+              <View style={{ flexDirection: 'row', gap: S.sm }}>
+                {[
+                  { icon: <MessageSquare size={16} color="#3B82F6" />, label: tr ? 'Destek Mesajı' : 'Support', value: messages.length, color: '#3B82F6' },
+                  { icon: <Mail size={16} color="#EF4444" />, label: tr ? 'Okunmamış' : 'Unread', value: unreadCount, color: '#EF4444' },
+                ].map(c => (
+                  <MotiView key={c.label} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 450 }}
                     style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: 4 }}>
                     <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: c.color + '20', alignItems: 'center', justifyContent: 'center' }}>{c.icon}</View>
                     <Text style={{ fontSize: 20, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
@@ -346,33 +458,6 @@ export default function AdminScreen() {
               )}
             </>
           )}
-
-          {/* Tab Switcher */}
-          <View style={{ flexDirection: 'row', backgroundColor: cardBg, borderRadius: R.full, padding: 4, borderWidth: B.thin, borderColor: cardBorder }}>
-            <Touchable
-              onPress={() => { Haptics.selectionAsync(); setActiveTab('users'); }}
-              style={{ flex: 1, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: activeTab === 'users' ? theme.primary : 'transparent', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.xs }}
-            >
-              <Users size={16} color={activeTab === 'users' ? '#FFF' : theme.onSurfaceVariant} />
-              <Text style={{ color: activeTab === 'users' ? '#FFF' : theme.onSurfaceVariant, fontWeight: '800', fontSize: F.body }}>
-                {tr ? 'Kullanıcılar' : 'Users'} ({stats?.totalUsers || users.length})
-              </Text>
-            </Touchable>
-            <Touchable
-              onPress={() => { Haptics.selectionAsync(); setActiveTab('support'); }}
-              style={{ flex: 1, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: activeTab === 'support' ? theme.primary : 'transparent', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.xs }}
-            >
-              <MessageSquare size={16} color={activeTab === 'support' ? '#FFF' : theme.onSurfaceVariant} />
-              <Text style={{ color: activeTab === 'support' ? '#FFF' : theme.onSurfaceVariant, fontWeight: '800', fontSize: F.body }}>
-                {tr ? 'Destek Mesajları' : 'Support'}
-              </Text>
-              {unreadCount > 0 && (
-                <View style={{ backgroundColor: '#EF4444', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
-                  <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900' }}>{unreadCount}</Text>
-                </View>
-              )}
-            </Touchable>
-          </View>
 
           {activeTab === 'users' ? (
             <>
@@ -552,7 +637,7 @@ export default function AdminScreen() {
             </View>
           )}
             </>
-          ) : (
+          ) : activeTab === 'support' ? (
             <View style={{ gap: S.md }}>
               {messages.length === 0 ? (
                 <View style={{ alignItems: 'center', paddingVertical: S.xl }}>
@@ -667,7 +752,179 @@ export default function AdminScreen() {
                 ))
               )}
             </View>
-          )}
+          ) : activeTab === 'system' ? (
+            /* ── SİSTEM KONSOLU ── */
+            <View style={{ gap: S.md }}>
+              {/* Sağlık kartı */}
+              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                    <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: sysHealth ? (sysHealth.dbOk ? '#10B981' : '#EF4444') : theme.onSurfaceVariant }} />
+                    <Text style={{ color: theme.onSurface, fontWeight: '900', fontSize: F.body }}>{tr ? 'Sistem Sağlığı' : 'System Health'}</Text>
+                  </View>
+                  <Touchable onPress={loadSystem} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    {sysLoading ? <ActivityIndicator size="small" color={theme.primary} /> : <RefreshCw size={15} color={theme.primary} />}
+                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '800' }}>{tr ? 'Yenile' : 'Refresh'}</Text>
+                  </Touchable>
+                </View>
+                {sysHealth ? (
+                  <View style={{ gap: 4 }}>
+                    {[
+                      [tr ? 'Veritabanı' : 'Database', sysHealth.dbOk ? '🟢 OK' : '🔴 Hata'],
+                      [tr ? 'Redis' : 'Redis', sysHealth.redisOk == null ? '—' : (sysHealth.redisOk ? '🟢 OK' : '🔴 Hata')],
+                      [tr ? 'Çalışma süresi' : 'Uptime', `${Math.floor(sysHealth.uptimeSeconds / 3600)}s ${Math.floor((sysHealth.uptimeSeconds % 3600) / 60)}d`],
+                      [tr ? 'Ortam' : 'Env', sysHealth.environment],
+                      [tr ? 'Son migration' : 'Latest migration', (sysHealth.latestMigration || '—').replace(/^\d+_/, '')],
+                      [tr ? 'Bekleyen migration' : 'Pending migrations', String(sysHealth.pendingMigrations)],
+                      [tr ? 'Uyarı / Hata' : 'Warnings / Errors', `${sysHealth.warnings} / ${sysHealth.errors}`],
+                    ].map(([k, v], i) => (
+                      <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{k}</Text>
+                        <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700' }}>{v}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : sysLoading ? <ActivityIndicator color={theme.primary} /> : <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6 }}>{tr ? 'Veri yok' : 'No data'}</Text>}
+              </View>
+
+              {/* Bakım aksiyonları */}
+              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                <Text style={{ color: theme.onSurface, fontWeight: '900', fontSize: F.body }}>{tr ? 'Bakım' : 'Maintenance'}</Text>
+                <View style={{ flexDirection: 'row', gap: S.sm }}>
+                  {[
+                    { key: 'migrate', icon: <Database size={15} color="#3B82F6" />, label: tr ? 'Migration' : 'Migrate', color: '#3B82F6',
+                      run: () => runMaintenance('migrate', AdminSystemService.migrate, tr ? 'Migration uygula?' : 'Apply migrations?', tr ? 'Bekleyen veritabanı migration’ları uygulanacak.' : 'Pending DB migrations will be applied.') },
+                    { key: 'cache', icon: <Trash2 size={15} color="#F59E0B" />, label: tr ? 'Cache' : 'Cache', color: '#F59E0B',
+                      run: () => runMaintenance('cache', AdminSystemService.clearCache, tr ? 'Cache temizle?' : 'Clear cache?', tr ? 'Redis önbelleği temizlenecek.' : 'Redis cache will be cleared.') },
+                    { key: 'restart', icon: <Power size={15} color="#EF4444" />, label: tr ? 'Restart' : 'Restart', color: '#EF4444',
+                      run: () => runMaintenance('restart', AdminSystemService.restart, tr ? 'Backend yeniden başlatılsın mı?' : 'Restart backend?', tr ? 'Birkaç saniyelik kesinti olur.' : 'Brief downtime (a few seconds).') },
+                  ].map((a) => (
+                    <Touchable key={a.key} onPress={a.run} disabled={!!sysBusy}
+                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: a.color + '15', borderWidth: B.thin, borderColor: a.color + '40', borderRadius: R.md, paddingVertical: S.sm }}>
+                      {sysBusy === a.key ? <ActivityIndicator size="small" color={a.color} /> : a.icon}
+                      <Text style={{ color: a.color, fontSize: F.caption, fontWeight: '800' }}>{a.label}</Text>
+                    </Touchable>
+                  ))}
+                </View>
+              </View>
+
+              {/* Sentry — son 24s çözülmemiş konular */}
+              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                    <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#8B5CF620', alignItems: 'center', justifyContent: 'center' }}>
+                      <AlertTriangle size={15} color="#8B5CF6" />
+                    </View>
+                    <View>
+                      <Text style={{ color: theme.onSurface, fontWeight: '900', fontSize: F.body }}>Sentry</Text>
+                      <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.6 }}>{tr ? 'son 24 saat' : 'last 24h'}</Text>
+                    </View>
+                  </View>
+                  {sysSentry?.dashboard && (
+                    <Touchable onPress={() => Linking.openURL(sysSentry.dashboard!)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: 5, borderRadius: R.full }}>
+                      <Text style={{ color: theme.primary, fontSize: 11, fontWeight: '800' }}>{tr ? 'Panele git' : 'Open'}</Text>
+                      <ExternalLink size={12} color={theme.primary} />
+                    </Touchable>
+                  )}
+                </View>
+                {!sysSentry ? (
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6 }}>{tr ? 'Yükleniyor…' : 'Loading…'}</Text>
+                ) : !sysSentry.configured ? (
+                  <View style={{ backgroundColor: theme.surfaceContainerHigh, borderRadius: R.md, padding: S.sm }}>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.8, lineHeight: 17 }}>{sysSentry.message || (tr ? 'Sentry yapılandırılmamış.' : 'Sentry not configured.')}</Text>
+                  </View>
+                ) : sysSentry.ok === false ? (
+                  <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '600' }}>{tr ? '⚠ Sentry’ye ulaşılamadı.' : '⚠ Could not reach Sentry.'} {sysSentry.status ? `(HTTP ${sysSentry.status})` : ''}</Text>
+                ) : (sysSentry.issues && sysSentry.issues.length > 0) ? (
+                  <>
+                    {(() => {
+                      const fatals = sysSentry.issues!.filter(x => (x.level || '').toLowerCase() === 'fatal').length;
+                      const errs = sysSentry.issues!.filter(x => (x.level || '').toLowerCase() === 'error').length;
+                      return (
+                        <View style={{ flexDirection: 'row', gap: S.xs }}>
+                          {fatals > 0 && <View style={{ backgroundColor: '#DC262615', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 3 }}><Text style={{ color: '#DC2626', fontSize: 10, fontWeight: '900' }}>{fatals} FATAL</Text></View>}
+                          {errs > 0 && <View style={{ backgroundColor: '#EF444415', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 3 }}><Text style={{ color: '#EF4444', fontSize: 10, fontWeight: '900' }}>{errs} ERROR</Text></View>}
+                          <View style={{ backgroundColor: theme.surfaceContainerHigh, borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 3 }}><Text style={{ color: theme.onSurfaceVariant, fontSize: 10, fontWeight: '800' }}>{sysSentry.issues!.length} {tr ? 'konu' : 'issues'}</Text></View>
+                        </View>
+                      );
+                    })()}
+                    <View>
+                      {sysSentry.issues!.slice(0, 6).map((iss, i) => {
+                        const st = sentryLevelStyle(iss.level);
+                        return (
+                          <Touchable key={i} onPress={() => iss.permalink && Linking.openURL(iss.permalink)}
+                            style={{ flexDirection: 'row', gap: S.sm, paddingVertical: 8, borderTopWidth: i > 0 ? B.thin : 0, borderTopColor: cardBorder }}>
+                            <View style={{ backgroundColor: st.color + '1A', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, alignSelf: 'flex-start', marginTop: 1 }}>
+                              <Text style={{ color: st.color, fontSize: 9, fontWeight: '900' }}>{st.label}</Text>
+                            </View>
+                            <View style={{ flex: 1, gap: 3 }}>
+                              <Text numberOfLines={2} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700', lineHeight: 16 }}>{iss.title}</Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={{ color: st.color, fontSize: 10, fontWeight: '800' }}>×{iss.count || '1'}</Text>
+                                {iss.lastSeen && <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.6 }}>· {timeAgo(iss.lastSeen, tr)}</Text>}
+                              </View>
+                            </View>
+                            <ExternalLink size={13} color={theme.onSurfaceVariant} style={{ opacity: 0.35, marginTop: 2 }} />
+                          </Touchable>
+                        );
+                      })}
+                    </View>
+                  </>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: '#10B98112', borderRadius: R.md, padding: S.sm }}>
+                    <Check size={15} color="#10B981" />
+                    <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Son 24 saatte çözülmemiş hata yok' : 'No unresolved issues (24h)'}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Loglar */}
+              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                    <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}>
+                      <FileText size={15} color={theme.onSurfaceVariant} />
+                    </View>
+                    <View>
+                      <Text style={{ color: theme.onSurface, fontWeight: '900', fontSize: F.body }}>{tr ? 'Loglar' : 'Logs'}</Text>
+                      {sysHealth && <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.6 }}>{sysHealth.warnings} {tr ? 'uyarı' : 'warn'} · {sysHealth.errors} {tr ? 'hata' : 'err'}</Text>}
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                    {[null, 'Warning', 'Error'].map((lv) => (
+                      <Touchable key={lv || 'all'} onPress={() => setSysLogLevel(lv)}
+                        style={{ paddingHorizontal: S.sm, paddingVertical: 4, borderRadius: R.full, backgroundColor: sysLogLevel === lv ? theme.primary : theme.surfaceContainerHigh }}>
+                        <Text style={{ color: sysLogLevel === lv ? '#FFF' : theme.onSurfaceVariant, fontSize: 10, fontWeight: '800' }}>{lv ? (lv === 'Warning' ? (tr ? 'Uyarı' : 'Warn') : (tr ? 'Hata' : 'Err')) : (tr ? 'Hepsi' : 'All')}</Text>
+                      </Touchable>
+                    ))}
+                  </View>
+                </View>
+                {sysLogs.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: S.md }}>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.5 }}>{tr ? 'Kayıt yok' : 'No logs'}</Text>
+                  </View>
+                ) : (
+                  <View>
+                    {sysLogs.slice(0, 60).map((lg, i) => {
+                      const st = logLevelStyle(lg.level);
+                      return (
+                        <View key={i} style={{ gap: 3, borderTopWidth: i > 0 ? B.thin : 0, borderTopColor: cardBorder, paddingVertical: 7 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <View style={{ backgroundColor: st.color + '1A', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 }}>
+                              <Text style={{ color: st.color, fontSize: 9, fontWeight: '900' }}>{st.label}</Text>
+                            </View>
+                            <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: 10, fontWeight: '700', flex: 1 }}>{lg.category}</Text>
+                            <Text style={{ color: theme.onSurfaceVariant, fontSize: 9, opacity: 0.5 }}>{new Date(lg.timestamp).toLocaleTimeString(tr ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</Text>
+                          </View>
+                          <Text numberOfLines={3} style={{ color: theme.onSurface, fontSize: 11, lineHeight: 16, opacity: 0.92 }}>{lg.message}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            </View>
+          ) : null}
         </ScrollView>
       )}
     </SafeAreaView>

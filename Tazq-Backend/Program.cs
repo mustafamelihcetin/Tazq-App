@@ -27,6 +27,11 @@ Env.Load();
 // Load app signature for request validation
 var appSignature = Environment.GetEnvironmentVariable("APP_SIGNATURE") ?? "tazq-expo-frontend";
 
+// Bellek-içi log deposu + sağlayıcı — admin panelden SSH'siz log görüntüleme (son 500 kayıt).
+var logStore = new Tazq_App.Services.InMemoryLogStore(500);
+builder.Services.AddSingleton(logStore);
+builder.Logging.AddProvider(new Tazq_App.Services.InMemoryLoggerProvider(logStore, Microsoft.Extensions.Logging.LogLevel.Warning));
+
 // Load JWT settings
 var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
     ?? throw new InvalidOperationException("JWT_KEY environment variable is required and must be at least 32 characters.");
