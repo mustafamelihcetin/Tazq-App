@@ -28,11 +28,12 @@ namespace Tazq_App.Models
 		[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
 		public int Id { get; set; }
 
+		// NOT: Title/Description ŞİFRELİ (AES+Base64) saklanır. Şifreli metin düz-metinden
+		// uzundur (≈1.33x + IV); bu yüzden uzunluk SINIRI KONMAZ — aksi halde uzunca
+		// başlıklı görevlerin kaydı/okunması bozulur. Sütunlar DB'de 'text'.
 		[Required]
-		[MaxLength(150)]
 		public string Title { get; set; } = string.Empty;
 
-		[MaxLength(1000)]
 		public string Description { get; set; } = string.Empty;
 
 		public DateTime? DueDate { get; set; }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using Tazq_App.Data;
 using Tazq_App.Models;
@@ -9,11 +10,13 @@ namespace Tazq_App.Services
     {
         private readonly AppDbContext _context;
         private readonly ICryptoService _cryptoService;
+        private readonly ILogger<TaskService> _logger;
 
-        public TaskService(AppDbContext context, ICryptoService cryptoService)
+        public TaskService(AppDbContext context, ICryptoService cryptoService, ILogger<TaskService> logger)
         {
             _context = context;
             _cryptoService = cryptoService;
+            _logger = logger;
         }
 
         public async Task<(List<TaskItem> Items, int TotalCount)> GetTasksAsync(int userId, string? tag, string? search, string? sortBy, bool? isCompleted, DateTime? startDate, DateTime? endDate, int page = 1, int pageSize = 50)
@@ -271,20 +274,42 @@ namespace Tazq_App.Services
             task.SubtasksJson = _cryptoService.Encrypt(jsonSubtasks, key);
         }
 
+        // Bir alanın şifresini güvenle çözer: hata olursa TÜM isteği düşürmek yerine
+        // o alanı atlar, anlamlı bir uyarı loglar (task id + alan + sebep) ve null döner.
+        // Böylece tek bir bozuk satır (ör. eski/hasarlı şifreli veri) bütün görev
+        // listesini 500'e düşürmez — kalan görevler normal yüklenir.
+        private string? SafeDecrypt(string? cipher, byte[] key, int taskId, string field)
+        {
+            if (string.IsNullOrEmpty(cipher)) return string.Empty;
+            try
+            {
+                return _cryptoService.Decrypt(cipher, key);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Decrypt failed for Task {TaskId} field {Field}: {Error}", taskId, field, ex.Message);
+                return null;
+            }
+        }
+
         private void DecryptTask(TaskItem task, byte[] key)
         {
-            task.Title = _cryptoService.Decrypt(task.Title, key);
-            task.Description = _cryptoService.Decrypt(task.Description ?? string.Empty, key);
-            if (!string.IsNullOrEmpty(task.TagsJson))
-            {
-                var decryptedJson = _cryptoService.Decrypt(task.TagsJson, key);
-                task.Tags = JsonSerializer.Deserialize<List<string>>(decryptedJson) ?? new List<string>();
-            }
-            if (!string.IsNullOrEmpty(task.SubtasksJson))
-            {
-                var decryptedSubs = _cryptoService.Decrypt(task.SubtasksJson, key);
-                task.Subtasks = JsonSerializer.Deserialize<List<SubtaskItem>>(decryptedSubs) ?? new List<SubtaskItem>();
-            }
+            // Title çözülemezse görev yine listede görünsün (silinmesin) — yer-tutucu başlık.
+            task.Title = SafeDecrypt(task.Title, key, task.Id, "Title") ?? "⚠️ (çözülemeyen başlık)";
+            task.Description = SafeDecrypt(task.Description, key, task.Id, "Description") ?? string.Empty;
+
+            var decryptedTags = SafeDecrypt(task.TagsJson, key, task.Id, "Tags");
+            task.Tags = TryDeserialize<List<string>>(decryptedTags) ?? new List<string>();
+
+            var decryptedSubs = SafeDecrypt(task.SubtasksJson, key, task.Id, "Subtasks");
+            task.Subtasks = TryDeserialize<List<SubtaskItem>>(decryptedSubs) ?? new List<SubtaskItem>();
+        }
+
+        private T? TryDeserialize<T>(string? json) where T : class
+        {
+            if (string.IsNullOrEmpty(json)) return null;
+            try { return JsonSerializer.Deserialize<T>(json); }
+            catch (Exception ex) { _logger.LogWarning("JSON parse failed: {Error}", ex.Message); return null; }
         }
     }
 }

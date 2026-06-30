@@ -31,6 +31,11 @@ namespace Tazq_App.Controllers
 			public string Message { get; set; } = string.Empty;
 		}
 
+		public class ReplySupportDto
+		{
+			public string Reply { get; set; } = string.Empty;
+		}
+
 		// POST: api/support
 		[HttpPost]
 		public async Task<IActionResult> SendMessage([FromBody] SendSupportDto dto)
@@ -58,6 +63,49 @@ namespace Tazq_App.Controllers
 			await _db.SaveChangesAsync();
 
 			return Ok(new { success = true, id = supportMsg.Id });
+		}
+
+		// GET: api/support/mine — kullanıcının KENDİ mesajları + admin yanıtları (salt-okunur)
+		[HttpGet("mine")]
+		public async Task<IActionResult> GetMyMessages()
+		{
+			var userId = GetUserId();
+			if (userId == null) return Unauthorized();
+
+			var messages = await _db.SupportMessages
+				.Where(m => m.UserId == userId.Value)
+				.OrderByDescending(m => m.CreatedAt)
+				.Select(m => new
+				{
+					m.Id,
+					m.Message,
+					m.CreatedAt,
+					m.AdminReply,
+					m.RepliedAt
+				})
+				.AsNoTracking()
+				.ToListAsync();
+
+			return Ok(new { messages });
+		}
+
+		// PATCH: api/support/admin/{id}/reply (Sadece Admin) — kullanıcının mesajına yanıt yaz
+		[HttpPatch("admin/{id}/reply")]
+		[Authorize(Roles = "Admin")]
+		public async Task<IActionResult> ReplyMessage(int id, [FromBody] ReplySupportDto dto)
+		{
+			if (string.IsNullOrWhiteSpace(dto.Reply))
+				return BadRequest(new { message = "Yanıt boş olamaz." });
+
+			var msg = await _db.SupportMessages.FindAsync(id);
+			if (msg == null) return NotFound();
+
+			msg.AdminReply = dto.Reply.Trim();
+			msg.RepliedAt = DateTime.UtcNow;
+			msg.IsRead = true;
+			await _db.SaveChangesAsync();
+
+			return Ok(new { success = true, repliedAt = msg.RepliedAt });
 		}
 
 		// GET: api/support/admin/all (Sadece Admin)

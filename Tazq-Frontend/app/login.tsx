@@ -182,6 +182,10 @@ export default function LoginScreen() {
                           value={email}
                           onChangeText={setEmail}
                           autoCapitalize="none"
+                          autoCorrect={false}
+                          spellCheck={false}
+                          autoComplete="email"
+                          textContentType="emailAddress"
                           keyboardType="email-address"
                           returnKeyType="next"
                           onSubmitEditing={() => passwordRef.current?.focus()}
@@ -274,15 +278,21 @@ export default function LoginScreen() {
                 transition={{ delay: 600 }}
                 style={[styles.footer, { marginTop: isSmallScreen ? 8 : isMediumScreen ? 16 : 28 }]}
               >
-                <View style={styles.footerRow}>
-                  <TazqLogo size={14} width={44} style={{ marginTop: -2, opacity: 0.6 }} />
-                  <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
-                    {t.login.footer}
+                {/* Tek Text + iç span'ler → "TAZQ" marka fontuyla ama footer metniyle AYNI
+                    fontSize'ı miras alır: her ekranda/font ölçeğinde aynı baseline, orantılı,
+                    küçük ekranda doğru sarar. Resim logosu hizalama derdini bitirir. */}
+                <Text style={[styles.footerText, { color: theme.onSurfaceVariant, textAlign: 'center' }]}>
+                  <Text style={{ fontFamily: 'Jakarta-ExtraBold', color: theme.onSurface, letterSpacing: -0.5 }}>TAZQ</Text>
+                  {language === 'tr' ? '' : ' '}
+                  {t.login.footer}{' '}
+                  <Text
+                    style={[styles.link, { color: theme.primary }]}
+                    onPress={() => router.push('/register')}
+                    accessibilityRole="link"
+                  >
+                    {t.login.signUp}
                   </Text>
-                  <Touchable onPress={() => router.push('/register')}>
-                    <Text style={[styles.link, { color: theme.primary }]}> {t.login.signUp}</Text>
-                  </Touchable>
-                </View>
+                </Text>
               </MotiView>
             </View>
           </ScrollView>
@@ -311,6 +321,11 @@ export default function LoginScreen() {
                 value={forgotEmail}
                 onChangeText={setForgotEmail}
                 autoCapitalize="none"
+                autoCorrect={false}
+                spellCheck={false}
+                autoComplete="email"
+                textContentType="emailAddress"
+                keyboardType="email-address"
                 underlineColorAndroid="transparent"
               />
 

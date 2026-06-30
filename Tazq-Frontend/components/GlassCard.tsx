@@ -1,8 +1,7 @@
 import React from 'react';
 import { B } from '../constants/tokens';
 import { View, StyleSheet, ViewStyle, Platform } from 'react-native';
-import { useColorScheme } from 'react-native';
-import { Colors } from '../constants/Colors';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 interface GlassCardProps {
   children: React.ReactNode;
@@ -10,15 +9,16 @@ interface GlassCardProps {
 }
 
 export const GlassCard = ({ children, style }: GlassCardProps) => {
-  const scheme = useColorScheme();
-  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  // UYGULAMA temasını izle (cihaz temasını değil) — aksi halde kullanıcı uygulamayı koyu
+  // yapıp cihaz açıkken kart bembeyaz kalıyordu (login/register'da göze batan uyumsuzluk).
+  const { theme, isDark } = useAppTheme();
 
   return (
     <View style={[
       styles.card,
       {
-        backgroundColor: scheme === 'dark' ? '#17171C' : theme.surfaceContainerLow,
-        borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)',
+        backgroundColor: isDark ? '#17171C' : theme.surfaceContainerLow,
+        borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)',
       },
       style,
     ]}>

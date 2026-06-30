@@ -5,7 +5,7 @@ import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
 import {
   ChevronLeft, Users, CheckSquare, Clock, Trash2, Shield, ShieldOff,
-  Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Mail
+  Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Mail, Send, CornerDownRight
 } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useLanguageStore } from '../store/useLanguageStore';
@@ -30,6 +30,9 @@ export default function AdminScreen() {
 
   const [activeTab, setActiveTab] = useState<'users' | 'support'>('users');
   const [messages, setMessages] = useState<SupportMessageItem[]>([]);
+  const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
+  const [replyingId, setReplyingId] = useState<number | null>(null);
+  const [expandedMsgs, setExpandedMsgs] = useState<Record<number, boolean>>({});
   const [unreadCount, setUnreadCount] = useState(0);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -74,13 +77,43 @@ export default function AdminScreen() {
     } catch {}
   };
 
-  const handleDeleteMessage = async (msg: SupportMessageItem) => {
+  const performDeleteMessage = async (msg: SupportMessageItem) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       await SupportService.deleteMessage(msg.id);
       setMessages(prev => prev.filter(m => m.id !== msg.id));
       if (!msg.isRead) setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch {}
+    } catch {
+      Alert.alert(tr ? 'Hata' : 'Error', tr ? 'Mesaj silinemedi.' : 'Could not delete message.');
+    }
+  };
+
+  const handleDeleteMessage = (msg: SupportMessageItem) => {
+    Alert.alert(
+      tr ? 'Mesajı sil?' : 'Delete message?',
+      tr ? `"${msg.userName}" kullanıcısının mesajı (ve varsa yanıtın) kalıcı olarak silinecek. Bu işlem geri alınamaz.` : `This message from "${msg.userName}" (and any reply) will be permanently deleted. This cannot be undone.`,
+      [
+        { text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' },
+        { text: tr ? 'Sil' : 'Delete', style: 'destructive', onPress: () => performDeleteMessage(msg) },
+      ],
+    );
+  };
+
+  const handleReply = async (msg: SupportMessageItem) => {
+    const text = (replyDrafts[msg.id] || '').trim();
+    if (!text) return;
+    setReplyingId(msg.id);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      await SupportService.replyMessage(msg.id, text);
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, adminReply: text, repliedAt: new Date().toISOString(), isRead: true } : m));
+      if (!msg.isRead) setUnreadCount(prev => Math.max(0, prev - 1));
+      setReplyDrafts(d => ({ ...d, [msg.id]: '' }));
+    } catch {
+      Alert.alert(tr ? 'Hata' : 'Error', tr ? 'Yanıt gönderilemedi. Lütfen tekrar dene.' : 'Could not send reply. Please try again.');
+    } finally {
+      setReplyingId(null);
+    }
   };
 
   useEffect(() => { load(); }, [load]);
@@ -552,31 +585,84 @@ export default function AdminScreen() {
                         </View>
                         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.7 }}>{m.userEmail}</Text>
                       </View>
-                      <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.5 }}>
-                        {new Date(m.createdAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </Text>
+                      <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                        <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.5 }}>
+                          {new Date(m.createdAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                        <Touchable
+                          onPress={() => handleDeleteMessage(m)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.error + '12' }}
+                          accessibilityRole="button"
+                          accessibilityLabel={tr ? 'Mesajı sil' : 'Delete message'}
+                        >
+                          <Trash2 size={14} color={theme.error} />
+                        </Touchable>
+                      </View>
                     </View>
-                    <Text style={{ color: theme.onSurface, fontSize: F.body, lineHeight: 20, paddingVertical: 4 }}>
+                    <Text
+                      numberOfLines={expandedMsgs[m.id] ? undefined : 4}
+                      style={{ color: theme.onSurface, fontSize: F.body, lineHeight: 20, paddingVertical: 4 }}
+                    >
                       {m.message}
                     </Text>
-                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: S.sm, marginTop: 4 }}>
-                      {!m.isRead && (
+                    {m.message.length > 160 && (
+                      <Touchable onPress={() => setExpandedMsgs(e => ({ ...e, [m.id]: !e[m.id] }))} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                        <Text style={{ color: '#3B82F6', fontSize: F.caption, fontWeight: '800' }}>
+                          {expandedMsgs[m.id] ? (tr ? 'Daha az' : 'Show less') : (tr ? 'Devamını oku' : 'Read more')}
+                        </Text>
+                      </Touchable>
+                    )}
+
+                    {/* Yanıt: varsa salt-okunur göster, yoksa yanıt kutusu sun */}
+                    {m.adminReply ? (
+                      <View style={{ backgroundColor: '#10B98112', borderLeftWidth: 3, borderLeftColor: '#10B981', borderRadius: R.sm, padding: S.sm, gap: 2 }}>
+                        <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>{tr ? '✓ YANITIN' : '✓ YOUR REPLY'}</Text>
+                        <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>{m.adminReply}</Text>
+                        {m.repliedAt && (
+                          <Text style={{ color: theme.onSurfaceVariant, fontSize: 9, opacity: 0.6 }}>
+                            {new Date(m.repliedAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: S.xs }}>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderRadius: 20, paddingHorizontal: S.md, minHeight: 40 }}>
+                          <CornerDownRight size={13} color={theme.onSurfaceVariant} style={{ opacity: 0.4 }} />
+                          <TextInput
+                            value={replyDrafts[m.id] || ''}
+                            onChangeText={(t) => setReplyDrafts(d => ({ ...d, [m.id]: t }))}
+                            placeholder={tr ? 'Yanıt yaz…' : 'Reply…'}
+                            placeholderTextColor={theme.onSurfaceVariant + '70'}
+                            multiline
+                            maxLength={1000}
+                            underlineColorAndroid="transparent"
+                            style={{ flex: 1, color: theme.onSurface, fontSize: F.caption, paddingVertical: 9, maxHeight: 100 }}
+                          />
+                        </View>
+                        <Touchable
+                          onPress={() => handleReply(m)}
+                          disabled={replyingId === m.id || !(replyDrafts[m.id] || '').trim()}
+                          style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: (replyDrafts[m.id] || '').trim() ? '#3B82F6' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') }}
+                        >
+                          {replyingId === m.id
+                            ? <ActivityIndicator size="small" color="#FFF" />
+                            : <Send size={16} color={(replyDrafts[m.id] || '').trim() ? '#FFF' : theme.onSurfaceVariant} />}
+                        </Touchable>
+                      </View>
+                    )}
+
+                    {!m.isRead && (
+                      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 2 }}>
                         <Touchable
                           onPress={() => handleMarkRead(m)}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10B98115', paddingHorizontal: S.sm, paddingVertical: 6, borderRadius: R.md, borderWidth: B.thin, borderColor: '#10B98140' }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: S.sm, paddingVertical: 6, borderRadius: R.md }}
                         >
                           <Check size={14} color="#10B981" />
                           <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '800' }}>{tr ? 'Okundu Yap' : 'Mark Read'}</Text>
                         </Touchable>
-                      )}
-                      <Touchable
-                        onPress={() => handleDeleteMessage(m)}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.error + '15', paddingHorizontal: S.sm, paddingVertical: 6, borderRadius: R.md, borderWidth: B.thin, borderColor: theme.error + '40' }}
-                      >
-                        <Trash2 size={14} color={theme.error} />
-                        <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '800' }}>{tr ? 'Sil' : 'Delete'}</Text>
-                      </Touchable>
-                    </View>
+                      </View>
+                    )}
                   </View>
                 ))
               )}

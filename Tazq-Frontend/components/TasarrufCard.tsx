@@ -99,22 +99,26 @@ export function TasarrufCard() {
   })();
   // ₺ önekli, alt-çizgisiz, ÜST SINIRLI temiz para girişi. Inline fonksiyon (component
   // değil) → her tuşta remount/focus kaybı olmaz.
+  // Para girişi: STORE'da ham rakam (parseFloat güvenli), EKRANDA binlik nokta ayracı.
+  // Tutarlar tam sayı ₺ (kuruş yok) → en sade ve okunur biçim, üst sınır korunur.
   const MAX_AMOUNT = 1_000_000_000; // 1 milyar ₺ üst sınır
   const sanitizeMoney = (t: string) => {
-    let c = t.replace(/[^0-9.,]/g, '').replace(',', '.');
-    const parts = c.split('.');
-    if (parts.length > 2) c = parts[0] + '.' + parts.slice(1).join('');
-    const n = parseFloat(c);
-    if (!isNaN(n) && n > MAX_AMOUNT) return String(MAX_AMOUNT);
-    return c;
+    const digits = t.replace(/\D/g, '').replace(/^0+(?=\d)/, ''); // sadece rakam + baştaki sıfırları at
+    if (!digits) return '';
+    const n = parseInt(digits, 10);
+    return String(n > MAX_AMOUNT ? MAX_AMOUNT : n);
+  };
+  const formatThousands = (raw: string) => {
+    const digits = (raw ?? '').replace(/\D/g, '');
+    return digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
   };
   const moneyInput = (value: string, onChange: (v: string) => void, autoFocus = false) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingHorizontal: S.md }}>
       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontWeight: '700', marginRight: 6, opacity: 0.7 }}>₺</Text>
       <TextInput
-        value={value}
+        value={formatThousands(value)}
         onChangeText={(t) => onChange(sanitizeMoney(t))}
-        keyboardType="decimal-pad"
+        keyboardType="number-pad"
         placeholder="0"
         placeholderTextColor={theme.onSurfaceVariant + '70'}
         underlineColorAndroid="transparent"
@@ -216,7 +220,17 @@ export function TasarrufCard() {
             onValueChange={(v) => {
               Haptics.selectionAsync();
               if (v) { setSeasonalPref('tasarrufMode', true); setExpanded(true); }
-              else { applied ? closePlan() : setSeasonalPref('tasarrufMode', false); setExpanded(false); }
+              else if (applied) {
+                // Kapatma planı + tüm bütçe kayıtlarını siler → önce onay iste.
+                Alert.alert(
+                  tr ? 'Tasarruf planını kapat?' : 'Close savings plan?',
+                  tr ? 'Plan ve tüm bütçe kayıtların silinecek. Bu işlem geri alınamaz.' : 'Your plan and all budget entries will be deleted. This cannot be undone.',
+                  [
+                    { text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' },
+                    { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: () => { closePlan(); } },
+                  ],
+                );
+              } else { setSeasonalPref('tasarrufMode', false); setExpanded(false); }
             }}
             trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: C }}
             thumbColor="#fff"
@@ -230,7 +244,7 @@ export function TasarrufCard() {
           <View style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: C + '22', padding: S.md, gap: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{seasonal.tasarrufName}</Text>
-              <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(tr ? 'Hedefi Sil' : 'Delete Goal', tr ? 'Tasarruf planı kapatılsın mı? (kayıtların korunur)' : 'Close savings plan? (your log is kept)', [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: closePlan }]); }}>
+              <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(tr ? 'Hedefi Sil' : 'Delete Goal', tr ? 'Plan ve tüm bütçe kayıtların silinecek. Bu işlem geri alınamaz.' : 'Your plan and all budget entries will be deleted. This cannot be undone.', [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: closePlan }]); }}>
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Kapat' : 'Close'}</Text>
               </Touchable>
             </View>

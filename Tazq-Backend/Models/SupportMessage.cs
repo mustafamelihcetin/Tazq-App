@@ -22,5 +22,10 @@ namespace Tazq_App.Models
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
 		public bool IsRead { get; set; } = false;
+
+		// Admin yanıtı — kullanıcı OKUYABİLİR ama yanıtlayamaz (tek yönlü). Boşsa henüz yanıt yok.
+		public string? AdminReply { get; set; }
+
+		public DateTime? RepliedAt { get; set; }
 	}
 }

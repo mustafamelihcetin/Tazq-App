@@ -295,12 +295,32 @@ export interface SupportMessageItem {
   message: string;
   createdAt: string;
   isRead: boolean;
+  adminReply?: string | null;
+  repliedAt?: string | null;
+}
+
+// Kullanıcının kendi destek mesajı + admin yanıtı (salt-okunur görünüm).
+export interface MySupportMessage {
+  id: number;
+  message: string;
+  createdAt: string;
+  adminReply?: string | null;
+  repliedAt?: string | null;
 }
 
 export const SupportService = {
   sendMessage: async (message: string): Promise<{ success: boolean; id: number }> => {
     const r = await api.post('/api/support', { message });
     return r.data;
+  },
+  // Kullanıcı: kendi mesajları + admin yanıtları (salt-okunur).
+  getMyMessages: async (): Promise<{ messages: MySupportMessage[] }> => {
+    const r = await api.get('/api/support/mine');
+    return r.data;
+  },
+  // Admin: kullanıcının mesajına yanıt yaz.
+  replyMessage: async (id: number, reply: string): Promise<void> => {
+    await api.patch(`/api/support/admin/${id}/reply`, { reply });
   },
   getAllMessages: async (): Promise<{ messages: SupportMessageItem[]; unreadCount: number }> => {
     const r = await api.get('/api/support/admin/all');

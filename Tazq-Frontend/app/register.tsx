@@ -89,29 +89,38 @@ export default function RegisterScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      await AuthService.register({ name, email, password });
+      // 1) KAYIT adımı — hatası net bir sebep gösterir ("sebebi yok" olmaz).
+      try {
+        await AuthService.register({ name, email, password });
+      } catch (err: any) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        if (!err?.response) { setError(t.login.networkError); return; }
+        const status = err.response.status;
+        const body = err.response.data ?? '';
+        // Yapısal hata kodunu tercih et; eski düz-metin yanıt için geriye dönük yedek.
+        const isEmailTaken =
+          (body && typeof body === 'object' && body.error === 'email_taken') ||
+          (typeof body === 'string' && body.includes('zaten'));
+        if (isEmailTaken) { setError(t.login.registerEmailTaken); return; }
+        if (status >= 500) { setError(tr ? 'Sunucu hatası. Lütfen sonra tekrar dene.' : 'Server error. Please try again later.'); return; }
+        // Sunucudan açıklayıcı bir mesaj geldiyse onu göster; yoksa genel.
+        const serverMsg = typeof body === 'string' ? body : (body?.message || '');
+        setError(serverMsg || t.login.registerError);
+        return;
+      }
 
-      // Auto-login immediately after successful registration
-      const { token, refreshToken } = await AuthService.login(email, password);
-      const userData = await AuthService.getCurrentUser(token);
-      setAuth(userData, token, refreshToken);
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace('/');
-    } catch (err: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const status = err?.response?.status;
-      const body = err?.response?.data ?? '';
-      // Yapısal hata kodunu tercih et; eski düz-metin yanıt için geriye dönük yedek.
-      const isEmailTaken =
-        (body && typeof body === 'object' && body.error === 'email_taken') ||
-        (typeof body === 'string' && body.includes('zaten'));
-      if (status === 400 && isEmailTaken) {
-        setError(t.login.registerEmailTaken);
-      } else if (status === 400) {
-        setError(t.login.registerWeakPassword);
-      } else {
-        setError(t.login.registerError);
+      // 2) Kayıt BAŞARILI — otomatik giriş. Bu adımın hatası "kayıt başarısız" DEĞİL:
+      // hesap oluştu, sadece otomatik giriş olmadı → kullanıcıyı girişe yönlendir.
+      try {
+        const { token, refreshToken } = await AuthService.login(email, password);
+        const userData = await AuthService.getCurrentUser(token);
+        setAuth(userData, token, refreshToken);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace('/');
+      } catch {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setError(tr ? 'Hesabın oluşturuldu — lütfen giriş yap.' : 'Account created — please sign in.');
+        setTimeout(() => router.replace('/login'), 1200);
       }
     } finally {
       setIsLoading(false);
@@ -207,6 +216,11 @@ export default function RegisterScreen() {
                           value={email}
                           onChangeText={setEmail}
                           autoCapitalize="none"
+                          autoCorrect={false}
+                          spellCheck={false}
+                          autoComplete="email"
+                          textContentType="emailAddress"
+                          keyboardType="email-address"
                           underlineColorAndroid="transparent"
                         />
                       </View>

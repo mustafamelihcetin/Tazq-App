@@ -8,7 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MotiView } from 'moti';
 import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send } from 'lucide-react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { AuthService, FocusService, SupportService } from '../services/api';
+import { AuthService, FocusService, SupportService, MySupportMessage } from '../services/api';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { useAuthStore } from '../store/useAuthStore';
 import { useLanguageStore } from '../store/useLanguageStore';
@@ -18,7 +18,8 @@ import { useRouter } from 'expo-router';
 import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '../utils/notifications';
 import { S, R, F, B } from '../constants/tokens';
 import { useToastStore } from '../store/useToastStore';
-import { AVATAR_CONFIGS, getAvatarSource } from '../utils/avatars';
+import { AVATAR_CONFIGS, AVATAR_MAP, getAvatarSource } from '../utils/avatars';
+import { Asset } from 'expo-asset';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useAchievementStore } from '../store/useAchievementStore';
 import { ACHIEVEMENTS } from '../utils/achievements';
@@ -61,7 +62,23 @@ export default function ProfileScreen() {
   const [supportModalVisible, setSupportModalVisible] = useState(false);
   const [supportText, setSupportText] = useState('');
   const [sendingSupport, setSendingSupport] = useState(false);
+  const [myMessages, setMyMessages] = useState<MySupportMessage[]>([]);
+  const [loadingMine, setLoadingMine] = useState(false);
   useUiDepth(supportModalVisible);
+
+  const loadMyMessages = React.useCallback(async () => {
+    setLoadingMine(true);
+    try {
+      const r = await SupportService.getMyMessages();
+      setMyMessages(r.messages || []);
+    } catch { /* sessiz — liste boş kalır */ }
+    finally { setLoadingMine(false); }
+  }, []);
+
+  // Destek modalı açılınca kullanıcının kendi mesajları + admin yanıtlarını getir.
+  useEffect(() => {
+    if (supportModalVisible) loadMyMessages();
+  }, [supportModalVisible, loadMyMessages]);
   const [selectedAvatar, setSelectedAvatar] = useState(user?.avatar || 'm1');
   const [newName, setNewName] = useState(user?.name || '');
   const [selectedGoal, setSelectedGoal] = useState(dailyGoalMinutes);
@@ -108,6 +125,9 @@ export default function ProfileScreen() {
   useEffect(() => {
     loadStats();
     requestNotificationPermissions().then((granted) => setNotifEnabled(granted));
+    // Avatarları profil açılır açılmaz önceden çöz/cache'le → "Düzenle"ye girince
+    // 12 PNG ilk kez decode olurken boş/beyaz görünmesin, anında çıksınlar.
+    Asset.loadAsync(Object.values(AVATAR_MAP)).catch(() => {});
   }, []);
 
   const openEditModal = () => {
@@ -203,15 +223,31 @@ export default function ProfileScreen() {
       Alert.alert(language === 'tr' ? 'Hata' : 'Error', (t as any).support?.emptyError || 'Lütfen bir mesaj yaz.');
       return;
     }
+    const tr = language === 'tr';
     setSendingSupport(true);
     try {
       await SupportService.sendMessage(supportText);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setSupportModalVisible(false);
       setSupportText('');
-      Alert.alert(language === 'tr' ? 'Başarılı' : 'Success', (t as any).support?.success || 'Mesajın destek ekibine iletildi.');
-    } catch {
-      Alert.alert(language === 'tr' ? 'Hata' : 'Error', (t as any).support?.error || 'Mesaj gönderilemedi.');
+      // Modalı kapatma — listeyi tazele ki kullanıcı mesajını (ve gelince yanıtı) görsün.
+      loadMyMessages();
+      Alert.alert(tr ? 'Başarılı' : 'Success', (t as any).support?.success || 'Mesajın destek ekibine iletildi.');
+    } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      // Gerçek nedeni göster (genel "gönderilemedi" sebebi gizliyordu) + konsola detay.
+      console.warn('[Support] send failed:', err?.response?.status, err?.response?.data);
+      let msg = (t as any).support?.error || (tr ? 'Mesaj gönderilemedi.' : 'Could not send message.');
+      if (!err?.response) {
+        msg = (t as any).login?.networkError || (tr ? 'Bağlantı hatası. Ağını kontrol et.' : 'Connection failed. Check your network.');
+      } else {
+        const status = err.response.status;
+        const body = err.response.data;
+        const serverMsg = typeof body === 'string' ? body : body?.message;
+        if (status === 401) msg = tr ? 'Oturumun doğrulanamadı. Lütfen çıkıp tekrar giriş yap.' : 'Session could not be verified. Please sign out and back in.';
+        else if (status >= 500) msg = tr ? 'Sunucu hatası. Lütfen sonra tekrar dene.' : 'Server error. Please try again later.';
+        else if (serverMsg) msg = serverMsg;
+      }
+      Alert.alert(tr ? 'Hata' : 'Error', msg);
     } finally {
       setSendingSupport(false);
     }
@@ -826,10 +862,14 @@ export default function ProfileScreen() {
                     placeholderTextColor={theme.onSurfaceVariant + '99'}
                     style={[{ color: theme.onSurface, fontSize: F.body, width: '100%', height: '100%' }]}
                     multiline
+                    maxLength={500}
                     textAlignVertical="top"
                     underlineColorAndroid="transparent"
                   />
                 </View>
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, alignSelf: 'flex-end', marginTop: -S.sm }}>
+                  {supportText.length}/500
+                </Text>
                 <Touchable
                   onPress={handleSendSupport}
                   disabled={sendingSupport}
@@ -844,6 +884,37 @@ export default function ProfileScreen() {
                     </>
                   )}
                 </Touchable>
+
+                {/* Geçmiş mesajlar + admin yanıtları — SALT OKUNUR (kullanıcı yanıtlayamaz) */}
+                {(loadingMine || myMessages.length > 0) && (
+                  <View style={{ marginTop: S.sm, gap: S.sm }}>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 }}>
+                      {language === 'tr' ? 'Mesajların' : 'Your messages'}
+                    </Text>
+                    <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
+                      <View style={{ gap: S.sm }}>
+                        {myMessages.map((mm) => (
+                          <View key={mm.id} style={{ backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderRadius: R.md, padding: S.sm, gap: 6 }}>
+                            <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>{mm.message}</Text>
+                            <Text style={{ color: theme.onSurfaceVariant, fontSize: 9, opacity: 0.5 }}>
+                              {new Date(mm.createdAt).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </Text>
+                            {mm.adminReply ? (
+                              <View style={{ backgroundColor: '#10B98112', borderLeftWidth: 3, borderLeftColor: '#10B981', borderRadius: R.sm, padding: S.sm, gap: 2 }}>
+                                <Text style={{ color: '#10B981', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }}>{language === 'tr' ? '✓ DESTEK YANITI' : '✓ SUPPORT REPLY'}</Text>
+                                <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>{mm.adminReply}</Text>
+                              </View>
+                            ) : (
+                              <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, fontStyle: 'italic', opacity: 0.6 }}>
+                                {language === 'tr' ? 'Yanıt bekleniyor…' : 'Awaiting reply…'}
+                              </Text>
+                            )}
+                          </View>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  </View>
+                )}
               </View>
             </View>
         </KeyboardAvoidingView>

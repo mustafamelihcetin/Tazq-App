@@ -54,15 +54,17 @@ export function useOfflineSync() {
           // Dequeue one by one so if it crashes, remaining ops are saved
           useOfflineQueue.getState().dequeue(1);
         } catch (err: any) {
-          // If it's a 404 (Not Found), it means we're trying to update/delete a task that doesn't exist.
-          // Safely discard it from the queue.
-          if (err.response && err.response.status === 404) {
-            console.log(`[Offline Sync] Discarding operation due to 404:`, op);
+          const status = err?.response?.status;
+          // 4xx (istemci) hatası → bu op mevcut durumda ASLA geçmez: silinmiş görev (404),
+          // başka kullanıcıya ait kayıt (401/403), geçersiz veri (400)... Kuyruğu sonsuza
+          // dek kilitlememek için zehirli op'u at ve devam et. Yalnız 5xx/ağ hatasında dur.
+          if (status && status >= 400 && status < 500) {
+            console.log(`[Offline Sync] Discarding op (HTTP ${status}):`, op);
             useOfflineQueue.getState().dequeue(1);
             processed++;
           } else {
-            console.error(`[Offline Sync] Sync failed at item ${i}`, err);
-            break; // Stop processing, wait for next online event
+            console.error(`[Offline Sync] Sync paused at item ${i} (will retry later)`, err);
+            break; // Geçici hata (sunucu/ağ) — dur, bir sonraki çevrimiçi olayında tekrar dene
           }
         }
       }
