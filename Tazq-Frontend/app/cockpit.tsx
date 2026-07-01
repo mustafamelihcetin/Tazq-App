@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Modal, KeyboardAvoidingView, Platform, Dimensions, Animated, useWindowDimensions } from 'react-native';
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
 import { BlurView } from 'expo-blur';
@@ -11,21 +11,20 @@ import {
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { useTaskStore } from '../store/useTaskStore';
-import { useFocusStore } from '../store/useFocusStore';
-import { useHabitStore, Habit, fmtDateKey } from '../store/useHabitStore';
-import { useLanguageStore } from '../store/useLanguageStore';
-import { usePrefsStore } from '../store/usePrefsStore';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { renderModeEmojiIcon } from '../utils/modeIcons';
-import { BentoCard } from '../components/BentoCard';
-import { BottomNavBar } from '../components/BottomNavBar';
-import { FocusService } from '../services/api';
-import { S, R, F, B, TRACKING, MAX_W, sideInset } from '../constants/tokens';
-import { Touchable } from '@/components/Touchable';
-import { DottedBackground } from '../components/DottedBackground';
-import { CustomAlert as Alert } from '../components/CustomAlert';
-import { useUiDepth } from '../hooks/useUiDepth';
+import { useTaskStore } from '@/features/tasks';
+import { useFocusStore } from '@/features/focus';
+import { useHabitStore, Habit, fmtDateKey } from '@/features/habits';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { usePrefsStore, renderModeEmojiIcon } from '@/features/modes';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { BentoCard } from '@/shared/components/BentoCard';
+import { BottomNavBar } from '@/shared/components/BottomNavBar';
+import { FocusService } from '@/shared/services/api';
+import { S, R, F, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
+import { Touchable } from '@/shared/components/Touchable';
+import { DottedBackground } from '@/shared/components/DottedBackground';
+import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { useUiDepth } from '@/shared/hooks/useUiDepth';
 
 // Alışkanlık odaklı kalmalı — mantıklı üst sınır (plan + manuel toplam).
 const MAX_HABITS = 15;

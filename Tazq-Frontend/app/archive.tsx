@@ -1,17 +1,17 @@
 import React from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
-import { useTaskStore } from '../store/useTaskStore';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { useLanguageStore } from '../store/useLanguageStore';
+import { useTaskStore } from '@/features/tasks';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { S, F, R, B, MAX_W } from '../constants/tokens';
-import { TaskService } from '../services/api';
-import { useNetworkStore } from '../store/useNetworkStore';
-import { useOfflineQueue } from '../store/useOfflineQueue';
-import { Touchable } from '@/components/Touchable';
-import { CustomAlert as Alert } from '../components/CustomAlert';
+import { S, F, R, B, MAX_W } from '@/shared/constants/tokens';
+import { TaskService } from '@/shared/services/api';
+import { useNetworkStore } from '@/shared/store/useNetworkStore';
+import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
+import { Touchable } from '@/shared/components/Touchable';
+import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 
 export default function ArchiveScreen() {
     const { theme, isDark } = useAppTheme();

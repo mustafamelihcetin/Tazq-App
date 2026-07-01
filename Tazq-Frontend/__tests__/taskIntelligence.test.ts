@@ -1,4 +1,4 @@
-import { categorizeTask } from '../utils/taskIntelligence';
+import { categorizeTask } from '@/features/tasks';
 
 describe('taskIntelligence - categorizeTask', () => {
   it('should categorize work-related tasks', async () => {

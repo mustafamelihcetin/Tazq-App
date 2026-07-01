@@ -4,7 +4,7 @@ import {
   cancelTaskNotification,
   scheduleShutdownNotification,
   cancelAllNotifications,
-} from '../utils/notifications';
+} from '@/shared/utils/notifications';
 
 describe('notifications (Expo Go mock)', () => {
   it('requestPermissions always returns false in mock mode', async () => {

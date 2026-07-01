@@ -1,4 +1,4 @@
-import { computeMomentum, MomentumInput } from '../utils/momentum';
+import { computeMomentum, MomentumInput } from '@/shared/utils/momentum';
 
 const NOW = new Date('2026-06-29T12:00:00Z');
 const todayIso = NOW.toISOString();

@@ -7,17 +7,17 @@ const mockSetPlanIds = jest.fn();
 let mockTasks: any[] = [];
 let mockPrefsState: any = {};
 
-jest.mock('../services/api', () => ({
+jest.mock('@/shared/services/api', () => ({
   TaskService: { deleteTask: (id: number) => mockDeleteTask(id) },
 }));
-jest.mock('../store/useTaskStore', () => ({
+jest.mock('@/features/tasks/store/useTaskStore', () => ({
   useTaskStore: { getState: () => ({ tasks: mockTasks, removeTask: mockRemoveTask }) },
 }));
-jest.mock('../store/usePrefsStore', () => ({
+jest.mock('@/features/modes/store/usePrefsStore', () => ({
   usePrefsStore: { getState: () => ({ ...mockPrefsState, setPlanIds: mockSetPlanIds }) },
 }));
 
-import { runPlanMigrationOnce } from '../utils/planMigration';
+import { runPlanMigrationOnce } from '@/shared/utils/planMigration';
 
 const iso = (daysFromNow: number) => {
   const d = new Date();

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, AppState, Animated, ScrollView, BackHandler, Easing } from 'react-native';
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import Svg, { Circle, G } from 'react-native-svg';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -9,21 +9,20 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MotiView, AnimatePresence } from 'moti';
 import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil, Timer, ChevronRight, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useLanguageStore } from '../store/useLanguageStore';
-import { useFocusStore } from '../store/useFocusStore';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { useFocusStore } from '@/features/focus';
 import * as Haptics from 'expo-haptics';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
-import { FocusService } from '../services/api';
-import { useAchievementStore } from '../store/useAchievementStore';
-import { usePrefsStore } from '../store/usePrefsStore';
-import { checkFocusAchievement } from '../utils/achievements';
-import { track } from '../utils/analytics';
+import { FocusService } from '@/shared/services/api';
+import { useAchievementStore, checkFocusAchievement } from '@/features/user';
+import { usePrefsStore } from '@/features/modes';
+import { track } from '@/shared/utils/analytics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { getRandomQuote } from '../constants/Quotes';
-import { S, R, F, B } from '../constants/tokens';
-import { Touchable } from '@/components/Touchable';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { getRandomQuote } from '@/shared/constants/Quotes';
+import { S, R, F, B } from '@/shared/constants/tokens';
+import { Touchable } from '@/shared/components/Touchable';
 
 // Named focus presets — each encodes work + break durations
 const PRESETS = [

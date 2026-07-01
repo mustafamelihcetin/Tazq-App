@@ -1,4 +1,4 @@
-import { parseTaskHint } from '../utils/taskParser';
+import { parseTaskHint } from '@/features/tasks';
 
 describe('parseTaskHint', () => {
   it('detects high priority from "acil" keyword', () => {

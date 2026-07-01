@@ -8,15 +8,15 @@ import {
   Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Mail, Send, CornerDownRight,
   Server, RefreshCw, Power, Database, AlertTriangle, FileText, ExternalLink, BarChart3
 } from 'lucide-react-native';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { useLanguageStore } from '../store/useLanguageStore';
-import { useAuthStore } from '../store/useAuthStore';
-import { AdminService, AdminUser, AdminStats, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary } from '../services/api';
-import { sendAdminSupportNotification } from '../utils/notifications';
-import { S, R, F, B, MAX_W } from '../constants/tokens';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { useAuthStore } from '@/features/user';
+import { AdminService, AdminUser, AdminStats, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary } from '@/shared/services/api';
+import { sendAdminSupportNotification } from '@/shared/utils/notifications';
+import { S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import * as Haptics from 'expo-haptics';
-import { Touchable } from '@/components/Touchable';
-import { CustomAlert as Alert } from '../components/CustomAlert';
+import { Touchable } from '@/shared/components/Touchable';
+import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 
 type SortKey = 'name' | 'tasks' | 'focus' | 'recent';
 

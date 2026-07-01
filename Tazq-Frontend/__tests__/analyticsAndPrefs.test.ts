@@ -1,5 +1,5 @@
-import { track } from '../utils/analytics';
-import { usePrefsStore } from '../store/usePrefsStore';
+import { track } from '@/shared/utils/analytics';
+import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 
 describe('analytics.track', () => {
   it('does not throw for a basic event', () => {

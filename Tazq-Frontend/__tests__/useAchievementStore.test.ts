@@ -1,4 +1,4 @@
-import { useAchievementStore, Achievement } from '../store/useAchievementStore';
+import { useAchievementStore, Achievement } from '@/features/user';
 
 const A: Achievement = { id: 'streak_3', emoji: '🔥', titleTr: '', titleEn: '', subtitleTr: '', subtitleEn: '' };
 const B: Achievement = { id: 'streak_7', emoji: '⚡', titleTr: '', titleEn: '', subtitleTr: '', subtitleEn: '' };

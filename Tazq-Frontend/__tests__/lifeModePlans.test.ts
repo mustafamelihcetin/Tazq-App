@@ -1,4 +1,4 @@
-import { buildTasarrufPlan, buildBirakmaPlan, birakmaMilestoneTask, birakmaTypeTasks, tasarrufTypeLabel, birakmaTypeLabel } from '../utils/lifeModePlans';
+import { buildTasarrufPlan, buildBirakmaPlan, birakmaMilestoneTask, birakmaTypeTasks, tasarrufTypeLabel, birakmaTypeLabel } from '@/shared/utils/lifeModePlans';
 
 describe('lifeModePlans', () => {
   it('tasarruf: tipe özel görevleri başa ekler + tipe özel alışkanlık + temel içerik', () => {

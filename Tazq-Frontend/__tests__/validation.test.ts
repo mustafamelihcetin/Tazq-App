@@ -1,4 +1,4 @@
-import { isValidEmail, isValidPassword, validateLogin, validateRegister } from '../utils/validation';
+import { isValidEmail, isValidPassword, validateLogin, validateRegister } from '@/shared/utils/validation';
 
 describe('isValidEmail', () => {
   it('accepts well-formed addresses', () => {

@@ -1,4 +1,4 @@
-import { useOfflineQueue, OfflineOp } from '../store/useOfflineQueue';
+import { useOfflineQueue, OfflineOp } from '@/shared/store/useOfflineQueue';
 
 beforeEach(() => {
   useOfflineQueue.setState({ ops: [] });

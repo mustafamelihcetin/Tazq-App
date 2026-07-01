@@ -5,15 +5,15 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router';
 import { ArrowLeft, CalendarClock, Layers, Flame } from 'lucide-react-native';
 import { MotiView } from 'moti';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { useLanguageStore } from '../store/useLanguageStore';
-import { usePrefsStore } from '../store/usePrefsStore';
-import { useHabitStore } from '../store/useHabitStore';
-import { useTaskStore } from '../store/useTaskStore';
-import { S, R, F, B, TRACKING, SPRING, MAX_W } from '../constants/tokens';
-import { track } from '../utils/analytics';
-import { renderModeEmojiIcon } from '../utils/modeIcons';
-import { localizeSporGoal } from '../utils/turkishModes';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { usePrefsStore } from '@/features/modes';
+import { useHabitStore } from '@/features/habits';
+import { useTaskStore } from '@/features/tasks';
+import { S, R, F, B, TRACKING, SPRING, MAX_W } from '@/shared/constants/tokens';
+import { track } from '@/shared/utils/analytics';
+import { renderModeEmojiIcon } from '@/features/modes';
+import { localizeSporGoal } from '@/features/modes';
 
 // Bu haftanın (Pzt–Paz) 'YYYY-MM-DD' anahtarları.
 function thisWeekKeys(): Set<string> {

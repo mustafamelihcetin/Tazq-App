@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { B } from '../constants/tokens';
+import { B } from '@/shared/constants/tokens';
 import {
   View,
   Text,
@@ -15,15 +15,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { useLanguageStore } from '../store/useLanguageStore';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { ChevronRight, Clock } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Easing } from 'react-native-reanimated';
-import { TazqLogo } from '../components/TazqLogo';
-import { Touchable } from '@/components/Touchable';
-import { track } from '../utils/analytics';
-import { usePrefsStore } from '../store/usePrefsStore';
+import { TazqLogo } from '@/shared/components/TazqLogo';
+import { Touchable } from '@/shared/components/Touchable';
+import { track } from '@/shared/utils/analytics';
+import { usePrefsStore } from '@/features/modes';
 
 const SLIDES = [
   {

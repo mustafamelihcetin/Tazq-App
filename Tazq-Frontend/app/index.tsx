@@ -1,51 +1,43 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CustomAlert as Alert } from '../components/CustomAlert';
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTaskStore } from '../store/useTaskStore';
+import { useTaskStore, parseTaskHint } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
-import { useAuthStore } from '../store/useAuthStore';
-import { useLanguageStore } from '../store/useLanguageStore';
-import { BentoCard } from '../components/BentoCard';
-import { DynamicIsland } from '../components/DynamicIsland';
-import { BottomNavBar } from '../components/BottomNavBar';
+import { useAuthStore, useAchievementStore, useMomentumStore, checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS, getAvatarSource } from '@/features/user';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { BentoCard } from '@/shared/components/BentoCard';
+import { DynamicIsland } from '@/features/focus';
+import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { MotiView, MotiText } from 'moti';
 import { Plus, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp, Flame, Check } from 'lucide-react-native';
 import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
-import { TaskService, FocusService, DailyFocusData } from '../services/api';
+import { TaskService, FocusService, DailyFocusData } from '@/shared/services/api';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { TazqLogo } from '../components/TazqLogo';
-import { PremiumStatChip } from '../components/PremiumStatChip';
-import { useFocusStore } from '../store/useFocusStore';
-import { StatusHub } from '../components/StatusHub';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { TazqLogo } from '@/shared/components/TazqLogo';
+import { PremiumStatChip } from '@/shared/components/PremiumStatChip';
+import { useFocusStore } from '@/features/focus';
+import { StatusHub } from '@/shared/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
-import { parseTaskHint } from '../utils/taskParser';
-import { getSmartInsight } from '../utils/insights';
-import { computeMomentum } from '../utils/momentum';
-import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '../constants/tokens';
-import { getAvatarSource } from '../utils/avatars';
-import { useToastStore } from '../store/useToastStore';
-import { useMomentumStore } from '../store/useMomentumStore';
-import { usePrefsStore } from '../store/usePrefsStore';
-import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
-import { renderModeEmojiIcon } from '../utils/modeIcons';
-import { useUiDepth } from '../hooks/useUiDepth';
-import { TurkishModeBanner } from '../components/TurkishModeBanner';
-import { MomentumPulse } from '../components/MomentumPulse';
-import { WeightEntryModal } from '../components/WeightEntryModal';
-import { detectTurkishMode, getCustomExamMode } from '../utils/turkishModes';
-import { scheduleWeeklySummary } from '../utils/notifications';
-import { useAchievementStore } from '../store/useAchievementStore';
-import { checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS } from '../utils/achievements';
-import { Touchable } from '@/components/Touchable';
-import { DottedBackground } from '../components/DottedBackground';
-import { useNetworkStore } from '../store/useNetworkStore';
-import { useOfflineQueue } from '../store/useOfflineQueue';
+import { getSmartInsight } from '@/shared/utils/insights';
+import { computeMomentum } from '@/shared/utils/momentum';
+import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
+import { useToastStore } from '@/shared/store/useToastStore';
+import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner } from '@/features/modes';
+import { useHabitStore, fmtDateKey } from '@/features/habits';
+import { useUiDepth } from '@/shared/hooks/useUiDepth';
+import { MomentumPulse } from '@/shared/components/MomentumPulse';
+import { WeightEntryModal } from '@/shared/components/WeightEntryModal';
+import { scheduleWeeklySummary } from '@/shared/utils/notifications';
+import { Touchable } from '@/shared/components/Touchable';
+import { DottedBackground } from '@/shared/components/DottedBackground';
+import { useNetworkStore } from '@/shared/store/useNetworkStore';
+import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
@@ -256,7 +248,7 @@ export default function HomeScreen() {
           useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload });
           addTask({ ...payload, id: tempId } as any);
           if (isReminder) {
-            const { scheduleTaskNotification } = require('../utils/notifications');
+            const { scheduleTaskNotification } = require('@/shared/utils/notifications');
             await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
           }
           setDraftTitle('');
@@ -268,7 +260,7 @@ export default function HomeScreen() {
 
           // Schedule notification if it's a reminder
           if (created.id && isReminder) {
-              const { scheduleTaskNotification } = require('../utils/notifications');
+              const { scheduleTaskNotification } = require('@/shared/utils/notifications');
               await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
           }
           setDraftTitle('');
@@ -281,7 +273,7 @@ export default function HomeScreen() {
           useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload });
           addTask({ ...payload, id: tempId } as any);
           if (isReminder) {
-            const { scheduleTaskNotification } = require('../utils/notifications');
+            const { scheduleTaskNotification } = require('@/shared/utils/notifications');
             await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
           }
           setDraftTitle('');
@@ -903,7 +895,7 @@ export default function HomeScreen() {
                             }
                             setReviewFeedbackSending(true);
                             try {
-                              const SupportService = require('../services/api').SupportService;
+                              const SupportService = require('@/shared/services/api').SupportService;
                               await SupportService.sendMessage(`[APP REVIEW feedback - Star rating: ${reviewRating}/5]\n${feedback}`);
                               setReviewSubmitted(true);
                               setTimeout(() => {

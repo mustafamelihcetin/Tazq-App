@@ -7,7 +7,7 @@ import {
   BASELINE_CURRICULUM,
   ExamCurriculum,
   SubjectProgress,
-} from '../utils/curriculum';
+} from '@/shared/utils/curriculum';
 
 describe('findExamCurriculum', () => {
   it('finds a known exam by exact alias (case-insensitive)', () => {

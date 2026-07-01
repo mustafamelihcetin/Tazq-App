@@ -4,14 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Flame, Clock, CheckCircle2, Zap, Calendar } from 'lucide-react-native';
 import { MotiView } from 'moti';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { useLanguageStore } from '../store/useLanguageStore';
-import { usePrefsStore } from '../store/usePrefsStore';
-import { useMomentumStore } from '../store/useMomentumStore';
-import { FocusService, UserStatsResponse } from '../services/api';
-import { S, R, F, B, TRACKING, MAX_W } from '../constants/tokens';
-import { generateWeeklyTips, computeWeeklyMetrics, getCoachAction, ProductivityHour } from '../utils/insights';
-import { track } from '../utils/analytics';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { usePrefsStore } from '@/features/modes';
+import { useMomentumStore } from '@/features/user';
+import { FocusService, UserStatsResponse } from '@/shared/services/api';
+import { S, R, F, B, TRACKING, MAX_W } from '@/shared/constants/tokens';
+import { generateWeeklyTips, computeWeeklyMetrics, getCoachAction, ProductivityHour } from '@/shared/utils/insights';
+import { track } from '@/shared/utils/analytics';
 
 const TONE_COLOR: Record<string, string> = {
   positive: '#34C759',

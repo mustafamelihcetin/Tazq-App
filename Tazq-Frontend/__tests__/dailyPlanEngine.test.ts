@@ -1,4 +1,4 @@
-import { buildDailyTasks, hasDailyToday, adaptiveTaskCount, DailyPlanSpec } from '../utils/dailyPlanEngine';
+import { buildDailyTasks, hasDailyToday, adaptiveTaskCount, DailyPlanSpec } from '@/shared/utils/dailyPlanEngine';
 
 describe('adaptiveTaskCount (adaptif zorluk — yalnız hafifletir)', () => {
   it('returns base when no signal', () => {

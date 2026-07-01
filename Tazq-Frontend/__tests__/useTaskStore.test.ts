@@ -1,5 +1,5 @@
-import { useTaskStore } from '../store/useTaskStore';
-import type { Task } from '../store/useTaskStore';
+import { useTaskStore } from '@/features/tasks';
+import type { Task } from '@/features/tasks';
 
 const makeTask = (overrides: Partial<Task> = {}): Task => ({
   id: Math.floor(Math.random() * 10000),

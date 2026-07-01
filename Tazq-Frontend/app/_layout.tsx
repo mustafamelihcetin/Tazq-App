@@ -3,7 +3,7 @@ import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
 
 // Initialize crash reporting as early as possible — before any other imports
-import { initSentry } from '../utils/sentry';
+import { initSentry } from '@/shared/utils/sentry';
 initSentry();
 
 import '../global.css';
@@ -11,7 +11,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { useColorScheme, View, LogBox, AppState, Text, TextInput, Animated, StyleSheet } from 'react-native';
-import { uiDepth } from '../constants/uiDepth';
+import { uiDepth } from '@/shared/constants/uiDepth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- GLOBAL TYPOGRAPHY PROTECTION ---
@@ -25,17 +25,17 @@ if ((TextInput as any).defaultProps == null) {
 }
 (TextInput as any).defaultProps.maxFontSizeMultiplier = 1.15;
 // ------------------------------------
-import { Colors } from '../constants/Colors';
-import { useAuthStore } from '../store/useAuthStore';
-import { AuthService, FocusService, api } from '../services/api';
+import { Colors } from '@/shared/constants/Colors';
+import { useAuthStore } from '@/features/user';
+import { AuthService, FocusService, api } from '@/shared/services/api';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useLanguageStore } from '../store/useLanguageStore';
-import { syncTasksAndHabitsLanguage } from '../utils/systemTaskTranslator';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { initIntelligence } from '../utils/taskIntelligence';
-import { ErrorBoundary } from '../components/ErrorBoundary';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { syncTasksAndHabitsLanguage } from '@/shared/utils/systemTaskTranslator';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useTaskStore, initIntelligence } from '@/features/tasks';
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import {
   scheduleMorningBrief,
   scheduleEveningBrief,
@@ -47,21 +47,19 @@ import {
   showFocusNotification,
   cancelFocusNotification,
   registerNotificationCategories,
-} from '../utils/notifications';
-import { useTaskStore } from '../store/useTaskStore';
-import { useFocusStore } from '../store/useFocusStore';
+} from '@/shared/utils/notifications';
+import { useFocusStore, FocusIsland } from '@/features/focus';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
-import { AnimatedSplash } from '../components/AnimatedSplash';
-import { FocusIsland } from '../components/FocusIsland';
-import { Toast } from '../components/Toast';
-import { CelebrationOverlay } from '../components/CelebrationOverlay';
-import { CustomAlertModal } from '../components/CustomAlert';
+import { AnimatedSplash } from '@/shared/components/AnimatedSplash';
+import { Toast } from '@/shared/components/Toast';
+import { CelebrationOverlay } from '@/shared/components/CelebrationOverlay';
+import { CustomAlertModal } from '@/shared/components/CustomAlert';
 import { Asset } from 'expo-asset';
-import { useOfflineSync } from '../hooks/useOfflineSync';
-import { usePrefsSync } from '../hooks/usePrefsSync';
-import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
+import { useOfflineSync } from '@/shared/hooks/useOfflineSync';
+import { usePrefsSync } from '@/shared/hooks/usePrefsSync';
+import { usePlanAdaptations } from '@/features/modes';
 
 // Prevent the native splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -106,9 +104,9 @@ LogBox.ignoreLogs([
 ]);
 
 import { useFonts, PlusJakartaSans_800ExtraBold, PlusJakartaSans_700Bold, PlusJakartaSans_600SemiBold, PlusJakartaSans_800ExtraBold_Italic } from '@expo-google-fonts/plus-jakarta-sans';
-import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
-import { usePrefsStore } from '../store/usePrefsStore';
-import { useCompletionStore } from '../store/useCompletionStore';
+import { useHabitStore, fmtDateKey } from '@/features/habits';
+import { usePrefsStore } from '@/features/modes';
+import { useCompletionStore } from '@/shared/store/useCompletionStore';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -232,7 +230,7 @@ export default function RootLayout() {
       // Habit streak from cockpit store — best-effort
       let streak = 0;
       try {
-        const { habits } = require('../store/useHabitStore').useHabitStore.getState();
+        const { habits } = require('@/features/habits').useHabitStore.getState();
         streak = habits?.reduce((max: number, h: any) => Math.max(max, h.streak ?? 0), 0) ?? 0;
       } catch (_) {}
 
@@ -266,10 +264,10 @@ export default function RootLayout() {
         // Watch/Lock Screen: "✅ Tamamla" on task reminder (mark complete silently)
         if (action === 'task-complete' && data.taskId) {
           try {
-            const { api: taskApi } = require('../services/api');
+            const { api: taskApi } = require('@/shared/services/api');
             taskApi.patch(`/tasks/${data.taskId}`, { isCompleted: true }).catch(() => {});
             // Refresh local store
-            require('../store/useTaskStore').useTaskStore.getState().fetchTasks?.();
+            require('@/features/tasks').useTaskStore.getState().fetchTasks?.();
           } catch (_) {}
           return;
         }

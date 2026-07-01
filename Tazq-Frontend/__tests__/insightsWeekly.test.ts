@@ -1,4 +1,4 @@
-import { computeWeeklyMetrics, generateWeeklyTips, getCoachAction, WeeklyInsightInput, getSmartInsight } from '../utils/insights';
+import { computeWeeklyMetrics, generateWeeklyTips, getCoachAction, WeeklyInsightInput, getSmartInsight } from '@/shared/utils/insights';
 
 describe('getSmartInsight (Akıllı İçgörü Motoru)', () => {
   const dummyTask = { title: 'Ders çalış', priority: 'Medium', isCompleted: false };

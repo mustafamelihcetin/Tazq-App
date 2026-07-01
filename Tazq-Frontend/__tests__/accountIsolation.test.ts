@@ -2,10 +2,10 @@
  * Hesaplar arası yerel veri izolasyonu.
  * Çıkışta ve farklı hesapla girişte önceki kullanıcının cihazdaki verisi sızmamalı.
  */
-import { useAuthStore } from '../store/useAuthStore';
-import { usePrefsStore } from '../store/usePrefsStore';
-import { useTaskStore } from '../store/useTaskStore';
-import { useHabitStore } from '../store/useHabitStore';
+import { useAuthStore } from '@/features/user/store/useAuthStore';
+import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
+import { useTaskStore } from '@/features/tasks/store/useTaskStore';
+import { useHabitStore } from '@/features/habits/store/useHabitStore';
 
 const userA = { id: 1, email: 'a@x.com', name: 'A' } as any;
 const userB = { id: 2, email: 'b@x.com', name: 'B' } as any;

@@ -3,11 +3,11 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { useLanguageStore } from '../store/useLanguageStore';
-import { LEGAL_DOCS, type LegalDocKey } from '../constants/legal';
-import { S, F } from '../constants/tokens';
-import { Touchable } from '@/components/Touchable';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { LEGAL_DOCS, type LegalDocKey } from '@/shared/constants/legal';
+import { S, F } from '@/shared/constants/tokens';
+import { Touchable } from '@/shared/components/Touchable';
 
 export default function LegalScreen() {
   const { doc } = useLocalSearchParams<{ doc: LegalDocKey }>();

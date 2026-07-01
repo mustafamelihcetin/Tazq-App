@@ -1,4 +1,4 @@
-import { useHabitStore } from '../store/useHabitStore';
+import { useHabitStore } from '@/features/habits';
 
 beforeEach(() => useHabitStore.setState({ habits: [] }));
 

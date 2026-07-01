@@ -1,4 +1,4 @@
-import { useFocusStore } from '../store/useFocusStore';
+import { useFocusStore } from '@/features/focus/store/useFocusStore';
 
 // Reset store state between tests
 beforeEach(() => {

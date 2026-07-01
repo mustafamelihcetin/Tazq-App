@@ -1,4 +1,4 @@
-import { extractPlanFromText } from '../utils/planExtractor';
+import { extractPlanFromText } from '@/shared/utils/planExtractor';
 
 describe('extractPlanFromText (kural-tabanlı Öner)', () => {
   it('splits comma-separated items into separate tasks/habits', () => {

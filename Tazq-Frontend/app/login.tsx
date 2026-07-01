@@ -6,17 +6,17 @@ import { useRouter } from 'expo-router';
 import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
-import { AuthService } from '../services/api';
-import { useAuthStore } from '../store/useAuthStore';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { useLanguageStore } from '../store/useLanguageStore';
-import { GlassCard } from '../components/GlassCard';
-import { AnimatedBackground } from '../components/AnimatedBackground';
-import { TazqLogo } from '../components/TazqLogo';
-import { S, R, F, scale, verticalScale, moderateScale, B } from '../constants/tokens';
-import { Touchable } from '@/components/Touchable';
-import { CustomAlert as Alert } from '../components/CustomAlert';
-import { validateLogin, isValidEmail } from '../utils/validation';
+import { AuthService } from '@/shared/services/api';
+import { useAuthStore } from '@/features/user';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { GlassCard } from '@/shared/components/GlassCard';
+import { AnimatedBackground } from '@/shared/components/AnimatedBackground';
+import { TazqLogo } from '@/shared/components/TazqLogo';
+import { S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/constants/tokens';
+import { Touchable } from '@/shared/components/Touchable';
+import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { validateLogin, isValidEmail } from '@/shared/utils/validation';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">

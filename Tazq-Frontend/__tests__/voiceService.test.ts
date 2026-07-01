@@ -30,7 +30,7 @@ beforeAll(() => {
     jest.doMock('@react-native-voice/voice', () => ({ default: mockVoice }));
 
     // Load fresh — constructor runs here and sets mockVoice.onSpeech* handlers
-    VoiceService = require('../utils/voice').default;
+    VoiceService = require('@/shared/utils/voice').default;
   });
 });
 

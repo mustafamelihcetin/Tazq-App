@@ -1,22 +1,22 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList } from 'react-native';
-import { CustomAlert as Alert } from '../components/CustomAlert';
+import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { BlurView } from 'expo-blur';
 import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookOpen, ChevronRight, CalendarDays, X, Info, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity } from 'lucide-react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
-import { useAppTheme } from '../hooks/useAppTheme';
-import { BottomNavBar } from '../components/BottomNavBar';
-import { useLanguageStore } from '../store/useLanguageStore';
-import { useHabitStore, fmtDateKey } from '../store/useHabitStore';
-import { usePrefsStore } from '../store/usePrefsStore';
-import { track } from '../utils/analytics';
-import { useNetworkStore } from '../store/useNetworkStore';
-import { useOfflineQueue } from '../store/useOfflineQueue';
-import { useTaskStore } from '../store/useTaskStore';
-import { useCompletionStore } from '../store/useCompletionStore';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { BottomNavBar } from '@/shared/components/BottomNavBar';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { useHabitStore, fmtDateKey } from '@/features/habits';
+import { usePrefsStore, getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, localizeSporGoal, RAMAZAN, renderModeEmojiIcon, deriveDateSlot } from '@/features/modes';
+import { track } from '@/shared/utils/analytics';
+import { useNetworkStore } from '@/shared/store/useNetworkStore';
+import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
+import { useTaskStore } from '@/features/tasks';
+import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
@@ -24,16 +24,13 @@ import {
   scheduleExamCountdownNotifs,
   scheduleRamadanStartNotification,
   cancelRamadanStartNotification,
-} from '../utils/notifications';
-import { S, R, F, B, TRACKING, SPRING, MAX_W, sideInset } from '../constants/tokens';
-import { useToastStore } from '../store/useToastStore';
-import { getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, localizeSporGoal, RAMAZAN } from '../utils/turkishModes';
-import { renderModeEmojiIcon } from '../utils/modeIcons';
-import { deriveDateSlot } from '../utils/modeHelpers';
-import { useSporStore, getThisWeekEntry } from '../store/useSporStore';
-import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '../utils/weightCheckin';
-import { getCurrentRamadanStatus, formatRamadanDate } from '../utils/ramadanDates';
-import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '../utils/examPresets';
+} from '@/shared/utils/notifications';
+import { S, R, F, B, TRACKING, SPRING, MAX_W, sideInset } from '@/shared/constants/tokens';
+import { useToastStore } from '@/shared/store/useToastStore';
+import { useSporStore, getThisWeekEntry } from '@/shared/store/useSporStore';
+import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/shared/utils/weightCheckin';
+import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
+import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '@/shared/utils/examPresets';
 
 // Kullanıcının seçtiği günlük süreyi, eşleşen SEVİYE şablonuna (Temel/Standart/Yoğun)
 // bağlar. Böylece "1 saat seçtim ama plan 2+ saat Yoğun çıkıyor" çelişkisi olmaz —
@@ -44,17 +41,17 @@ function levelTemplateIdFromMinutes(min?: number): string {
   if (m <= 120) return 'level-orta';   // 60–120 dk
   return 'level-ileri';                 // 2+ saat
 }
-import { TurkishModeBanner } from '../components/TurkishModeBanner';
-import { TasarrufCard } from '../components/TasarrufCard';
-import { BirakmaCard } from '../components/BirakmaCard';
-import { TezCard } from '../components/modes/TezCard';
-import { MulakatCard } from '../components/modes/MulakatCard';
-import { RamazanCard } from '../components/modes/RamazanCard';
-import { ExamCard } from '../components/modes/ExamCard';
-import { SporCard } from '../components/modes/SporCard';
-import { TaskService } from '../services/api';
-import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
-import { Touchable } from '@/components/Touchable';
+import { TurkishModeBanner } from '@/features/modes';
+import { TasarrufCard } from '@/shared/components/TasarrufCard';
+import { BirakmaCard } from '@/shared/components/BirakmaCard';
+import { TezCard } from '@/features/modes/components/modes/TezCard';
+import { MulakatCard } from '@/features/modes/components/modes/MulakatCard';
+import { RamazanCard } from '@/features/modes/components/modes/RamazanCard';
+import { ExamCard } from '@/features/modes/components/modes/ExamCard';
+import { SporCard } from '@/features/modes/components/modes/SporCard';
+import { TaskService } from '@/shared/services/api';
+import { usePlanAdaptations } from '@/features/modes';
+import { Touchable } from '@/shared/components/Touchable';
 
 const MarsIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">

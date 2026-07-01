@@ -1,4 +1,4 @@
-import { deriveDateSlot } from '../utils/modeHelpers';
+import { deriveDateSlot } from '@/features/modes/utils/modeHelpers';
 
 const NOW = new Date('2026-06-29T12:00:00Z').getTime();
 const DAY = 86400000;
