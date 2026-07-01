@@ -35,12 +35,13 @@ interface Props {
   planTaskIds?: number[];
   onClearPlan?: (preserveMeta?: boolean) => void;
   defaultTemplateId?: string;
+  onRatingChange?: (rating: number) => void;
 }
 
 export const TurkishModeBanner: React.FC<Props> = ({
   mode, onDismiss, showSheetImmediately, onApplied, onSheetClose,
   planApplied, planHabitIds = [], planTaskIds = [], onClearPlan,
-  defaultTemplateId,
+  defaultTemplateId, onRatingChange,
 }) => {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -192,6 +193,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
       Haptics.selectionAsync();
       setRating(score);
       await AsyncStorage.setItem(ratingKey, score.toString());
+      onRatingChange?.(score);
     } catch (e) {
       console.warn('Failed to save daily rating', e);
     }

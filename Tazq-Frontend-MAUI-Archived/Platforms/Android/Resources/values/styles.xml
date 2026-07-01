@@ -1,8 +1,0 @@
-﻿<resources xmlns:tools="http://schemas.android.com/tools">
-	<style name="Maui.MainTheme" parent="Theme.Material3.DayNight.NoActionBar">
-		<item name="android:colorPrimary">#395177</item>
-		<item name="android:colorPrimaryDark">#395177</item>
-		<item name="android:colorAccent">#395177</item>
-		<item name="android:windowLightStatusBar" tools:targetApi="m" tools:ignore="NewApi">false</item>
-	</style>
-</resources>

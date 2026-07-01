@@ -31,7 +31,7 @@ import {
   daysUntil,
   Language,
 } from '../utils/planAdaptations';
-import { RAMAZAN } from '../utils/turkishModes';
+import { RAMAZAN, getModePreview } from '../utils/turkishModes';
 import { useCompletionStore } from '../store/useCompletionStore';
 import { useOfflineQueue } from '../store/useOfflineQueue';
 import { useNetworkStore } from '../store/useNetworkStore';
@@ -40,6 +40,9 @@ import { buildDailyTasks, DailyPlanSpec, PlanKind } from '../utils/dailyPlanEngi
 import { runPlanMigrationOnce } from '../utils/planMigration';
 import { findExamCurriculum, pickSubject, subjectExamLabel } from '../utils/curriculum';
 import { useSubjectStore } from '../store/useSubjectStore';
+import { useBudgetStore, type BudgetType } from '../store/useBudgetStore';
+import { useQuitStore, type QuitType } from '../store/useQuitStore';
+import { buildTasarrufPlan, buildBirakmaPlan } from '../utils/lifeModePlans';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
 
@@ -148,9 +151,177 @@ function makeClientKey(payload: { title: string; dueDate?: string | null; tags?:
   return `${day}:${fnv1a(basis)}${fnv1a(basis.split('').reverse().join(''))}`.slice(0, 64);
 }
 
-function planDedupeKey(task: { title: string; dueDate?: string | null; tags?: string[] | null }): string {
+function planDedupeKey(task: { title: string; tags?: string[] | null }): string {
   const tags = (task.tags ?? []).filter(tag => PLAN_TAGS.includes(tag)).sort().join(',');
-  return `${task.title.trim().toLocaleLowerCase('tr')}|${dateKey(task.dueDate)}|${tags}`;
+  return `${task.title.trim().toLocaleLowerCase('tr')}|${tags}`;
+}
+
+function inferBudgetType(name?: string | null): BudgetType {
+  if (!name) return '';
+  const n = name.toLowerCase();
+  if (n.includes('birikim') || n.includes('saving')) return 'birikim';
+  if (n.includes('borç') || n.includes('debt') || n.includes('payoff') || n.includes('kapatma')) return 'borc';
+  if (n.includes('acil') || n.includes('emergency') || n.includes('fon')) return 'acilfon';
+  return 'birikim'; // fallback
+}
+
+function selfHealActiveModes(tr: boolean) {
+  const freshPrefs = usePrefsStore.getState();
+  const freshSeasonal = freshPrefs.seasonal;
+  const currentHabits = useHabitStore.getState().habits;
+  const hasHabit = (id: string) => currentHabits.some(h => h.id === id);
+  const addHabitFn = useHabitStore.getState().addHabit;
+
+  // 1. RAMAZAN
+  if (freshSeasonal.ramazan && freshPrefs.ramazanPlanHabitIds.length > 0) {
+    const missing = freshPrefs.ramazanPlanHabitIds.some(id => !hasHabit(id));
+    if (missing) {
+      const tId = freshPrefs.planSpecs.ramazan?.templateId;
+      const modePreview = getModePreview('ramazan');
+      const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
+      template.habits.forEach((h, i) => {
+        const storedId = freshPrefs.ramazanPlanHabitIds[i];
+        if (storedId && !hasHabit(storedId)) {
+          addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, storedId, 'ramazan', h.nameTr, h.name);
+        }
+      });
+    }
+  }
+
+  // 2. EXAMS
+  const examSlotsToHeal = [
+    { active: freshSeasonal.examMode, name: freshSeasonal.examName, date: freshSeasonal.examDate, habitIds: freshPrefs.examPlanHabitIds, slot: 'exam' as const },
+    { active: !!freshSeasonal.exam2Name && !!freshSeasonal.exam2Date, name: freshSeasonal.exam2Name, date: freshSeasonal.exam2Date, habitIds: freshPrefs.exam2PlanHabitIds, slot: 'exam2' as const },
+    { active: !!freshSeasonal.exam3Name && !!freshSeasonal.exam3Date, name: freshSeasonal.exam3Name, date: freshSeasonal.exam3Date, habitIds: freshPrefs.exam3PlanHabitIds, slot: 'exam3' as const },
+  ];
+  for (const slot of examSlotsToHeal) {
+    if (slot.active && slot.name && slot.date && slot.habitIds.length > 0) {
+      if (slot.habitIds.some(id => !hasHabit(id))) {
+        const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
+        const modePreview = getModePreview('exam', { examName: slot.name, examDate: slot.date });
+        const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
+        template.habits.forEach((h, i) => {
+          const storedId = slot.habitIds[i];
+          if (storedId && !hasHabit(storedId)) {
+            addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, storedId, slot.slot, h.nameTr, h.name);
+          }
+        });
+      }
+    }
+  }
+
+  // 3. TEZ
+  if (freshSeasonal.tezMode && freshSeasonal.tezName && freshSeasonal.tezDate && freshPrefs.tezPlanHabitIds.length > 0) {
+    if (freshPrefs.tezPlanHabitIds.some(id => !hasHabit(id))) {
+      const tId = freshPrefs.planSpecs.tez?.templateId;
+      const modePreview = getModePreview('tez', { tezName: freshSeasonal.tezName, tezDate: freshSeasonal.tezDate });
+      const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
+      template.habits.forEach((h, i) => {
+        const storedId = freshPrefs.tezPlanHabitIds[i];
+        if (storedId && !hasHabit(storedId)) {
+          addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, storedId, 'tez', h.nameTr, h.name);
+        }
+      });
+    }
+  }
+
+  // 4. MULAKATS
+  const mulakatSlotsToHeal = [
+    { active: freshSeasonal.mulakatMode, name: freshSeasonal.mulakatName, date: freshSeasonal.mulakatDate, habitIds: freshPrefs.mulakatPlanHabitIds, slot: 'mulakat' as const },
+    { active: !!freshSeasonal.mulakat2Name && !!freshSeasonal.mulakat2Date, name: freshSeasonal.mulakat2Name, date: freshSeasonal.mulakat2Date, habitIds: freshPrefs.mulakat2PlanHabitIds, slot: 'mulakat2' as const },
+    { active: !!freshSeasonal.mulakat3Name && !!freshSeasonal.mulakat3Date, name: freshSeasonal.mulakat3Name, date: freshSeasonal.mulakat3Date, habitIds: freshPrefs.mulakat3PlanHabitIds, slot: 'mulakat3' as const },
+  ];
+  for (const slot of mulakatSlotsToHeal) {
+    if (slot.active && slot.name && slot.date && slot.habitIds.length > 0) {
+      if (slot.habitIds.some(id => !hasHabit(id))) {
+        const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
+        const modePreview = getModePreview('mulakat', { mulakatName: slot.name, date: slot.date });
+        const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
+        template.habits.forEach((h, i) => {
+          const storedId = slot.habitIds[i];
+          if (storedId && !hasHabit(storedId)) {
+            addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, storedId, slot.slot, h.nameTr, h.name);
+          }
+        });
+      }
+    }
+  }
+
+  // 5. SPORS
+  const sporSlotsToHeal = [
+    { goal: freshSeasonal.sporMode ? freshSeasonal.sporGoal : '', date: freshSeasonal.sporDate, habitIds: freshPrefs.sporPlanHabitIds, slot: 'spor' as const },
+    { goal: freshSeasonal.spor2Goal, date: freshSeasonal.spor2Date, habitIds: freshPrefs.spor2PlanHabitIds, slot: 'spor2' as const },
+    { goal: freshSeasonal.spor3Goal, date: freshSeasonal.spor3Date, habitIds: freshPrefs.spor3PlanHabitIds, slot: 'spor3' as const },
+  ];
+  for (const slot of sporSlotsToHeal) {
+    if (slot.goal && slot.date && slot.habitIds.length > 0) {
+      if (slot.habitIds.some(id => !hasHabit(id))) {
+        const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
+        const sporState = useSporStore.getState();
+        const inputs = {
+          currentWeight: parseFloat(sporState.currentWeight) || undefined,
+          targetWeight: parseFloat(sporState.targetWeight) || undefined,
+          weeklyKm: parseFloat(sporState.weeklyKm) || undefined,
+          targetEvent: sporState.targetEvent || undefined,
+          trainingDays: sporState.trainingDays || undefined,
+          gender: sporState.gender || undefined,
+        };
+        const modePreview = getModePreview('spor', { sporGoal: slot.goal, sporDate: slot.date, sporInputs: inputs });
+        const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
+        template.habits.forEach((h, i) => {
+          const storedId = slot.habitIds[i];
+          if (storedId && !hasHabit(storedId)) {
+            addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, storedId, slot.slot, h.nameTr, h.name);
+          }
+        });
+      }
+    }
+  }
+
+  // 6. TASARRUF
+  if (freshSeasonal.tasarrufMode && freshSeasonal.tasarrufName && freshPrefs.tasarrufPlanHabitIds.length > 0) {
+    const bStore = useBudgetStore.getState();
+    const inferred = inferBudgetType(freshSeasonal.tasarrufName);
+    if (bStore.budgetType === '' && inferred) {
+      bStore.setBudgetType(inferred);
+      bStore.setStartAmount('0');
+      bStore.setTargetAmount('1000');
+    }
+    if (freshPrefs.tasarrufPlanHabitIds.some(id => !hasHabit(id))) {
+      const typeToUse = bStore.budgetType || inferred || 'birikim';
+      const plan = buildTasarrufPlan(typeToUse);
+      plan.habits.forEach((h, i) => {
+        const storedId = freshPrefs.tasarrufPlanHabitIds[i];
+        if (storedId && !hasHabit(storedId)) {
+          addHabitFn(h.name, h.emoji, h.color, storedId, 'tasarruf', h.name, h.nameEn);
+        }
+      });
+    }
+  }
+
+  // 7. BIRAKMA
+  if (freshSeasonal.birakmaMode && freshSeasonal.birakmaName && freshPrefs.birakmaPlanHabitIds.length > 0) {
+    const qStore = useQuitStore.getState();
+    if (qStore.items.length === 0) {
+      const nameStr = freshSeasonal.birakmaName;
+      let inferredType: QuitType = 'ozel';
+      if (/sigara|smoke/i.test(nameStr)) inferredType = 'sigara';
+      else if (/sosyal|social/i.test(nameStr)) inferredType = 'sosyal';
+      else if (/seker|sugar|şeker/i.test(nameStr)) inferredType = 'seker';
+      else if (/alkol|alcohol/i.test(nameStr)) inferredType = 'alkol';
+      else if (/kumar|gambling/i.test(nameStr)) inferredType = 'kumar';
+      qStore.addItem(inferredType, nameStr);
+    }
+    if (freshPrefs.birakmaPlanHabitIds.some(id => !hasHabit(id))) {
+      const plan = buildBirakmaPlan('' as QuitType);
+      plan.habits.forEach((h, i) => {
+        const storedId = freshPrefs.birakmaPlanHabitIds[i];
+        if (storedId && !hasHabit(storedId)) {
+          addHabitFn(h.name, h.emoji, h.color, storedId, 'birakma', h.name, h.nameEn);
+        }
+      });
+    }
+  }
 }
 
 export function usePlanAdaptations() {
@@ -263,6 +434,9 @@ export function usePlanAdaptations() {
     const habitHyd = (useHabitStore as any).persist?.hasHydrated?.() ?? true;
     const taskHyd = (useTaskStore as any).persist?.hasHydrated?.() ?? true;
     if (!prefsHyd || !habitHyd || !taskHyd) return;
+
+    // ── SELF-HEALING ACTIVE MODES ──────────────────────────────────────────
+    selfHealActiveModes(lang === 'tr');
 
     // ── PLAN AUTO-CLEANUP ON EXPIRATION ────────────────────────────────────
     const freshPrefs = usePrefsStore.getState();

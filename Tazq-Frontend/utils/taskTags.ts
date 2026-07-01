@@ -40,3 +40,50 @@ export function isInternalTag(tag: string): boolean {
 export function visibleTextTags(tags?: string[] | null): string[] {
   return (tags ?? []).filter(tag => !isInternalTag(tag) && !ICON_TAGS.includes(tag));
 }
+
+const TAG_TRANSLATIONS: Record<string, { tr: string; en: string }> = {
+  // Core tag IDs
+  work:      { tr: 'iş',        en: 'work'        },
+  health:    { tr: 'sağlık',    en: 'health'      },
+  shopping:  { tr: 'alışveriş', en: 'shopping'    },
+  finance:   { tr: 'finans',    en: 'finance'     },
+  social:    { tr: 'sosyal',    en: 'social'      },
+  education: { tr: 'eğitim',    en: 'education'   },
+  urgent:    { tr: 'acil',      en: 'urgent'      },
+  personal:  { tr: 'kişisel',   en: 'personal'    },
+
+  // Reverse mapping for Turkish keyword labels
+  'iş':        { tr: 'iş',        en: 'work'        },
+  'sağlık':    { tr: 'sağlık',    en: 'health'      },
+  'alışveriş': { tr: 'alışveriş', en: 'shopping'    },
+  'finans':    { tr: 'finans',    en: 'finance'     },
+  'sosyal':    { tr: 'sosyal',    en: 'social'      },
+  'eğitim':    { tr: 'eğitim',    en: 'education'   },
+  'acil':      { tr: 'acil',      en: 'urgent'      },
+  'kişisel':   { tr: 'kişisel',   en: 'personal'    },
+
+  // Specific keywords
+  'toplantı':    { tr: 'toplantı',   en: 'meeting'     },
+  'meeting':     { tr: 'toplantı',   en: 'meeting'     },
+  'geliştirme':  { tr: 'geliştirme', en: 'dev'         },
+  'dev':         { tr: 'geliştirme', en: 'dev'         },
+  'sınav':       { tr: 'sınav',      en: 'exam'        },
+  'exam':        { tr: 'sınav',      en: 'exam'        },
+  'ödev':        { tr: 'ödev',       en: 'homework'    },
+  'homework':    { tr: 'ödev',       en: 'homework'    },
+  'spor':        { tr: 'spor',       en: 'fitness'     },
+  'fitness':     { tr: 'spor',       en: 'fitness'     },
+  'randevu':     { tr: 'randevu',    en: 'appointment' },
+  'appointment': { tr: 'randevu',    en: 'appointment' },
+};
+
+export function translateTag(tag: string, lang: 'tr' | 'en'): string {
+  if (!tag) return '';
+  const normalized = tag.trim().toLowerCase();
+  const match = TAG_TRANSLATIONS[normalized];
+  if (match) {
+    return lang === 'tr' ? match.tr : match.en;
+  }
+  return tag; // Return original as fallback
+}
+

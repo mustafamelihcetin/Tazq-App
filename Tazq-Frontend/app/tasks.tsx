@@ -28,7 +28,7 @@ import { createAudioPlayer } from 'expo-audio';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '../services/api';
 import { parseTaskHint } from '../utils/taskParser';
-import { visibleTextTags } from '../utils/taskTags';
+import { visibleTextTags, translateTag, isInternalTag, ICON_TAGS } from '../utils/taskTags';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SwipeableItem } from '../components/SwipeableItem';
@@ -220,6 +220,15 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                                 </Text>
                                             </View>
                                         )}
+                                        {/* User-facing text tags */}
+                                        {visibleTextTags(task.tags).map((tag, tagIdx) => (
+                                            <View key={tagIdx} style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
+                                                <Tag size={12} color={theme.onSurfaceVariant} opacity={0.7} />
+                                                <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                    {translateTag(tag, language as 'tr' | 'en')}
+                                                </Text>
+                                            </View>
+                                        ))}
                                     </MotiView>
                                 )}
                             </View>
@@ -672,8 +681,15 @@ export default function ActionCenter() {
 
     const hint = parseTaskHint(text, language as 'tr' | 'en');
     const hasReminderWord = text.toLowerCase().includes('hatırlat') || text.toLowerCase().includes('remind');
+    const nlpTags = hint.tags || [];
 
-    setForm(f => ({
+    setForm(f => {
+      const currentInternal = f.tags.filter(t => isInternalTag(t) || ICON_TAGS.includes(t));
+      let mergedTags = Array.from(new Set([...currentInternal, ...nlpTags]));
+      if (hasReminderWord && !mergedTags.includes('hatırlatıcı')) {
+        mergedTags.push('hatırlatıcı');
+      }
+      return {
         ...f,
         title: text,
         priority: hint.priority || f.priority,
@@ -681,8 +697,9 @@ export default function ActionCenter() {
         dueTime: hint.dueTime || f.dueTime,
         recurrence: hint.recurrence || f.recurrence,
         reminderEnabled: hasReminderWord ? true : f.reminderEnabled,
-        tags: hasReminderWord ? (f.tags.includes('hatırlatıcı') ? f.tags : [...f.tags, 'hatırlatıcı']) : f.tags
-    }));
+        tags: mergedTags
+      };
+    });
 
     if (titleError) setTitleError(false);
 
@@ -707,6 +724,12 @@ export default function ActionCenter() {
         ? `Her ${hint.recurrenceDayLabel}`
         : recurrenceLabel[hint.recurrence];
       parts.push(`🔁 ${label}`);
+    }
+
+    const userFacingTags = visibleTextTags(hint.tags);
+    if (userFacingTags.length > 0) {
+      const translated = userFacingTags.map(t => translateTag(t, language as 'tr' | 'en'));
+      parts.push(`🏷️ ${translated.join(', ')}`);
     }
 
     const fullHint = [
@@ -1621,7 +1644,7 @@ export default function ActionCenter() {
                   style={[styles.filterChip, { borderColor: tagFilter === tag ? theme.secondary : theme.outline, borderWidth: B.thin, paddingVertical: S.xs, paddingHorizontal: S.md }]}
                 >
                   <Text style={[styles.filterChipText, { color: tagFilter === tag ? theme.secondary : theme.onSurfaceVariant, fontSize: F.caption }]}>
-                    #{tag}
+                    #{translateTag(tag, language as 'tr' | 'en')}
                   </Text>
                 </Touchable>
               ))}

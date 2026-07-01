@@ -13,7 +13,14 @@ const STRESSFUL_KW = ['sınav', 'mülakat', 'sunum', 'teslim', 'deadline', 'acil
 const TOMORROW_KW = ['yarın', 'tomorrow', 'öbür gün', 'next day'];
 const FUNERAL_KW = ['cenaze', 'vefat', 'taziye', 'başsağlığı', 'mevlit'];
 
+const ACADEMIC_KW = ['ders', 'matematik', 'türkçe', 'fizik', 'kimya', 'biyoloji', 'tarih', 'coğrafya', 'edebiyat', 'geometri', 'çöz', 'deneme', 'soru', 'konu', 'tekrar', 'okuma', 'tez', 'makale', 'ödev', 'kütüphane', 'çalışma', 'vize', 'final', 'sınav'];
+const HEALTH_KW = ['koşu', 'yürüyüş', 'spor', 'kardiyo', 'antreman', 'antrenman', 'fitness', 'gym', 'pilates', 'yoga', 'diyet', 'kilo', 'kalori', 'egzersiz', 'su', 'yürüyüş', 'meditasyon'];
+const FINANCE_KW = ['para', 'bütçe', 'tasarruf', 'fatura', 'borç', 'hesap', 'kart', 'ödeme', 'birikim', 'kira', 'taksit'];
+const CAREER_KW = ['kod', 'yazılım', 'mülakat', 'toplantı', 'proje', 'sunum', 'email', 'e-posta', 'rapor', 'iş', 'ofis', 'github', 'tasarım', 'cv', 'başvuru', 'linkedin'];
+const LEISURE_KW = ['film', 'dizi', 'oyun', 'kitap', 'kahve', 'dinlenme', 'mola', 'uyku', 'tatil', 'gezi', 'arkadaş', 'müzik', 'hobi'];
+
 type Sentiment = 'sensitive' | 'joyful' | 'stressful' | 'normal';
+type Category = 'academic' | 'health' | 'finance' | 'career' | 'leisure' | 'generic';
 
 function getSentiment(title: string): Sentiment {
   const t = title.toLowerCase();
@@ -21,6 +28,16 @@ function getSentiment(title: string): Sentiment {
   if (JOYFUL_KW.some(kw => t.includes(kw))) return 'joyful';
   if (STRESSFUL_KW.some(kw => t.includes(kw))) return 'stressful';
   return 'normal';
+}
+
+function getCategory(title: string): Category {
+  const t = title.toLowerCase();
+  if (ACADEMIC_KW.some(kw => t.includes(kw))) return 'academic';
+  if (HEALTH_KW.some(kw => t.includes(kw))) return 'health';
+  if (FINANCE_KW.some(kw => t.includes(kw))) return 'finance';
+  if (CAREER_KW.some(kw => t.includes(kw))) return 'career';
+  if (LEISURE_KW.some(kw => t.includes(kw))) return 'leisure';
+  return 'generic';
 }
 
 function isTomorrowTask(title: string): boolean {
@@ -39,74 +56,192 @@ export function getSmartInsight(
   highPriorityToday: Task | undefined,
   topTaskToday: Task | undefined,
   futureTasksIncomplete: Task[],
+  seasonal?: any,
+  todayCompleted?: number,
+  dailyGoal?: number,
+  todayRating?: number | null,
 ): string {
   if (isActive) {
     return tr(
-      'Odak modu aktif. Akışını bozma, harika gidiyorsun.',
-      'Focus mode active. Stay in the zone, you\'re doing great.',
+      'Odak modu aktif. Akışını bozma, harika gidiyorsun. 🔥',
+      'Focus mode active. Stay in the zone, you\'re doing great. 🔥',
       lang,
     );
   }
 
-  if (highPriorityToday && !isTomorrowTask(highPriorityToday.title)) {
-    const sentiment = getSentiment(highPriorityToday.title);
-    const titleL = highPriorityToday.title.toLowerCase();
-    if (sentiment === 'sensitive') {
-      if (FUNERAL_KW.some(kw => titleL.includes(kw))) {
-        return tr(`Başınız sağ olsun. "${highPriorityToday.title}" için metanet diliyorum. 🙏`, `My condolences. Stay strong for "${highPriorityToday.title}". 🙏`, lang);
-      }
-      return tr(`Geçmiş olsun. "${highPriorityToday.title}" sürecinde kendine dikkat et. 🙏`, `Get well soon. Take care during "${highPriorityToday.title}". 🙏`, lang);
-    }
-    if (sentiment === 'joyful') return tr(`Harika! "${highPriorityToday.title}" günü geldi. Tadını çıkar! 🎉`, `Awesome! "${highPriorityToday.title}" is today. Enjoy! 🎉`, lang);
-    return tr(
-      `Bugünün en kritik işi: "${highPriorityToday.title}". Hemen bitirip rahatlamaya ne dersin?`,
-      `Today's priority: "${highPriorityToday.title}". How about finishing it now to relax?`,
-      lang,
-    );
-  }
-
-  if (topTaskToday && !isTomorrowTask(topTaskToday.title)) {
-    const sentiment = getSentiment(topTaskToday.title);
-    const titleL = topTaskToday.title.toLowerCase();
-    if (sentiment === 'sensitive') {
-      if (FUNERAL_KW.some(kw => titleL.includes(kw))) {
-        return tr(`Zor bir görev: "${topTaskToday.title}". Sabır dilerim. 🙏`, `A difficult task: "${topTaskToday.title}". Wishing you patience. 🙏`, lang);
-      }
-      return tr(`"${topTaskToday.title}" konusuna odaklanalım. Sağlık her şeyden önemli. 🙏`, `Let's focus on "${topTaskToday.title}". Health comes first. 🙏`, lang);
-    }
-    if (sentiment === 'joyful') return tr(`Hadi "${topTaskToday.title}" hazırlıklarına başlayalım! ✨`, `Let's start prep for "${topTaskToday.title}"! ✨`, lang);
-    return tr(
-      `Sıradaki bugünün görevi: "${topTaskToday.title}". Küçük bir adımla başlamak ivmeni artırır.`,
-      `Next for today: "${topTaskToday.title}". A small step now will boost your momentum.`,
-      lang,
-    );
-  }
-
-  if (futureTasksIncomplete.length > 0 || (topTaskToday && isTomorrowTask(topTaskToday.title))) {
-    const nextTask = (topTaskToday && isTomorrowTask(topTaskToday.title)) ? topTaskToday : futureTasksIncomplete[0];
-    const titleL = nextTask.title.toLowerCase();
-    const sentiment = getSentiment(nextTask.title);
-    const isTomorrow = isTomorrowTask(titleL);
-
-    if (isTomorrow) {
-      if (sentiment === 'sensitive') {
-        if (FUNERAL_KW.some(kw => titleL.includes(kw))) {
-          return tr('Yarın zor bir gün olacak. Metanetini koru, bugün sadece dinlen. 🙏', 'Tomorrow will be difficult. Stay strong, just rest today. 🙏', lang);
-        }
-        return tr(`Yarınki "${nextTask.title}" için şimdiden hazırlıklı ol. Geçmiş olsun. 🙏`, `Be prepared for tomorrow's "${nextTask.title}". Get well soon. 🙏`, lang);
-      }
-      if (sentiment === 'joyful') return tr(`Yarın harika bir gün olacak! "${nextTask.title}" seni bekliyor. 🎈`, `Tomorrow will be great! "${nextTask.title}" awaits you. 🎈`, lang);
+  // 1) Today's Performance Rating Reaction
+  if (todayRating) {
+    if (todayRating === 5) {
       return tr(
-        `Bugünlük işler tamam gibi. Yarınki "${nextTask.title}" görevin için şimdiden plan yapabilirsin.`,
-        `Today seems clear. You can start planning for tomorrow's "${nextTask.title}" task.`,
+        'Harika bir gün! 😎 Bugünün yüksek performansını ve pozitif enerjisini yarınki hedeflerine de taşımaya hazır mısın?',
+        'What an excellent day! 😎 Ready to carry today\'s high performance and positive energy into tomorrow\'s goals?',
         lang,
       );
     }
+    if (todayRating === 4) {
+      return tr(
+        'Çok iyi bir gün geçiriyorsun. 🙂 Hedeflerine emin adımlarla yaklaşıyorsun, bu çizgiyi koru!',
+        'You\'re having a very good day. 🙂 You\'re moving closer to your goals, keep it up!',
+        lang,
+      );
+    }
+    if (todayRating === 3) {
+      return tr(
+        'Orta karar, dengeli bir gün. 😐 Tutarlı kalmak da önemli bir başarıdır. Yarın ivmeyi bir tık artırabiliriz.',
+        'A steady, balanced day. 😐 Staying consistent is a great achievement in itself. We can push the pace slightly tomorrow.',
+        lang,
+      );
+    }
+    if (todayRating === 2) {
+      return tr(
+        'Bugün biraz yavaş geçmiş gibi görünüyor. 😕 Kendini fazla zorlama. Yarın taze bir başlangıç yapmak için bugün dinlenmeye odaklan.',
+        'Looks like today was a bit slow. 😕 Don\'t push yourself too hard. Focus on resting today to make a fresh start tomorrow.',
+        lang,
+      );
+    }
+    if (todayRating === 1) {
+      return tr(
+        'Bugün zor bir gün olmuş. 😫 Unutma, her gün mükemmel olamaz. Kendine karşı nazik ol ve bugün sadece pillerini şarj et. 🛌',
+        'Today was a tough day. 😫 Remember, not every day can be perfect. Be kind to yourself and just recharge your batteries today. 🛌',
+        lang,
+      );
+    }
+  }
+
+  const hasProgress = typeof todayCompleted === 'number' && typeof dailyGoal === 'number' && dailyGoal > 0;
+
+  // 1) Progress Nudges: Celebrations and Encouragements
+  if (hasProgress && todayCompleted >= dailyGoal) {
     return tr(
-      `Sıradaki hedefin: "${nextTask.title}". Zamanı geldiğinde seni uyaracağım.`,
-      `Next target: "${nextTask.title}". I'll alert you when the time comes.`,
+      `Tebrikler! Bugünün hedefine ulaştın (${todayCompleted}/${dailyGoal}) 🎉 İvmeni korumak için istersen hafif bir odaklanma daha yapabilirsin.`,
+      `Congratulations! You reached today's goal (${todayCompleted}/${dailyGoal}) 🎉 Feel free to do a light focus session to keep the momentum going.`,
       lang,
     );
+  }
+
+  // 2) Mode-Specific Insights
+  const activeTask = highPriorityToday || topTaskToday;
+  if (activeTask && seasonal) {
+    const title = activeTask.title;
+    
+    // RAMAZAN
+    if (seasonal.ramazan) {
+      return tr(
+        `Hayırlı Ramazanlar! İftarla sahur arasındaki zamanı verimli değerlendirmek için "${title}" konusuna odaklanabilirsin.`,
+        `Wishing you a blessed Ramadan! Focus on "${title}" to make the most of the time between Iftar and Sahur.`,
+        lang,
+      );
+    }
+    
+    // EXAMS (YKS, KPSS, or Custom Exam)
+    if (seasonal.examMode && seasonal.examName) {
+      const days = seasonal.examDate ? Math.max(0, Math.ceil((new Date(seasonal.examDate).getTime() - Date.now()) / 86400000)) : null;
+      const daysStr = days !== null ? (lang === 'tr' ? `${days} gün kaldı` : `${days} days left`) : '';
+      const timeContext = daysStr ? ` (${daysStr})` : '';
+      return tr(
+        `${seasonal.examName} hazırlığında bugün kritik bir gün${timeContext}. "${title}" hedefini tamamlayıp deneme analizlerine odaklanalım.`,
+        `Today is a critical day for your ${seasonal.examName} prep${timeContext}. Let's complete "${title}" and analyze mock exams.`,
+        lang,
+      );
+    }
+    
+    // TEZ
+    if (seasonal.tezMode && seasonal.tezName) {
+      const days = seasonal.tezDate ? Math.max(0, Math.ceil((new Date(seasonal.tezDate).getTime() - Date.now()) / 86400000)) : null;
+      const daysStr = days !== null ? (lang === 'tr' ? `${days} gün kaldı` : `${days} days left`) : '';
+      const timeContext = daysStr ? ` (${daysStr})` : '';
+      return tr(
+        `Tez teslimine${timeContext} yaklaşıyoruz. Hedefine ulaşmak için bugün "${title}" çalışmasına odaklanalım.`,
+        `Nearing thesis deadline${timeContext}. Let's focus on "${title}" today to stay on track.`,
+        lang,
+      );
+    }
+    
+    // MULAKAT
+    if (seasonal.mulakatMode && seasonal.mulakatName) {
+      return tr(
+        `Mülakat hazırlığında pratik her şeydir. Bugün "${title}" mülakat sorusuna/konusuna çalışarak özgüvenini artır.`,
+        `Practice is everything in interview prep. Work on "${title}" today to build your confidence.`,
+        lang,
+      );
+    }
+
+    // TASARRUF (Budget)
+    if (seasonal.tasarrufMode && seasonal.tasarrufName) {
+      return tr(
+        `Tasarruf modun aktif. Bütçeni korumak ve birikim hedefine yaklaşmak için "${title}" adımını tamamla.`,
+        `Saving mode is active. Complete "${title}" to keep your budget balanced and reach your savings target.`,
+        lang,
+      );
+    }
+
+    // BIRAKMA (Quit)
+    if (seasonal.birakmaMode && seasonal.birakmaName) {
+      return tr(
+        `Zihnini taze tutuyorsun! "${title}" odağıyla dikkatinizi tetikleyicilerden uzak tutmak bugün seni 1 adım daha ileri taşıyacak.`,
+        `Keeping a fresh mind! Focusing on "${title}" will keep your attention away from triggers and push you 1 step further today.`,
+        lang,
+      );
+    }
+
+    // SPOR
+    if (seasonal.sporMode && seasonal.sporGoal) {
+      return tr(
+        `Bugün hareket etme günü! Spor planındaki "${title}" hedefini tamamlayıp zihnini tazelemeye hazır mısın?`,
+        `Time to move today! Are you ready to complete "${title}" from your workout plan and refresh your mind?`,
+        lang,
+      );
+    }
+  }
+
+  // 3) Progress-based Nudge (If not started yet)
+  if (hasProgress && todayCompleted === 0 && momentum < 40 && activeTask) {
+    return tr(
+      `Bugün henüz başlamadın. "${activeTask.title}" görevi için sadece 5 dakikalık bir odaklanma başlatıp ilk adımı atalım! 🚀`,
+      `You haven't started today. Let's start a quick 5-minute focus session for "${activeTask.title}" to take the first step! 🚀`,
+      lang,
+    );
+  }
+
+  // 4) Category-Specific Insights
+  if (activeTask) {
+    const title = activeTask.title;
+    const category = getCategory(title);
+    if (category === 'academic') {
+      return tr(
+        `Zihninin en açık olduğu saatleri "${title}" konusu için değerlendir. Sonrası büyük bir rahatlama! 📚`,
+        `Spend your peak focus hours on "${title}". You will feel great once it's done! 📚`,
+        lang,
+      );
+    }
+    if (category === 'health') {
+      return tr(
+        `Bugün vücudunu ve zihnini canlandırma vakti. "${title}" egzersizine başlamak enerjini tavan yapacak. ⚡`,
+        `Time to energize your body and mind today. Starting "${title}" will boost your energy. ⚡`,
+        lang,
+      );
+    }
+    if (category === 'finance') {
+      return tr(
+        `Finansal huzurun için kritik bir adım: "${title}". Bugün bunu netleştirip kafanı rahatlat. 💳`,
+        `A key step for your financial peace: "${title}". Resolve this today to clear your mind. 💳`,
+        lang,
+      );
+    }
+    if (category === 'career') {
+      return tr(
+        `Kariyer hedeflerine giden yolda bugünün en önemli işi: "${title}". Odaklan ve bitir! 🚀`,
+        `Today's key task on your career path: "${title}". Focus and finish strong! 🚀`,
+        lang,
+      );
+    }
+    if (category === 'leisure') {
+      return tr(
+        `Kendine zaman ayırmak üretkenliğini besler. "${title}" aktivitesinin keyfini çıkar. ☕`,
+        `Taking time for yourself fuels productivity. Enjoy your "${title}" time. ☕`,
+        lang,
+      );
+    }
   }
 
   if (momentum > 75) return tr('Zirvedesin! Bugün durdurulamaz bir tempoya ulaştın.', "You're at peak performance! Unstoppable pace today.", lang);

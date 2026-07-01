@@ -80,15 +80,11 @@ Uygulamayı indirerek, kaydolarak veya kullanmaya devam ederek bu Sözleşme'nin
 4.3 Tazq'ın yazılı onayı olmaksızın uygulama içeriği ticari amaçla çoğaltılamaz, dağıtılamaz veya kamuya iletilemez.
 
 
-5. ÜCRETLİ ÖZELLİKLER VE ABONELİK
+5. HİZMETİN ÜCRETSİZ OLMASI VE GELECEKTEKİ HİZMETLER
 
-5.1 Tazq, ücretsiz temel özellikler ile opsiyonel ücretli premium abonelik ("Tazq Pro") sunabilir.
+5.1 TAZQ, mevcut sürümüyle tüm kullanıcılar için tamamen ücretsiz bir hizmettir.
 
-5.2 Abonelik ücretleri, ödeme yönteminize bağlı olarak Apple App Store veya Google Play üzerinden tahsil edilir. Fiyatlandırma ve iade koşulları ilgili mağazanın politikalarına tabidir.
-
-5.3 Tazq, önceden bildirimde bulunmak kaydıyla abonelik fiyatlarını değiştirme hakkını saklı tutar. Fiyat artışı bildirimini takip eden ilk yenileme döneminden itibaren yeni fiyat geçerli olur.
-
-5.4 Abonelik, aksi belirtilmedikçe otomatik olarak yenilenir. İptali için ilgili mağaza ayarlarından aboneliğinizi sonlandırmanız gerekmektedir.
+5.2 Geliştirici, ileride ek özellikler, hizmetler veya premium paketler sunma hakkını saklı tutar. Böyle bir durumda, ücretli özellikler kullanıcının açık rızası ve onayına tabi olacaktır.
 
 
 6. GİZLİLİK
@@ -100,7 +96,7 @@ Kişisel verilerinizin işlenmesine ilişkin detaylı bilgi için Gizlilik Polit
 
 7.1 Tazq, Hizmet'i "olduğu gibi" (as-is) ve "mevcut olduğu şekilde" (as-available) sunmaktadır. Kesintisiz, hatasız veya güvenli bir hizmet sunulacağına ilişkin herhangi bir garanti verilmemektedir.
 
-7.2 Tazq'ın Kullanıcı'ya karşı doğrudan veya dolaylı sorumluluğu, ilgili dönemde kullanıcının ödediği abonelik ücretini aşamaz. Ücretsiz kullanıcılar açısından bu sınır sıfırdır.
+7.2 Tazq'ın Kullanıcı'ya karşı doğrudan veya dolaylı maddi sorumluluğu bulunmamaktadır; hizmet tamamen ücretsiz olarak "olduğu gibi" sunulmaktadır.
 
 7.3 Kullanıcının veri kaybına uğramaması için düzenli yedek alınmasını tavsiye ederiz. Kullanıcı kaynaklı veri silme işlemlerinden Tazq sorumlu tutulamaz.
 
@@ -202,15 +198,11 @@ By downloading, registering, or continuing to use the Application, you represent
 4.3 Application content may not be reproduced, distributed, or communicated to the public for commercial purposes without Tazq's written consent.
 
 
-5. PAID FEATURES AND SUBSCRIPTIONS
+5. FREE OF CHARGE SERVICE AND FUTURE SERVICES
 
-5.1 Tazq may offer free basic features along with an optional paid premium subscription ("Tazq Pro").
+5.1 TAZQ, in its current version, is provided completely free of charge to all users.
 
-5.2 Subscription fees are charged through Apple App Store or Google Play depending on your payment method. Pricing and refund policies are subject to the respective store's policies.
-
-5.3 Tazq reserves the right to change subscription prices with prior notice. New prices will apply from the first renewal period following the price change notice.
-
-5.4 Subscriptions automatically renew unless otherwise specified. You must cancel through your store's subscription settings.
+5.2 The Developer reserves the right to offer additional features, services, or premium packages in the future. In such an event, any paid features will be subject to the user's explicit consent and confirmation.
 
 
 6. PRIVACY
@@ -222,7 +214,7 @@ We strongly encourage you to review our Privacy Policy and Data Protection Notic
 
 7.1 Tazq provides the Service "as-is" and "as-available" without warranty of any kind. No guarantee is made regarding uninterrupted, error-free, or secure service delivery.
 
-7.2 Tazq's direct or indirect liability to the User shall not exceed the subscription fees paid by the User during the relevant period. For free users, this limit is zero.
+7.2 Tazq's direct or indirect liability to the User is excluded as the service is provided completely free of charge on an "as-is" basis.
 
 7.3 We recommend taking regular backups to avoid data loss. Tazq shall not be held liable for data deletions caused by the User.
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated, Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomAlert as Alert } from '../components/CustomAlert';
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -72,6 +73,25 @@ export default function HomeScreen() {
   const uiMode = usePrefsStore(s => s.uiMode);
   const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor } = usePrefsStore();
 
+  // Turkish mode (only if user opted in)
+  const detectedMode = detectTurkishMode();
+  const activeMode = (() => {
+    if (seasonal.examMode && seasonal.examName && seasonal.examDate) {
+      return getCustomExamMode(seasonal.examName, seasonal.examDate);
+    }
+    if (!detectedMode) return null;
+    if (detectedMode.type === 'ramazan' && seasonal.ramazan) return detectedMode;
+    if ((detectedMode.type === 'yks' || detectedMode.type === 'kpss') && seasonal.examMode) return detectedMode;
+    return null;
+  })();
+
+  // A unique key per mode period — changes when mode type or exam date changes, resetting dismiss
+  const activeBannerKey = activeMode
+    ? `${activeMode.type}-${seasonal.examDate ?? seasonal.mulakatDate ?? seasonal.tezDate ?? `auto-${new Date().getFullYear()}`}`
+    : '';
+  const modeDismissed = !!activeBannerKey && dismissedBannerKey === activeBannerKey;
+
+
   // Alışkanlıklar (dashboard hızlı giriş şeridi) — tek dokunuşla bugünü işaretle.
   const habits = useHabitStore(s => s.habits);
   const toggleHabitDate = useHabitStore(s => s.toggleDate);
@@ -111,6 +131,37 @@ export default function HomeScreen() {
   const [streak, setStreak] = useState(0);
   const [statsLoading, setStatsLoading] = useState(true);
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
+
+  // App Review Prompt & Performance Rating state
+  const [todayRating, setTodayRating] = useState<number | null>(null);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewRating, setReviewRating] = useState<number | null>(null);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewFeedbackText, setReviewFeedbackText] = useState('');
+  const [reviewFeedbackSending, setReviewFeedbackSending] = useState(false);
+
+  useEffect(() => {
+    const todayKey = fmtDateKey();
+    if (activeMode) {
+      const key = `tazq_eval_${activeMode.type}_${todayKey}`;
+      AsyncStorage.getItem(key).then(val => {
+        if (val) setTodayRating(parseInt(val, 10));
+        else setTodayRating(null);
+      }).catch(() => {});
+    } else {
+      setTodayRating(null);
+    }
+  }, [activeMode]);
+
+  const initialCompletedCountRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (tasks.length > 0 && initialCompletedCountRef.current === null) {
+      initialCompletedCountRef.current = tasks.filter(t => t && t.isCompleted).length;
+    }
+  }, [tasks]);
+
+
 
   // Compute daily goal from real data
   const todayTasks = tasks.filter(t => {
@@ -263,13 +314,18 @@ export default function HomeScreen() {
   // dünden 7 gün öncesine denk gelir (bugün indeks 7'de, atılır).
   const completionHistory = getLastNDays(8).slice(0, 7);
   const habitActivityDays = completionHistory.filter(d => d.score >= 0).length;
-  const { momentum, totalCount, completedCount, focusVolumeScore } = computeMomentum({
+  const { momentum: rawMomentum, totalCount, completedCount, focusVolumeScore } = computeMomentum({
     tasks,
     weeklyFocus,
     weeklyMinutes,
     streak,
     habitActivityDays,
   });
+  const momentum = (() => {
+    if (!todayRating) return rawMomentum;
+    const modifier = todayRating === 5 ? 10 : todayRating === 4 ? 5 : todayRating === 2 ? -5 : todayRating === 1 ? -10 : 0;
+    return Math.min(100, Math.max(0, rawMomentum + modifier));
+  })();
   const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? theme.warning : theme.primary;
 
   // Momentum history (last 7 days for sparkline)
@@ -280,23 +336,55 @@ export default function HomeScreen() {
   const targetFocusMin = Math.max(0, Math.ceil(280 * (1 - focusVolumeScore) / 7)); // daily shortfall
   const alreadyAt75 = momentum >= 75;
 
-  // Turkish mode (only if user opted in)
-  const detectedMode = detectTurkishMode();
-  const activeMode = (() => {
-    if (seasonal.examMode && seasonal.examName && seasonal.examDate) {
-      return getCustomExamMode(seasonal.examName, seasonal.examDate);
-    }
-    if (!detectedMode) return null;
-    if (detectedMode.type === 'ramazan' && seasonal.ramazan) return detectedMode;
-    if ((detectedMode.type === 'yks' || detectedMode.type === 'kpss') && seasonal.examMode) return detectedMode;
-    return null;
-  })();
+  // Professional, scenario-based review prompt trigger
+  useEffect(() => {
+    if (statsLoading || streak === undefined || tasks.length === 0) return;
 
-  // A unique key per mode period — changes when mode type or exam date changes, resetting dismiss
-  const activeBannerKey = activeMode
-    ? `${activeMode.type}-${seasonal.examDate ?? seasonal.mulakatDate ?? seasonal.tezDate ?? `auto-${new Date().getFullYear()}`}`
-    : '';
-  const modeDismissed = !!activeBannerKey && dismissedBannerKey === activeBannerKey;
+    const checkReviewPrompt = async () => {
+      try {
+        const completedCount = tasks.filter(t => t && t.isCompleted).length;
+        // 1. Minimum Kullanım Sınırı (En az 15 tamamlanmış görev)
+        if (completedCount < 15) return;
+
+        // 2. Oturum Kontrolü (Kullanıcı bu oturumda en az 1 görev veya alışkanlık tamamlamış olmalı)
+        if (initialCompletedCountRef.current !== null && completedCount <= initialCompletedCountRef.current) {
+          return;
+        }
+
+        // 3. Stres/Hayal Kırıklığı Kontrolleri (Kötü zamanlama engelleme)
+        if (overdueCount > 0) return; // Gecikmiş görev varsa sorma
+        if (momentum < 70) return; // Momentum düşükse sorma
+        if (todayRating === 1 || todayRating === 2) return; // Bugün kötü geçtiyse sorma
+
+        // 4. Profesyonel Cooldown (60 Günlük Mağaza Kuralı)
+        const lastPromptTimeStr = await AsyncStorage.getItem('tazq_last_review_prompt_time');
+        const now = Date.now();
+        const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
+        if (lastPromptTimeStr && (now - parseInt(lastPromptTimeStr, 10)) <= sixtyDaysMs) {
+          return;
+        }
+
+        // 5. Başarı Senaryoları (Moments of Delight - En az birisi gerçekleşmeli)
+        const isDailyGoalMet = todayCompleted >= dailyGoal && dailyGoal > 0;
+        const isStreakMilestone = streak > 0 && streak % 3 === 0;
+        const isHighMomentum = momentum >= 90;
+
+        if (isDailyGoalMet || isStreakMilestone || isHighMomentum) {
+          setReviewModalVisible(true);
+        }
+      } catch (err) {
+        console.warn('Failed to check review prompt status', err);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      checkReviewPrompt();
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [statsLoading, tasks, streak, overdueCount, momentum, todayRating, todayCompleted, dailyGoal]);
+
+
 
   const activePlanApplied = (() => {
     if (!activeMode) return false;
@@ -364,6 +452,7 @@ export default function HomeScreen() {
 
   // Bugün vadesi gelen veya geçmiş (overdue) görevler
   const todayTasksIncomplete = tasks.filter(t => {
+    if (!t) return false;
     if (t.isCompleted) return false;
     if (!t.dueDate) return false;
     const due = new Date(t.dueDate);
@@ -383,7 +472,18 @@ export default function HomeScreen() {
   const highPriorityToday = todayTasksIncomplete.find(t => t.priority === 'High') ?? undatedTasksIncomplete.find(t => t.priority === 'High');
   const topTask = topTaskToday; // gelecek tarihli task aksiyon merkezine girmiyor
 
-  const insight = getSmartInsight(language as 'tr' | 'en', isActive, momentum, highPriorityToday, topTaskToday, undatedTasksIncomplete);
+  const insight = getSmartInsight(
+    language as 'tr' | 'en',
+    isActive,
+    momentum,
+    highPriorityToday,
+    topTaskToday,
+    undatedTasksIncomplete,
+    seasonal,
+    todayCompleted,
+    dailyGoal,
+    todayRating
+  );
 
   const handleCheckTask = async (taskId: number) => {
     const task = tasks.find(t => t.id === taskId);
@@ -667,6 +767,191 @@ export default function HomeScreen() {
             </View>
         </Modal>
 
+        {/* Periodic App Store Review & Feedback Prompt Modal */}
+        <Modal
+          visible={reviewModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setReviewModalVisible(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: S.lg }}>
+            <MotiView
+              from={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', damping: 15 }}
+              style={{
+                width: '100%',
+                maxWidth: 400,
+                backgroundColor: theme.surface,
+                borderColor: theme.outlineVariant + '40',
+                borderWidth: B.thin,
+                borderRadius: 24,
+                padding: S.lg,
+                gap: S.md,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.25,
+                shadowRadius: 15,
+                elevation: 10,
+              }}
+            >
+              {/* Header */}
+              <View style={{ alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 32 }}>✨</Text>
+                <Text style={{ color: theme.onSurface, fontSize: 18, fontWeight: '800', textAlign: 'center', letterSpacing: -0.5 }}>
+                  {tr ? 'TAZQ\'ı Nasıl Buluyorsunuz?' : 'How do you rate TAZQ?'}
+                </Text>
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center', opacity: 0.8 }}>
+                  {tr ? 'Görüşleriniz bizim için çok değerli.' : 'Your feedback is very valuable to us.'}
+                </Text>
+              </View>
+
+              {!reviewSubmitted ? (
+                <>
+                  {/* Rating Stars Selection */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: S.md, marginVertical: S.sm }}>
+                    {[1, 2, 3, 4, 5].map((star) => {
+                      const active = reviewRating !== null && star <= reviewRating;
+                      return (
+                        <TouchableOpacity
+                          key={star}
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            setReviewRating(star);
+                          }}
+                          style={{ padding: 4 }}
+                        >
+                          <Zap
+                            size={32}
+                            color={active ? '#F59E0B' : theme.onSurfaceVariant + '33'}
+                            fill={active ? '#F59E0B' : 'transparent'}
+                          />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Negative feedback textarea */}
+                  {reviewRating !== null && reviewRating <= 3 && (
+                    <MotiView
+                      from={{ height: 0, opacity: 0 }}
+                      animate={{ height: 130, opacity: 1 }}
+                      style={{ gap: S.sm, overflow: 'hidden' }}
+                    >
+                      <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700' }}>
+                        {tr ? 'Sizi ne memnun etmedi? Nasıl düzeltebiliriz?' : 'What went wrong? How can we improve?'}
+                      </Text>
+                      <TextInput
+                        value={reviewFeedbackText}
+                        onChangeText={setReviewFeedbackText}
+                        placeholder={tr ? 'Görüşlerinizi yazın…' : 'Write your feedback…'}
+                        placeholderTextColor={theme.onSurfaceVariant + '60'}
+                        multiline
+                        numberOfLines={3}
+                        underlineColorAndroid="transparent"
+                        style={{
+                          backgroundColor: theme.surfaceContainerLow,
+                          borderColor: theme.outlineVariant + '60',
+                          borderWidth: B.thin,
+                          borderRadius: R.md,
+                          color: theme.onSurface,
+                          fontSize: F.body,
+                          padding: S.md,
+                          textAlignVertical: 'top',
+                          height: 80,
+                        }}
+                      />
+                    </MotiView>
+                  )}
+
+                  {/* Action Buttons */}
+                  <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
+                    <Touchable
+                      onPress={async () => {
+                        Haptics.selectionAsync();
+                        setReviewModalVisible(false);
+                        await AsyncStorage.setItem('tazq_last_review_prompt_time', Date.now().toString());
+                      }}
+                      style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.body }}>
+                        {tr ? 'Daha Sonra' : 'Later'}
+                      </Text>
+                    </Touchable>
+
+                    {reviewRating !== null && (
+                      <Touchable
+                        disabled={reviewFeedbackSending}
+                        onPress={async () => {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          await AsyncStorage.setItem('tazq_last_review_prompt_time', Date.now().toString());
+                          
+                          if (reviewRating >= 4) {
+                            // Redirect to app store write review
+                            const storeUrl = Platform.OS === 'ios'
+                              ? 'https://apps.apple.com/app/tazq-app/id123456789?action=write-review'
+                              : 'market://details?id=com.tazqapp';
+                            Linking.openURL(storeUrl).catch(() => {});
+                            setReviewModalVisible(false);
+                          } else {
+                            // Negative rating -> send support message
+                            const feedback = reviewFeedbackText.trim();
+                            if (!feedback) {
+                              setReviewModalVisible(false);
+                              return;
+                            }
+                            setReviewFeedbackSending(true);
+                            try {
+                              const SupportService = require('../services/api').SupportService;
+                              await SupportService.sendMessage(`[APP REVIEW feedback - Star rating: ${reviewRating}/5]\n${feedback}`);
+                              setReviewSubmitted(true);
+                              setTimeout(() => {
+                                setReviewModalVisible(false);
+                                setReviewSubmitted(false);
+                                setReviewRating(null);
+                                setReviewFeedbackText('');
+                              }, 1800);
+                            } catch (err) {
+                              console.warn('Failed to send review feedback to support', err);
+                              setReviewModalVisible(false);
+                            } finally {
+                              setReviewFeedbackSending(false);
+                            }
+                          }
+                        }}
+                        style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {reviewFeedbackSending ? (
+                          <ActivityIndicator size="small" color="#FFF" />
+                        ) : (
+                          <Text style={{ color: '#FFF', fontWeight: '800', fontSize: F.body }}>
+                            {reviewRating >= 4 ? (tr ? 'Yorum Yap' : 'Rate App') : (tr ? 'Gönder' : 'Submit')}
+                          </Text>
+                        )}
+                      </Touchable>
+                    )}
+                  </View>
+                </>
+              ) : (
+                <MotiView
+                  from={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  style={{ alignItems: 'center', paddingVertical: S.lg, gap: S.md }}
+                >
+                  <Text style={{ fontSize: 44 }}>❤️</Text>
+                  <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '800', textAlign: 'center' }}>
+                    {tr ? 'Geri bildiriminiz için teşekkürler!' : 'Thank you for your feedback!'}
+                  </Text>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, textAlign: 'center', opacity: 0.7 }}>
+                    {tr ? 'TAZQ\'u geliştirmek için durmaksızın çalışıyoruz.' : 'We are constantly working to improve TAZQ.'}
+                  </Text>
+                </MotiView>
+              )}
+            </MotiView>
+          </View>
+        </Modal>
+
         <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={[styles.scrollContent, { paddingTop: 82, /* SafeAreaView(edges=top) insets.top'u ekliyor; bu sadece floating bar açıklığı (bar alt kenarı). insets.top'u TEKRAR ekleme. Gap'i heroSection.marginTop verir. */ paddingBottom: 120, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }]}
@@ -809,23 +1094,26 @@ export default function HomeScreen() {
                 )}
                 {todayTasksIncomplete.length > 0 && (
                   <BentoCard index={1} style={{ padding: 0, overflow: 'hidden' }}>
-                    {todayTasksIncomplete.slice(0, 3).map((task, i) => (
-                      <Touchable
-                        key={task.id}
-                        onPress={() => router.push({ pathname: '/tasks', params: { highlightId: task.id } })}
-                        activeOpacity={0.7}
-                        style={{
-                          flexDirection: 'row', alignItems: 'center',
-                          paddingHorizontal: S.md, paddingVertical: 13,
-                          borderBottomWidth: i < Math.min(2, todayTasksIncomplete.length - 1) ? 1 : 0,
-                          borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-                        }}
-                      >
-                        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: priorityColor(task.priority), marginRight: S.md }} />
-                        <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: theme.onSurface }} numberOfLines={1}>{task.title}</Text>
-                        <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
-                      </Touchable>
-                    ))}
+                    {todayTasksIncomplete.slice(0, 3).map((task, i) => {
+                      if (!task || !task.id) return null;
+                      return (
+                        <Touchable
+                          key={task.id}
+                          onPress={() => router.push({ pathname: '/tasks', params: { highlightId: task.id } })}
+                          activeOpacity={0.7}
+                          style={{
+                            flexDirection: 'row', alignItems: 'center',
+                            paddingHorizontal: S.md, paddingVertical: 13,
+                            borderBottomWidth: i < Math.min(2, todayTasksIncomplete.length - 1) ? 1 : 0,
+                            borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                          }}
+                        >
+                          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: priorityColor(task.priority), marginRight: S.md }} />
+                          <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: theme.onSurface }} numberOfLines={1}>{task.title}</Text>
+                          <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
+                        </Touchable>
+                      );
+                    })}
                     {todayTasksIncomplete.length > 3 && (
                       <Touchable
                         onPress={() => router.push('/tasks')}
@@ -1039,6 +1327,7 @@ export default function HomeScreen() {
                   else if (t === 'tez') setPlanIds('tez', habitIds, taskIds);
                   else if (t === 'mulakat') setPlanIds('mulakat', habitIds, taskIds);
                 }}
+                onRatingChange={setTodayRating}
               />
               </View>
             )}
