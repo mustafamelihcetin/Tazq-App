@@ -40,6 +40,140 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
 
+interface MyDayTaskRowProps {
+  item: any;
+  isLast: boolean;
+  theme: any;
+  isDark: boolean;
+  tr: boolean;
+  onPress: () => void;
+  priorityColor: (p: string) => string;
+  prefs: any;
+}
+
+const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme, isDark, tr, onPress, priorityColor, prefs }) => {
+  const modeInfo = getModeInfoForTask(item.original, prefs, theme);
+  return (
+    <Touchable
+      onPress={onPress}
+      activeOpacity={0.7}
+      style={{
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: S.md, paddingVertical: 13,
+        borderBottomWidth: isLast ? 0 : 1,
+        borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+        backgroundColor: modeInfo ? (isDark ? modeInfo.color + '0B' : modeInfo.color + '04') : 'transparent'
+      }}
+    >
+      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: modeInfo ? modeInfo.color : priorityColor(item.priority), marginRight: S.md }} />
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+        <Text style={{
+          fontSize: F.body,
+          fontWeight: '600',
+          color: item.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
+          textDecorationLine: item.isCompleted ? 'line-through' : 'none',
+          opacity: item.isCompleted ? 0.5 : 1,
+          flexShrink: 1
+        }} numberOfLines={1}>
+          {item.title}
+        </Text>
+        {modeInfo && (
+          <View style={{
+            backgroundColor: modeInfo.color + (isDark ? '24' : '15'),
+            borderRadius: 6,
+            paddingHorizontal: 5,
+            paddingVertical: 1.5,
+            borderWidth: 0.5,
+            borderColor: modeInfo.color + '40'
+          }}>
+            <Text style={{
+              fontSize: 7.5,
+              fontWeight: '800',
+              color: modeInfo.color,
+              letterSpacing: 0.4
+            }}>
+              {(tr ? modeInfo.labelTr : modeInfo.labelEn).toUpperCase()}
+            </Text>
+          </View>
+        )}
+      </View>
+      {item.isCompleted ? (
+        <CheckCircle2 size={14} color="#10B981" style={{ marginLeft: S.sm }} />
+      ) : (
+        <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
+      )}
+    </Touchable>
+  );
+});
+
+interface MyDayHabitRowProps {
+  item: any;
+  isLast: boolean;
+  theme: any;
+  isDark: boolean;
+  tr: boolean;
+  onPress: () => void;
+  onLongPress: () => void;
+}
+
+const MyDayHabitRow = React.memo<MyDayHabitRowProps>(({ item, isLast, theme, isDark, tr, onPress, onLongPress }) => {
+  const streakVal = item.streak || 0;
+  return (
+    <Touchable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      activeOpacity={0.7}
+      style={{
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: S.md, paddingVertical: 13,
+        borderBottomWidth: isLast ? 0 : 1,
+        borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+      }}
+    >
+      <View style={{
+        width: 20, height: 20, borderRadius: 10,
+        backgroundColor: item.isCompleted 
+          ? item.color 
+          : item.isSkipped
+          ? '#d97706'
+          : item.color + (isDark ? '1F' : '14'),
+        alignItems: 'center', justifyContent: 'center',
+        marginRight: S.md
+      }}>
+        {item.isSkipped ? (
+          <Coffee size={10} color="#fff" />
+        ) : (
+          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: item.isCompleted ? '#fff' : item.color }} />
+        )}
+      </View>
+      <Text style={{
+        flex: 1,
+        fontSize: F.body,
+        fontWeight: '600',
+        color: item.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
+        textDecorationLine: item.isCompleted ? 'line-through' : 'none',
+        opacity: item.isCompleted ? 0.5 : 1
+      }} numberOfLines={1}>
+        {item.title}
+      </Text>
+      {item.isSkipped ? (
+        <View style={{ backgroundColor: '#d9770620', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
+          <Text style={{ fontSize: 8.5, fontWeight: '700', color: '#d97706' }}>{tr ? 'MOLA' : 'SKIP'}</Text>
+        </View>
+      ) : streakVal >= 3 ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          <Flame size={11} color="#F97316" fill="#F97316" />
+          <Text style={{ fontSize: 10, fontWeight: '800', color: '#F97316' }}>{streakVal}</Text>
+        </View>
+      ) : item.isCompleted ? (
+        <CheckCircle2 size={14} color="#10B981" />
+      ) : (
+        <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: theme.outline }} />
+      )}
+    </Touchable>
+  );
+});
+
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
@@ -123,6 +257,7 @@ export default function HomeScreen() {
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [weeklyFocus, setWeeklyFocus] = useState<DailyFocusData[]>([]);
+  const [lastWeekMinutes, setLastWeekMinutes] = useState(0);
   const [showAllIncomplete, setShowAllIncomplete] = useState(false);
   const [showCompletedSection, setShowCompletedSection] = useState(false);
   const [logoTick, setLogoTick] = useState(0);
@@ -274,6 +409,7 @@ export default function HomeScreen() {
     try {
       const stats = await FocusService.getStats();
       setWeeklyFocus(stats.weeklyFocus || []);
+      setLastWeekMinutes(stats.lastWeekFocusMinutes || 0);
       const active = stats.activeStreak || 0;
       if (localStreak === 0 && active > 0) {
         useFocusStore.setState({ localStreak: active });
@@ -381,21 +517,13 @@ export default function HomeScreen() {
   // Compute metrics
   const tr = language === 'tr';
 
-  const dayLabels: string[] = (() => {
-    const daysTr = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
-    const daysEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const days = tr ? daysTr : daysEn;
-    
+  const dayLabels: string[] = t.dayLabels;
+
+  const currentDayIndex = (() => {
     const logicalToday = new Date();
     logicalToday.setHours(logicalToday.getHours() - 3); // respect night owl buffer
-    
-    const labels = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(logicalToday);
-      d.setDate(d.getDate() - i);
-      labels.push(days[d.getDay()]);
-    }
-    return labels;
+    const day = logicalToday.getDay(); // 0 is Sunday, 1 is Monday, ..., 6 is Saturday
+    return day === 0 ? 6 : day - 1; // convert to Monday-start (0 = Mon, ..., 6 = Sun)
   })();
 
   const localTodayMinutes = useFocusStore.getState().dailyFocusMinutes;
@@ -404,12 +532,12 @@ export default function HomeScreen() {
     if (weeklyFocus.length === 0) {
       return Array(7).fill(null).map((_, i) => ({
         day: dayLabels[i],
-        minutes: i === 6 ? localTodayMinutes : 0,
+        minutes: i === currentDayIndex ? localTodayMinutes : 0,
         tasksCompleted: 0
       }));
     }
     return weeklyFocus.map((d, i) => {
-      if (i === weeklyFocus.length - 1) {
+      if (i === currentDayIndex) {
         return {
           ...d,
           minutes: Math.max(d.minutes || 0, localTodayMinutes)
@@ -417,18 +545,16 @@ export default function HomeScreen() {
       }
       return d;
     });
-  }, [weeklyFocus, localTodayMinutes, dayLabels]);
+  }, [weeklyFocus, localTodayMinutes, dayLabels, currentDayIndex]);
 
   const weeklyMinutes = mergedWeeklyFocus.reduce((s: number, d: any) => s + (d.minutes || 0), 0);
 
-  // Trend: compare second half of week vs first half as a proxy for week-over-week direction
+  // Trend: compare current week's total focus minutes vs previous week's total focus minutes
   const weekTrend = (() => {
-    if (mergedWeeklyFocus.length < 4) return null;
-    const half = Math.floor(mergedWeeklyFocus.length / 2);
-    const firstHalf = mergedWeeklyFocus.slice(0, half).reduce((s: number, d: any) => s + (d.minutes || 0), 0);
-    const secondHalf = mergedWeeklyFocus.slice(half).reduce((s: number, d: any) => s + (d.minutes || 0), 0);
-    if (firstHalf === 0) return null;
-    return Math.round(((secondHalf - firstHalf) / firstHalf) * 100);
+    if (lastWeekMinutes === 0) {
+      return weeklyMinutes > 0 ? 100 : 0;
+    }
+    return Math.round(((weeklyMinutes - lastWeekMinutes) / lastWeekMinutes) * 100);
   })();
 
   // ── Professional Momentum Score ────────────────────────────────────────────
@@ -452,8 +578,8 @@ export default function HomeScreen() {
   })();
   const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? theme.warning : theme.primary;
 
-  // Momentum history (last 7 days for sparkline)
-  const momentumHistory = getLastNDays(7);
+  // Momentum history (last 8 days for sparkline delta)
+  const momentumHistory = getLastNDays(8);
 
   // Daily target coaching: reverse-compute what's needed to hit 75
   const targetTasks = totalCount === 0 ? 3 : Math.max(0, Math.ceil(3 - completedCount));
@@ -886,64 +1012,28 @@ export default function HomeScreen() {
 
   const renderMyDayItem = (item: any, isLast: boolean, index: number) => {
     if (item.type === 'task') {
-      const modeInfo = getModeInfoForTask(item.original, usePrefsStore.getState(), theme);
       return (
-        <Touchable
+        <MyDayTaskRow
           key={`task-${item.id}`}
+          item={item}
+          isLast={isLast}
+          theme={theme}
+          isDark={isDark}
+          tr={tr}
           onPress={() => router.push({ pathname: '/tasks', params: { highlightId: item.id } })}
-          activeOpacity={0.7}
-          style={{
-            flexDirection: 'row', alignItems: 'center',
-            paddingHorizontal: S.md, paddingVertical: 13,
-            borderBottomWidth: isLast ? 0 : 1,
-            borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-            backgroundColor: modeInfo ? (isDark ? modeInfo.color + '0B' : modeInfo.color + '04') : 'transparent'
-          }}
-        >
-          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: modeInfo ? modeInfo.color : priorityColor(item.priority), marginRight: S.md }} />
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-            <Text style={{
-              fontSize: F.body,
-              fontWeight: '600',
-              color: item.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
-              textDecorationLine: item.isCompleted ? 'line-through' : 'none',
-              opacity: item.isCompleted ? 0.5 : 1,
-              flexShrink: 1
-            }} numberOfLines={1}>
-              {item.title}
-            </Text>
-            {modeInfo && (
-              <View style={{
-                backgroundColor: modeInfo.color + (isDark ? '24' : '15'),
-                borderRadius: 6,
-                paddingHorizontal: 5,
-                paddingVertical: 1.5,
-                borderWidth: 0.5,
-                borderColor: modeInfo.color + '40'
-              }}>
-                <Text style={{
-                  fontSize: 7.5,
-                  fontWeight: '800',
-                  color: modeInfo.color,
-                  letterSpacing: 0.4
-                }}>
-                  {(tr ? modeInfo.labelTr : modeInfo.labelEn).toUpperCase()}
-                </Text>
-              </View>
-            )}
-          </View>
-          {item.isCompleted ? (
-            <CheckCircle2 size={14} color="#10B981" style={{ marginLeft: S.sm }} />
-          ) : (
-            <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
-          )}
-        </Touchable>
+          priorityColor={priorityColor}
+          prefs={usePrefsStore.getState()}
+        />
       );
     } else {
-      const streakVal = item.streak || 0;
       return (
-        <Touchable
+        <MyDayHabitRow
           key={`habit-${item.id}`}
+          item={item}
+          isLast={isLast}
+          theme={theme}
+          isDark={isDark}
+          tr={tr}
           onPress={() => {
             Haptics.impactAsync(item.isCompleted ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
             toggleHabitDate(item.id as string, habitTodayKey);
@@ -952,55 +1042,7 @@ export default function HomeScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             toggleHabitSkipDate(item.id as string, habitTodayKey);
           }}
-          activeOpacity={0.7}
-          style={{
-            flexDirection: 'row', alignItems: 'center',
-            paddingHorizontal: S.md, paddingVertical: 13,
-            borderBottomWidth: isLast ? 0 : 1,
-            borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-          }}
-        >
-          <View style={{
-            width: 20, height: 20, borderRadius: 10,
-            backgroundColor: item.isCompleted 
-              ? item.color 
-              : item.isSkipped
-              ? '#d97706'
-              : item.color + (isDark ? '1F' : '14'),
-            alignItems: 'center', justifyContent: 'center',
-            marginRight: S.md
-          }}>
-            {item.isSkipped ? (
-              <Coffee size={10} color="#fff" />
-            ) : (
-              <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: item.isCompleted ? '#fff' : item.color }} />
-            )}
-          </View>
-          <Text style={{
-            flex: 1,
-            fontSize: F.body,
-            fontWeight: '600',
-            color: item.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
-            textDecorationLine: item.isCompleted ? 'line-through' : 'none',
-            opacity: item.isCompleted ? 0.5 : 1
-          }} numberOfLines={1}>
-            {item.title}
-          </Text>
-          {item.isSkipped ? (
-            <View style={{ backgroundColor: '#d9770620', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
-              <Text style={{ fontSize: 8.5, fontWeight: '700', color: '#d97706' }}>{tr ? 'MOLA' : 'SKIP'}</Text>
-            </View>
-          ) : streakVal >= 3 ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-              <Flame size={11} color="#F97316" fill="#F97316" />
-              <Text style={{ fontSize: 10, fontWeight: '800', color: '#F97316' }}>{streakVal}</Text>
-            </View>
-          ) : item.isCompleted ? (
-            <CheckCircle2 size={14} color="#10B981" />
-          ) : (
-            <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: theme.outline }} />
-          )}
-        </Touchable>
+        />
       );
     }
   };
@@ -1790,7 +1832,7 @@ export default function HomeScreen() {
                 </View>
 
                 {/* ── WEEKLY FOCUS CHART ── */}
-                <BentoCard index={2} style={{ padding: bentoPad, overflow: 'hidden' }}>
+                <BentoCard index={2} style={{ paddingHorizontal: bentoPad, paddingVertical: bentoPad - 4, overflow: 'hidden' }}>
                     <LinearGradient
                         colors={isDark
                             ? [theme.primary + '12', 'transparent']
@@ -1800,7 +1842,7 @@ export default function HomeScreen() {
                     />
 
                     {/* Header row */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: S.md }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: S.sm }}>
                         <View>
                             <Text style={{ fontSize: 9, fontWeight: '500', letterSpacing: 1.5, color: theme.onSurfaceVariant, opacity: 0.5, marginBottom: 3 }}>
                                 {t.weeklyFocusLabel?.toUpperCase() ?? 'HAFTALIK ODAK'}
@@ -1828,64 +1870,94 @@ export default function HomeScreen() {
                     </View>
 
                     {/* Bars */}
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 100, gap: 5 }}>
-                        {(statsLoading
-                            ? Array(7).fill({ minutes: 0 })
-                            : mergedWeeklyFocus
-                        ).map((d: any, i: number) => {
-                            const maxMin = Math.max(...(mergedWeeklyFocus.map((w: any) => w.minutes)), 1);
-                            const pct = statsLoading ? (8 + i * 9) : Math.max((d.minutes / maxMin) * 100, 4);
-                            const isToday = !statsLoading && i === mergedWeeklyFocus.length - 1;
-                            const hasData = d.minutes > 0;
-                            return (
-                                <View key={i} style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                    {isToday && hasData && (
-                                        <Text style={{ fontSize: 8, fontWeight: '600', color: theme.primary, marginBottom: 3, letterSpacing: 0.1 }}>
-                                            {d.minutes}dk
-                                        </Text>
-                                    )}
-                                    <MotiView
-                                        from={{ height: '0%' }}
-                                        animate={{ height: `${pct}%`, opacity: statsLoading ? [0.2, 0.5, 0.2] : 1 }}
-                                        transition={{ type: 'timing', duration: 600, delay: i * 55, loop: statsLoading }}
-                                        style={{ width: '100%', borderTopLeftRadius: 5, borderTopRightRadius: 5, overflow: 'hidden' }}
-                                    >
-                                        {isToday ? (
-                                            <LinearGradient
-                                                colors={isDark
-                                                    ? [theme.secondary, theme.primary]
-                                                    : [theme.primary, theme.secondary]}
-                                                start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                                                style={{ flex: 1 }}
-                                            />
-                                        ) : (
-                                            <View style={{
-                                                flex: 1,
-                                                backgroundColor: hasData
-                                                    ? (isDark ? theme.primary + '35' : theme.primary + '28')
-                                                    : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
-                                            }} />
+                    <View style={{ position: 'relative', height: 60, justifyContent: 'flex-end', marginBottom: 4 }}>
+                        {/* Minimalist dashed gridline */}
+                        <View style={{ position: 'absolute', left: 0, right: 0, bottom: '50%', height: 1, borderStyle: 'dashed', borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }} />
+                        
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: '100%', gap: 5 }}>
+                            {(statsLoading
+                                ? Array(7).fill({ minutes: 0 })
+                                : mergedWeeklyFocus
+                            ).map((d: any, i: number) => {
+                                const maxMin = Math.max(...(mergedWeeklyFocus.map((w: any) => w.minutes)), 1);
+                                const isToday = !statsLoading && i === currentDayIndex;
+                                const isFuture = !statsLoading && i > currentDayIndex;
+                                const hasData = d.minutes > 0;
+                                
+                                const pct = statsLoading 
+                                    ? (8 + i * 9) 
+                                    : isFuture 
+                                        ? 20 // 20% height for future day placeholders (more visible)
+                                        : Math.max((d.minutes / maxMin) * 82, 8); // min 8% height for past days so they don't disappear
+
+                                return (
+                                    <View key={i} style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                        {isToday && hasData && (
+                                            <Text style={{ fontSize: 8, fontWeight: '700', color: theme.primary, marginBottom: 4 }}>
+                                                {d.minutes}{tr ? 'dk' : 'm'}
+                                            </Text>
                                         )}
-                                    </MotiView>
-                                </View>
-                            );
-                        })}
+                                        <MotiView
+                                            from={{ height: '0%' }}
+                                            animate={{ height: `${pct}%`, opacity: statsLoading ? [0.2, 0.5, 0.2] : 1 }}
+                                            transition={{ type: 'timing', duration: 600, delay: i * 55, loop: statsLoading }}
+                                            style={{ 
+                                                width: 6, 
+                                                borderRadius: 3, 
+                                                overflow: 'hidden',
+                                                ...(isFuture ? {
+                                                    borderWidth: 1.2,
+                                                    borderStyle: 'dashed',
+                                                    borderColor: isDark ? 'rgba(255,255,255,0.30)' : 'rgba(0,0,0,0.22)',
+                                                    backgroundColor: 'transparent'
+                                                } : {})
+                                            }}
+                                        >
+                                            {isToday ? (
+                                                <LinearGradient
+                                                    colors={isDark
+                                                        ? [theme.secondary, theme.primary]
+                                                        : [theme.primary, theme.secondary]}
+                                                    start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                                                    style={{ flex: 1 }}
+                                                />
+                                            ) : isFuture ? (
+                                                null
+                                            ) : (
+                                                <View style={{
+                                                    flex: 1,
+                                                    backgroundColor: hasData
+                                                        ? (isDark ? theme.primary + '50' : theme.primary + '35') // Higher opacity for completed focus past days
+                                                        : (isDark ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.15)'), // Faint pill for past days with 0 focus
+                                                }} />
+                                            )}
+                                        </MotiView>
+                                    </View>
+                                );
+                            })}
+                        </View>
                     </View>
 
                     {/* Day labels */}
-                    <View style={{ flexDirection: 'row', marginTop: S.sm }}>
+                    <View style={{ flexDirection: 'row', marginTop: 4 }}>
                         {dayLabels.map((day, i) => {
-                            const isToday = !statsLoading && i === (mergedWeeklyFocus.length - 1);
+                            const isToday = !statsLoading && i === currentDayIndex;
+                            const isFuture = !statsLoading && i > currentDayIndex;
                             return (
-                                <Text key={i} style={{
-                                    flex: 1, textAlign: 'center', fontSize: 9,
-                                    color: isToday ? theme.primary : theme.onSurfaceVariant,
-                                    fontWeight: isToday ? '900' : '700',
-                                    opacity: isToday ? 1 : 0.38,
-                                    letterSpacing: 0.3,
-                                }}>
-                                    {day}
-                                </Text>
+                                <View key={i} style={{ flex: 1, alignItems: 'center', gap: 2 }}>
+                                    <Text style={{
+                                        textAlign: 'center', fontSize: 8.5,
+                                        color: isToday ? theme.primary : theme.onSurfaceVariant,
+                                        fontWeight: isToday ? '800' : '600',
+                                        opacity: isToday ? 1 : isFuture ? 0.28 : 0.48, // Improved visibility contrast
+                                        letterSpacing: 0.2,
+                                    }}>
+                                        {day}
+                                    </Text>
+                                    {isToday && (
+                                        <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: theme.primary }} />
+                                    )}
+                                </View>
                             );
                         })}
                     </View>

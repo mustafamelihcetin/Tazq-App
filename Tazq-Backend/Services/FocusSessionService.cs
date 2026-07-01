@@ -33,12 +33,13 @@ namespace Tazq_App.Services
             var now = DateTime.UtcNow;
             var sevenDaysAgo = now.AddDays(-7).Date;
 
-            // Fetch all necessary data in two optimized queries
             var sessions = await _db.FocusSessions
+                .AsNoTracking()
                 .Where(f => f.UserId == userId && f.Completed)
                 .ToListAsync();
 
             var allCompletedTasks = await _db.Tasks
+                .AsNoTracking()
                 .Where(t => t.UserId == userId && t.IsCompleted)
                 .ToListAsync();
 
@@ -49,7 +50,7 @@ namespace Tazq_App.Services
             // Streak calculation in-memory
             var completedDates = allCompletedTasks
                 .Where(t => t.DueDate.HasValue)
-                .Select(t => t.DueDate.Value.Date)
+                .Select(t => t.DueDate!.Value.Date)
                 .Distinct()
                 .OrderByDescending(d => d)
                 .ToList();
@@ -69,11 +70,14 @@ namespace Tazq_App.Services
                 else break;
             }
 
-            // Last 7 days focus data in-memory
+            // Current week focus data (Monday to Sunday)
             var weeklyFocus = new List<DailyFocusData>();
-            for (int i = 6; i >= 0; i--)
+            int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
+            var monday = now.AddDays(-diff).Date;
+
+            for (int i = 0; i < 7; i++)
             {
-                var day = now.AddDays(-i).Date;
+                var day = monday.AddDays(i).Date;
                 var dayMinutes = sessions
                     .Where(s => s.StartedAt.Date == day)
                     .Sum(s => s.DurationMinutes);
@@ -89,12 +93,18 @@ namespace Tazq_App.Services
                 });
             }
 
+            var lastWeekStart = monday.AddDays(-7).Date;
+            var lastWeekMinutes = sessions
+                .Where(s => s.StartedAt.Date >= lastWeekStart && s.StartedAt.Date < monday)
+                .Sum(s => s.DurationMinutes);
+
             return new UserStats
             {
                 TotalFocusHours = totalFocusHours,
                 CompletedTasksCount = completedTasksCount,
                 ActiveStreak = streak,
-                WeeklyFocus = weeklyFocus
+                WeeklyFocus = weeklyFocus,
+                LastWeekFocusMinutes = lastWeekMinutes
             };
         }
     }

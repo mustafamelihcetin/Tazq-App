@@ -34,28 +34,39 @@ export interface MomentumResult {
 
 const PRIORITY_WEIGHTS: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
 
+function parseLocalDate(dateStr: string): Date {
+  const parts = dateStr.split('T')[0].split('-');
+  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 0, 0);
+}
+
 export function computeMomentum(input: MomentumInput): MomentumResult {
   const now = input.now ?? new Date();
 
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
+  // Respect the 3-hour night-owl buffer
+  const logicalToday = new Date(now);
+  logicalToday.setHours(logicalToday.getHours() - 3);
+  logicalToday.setHours(0, 0, 0, 0);
 
-  const weeklyTasks = input.tasks.filter(t => t.dueDate && new Date(t.dueDate) >= sevenDaysAgo);
+  const sevenDaysAgo = new Date(logicalToday);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const weeklyTasks = input.tasks.filter(t => {
+    if (!t.dueDate) return false;
+    const taskDate = parseLocalDate(t.dueDate);
+    return taskDate >= sevenDaysAgo;
+  });
   const totalCount = weeklyTasks.length;
   const completedCount = weeklyTasks.filter(t => t.isCompleted).length;
 
   // Öncelik-ağırlıklı, recency-azalmalı tamamlanma oranı.
   const weightedCompletion = (() => {
     if (weeklyTasks.length === 0) return 0;
-    const today = new Date(now);
-    today.setHours(0, 0, 0, 0);
     let earnedPts = 0;
     let totalPts = 0;
     for (const task of weeklyTasks) {
-      const taskDate = task.dueDate ? new Date(task.dueDate) : new Date(now);
-      const daysAgo = Math.floor((today.getTime() - taskDate.getTime()) / 86400000);
-      const recency = Math.max(0.3, 1 - daysAgo * 0.1);
+      const taskDate = task.dueDate ? parseLocalDate(task.dueDate) : new Date(logicalToday);
+      const daysAgo = Math.round((logicalToday.getTime() - taskDate.getTime()) / 86400000);
+      const recency = Math.max(0.3, 1 - Math.max(0, daysAgo) * 0.1);
       const weight = (PRIORITY_WEIGHTS[task.priority ?? 'Low'] || 1) * recency;
       totalPts += weight;
       if (task.isCompleted) earnedPts += weight;

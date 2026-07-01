@@ -14,6 +14,7 @@ namespace Tazq_App.Services
         public int CompletedTasksCount { get; set; }
         public int ActiveStreak { get; set; }
         public List<DailyFocusData> WeeklyFocus { get; set; } = new();
+        public int LastWeekFocusMinutes { get; set; }
     }
 
     public class DailyFocusData

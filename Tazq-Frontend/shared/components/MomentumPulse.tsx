@@ -24,13 +24,16 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
   const accentColor = score >= 75 ? theme.tertiary : score >= 40 ? theme.warning : theme.primary;
 
   // Week-over-week delta: yesterday vs 7 days ago
-  const yesterday = history[5]?.score ?? -1;
+  const isEight = history.length >= 8;
+  const yesterday = isEight ? (history[6]?.score ?? -1) : (history[5]?.score ?? -1);
   const weekAgo   = history[0]?.score ?? -1;
   const delta = (yesterday >= 0 && weekAgo >= 0) ? yesterday - weekAgo : null;
 
   const tr = language === 'tr';
 
   if (loading) return null;
+
+  const displayHistory = isEight ? history.slice(1) : history;
 
   return (
     <>
@@ -64,7 +67,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
       {/* Sparkline */}
       <View style={{ flex: 1, gap: 5 }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 24 }}>
-          {history.map((day, i) => {
+          {displayHistory.map((day, i) => {
             const has = day.score >= 0;
             const isToday = i === 6;
             const h = has ? Math.max(3, Math.round((day.score / 100) * 24)) : 3;

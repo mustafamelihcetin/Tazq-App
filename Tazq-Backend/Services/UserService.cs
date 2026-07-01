@@ -102,7 +102,7 @@ namespace Tazq_App.Services
 
         public async Task<User?> GetUserByIdAsync(int userId)
         {
-            return await _context.Users.Include(u => u.NotificationPreferences).FirstOrDefaultAsync(u => u.Id == userId);
+            return await _context.Users.AsNoTracking().Include(u => u.NotificationPreferences).FirstOrDefaultAsync(u => u.Id == userId);
         }
 
         public async Task<bool> UpdateNotificationPreferencesAsync(int userId, UserNotificationPreferences preferences)

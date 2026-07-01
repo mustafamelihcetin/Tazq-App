@@ -21,7 +21,7 @@ namespace Tazq_App.Services
 
         public async Task<(List<TaskItem> Items, int TotalCount)> GetTasksAsync(int userId, string? tag, string? search, string? sortBy, bool? isCompleted, DateTime? startDate, DateTime? endDate, int page = 1, int pageSize = 50)
         {
-            var query = _context.Tasks.Where(t => t.UserId == userId).AsQueryable();
+            var query = _context.Tasks.AsNoTracking().Where(t => t.UserId == userId).AsQueryable();
             var key = _cryptoService.GetKeyForUser(userId)!;
 
             // Apply filters that can be done at DB level
@@ -94,7 +94,7 @@ namespace Tazq_App.Services
 
         public async Task<TaskItem?> GetTaskByIdAsync(int userId, int taskId)
         {
-            var task = await _context.Tasks.FindAsync(taskId);
+            var task = await _context.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId);
             if (task == null || task.UserId != userId)
                 return null;
 
@@ -115,6 +115,7 @@ namespace Tazq_App.Services
             if (!string.IsNullOrEmpty(task.ClientKey))
             {
                 var existing = await _context.Tasks
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(t => t.UserId == userId
                         && t.ClientKey == task.ClientKey
                         && !t.IsCompleted);

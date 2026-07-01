@@ -207,6 +207,7 @@ export interface UserStatsResponse {
   completedTasksCount: number;
   activeStreak: number;
   weeklyFocus: DailyFocusData[];
+  lastWeekFocusMinutes?: number;
 }
 
 export const TaskService = {
