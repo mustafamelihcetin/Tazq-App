@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   backButton: { position: 'absolute', left: scale(20), zIndex: 10, width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
-  content: { paddingHorizontal: scale(24) },
+  content: { paddingHorizontal: scale(24), width: '100%', maxWidth: 480, alignSelf: 'center' },
   header: { alignItems: 'center' },
   title: { fontSize: F.title + 6, fontFamily: 'Jakarta-ExtraBold', marginTop: verticalScale(10), letterSpacing: -0.5 },
   subtitle: { fontSize: F.body, fontWeight: '500', marginTop: verticalScale(4), opacity: 0.7, textAlign: 'center' },

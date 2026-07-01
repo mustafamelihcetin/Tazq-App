@@ -6,9 +6,24 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BASE_WIDTH = 375;
 const BASE_HEIGHT = 812;
 
-export const scale = (size: number) => (SCREEN_WIDTH / BASE_WIDTH) * size;
-export const verticalScale = (size: number) => (SCREEN_HEIGHT / BASE_HEIGHT) * size;
+// Tablet/foldable (ör. Pixel Pro Fold) ekranlarda her şeyin devasa şişmesini önlemek
+// için ölçek oranını ÜSTTEN sınırla. Telefonlarda oran zaten ≤1.25 → değişmez;
+// sadece geniş ekranlarda makul tutar.
+const MAX_RATIO = 1.25;
+// Dimensions hazır değilse (foldable/çok pencereli açılışta width/height 0/undefined
+// olabilir) NaN üretme — 1'e düş (ölçeksiz). NaN bir style değeri render'ı patlatır.
+const W_RATIO = SCREEN_WIDTH > 0 ? Math.min(SCREEN_WIDTH / BASE_WIDTH, MAX_RATIO) : 1;
+const H_RATIO = SCREEN_HEIGHT > 0 ? Math.min(SCREEN_HEIGHT / BASE_HEIGHT, MAX_RATIO) : 1;
+
+export const scale = (size: number) => W_RATIO * size;
+export const verticalScale = (size: number) => H_RATIO * size;
 export const moderateScale = (size: number, factor = 0.5) => size + (scale(size) - size) * factor;
+
+// Geniş/foldable/tablet ekranlarda içeriği ortalı bir sütunla sınırlamak için.
+// Telefonda ekran zaten < MAX_W → tam genişlik (etkisiz); geniş ekranda ortalanır.
+export const MAX_W = 600;
+// Floating header/bottom-bar gibi mutlak konumlu öğeleri ortalamak için yan boşluk.
+export const sideInset = (screenW: number, base = 16) => Math.max(base, (screenW - MAX_W) / 2);
 
 export const S = {
   xs: moderateScale(4),

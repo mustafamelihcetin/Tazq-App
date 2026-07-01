@@ -142,7 +142,7 @@ export default function RootLayout() {
       try {
         // Preload logo images to prevent flashing
         await Asset.loadAsync([
-          require('../assets/images/tazq_icon.png'),
+          require('../assets/brand/icon.png'),
           require('../assets/images/tazq_text_white.png'),
           require('../assets/images/tazq_text_dark.png'),
         ]);

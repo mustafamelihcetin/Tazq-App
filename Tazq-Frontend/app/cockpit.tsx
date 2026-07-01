@@ -21,7 +21,7 @@ import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { BentoCard } from '../components/BentoCard';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { FocusService } from '../services/api';
-import { S, R, F, B, TRACKING } from '../constants/tokens';
+import { S, R, F, B, TRACKING, MAX_W, sideInset } from '../constants/tokens';
 import { Touchable } from '@/components/Touchable';
 import { DottedBackground } from '../components/DottedBackground';
 import { CustomAlert as Alert } from '../components/CustomAlert';
@@ -367,8 +367,8 @@ export default function CockpitScreen() {
                 {
                     position: 'absolute',
                     top: insets.top + S.sm,
-                    left: S.lg,
-                    right: S.lg,
+                    left: sideInset(screenWidth),
+                    right: sideInset(screenWidth),
                     zIndex: 100,
                     backgroundColor: Platform.OS === 'android' ? (isDark ? 'rgba(28,28,30,0.96)' : 'rgba(255,255,255,0.96)') : 'transparent',
                     borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
@@ -430,7 +430,7 @@ export default function CockpitScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingTop: 80, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: 140 }}
+          contentContainerStyle={{ paddingTop: 80, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: 140, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
         >
           {/* ── WEEK STRIP ── */}

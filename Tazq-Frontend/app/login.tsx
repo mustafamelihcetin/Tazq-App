@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
-  content: { paddingHorizontal: scale(24), gap: 0 },
+  content: { paddingHorizontal: scale(24), gap: 0, width: '100%', maxWidth: 480, alignSelf: 'center' },
   header: { alignItems: 'center' },
   title: { fontFamily: 'Jakarta-ExtraBold', letterSpacing: -1.2 },
   subtitle: { fontSize: moderateScale(15), fontWeight: '500', marginTop: verticalScale(6), opacity: 0.6, letterSpacing: 0.1 },

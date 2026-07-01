@@ -10,7 +10,7 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useHabitStore } from '../store/useHabitStore';
 import { useTaskStore } from '../store/useTaskStore';
-import { S, R, F, B, TRACKING, SPRING } from '../constants/tokens';
+import { S, R, F, B, TRACKING, SPRING, MAX_W } from '../constants/tokens';
 import { track } from '../utils/analytics';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { localizeSporGoal } from '../utils/turkishModes';
@@ -179,7 +179,7 @@ export default function ModOzetScreen() {
         </View>
       ) : (
         <Animated.ScrollView
-          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: HEADER_H + insets.top + S.xs, paddingBottom: 120, gap: S.lg }}
+          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: HEADER_H + insets.top + S.xs, paddingBottom: 120, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
           onScroll={onScroll}

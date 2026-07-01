@@ -25,7 +25,7 @@ import {
   scheduleRamadanStartNotification,
   cancelRamadanStartNotification,
 } from '../utils/notifications';
-import { S, R, F, B, TRACKING, SPRING } from '../constants/tokens';
+import { S, R, F, B, TRACKING, SPRING, MAX_W, sideInset } from '../constants/tokens';
 import { useToastStore } from '../store/useToastStore';
 import { getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, localizeSporGoal, RAMAZAN } from '../utils/turkishModes';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
@@ -671,8 +671,8 @@ export default function ModlarScreen() {
                 {
                     position: 'absolute',
                     top: insets.top + S.sm,
-                    left: S.lg,
-                    right: S.lg,
+                    left: sideInset(screenWidth),
+                    right: sideInset(screenWidth),
                     zIndex: 100,
                     backgroundColor: Platform.OS === 'android' ? (isDark ? 'rgba(28,28,30,0.96)' : 'rgba(255,255,255,0.96)') : 'transparent',
                     borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
@@ -739,7 +739,7 @@ export default function ModlarScreen() {
           <ScrollView
             ref={scrollViewRef}
             style={{ flex: 1 }}
-            contentContainerStyle={{ paddingBottom: 240 + insets.bottom, paddingHorizontal: S.lg, paddingTop: 80 }}
+            contentContainerStyle={{ paddingBottom: 240 + insets.bottom, paddingHorizontal: S.lg, paddingTop: 80, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             scrollEventThrottle={16}

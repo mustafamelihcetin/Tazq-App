@@ -26,7 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { parseTaskHint } from '../utils/taskParser';
 import { getSmartInsight } from '../utils/insights';
 import { computeMomentum } from '../utils/momentum';
-import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING } from '../constants/tokens';
+import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '../constants/tokens';
 import { getAvatarSource } from '../utils/avatars';
 import { useToastStore } from '../store/useToastStore';
 import { useMomentumStore } from '../store/useMomentumStore';
@@ -547,8 +547,8 @@ export default function HomeScreen() {
               {
                   position: 'absolute',
                   top: insets.top + S.sm,
-                  left: S.lg,
-                  right: S.lg,
+                  left: sideInset(width),
+                  right: sideInset(width),
                   zIndex: 100,
                   backgroundColor: Platform.OS === 'android' ? (isDark ? 'rgba(28,28,30,0.96)' : 'rgba(255,255,255,0.96)') : 'transparent',
                   borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
@@ -669,7 +669,7 @@ export default function HomeScreen() {
 
         <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={[styles.scrollContent, { paddingTop: Platform.OS === 'android' ? insets.top + 68 + S.md : S.sm + 68 + S.md, paddingBottom: 120 }]}
+            contentContainerStyle={[styles.scrollContent, { paddingTop: 82, /* SafeAreaView(edges=top) insets.top'u ekliyor; bu sadece floating bar açıklığı (bar alt kenarı). insets.top'u TEKRAR ekleme. Gap'i heroSection.marginTop verir. */ paddingBottom: 120, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }]}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={isDark ? '#1a1b1e' : '#ffffff'} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
@@ -679,18 +679,14 @@ export default function HomeScreen() {
                 animate={{ opacity: 1, translateY: 0 }}
                 style={[styles.heroSection, { paddingHorizontal: S.lg }]}
             >
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', flexShrink: 1, overflow: 'hidden' }}>
-                    <Text style={[styles.greeting, { color: theme.onSurface, fontSize: isSmallScreen ? 22 : 28, lineHeight: isSmallScreen ? 28 : 34, flexShrink: 0 }]} numberOfLines={1}>
-                        {getGreeting()},
+                {/* Selamlama + isim TEK blok (isim iç-span, primary): doğal sarar,
+                    uzun isim alt satıra geçer; kesilmez. Altında subgreeting tutarlı boşlukla. */}
+                <Text style={[styles.greeting, { color: theme.onSurface, fontSize: isSmallScreen ? 22 : 28, lineHeight: isSmallScreen ? 28 : 34 }]}>
+                    {getGreeting()},{' '}
+                    <Text style={{ color: theme.primary }}>
+                        {user?.name?.split(' ')[0] || (language === 'tr' ? 'sen' : 'you')}
                     </Text>
-                    <Text
-                        style={[styles.greeting, { color: theme.primary, fontSize: isSmallScreen ? 22 : 28, lineHeight: isSmallScreen ? 28 : 34, flexShrink: 1, maxWidth: width * 0.42 }]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                    >
-                        {` ${user?.name?.split(' ')[0] || (language === 'tr' ? 'sen' : 'you')}`}
-                    </Text>
-                </View>
+                </Text>
                 <Text style={[styles.subGreeting, { color: theme.onSurfaceVariant, fontSize: F.subhead }]}>
                     {getSubGreeting()}
                 </Text>
@@ -1286,7 +1282,8 @@ const styles = StyleSheet.create({
   avatarContainer: { width: scale(34), height: scale(34), borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
-  heroSection: { marginBottom: S.lg },
+  // Üst ve alt boşluk EŞİT (simetrik blok). Üst boşluk paddingTop'tan değil buradan gelir.
+  heroSection: { marginTop: S.lg, marginBottom: S.lg },
   greeting: { fontWeight: '800', letterSpacing: TRACKING.hero, includeFontPadding: false },
   subGreeting: { fontWeight: '500', marginTop: S.xs, opacity: 0.7, includeFontPadding: false },
   metricLabel: { fontSize: moderateScale(9), fontWeight: '500', letterSpacing: 1.2, opacity: 0.45, marginBottom: S.xs },

@@ -72,7 +72,8 @@ const SLIDES = [
 
 export default function OnboardingScreen() {
   const { theme, isDark } = useAppTheme();
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
+  const tr = language === 'tr';
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -183,9 +184,9 @@ export default function OnboardingScreen() {
           <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
             <View style={styles.simContainer}>
               {[
-                { text: 'yarın teslim et', badge: '📅 Yarın', color: '#00cc88' },
-                { text: 'acil rapor yaz', badge: '⚡ Yüksek', color: '#ff3b30' },
-                { text: 'hatırlatıcı ekle', badge: '🔔 Bildirim', color: theme.primary },
+                { text: tr ? 'yarın teslim et' : 'submit tomorrow', badge: tr ? '📅 Yarın' : '📅 Tomorrow', color: '#00cc88' },
+                { text: tr ? 'acil rapor yaz' : 'urgent report', badge: tr ? '⚡ Yüksek' : '⚡ High', color: '#ff3b30' },
+                { text: tr ? 'hatırlatıcı ekle' : 'add reminder', badge: tr ? '🔔 Bildirim' : '🔔 Reminder', color: theme.primary },
               ].map((row, i) => (
                 <MotiView
                   key={i}
@@ -220,9 +221,9 @@ export default function OnboardingScreen() {
                 <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: item.color, opacity: 0.5, textAlign: 'center' }}>MOMENTUM</Text>
               </MotiView>
               {[
-                { label: '✅ Görevler', pct: '40%' },
-                { label: '⚡ Odak', pct: '35%' },
-                { label: '🔥 Seri', pct: '25%' },
+                { label: tr ? '✅ Görevler' : '✅ Tasks', pct: '40%' },
+                { label: tr ? '⚡ Odak' : '⚡ Focus', pct: '35%' },
+                { label: tr ? '🔥 Seri' : '🔥 Streak', pct: '25%' },
               ].map((row, i) => (
                 <MotiView
                   key={i}
@@ -242,9 +243,9 @@ export default function OnboardingScreen() {
           <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
             <View style={{ alignItems: 'center', justifyContent: 'center', gap: 10, flex: 1, paddingHorizontal: 20 }}>
               {[
-                { emoji: '🚭', label: 'Sigarayı Bırak', sub: 'Gün gün plan', color: '#ff2d55' },
-                { emoji: '💰', label: 'Tasarruf', sub: 'Birikim hedefi', color: '#00cc88' },
-                { emoji: '🎓', label: 'Sınava Hazırlık', sub: 'Günlük program', color: item.color },
+                { emoji: '🚭', label: tr ? 'Sigarayı Bırak' : 'Quit Smoking', sub: tr ? 'Gün gün plan' : 'Day-by-day plan', color: '#ff2d55' },
+                { emoji: '💰', label: tr ? 'Tasarruf' : 'Save Money', sub: tr ? 'Birikim hedefi' : 'Savings goal', color: '#00cc88' },
+                { emoji: '🎓', label: tr ? 'Sınava Hazırlık' : 'Exam Prep', sub: tr ? 'Günlük program' : 'Daily plan', color: item.color },
               ].map((row, i) => (
                 <MotiView
                   key={i}
@@ -274,9 +275,9 @@ export default function OnboardingScreen() {
                 transition={{ type: 'spring', delay: 200 }}
                 style={{ width: '100%' }}
               >
-                <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: item.color, opacity: 0.7, marginBottom: 8 }}>HAFTALIK MERKEZ</Text>
+                <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: item.color, opacity: 0.7, marginBottom: 8 }}>{tr ? 'HAFTALIK MERKEZ' : 'WEEKLY HUB'}</Text>
                 <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
-                  {['P', 'S', 'Ç', 'P', 'C', 'C', 'P'].map((d, i) => (
+                  {(tr ? ['P', 'S', 'Ç', 'P', 'C', 'C', 'P'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S']).map((d, i) => (
                     <MotiView
                       key={i}
                       animate={{ scale: isActive ? 1 : 0.5, opacity: isActive ? 1 : 0 }}

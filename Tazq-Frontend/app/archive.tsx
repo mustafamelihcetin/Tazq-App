@@ -6,7 +6,7 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { S, F, R, B } from '../constants/tokens';
+import { S, F, R, B, MAX_W } from '../constants/tokens';
 import { TaskService } from '../services/api';
 import { useNetworkStore } from '../store/useNetworkStore';
 import { useOfflineQueue } from '../store/useOfflineQueue';
@@ -87,7 +87,7 @@ export default function ArchiveScreen() {
             <FlatList
                 data={archivedTasks}
                 keyExtractor={item => item.id.toString()}
-                contentContainerStyle={{ padding: S.md, gap: S.sm }}
+                contentContainerStyle={{ padding: S.md, gap: S.sm, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
                 ListEmptyComponent={() => (
                     <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 100 }}>
                         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body }}>

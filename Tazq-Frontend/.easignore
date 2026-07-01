@@ -1,0 +1,43 @@
+# .easignore — EAS Build upload'ından hariç tutulacaklar.
+# NOT: .easignore varsa .gitignore'un YERİNE geçer; bu yüzden ağır olanların
+# hepsi burada AÇIKÇA listelenir. Gerekli kaynaklar (app/, components/, utils/,
+# modules/, targets/, plugins/, assets/, config dosyaları) HARİÇ TUTULMAZ.
+
+# Bağımlılıklar (EAS sunucuda kendi kurar)
+node_modules/
+
+# Native klasörler — EAS build sırasında `expo prebuild` ile YENİDEN ÜRETİR.
+# (4GB+ android/ klasörü 301MB upload'ın asıl sebebiydi.)
+/android
+/ios
+
+# Expo / derleme çıktıları
+.expo/
+dist/
+web-build/
+.kotlin/
+
+# Testler / kapsam (build için gerekmez)
+__tests__/
+__mocks__/
+coverage/
+
+# Geliştirme/dök/editör artıkları
+docs/
+.vscode/
+*.md
+*.tsbuildinfo
+scratch_test_parser.ts
+setup-tazq.ps1
+
+# Gizli anahtar/sertifika dosyaları (asla yüklenmesin)
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+.env*.local
+
+# OS artıkları
+.DS_Store

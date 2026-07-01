@@ -6,7 +6,7 @@ import { BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { R, B } from '../constants/tokens';
+import { R, B, MAX_W } from '../constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/components/Touchable';
 import { useLanguageStore } from '../store/useLanguageStore';
@@ -63,7 +63,7 @@ export const BottomNavBar = () => {
     tab => pathname === tab.path || (tab.path === '/' && pathname === '/index')
   );
 
-  const barWidth = width * 0.92;
+  const barWidth = Math.min(width * 0.92, MAX_W);
   const segW = barWidth / tabs.length;
 
   const indicatorSlide = useRef(new Animated.Value(activeIndex >= 0 ? activeIndex : 0)).current;

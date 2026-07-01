@@ -37,7 +37,7 @@ import { categorizeTask } from '../utils/taskIntelligence';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useCompletionStore } from '../store/useCompletionStore';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '../utils/notifications';
-import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING } from '../constants/tokens';
+import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '../constants/tokens';
 import VoiceService from '../utils/voice';
 import { useNetworkStore } from '../store/useNetworkStore';
 import { useOfflineQueue } from '../store/useOfflineQueue';
@@ -1314,8 +1314,8 @@ export default function ActionCenter() {
                 {
                     position: 'absolute',
                     top: insets.top + S.sm,
-                    left: S.lg,
-                    right: S.lg,
+                    left: sideInset(width),
+                    right: sideInset(width),
                     zIndex: 100,
                     backgroundColor: Platform.OS === 'android' ? (isDark ? 'rgba(28,28,30,0.96)' : 'rgba(255,255,255,0.96)') : 'transparent',
                     borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
@@ -1462,7 +1462,7 @@ export default function ActionCenter() {
               animate={{ opacity: 1, translateY: 0, scale: 1 }}
               exit={{ opacity: 0, translateY: -8, scale: 0.95 }}
               style={{ 
-                  position: 'absolute', top: insets.top + 70, left: S.lg, right: S.lg, zIndex: 90,
+                  position: 'absolute', top: insets.top + 70, left: sideInset(width), right: sideInset(width), zIndex: 90,
                   shadowColor: isDark ? '#000' : theme.onSurface,
                   shadowOffset: { width: 0, height: 6 },
                   shadowOpacity: isDark ? 0.3 : 0.08,
@@ -1521,7 +1521,7 @@ export default function ActionCenter() {
             maxToRenderPerBatch={10}
             windowSize={5}
             removeClippedSubviews={false} // Must be false for itemLayoutAnimation to work when items jump large distances
-            contentContainerStyle={{ gap: S.sm, paddingBottom: 100, paddingTop: 80, paddingHorizontal: S.lg }}
+            contentContainerStyle={{ gap: S.sm, paddingBottom: 100, paddingTop: 80, paddingHorizontal: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
             extraData={{ highlightedId, isBulkMode, selectedIds, completingIds, language, expandedId }}
             ListHeaderComponent={() => (
         <React.Fragment>
@@ -1630,7 +1630,7 @@ export default function ActionCenter() {
 
           {/* Task List */}
           
-<View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: -12 }}>
+<View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text
                     style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, flex: 1 }]}
                     numberOfLines={1}

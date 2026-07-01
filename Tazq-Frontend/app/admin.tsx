@@ -13,7 +13,7 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { AdminService, AdminUser, AdminStats, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary } from '../services/api';
 import { sendAdminSupportNotification } from '../utils/notifications';
-import { S, R, F, B } from '../constants/tokens';
+import { S, R, F, B, MAX_W } from '../constants/tokens';
 import * as Haptics from 'expo-haptics';
 import { Touchable } from '@/components/Touchable';
 import { CustomAlert as Alert } from '../components/CustomAlert';
@@ -337,7 +337,7 @@ export default function AdminScreen() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: S.md, paddingBottom: insets.bottom + S.xl, gap: S.md }}
+          contentContainerStyle={{ paddingHorizontal: S.md, paddingBottom: insets.bottom + S.xl, gap: S.md, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}
           showsVerticalScrollIndicator={false}
         >

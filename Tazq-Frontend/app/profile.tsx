@@ -16,7 +16,7 @@ import { useFocusStore } from '../store/useFocusStore';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '../utils/notifications';
-import { S, R, F, B } from '../constants/tokens';
+import { S, R, F, B, MAX_W } from '../constants/tokens';
 import { useToastStore } from '../store/useToastStore';
 import { AVATAR_CONFIGS, AVATAR_MAP, getAvatarSource } from '../utils/avatars';
 import { Asset } from 'expo-asset';
@@ -290,7 +290,7 @@ export default function ProfileScreen() {
         <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 190, paddingHorizontal: S.lg, paddingTop: S.xl }}
+          contentContainerStyle={{ paddingBottom: 190, paddingHorizontal: S.lg, paddingTop: S.xl, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

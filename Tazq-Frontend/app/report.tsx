@@ -9,7 +9,7 @@ import { useLanguageStore } from '../store/useLanguageStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { useMomentumStore } from '../store/useMomentumStore';
 import { FocusService, UserStatsResponse } from '../services/api';
-import { S, R, F, B, TRACKING } from '../constants/tokens';
+import { S, R, F, B, TRACKING, MAX_W } from '../constants/tokens';
 import { generateWeeklyTips, computeWeeklyMetrics, getCoachAction, ProductivityHour } from '../utils/insights';
 import { track } from '../utils/analytics';
 
@@ -112,7 +112,7 @@ export default function ReportScreen() {
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.onSurface }]}>{tr ? 'Haftalık Rapor' : 'Weekly Report'}</Text>
       </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: 120, gap: S.lg }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: 120, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
           {/* Koç kartı — "şimdi ne yapmalıyım?" (kural-tabanlı, ücretsiz) */}
           {(() => {
             const c = TONE_COLOR[coach.tone] ?? theme.primary;
