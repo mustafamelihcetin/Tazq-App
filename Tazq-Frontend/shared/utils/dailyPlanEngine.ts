@@ -39,6 +39,7 @@ export interface DailyPlanSpec {
    * dedupe/temizlik bu görevleri tanıyamıyordu; slot ('spor') ise tanınıyor.
    */
   slot?: string;
+  isRamazan?: boolean;
 }
 
 type Pool = { tr: string; en: string }[];
@@ -222,21 +223,46 @@ const KILO_POOL: Pool = [
   { tr: 'Bugün 2+ litre su iç ve şekerli içecekten kaçın', en: 'Drink 2+ liters of water today, skip sugary drinks' },
   { tr: 'Bugün ne yediğini kısaca not et', en: 'Briefly log what you ate today' },
 ];
+const KILO_POOL_RAMAZAN: Pool = [
+  { tr: 'İftar sonrası 30+ dk hafif tempolu yürüyüş veya hareket et', en: 'Do 30+ min light walking or movement after Iftar' },
+  { tr: 'İftar ve sahurda protein/sebze öncelikli beslen, şekerli içecekten kaçın', en: 'Prioritize protein/veggies at Iftar and Sahur, skip sugary drinks' },
+  { tr: 'İftar ve sahur arası 2+ litre su içtiğinden emin ol', en: 'Make sure to drink 2+ liters of water between Iftar and Sahur' },
+  { tr: 'Bugün sahur ve iftarda ne yediğini kısaca not et', en: 'Briefly log what you ate at Sahur and Iftar' },
+];
+
 const MARATON_POOL: Pool = [
   { tr: 'Bugünkü koşunu planına göre tamamla', en: 'Complete today\'s run per your plan' },
   { tr: 'Koşu öncesi/sonrası 10 dk esneme yap', en: 'Do 10 min stretching before/after your run' },
   { tr: 'Bugünkü mesafeni ve nasıl hissettiğini kaydet', en: 'Log today\'s distance and how you felt' },
 ];
+const MARATON_POOL_RAMAZAN: Pool = [
+  { tr: 'Bugünkü koşunu iftar sonrasına veya sahur öncesine planla', en: 'Schedule today\'s run after Iftar or before Sahur' },
+  { tr: 'Koşu öncesi/sonrası esneme yap, hidrasyonuna dikkat et', en: 'Do stretching before/after your run, watch your hydration' },
+  { tr: 'Koşunun detaylarını ve oruçlu antrenman hissiyatını kaydet', en: 'Log run details and how you felt training while fasting' },
+];
+
 const GUC_POOL: Pool = [
   { tr: 'Bugünkü antrenman bölünmeni (split) tamamla', en: 'Complete today\'s training split' },
   { tr: 'Temel hareketlerde ağırlık/tekrarını kaydet', en: 'Log weight/reps on your main lifts' },
   { tr: 'Bugün protein hedefine ulaş (vücut ağırlığı × ~2g/kg)', en: 'Hit your protein target today (bodyweight × ~2g/kg)' },
 ];
+const GUC_POOL_RAMAZAN: Pool = [
+  { tr: 'Ağır antrenmanını iftar sonrasına planla ve splitini tamamla', en: 'Schedule heavy lifts after Iftar and complete your split' },
+  { tr: 'Güç kaldırışlarında ağırlık/tekrarını kaydet', en: 'Log weight/reps on your main lifts' },
+  { tr: 'İftar-sahur arası protein hedefini yakala (vücut ağırlığı × ~2g/kg)', en: 'Hit your protein target between Iftar and Sahur (bodyweight × ~2g/kg)' },
+];
+
 const GENEL_POOL: Pool = [
   { tr: 'Bugün en az 30 dk aktif ol', en: 'Be active for at least 30 min today' },
   { tr: 'Bugün 7-8 saat uyku ve 2L su hedefle', en: 'Aim for 7-8h sleep and 2L water today' },
   { tr: 'Bugün 10 dk esneme veya mobilite çalışması yap', en: 'Do 10 min stretching or mobility today' },
 ];
+const GENEL_POOL_RAMAZAN: Pool = [
+  { tr: 'İftar sonrası en az 30 dk hafif aktif ol (mobilite/esneme)', en: 'Be active for at least 30 min after Iftar (mobility/stretching)' },
+  { tr: 'İftar ve sahur arasında 2L su ve 7-8 saat kaliteli uyku hedefle', en: 'Aim for 2L water between Iftar/Sahur and 7-8h quality sleep' },
+  { tr: 'Bugün 10 dk esneme veya mobilite çalışması yap', en: 'Do 10 min stretching or mobility today' },
+];
+
 const RAMAZAN_POOL: Pool = [
   { tr: 'Bugün teravih sonrası 30 dk verimli çalışma/okuma yap', en: 'Do 30 min of focused study/reading after Tarawih today' },
   { tr: 'Bugün Kuran okuma hedefini tamamla', en: 'Complete today\'s Quran reading goal' },
@@ -254,14 +280,15 @@ function examPoolFor(spec: DailyPlanSpec): Pool {
 }
 
 function poolFor(spec: DailyPlanSpec): Pool {
+  const ramazan = !!spec.isRamazan;
   switch (spec.kind) {
     case 'exam': return examPoolFor(spec);
     case 'tez': return TEZ_POOLS[getPhase(spec.daysLeft)];
     case 'mulakat': return MULAKAT_POOLS[mulakatBand(spec.daysLeft)];
-    case 'kilo': return KILO_POOL;
-    case 'maraton': return MARATON_POOL;
-    case 'guc': return GUC_POOL;
-    case 'genel': return GENEL_POOL;
+    case 'kilo': return ramazan ? KILO_POOL_RAMAZAN : KILO_POOL;
+    case 'maraton': return ramazan ? MARATON_POOL_RAMAZAN : MARATON_POOL;
+    case 'guc': return ramazan ? GUC_POOL_RAMAZAN : GUC_POOL;
+    case 'genel': return ramazan ? GENEL_POOL_RAMAZAN : GENEL_POOL;
     case 'ramazan': return RAMAZAN_POOL;
   }
 }

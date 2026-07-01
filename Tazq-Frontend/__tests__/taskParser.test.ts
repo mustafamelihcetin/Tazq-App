@@ -40,4 +40,22 @@ describe('parseTaskHint', () => {
     const result = parseTaskHint('xyz abc');
     expect(result.tags ?? []).toHaveLength(0);
   });
+
+  it('detects monthly recurrence and parses nearest 30th day', () => {
+    const result = parseTaskHint('her ayın 30\'unda Kyk ödemesi var');
+    expect(result.recurrence).toBe('Monthly');
+    expect(result.dueDate).toBeDefined();
+    
+    // Validate that the parsed due date ends with -30 (representing the 30th of the month)
+    // or clamps to the last day of the month if February
+    const parsedDay = new Date(result.dueDate!).getDate();
+    expect(parsedDay === 30 || parsedDay === 28 || parsedDay === 29).toBe(true);
+  });
+
+  it('detects monthly recurrence and parses nearest 15th day from English text', () => {
+    const result = parseTaskHint('pay bills on 15th of every month');
+    expect(result.recurrence).toBe('Monthly');
+    expect(result.dueDate).toBeDefined();
+    expect(new Date(result.dueDate!).getDate()).toBe(15);
+  });
 });

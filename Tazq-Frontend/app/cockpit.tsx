@@ -1,13 +1,13 @@
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Modal, KeyboardAvoidingView, Platform, Dimensions, Animated, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Modal, KeyboardAvoidingView, Platform, Dimensions, Animated, useWindowDimensions, Alert } from 'react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
 import { BlurView } from 'expo-blur';
 import {
   Plus, Check, Flame, Clock, Target,
-  ChevronRight, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3,
+  ChevronRight, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee,
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -23,7 +23,7 @@ import { FocusService } from '@/shared/services/api';
 import { S, R, F, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
-import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { SwipeableHabitItem } from '@/shared/components/SwipeableHabitItem';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 
 // Alışkanlık odaklı kalmalı — mantıklı üst sınır (plan + manuel toplam).
@@ -75,7 +75,7 @@ export default function CockpitScreen() {
   const compactPad = isSmallScreen ? S.sm : S.md;
   const { language } = useLanguageStore();
   const { tasks } = useTaskStore();
-  const { habits, addHabit, removeHabit, toggleDate, weeklyGoal, setWeeklyGoal, getStreak } = useHabitStore();
+  const { habits, addHabit, removeHabit, toggleDate, toggleSkipDate, weeklyGoal, setWeeklyGoal, getStreak } = useHabitStore();
   const {
     seasonal,
     examPlanTaskIds, exam2PlanTaskIds, exam3PlanTaskIds,
@@ -131,6 +131,15 @@ export default function CockpitScreen() {
   const [planVisible, setPlanVisible] = useState(false);
   useUiDepth(addVisible || planVisible);
   const [completingHabitIds, setCompletingHabitIds] = useState<Set<string>>(new Set());
+  const [expandedHabitIds, setExpandedHabitIds] = useState<Set<string>>(new Set());
+  const toggleHabitExpand = (id: string) => {
+    setExpandedHabitIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('💪');
   const [newColor, setNewColor] = useState(HABIT_COLORS[0]);
@@ -336,6 +345,33 @@ export default function CockpitScreen() {
             removeHabit(id);
           },
         },
+      ]
+    );
+  };
+
+  const handleLongPressHabit = (id: string, name: string) => {
+    const habit = habits.find(h => h.id === id);
+    if (!habit) return;
+    const safeSkipped = Array.isArray(habit.skippedDates) ? habit.skippedDates : [];
+    const isSkipped = safeSkipped.includes(todayKey);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      name,
+      tr ? 'Bu alışkanlık için ne yapmak istersin?' : 'What do you want to do with this habit?',
+      [
+        {
+          text: isSkipped ? (tr ? 'Pas Geçmeyi Geri Al' : 'Undo Skip') : (tr ? 'Bugün Pas Geç (Mola)' : 'Skip Today (Break)'),
+          onPress: () => {
+            toggleSkipDate(id, todayKey);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+        },
+        {
+          text: tr ? 'Alışkanlığı Sil' : 'Delete Habit',
+          style: 'destructive',
+          onPress: () => handleDeleteHabit(id, name)
+        },
+        { text: tr ? 'İptal' : 'Cancel', style: 'cancel' }
       ]
     );
   };
@@ -608,7 +644,7 @@ export default function CockpitScreen() {
                           textDecorationLine: task.isCompleted ? 'line-through' : 'none',
                         },
                       ]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                     >
                       {task.title}
                     </Text>
@@ -644,9 +680,14 @@ export default function CockpitScreen() {
 
           {/* ── HABITS ── */}
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
-              {tr ? 'ALIŞKANLIKLAR' : 'HABITS'}
-            </Text>
+            <View>
+              <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
+                {tr ? 'ALIŞKANLIKLAR' : 'HABITS'}
+              </Text>
+              <Text style={{ fontSize: 9.5, color: theme.onSurfaceVariant, opacity: 0.6, marginTop: 2 }}>
+                {tr ? 'Mola için butona basılı tut' : 'Hold check button to take break'}
+              </Text>
+            </View>
             <Text style={[styles.sectionSub, { color: theme.onSurfaceVariant }]}>
               {tr ? 'Son 28 gün' : 'Last 28 days'}
             </Text>
@@ -698,21 +739,33 @@ export default function CockpitScreen() {
                       {tr ? `✓ BUGÜN TAMAMLANDI (${doneHabits.length})` : `✓ DONE TODAY (${doneHabits.length})`}
                     </Text>
                     {doneHabits.map(habit => (
-                      <Touchable
+                      <View
                         key={habit.id}
-                        onPress={() => handleToggleHabit(habit.id)}
                         style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.lg,
                           backgroundColor: theme.success + (isDark ? '12' : '0D'),
                           borderWidth: B.thin, borderColor: theme.success + '18' }}
                       >
-                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
-                          {renderModeEmojiIcon(habit.emoji ?? '📌', 16, habit.color ?? theme.success)}
-                        </View>
-                        <Text style={{ flex: 1, fontSize: F.body, fontWeight: '500', color: theme.onSurfaceVariant, textDecorationLine: 'line-through', opacity: 0.55 }} numberOfLines={1}>
-                          {habit.name}
-                        </Text>
-                        <Check size={14} color={theme.success} strokeWidth={3} />
-                      </Touchable>
+                        <Touchable
+                          onPress={() => toggleHabitExpand(habit.id)}
+                          onLongPress={() => handleLongPressHabit(habit.id, habit.name)}
+                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.md }}
+                          activeOpacity={0.8}
+                        >
+                          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
+                            {renderModeEmojiIcon(habit.emoji ?? '📌', 16, habit.color ?? theme.success)}
+                          </View>
+                          <Text style={{ flex: 1, fontSize: F.body, fontWeight: '500', color: theme.onSurfaceVariant, textDecorationLine: 'line-through', opacity: 0.55 }} numberOfLines={expandedHabitIds.has(habit.id) ? undefined : 1}>
+                            {habit.name}
+                          </Text>
+                        </Touchable>
+                        <Touchable
+                          onPress={() => handleToggleHabit(habit.id)}
+                          style={{ padding: S.xs }}
+                          activeOpacity={0.7}
+                        >
+                          <Check size={14} color={theme.success} strokeWidth={3} />
+                        </Touchable>
+                      </View>
                     ))}
                   </View>
                 );
@@ -727,103 +780,152 @@ export default function CockpitScreen() {
                 .map((habit, hIdx) => {
                 const safeColor = habit.color ?? '#6366F1';
                 const safeDates = Array.isArray(habit.completedDates) ? habit.completedDates : [];
-                const streak = getStreak({ ...habit, completedDates: safeDates });
+                const safeSkipped = Array.isArray(habit.skippedDates) ? habit.skippedDates : [];
+                const isSkipped = safeSkipped.includes(todayKey);
+                const streak = getStreak({ ...habit, completedDates: safeDates, skippedDates: safeSkipped });
                 const doneToday = safeDates.includes(todayKey);
                 const habitExitAnim = habitExitAnimMap.current.get(habit.id);
                 return (
                   <Animated.View key={habit.id} style={habitExitAnim ? { opacity: habitExitAnim.opacity, transform: [{ translateY: habitExitAnim.translateY }] } : undefined}>
-                  <View style={[styles.habitCard, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }, isSmallScreen && { padding: S.sm }]}>
-                    <View style={styles.habitRow}>
-                      {/* Emoji + name + streak */}
-                      <View style={styles.habitLeft}>
-                        <View style={[styles.habitIcon, { backgroundColor: safeColor + '22' }]}>
-                          {renderModeEmojiIcon(habit.emoji ?? '📌', 20, safeColor)}
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.habitName, { color: theme.onSurface }]} numberOfLines={1}>
-                            {habit.name}
-                          </Text>
-                          <View style={styles.streakRow}>
-                            <Flame
-                              size={11}
-                              color={streak > 0 ? theme.streak : theme.onSurfaceVariant}
-                            />
-                            <Text style={[
-                              styles.streakText,
-                              { color: streak > 0 ? theme.streak : theme.onSurfaceVariant },
-                            ]}>
-                              {streak} {tr ? 'gün' : 'days'}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      {/* Heatmap 4×7 */}
-                      <View style={styles.heatmapGrid}>
-                        {Array.from({ length: 4 }, (_, row) => (
-                          <View key={row} style={styles.heatmapRow}>
-                            {Array.from({ length: 7 }, (_, col) => {
-                              const d = last28[row * 7 + col];
-                              if (!d) return <View key={col} style={styles.heatCell} />;
-                              const k = fmtDateKey(d);
-                              const done = safeDates.includes(k);
-                              const isToday = k === todayKey;
-                              return (
-                                <View
-                                  key={k}
+                    <SwipeableHabitItem
+                      onDelete={() => handleDeleteHabit(habit.id, habit.name)}
+                      onSkip={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        toggleSkipDate(habit.id, todayKey);
+                      }}
+                      isSkipped={isSkipped}
+                    >
+                      <Touchable
+                        onPress={() => toggleHabitExpand(habit.id)}
+                        onLongPress={() => handleLongPressHabit(habit.id, habit.name)}
+                        activeOpacity={0.9}
+                      >
+                        <View style={[
+                          styles.habitCard, 
+                          { 
+                            backgroundColor: isSkipped
+                              ? (isDark ? '#141416' : '#F3F4F6')
+                              : isDark ? '#1C1C22' : '#FFFFFF', 
+                            borderColor: isSkipped
+                              ? (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)')
+                              : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                            opacity: isSkipped ? 0.75 : 1
+                          }, 
+                          isSmallScreen && { padding: S.sm }
+                        ]}>
+                          <View style={styles.habitRow}>
+                            {/* Emoji + name + streak */}
+                            <View style={styles.habitLeft}>
+                              <View style={[styles.habitIcon, { backgroundColor: isSkipped ? 'rgba(0,0,0,0.05)' : safeColor + '22' }]}>
+                                {renderModeEmojiIcon(habit.emoji ?? '📌', 20, isSkipped ? '#71717a' : safeColor)}
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text 
                                   style={[
-                                    styles.heatCell,
-                                    {
-                                      backgroundColor: done
-                                        ? safeColor
-                                        : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)',
-                                      borderWidth: isToday ? 1.5 : 0,
-                                      borderColor: safeColor,
-                                    },
-                                  ]}
-                                />
-                              );
-                            })}
+                                    styles.habitName, 
+                                    { 
+                                      color: isSkipped ? theme.onSurfaceVariant : theme.onSurface,
+                                      textDecorationLine: isSkipped ? 'line-through' : 'none'
+                                    }
+                                  ]} 
+                                  numberOfLines={expandedHabitIds.has(habit.id) ? undefined : 1}
+                                >
+                                  {habit.name}
+                                </Text>
+                                <View style={styles.streakRow}>
+                                  <Flame
+                                    size={11}
+                                    color={isSkipped ? '#71717a' : streak > 0 ? theme.streak : theme.onSurfaceVariant}
+                                  />
+                                  <Text style={[
+                                    styles.streakText,
+                                    { color: isSkipped ? '#71717a' : streak > 0 ? theme.streak : theme.onSurfaceVariant },
+                                  ]}>
+                                    {streak} {tr ? 'gün' : 'days'}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+
+                            {/* Heatmap 4×7 */}
+                            <View style={styles.heatmapGrid}>
+                              {Array.from({ length: 4 }, (_, row) => (
+                                <View key={row} style={styles.heatmapRow}>
+                                  {Array.from({ length: 7 }, (_, col) => {
+                                    const d = last28[row * 7 + col];
+                                    if (!d) return <View key={col} style={styles.heatCell} />;
+                                    const k = fmtDateKey(d);
+                                    const done = safeDates.includes(k);
+                                    const skippedDate = safeSkipped.includes(k);
+                                    const isToday = k === todayKey;
+                                    return (
+                                      <View
+                                        key={k}
+                                        style={[
+                                          styles.heatCell,
+                                          {
+                                            backgroundColor: done
+                                              ? safeColor
+                                              : skippedDate
+                                              ? '#d97706'
+                                              : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)',
+                                            borderWidth: isToday ? 1.5 : 0,
+                                            borderColor: skippedDate ? '#d97706' : safeColor,
+                                          },
+                                        ]}
+                                      />
+                                    );
+                                  })}
+                                </View>
+                              ))}
+                            </View>
+
+                            {/* Check/Skip status button */}
+                            <Touchable
+                              onPress={() => handleToggleHabit(habit.id)}
+                              onLongPress={() => {
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                toggleSkipDate(habit.id, todayKey);
+                              }}
+                              style={[
+                                styles.checkBtn,
+                                {
+                                  backgroundColor: doneToday 
+                                    ? safeColor 
+                                    : isSkipped 
+                                    ? '#d97706' 
+                                    : 'transparent',
+                                  borderColor: doneToday
+                                    ? safeColor
+                                    : isSkipped
+                                    ? '#d97706'
+                                    : isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
+                                },
+                              ]}
+                              accessibilityLabel={tr ? 'Bugün tamamlandı olarak işaretle' : 'Mark done today'}
+                            >
+                              <MotiView
+                                animate={{ scale: (doneToday || isSkipped) ? 1 : 0.6, opacity: (doneToday || isSkipped) ? 1 : 0.45 }}
+                                transition={{ type: 'spring', damping: 14 }}
+                              >
+                                {isSkipped ? (
+                                  <Coffee
+                                    size={14}
+                                    color="#fff"
+                                  />
+                                ) : (
+                                  <Check
+                                    size={15}
+                                    color={doneToday ? '#fff' : (isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.3)')}
+                                    strokeWidth={3}
+                                  />
+                                )}
+                              </MotiView>
+                            </Touchable>
                           </View>
-                        ))}
-                      </View>
-
-                      {/* Check button */}
-                      <Touchable
-                        onPress={() => handleToggleHabit(habit.id)}
-                        style={[
-                          styles.checkBtn,
-                          {
-                            backgroundColor: doneToday ? safeColor : 'transparent',
-                            borderColor: doneToday
-                              ? safeColor
-                              : isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
-                          },
-                        ]}
-                        accessibilityLabel={tr ? 'Bugün tamamlandı olarak işaretle' : 'Mark done today'}
-                      >
-                        <MotiView
-                          animate={{ scale: doneToday ? 1 : 0.6, opacity: doneToday ? 1 : 0.45 }}
-                          transition={{ type: 'spring', damping: 14 }}
-                        >
-                          <Check
-                            size={15}
-                            color={doneToday ? '#fff' : (isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.3)')}
-                            strokeWidth={3}
-                          />
-                        </MotiView>
+                        </View>
                       </Touchable>
-
-                      {/* Delete button */}
-                      <Touchable
-                        onPress={() => handleDeleteHabit(habit.id, habit.name)}
-                        style={[styles.deleteHabitBtn]}
-                        accessibilityLabel={tr ? 'Alışkanlığı sil' : 'Delete habit'}
-                      >
-                        <Trash2 size={14} color={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)'} />
-                      </Touchable>
-                    </View>
-                  </View>
+                    </SwipeableHabitItem>
                   </Animated.View>
                 );
               })}

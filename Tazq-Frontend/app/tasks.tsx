@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard, FlatList } from 'react-native';
-import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard, FlatList, Alert } from 'react-native';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -29,7 +28,7 @@ import { SwipeableItem } from '@/shared/components/SwipeableItem';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
-import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions } from '@/shared/utils/notifications';
+import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
 import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
 import VoiceService from '@/shared/utils/voice';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
@@ -100,18 +99,31 @@ function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrenc
   if (!dueDateStr || recurrence === 'None') return '';
   const base = new Date(dueDateStr);
   if (isNaN(base.getTime())) return '';
-  const next = new Date(base);
-  if (recurrence === 'Daily') next.setDate(base.getDate() + 1);
-  else if (recurrence === 'Weekly') next.setDate(base.getDate() + 7);
-  else if (recurrence === 'Monthly') next.setMonth(base.getMonth() + 1);
-  next.setHours(0, 0, 0, 0);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+
   const tr = lang === 'tr';
-  const prefix = tr ? 'Sonraki: ' : 'Next: ';
-  if (next.getTime() === today.getTime()) return prefix + (tr ? 'Bugün' : 'Today');
-  if (next.getTime() === tomorrow.getTime()) return prefix + (tr ? 'Yarın' : 'Tomorrow');
-  return prefix + next.toLocaleDateString(tr ? 'tr-TR' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const formattedFirst = base.toLocaleDateString(tr ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  if (recurrence === 'Daily') {
+    return tr 
+      ? `İlk görev: ${formattedFirst} (Her gün tekrarlanır)` 
+      : `First due: ${formattedFirst} (Repeats daily)`;
+  }
+  
+  if (recurrence === 'Weekly') {
+    const weekday = base.toLocaleDateString(tr ? 'tr-TR' : 'en-US', { weekday: 'long' });
+    return tr 
+      ? `İlk görev: ${formattedFirst} (Her hafta ${weekday} günü tekrarlanır)` 
+      : `First due: ${formattedFirst} (Repeats every ${weekday})`;
+  }
+  
+  if (recurrence === 'Monthly') {
+    const dayNum = base.getDate();
+    return tr 
+      ? `İlk görev: ${formattedFirst} (Her ayın ${dayNum}. günü tekrarlanır)` 
+      : `First due: ${formattedFirst} (Repeats on the ${dayNum} of every month)`;
+  }
+
+  return '';
 }
 
 
@@ -1031,75 +1043,74 @@ export default function ActionCenter() {
     }
     setSaving(true);
     
-    // Professional Enrichment: Run AI with a strict timeout
-    let finalTags = form.tags || [];
     try {
-      // Create a timeout promise (1.5 seconds)
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('AI Timeout')), 1500)
-      );
+      // Professional Enrichment: Run AI with a strict timeout
+      let finalTags = form.tags || [];
+      try {
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('AI Timeout')), 1500)
+        );
 
-      const aiMatch = await Promise.race([
-        categorizeTask(form.title.trim()),
-        timeoutPromise
-      ]) as any;
+        const aiMatch = await Promise.race([
+          categorizeTask(form.title.trim()),
+          timeoutPromise
+        ]) as any;
 
-      if (aiMatch && !finalTags.includes(aiMatch.label)) {
-        finalTags = [...finalTags, aiMatch.label];
+        if (aiMatch && !finalTags.includes(aiMatch.label)) {
+          finalTags = [...finalTags, aiMatch.label];
+        }
+      } catch (e) { 
+        console.log('[AI] Enrichment skipped or timed out'); 
       }
-    } catch (e) { 
-      console.log('[AI] Enrichment skipped or timed out'); 
-    }
 
-    const isTR = language === 'tr';
-    const existingTask = editingId !== null ? tasks.find(t => t.id === editingId) : null;
+      const isTR = language === 'tr';
+      const existingTask = editingId !== null ? tasks.find(t => t.id === editingId) : null;
 
-    // Sync reminder tag with toggle
-    let finalTagsWithReminder = [...finalTags];
-    if (form.reminderEnabled && !finalTagsWithReminder.includes('hatırlatıcı')) {
-        finalTagsWithReminder.push('hatırlatıcı');
-    } else if (!form.reminderEnabled) {
-        finalTagsWithReminder = finalTagsWithReminder.filter(t => t !== 'hatırlatıcı' && t !== 'reminder');
-    }
+      // Sync reminder tag with toggle
+      let finalTagsWithReminder = [...finalTags];
+      if (form.reminderEnabled && !finalTagsWithReminder.includes('hatırlatıcı')) {
+          finalTagsWithReminder.push('hatırlatıcı');
+      } else if (!form.reminderEnabled) {
+          finalTagsWithReminder = finalTagsWithReminder.filter(t => t !== 'hatırlatıcı' && t !== 'reminder');
+      }
 
-    // Smart Validation: Reminder without time or past time
-    if (form.reminderEnabled) {
-        if (!form.dueTime) {
-            Alert.alert(t.warningTitle || 'Warning', isTR ? "Hatırlatıcı için saat seçmelisiniz." : "Please select a time for the reminder.");
-            setSaving(false);
-            return;
-        }
-        if (!form.dueDate) {
-            Alert.alert(t.warningTitle || 'Warning', isTR ? "Hatırlatıcı için tarih seçmelisiniz." : "Please select a date for the reminder.");
-            setSaving(false);
-            return;
-        }
+      // Smart Validation: Reminder without time or past time
+      if (form.reminderEnabled) {
+          if (!form.dueTime) {
+              Alert.alert(t.warningTitle || 'Warning', isTR ? "Hatırlatıcı için saat seçmelisiniz." : "Please select a time for the reminder.");
+              setSaving(false);
+              return;
+          }
+          if (!form.dueDate) {
+              Alert.alert(t.warningTitle || 'Warning', isTR ? "Hatırlatıcı için tarih seçmelisiniz." : "Please select a date for the reminder.");
+              setSaving(false);
+              return;
+          }
 
-        // Past time check
-        const target = new Date(form.dueDate);
-        const timeParts = new Date(form.dueTime);
-        target.setHours(timeParts.getHours(), timeParts.getMinutes(), 0, 0);
-        
-        if (target < new Date()) {
-            Alert.alert(t.warningTitle || 'Warning', isTR ? "Geçmiş bir saate hatırlatıcı kurulamaz." : "Cannot set a reminder for a past time.");
-            setSaving(false);
-            return;
-        }
-    }
+          // Past time check
+          const target = new Date(form.dueDate);
+          const { hours, minutes } = parseTimeParts(form.dueTime);
+          target.setHours(hours, minutes, 0, 0);
+          
+          if (target < new Date()) {
+              Alert.alert(t.warningTitle || 'Warning', isTR ? "Geçmiş bir saate hatırlatıcı kurulamaz." : "Cannot set a reminder for a past time.");
+              setSaving(false);
+              return;
+          }
+      }
 
-    const payload = {
-      title: form.title.trim(),
-      description: form.description.trim(),
-      isCompleted: existingTask ? existingTask.isCompleted : false,
-      priority: form.priority,
-      dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
-      dueTime: form.dueTime || null,
-      tags: finalTagsWithReminder,
-      subtasks: form.subtasks,
-      recurrence: form.recurrence,
-    };
+      const payload = {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        isCompleted: existingTask ? existingTask.isCompleted : false,
+        priority: form.priority,
+        dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
+        dueTime: form.dueTime || null,
+        tags: finalTagsWithReminder,
+        subtasks: form.subtasks,
+        recurrence: form.recurrence,
+      };
 
-    try {
       if (editingId !== null) {
         if (!isOnline) {
           enqueueOffline({ type: 'update-task', id: editingId, payload });
@@ -1111,7 +1122,11 @@ export default function ActionCenter() {
               cancelTaskNotification(editingId);
           }
         } else {
-          await TaskService.updateTask(editingId, payload);
+          // Race online update request with a 4.5s timeout to prevent freeze on slow networks
+          await Promise.race([
+            TaskService.updateTask(editingId, payload),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Update Timeout')), 4500))
+          ]);
           updateTask(editingId, { ...payload, id: editingId } as any);
           if (form.reminderEnabled && !payload.isCompleted) {
               scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language);
@@ -1129,7 +1144,11 @@ export default function ActionCenter() {
             scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
           }
         } else {
-          const created = await TaskService.createTask(payload);
+          // Race online create request with a 4.5s timeout to prevent freeze on slow networks
+          const created = await Promise.race([
+            TaskService.createTask(payload),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Create Timeout')), 4500))
+          ]) as any;
           addTask({ ...created, title: form.title.trim() } as any);
           if (created.id && form.reminderEnabled) {
             scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
@@ -1140,16 +1159,36 @@ export default function ActionCenter() {
       setNewSubtaskText('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
+      // Reconstruct payload locally to ensure catch block can reference it even if parsing crashed
+      const existingTask = editingId !== null ? tasks.find(t => t.id === editingId) : null;
+      let finalTagsWithReminder = form.tags || [];
+      if (form.reminderEnabled && !finalTagsWithReminder.includes('hatırlatıcı')) {
+          finalTagsWithReminder.push('hatırlatıcı');
+      } else if (!form.reminderEnabled) {
+          finalTagsWithReminder = finalTagsWithReminder.filter(t => t !== 'hatırlatıcı' && t !== 'reminder');
+      }
+      const safePayload = {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        isCompleted: existingTask ? existingTask.isCompleted : false,
+        priority: form.priority,
+        dueDate: form.dueDate && !isNaN(new Date(form.dueDate).getTime()) ? new Date(form.dueDate).toISOString() : null,
+        dueTime: form.dueTime || null,
+        tags: finalTagsWithReminder,
+        subtasks: form.subtasks,
+        recurrence: form.recurrence,
+      };
+
       if (!err.response) {
         if (editingId !== null) {
-          enqueueOffline({ type: 'update-task', id: editingId, payload });
-          updateTask(editingId, { ...payload, id: editingId } as any);
+          enqueueOffline({ type: 'update-task', id: editingId, payload: safePayload });
+          updateTask(editingId, { ...safePayload, id: editingId } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
           setModalVisible(false);
         } else {
           const tempId = -Date.now();
-          enqueueOffline({ type: 'create-task', tempId, payload });
-          addTask({ ...payload, id: tempId, title: form.title.trim() } as any);
+          enqueueOffline({ type: 'create-task', tempId, payload: safePayload });
+          addTask({ ...safePayload, id: tempId, title: form.title.trim() } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
           setModalVisible(false);
         }
@@ -2157,7 +2196,85 @@ export default function ActionCenter() {
                     {/* Reminder Toggle */}
                     <View style={styles.section}>
                         <Touchable
-                            onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, reminderEnabled: !f.reminderEnabled })); }}
+                            onPress={() => {
+                                Haptics.selectionAsync();
+                                setForm(f => {
+                                    const nextReminderEnabled = !f.reminderEnabled;
+                                    let nextDueTime = f.dueTime;
+                                    let nextDueDate = f.dueDate;
+
+                                    if (nextReminderEnabled) {
+                                        const now = new Date();
+                                        const defaultTime = new Date();
+                                        
+                                        const formatLocal = (dObj: Date) => {
+                                            const y = dObj.getFullYear();
+                                            const m = String(dObj.getMonth() + 1).padStart(2, '0');
+                                            const d = String(dObj.getDate()).padStart(2, '0');
+                                            return `${y}-${m}-${d}`;
+                                        };
+
+                                        if (!f.dueTime) {
+                                            if (!f.dueDate) {
+                                                // If both empty, check if 9:00 AM has passed today
+                                                if (now.getHours() < 9) {
+                                                    defaultTime.setHours(9, 0, 0, 0);
+                                                    nextDueTime = defaultTime.toISOString();
+                                                    nextDueDate = formatLocal(now);
+                                                } else {
+                                                    const tomorrow = new Date(now);
+                                                    tomorrow.setDate(now.getDate() + 1);
+                                                    defaultTime.setHours(9, 0, 0, 0);
+                                                    nextDueTime = defaultTime.toISOString();
+                                                    nextDueDate = formatLocal(tomorrow);
+                                                }
+                                            } else {
+                                                // Date is set, but time is empty
+                                                const targetDate = new Date(f.dueDate);
+                                                targetDate.setHours(0, 0, 0, 0);
+                                                const todayZero = new Date();
+                                                todayZero.setHours(0, 0, 0, 0);
+                                                
+                                                if (targetDate > todayZero) {
+                                                    defaultTime.setHours(9, 0, 0, 0);
+                                                    nextDueTime = defaultTime.toISOString();
+                                                } else {
+                                                    let nextHour = now.getHours() + 1;
+                                                    if (nextHour > 23) {
+                                                        const tomorrow = new Date(now);
+                                                        tomorrow.setDate(now.getDate() + 1);
+                                                        nextDueDate = formatLocal(tomorrow);
+                                                        defaultTime.setHours(9, 0, 0, 0);
+                                                        nextDueTime = defaultTime.toISOString();
+                                                    } else {
+                                                        defaultTime.setHours(nextHour, 0, 0, 0);
+                                                        nextDueTime = defaultTime.toISOString();
+                                                    }
+                                                }
+                                            }
+                                        } else if (!f.dueDate) {
+                                            // Time is set, but date is empty
+                                            const { hours, minutes } = parseTimeParts(f.dueTime);
+                                            const target = new Date(now);
+                                            target.setHours(hours, minutes, 0, 0);
+                                            if (target < now) {
+                                                const tomorrow = new Date(now);
+                                                tomorrow.setDate(now.getDate() + 1);
+                                                nextDueDate = formatLocal(tomorrow);
+                                            } else {
+                                                nextDueDate = formatLocal(now);
+                                            }
+                                        }
+                                    }
+
+                                    return {
+                                        ...f,
+                                        reminderEnabled: nextReminderEnabled,
+                                        dueTime: nextDueTime,
+                                        dueDate: nextDueDate
+                                    };
+                                });
+                            }}
                             style={[styles.inputGroup, {
                                 backgroundColor: form.reminderEnabled
                                     ? theme.priorityMedium + (isDark ? '1F' : '14')

@@ -88,6 +88,10 @@ export function renderModeEmojiIcon(emoji: string, size = 16, color?: string) {
       return <Lucide.Brain size={size} color={color} />;
     case '💰':
       return <Lucide.PiggyBank size={size} color={color} />;
+    case '🧾':
+      return <Lucide.Receipt size={size} color={color} />;
+    case '💳':
+      return <Lucide.CreditCard size={size} color={color} />;
     case '💸':
       return <Lucide.Wallet size={size} color={color} />;
     case '💵':

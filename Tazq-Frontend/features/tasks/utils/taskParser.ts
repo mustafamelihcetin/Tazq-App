@@ -211,6 +211,42 @@ export function parseTaskHint(text: string, preferredLang?: 'tr' | 'en'): Parsed
       hint.recurrenceDayLabel = dayMap[raw] ?? raw;
     } else if (monthlyPatterns.some(p => lower.includes(p))) {
       hint.recurrence = 'Monthly';
+      // Match day number if specified: "her ayın 30'u", "every month on the 30th", "30th of every month"
+      const monthlyDayMatch =
+        lower.match(/her\s+ayın\s+(\d{1,2})/i) ||
+        lower.match(/every\s+month\s+on\s+the\s*(\d{1,2})/i) ||
+        lower.match(/every\s+(\d{1,2})(?:st|nd|rd|th)?\s+of\s+the\s+month/i) ||
+        lower.match(/(\d{1,2})(?:st|nd|rd|th)?\s+of\s+every\s+month/i);
+      
+      if (monthlyDayMatch) {
+        const targetDay = parseInt(monthlyDayMatch[1], 10);
+        if (targetDay >= 1 && targetDay <= 31) {
+          // Calculate the nearest occurrence date
+          let targetDate = new Date(today.getFullYear(), today.getMonth(), targetDay);
+          
+          // Clamp to the last day of the month if day is invalid for this month (e.g. 31 in Feb)
+          const maxDays = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
+          if (targetDay > maxDays) {
+            targetDate.setDate(maxDays);
+          }
+          
+          // Compare dates cleanly by setting hours/minutes to 0
+          const todayZero = new Date(today);
+          todayZero.setHours(0, 0, 0, 0);
+          targetDate.setHours(0, 0, 0, 0);
+          
+          // If in the past, move to next month
+          if (targetDate < todayZero) {
+            targetDate = new Date(today.getFullYear(), today.getMonth() + 1, targetDay);
+            const nextMaxDays = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
+            if (targetDay > nextMaxDays) {
+              targetDate.setDate(nextMaxDays);
+            }
+          }
+          
+          hint.dueDate = toISO(targetDate);
+        }
+      }
     }
   }
 

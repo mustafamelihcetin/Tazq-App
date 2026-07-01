@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, Animated, TouchableWithoutFeedback, Easing } from 'react-native';
+import { Modal, View, Text, StyleSheet, Animated, TouchableWithoutFeedback, Easing, Alert, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Touchable } from './Touchable';
@@ -11,13 +11,14 @@ let alertRef: any = null;
 
 export const CustomAlert = {
   alert: (title: string, message?: string, buttons?: any[], options?: any) => {
-    if (alertRef) {
+    if (Platform.OS === 'android') {
+      // Use native OS dialog to prevent nested native modal deadlocks/freezes on Android
+      Alert.alert(title, message, buttons, options);
+    } else if (alertRef) {
       alertRef.show(title, message, buttons, options);
     } else {
       console.warn('CustomAlertModal not mounted, using fallback');
-      import('react-native').then(({ Alert }) => {
-        Alert.alert(title, message, buttons, options);
-      });
+      Alert.alert(title, message, buttons, options);
     }
   }
 };

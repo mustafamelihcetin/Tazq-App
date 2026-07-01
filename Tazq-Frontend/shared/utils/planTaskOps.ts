@@ -37,13 +37,26 @@ export function formatPlanDate(iso: string | null | undefined, tr: boolean): str
     : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-/** Tarih geçmiş mi (gün sonu bazlı). */
+/** Tarih geçmiş mi (gün sonu bazlı, 3 saatlik gece toleransı dahil). */
 export function isDatePast(iso: string | null | undefined): boolean {
-  return !!iso && new Date(iso).setHours(23, 59, 59, 999) < Date.now();
+  if (!iso) return false;
+  const adjustedNow = new Date();
+  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  const targetStr = iso.split('T')[0];
+  const adjustedNowStr = `${adjustedNow.getFullYear()}-${String(adjustedNow.getMonth() + 1).padStart(2, '0')}-${String(adjustedNow.getDate()).padStart(2, '0')}`;
+  return targetStr < adjustedNowStr;
 }
 
-/** Bugünden hedef tarihe kalan gün (geçmiş/boşsa 0). */
+/** Bugünden hedef tarihe kalan gün (3 saatlik gece toleransı dahil, geçmiş/boşsa 0). */
 export function daysLeftOf(iso: string | null | undefined): number {
   if (!iso || isDatePast(iso)) return 0;
-  return Math.max(0, Math.ceil((new Date(iso).setHours(23, 59, 59, 999) - Date.now()) / 86400000));
+  const adjustedNow = new Date();
+  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  adjustedNow.setHours(0, 0, 0, 0);
+  
+  const targetDate = new Date(iso);
+  targetDate.setHours(0, 0, 0, 0);
+  
+  const diffMs = targetDate.getTime() - adjustedNow.getTime();
+  return Math.max(0, Math.ceil(diffMs / 86400000));
 }

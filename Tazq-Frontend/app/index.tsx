@@ -12,7 +12,7 @@ import { BentoCard } from '@/shared/components/BentoCard';
 import { DynamicIsland } from '@/features/focus';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { MotiView, MotiText } from 'moti';
-import { Plus, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp, Flame, Check } from 'lucide-react-native';
+import { Plus, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp, Flame, Check, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee } from 'lucide-react-native';
 import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
 import { TaskService, FocusService, DailyFocusData } from '@/shared/services/api';
@@ -87,6 +87,7 @@ export default function HomeScreen() {
   // Alışkanlıklar (dashboard hızlı giriş şeridi) — tek dokunuşla bugünü işaretle.
   const habits = useHabitStore(s => s.habits);
   const toggleHabitDate = useHabitStore(s => s.toggleDate);
+  const toggleHabitSkipDate = useHabitStore(s => s.toggleSkipDate);
   const getHabitStreak = useHabitStore(s => s.getStreak);
   const habitTodayKey = fmtDateKey();
   const habitsDoneToday = habits.filter(h => (h.completedDates ?? []).includes(habitTodayKey)).length;
@@ -146,13 +147,15 @@ export default function HomeScreen() {
   }, [activeMode]);
 
   const initialCompletedCountRef = useRef<number | null>(null);
+  const initialStreakRef = useRef<number | null>(null);
+  const initialMomentumRef = useRef<number | null>(null);
+  const initialTodayCompletedRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (tasks.length > 0 && initialCompletedCountRef.current === null) {
       initialCompletedCountRef.current = tasks.filter(t => t && t.isCompleted).length;
     }
   }, [tasks]);
-
 
 
   // Compute daily goal from real data
@@ -326,7 +329,24 @@ export default function HomeScreen() {
   // Daily target coaching: reverse-compute what's needed to hit 75
   const targetTasks = totalCount === 0 ? 3 : Math.max(0, Math.ceil(3 - completedCount));
   const targetFocusMin = Math.max(0, Math.ceil(280 * (1 - focusVolumeScore) / 7)); // daily shortfall
-  const alreadyAt75 = momentum >= 75;
+  // Capture initial session values to evaluate transition milestones (Delight triggers)
+  useEffect(() => {
+    if (!statsLoading && streak !== undefined && initialStreakRef.current === null) {
+      initialStreakRef.current = streak;
+    }
+  }, [statsLoading, streak]);
+
+  useEffect(() => {
+    if (!statsLoading && momentum !== undefined && initialMomentumRef.current === null) {
+      initialMomentumRef.current = momentum;
+    }
+  }, [statsLoading, momentum]);
+
+  useEffect(() => {
+    if (!statsLoading && todayCompleted !== undefined && initialTodayCompletedRef.current === null) {
+      initialTodayCompletedRef.current = todayCompleted;
+    }
+  }, [statsLoading, todayCompleted]);
 
   // Professional, scenario-based review prompt trigger
   useEffect(() => {
@@ -357,9 +377,13 @@ export default function HomeScreen() {
         }
 
         // 5. Başarı Senaryoları (Moments of Delight - En az birisi gerçekleşmeli)
-        const isDailyGoalMet = todayCompleted >= dailyGoal && dailyGoal > 0;
-        const isStreakMilestone = streak > 0 && streak % 3 === 0;
-        const isHighMomentum = momentum >= 90;
+        // Yalnızca bu oturumda yeni ulaşılan durumları kontrol et (cold start'ta tetiklenmez)
+        const isDailyGoalMet = todayCompleted >= dailyGoal && dailyGoal > 0 &&
+          (initialTodayCompletedRef.current !== null && initialTodayCompletedRef.current < dailyGoal);
+        const isStreakMilestone = streak > 0 && streak % 3 === 0 &&
+          (initialStreakRef.current !== null && streak !== initialStreakRef.current);
+        const isHighMomentum = momentum >= 90 &&
+          (initialMomentumRef.current !== null && initialMomentumRef.current < 90);
 
         if (isDailyGoalMet || isStreakMilestone || isHighMomentum) {
           setReviewModalVisible(true);
@@ -1236,10 +1260,15 @@ export default function HomeScreen() {
             {habits.length > 0 && (
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <BentoCard index={2} style={{ padding: bentoPad, overflow: 'hidden' }}>
-                    <Touchable onPress={() => router.push('/cockpit')} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.md }} accessibilityRole="button" accessibilityLabel={tr ? 'Alışkanlıkları yönet' : 'Manage habits'}>
-                        <Text style={{ fontSize: 9, fontWeight: '500', letterSpacing: 1.5, color: theme.onSurfaceVariant, opacity: 0.5 }}>
-                            {tr ? 'BUGÜN · ALIŞKANLIKLAR' : 'TODAY · HABITS'}
-                        </Text>
+                     <Touchable onPress={() => router.push('/cockpit')} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.md }} accessibilityRole="button" accessibilityLabel={tr ? 'Alışkanlıkları yönet' : 'Manage habits'}>
+                        <View>
+                            <Text style={{ fontSize: 9, fontWeight: '500', letterSpacing: 1.5, color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                                {tr ? 'BUGÜN · ALIŞKANLIKLAR' : 'TODAY · HABITS'}
+                            </Text>
+                            <Text style={{ fontSize: 8.5, color: theme.onSurfaceVariant, opacity: 0.45, marginTop: 1 }}>
+                                {tr ? 'Mola için butona basılı tut' : 'Hold button to take break'}
+                            </Text>
+                        </View>
                         <Text style={{ fontSize: F.caption, fontWeight: '700', color: habitsDoneToday === habits.length ? '#10B981' : theme.onSurfaceVariant }}>
                             {habitsDoneToday}/{habits.length}{habitsDoneToday === habits.length ? '  ✓' : ''}
                         </Text>
@@ -1247,31 +1276,49 @@ export default function HomeScreen() {
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingRight: 4 }} keyboardShouldPersistTaps="handled">
                         {habits.map(h => {
                             const done = (h.completedDates ?? []).includes(habitTodayKey);
+                            const skipped = (h.skippedDates ?? []).includes(habitTodayKey);
                             const streak = getHabitStreak(h);
                             return (
                                 <Touchable
                                     key={h.id}
-                                    onPress={() => { Haptics.impactAsync(done ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium); toggleHabitDate(h.id, habitTodayKey); }}
+                                    onPress={() => { 
+                                      Haptics.impactAsync(done ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium); 
+                                      toggleHabitDate(h.id, habitTodayKey); 
+                                    }}
+                                    onLongPress={() => {
+                                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                      toggleHabitSkipDate(h.id, habitTodayKey);
+                                    }}
                                     style={{ alignItems: 'center', width: 58 }}
                                     accessibilityRole="button"
                                     accessibilityState={{ checked: done }}
-                                    accessibilityLabel={`${h.name}${done ? (tr ? ', bugün yapıldı' : ', done today') : (tr ? ', bugün işaretle' : ', mark today')}`}
+                                    accessibilityLabel={`${h.name}${done ? (tr ? ', bugün yapıldı' : ', done today') : skipped ? (tr ? ', bugün pas geçildi' : ', skipped today') : (tr ? ', bugün işaretle' : ', mark today')}`}
                                 >
                                     <View style={{
                                         width: 54, height: 54, borderRadius: 27,
-                                        borderWidth: done ? 0 : 1.5,
+                                        borderWidth: (done || skipped) ? 0 : 1.5,
                                         borderColor: h.color + '40',
-                                        backgroundColor: done ? h.color : h.color + (isDark ? '1F' : '14'),
+                                        backgroundColor: done 
+                                          ? h.color 
+                                          : skipped
+                                          ? '#d97706'
+                                          : h.color + (isDark ? '1F' : '14'),
                                         alignItems: 'center', justifyContent: 'center',
+                                        opacity: skipped ? 0.75 : 1,
                                     }}>
-                                        {/* Haftalık Merkez ile aynı ikon seti (renderModeEmojiIcon) */}
-                                        {done
-                                            ? renderModeEmojiIcon(h.emoji ?? '📌', 24, '#fff')
-                                            : renderModeEmojiIcon(h.emoji ?? '📌', 23, h.color)}
+                                        {skipped ? (
+                                            <Coffee size={24} color="#fff" />
+                                        ) : done ? (
+                                            renderModeEmojiIcon(h.emoji ?? '📌', 24, '#fff')
+                                        ) : (
+                                            renderModeEmojiIcon(h.emoji ?? '📌', 23, h.color)
+                                        )}
                                     </View>
                                     {/* Seri — yalnız anlamlıyken: 3+ alev, 1-2 sade, 0 boş (hizalama korunur) */}
                                     <View style={{ height: 15, marginTop: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                                        {streak >= 3 ? (
+                                        {skipped ? (
+                                            <Text style={{ fontSize: 9, fontWeight: '600', color: '#d97706' }}>{tr ? 'MOLA' : 'SKIP'}</Text>
+                                        ) : streak >= 3 ? (
                                             <>
                                                 <Flame size={11} color="#F97316" fill="#F97316" />
                                                 <Text style={{ fontSize: 11, fontWeight: '800', color: '#F97316' }}>{streak}</Text>
@@ -1280,7 +1327,7 @@ export default function HomeScreen() {
                                             <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.55 }}>{streak} {tr ? 'gün' : 'd'}</Text>
                                         ) : null}
                                     </View>
-                                    <Text numberOfLines={1} style={{ fontSize: 10.5, fontWeight: '600', color: done ? h.color : theme.onSurfaceVariant, opacity: done ? 1 : 0.75, width: 58, textAlign: 'center' }}>{h.name}</Text>
+                                    <Text numberOfLines={1} style={{ fontSize: 10.5, fontWeight: '600', color: done ? h.color : skipped ? '#d97706' : theme.onSurfaceVariant, opacity: (done || skipped) ? 1 : 0.75, width: 58, textAlign: 'center', textDecorationLine: skipped ? 'line-through' : 'none' }}>{h.name}</Text>
                                 </Touchable>
                             );
                         })}

@@ -31,4 +31,33 @@ describe('useHabitStore — çift-isim koruması & planMode', () => {
     useHabitStore.getState().removeHabit('h1');
     expect(useHabitStore.getState().habits).toHaveLength(0);
   });
+
+  it('supports toggleSkipDate and computed streak with skipped days', () => {
+    const { addHabit, toggleSkipDate, toggleDate, getStreak } = useHabitStore.getState();
+    addHabit('Yazılım', '💻', '#10B981', 'h2');
+    
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    const twoDaysAgoKey = `${twoDaysAgo.getFullYear()}-${String(twoDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(twoDaysAgo.getDate()).padStart(2, '0')}`;
+
+    // Mark today as completed, yesterday as skipped, two days ago as completed
+    toggleDate('h2', todayKey);
+    toggleSkipDate('h2', yesterdayKey);
+    toggleDate('h2', twoDaysAgoKey);
+
+    const habit = useHabitStore.getState().habits[0];
+    expect(habit.completedDates).toContain(todayKey);
+    expect(habit.completedDates).toContain(twoDaysAgoKey);
+    expect(habit.skippedDates).toContain(yesterdayKey);
+
+    // Streak should be 2 because the skipped day yesterday acts as a freeze (forgiven/neutral)
+    expect(getStreak(habit)).toBe(2);
+  });
 });

@@ -23,6 +23,16 @@ try {
   }
 } catch (_) {}
 
+export function parseTimeParts(timeStr: string): { hours: number; minutes: number } {
+  if (timeStr.includes('T')) {
+    const d = new Date(timeStr);
+    return { hours: d.getHours(), minutes: d.getMinutes() };
+  } else {
+    const parts = timeStr.split(':').map(Number);
+    return { hours: parts[0] || 0, minutes: parts[1] || 0 };
+  }
+}
+
 // ─── Categories ───────────────────────────────────────────────────────────────
 
 export async function registerNotificationCategories(): Promise<void> {
@@ -279,7 +289,9 @@ export async function scheduleTaskNotification(
     let triggerDate: Date | null = null;
 
     if (dueTime) {
-      triggerDate = new Date(dueTime);
+      const { hours, minutes } = parseTimeParts(dueTime);
+      triggerDate = new Date();
+      triggerDate.setHours(hours, minutes, 0, 0);
       if (dueDate) {
         const d = new Date(dueDate);
         triggerDate.setFullYear(d.getFullYear(), d.getMonth(), d.getDate());

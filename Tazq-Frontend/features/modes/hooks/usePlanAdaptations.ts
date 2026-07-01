@@ -917,7 +917,7 @@ export function usePlanAdaptations() {
     const adherence = computeAdherenceSignal();
     const subjectTodayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     for (const ds of dailySlots) {
-      const daily = buildDailyTasks({ ...ds.spec, adherence }, fresh, lang, today);
+      const daily = buildDailyTasks({ ...ds.spec, adherence, isRamazan: seasonal.ramazan }, fresh, lang, today);
       await applyTasks(daily, ds.mode, ds.taskIds, ds.habitIds);
       // Konu çalışıldıysa ilerlemeyi işaretle → yarın rotasyon bir sonraki konuya geçer.
       if (daily.length > 0 && ds.subjectId) {

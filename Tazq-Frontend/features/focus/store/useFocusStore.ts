@@ -8,6 +8,7 @@ interface FocusState {
   totalSeconds: number;
   currentTask: string;
   lastActiveAt: number | null;
+  expectedFinishAt: number | null;
   // Daily focus tracking
   dailyFocusMinutes: number;
   dailyFocusDate: string;
@@ -64,6 +65,7 @@ export const useFocusStore = create<FocusState>()(
       totalSeconds: 1500,
       currentTask: '',
       lastActiveAt: null,
+      expectedFinishAt: null,
       dailyFocusMinutes: 0,
       dailyFocusDate: '',
       dailyGoalMinutes: 60,
@@ -74,19 +76,35 @@ export const useFocusStore = create<FocusState>()(
       pomodoroRound: 1,
       pomodoroPhase: 'work',
 
-      setIsActive: (isActive) =>
-        set({ isActive, lastActiveAt: isActive ? Date.now() : null }),
+      setIsActive: (isActive) => {
+        const { seconds } = get();
+        set({ 
+          isActive, 
+          lastActiveAt: isActive ? Date.now() : null,
+          expectedFinishAt: isActive ? (Date.now() + seconds * 1000) : null
+        });
+      },
 
       setSeconds: (seconds) =>
-        set((state) => ({
-          seconds: typeof seconds === 'function' ? seconds(state.seconds) : seconds,
-        })),
+        set((state) => {
+          const nextSeconds = typeof seconds === 'function' ? seconds(state.seconds) : seconds;
+          return {
+            seconds: nextSeconds,
+            expectedFinishAt: state.isActive ? (Date.now() + nextSeconds * 1000) : state.expectedFinishAt
+          };
+        }),
 
       setCurrentTask: (currentTask) => set({ currentTask }),
 
       setDuration: (minutes) => {
         const secs = minutes * 60;
-        set({ totalSeconds: secs, seconds: secs, isActive: false, lastActiveAt: null });
+        set({ 
+          totalSeconds: secs, 
+          seconds: secs, 
+          isActive: false, 
+          lastActiveAt: null,
+          expectedFinishAt: null
+        });
       },
 
       tick: () => {
@@ -94,22 +112,36 @@ export const useFocusStore = create<FocusState>()(
         if (isActive && seconds > 0) {
           set({ seconds: seconds - 1 });
         } else if (seconds === 0) {
-          set({ isActive: false, lastActiveAt: null });
+          set({ isActive: false, lastActiveAt: null, expectedFinishAt: null });
         }
       },
 
       reset: () => {
         const { totalSeconds } = get();
-        set({ isActive: false, seconds: totalSeconds, lastActiveAt: null });
+        set({ 
+          isActive: false, 
+          seconds: totalSeconds, 
+          lastActiveAt: null,
+          expectedFinishAt: null
+        });
       },
 
       rehydrateTimer: () => {
-        const { isActive, lastActiveAt, seconds } = get();
-        if (!isActive || !lastActiveAt) return;
-        const elapsed = Math.floor((Date.now() - lastActiveAt) / 1000);
-        const remaining = Math.max(0, seconds - elapsed);
+        const { isActive, expectedFinishAt, lastActiveAt, seconds } = get();
+        if (!isActive) return;
+        
+        let remaining = seconds;
+        if (expectedFinishAt) {
+          remaining = Math.max(0, Math.floor((expectedFinishAt - Date.now()) / 1000));
+        } else if (lastActiveAt) {
+          const elapsed = Math.floor((Date.now() - lastActiveAt) / 1000);
+          remaining = Math.max(0, seconds - elapsed);
+        } else {
+          return;
+        }
+
         if (remaining === 0) {
-          set({ isActive: false, seconds: 0, lastActiveAt: null });
+          set({ isActive: false, seconds: 0, lastActiveAt: null, expectedFinishAt: null });
         } else {
           set({ seconds: remaining, lastActiveAt: null });
         }
@@ -179,6 +211,7 @@ export const useFocusStore = create<FocusState>()(
         totalSeconds: state.totalSeconds,
         currentTask: state.currentTask,
         lastActiveAt: state.lastActiveAt,
+        expectedFinishAt: state.expectedFinishAt,
         dailyFocusMinutes: state.dailyFocusMinutes,
         dailyFocusDate: state.dailyFocusDate,
         dailyGoalMinutes: state.dailyGoalMinutes,

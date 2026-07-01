@@ -8,6 +8,7 @@ export interface Habit {
   emoji: string;
   color: string;
   completedDates: string[]; // 'YYYY-MM-DD'
+  skippedDates?: string[];   // 'YYYY-MM-DD'
   createdAt: string;
   /**
    * Bu alışkanlık hangi dönemsel moda ait (exam/yks/kpss/tez/mulakat/spor/ramazan)?
@@ -24,41 +25,51 @@ interface HabitState {
   addHabit: (name: string, emoji: string, color: string, id?: string, planMode?: string, nameTr?: string, nameEn?: string) => void;
   removeHabit: (id: string) => void;
   toggleDate: (habitId: string, date: string) => void;
+  toggleSkipDate: (habitId: string, date: string) => void;
   setWeeklyGoal: (goal: string) => void;
   getStreak: (habit: Habit) => number;
   setHabits: (habits: Habit[]) => void;
 }
 
 export function fmtDateKey(d: Date = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const adjusted = new Date(d);
+  adjusted.setHours(adjusted.getHours() - 3); // 3-hour buffer for night owls
+  return `${adjusted.getFullYear()}-${String(adjusted.getMonth() + 1).padStart(2, '0')}-${String(adjusted.getDate()).padStart(2, '0')}`;
 }
 
-function computeStreak(completedDates: string[] | undefined): number {
+function computeStreak(completedDates: string[] | undefined, skippedDates: string[] | undefined): number {
   if (!completedDates?.length) return 0;
-  const set = new Set(completedDates);
+  const completedSet = new Set(completedDates);
+  const skippedSet = new Set(skippedDates ?? []);
   let streak = 0;
   let d = new Date();
   
-  // If today is missed, check yesterday. If yesterday is also missed, streak is broken.
-  if (!set.has(fmtDateKey(d))) {
+  // If today is missed/skipped, check yesterday. If yesterday is also missed/skipped, streak is broken.
+  const isTodayActive = completedSet.has(fmtDateKey(d)) || skippedSet.has(fmtDateKey(d));
+  if (!isTodayActive) {
     d.setDate(d.getDate() - 1);
-    if (!set.has(fmtDateKey(d))) {
-      return 0; // 2 consecutive days missed (today & yesterday) -> broken
+    const isYesterdayActive = completedSet.has(fmtDateKey(d)) || skippedSet.has(fmtDateKey(d));
+    if (!isYesterdayActive) {
+      return 0; // 2 consecutive days missed/skipped -> broken
     }
   }
   
   while (true) {
     if (streak > 3650) break; // safety
+    const key = fmtDateKey(d);
     
-    if (set.has(fmtDateKey(d))) {
+    if (completedSet.has(key)) {
       streak++;
+      d.setDate(d.getDate() - 1);
+    } else if (skippedSet.has(key)) {
       d.setDate(d.getDate() - 1);
     } else {
       // Missing day (gap). Check if the day before that was completed to forgive this gap.
       const prevD = new Date(d);
       prevD.setDate(prevD.getDate() - 1);
+      const prevKey = fmtDateKey(prevD);
       
-      if (set.has(fmtDateKey(prevD))) {
+      if (completedSet.has(prevKey) || skippedSet.has(prevKey)) {
         // Gap forgiven (grace period)
         d.setDate(d.getDate() - 1);
       } else {
@@ -72,7 +83,7 @@ function computeStreak(completedDates: string[] | undefined): number {
 
 export const useHabitStore = create<HabitState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       habits: [],
       weeklyGoal: '',
       setHabits: (habits) => set({ habits }),
@@ -92,6 +103,7 @@ export const useHabitStore = create<HabitState>()(
                 emoji,
                 color,
                 completedDates: [],
+                skippedDates: [],
                 createdAt: new Date().toISOString(),
                 ...(planMode ? { planMode } : {}),
                 ...(nameTr ? { nameTr } : {}),
@@ -107,17 +119,35 @@ export const useHabitStore = create<HabitState>()(
           habits: s.habits.map((h) => {
             if (h.id !== habitId) return h;
             const dates = h.completedDates ?? [];
+            const skipped = h.skippedDates ?? [];
             const has = dates.includes(date);
             return {
               ...h,
               completedDates: has
                 ? dates.filter((d) => d !== date)
                 : [...dates, date],
+              skippedDates: skipped.filter((d) => d !== date),
+            };
+          }),
+        })),
+      toggleSkipDate: (habitId, date) =>
+        set((s) => ({
+          habits: s.habits.map((h) => {
+            if (h.id !== habitId) return h;
+            const dates = h.completedDates ?? [];
+            const skipped = h.skippedDates ?? [];
+            const has = skipped.includes(date);
+            return {
+              ...h,
+              skippedDates: has
+                ? skipped.filter((d) => d !== date)
+                : [...skipped, date],
+              completedDates: dates.filter((d) => d !== date),
             };
           }),
         })),
       setWeeklyGoal: (weeklyGoal) => set({ weeklyGoal }),
-      getStreak: (habit) => computeStreak(habit.completedDates),
+      getStreak: (habit) => computeStreak(habit.completedDates, habit.skippedDates),
     }),
     {
       name: 'tazq-habits',
@@ -129,6 +159,7 @@ export const useHabitStore = create<HabitState>()(
           .map((h: any) => ({
             ...h,
             completedDates: Array.isArray(h.completedDates) ? h.completedDates : [],
+            skippedDates: Array.isArray(h.skippedDates) ? h.skippedDates : [],
             color: h.color ?? '#6366F1',
             emoji: h.emoji ?? '📌',
             name: h.name ?? '',

@@ -26,21 +26,30 @@ export function detectSporTypeLocal(goalLabel: string): SporTypeLocal {
 // ─── Tarih yardımcıları ─────────────────────────────────────────────────────
 
 export function daysUntil(dateStr: string): number {
+  const adjustedNow = new Date();
+  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  adjustedNow.setHours(0, 0, 0, 0);
   const d = new Date(dateStr);
-  d.setHours(23, 59, 59, 999);
-  return Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000));
+  d.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.ceil((d.getTime() - adjustedNow.getTime()) / 86400000));
 }
 
 export function daysAgo(dateStr: string): number {
-  return Math.ceil((Date.now() - new Date(dateStr).getTime()) / 86400000);
+  const adjustedNow = new Date();
+  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  adjustedNow.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr);
+  d.setHours(0, 0, 0, 0);
+  return Math.ceil((adjustedNow.getTime() - d.getTime()) / 86400000);
 }
 
 function daysFromNow(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const adjusted = new Date();
+  adjusted.setHours(adjusted.getHours() - 3);
+  adjusted.setDate(adjusted.getDate() + n);
+  const y = adjusted.getFullYear();
+  const m = String(adjusted.getMonth() + 1).padStart(2, '0');
+  const day = String(adjusted.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
