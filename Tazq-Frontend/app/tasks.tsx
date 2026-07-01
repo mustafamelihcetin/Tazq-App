@@ -18,6 +18,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
 import { usePrefsStore, getModeInfoForTask } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
+import { MagneticFAB } from '@/shared/components/MagneticFAB';
 import * as Haptics from 'expo-haptics';
 import { createAudioPlayer } from 'expo-audio';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -156,9 +157,9 @@ const MemoizedTaskItem = React.memo((props: any) => {
                             }
                         }}
                         onLongPress={() => handleLongPress(task.id)}
-                        style={[[styles.taskCard, { backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest, flexDirection: 'column', alignItems: 'stretch' }], {
-                            borderColor: highlightedId === task.id ? theme.secondary : (isBulkMode && isSelected ? theme.primary : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)')),
-                            borderWidth: (highlightedId === task.id || (isBulkMode && isSelected)) ? 2 : 1,
+                        style={[[styles.taskCard, { backgroundColor: isDark ? (modeInfo ? modeInfo.color + '0C' : theme.surfaceContainerLow) : (modeInfo ? modeInfo.color + '05' : theme.surfaceContainerLowest), flexDirection: 'column', alignItems: 'stretch' }], {
+                            borderColor: highlightedId === task.id ? theme.secondary : (isBulkMode && isSelected ? theme.primary : (modeInfo ? modeInfo.color + '40' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)'))),
+                            borderWidth: (highlightedId === task.id || (isBulkMode && isSelected) || modeInfo) ? 1.5 : 1,
                         }]}
                     >
                         <View style={{ flexDirection: 'row', alignItems: 'center', padding: S.md }}>
@@ -196,7 +197,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                     )}
                                 </View>
 
-                                {(task.description || task.dueDate || task.dueTime || modeInfo) && (
+                                {(task.description || task.dueDate || task.dueTime || modeInfo || (task.subtasks && task.subtasks.length > 0)) && (
                                     <MotiView
                                         animate={{ opacity: task.isCompleted || completingIds.has(task.id) ? 0.4 : 1 }}
                                         transition={{ type: 'timing', duration: 300 }}
@@ -222,7 +223,20 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                             <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
                                                 <Clock size={12} color={theme.onSurfaceVariant} opacity={0.7} />
                                                 <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
-                                                    {task.dueTime}
+                                                    {(() => {
+                                                        const date = new Date(task.dueTime);
+                                                        return isNaN(date.getTime())
+                                                            ? task.dueTime
+                                                            : date.toLocaleTimeString(language === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+                                                    })()}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        {task.subtasks && task.subtasks.length > 0 && (
+                                            <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
+                                                <ListChecks size={12} color={theme.onSurfaceVariant} opacity={0.7} />
+                                                <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                    {task.subtasks.filter((s: any) => s.done).length}/{task.subtasks.length}
                                                 </Text>
                                             </View>
                                         )}
@@ -331,6 +345,63 @@ const MemoizedTaskItem = React.memo((props: any) => {
     );
 });
 
+function checkAndCreateNextIntervalInstance(task: any) {
+  const lower = task.title.toLowerCase();
+  const turkishNumbers: Record<string, number> = {
+    bir: 1, iki: 2, üç: 3, dort: 4, dört: 4, bes: 5, beş: 5, alti: 6, altı: 6, yedi: 7, sekiz: 8, dokuz: 9, on: 10
+  };
+  const englishNumbers: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10
+  };
+
+  const intervalDayMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+günde\s+bir/i) ||
+                           lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+days/i);
+  
+  const intervalWeekMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+haftada\s+bir/i) ||
+                            lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+weeks/i);
+
+  const intervalMonthMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+ayda\s+bir/i) ||
+                             lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+months/i);
+
+  let nextDate = new Date();
+  let matched = false;
+
+  if (intervalDayMatch) {
+    const rawVal = intervalDayMatch[1].toLowerCase();
+    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
+    nextDate.setDate(nextDate.getDate() + val);
+    matched = true;
+  } else if (intervalWeekMatch) {
+    const rawVal = intervalWeekMatch[1].toLowerCase();
+    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
+    nextDate.setDate(nextDate.getDate() + val * 7);
+    matched = true;
+  } else if (intervalMonthMatch) {
+    const rawVal = intervalMonthMatch[1].toLowerCase();
+    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
+    nextDate.setMonth(nextDate.getMonth() + val);
+    matched = true;
+  } else if (lower.includes('gün aşırı') || lower.includes('every other day')) {
+    nextDate.setDate(nextDate.getDate() + 2);
+    matched = true;
+  }
+
+  if (matched) {
+    return {
+      title: task.title,
+      description: task.description || '',
+      dueDate: nextDate.toISOString().split('T')[0],
+      dueTime: task.dueTime || null,
+      isCompleted: false,
+      priority: task.priority || 'Medium',
+      tags: task.tags || [],
+      subtasks: (task.subtasks || []).map((s: any) => ({ text: s.text, done: false })),
+      recurrence: 'None' as RecurrenceType
+    };
+  }
+  return null;
+}
+
 export default function ActionCenter() {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -373,6 +444,7 @@ export default function ActionCenter() {
     toggleSubtask: state.toggleSubtask
   })));
   const { t, language } = useLanguageStore();
+  const { user } = useAuthStore();
   const { show: showToast } = useToastStore();
   const isOnline = useNetworkStore((s) => s.isOnline);
   const { enqueue: enqueueOffline } = useOfflineQueue();
@@ -809,105 +881,158 @@ export default function ActionCenter() {
 
     const isCompleting = !task.isCompleted;
 
-    if (isCompleting) {
-      recordCompletion(task.id, task.title);
-      // İlk-zafer: kullanıcının HAYATTAKİ ilk görev tamamlaması → milestone + (Pro'da)
-      // ilk kutlama. Onboarding'in "anında değer" vaadini gerçek bir aksiyona bağlar.
-      const prefsState = usePrefsStore.getState();
-      if (!prefsState.firstWinAt) {
-        prefsState.markFirstWin();
-        track('first_task_completed');
-        track('first_win');
-        if (prefsState.uiMode !== 'lite') {
-          useAchievementStore.getState().trigger(ACHIEVEMENTS.first_task);
-        }
-      }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (soundEffects) try {
-        const p = createAudioPlayer(require('../assets/sounds/success.mp3'));
-        p.volume = 0.6;
-        p.play();
-        setTimeout(() => { try { p.remove(); } catch {} }, 3000);
-      } catch {}
-      await cancelTaskNotification(id);
-
-      if (hideCompleted) {
-        // Optimistically mark as completing so it shows ✓ immediately
-        toggleTaskCompletion(id);
-        setCompletingIds(prev => new Set([...prev, id]));
-
-        const opacity = new RNAnimated.Value(1);
-        const translateY = new RNAnimated.Value(0);
-        exitAnimMap.current.set(id, { opacity, translateY });
-
-        RNAnimated.sequence([
-          RNAnimated.delay(380),
-          RNAnimated.parallel([
-            RNAnimated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-            RNAnimated.timing(translateY, { toValue: 50, duration: 300, useNativeDriver: true }),
-          ]),
-        ]).start(() => {
-          exitAnimMap.current.delete(id);
-          setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-        });
-
-        if (!isOnline) {
-          // Offline: queue the toggle and keep optimistic UI
-          enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
-          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
-          setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-        } else {
-          try {
-            await TaskService.updateTask(id, { ...task, priority: task.priority as any, isCompleted: true });
-          } catch (error: any) {
-            const isNetwork = !error.response;
-            if (isNetwork) {
-              enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
-              showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
-            } else {
-              toggleTaskCompletion(id);
-              setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-              exitAnimMap.current.delete(id);
-              showToast(t.toastUpdateFailed, 'error');
-            }
+    const proceed = async () => {
+      if (isCompleting) {
+        const nextPayload = checkAndCreateNextIntervalInstance(task);
+        if (nextPayload) {
+          if (isOnline) {
+            TaskService.createTask(nextPayload).then(created => {
+              addTask(created);
+            }).catch(() => {
+              const tempId = -Math.floor(Math.random() * 1000000) - 1;
+              const tempTask = { ...nextPayload, id: tempId };
+              addTask(tempTask as any);
+              enqueueOffline({ type: 'create-task', tempId, payload: tempTask });
+            });
+          } else {
+            const tempId = -Math.floor(Math.random() * 1000000) - 1;
+            const tempTask = { ...nextPayload, id: tempId };
+            addTask(tempTask as any);
+            enqueueOffline({ type: 'create-task', tempId, payload: tempTask });
           }
         }
-        return;
+
+        recordCompletion(task.id, task.title);
+        // İlk-zafer: kullanıcının HAYATTAKİ ilk görev tamamlaması → milestone + (Pro'da)
+        // ilk kutlama. Onboarding'in "anında değer" vaadini gerçek bir aksiyona bağlar.
+        const prefsState = usePrefsStore.getState();
+        if (!prefsState.firstWinAt) {
+          prefsState.markFirstWin();
+          track('first_task_completed');
+          track('first_win');
+          if (prefsState.uiMode !== 'lite') {
+            useAchievementStore.getState().trigger(ACHIEVEMENTS.first_task);
+          }
+        }
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (soundEffects) try {
+          const p = createAudioPlayer(require('../assets/sounds/success.mp3'));
+          p.volume = 0.6;
+          p.play();
+          setTimeout(() => { try { p.remove(); } catch {} }, 3000);
+        } catch {}
+        await cancelTaskNotification(id);
+
+        if (hideCompleted) {
+          // Optimistically mark as completing so it shows ✓ immediately
+          toggleTaskCompletion(id);
+          setCompletingIds(prev => new Set([...prev, id]));
+
+          const opacity = new RNAnimated.Value(1);
+          const translateY = new RNAnimated.Value(0);
+          exitAnimMap.current.set(id, { opacity, translateY });
+
+          RNAnimated.sequence([
+            RNAnimated.delay(380),
+            RNAnimated.parallel([
+              RNAnimated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+              RNAnimated.timing(translateY, { toValue: 50, duration: 300, useNativeDriver: true }),
+            ]),
+          ]).start(() => {
+            exitAnimMap.current.delete(id);
+            setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+          });
+
+          if (!isOnline) {
+            // Offline: queue the toggle and keep optimistic UI
+            enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
+            showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+            setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+          } else {
+            try {
+              await TaskService.updateTask(id, { ...task, priority: task.priority as any, isCompleted: true });
+            } catch (error: any) {
+              const isNetwork = !error.response;
+              if (isNetwork) {
+                enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
+                showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+              } else if (error.response?.status === 404) {
+                useTaskStore.getState().removeTask(id);
+                setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+                exitAnimMap.current.delete(id);
+                showToast(language === 'tr' ? 'Bu görev gün aşımı nedeniyle kaldırıldı.' : 'This task was removed due to date rollover.', 'info');
+              } else {
+                toggleTaskCompletion(id);
+                setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+                exitAnimMap.current.delete(id);
+                showToast(t.toastUpdateFailed, 'error');
+              }
+            }
+          }
+          return;
+        }
       }
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
 
-    // In-flight guard: prevent double-tap desync
-    if (completingIds.has(id)) return;
-    setCompletingIds(prev => new Set([...prev, id]));
-    toggleTaskCompletion(id);
+      // In-flight guard: prevent double-tap desync
+      if (completingIds.has(id)) return;
+      setCompletingIds(prev => new Set([...prev, id]));
+      toggleTaskCompletion(id);
 
-    if (!isOnline) {
-      enqueueOffline({ type: 'toggle-task', id, isCompleted: isCompleting, completedAt: isCompleting ? new Date().toISOString() : null });
-      showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
-      setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-      return;
-    }
-
-    try {
-      await TaskService.updateTask(id, {
-        ...task,
-        priority: task.priority as any,
-        isCompleted: isCompleting
-      });
-    } catch (error: any) {
-      const isNetwork = !error.response;
-      if (isNetwork) {
+      if (!isOnline) {
         enqueueOffline({ type: 'toggle-task', id, isCompleted: isCompleting, completedAt: isCompleting ? new Date().toISOString() : null });
         showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
-      } else {
-        toggleTaskCompletion(id);
-        showToast(t.toastUpdateFailed, 'error');
+        setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+        return;
       }
-    } finally {
-      setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+
+      try {
+        await TaskService.updateTask(id, {
+          ...task,
+          priority: task.priority as any,
+          isCompleted: isCompleting
+        });
+      } catch (error: any) {
+        const isNetwork = !error.response;
+        if (isNetwork) {
+          enqueueOffline({ type: 'toggle-task', id, isCompleted: isCompleting, completedAt: isCompleting ? new Date().toISOString() : null });
+          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+        } else if (error.response?.status === 404) {
+          useTaskStore.getState().removeTask(id);
+          showToast(language === 'tr' ? 'Bu görev gün aşımı nedeniyle kaldırıldı.' : 'This task was removed due to date rollover.', 'info');
+        } else {
+          toggleTaskCompletion(id);
+          showToast(t.toastUpdateFailed, 'error');
+        }
+      } finally {
+        setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      }
+    };
+
+    if (isCompleting && task.dueDate && !task.dueDate.startsWith('0001')) {
+      const todayEndMs = (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); })();
+      const isFuture = new Date(task.dueDate).getTime() > todayEndMs;
+      if (isFuture) {
+        const planTags = ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss', 'tasarruf', 'birakma'];
+        const isModeTask = (task.tags ?? []).some(t => planTags.includes(t)) || 
+                           !!getModeInfoForTask(task, usePrefsStore.getState(), theme);
+        
+        if (!isModeTask) {
+          Alert.alert(
+            language === 'tr' ? 'Gelecek Tarihli Görev' : 'Future-Dated Task',
+            language === 'tr'
+              ? 'Bu görev henüz ileri bir tarihe ait. Tamamlamak istediğinize emin misiniz?'
+              : 'This task is scheduled for a future date. Are you sure you want to complete it?',
+            [
+              { text: language === 'tr' ? 'Vazgeç' : 'Cancel', style: 'cancel' },
+              { text: language === 'tr' ? 'Evet, Tamamla' : 'Yes, Complete', onPress: () => proceed() }
+            ]
+          );
+          return;
+        }
+      }
     }
+
+    proceed();
   };
 
 
@@ -1227,6 +1352,23 @@ export default function ActionCenter() {
     let result = tasks.filter((task) => {
       // Global hide-completed toggle (skip when "done" filter is active, or task is mid-exit animation)
       if (hideCompleted && filter !== 'done' && task.isCompleted && !completingIds.has(task.id)) return false;
+      // Future tasks filtering: mode tasks are hidden until their due date; manual tasks depend on showFutureManualTasks toggle.
+      if (!task.isCompleted && task.dueDate && !task.dueDate.startsWith('0001')) {
+        const isFuture = new Date(task.dueDate).getTime() > todayEndMs;
+        if (isFuture) {
+          const planTags = ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss', 'tasarruf', 'birakma'];
+          const isModeTask = (task.tags ?? []).some(t => planTags.includes(t)) || 
+                             !!getModeInfoForTask(task, usePrefsStore.getState(), theme);
+          
+          if (isModeTask) {
+            return false;
+          }
+          if (!showFutureManualTasks) {
+            return false;
+          }
+        }
+      }
+
       if (filter === 'done') { if (!task.isCompleted) return false; }
       else if (filter === 'today') {
         if (task.isCompleted) return false;
@@ -1238,15 +1380,6 @@ export default function ActionCenter() {
         if (d < todayStart || d > todayEnd) return false;
       }
       else if (filter !== 'all') { if (task.priority !== filter || task.isCompleted) return false; }
-      // Tarihi gelmemiş görevleri gizle — dönemsel mod görevleri günü gelene kadar gizlenir, manuel görevler seçeneğe bağlı
-      else if (filter === 'all' && !task.isCompleted && task.dueDate && !task.dueDate.startsWith('0001')) {
-        const isFuture = new Date(task.dueDate).getTime() > todayEndMs;
-        if (isFuture) {
-          const modeInfo = getModeInfoForTask(task, usePrefsStore.getState(), theme);
-          if (modeInfo) return false;
-          if (!showFutureManualTasks) return false;
-        }
-      }
       // dateFilter from cockpit "+N more" button (YYYY-MM-DD)
       if (dateFilter && task.dueDate) {
         const taskDay = task.dueDate.slice(0, 10);
@@ -1458,7 +1591,7 @@ export default function ActionCenter() {
                 from={{ opacity: 0, translateY: -8, scale: 0.95 }}
                 animate={{ opacity: 1, translateY: 0, scale: 1 }}
                 exit={{ opacity: 0, translateY: -8, scale: 0.95 }}
-                style={[styles.sortMenu, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: theme.outline, top: insets.top + 70, right: S.lg }]}
+                style={[styles.sortMenu, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: theme.outline, top: insets.top + 70, left: S.lg }]}
               >
                 {/* Hide Completed Toggle */}
                 <Touchable
@@ -1887,23 +2020,22 @@ export default function ActionCenter() {
       </AnimatePresence>
 
       {!isBulkMode && !(Platform.OS === 'android' && kbHeight > 0) && (
-        <Touchable
+        <MagneticFAB
           onPress={openAdd}
-          style={[
-              styles.fab,
-              {
-                  backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F',
-                  shadowColor: '#000',
-                  width: 64,
-                  height: 64,
-                  borderRadius: R.lg,
-                  bottom: Math.max(insets.bottom, 16) + 88,
-                  right: S.lg
-              }
-          ]}
+          storageKey={`@fab_tasks_${user?.id ?? 'guest'}`}
+          isDark={isDark}
+          theme={theme}
+          style={{
+            backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F',
+            shadowColor: '#000',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          buttonSize={64}
+          borderRadius={R.lg}
         >
           <Plus size={32} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={3} />
-        </Touchable>
+        </MagneticFAB>
       )}
 
       <BottomNavBar />
@@ -2399,7 +2531,7 @@ const styles = StyleSheet.create({
   aiBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: S.lg, gap: S.sm, height: verticalScale(46) },
   searchInput: { flex: 1, fontWeight: '400', fontSize: F.body, letterSpacing: -0.2 },
-  sortMenu: { position: 'absolute', top: verticalScale(56), right: S.lg, zIndex: 200, borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', minWidth: scale(180), shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
+  sortMenu: { position: 'absolute', top: verticalScale(56), left: S.lg, zIndex: 200, borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', minWidth: scale(180), shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
   sortOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth },
   bulkPill: {
     paddingHorizontal: S.lg, paddingVertical: verticalScale(10),

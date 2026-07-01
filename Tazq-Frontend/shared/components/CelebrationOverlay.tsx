@@ -75,7 +75,6 @@ export const CelebrationOverlay: React.FC = () => {
     if (dismissTimer.current) clearTimeout(dismissTimer.current);
     Animated.parallel([
       Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-      Animated.timing(cardScale, { toValue: 0.88, duration: 250, useNativeDriver: true }),
       Animated.timing(cardOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
     ]).start(() => { clearPending(); resetAll(); });
   };
@@ -326,6 +325,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 48,
     elevation: 24,
+    backfaceVisibility: 'hidden',
   },
   achievementIcon: { width: 100, height: 100, marginBottom: S.sm },
   title: { fontSize: F.title + 2, fontWeight: '900', textAlign: 'center', letterSpacing: -0.5 },

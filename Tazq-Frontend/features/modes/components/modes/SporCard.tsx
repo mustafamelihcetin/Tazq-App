@@ -205,15 +205,15 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
   const kiloBmiTargetTooLow = minHealthyKg > 0 && twNum > 0 && twNum < minHealthyKg;
   const kiloBmiCurrentUnderweight = minHealthyKg > 0 && cwNum > 0 && cwNum < minHealthyKg;
   const kiloBmiValid = !kiloBmiTargetTooLow;
+  const hasPlan = sporPlanHabitIds.length > 0 || sporPlanTaskIds.length > 0;
   const sporInputsComplete = sporType === 'kilo'
     ? currentWeight.trim() !== '' && targetWeight.trim() !== '' && cwNum > 0 && twNum > 0 && cwNum !== twNum && kiloWeightValid && kiloWeightRealistic && kiloBmiValid
     : sporType === 'maraton' ? weeklyKm.trim() !== '' && targetEvent !== ''
     : (sporType === 'guc' || sporType === 'genel' || sporType === 'yaris') ? trainingDays !== null : false;
-  const sporIsComplete = goal.trim() !== '' && sporInputsComplete && (sporType === 'kilo' ? kiloAutoDate !== null : date !== '');
+  const sporIsComplete = hasPlan || (goal.trim() !== '' && sporInputsComplete && (sporType === 'kilo' ? kiloAutoDate !== null : date !== ''));
   const past = isDatePast(effectiveSporDate);
   const daysLeft = daysLeftOf(effectiveSporDate);
   const latestWeight = weightLog.length > 0 ? weightLog[0].weight : null;
-  const hasPlan = sporPlanHabitIds.length > 0 || sporPlanTaskIds.length > 0;
 
   // İlerleme: kilo → kilodaki yol; maraton/güç → haftalık antrenman günü; diğer → bugün.
   const kiloLatest = weightLog.length ? weightLog.reduce((a, b) => (a.date > b.date ? a : b)).weight : cwNum;
@@ -234,6 +234,10 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
 
   const closePlan = () => {
     sporPlanHabitIds.forEach(id => removeHabit(id)); sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor')); clearPlanIds('spor');
+    // Clean up any remaining weight_entry tasks from the tasks store
+    const { tasks: allTasks } = useTaskStore.getState();
+    const remainingWeightTasks = allTasks.filter(t => !t.isCompleted && (t.tags?.includes('weight_entry') || t.title === 'Güncel kilonu gir' || t.title === 'Log current weight'));
+    remainingWeightTasks.forEach(t => retirePlanTask(t.id, 'spor'));
     setExpanded(false); resetSporInputs();
     setSeasonalPref('sporMode', false); setSeasonalPref('sporGoal', ''); setSeasonalPref('sporDate', null);
   };

@@ -62,7 +62,7 @@ function whenHydrated(store: any): Promise<void> {
     setTimeout(done, 3000);
   });
 }
-const PLAN_TAGS = ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss', 'daily'];
+const PLAN_TAGS = ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss', 'daily', 'tasarruf', 'birakma'];
 
 // Mod başına o moda ait TÜM görev etiketleri (günlük slotlar + adaptasyon görevleri).
 // Kapalı modlara ait artık görevleri tag ile süpürmek için kullanılır — id-takibi
@@ -75,6 +75,8 @@ const MODE_TASK_TAGS: Record<string, string[]> = {
   mulakat: ['mulakat', 'mulakat2', 'mulakat3', 'mulakat_day', 'mulakat_eve', 'mulakat_3days', 'mulakat_week', 'mulakat_2weeks'],
   spor: ['spor', 'spor2', 'spor3', 'kilo', 'maraton', 'guc', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress'],
   ramazan: ['ramazan', 'ramazan_kadir'],
+  tasarruf: ['tasarruf', 'budget_entry'],
+  birakma: ['birakma'],
 };
 
 function getLocalDateString(d: Date = new Date()): string {
@@ -365,6 +367,25 @@ export function usePlanAdaptations() {
     }
   }, []);
 
+  const rolloverPlanTask = useCallback((taskId: number, todayStr: string) => {
+    const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const updatedPayload = { ...task, dueDate: todayStr };
+    useTaskStore.getState().updateTask(taskId, { dueDate: todayStr });
+
+    const isOnline = useNetworkStore.getState().isOnline;
+    if (!isOnline) {
+      useOfflineQueue.getState().enqueue({ type: 'update-task', id: taskId, payload: updatedPayload });
+    } else {
+      TaskService.updateTask(taskId, updatedPayload as any).catch(err => {
+        if (!err.response) {
+          useOfflineQueue.getState().enqueue({ type: 'update-task', id: taskId, payload: updatedPayload });
+        }
+      });
+    }
+  }, []);
+
   const applyTasks = useCallback(async (
     newTasks: ReturnType<typeof buildKiloAdaptationTasks>,
     planMode: 'spor' | 'spor2' | 'spor3' | 'exam' | 'exam2' | 'exam3' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'ramazan',
@@ -390,11 +411,12 @@ export function usePlanAdaptations() {
       // Idempotency anahtarı ekle (backend çift kaydı reddetsin; offline retry güvenli).
       const payload = { ...rawPayload, clientKey: rawPayload.clientKey ?? makeClientKey(rawPayload) };
       const currentTasks = useTaskStore.getState().tasks;
-      const duplicate = currentTasks.some(task =>
-        !task.isCompleted &&
-        isPlanGeneratedTask(task) &&
-        planDedupeKey(task) === planDedupeKey(payload)
-      );
+      const duplicate = currentTasks.some(task => {
+        if (!isPlanGeneratedTask(task)) return false;
+        if (planDedupeKey(task) !== planDedupeKey(payload)) return false;
+        if (!task.dueDate || !payload.dueDate) return false;
+        return new Date(task.dueDate).toDateString() === new Date(payload.dueDate).toDateString();
+      });
       if (duplicate) continue;
 
       try {
@@ -564,6 +586,8 @@ export function usePlanAdaptations() {
       if (!sSeasonal.mulakatMode) MODE_TASK_TAGS.mulakat.forEach(t => sweepTags.add(t));
       if (!sSeasonal.sporMode) MODE_TASK_TAGS.spor.forEach(t => sweepTags.add(t));
       if (!sSeasonal.ramazan) MODE_TASK_TAGS.ramazan.forEach(t => sweepTags.add(t));
+      if (!sSeasonal.tasarrufMode) MODE_TASK_TAGS.tasarruf.forEach(t => sweepTags.add(t));
+      if (!sSeasonal.birakmaMode) MODE_TASK_TAGS.birakma.forEach(t => sweepTags.add(t));
       if (sweepTags.size > 0) {
         const orphans = useTaskStore.getState().tasks.filter(t =>
           (t.tags ?? []).some(tag => sweepTags.has(tag))
@@ -584,10 +608,12 @@ export function usePlanAdaptations() {
       if (!sSeasonal.mulakatMode) offModes.add('mulakat');
       if (!sSeasonal.sporMode) offModes.add('spor');
       if (!sSeasonal.ramazan) offModes.add('ramazan');
+      if (!sSeasonal.tasarrufMode) offModes.add('tasarruf');
+      if (!sSeasonal.birakmaMode) offModes.add('birakma');
       if (offModes.size > 0) {
         const removeHabitOrphan = useHabitStore.getState().removeHabit;
         useHabitStore.getState().habits.forEach(h => {
-          const idMode = h.id.match(/^habit_(ramazan|yks|kpss|exam|tez|mulakat|spor)_/)?.[1];
+          const idMode = h.id.match(/^habit_(ramazan|yks|kpss|exam|tez|mulakat|spor|tasarruf|birakma)_/)?.[1];
           const mode = h.planMode ?? idMode;
           if (mode && offModes.has(mode)) removeHabitOrphan(h.id);
         });
@@ -655,14 +681,26 @@ export function usePlanAdaptations() {
     const activeSeasonal = activePrefs.seasonal;
 
     // ── DEDUPE PLAN TASKS CREATED DURING OFFLINE / BLOCKED API PERIODS ─────
+    // Sort tasks: completed ones first, then positive IDs (real ones from server)
+    const sortedForDedupe = [...existing].sort((a, b) => {
+      if (a.isCompleted !== b.isCompleted) return a.isCompleted ? -1 : 1;
+      return b.id - a.id;
+    });
+
     const seenPlanTasks = new Set<string>();
-    const duplicatePlanTasks = existing.filter(task => {
-      if (task.isCompleted || !isPlanGeneratedTask(task)) return false;
-      const key = planDedupeKey(task);
-      if (!key) return false;
-      if (seenPlanTasks.has(key)) return true;
-      seenPlanTasks.add(key);
-      return false;
+    const duplicatePlanTasks: typeof existing = [];
+
+    sortedForDedupe.forEach(task => {
+      if (!isPlanGeneratedTask(task)) return;
+      const dedupeKey = planDedupeKey(task);
+      const dateKeyStr = task.dueDate ? new Date(task.dueDate).toDateString() : '';
+      const key = `${dedupeKey}|${dateKeyStr}`;
+
+      if (seenPlanTasks.has(key)) {
+        duplicatePlanTasks.push(task);
+      } else {
+        seenPlanTasks.add(key);
+      }
     });
 
     duplicatePlanTasks.forEach(task => {
@@ -730,11 +768,22 @@ export function usePlanAdaptations() {
       return isPlanTask && !isWeightEntry;
     });
 
+    // Format today date string (like YYYY-MM-DD) based on logicalToday with 3h buffer
+    const todayStr = `${logicalToday.getFullYear()}-${String(logicalToday.getMonth() + 1).padStart(2, '0')}-${String(logicalToday.getDate()).padStart(2, '0')}`;
+
     oldPlanTasks.forEach(task => {
       const modeTag = task.tags?.find(tag =>
         ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss'].includes(tag)
       );
-      retirePlanTask(task.id, modeTag);
+      
+      // Sınav (exam), Tez (tez), Mülakat (mulakat) modları için: Görevi silmek yerine bugüne devret (rollover)
+      const rolloverTags = ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'yks', 'kpss'];
+      if (modeTag && rolloverTags.includes(modeTag)) {
+        rolloverPlanTask(task.id, todayStr);
+      } else {
+        // Spor ve Ramazan modları için: Görevi temizle (retire)
+        retirePlanTask(task.id, modeTag);
+      }
     });
 
     // Refresh existing list after cleanup to avoid duplication downstream
@@ -922,6 +971,28 @@ export function usePlanAdaptations() {
       // Konu çalışıldıysa ilerlemeyi işaretle → yarın rotasyon bir sonraki konuya geçer.
       if (daily.length > 0 && ds.subjectId) {
         useSubjectStore.getState().markStudied(ds.subjectId, subjectTodayKey);
+      }
+    }
+
+    // ── GÜVENLİK DUVARI & KENDİ KENDİNİ İYİLEŞTİRME MEKANİZMASI (Active Guardrails Engine) ──
+    const latestTasks = useTaskStore.getState().tasks;
+    const isKiloActive = seasonal.sporMode && (seasonal.sporGoal?.toLowerCase().includes('kilo') || seasonal.sporGoal?.toLowerCase().includes('weight'));
+    const openWeightTasks = latestTasks.filter(t => !t.isCompleted && (t.tags?.includes('weight_entry') || t.title === 'Güncel kilonu gir' || t.title === 'Log current weight'));
+
+    if (!isKiloActive) {
+      // Spor/kilo modu kapalıysa, yetim kalan tüm açık tartım görevlerini süpür
+      if (openWeightTasks.length > 0) {
+        openWeightTasks.forEach(t => {
+          retirePlanTask(t.id, 'spor');
+        });
+      }
+    } else {
+      // Kilo modu aktifse, mükerrer görevleri engelle ve sadece 1 tane en güncel olanı tut
+      if (openWeightTasks.length > 1) {
+        const sorted = [...openWeightTasks].sort((a, b) => b.id - a.id);
+        for (let i = 1; i < sorted.length; i++) {
+          retirePlanTask(sorted[i].id, 'spor');
+        }
       }
     }
 

@@ -49,12 +49,21 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
       return t;
     });
 
+    // Deduplicate by ID to prevent repeating items in the store state
+    const uniqueMap = new Map<number, Task>();
+    merged.forEach(t => {
+      if (t && t.id) {
+        uniqueMap.set(t.id, t);
+      }
+    });
+    const uniqueTasks = Array.from(uniqueMap.values());
+
     // Smart Sort:
     // 1. Uncompleted first
     // 2. Manual sort order (if set)
     // 3. Priority (High > Medium > Low)
     // 4. Due Date (Earliest first, nulls at bottom)
-    const sorted = [...merged].sort((a, b) => {
+    const sorted = uniqueTasks.sort((a, b) => {
       if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
       
       // Manual sort order takes precedence if both have non-zero values
@@ -74,11 +83,6 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
       return b.id - a.id; // Newest first as tie-breaker
     });
 
-    const todayTasks = sorted.filter((t) => {
-      if (!t.dueDate) return false;
-      return new Date(t.dueDate).toDateString() === new Date().toDateString();
-    });
-    const completedToday = todayTasks.filter((t) => t.isCompleted).length;
     set({ tasks: sorted, dailyProgressText: '' });
   },
 

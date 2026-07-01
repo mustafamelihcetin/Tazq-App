@@ -187,13 +187,56 @@ export function parseTaskHint(text: string, preferredLang?: 'tr' | 'en'): Parsed
   }
 
   // 5b. Recurrence Detection
+  const turkishNumbers: Record<string, number> = {
+    bir: 1, iki: 2, üç: 3, dort: 4, dört: 4, bes: 5, beş: 5, alti: 6, altı: 6, yedi: 7, sekiz: 8, dokuz: 9, on: 10
+  };
+  const englishNumbers: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10
+  };
+
+  const intervalDayMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+günde\s+bir/i) ||
+                           lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+days/i);
+  
+  const intervalWeekMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+haftada\s+bir/i) ||
+                            lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+weeks/i);
+
+  const intervalMonthMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+ayda\s+bir/i) ||
+                             lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+months/i);
+
+  let intervalMatched = false;
+
+  if (intervalDayMatch) {
+    const rawVal = intervalDayMatch[1].toLowerCase();
+    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
+    hint.dueDate = toISO(new Date(today));
+    hint.recurrence = 'None';
+    intervalMatched = true;
+  } else if (intervalWeekMatch) {
+    const rawVal = intervalWeekMatch[1].toLowerCase();
+    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
+    hint.dueDate = toISO(new Date(today));
+    hint.recurrence = 'None';
+    intervalMatched = true;
+  } else if (intervalMonthMatch) {
+    const rawVal = intervalMonthMatch[1].toLowerCase();
+    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
+    hint.dueDate = toISO(new Date(today));
+    hint.recurrence = 'None';
+    intervalMatched = true;
+  } else if (lower.includes('gün aşırı') || lower.includes('every other day')) {
+    hint.dueDate = toISO(new Date(today));
+    hint.recurrence = 'None';
+    intervalMatched = true;
+  }
+
   const dailyPatterns = ['her gun', 'her gün', 'her sabah', 'her gece', 'gunluk', 'günlük', 'daily', 'every day', 'everyday'];
   const weeklyPatterns = ['her hafta', 'haftalik', 'haftalık', 'weekly', 'every week'];
   const monthlyPatterns = ['her ay', 'aylik', 'aylık', 'monthly', 'every month'];
-  // "her pazartesi / her salı ..." → weekly
   const weeklyDayPattern = /her\s+(pazartesi|salı|çarşamba|perşembe|cuma|cumartesi|pazar|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i;
 
-  if (dailyPatterns.some(p => lower.includes(p))) {
+  if (intervalMatched) {
+    // Already set via interval matcher
+  } else if (dailyPatterns.some(p => lower.includes(p))) {
     hint.recurrence = 'Daily';
   } else if (weeklyPatterns.some(p => lower.includes(p))) {
     hint.recurrence = 'Weekly';

@@ -20,6 +20,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { S, R, F, B } from '@/shared/constants/tokens';
 import { buildBirakmaPlan, birakmaTypeTasks, birakmaTypeLabel, BIRAKMA_COLOR } from '@/shared/utils/lifeModePlans';
+import { retirePlanTask } from '@/shared/utils/planTaskOps';
 
 export function BirakmaCard() {
   const { theme, isDark } = useAppTheme();
@@ -127,6 +128,7 @@ export function BirakmaCard() {
 
   const closePlan = () => {
     birakmaPlanHabitIds.forEach(id => removeHabit(id));
+    birakmaPlanTaskIds.forEach(id => retirePlanTask(id, 'birakma'));
     clearPlanIds('birakma');
     setSeasonalPref('birakmaMode', false);
     setSeasonalPref('birakmaName', '');

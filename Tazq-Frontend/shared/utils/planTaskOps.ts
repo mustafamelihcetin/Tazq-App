@@ -28,6 +28,32 @@ export function retirePlanTask(taskId: number, planMode?: string): void {
   }
 }
 
+/**
+ * Bir plan görevini bugüne erteler/aktarır (rollover): hem yerelde hem de
+ * offline-first olarak sunucuda tarihini bugünün tarihi yapar.
+ */
+export function rolloverPlanTask(taskId: number, todayStr: string): void {
+  const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  const updatedPayload = { ...task, dueDate: todayStr };
+  
+  // Local store güncellemesi
+  useTaskStore.getState().updateTask(taskId, { dueDate: todayStr });
+
+  // Server güncellemesi (offline-first)
+  if (!useNetworkStore.getState().isOnline) {
+    useOfflineQueue.getState().enqueue({ type: 'update-task', id: taskId, payload: updatedPayload });
+  } else {
+    TaskService.updateTask(taskId, updatedPayload as any).catch((err: any) => {
+      if (!err?.response) {
+        useOfflineQueue.getState().enqueue({ type: 'update-task', id: taskId, payload: updatedPayload });
+      }
+    });
+  }
+}
+
+
 /** Plan tarihini yerelleştirilmiş kısa biçimde formatlar (TR: gg.aa.yyyy, EN: dd MMM yyyy). */
 export function formatPlanDate(iso: string | null | undefined, tr: boolean): string {
   if (!iso) return '';

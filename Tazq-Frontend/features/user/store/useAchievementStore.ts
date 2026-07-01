@@ -64,6 +64,21 @@ export const useAchievementStore = create<AchievementState>()(
           set({ unlocked: nextUnlocked, pending: achievement });
         }
         pushCloud();
+
+        // Play level up SFX
+        try {
+          const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
+          const { soundEffects } = usePrefsStore.getState();
+          if (soundEffects) {
+            const { createAudioPlayer } = require('expo-audio');
+            const p = createAudioPlayer(require('../../../assets/sounds/level_up.mp3'));
+            p.volume = 0.85;
+            p.play();
+            setTimeout(() => { try { p.remove(); } catch {} }, 3000);
+          }
+        } catch (e) {
+          // Ignore sound playback errors
+        }
       },
 
       // İlk gözlemde sessiz baseline: hak edilmiş eşikleri kutlamadan kilitle.

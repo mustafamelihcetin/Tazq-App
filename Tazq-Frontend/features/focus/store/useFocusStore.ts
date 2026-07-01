@@ -16,6 +16,12 @@ interface FocusState {
   bestStreak: number;
   streakFreezeAvailable: boolean;
   streakFreezeUsedWeek: string;
+  // Gamification & Shield updates
+  focusPoints: number;
+  streakShields: number;
+  strictMode: boolean;
+  localStreak: number;
+  lastCheckedDate: string;
   // Pomodoro
   pomodoroMode: boolean;
   pomodoroRound: number;
@@ -35,6 +41,10 @@ interface FocusState {
   nextPomodoroPhase: () => void;
   useStreakFreeze: () => void;
   checkStreakFreezeReset: () => void;
+  setStrictMode: (strict: boolean) => void;
+  addFocusPoints: (pts: number) => void;
+  consumeStreakShield: () => boolean;
+  incrementLocalStreak: () => void;
 }
 
 function getLocalDateString(d: Date = new Date()): string {
@@ -72,6 +82,11 @@ export const useFocusStore = create<FocusState>()(
       bestStreak: 0,
       streakFreezeAvailable: true,
       streakFreezeUsedWeek: '',
+      focusPoints: 0,
+      streakShields: 1,
+      strictMode: false,
+      localStreak: 0,
+      lastCheckedDate: '',
       pomodoroMode: false,
       pomodoroRound: 1,
       pomodoroPhase: 'work',
@@ -121,6 +136,7 @@ export const useFocusStore = create<FocusState>()(
         set({ 
           isActive: false, 
           seconds: totalSeconds, 
+          currentTask: '',
           lastActiveAt: null,
           expectedFinishAt: null
         });
@@ -188,15 +204,84 @@ export const useFocusStore = create<FocusState>()(
       },
 
       useStreakFreeze: () => {
-        set({ streakFreezeAvailable: false, streakFreezeUsedWeek: getISOWeek() });
+        const { streakShields } = get();
+        const nextShields = Math.max(0, streakShields - 1);
+        set({
+          streakShields: nextShields,
+          streakFreezeAvailable: nextShields > 0,
+          streakFreezeUsedWeek: getISOWeek()
+        });
       },
 
       checkStreakFreezeReset: () => {
-        const { streakFreezeUsedWeek } = get();
+        const { streakFreezeUsedWeek, streakShields } = get();
         const currentWeek = getISOWeek();
         if (streakFreezeUsedWeek && streakFreezeUsedWeek !== currentWeek) {
-          set({ streakFreezeAvailable: true, streakFreezeUsedWeek: '' });
+          const nextShields = Math.min(3, streakShields + 1); // grant one shield on new week if used
+          set({
+            streakShields: nextShields,
+            streakFreezeAvailable: nextShields > 0,
+            streakFreezeUsedWeek: ''
+          });
         }
+      },
+
+      setStrictMode: (strictMode) => set({ strictMode }),
+
+      addFocusPoints: (pts) => {
+        const { focusPoints, streakShields } = get();
+        const nextPoints = focusPoints + pts;
+        if (nextPoints >= 100) {
+          const addedShields = Math.floor(nextPoints / 100);
+          const remainingPoints = nextPoints % 100;
+          const nextShields = Math.min(3, streakShields + addedShields);
+          
+          if (nextShields > streakShields) {
+            try {
+              const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
+              const { soundEffects } = usePrefsStore.getState();
+              if (soundEffects) {
+                const { createAudioPlayer } = require('expo-audio');
+                const p = createAudioPlayer(require('../../../assets/sounds/level_up.mp3'));
+                p.volume = 0.85;
+                p.play();
+                setTimeout(() => { try { p.remove(); } catch {} }, 3000);
+              }
+            } catch (e) {
+              // Ignore sound errors
+            }
+          }
+
+          set({
+            focusPoints: remainingPoints,
+            streakShields: nextShields,
+            streakFreezeAvailable: nextShields > 0
+          });
+        } else {
+          set({ focusPoints: nextPoints });
+        }
+      },
+
+      consumeStreakShield: () => {
+        const { streakShields } = get();
+        if (streakShields > 0) {
+          const nextShields = streakShields - 1;
+          set({
+            streakShields: nextShields,
+            streakFreezeAvailable: nextShields > 0
+          });
+          return true;
+        }
+        return false;
+      },
+
+      incrementLocalStreak: () => {
+        const { localStreak, bestStreak } = get();
+        const next = localStreak + 1;
+        set({
+          localStreak: next,
+          bestStreak: Math.max(bestStreak, next)
+        });
       },
     }),
     {
@@ -221,6 +306,11 @@ export const useFocusStore = create<FocusState>()(
         pomodoroMode: state.pomodoroMode,
         pomodoroRound: state.pomodoroRound,
         pomodoroPhase: state.pomodoroPhase,
+        focusPoints: state.focusPoints,
+        streakShields: state.streakShields,
+        strictMode: state.strictMode,
+        localStreak: state.localStreak,
+        lastCheckedDate: state.lastCheckedDate,
       }),
     }
   )

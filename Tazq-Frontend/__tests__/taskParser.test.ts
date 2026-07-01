@@ -58,4 +58,18 @@ describe('parseTaskHint', () => {
     expect(result.dueDate).toBeDefined();
     expect(new Date(result.dueDate!).getDate()).toBe(15);
   });
+
+  it('detects interval day recurrence "3 günde bir"', () => {
+    const result = parseTaskHint('3 günde bir vitamin al');
+    expect(result.recurrence).toBe('None');
+    expect(result.dueDate).toBeDefined();
+    expect(new Date(result.dueDate!).toDateString()).toBe(new Date().toDateString());
+  });
+
+  it('detects interval week recurrence "every 2 weeks"', () => {
+    const result = parseTaskHint('every 2 weeks water plants');
+    expect(result.recurrence).toBe('None');
+    expect(result.dueDate).toBeDefined();
+    expect(new Date(result.dueDate!).toDateString()).toBe(new Date().toDateString());
+  });
 });

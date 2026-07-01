@@ -52,7 +52,7 @@ export default function ProfileScreen() {
   const { show: showToast } = useToastStore();
   const insets = useSafeAreaInsets();
 
-  const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset } = useFocusStore();
+  const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset, focusPoints, streakShields } = useFocusStore();
   const { habits, toggleDate } = useHabitStore();
   const { tasks } = useTaskStore();
   const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode } = usePrefsStore();
@@ -326,18 +326,31 @@ export default function ProfileScreen() {
   };
 
   const handleStreakFreeze = () => {
-    if (!streakFreezeAvailable) return;
-    Alert.alert(t.streakFreeze, t.streakFreezeConfirm, [
-      { text: t.cancel, style: 'cancel' },
-      { text: t.streakFreezeUse, onPress: () => {
-        useStreakFreeze();
-        const todayKey = fmtDateKey();
-        habits.forEach(h => {
-          if (!h.completedDates.includes(todayKey)) toggleDate(h.id, todayKey);
-        });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } }
-    ]);
+    if (streakShields <= 0) {
+      showToast(
+        language === 'tr' ? 'Hiç kalkanınız kalmadı! Puan toplayarak kalkan kazanın.' : 'No shields left! Earn shields by collecting focus points.',
+        'error'
+      );
+      return;
+    }
+    Alert.alert(
+      language === 'tr' ? 'Streak Kalkanını Etkinleştir' : 'Activate Streak Shield',
+      language === 'tr'
+        ? 'Bir kalkan tüketerek bugünkü tüm alışkanlıkları yapıldı olarak işaretlemek istiyor musunuz?'
+        : 'Do you want to consume one shield to mark all today\'s habits as completed?',
+      [
+        { text: t.cancel, style: 'cancel' },
+        { text: language === 'tr' ? 'Kullan' : 'Use', onPress: () => {
+          useStreakFreeze();
+          const todayKey = fmtDateKey();
+          habits.forEach(h => {
+            if (!h.completedDates.includes(todayKey)) toggleDate(h.id, todayKey);
+          });
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          showToast(language === 'tr' ? 'Kalkan başarıyla kullanıldı!' : 'Shield successfully used!', 'success');
+        } }
+      ]
+    );
   };
 
   const displayBestStreak = Math.max(bestStreak, stats.activeStreak);
@@ -612,11 +625,32 @@ export default function ProfileScreen() {
                 />
                 <RowDivider isDark={isDark} />
                 <SettingItem
+                    icon={<Zap size={18} color={theme.primary} />}
+                    label={language === 'tr' ? 'Focus Puanları' : 'Focus Points'}
+                    sub={language === 'tr' ? `${focusPoints} XP · Her 100 puanda 1 kalkan kazanırsın` : `${focusPoints} XP · Gain 1 shield every 100 points`}
+                    bg={theme.primary + '15'}
+                    right={<Text style={{ color: theme.primary, fontWeight: '800', fontSize: F.caption }}>{focusPoints}/100</Text>}
+                    theme={theme}
+                />
+                <RowDivider isDark={isDark} />
+                <SettingItem
                     icon={<Shield size={18} color={isDark ? "#2DD4BF" : "#0D9488"} />}
                     label={t.streakFreeze}
-                    sub={language === 'tr' ? (streakFreezeAvailable ? '1 kalkan hazır — seriyi korur' : 'Bu hafta kullanıldı') : (streakFreezeAvailable ? '1 shield ready — protects streak' : 'Used this week')}
+                    sub={language === 'tr' ? `${streakShields}/3 kalkan hazır — seriyi korur` : `${streakShields}/3 shields ready — protects streak`}
                     bg={isDark ? "rgba(45, 212, 191, 0.12)" : "rgba(13, 148, 136, 0.12)"}
-                    right={<Text style={{ color: streakFreezeAvailable ? (isDark ? '#2DD4BF' : '#0D9488') : theme.onSurfaceVariant, fontWeight: '800', fontSize: F.caption }}>{streakFreezeAvailable ? (language === 'tr' ? 'Hazır' : 'Ready') : (language === 'tr' ? 'Kullanıldı' : 'Used')}</Text>}
+                    right={
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        {[1, 2, 3].map((num) => (
+                          <Shield
+                            key={num}
+                            size={12}
+                            color={num <= streakShields ? (isDark ? '#2DD4BF' : '#0D9488') : theme.onSurfaceVariant}
+                            fill={num <= streakShields ? (isDark ? '#2DD4BF' : '#0D9488') : 'transparent'}
+                            opacity={num <= streakShields ? 1 : 0.25}
+                          />
+                        ))}
+                      </View>
+                    }
                     onPress={handleStreakFreeze}
                     theme={theme}
                 />

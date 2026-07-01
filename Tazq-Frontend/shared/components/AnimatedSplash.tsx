@@ -37,10 +37,10 @@ export const AnimatedSplash = ({
 
     // Avuç İçinde Atan Kalp (Heartbeat Haptic Pulse) — Logo otururken minik çift titreşim
     const hapticTimer = setTimeout(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(() => {});
+      Haptics.selectionAsync().catch(() => {});
       setTimeout(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      }, 140);
+      }, 130);
     }, 650);
 
     Animated.sequence([
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   line: {
-    marginTop: 8,
+    marginTop: -2,
     width: LINE_WIDTH,
     height: StyleSheet.hairlineWidth,
   },

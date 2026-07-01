@@ -281,6 +281,14 @@ namespace Tazq_App.Services
         private string? SafeDecrypt(string? cipher, byte[] key, int taskId, string field)
         {
             if (string.IsNullOrEmpty(cipher)) return string.Empty;
+
+            // Geriye dönük uyumluluk: Eğer veri zaten şifrelenmemiş düz metin/JSON ise (örn: '[]' veya düz metin),
+            // şifre çözmeyi atlayıp doğrudan verinin kendisini dönelim.
+            if ((cipher.StartsWith('[') && cipher.EndsWith(']')) || !IsBase64String(cipher))
+            {
+                return cipher;
+            }
+
             try
             {
                 return _cryptoService.Decrypt(cipher, key);
@@ -289,6 +297,21 @@ namespace Tazq_App.Services
             {
                 _logger.LogWarning("Decrypt failed for Task {TaskId} field {Field}: {Error}", taskId, field, ex.Message);
                 return null;
+            }
+        }
+
+        private bool IsBase64String(string s)
+        {
+            if (string.IsNullOrEmpty(s) || s.Length % 4 != 0 || s.Contains(' ') || s.Contains('\t') || s.Contains('\r') || s.Contains('\n'))
+                return false;
+            try
+            {
+                Convert.FromBase64String(s);
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 

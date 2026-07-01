@@ -11,13 +11,13 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { DynamicIsland } from '@/features/focus';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
-import { MotiView, MotiText } from 'moti';
-import { Plus, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp, Flame, Check, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee } from 'lucide-react-native';
+import { MotiView, MotiText, AnimatePresence } from 'moti';
+import { Plus, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp, Flame, Check, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee, CheckCircle2, X } from 'lucide-react-native';
 import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
 import { TaskService, FocusService, DailyFocusData } from '@/shared/services/api';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { PremiumStatChip } from '@/shared/components/PremiumStatChip';
@@ -28,7 +28,7 @@ import { getSmartInsight } from '@/shared/utils/insights';
 import { computeMomentum } from '@/shared/utils/momentum';
 import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
-import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner } from '@/features/modes';
+import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask } from '@/features/modes';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { MomentumPulse } from '@/shared/components/MomentumPulse';
@@ -38,6 +38,8 @@ import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
+import { MagneticFAB } from '@/shared/components/MagneticFAB';
+
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
@@ -121,7 +123,14 @@ export default function HomeScreen() {
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [weeklyFocus, setWeeklyFocus] = useState<DailyFocusData[]>([]);
-  const [streak, setStreak] = useState(0);
+  const [showAllIncomplete, setShowAllIncomplete] = useState(false);
+  const [showCompletedSection, setShowCompletedSection] = useState(false);
+  const [logoTick, setLogoTick] = useState(0);
+  const [commandPortalVisible, setCommandPortalVisible] = useState(false);
+  const [portalSearch, setPortalSearch] = useState('');
+  const portalInputRef = useRef<TextInput>(null);
+  const localStreak = useFocusStore(s => s.localStreak);
+  const streak = localStreak;
   const [statsLoading, setStatsLoading] = useState(true);
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
 
@@ -156,8 +165,83 @@ export default function HomeScreen() {
       initialCompletedCountRef.current = tasks.filter(t => t && t.isCompleted).length;
     }
   }, [tasks]);
+  // Automatic Streak Shield Consumption Check
+  useEffect(() => {
+    if (isLoading || (habits.length === 0 && tasks.length === 0)) return;
 
+    const checkStreakShield = async () => {
+      const todayStr = new Date().toDateString();
+      const store = useFocusStore.getState();
+      const lastChecked = store.lastCheckedDate;
 
+      if (lastChecked && lastChecked !== todayStr) {
+        // Find yesterday
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toDateString();
+
+        if (lastChecked === yesterdayStr) {
+          const yesterdayKey = fmtDateKey(yesterday);
+          const yesterdayCompletedTasksCount = tasks.filter(t => 
+            t.isCompleted && t.completedAt && new Date(t.completedAt).toDateString() === yesterdayStr
+          ).length;
+          
+          const yesterdayCompletedHabitsCount = habits.filter(h => 
+            (h.completedDates ?? []).includes(yesterdayKey)
+          ).length;
+
+          const yesterdayFocusMins = store.dailyFocusDate === yesterdayStr ? store.dailyFocusMinutes : 0;
+          const metGoal = yesterdayCompletedTasksCount > 0 || yesterdayCompletedHabitsCount > 0 || yesterdayFocusMins >= store.dailyGoalMinutes;
+
+          if (!metGoal && store.localStreak > 0) {
+            const consumed = store.consumeStreakShield();
+            if (consumed) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert(
+                language === 'tr' ? 'Seri Korundu!' : 'Streak Protected!',
+                language === 'tr'
+                  ? 'Dün hedefinizi tamamlayamadınız fakat TAZQ Kalkanı serinizi başarıyla korudu.'
+                  : 'You missed yesterday\'s goal, but TAZQ Shield successfully protected your streak.'
+              );
+            } else {
+              useFocusStore.setState({ localStreak: 0 });
+            }
+          }
+        } else {
+          // More than 1 day missed
+          useFocusStore.setState({ localStreak: 0 });
+        }
+      }
+
+      useFocusStore.setState({ lastCheckedDate: todayStr });
+    };
+
+    checkStreakShield();
+  }, [isLoading]);
+
+  // Track today's first completion to increment streak
+  const [streakIncrementedToday, setStreakIncrementedToday] = useState(false);
+  useEffect(() => {
+    if (isLoading || (tasks.length === 0 && habits.length === 0)) return;
+    const store = useFocusStore.getState();
+    const todayStr = new Date().toDateString();
+    
+    const completedToday = tasks.filter(t => t.isCompleted && t.dueDate && new Date(t.dueDate).toDateString() === todayStr).length;
+    const habitsDone = habits.filter(h => (h.completedDates ?? []).includes(habitTodayKey)).length;
+    const focusMins = store.dailyFocusDate === todayStr ? store.dailyFocusMinutes : 0;
+
+    const activeProgress = completedToday > 0 || habitsDone > 0 || focusMins >= store.dailyGoalMinutes;
+
+    if (activeProgress && store.localStreak >= 0 && !streakIncrementedToday) {
+      AsyncStorage.getItem('tazq_last_streak_increment_date').then(val => {
+        if (val !== todayStr) {
+          store.incrementLocalStreak();
+          AsyncStorage.setItem('tazq_last_streak_increment_date', todayStr);
+          setStreakIncrementedToday(true);
+        }
+      });
+    }
+  }, [tasks, habits, isLoading]);
   // Compute daily goal from real data
   const todayTasks = tasks.filter(t => {
     if (!t.dueDate) return false;
@@ -191,7 +275,9 @@ export default function HomeScreen() {
       const stats = await FocusService.getStats();
       setWeeklyFocus(stats.weeklyFocus || []);
       const active = stats.activeStreak || 0;
-      setStreak(active);
+      if (localStreak === 0 && active > 0) {
+        useFocusStore.setState({ localStreak: active });
+      }
       updateBestStreak(active);
     } catch (e: any) {
       if (e.response?.status !== 401) {
@@ -202,10 +288,12 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchTasks();
-    fetchStats();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchTasks();
+      fetchStats();
+    }, [])
+  );
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -291,17 +379,58 @@ export default function HomeScreen() {
   };
 
   // Compute metrics
-  const weeklyMinutes = weeklyFocus.reduce((s: number, d: any) => s + (d.minutes || 0), 0);
+  const tr = language === 'tr';
+
+  const dayLabels: string[] = (() => {
+    const daysTr = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+    const daysEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const days = tr ? daysTr : daysEn;
+    
+    const logicalToday = new Date();
+    logicalToday.setHours(logicalToday.getHours() - 3); // respect night owl buffer
+    
+    const labels = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(logicalToday);
+      d.setDate(d.getDate() - i);
+      labels.push(days[d.getDay()]);
+    }
+    return labels;
+  })();
+
+  const localTodayMinutes = useFocusStore.getState().dailyFocusMinutes;
+
+  const mergedWeeklyFocus = React.useMemo(() => {
+    if (weeklyFocus.length === 0) {
+      return Array(7).fill(null).map((_, i) => ({
+        day: dayLabels[i],
+        minutes: i === 6 ? localTodayMinutes : 0,
+        tasksCompleted: 0
+      }));
+    }
+    return weeklyFocus.map((d, i) => {
+      if (i === weeklyFocus.length - 1) {
+        return {
+          ...d,
+          minutes: Math.max(d.minutes || 0, localTodayMinutes)
+        };
+      }
+      return d;
+    });
+  }, [weeklyFocus, localTodayMinutes, dayLabels]);
+
+  const weeklyMinutes = mergedWeeklyFocus.reduce((s: number, d: any) => s + (d.minutes || 0), 0);
 
   // Trend: compare second half of week vs first half as a proxy for week-over-week direction
   const weekTrend = (() => {
-    if (weeklyFocus.length < 4) return null;
-    const half = Math.floor(weeklyFocus.length / 2);
-    const firstHalf = weeklyFocus.slice(0, half).reduce((s: number, d: any) => s + (d.minutes || 0), 0);
-    const secondHalf = weeklyFocus.slice(half).reduce((s: number, d: any) => s + (d.minutes || 0), 0);
+    if (mergedWeeklyFocus.length < 4) return null;
+    const half = Math.floor(mergedWeeklyFocus.length / 2);
+    const firstHalf = mergedWeeklyFocus.slice(0, half).reduce((s: number, d: any) => s + (d.minutes || 0), 0);
+    const secondHalf = mergedWeeklyFocus.slice(half).reduce((s: number, d: any) => s + (d.minutes || 0), 0);
     if (firstHalf === 0) return null;
     return Math.round(((secondHalf - firstHalf) / firstHalf) * 100);
   })();
+
   // ── Professional Momentum Score ────────────────────────────────────────────
   // Hesap utils/momentum.ts'e taşındı (saf + test edilebilir). Habit bileşeni
   // BUGÜN HARİÇ verilir: bugünü dahil edersek recordScore(momentum) bugünü geçmişe
@@ -311,7 +440,7 @@ export default function HomeScreen() {
   const habitActivityDays = completionHistory.filter(d => d.score >= 0).length;
   const { momentum: rawMomentum, totalCount, completedCount, focusVolumeScore } = computeMomentum({
     tasks,
-    weeklyFocus,
+    weeklyFocus: mergedWeeklyFocus,
     weeklyMinutes,
     streak,
     habitActivityDays,
@@ -484,6 +613,104 @@ export default function HomeScreen() {
     return due > new Date(todayStart.getTime() + 86400000);
   });
 
+  // Bugün tamamlanan görevler
+  const todayTasksCompleted = tasks.filter(t => {
+    if (!t) return false;
+    if (!t.isCompleted) return false;
+    if (!t.dueDate) return false;
+    const due = new Date(t.dueDate);
+    return due >= todayStart && due <= new Date(todayStart.getTime() + 86400000);
+  });
+
+  // Unified My Day feed items
+  const myDayItems = (() => {
+    const items: Array<{
+      type: 'task' | 'habit';
+      id: string | number;
+      title: string;
+      priority?: string;
+      color?: string;
+      emoji?: string;
+      isCompleted: boolean;
+      isSkipped?: boolean;
+      original: any;
+      streak?: number;
+    }> = [];
+
+    // Add today's incomplete tasks
+    todayTasksIncomplete.forEach(t => {
+      items.push({
+        type: 'task',
+        id: t.id,
+        title: t.title,
+        priority: t.priority,
+        isCompleted: false,
+        original: t
+      });
+    });
+
+    // Add today's undated incomplete tasks
+    undatedTasksIncomplete.forEach(t => {
+      items.push({
+        type: 'task',
+        id: t.id,
+        title: t.title,
+        priority: t.priority,
+        isCompleted: false,
+        original: t
+      });
+    });
+
+    // Add today's habits
+    habits.forEach(h => {
+      const done = (h.completedDates ?? []).includes(habitTodayKey);
+      const skipped = (h.skippedDates ?? []).includes(habitTodayKey);
+      const streakVal = getHabitStreak(h);
+      items.push({
+        type: 'habit',
+        id: h.id,
+        title: h.name,
+        color: h.color,
+        emoji: h.emoji,
+        isCompleted: done,
+        isSkipped: skipped,
+        streak: streakVal,
+        original: h
+      });
+    });
+
+    // Add today's completed tasks
+    todayTasksCompleted.forEach(t => {
+      items.push({
+        type: 'task',
+        id: t.id,
+        title: t.title,
+        priority: t.priority,
+        isCompleted: true,
+        original: t
+      });
+    });
+
+    // Sort items:
+    // 1. Incomplete first, completed/skipped last
+    // 2. For incomplete: tasks first (sorted by priority: High > Medium > Low), then habits
+    // 3. For completed: completed tasks and completed habits mixed (alphabetical)
+    return items.sort((a, b) => {
+      const aDone = a.isCompleted || a.isSkipped;
+      const bDone = b.isCompleted || b.isSkipped;
+      if (aDone !== bDone) return aDone ? 1 : -1;
+
+      if (!aDone) {
+        if (a.type !== b.type) return a.type === 'task' ? -1 : 1;
+        if (a.type === 'task') {
+          const priorityMap: Record<string, number> = { 'High': 3, 'Medium': 2, 'Low': 1 };
+          return (priorityMap[b.priority || 'Medium'] || 2) - (priorityMap[a.priority || 'Medium'] || 2);
+        }
+      }
+      return a.title.localeCompare(b.title);
+    });
+  })();
+
   const topTaskToday = todayTasksIncomplete[0] ?? undatedTasksIncomplete[0];
   const highPriorityToday = todayTasksIncomplete.find(t => t.priority === 'High') ?? undatedTasksIncomplete.find(t => t.priority === 'High');
   const topTask = topTaskToday; // gelecek tarihli task aksiyon merkezine girmiyor
@@ -535,8 +762,7 @@ export default function HomeScreen() {
   const startQuickFocus = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     const target = topTaskToday;
-    // Pre-fill task name if available, otherwise let user set it on focus screen
-    if (target) setCurrentTask(target.title);
+    setCurrentTask('');
     // setDuration resets isActive to false internally — set both together after
     const secs = 25 * 60;
     useFocusStore.setState({ totalSeconds: secs, seconds: secs, isActive: true, lastActiveAt: Date.now() });
@@ -544,10 +770,23 @@ export default function HomeScreen() {
     router.replace('/focus');
   };
 
-  const momentumLabel = momentum >= 75 ? t.momentumHigh : momentum >= 40 ? t.momentumMid : t.momentumLow;
-  const dayLabels: string[] = t.dayLabels;
+  const handleLogoPress = () => {
+    // Biologically timed heartbeat haptic (lub-dub): soft click (1st beat) -> 130ms delay -> light impact (2nd beat)
+    Haptics.selectionAsync();
+    setTimeout(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }, 130);
 
-  const tr = language === 'tr';
+    setLogoTick(prev => prev + 1);
+    
+    // Smooth transition delay matching the clean 200ms logo pop
+    setTimeout(() => {
+      setCommandPortalVisible(true);
+      setPortalSearch('');
+    }, 220);
+  };
+
+  const momentumLabel = momentum >= 75 ? t.momentumHigh : momentum >= 40 ? t.momentumMid : t.momentumLow;
 
   const getStreakSurprise = useCallback(() => {
     const n = streak || 0;
@@ -645,6 +884,127 @@ export default function HomeScreen() {
     return tr ? `${incomplete} görevin seni bekliyor.` : `${incomplete} tasks are waiting for you.`;
   };
 
+  const renderMyDayItem = (item: any, isLast: boolean, index: number) => {
+    if (item.type === 'task') {
+      const modeInfo = getModeInfoForTask(item.original, usePrefsStore.getState(), theme);
+      return (
+        <Touchable
+          key={`task-${item.id}`}
+          onPress={() => router.push({ pathname: '/tasks', params: { highlightId: item.id } })}
+          activeOpacity={0.7}
+          style={{
+            flexDirection: 'row', alignItems: 'center',
+            paddingHorizontal: S.md, paddingVertical: 13,
+            borderBottomWidth: isLast ? 0 : 1,
+            borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+            backgroundColor: modeInfo ? (isDark ? modeInfo.color + '0B' : modeInfo.color + '04') : 'transparent'
+          }}
+        >
+          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: modeInfo ? modeInfo.color : priorityColor(item.priority), marginRight: S.md }} />
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+            <Text style={{
+              fontSize: F.body,
+              fontWeight: '600',
+              color: item.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
+              textDecorationLine: item.isCompleted ? 'line-through' : 'none',
+              opacity: item.isCompleted ? 0.5 : 1,
+              flexShrink: 1
+            }} numberOfLines={1}>
+              {item.title}
+            </Text>
+            {modeInfo && (
+              <View style={{
+                backgroundColor: modeInfo.color + (isDark ? '24' : '15'),
+                borderRadius: 6,
+                paddingHorizontal: 5,
+                paddingVertical: 1.5,
+                borderWidth: 0.5,
+                borderColor: modeInfo.color + '40'
+              }}>
+                <Text style={{
+                  fontSize: 7.5,
+                  fontWeight: '800',
+                  color: modeInfo.color,
+                  letterSpacing: 0.4
+                }}>
+                  {(tr ? modeInfo.labelTr : modeInfo.labelEn).toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </View>
+          {item.isCompleted ? (
+            <CheckCircle2 size={14} color="#10B981" style={{ marginLeft: S.sm }} />
+          ) : (
+            <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
+          )}
+        </Touchable>
+      );
+    } else {
+      const streakVal = item.streak || 0;
+      return (
+        <Touchable
+          key={`habit-${item.id}`}
+          onPress={() => {
+            Haptics.impactAsync(item.isCompleted ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
+            toggleHabitDate(item.id as string, habitTodayKey);
+          }}
+          onLongPress={() => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            toggleHabitSkipDate(item.id as string, habitTodayKey);
+          }}
+          activeOpacity={0.7}
+          style={{
+            flexDirection: 'row', alignItems: 'center',
+            paddingHorizontal: S.md, paddingVertical: 13,
+            borderBottomWidth: isLast ? 0 : 1,
+            borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+          }}
+        >
+          <View style={{
+            width: 20, height: 20, borderRadius: 10,
+            backgroundColor: item.isCompleted 
+              ? item.color 
+              : item.isSkipped
+              ? '#d97706'
+              : item.color + (isDark ? '1F' : '14'),
+            alignItems: 'center', justifyContent: 'center',
+            marginRight: S.md
+          }}>
+            {item.isSkipped ? (
+              <Coffee size={10} color="#fff" />
+            ) : (
+              <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: item.isCompleted ? '#fff' : item.color }} />
+            )}
+          </View>
+          <Text style={{
+            flex: 1,
+            fontSize: F.body,
+            fontWeight: '600',
+            color: item.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
+            textDecorationLine: item.isCompleted ? 'line-through' : 'none',
+            opacity: item.isCompleted ? 0.5 : 1
+          }} numberOfLines={1}>
+            {item.title}
+          </Text>
+          {item.isSkipped ? (
+            <View style={{ backgroundColor: '#d9770620', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
+              <Text style={{ fontSize: 8.5, fontWeight: '700', color: '#d97706' }}>{tr ? 'MOLA' : 'SKIP'}</Text>
+            </View>
+          ) : streakVal >= 3 ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <Flame size={11} color="#F97316" fill="#F97316" />
+              <Text style={{ fontSize: 10, fontWeight: '800', color: '#F97316' }}>{streakVal}</Text>
+            </View>
+          ) : item.isCompleted ? (
+            <CheckCircle2 size={14} color="#10B981" />
+          ) : (
+            <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: theme.outline }} />
+          )}
+        </Touchable>
+      );
+    }
+  };
+
   const priorityColor = (p: string) => {
     if (p === 'High') return theme.priorityHigh;
     if (p === 'Medium') return theme.priorityMedium;
@@ -681,9 +1041,44 @@ export default function HomeScreen() {
             />
           )}
           <View style={[styles.topBarContent, { paddingHorizontal: S.md }]}>
-              <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <View style={[StyleSheet.absoluteFill, { zIndex: 10 }]} pointerEvents="box-none">
                   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                      <TazqLogo height={30} />
+                      <Touchable
+                          activeOpacity={0.8}
+                          onPress={handleLogoPress}
+                          style={{ padding: 10, justifyContent: 'center', alignItems: 'center' }}
+                      >
+                          {/* Minimalist Focus Ripple Ring */}
+                          {logoTick > 0 && (
+                            <MotiView
+                              key={`ripple-${logoTick}`}
+                              from={{ scale: 1, opacity: 0.6 }}
+                              animate={{ scale: 2.2, opacity: 0 }}
+                              transition={{ type: 'timing', duration: 400 }}
+                              style={{
+                                position: 'absolute',
+                                width: 44,
+                                height: 24,
+                                borderRadius: 12,
+                                borderWidth: 1.2,
+                                borderColor: theme.primary,
+                              }}
+                            />
+                          )}
+
+                          {/* Solid Minimal Logo Scale Heartbeat */}
+                          <MotiView
+                              animate={{
+                                  scale: logoTick === 0 ? 1 : [1, 1.06, 1]
+                              }}
+                              transition={{
+                                  type: 'timing',
+                                  duration: 200
+                              }}
+                          >
+                              <TazqLogo height={30} />
+                          </MotiView>
+                      </Touchable>
                   </View>
               </View>
 
@@ -1092,8 +1487,8 @@ export default function HomeScreen() {
             </Touchable>
             </View>
 
-            {/* Today Tasks Quick-Check */}
-            {(todayTasksIncomplete.length > 0 || overdueCount > 0) && (
+            {/* Unified My Day Bento Card */}
+            {myDayItems.length > 0 && (
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 {overdueCount > 0 && (
                   <Touchable
@@ -1108,42 +1503,107 @@ export default function HomeScreen() {
                     <ChevronRight size={12} color={theme.error} opacity={0.5} />
                   </Touchable>
                 )}
-                {todayTasksIncomplete.length > 0 && (
-                  <BentoCard index={1} style={{ padding: 0, overflow: 'hidden' }}>
-                    {todayTasksIncomplete.slice(0, 3).map((task, i) => {
-                      if (!task || !task.id) return null;
-                      return (
+                
+                <BentoCard index={1} style={{ padding: 0, overflow: 'hidden' }}>
+                  <Touchable
+                    onPress={() => router.push('/tasks')}
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      paddingHorizontal: S.md,
+                      paddingTop: S.md,
+                      paddingBottom: S.xs
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={tr ? 'Günlük görevleri yönet' : 'Manage daily tasks'}
+                  >
+                    <View>
+                      <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.primary }}>
+                        {tr ? 'BUGÜNÜM' : 'MY DAY'}
+                      </Text>
+                      <Text style={{ fontSize: 8.5, color: theme.onSurfaceVariant, opacity: 0.45, marginTop: 1 }}>
+                        {tr ? 'Alışkanlığı tamamlamak için bas, mola için basılı tut' : 'Tap habit to complete, hold for break'}
+                      </Text>
+                    </View>
+                  </Touchable>
+
+                  {/* Render Incomplete Items */}
+                  {(() => {
+                    const incompleteItems = myDayItems.filter(item => !item.isCompleted && !item.isSkipped);
+                    const visibleIncomplete = showAllIncomplete ? incompleteItems : incompleteItems.slice(0, 4);
+                    
+                    return (
+                      <View>
+                        {visibleIncomplete.map((item, idx) => {
+                          const isLast = idx === visibleIncomplete.length - 1;
+                          return renderMyDayItem(item, isLast, idx);
+                        })}
+                        
+                        {incompleteItems.length > 4 && (
+                          <Touchable
+                            onPress={() => { Haptics.selectionAsync(); setShowAllIncomplete(!showAllIncomplete); }}
+                            style={{
+                              paddingVertical: 12,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderTopWidth: 1,
+                              borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'
+                            }}
+                          >
+                            <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
+                              {showAllIncomplete
+                                ? (language === 'tr' ? 'Daha Az Göster' : 'Show Less')
+                                : (language === 'tr' ? `Daha Fazla Göster (${incompleteItems.length - 4} adet)` : `Show More (${incompleteItems.length - 4})`)
+                              }
+                            </Text>
+                          </Touchable>
+                        )}
+                      </View>
+                    );
+                  })()}
+
+                  {/* Render Completed Items (Collapsible Section) */}
+                  {(() => {
+                    const completedItems = myDayItems.filter(item => item.isCompleted || item.isSkipped);
+                    if (completedItems.length === 0) return null;
+                    
+                    return (
+                      <View style={{ borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
                         <Touchable
-                          key={task.id}
-                          onPress={() => router.push({ pathname: '/tasks', params: { highlightId: task.id } })}
-                          activeOpacity={0.7}
+                          onPress={() => { Haptics.selectionAsync(); setShowCompletedSection(!showCompletedSection); }}
                           style={{
-                            flexDirection: 'row', alignItems: 'center',
-                            paddingHorizontal: S.md, paddingVertical: 13,
-                            borderBottomWidth: i < Math.min(2, todayTasksIncomplete.length - 1) ? 1 : 0,
-                            borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            paddingHorizontal: S.md,
+                            paddingVertical: 12,
+                            backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)'
                           }}
                         >
-                          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: priorityColor(task.priority), marginRight: S.md }} />
-                          <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: theme.onSurface }} numberOfLines={1}>{task.title}</Text>
-                          <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
+                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                            {language === 'tr' ? `Tamamlananlar (${completedItems.length})` : `Completed (${completedItems.length})`}
+                          </Text>
+                          <ChevronRight
+                            size={14}
+                            color={theme.onSurfaceVariant}
+                            opacity={0.4}
+                            style={{ transform: [{ rotate: showCompletedSection ? '90deg' : '0deg' }] }}
+                          />
                         </Touchable>
-                      );
-                    })}
-                    {todayTasksIncomplete.length > 3 && (
-                      <Touchable
-                        onPress={() => router.push('/tasks')}
-                        activeOpacity={0.7}
-                        style={{ paddingHorizontal: S.md, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}
-                      >
-                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.4, flex: 1 }}>
-                          {language === 'tr' ? `+${todayTasksIncomplete.length - 3} görev daha` : `+${todayTasksIncomplete.length - 3} more`}
-                        </Text>
-                        <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} />
-                      </Touchable>
-                    )}
-                  </BentoCard>
-                )}
+                        
+                        {showCompletedSection && (
+                          <View>
+                            {completedItems.map((item, idx) => {
+                              const isLast = idx === completedItems.length - 1;
+                              return renderMyDayItem(item, isLast, idx);
+                            })}
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })()}
+                </BentoCard>
               </View>
             )}
 
@@ -1201,7 +1661,7 @@ export default function HomeScreen() {
                                 <Rocket size={12} color={topTask ? priorityColor(topTask.priority) : theme.primary} />
                                 <Text style={[styles.missionBadgeText, { color: topTask ? priorityColor(topTask.priority) : theme.primary }]}>{t.activeTask.toUpperCase()}</Text>
                             </View>
-                            {topTask?.priority === 'High' && (
+                            {topTask?.priority === 'High' && !getModeInfoForTask(topTask, usePrefsStore.getState(), theme) && (
                                 <View style={[styles.missionBadge, { backgroundColor: theme.error + '20' }]}>
                                     <Zap size={12} color={theme.error} fill={theme.error} />
                                     <Text style={[styles.missionBadgeText, { color: theme.error }]}>{language === 'tr' ? 'ACİL' : 'URGENT'}</Text>
@@ -1221,17 +1681,13 @@ export default function HomeScreen() {
                         <View style={[styles.missionFooter, { gap: S.sm }]}>
                             {topTask ? (
                                 <Touchable
-                                    onPress={() => {
-                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                                        setCurrentTask(topTask.title);
-                                        const secs = 25 * 60;
-                                        useFocusStore.setState({ totalSeconds: secs, seconds: secs, isActive: false, lastActiveAt: null });
-                                        router.replace('/focus');
-                                    }}
+                                    onPress={() => router.push({ pathname: '/tasks', params: { highlightId: topTask.id } })}
                                     style={[styles.startBtn, { backgroundColor: theme.primary, flex: 2, height: 52, justifyContent: 'center' }]}
                                 >
-                                    <Play size={18} color={theme.onPrimary} fill={theme.onPrimary} />
-                                    <Text style={[styles.startBtnText, { color: theme.onPrimary, fontSize: F.subhead, fontWeight: '600' }]}>{t.deepFocus.toUpperCase()}</Text>
+                                    <ChevronRight size={18} color={theme.onPrimary} />
+                                    <Text style={[styles.startBtnText, { color: theme.onPrimary, fontSize: F.subhead, fontWeight: '600' }]}>
+                                        {language === 'tr' ? 'GÖREVE GİT' : 'GO TO TASK'}
+                                    </Text>
                                 </Touchable>
                             ) : (
                                 <Touchable 
@@ -1255,86 +1711,7 @@ export default function HomeScreen() {
             </View>
             )}
 
-            {/* ── ALIŞKANLIK ŞERİDİ ── günlük aksiyon → öncelikli konumda (görev/görevlerin hemen altı).
-                Yalnız alışkanlık varsa; tek dokunuş = bugün yaptım. */}
-            {habits.length > 0 && (
-              <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
-                <BentoCard index={2} style={{ padding: bentoPad, overflow: 'hidden' }}>
-                     <Touchable onPress={() => router.push('/cockpit')} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S.md }} accessibilityRole="button" accessibilityLabel={tr ? 'Alışkanlıkları yönet' : 'Manage habits'}>
-                        <View>
-                            <Text style={{ fontSize: 9, fontWeight: '500', letterSpacing: 1.5, color: theme.onSurfaceVariant, opacity: 0.5 }}>
-                                {tr ? 'BUGÜN · ALIŞKANLIKLAR' : 'TODAY · HABITS'}
-                            </Text>
-                            <Text style={{ fontSize: 8.5, color: theme.onSurfaceVariant, opacity: 0.45, marginTop: 1 }}>
-                                {tr ? 'Mola için butona basılı tut' : 'Hold button to take break'}
-                            </Text>
-                        </View>
-                        <Text style={{ fontSize: F.caption, fontWeight: '700', color: habitsDoneToday === habits.length ? '#10B981' : theme.onSurfaceVariant }}>
-                            {habitsDoneToday}/{habits.length}{habitsDoneToday === habits.length ? '  ✓' : ''}
-                        </Text>
-                    </Touchable>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16, paddingRight: 4 }} keyboardShouldPersistTaps="handled">
-                        {habits.map(h => {
-                            const done = (h.completedDates ?? []).includes(habitTodayKey);
-                            const skipped = (h.skippedDates ?? []).includes(habitTodayKey);
-                            const streak = getHabitStreak(h);
-                            return (
-                                <Touchable
-                                    key={h.id}
-                                    onPress={() => { 
-                                      Haptics.impactAsync(done ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium); 
-                                      toggleHabitDate(h.id, habitTodayKey); 
-                                    }}
-                                    onLongPress={() => {
-                                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                      toggleHabitSkipDate(h.id, habitTodayKey);
-                                    }}
-                                    style={{ alignItems: 'center', width: 58 }}
-                                    accessibilityRole="button"
-                                    accessibilityState={{ checked: done }}
-                                    accessibilityLabel={`${h.name}${done ? (tr ? ', bugün yapıldı' : ', done today') : skipped ? (tr ? ', bugün pas geçildi' : ', skipped today') : (tr ? ', bugün işaretle' : ', mark today')}`}
-                                >
-                                    <View style={{
-                                        width: 54, height: 54, borderRadius: 27,
-                                        borderWidth: (done || skipped) ? 0 : 1.5,
-                                        borderColor: h.color + '40',
-                                        backgroundColor: done 
-                                          ? h.color 
-                                          : skipped
-                                          ? '#d97706'
-                                          : h.color + (isDark ? '1F' : '14'),
-                                        alignItems: 'center', justifyContent: 'center',
-                                        opacity: skipped ? 0.75 : 1,
-                                    }}>
-                                        {skipped ? (
-                                            <Coffee size={24} color="#fff" />
-                                        ) : done ? (
-                                            renderModeEmojiIcon(h.emoji ?? '📌', 24, '#fff')
-                                        ) : (
-                                            renderModeEmojiIcon(h.emoji ?? '📌', 23, h.color)
-                                        )}
-                                    </View>
-                                    {/* Seri — yalnız anlamlıyken: 3+ alev, 1-2 sade, 0 boş (hizalama korunur) */}
-                                    <View style={{ height: 15, marginTop: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                                        {skipped ? (
-                                            <Text style={{ fontSize: 9, fontWeight: '600', color: '#d97706' }}>{tr ? 'MOLA' : 'SKIP'}</Text>
-                                        ) : streak >= 3 ? (
-                                            <>
-                                                <Flame size={11} color="#F97316" fill="#F97316" />
-                                                <Text style={{ fontSize: 11, fontWeight: '800', color: '#F97316' }}>{streak}</Text>
-                                            </>
-                                        ) : streak >= 1 ? (
-                                            <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.55 }}>{streak} {tr ? 'gün' : 'd'}</Text>
-                                        ) : null}
-                                    </View>
-                                    <Text numberOfLines={1} style={{ fontSize: 10.5, fontWeight: '600', color: done ? h.color : skipped ? '#d97706' : theme.onSurfaceVariant, opacity: (done || skipped) ? 1 : 0.75, width: 58, textAlign: 'center', textDecorationLine: skipped ? 'line-through' : 'none' }}>{h.name}</Text>
-                                </Touchable>
-                            );
-                        })}
-                    </ScrollView>
-                </BentoCard>
-              </View>
-            )}
+
 
             {/* ── Turkish Mode Banner (opt-in) ── */}
             {activeMode && !modeDismissed && (
@@ -1454,11 +1831,11 @@ export default function HomeScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 100, gap: 5 }}>
                         {(statsLoading
                             ? Array(7).fill({ minutes: 0 })
-                            : weeklyFocus.length > 0 ? weeklyFocus : Array(7).fill({ minutes: 0 })
+                            : mergedWeeklyFocus
                         ).map((d: any, i: number) => {
-                            const maxMin = Math.max(...(weeklyFocus.map((w: any) => w.minutes)), 1);
+                            const maxMin = Math.max(...(mergedWeeklyFocus.map((w: any) => w.minutes)), 1);
                             const pct = statsLoading ? (8 + i * 9) : Math.max((d.minutes / maxMin) * 100, 4);
-                            const isToday = !statsLoading && i === weeklyFocus.length - 1;
+                            const isToday = !statsLoading && i === mergedWeeklyFocus.length - 1;
                             const hasData = d.minutes > 0;
                             return (
                                 <View key={i} style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}>
@@ -1498,7 +1875,7 @@ export default function HomeScreen() {
                     {/* Day labels */}
                     <View style={{ flexDirection: 'row', marginTop: S.sm }}>
                         {dayLabels.map((day, i) => {
-                            const isToday = !statsLoading && i === (weeklyFocus.length - 1);
+                            const isToday = !statsLoading && i === (mergedWeeklyFocus.length - 1);
                             return (
                                 <Text key={i} style={{
                                     flex: 1, textAlign: 'center', fontSize: 9,
@@ -1579,17 +1956,290 @@ export default function HomeScreen() {
 
       {/* Quick Draft FAB */}
       {!(Platform.OS === 'android' && keyboardHeight > 0) && (
-        <Touchable
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareDraft(); setQuickDraftVisible(true); }}
-          accessibilityRole="button"
-          accessibilityLabel={language === 'tr' ? 'Hızlı taslak ekle' : 'Quick add draft'}
-          style={[styles.fab, { backgroundColor: isDark ? '#B45309' : '#D97706', shadowColor: isDark ? '#B45309' : '#D97706', bottom: Math.max(insets.bottom, 16) + 88, padding: 16, borderRadius: 100 }]}
+        <MagneticFAB
+          onPress={() => { prepareDraft(); setQuickDraftVisible(true); }}
+          storageKey={`@fab_dashboard_${user?.id ?? 'guest'}`}
+          isDark={isDark}
+          theme={theme}
+          style={{
+            backgroundColor: isDark ? '#B45309' : '#D97706',
+            shadowColor: isDark ? '#B45309' : '#D97706',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          buttonSize={54}
         >
           <Zap size={22} color="#fff" fill="#fff" />
-        </Touchable>
+        </MagneticFAB>
       )}
 
       <BottomNavBar />
+
+      <Modal
+        visible={commandPortalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCommandPortalVisible(false)}
+        onShow={() => {
+          setTimeout(() => {
+            portalInputRef.current?.focus();
+          }, 80);
+        }}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
+          <BlurView intensity={25} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          
+          <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setCommandPortalVisible(false); }}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+          
+          <SafeAreaView style={{ flex: 1, paddingHorizontal: 20 }} pointerEvents="box-none">
+            <MotiView
+              from={{ translateY: -30, opacity: 0, scale: 0.96 }}
+              animate={{ translateY: 0, opacity: 1, scale: 1 }}
+              exit={{ translateY: -30, opacity: 0, scale: 0.96 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 180 }}
+              style={{
+                marginTop: 80,
+                backgroundColor: isDark ? 'rgba(28, 28, 35, 0.94)' : 'rgba(255, 255, 255, 0.94)',
+                borderRadius: 24,
+                borderWidth: 1.2,
+                borderColor: theme.primary + '25',
+                shadowColor: theme.primary,
+                shadowOffset: { width: 0, height: 16 },
+                shadowOpacity: isDark ? 0.35 : 0.12,
+                shadowRadius: 28,
+                elevation: 12,
+                overflow: 'hidden',
+                maxHeight: '65%'
+              }}
+            >
+              {/* Search Input Area */}
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                gap: 12
+              }}>
+                <Sparkles size={18} color={theme.primary} />
+                <TextInput
+                  ref={portalInputRef}
+                  style={{
+                    flex: 1,
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: theme.onSurface,
+                    padding: 0,
+                    margin: 0
+                  }}
+                  placeholder={language === 'tr' ? 'Görev ara veya hızlı görev yaz...' : 'Search tasks or write a quick task...'}
+                  placeholderTextColor={theme.onSurfaceVariant + '80'}
+                  value={portalSearch}
+                  onChangeText={setPortalSearch}
+                  onSubmitEditing={() => {
+                    if (portalSearch.trim()) {
+                      const hint = parseTaskHint(portalSearch.trim(), language as 'tr' | 'en');
+                      const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
+                      const newTask = {
+                        id: Date.now(),
+                        title: portalSearch.trim(),
+                        description: '',
+                        priority: hint.priority || 'Medium',
+                        isCompleted: false,
+                        dueDate: hint.dueDate || (isReminder ? new Date().toISOString() : null),
+                        dueTime: hint.dueTime || null,
+                        tags: hint.tags?.length ? hint.tags : ['QuickAdd']
+                      };
+                      useTaskStore.getState().addTask(newTask);
+                      setCommandPortalVisible(false);
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      showToast(language === 'tr' ? 'Görev başarıyla eklendi!' : 'Task added successfully!', 'success');
+                    }
+                  }}
+                  returnKeyType="done"
+                />
+                {portalSearch.length > 0 && (
+                  <Touchable onPress={() => setPortalSearch('')} style={{ marginRight: 4 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary }}>
+                      {language === 'tr' ? 'TEMİZLE' : 'CLEAR'}
+                    </Text>
+                  </Touchable>
+                )}
+                <Touchable
+                  onPress={() => setCommandPortalVisible(false)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <X size={18} color={theme.onSurfaceVariant} opacity={0.6} />
+                </Touchable>
+              </View>
+
+              {/* Results / Navigation shortcuts */}
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ padding: 12, gap: 4 }}
+              >
+                {portalSearch.trim() === '' ? (
+                  // Shortcuts
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 1, color: theme.onSurfaceVariant, opacity: 0.5, paddingLeft: 8, paddingBottom: 6 }}>
+                      {language === 'tr' ? 'HIZLI KISAYOLLAR' : 'QUICK SHORTCUTS'}
+                    </Text>
+                    {[
+                      {
+                        icon: <Play size={16} color={theme.tertiary} fill={theme.tertiary} />,
+                        label: language === 'tr' ? 'Hızlı Odak Seansı Başlat' : 'Start Quick Focus Session',
+                        desc: language === 'tr' ? '25 dakikalık odaklanma başlat' : 'Launch a 25 min focus timer',
+                        onPress: () => {
+                          setCommandPortalVisible(false);
+                          startQuickFocus();
+                        }
+                      },
+                      {
+                        icon: <Target size={16} color={theme.primary} />,
+                        label: language === 'tr' ? 'Tüm Görevleri Listele' : 'Show All Tasks List',
+                        desc: language === 'tr' ? 'Görevler sayfasına yönlendir' : 'Go to tasks management screen',
+                        onPress: () => {
+                          setCommandPortalVisible(false);
+                          router.push('/tasks');
+                        }
+                      },
+                      {
+                        icon: <Rocket size={16} color="#8b5cf6" />,
+                        label: language === 'tr' ? 'Aktif Modları Yönet' : 'Manage Active Modes',
+                        desc: language === 'tr' ? 'Alışkanlık planlarını keşfet' : 'Explore habits and life modes',
+                        onPress: () => {
+                          setCommandPortalVisible(false);
+                          router.push('/modlar');
+                        }
+                      }
+                    ].map((shortcut, idx) => (
+                      <Touchable
+                        key={idx}
+                        onPress={shortcut.onPress}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          borderRadius: 12,
+                          backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                          gap: 12
+                        }}
+                      >
+                        <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', alignItems: 'center', justifyContent: 'center' }}>
+                          {shortcut.icon}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurface }}>{shortcut.label}</Text>
+                          <Text style={{ fontSize: 10, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.6 }}>{shortcut.desc}</Text>
+                        </View>
+                        <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} />
+                      </Touchable>
+                    ))}
+                  </View>
+                ) : (
+                  // Search Results
+                  <View style={{ gap: 4 }}>
+                    {/* Quick Add Row */}
+                    <Touchable
+                      onPress={() => {
+                        const hint = parseTaskHint(portalSearch.trim(), language as 'tr' | 'en');
+                        const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
+                        const newTask = {
+                          id: Date.now(),
+                          title: portalSearch.trim(),
+                          description: '',
+                          priority: hint.priority || 'Medium',
+                          isCompleted: false,
+                          dueDate: hint.dueDate || (isReminder ? new Date().toISOString() : null),
+                          dueTime: hint.dueTime || null,
+                          tags: hint.tags?.length ? hint.tags : ['QuickAdd']
+                        };
+                        useTaskStore.getState().addTask(newTask);
+                        setCommandPortalVisible(false);
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        showToast(language === 'tr' ? 'Görev başarıyla eklendi!' : 'Task added successfully!', 'success');
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingHorizontal: 12,
+                        paddingVertical: 12,
+                        borderRadius: 12,
+                        backgroundColor: theme.primary + '12',
+                        borderWidth: 1,
+                        borderColor: theme.primary + '30',
+                        gap: 12,
+                        marginBottom: 8
+                      }}
+                    >
+                      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: theme.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                        <Plus size={16} color={theme.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: theme.primary }} numberOfLines={1}>
+                          {language === 'tr' ? `"${portalSearch}" görevini ekle` : `Add task "${portalSearch}"`}
+                        </Text>
+                        <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                          {language === 'tr' ? 'Otomatik zaman ve öncelik tespiti ile ekler' : 'Adds with automatic time & priority parsing'}
+                        </Text>
+                      </View>
+                    </Touchable>
+
+                    {/* Matching Tasks */}
+                    {(() => {
+                      const matchedTasks = tasks.filter(t => t.title.toLowerCase().includes(portalSearch.toLowerCase()));
+                      if (matchedTasks.length === 0) return null;
+                      return (
+                        <View style={{ gap: 4 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 1, color: theme.onSurfaceVariant, opacity: 0.5, paddingLeft: 8, paddingBottom: 4 }}>
+                            {language === 'tr' ? 'GÖREVLER' : 'TASKS'}
+                          </Text>
+                          {matchedTasks.slice(0, 5).map(task => (
+                            <Touchable
+                              key={task.id}
+                              onPress={() => {
+                                setCommandPortalVisible(false);
+                                router.push({ pathname: '/tasks', params: { highlightId: task.id } });
+                              }}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                paddingHorizontal: 12,
+                                paddingVertical: 10,
+                                borderRadius: 12,
+                                backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                                gap: 12
+                              }}
+                            >
+                              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: priorityColor(task.priority) }} />
+                              <View style={{ flex: 1 }}>
+                                <Text style={{
+                                  fontSize: 12,
+                                  fontWeight: '600',
+                                  color: task.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
+                                  textDecorationLine: task.isCompleted ? 'line-through' : 'none',
+                                  opacity: task.isCompleted ? 0.5 : 1
+                                }} numberOfLines={1}>
+                                  {task.title}
+                                </Text>
+                              </View>
+                              <ChevronRight size={12} color={theme.onSurfaceVariant} opacity={0.3} />
+                            </Touchable>
+                          ))}
+                        </View>
+                      );
+                    })()}
+                  </View>
+                )}
+              </ScrollView>
+            </MotiView>
+          </SafeAreaView>
+        </View>
+      </Modal>
 
       <WeightEntryModal
         visible={weightModalTaskId !== null}

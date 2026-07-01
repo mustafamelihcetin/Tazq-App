@@ -74,7 +74,10 @@ const getModeInfoForTaskRaw = (task: TaskLike | number, prefsStoreState: any) =>
   if (!p) return null;
 
   const taskId = typeof task === 'number' ? task : task?.id;
-  const tags: string[] = typeof task === 'number' ? [] : (task?.tags ?? []);
+  const taskObj = typeof task === 'number'
+    ? require('@/features/tasks/store/useTaskStore').useTaskStore.getState().tasks.find((t: any) => t.id === task)
+    : task;
+  const tags: string[] = taskObj?.tags ?? [];
   const has = (...ts: string[]) => ts.some(t => tags.includes(t));
 
   // ── SINAV (exam) ── slot 2/3 önce (daha spesifik), sonra slot 1 + grup tag'leri
@@ -102,7 +105,7 @@ const getModeInfoForTaskRaw = (task: TaskLike | number, prefsStoreState: any) =>
     return { color: MODE_COLORS.spor, labelTr: localizeSporGoal(p.seasonal?.spor2Goal || 'Spor Planı 2', true), labelEn: localizeSporGoal(p.seasonal?.spor2Goal || 'Workout Plan 2', false) };
   if (p.spor3PlanTaskIds?.includes(taskId) || has('spor3'))
     return { color: MODE_COLORS.spor, labelTr: localizeSporGoal(p.seasonal?.spor3Goal || 'Spor Planı 3', true), labelEn: localizeSporGoal(p.seasonal?.spor3Goal || 'Workout Plan 3', false) };
-  if (p.sporPlanTaskIds?.includes(taskId) || has('spor', 'kilo', 'maraton', 'guc', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress'))
+  if (p.sporPlanTaskIds?.includes(taskId) || has('spor', 'kilo', 'maraton', 'guc', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress', 'weight_entry'))
     return { color: MODE_COLORS.spor, labelTr: localizeSporGoal(p.seasonal?.sporGoal || 'Spor Planı', true), labelEn: localizeSporGoal(p.seasonal?.sporGoal || 'Workout Plan', false) };
 
   // ── TASARRUF / BÜTÇE ──

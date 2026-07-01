@@ -7,7 +7,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil, Timer, ChevronRight, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones } from 'lucide-react-native';
+import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil, Timer, ChevronRight, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, Shield } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
@@ -18,6 +18,7 @@ import { FocusService } from '@/shared/services/api';
 import { useAchievementStore, checkFocusAchievement } from '@/features/user';
 import { usePrefsStore } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
+import { useToastStore } from '@/shared/store/useToastStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { getRandomQuote } from '@/shared/constants/Quotes';
@@ -60,6 +61,7 @@ export default function FocusScreen() {
     rehydrateTimer, addFocusMinutes,
     pomodoroMode, pomodoroRound, pomodoroPhase,
     togglePomodoroMode, nextPomodoroPhase,
+    strictMode, setStrictMode, addFocusPoints,
   } = useFocusStore();
 
   const completedRef = useRef(false);
@@ -476,15 +478,45 @@ export default function FocusScreen() {
   }, [router]));
 
 
+  const strictPenaltyTriggeredRef = useRef(false);
   const backgroundSavedRef = useRef(false);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'active') {
         backgroundSavedRef.current = false;
-        rehydrateTimer();
+        if (strictPenaltyTriggeredRef.current) {
+          strictPenaltyTriggeredRef.current = false;
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          
+          // Play warning sound
+          try {
+            const { soundEffects } = usePrefsStore.getState();
+            if (soundEffects) {
+              const p = createAudioPlayer(require('../assets/sounds/warning.mp3'));
+              p.volume = 0.85;
+              p.play();
+              setTimeout(() => { try { p.remove(); } catch {} }, 3000);
+            }
+          } catch {}
+
+          useToastStore.getState().show(
+            language === 'tr'
+              ? 'Odaklanmayı böldünüz! Katı mod aktif olduğu için seans iptal edildi ve 10 Focus puanı kesildi.'
+              : 'You broke focus! Session cancelled and 10 Focus points deducted in Strict Mode.',
+            'error'
+          );
+        } else {
+          rehydrateTimer();
+        }
       } else if (next === 'background') {
+        const { isActive: active, strictMode: isStrict, seconds: secs, totalSeconds: total, focusPoints: pts } = useFocusStore.getState();
+        if (active && isStrict) {
+          useFocusStore.setState({ isActive: false, seconds: total, expectedFinishAt: null, lastActiveAt: null });
+          useFocusStore.setState({ focusPoints: Math.max(0, pts - 10) });
+          strictPenaltyTriggeredRef.current = true;
+          return;
+        }
         if (backgroundSavedRef.current) return;
-        const { isActive: active, seconds: secs, totalSeconds: total } = useFocusStore.getState();
         if (active && total > 0) {
           backgroundSavedRef.current = true;
           const elapsed = Math.max(1, Math.round((total - secs) / 60));
@@ -493,7 +525,7 @@ export default function FocusScreen() {
       }
     });
     return () => sub.remove();
-  }, []);
+  }, [language]);
 
   // ── Session completion / Pomodoro transitions ─────────────────────────────
   useEffect(() => {
@@ -501,10 +533,10 @@ export default function FocusScreen() {
       completedRef.current = true;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Seans bitimi sesi — soundEffects toggle'ından bağımsız, her zaman çalar
-      (async () => {
+      setTimeout(async () => {
         try {
           await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'mixWithOthers' });
-          const p = createAudioPlayer(require('../assets/sounds/timer_end.wav'));
+          const p = createAudioPlayer(require('../assets/sounds/focus_done.mp3'));
           p.volume = 0.85;
           p.play();
           chimePlayerRef.current = p;
@@ -514,8 +546,10 @@ export default function FocusScreen() {
               if (chimePlayerRef.current === p) chimePlayerRef.current = null;
             } catch {}
           }, 8000);
-        } catch {}
-      })();
+        } catch (e) {
+          console.warn('[Focus Chime Play Error]', e);
+        }
+      }, 250);
 
       const { pomodoroMode: isPomo, pomodoroPhase: phase, pomodoroRound: round } = useFocusStore.getState();
 
@@ -527,6 +561,7 @@ export default function FocusScreen() {
           const minutes = Math.round(totalSeconds / 60);
           FocusService.saveSession('Focus', minutes, true).catch(() => {});
           addFocusMinutes(minutes);
+          addFocusPoints(10);
           track('focus_completed', { minutes, pomodoro: true });
 
           // Check focus achievements using lifetime total
@@ -564,6 +599,7 @@ export default function FocusScreen() {
         const minutes = Math.round(totalSeconds / 60);
         FocusService.saveSession('Focus', minutes, true).catch(() => {});
         addFocusMinutes(minutes);
+        addFocusPoints(10);
         track('focus_completed', { minutes, pomodoro: false });
         FocusService.getStats().then(s => {
           const total = Math.round((s.totalFocusHours || 0) * 60);
@@ -591,9 +627,17 @@ export default function FocusScreen() {
   const resetTimer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (elapsed > 0) {
-      const minutesDone = Math.max(1, Math.round(elapsed / 60));
-      FocusService.saveSession('Focus', minutesDone, false).catch(() => {});
-      addFocusMinutes(minutesDone);
+      const minutesDone = Math.round(elapsed / 60);
+      if (minutesDone >= 1) {
+        FocusService.saveSession('Focus', minutesDone, false).catch(() => {});
+        addFocusMinutes(minutesDone);
+        addFocusPoints(Math.min(10, minutesDone * 2));
+      } else {
+        useToastStore.getState().show(
+          language === 'tr' ? '1 dakikadan kısa seanslar kaydedilmez.' : 'Sessions shorter than 1 minute are not logged.',
+          'info'
+        );
+      }
       stopAmbientSound();
       setAmbientSound('off');
     }
@@ -609,12 +653,21 @@ export default function FocusScreen() {
     setIsActive(false);
     completedRef.current = true;
     setZenMode(false);
-    const minutesDone = Math.max(1, Math.round(elapsed / 60));
-    FocusService.saveSession('Focus', minutesDone, false).catch(() => {});
-    addFocusMinutes(minutesDone);
-    setSummaryMinutes(minutesDone);
-    setSummaryCompleted(false);
-    setSummaryVisible(true);
+    const minutesDone = Math.round(elapsed / 60);
+    if (minutesDone >= 1) {
+      FocusService.saveSession('Focus', minutesDone, false).catch(() => {});
+      addFocusMinutes(minutesDone);
+      addFocusPoints(Math.min(10, minutesDone * 2));
+      setSummaryMinutes(minutesDone);
+      setSummaryCompleted(false);
+      setSummaryVisible(true);
+    } else {
+      reset();
+      useToastStore.getState().show(
+        language === 'tr' ? '1 dakikadan kısa seanslar kaydedilmez.' : 'Sessions shorter than 1 minute are not logged.',
+        'info'
+      );
+    }
   };
 
   const applyCustomDuration = () => {
@@ -746,6 +799,15 @@ export default function FocusScreen() {
                     style={{ padding: 6, borderRadius: 17, backgroundColor: pomodoroMode ? theme.primary + '20' : 'transparent' }}
                   >
                     <Timer size={15} color={pomodoroMode ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
+                  </Touchable>
+                  <Touchable
+                    onPress={() => { Haptics.selectionAsync(); setStrictMode(!strictMode); }}
+                    style={{ padding: 6, borderRadius: 17, backgroundColor: strictMode ? theme.primary + '20' : 'transparent' }}
+                    accessibilityRole="button"
+                    accessibilityState={{ checked: strictMode }}
+                    accessibilityLabel={language === 'tr' ? 'Katı Odak Modu' : 'Strict Focus Mode'}
+                  >
+                    <Shield size={15} color={strictMode ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
                   </Touchable>
                 </MotiView>
               )}
@@ -932,11 +994,14 @@ export default function FocusScreen() {
                   </Text>
 
                   {/* Status badge */}
-                  <View style={[styles.statusBadge, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary + '20' : theme.primary + '20') : theme.surfaceContainerHigh, marginTop: 12 }]}>
+                  <View style={[styles.statusBadge, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary + '20' : theme.primary + '20') : theme.surfaceContainerHigh, marginTop: 12, flexDirection: 'row', alignItems: 'center' }]}>
                     <View style={[styles.statusDot, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary) : theme.onSurfaceVariant }]} />
                     <Text style={[styles.statusText, { color: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary) : theme.onSurfaceVariant, fontSize: F.caption }]}>
                       {isActive ? t.focusRunning : seconds === totalSeconds ? t.focusReady : t.focusPaused}
                     </Text>
+                    {strictMode && (
+                      <Shield size={10} color={theme.primary} style={{ marginLeft: 6 }} strokeWidth={3} />
+                    )}
                   </View>
 
                   {/* Breath cue — fades between phases in sync with glow animation */}

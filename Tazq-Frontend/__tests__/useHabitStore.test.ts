@@ -1,4 +1,4 @@
-import { useHabitStore } from '@/features/habits';
+import { useHabitStore, fmtDateKey } from '@/features/habits';
 
 beforeEach(() => useHabitStore.setState({ habits: [] }));
 
@@ -37,15 +37,15 @@ describe('useHabitStore — çift-isim koruması & planMode', () => {
     addHabit('Yazılım', '💻', '#10B981', 'h2');
     
     const today = new Date();
-    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayKey = fmtDateKey(today);
     
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+    const yesterdayKey = fmtDateKey(yesterday);
 
     const twoDaysAgo = new Date();
     twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-    const twoDaysAgoKey = `${twoDaysAgo.getFullYear()}-${String(twoDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(twoDaysAgo.getDate()).padStart(2, '0')}`;
+    const twoDaysAgoKey = fmtDateKey(twoDaysAgo);
 
     // Mark today as completed, yesterday as skipped, two days ago as completed
     toggleDate('h2', todayKey);

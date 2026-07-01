@@ -22,6 +22,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { S, R, F, B } from '@/shared/constants/tokens';
 import { buildTasarrufPlan, tasarrufTypeLabel, TASARRUF_COLOR } from '@/shared/utils/lifeModePlans';
+import { retirePlanTask } from '@/shared/utils/planTaskOps';
 
 const fmtMoney = (n: number) => n.toLocaleString('tr-TR');
 
@@ -177,6 +178,7 @@ export function TasarrufCard() {
 
   const closePlan = () => {
     tasarrufPlanHabitIds.forEach(id => removeHabit(id));
+    tasarrufPlanTaskIds.forEach(id => retirePlanTask(id, 'tasarruf'));
     clearPlanIds('tasarruf');
     setSeasonalPref('tasarrufMode', false);
     setSeasonalPref('tasarrufName', '');

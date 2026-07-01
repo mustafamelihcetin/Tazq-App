@@ -80,12 +80,6 @@ export function CustomAlertModal() {
         useNativeDriver: true,
         easing: Easing.in(Easing.ease),
       }),
-      Animated.timing(scaleAnim, {
-        toValue: 0.95,
-        duration: 200,
-        useNativeDriver: true,
-        easing: Easing.in(Easing.ease),
-      }),
       Animated.timing(slideAnim, {
         toValue: 10,
         duration: 200,
@@ -216,6 +210,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.4,
     shadowRadius: 24,
+    backfaceVisibility: 'hidden',
   },
   content: {
     paddingTop: S.xl,
