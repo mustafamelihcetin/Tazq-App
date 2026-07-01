@@ -143,5 +143,19 @@ namespace Tazq_App.Controllers
             var success = await _taskService.DeleteTaskAsync(userId.Value, id);
             return success ? NoContent() : NotFound();
         }
+
+        [HttpPost("reorder")]
+        public async Task<IActionResult> ReorderTasks([FromBody] List<int> orderedIds)
+        {
+            var userId = GetUserId();
+            if (userId == null)
+                return Unauthorized();
+
+            if (orderedIds == null || !orderedIds.Any())
+                return BadRequest("Invalid request body.");
+
+            var success = await _taskService.ReorderTasksAsync(userId.Value, orderedIds);
+            return success ? Ok("Tasks reordered successfully.") : BadRequest("Failed to reorder tasks.");
+        }
     }
 }

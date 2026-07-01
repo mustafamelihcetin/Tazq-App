@@ -59,5 +59,28 @@ namespace Tazq_App.Services
             using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_secretKey));
             return hmac.ComputeHash(Encoding.UTF8.GetBytes($"user:{userId}"));
         }
+
+        // Computes space-separated HMAC-SHA256 hashes for each word in the input
+        public string ComputeBlindIndex(string input, byte[] key)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+
+            var words = System.Text.RegularExpressions.Regex.Split(input.ToLowerInvariant(), @"[^\p{L}\p{N}]+")
+                .Where(w => !string.IsNullOrWhiteSpace(w))
+                .Distinct()
+                .ToList();
+
+            if (words.Count == 0) return string.Empty;
+
+            using var hmac = new HMACSHA256(key);
+            var hashes = new List<string>();
+            foreach (var word in words)
+            {
+                byte[] hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(word));
+                hashes.Add(Convert.ToBase64String(hash));
+            }
+
+            return string.Join(" ", hashes);
+        }
     }
 }

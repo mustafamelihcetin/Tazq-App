@@ -22,18 +22,32 @@ namespace Tazq_Backend.Tests
 
             _cryptoMock = new Mock<ICryptoService>();
             
-            // Mock encryption behavior: return "encrypted_" + value
+            // Mock encryption behavior: return Base64 encoded "enc_" + value
             _cryptoMock.Setup(c => c.Encrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
-                .Returns((string val, byte[] k) => "enc_" + val);
+                .Returns((string val, byte[] k) => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("enc_" + (val ?? string.Empty))));
             
-            // Mock decryption behavior: strip "encrypted_" prefix
+            // Mock decryption behavior: decode Base64 and strip "enc_" prefix
             _cryptoMock.Setup(c => c.Decrypt(It.IsAny<string>(), It.IsAny<byte[]>()))
-                .Returns((string val, byte[] k) => val.StartsWith("enc_") ? val.Substring(4) : val);
+                .Returns((string val, byte[] k) => {
+                    if (string.IsNullOrEmpty(val)) return string.Empty;
+                    try
+                    {
+                        var decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(val));
+                        return decoded.StartsWith("enc_") ? decoded.Substring(4) : decoded;
+                    }
+                    catch
+                    {
+                        return val;
+                    }
+                });
 
             _cryptoMock.Setup(c => c.GetKeyForUser(It.IsAny<int>()))
                 .Returns(_mockKey);
 
-            _taskService = new TaskService(_context, _cryptoMock.Object);
+            _cryptoMock.Setup(c => c.ComputeBlindIndex(It.IsAny<string>(), It.IsAny<byte[]>()))
+                .Returns((string val, byte[] k) => val?.ToLowerInvariant() ?? string.Empty);
+
+            _taskService = new TaskService(_context, _cryptoMock.Object, new Mock<Microsoft.Extensions.Logging.ILogger<TaskService>>().Object);
         }
 
         [Fact]
@@ -55,8 +69,10 @@ namespace Tazq_Backend.Tests
             _context.Entry(result).State = EntityState.Detached; // Detach to force reload from DB
             var dbTask = await _context.Tasks.FindAsync(result.Id);
             Assert.NotNull(dbTask);
-            Assert.StartsWith("enc_", dbTask.Title);
-            Assert.StartsWith("enc_", dbTask.Description);
+            var dbTitle = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(dbTask.Title));
+            var dbDesc = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(dbTask.Description));
+            Assert.StartsWith("enc_", dbTitle);
+            Assert.StartsWith("enc_", dbDesc);
             Assert.Equal("Test Task", result.Title); // Result should be decrypted
         }
 
@@ -68,9 +84,9 @@ namespace Tazq_Backend.Tests
             _context.Tasks.Add(new TaskItem 
             { 
                 UserId = userId, 
-                Title = "enc_Task 1", 
-                Description = "enc_Desc", 
-                TagsJson = "enc_[\"tag1\"]" 
+                Title = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("enc_Task 1")), 
+                Description = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("enc_Desc")), 
+                TagsJson = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("enc_[\"tag1\"]")) 
             });
             await _context.SaveChangesAsync();
 

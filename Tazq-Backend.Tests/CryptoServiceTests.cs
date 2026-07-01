@@ -81,5 +81,54 @@ namespace Tazq_Backend.Tests
             Assert.Equal(text, _cryptoService.Decrypt(encrypted1, key));
             Assert.Equal(text, _cryptoService.Decrypt(encrypted2, key));
         }
+
+        [Fact]
+        public void ComputeBlindIndex_ShouldBeDeterministicAndCaseInsensitive()
+        {
+            // Arrange
+            var text1 = "Tazq Task Search";
+            var text2 = "tazq task search!";
+            var key = _cryptoService.GetKeyForUser(1);
+
+            // Act
+            var hash1 = _cryptoService.ComputeBlindIndex(text1, key);
+            var hash2 = _cryptoService.ComputeBlindIndex(text2, key);
+
+            // Assert
+            Assert.Equal(hash1, hash2); // Deterministic and case insensitive
+            Assert.Contains(" ", hash1); // Multiple words produce space-separated list of hashes
+        }
+
+        [Fact]
+        public void ComputeBlindIndex_ShouldStripTurkishPunctuationAndTokenize()
+        {
+            // Arrange
+            var text = "Bugün Türkçe, ödevimi yapacağız şenlikle!";
+            var key = _cryptoService.GetKeyForUser(1);
+
+            // Act
+            var hash = _cryptoService.ComputeBlindIndex(text, key);
+
+            // Assert
+            // Words: "bugün", "türkçe", "ödevimi", "yapacağız", "şenlikle"
+            var singleWordHash = _cryptoService.ComputeBlindIndex("türkçe", key);
+            Assert.Contains(singleWordHash, hash);
+        }
+
+        [Fact]
+        public void ComputeBlindIndex_DifferentUsers_ProducesDifferentHashes()
+        {
+            // Arrange
+            var text = "ExactSameWord";
+            var key1 = _cryptoService.GetKeyForUser(1);
+            var key2 = _cryptoService.GetKeyForUser(2);
+
+            // Act
+            var hash1 = _cryptoService.ComputeBlindIndex(text, key1);
+            var hash2 = _cryptoService.ComputeBlindIndex(text, key2);
+
+            // Assert
+            Assert.NotEqual(hash1, hash2); // Cross-user security boundary
+        }
     }
 }

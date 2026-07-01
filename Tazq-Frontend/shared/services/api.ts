@@ -230,6 +230,10 @@ export const TaskService = {
   deleteTask: async (id: number) => {
     await api.delete(`/api/tasks/${id}`);
   },
+  reorderTasks: async (orderedIds: number[]) => {
+    const response = await api.post('/api/tasks/reorder', orderedIds);
+    return response.data;
+  },
 };
 
 export const FocusService = {

@@ -17,7 +17,7 @@ import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { ChevronRight, Clock } from 'lucide-react-native';
+import { ChevronRight, Clock, Smartphone, Lock, Cloud, Ban, Coins, GraduationCap } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Easing } from 'react-native-reanimated';
 import { TazqLogo } from '@/shared/components/TazqLogo';
@@ -39,6 +39,13 @@ const SLIDES = [
     bodyKey: 'onboardingBody2b',
     color: '#00cc88',
     type: 'smart_input',
+  },
+  {
+    id: 'privacy',
+    titleKey: 'onboardingTitlePrivacy',
+    bodyKey: 'onboardingBodyPrivacy',
+    color: '#10b981',
+    type: 'privacy',
   },
   {
     id: 'modes',
@@ -209,6 +216,93 @@ export default function OnboardingScreen() {
             </View>
           </View>
         );
+      case 'privacy':
+        return (
+          <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20, paddingHorizontal: 16 }}>
+              {/* Top Row: Device -> Lock -> Server Cloud */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                
+                {/* Local Device */}
+                <MotiView 
+                  animate={{ scale: isActive ? 1 : 0.8 }} 
+                  style={{ alignItems: 'center', gap: 4, width: 60 }}
+                >
+                  <Smartphone size={24} color={theme.onSurface} />
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'Cihazınız' : 'Your Device'}</Text>
+                </MotiView>
+
+                {/* Animated Line with Data Packet */}
+                <View style={{ flex: 1, height: 2, backgroundColor: theme.outlineVariant, position: 'relative', marginHorizontal: 8, justifyContent: 'center' }}>
+                  {/* Lock symbol in the center */}
+                  <View style={{ position: 'absolute', left: '50%', marginLeft: -12, top: -11, width: 24, height: 24, borderRadius: 12, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+                    <Lock size={12} color="#fff" />
+                  </View>
+                  
+                  {/* Animated data packet */}
+                  <MotiView
+                    animate={{
+                      left: isActive ? ['0%', '100%'] : '0%',
+                    }}
+                    transition={{
+                      loop: true,
+                      duration: 2500,
+                      type: 'timing',
+                      easing: Easing.bezier(0.4, 0, 0.2, 1),
+                    }}
+                    style={{
+                      position: 'absolute',
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: isActive ? ['#3367ff', '#10b981'] : '#3367ff',
+                      top: -3,
+                    }}
+                  />
+                </View>
+
+                {/* Secure Server */}
+                <MotiView 
+                  animate={{ scale: isActive ? 1 : 0.8 }} 
+                  style={{ alignItems: 'center', gap: 4, width: 60 }}
+                >
+                  <Cloud size={24} color={theme.onSurface} />
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'Sunucu' : 'Server'}</Text>
+                </MotiView>
+
+              </View>
+
+              {/* Bottom Row: Demonstration of Encryption */}
+              <View style={{ width: '100%', gap: 8, marginTop: 10 }}>
+                {/* Plain Text row */}
+                <MotiView 
+                  animate={{ translateX: isActive ? 0 : -20, opacity: isActive ? 1 : 0 }}
+                  transition={{ delay: 300 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.surfaceContainerHighest, padding: 8, borderRadius: 8 }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#3367ff' }}>PLAIN:</Text>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurface }}>"Tazq Toplantısı"</Text>
+                </MotiView>
+
+                {/* Encrypted Text row */}
+                <MotiView 
+                  animate={{ translateX: isActive ? 0 : 20, opacity: isActive ? 1 : 0 }}
+                  transition={{ delay: 700 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#10b9811A', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#10b98130' }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#10b981' }}>CIPHER:</Text>
+                  <MotiText 
+                    animate={{ opacity: isActive ? [1, 0.4, 1] : 1 }}
+                    transition={{ loop: true, duration: 2000 }}
+                    style={{ fontSize: 10, fontWeight: '700', color: '#10b981', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}
+                  >
+                    "U0dWMmJYTkVhVzg9"
+                  </MotiText>
+                </MotiView>
+              </View>
+            </View>
+          </View>
+        );
       case 'momentum':
         return (
           <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
@@ -243,9 +337,9 @@ export default function OnboardingScreen() {
           <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
             <View style={{ alignItems: 'center', justifyContent: 'center', gap: 10, flex: 1, paddingHorizontal: 20 }}>
               {[
-                { emoji: '🚭', label: tr ? 'Sigarayı Bırak' : 'Quit Smoking', sub: tr ? 'Gün gün plan' : 'Day-by-day plan', color: '#ff2d55' },
-                { emoji: '💰', label: tr ? 'Tasarruf' : 'Save Money', sub: tr ? 'Birikim hedefi' : 'Savings goal', color: '#00cc88' },
-                { emoji: '🎓', label: tr ? 'Sınava Hazırlık' : 'Exam Prep', sub: tr ? 'Günlük program' : 'Daily plan', color: item.color },
+                { icon: <Ban size={isSmallDevice ? 20 : 24} color="#ff2d55" />, label: tr ? 'Sigarayı Bırak' : 'Quit Smoking', sub: tr ? 'Gün gün plan' : 'Day-by-day plan', color: '#ff2d55' },
+                { icon: <Coins size={isSmallDevice ? 20 : 24} color="#00cc88" />, label: tr ? 'Tasarruf' : 'Save Money', sub: tr ? 'Birikim hedefi' : 'Savings goal', color: '#00cc88' },
+                { icon: <GraduationCap size={isSmallDevice ? 20 : 24} color={item.color} />, label: tr ? 'Sınava Hazırlık' : 'Exam Prep', sub: tr ? 'Günlük program' : 'Daily plan', color: item.color },
               ].map((row, i) => (
                 <MotiView
                   key={i}
@@ -253,7 +347,9 @@ export default function OnboardingScreen() {
                   transition={{ delay: 300 + i * 130, type: 'spring' }}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%', backgroundColor: row.color + '14', borderRadius: 14, paddingHorizontal: 14, paddingVertical: isSmallDevice ? 9 : 12 }}
                 >
-                  <Text style={{ fontSize: isSmallDevice ? 22 : 26 }}>{row.emoji}</Text>
+                  <View style={{ width: isSmallDevice ? 26 : 30, alignItems: 'center', justifyContent: 'center' }}>
+                    {row.icon}
+                  </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: isSmallDevice ? 12 : 14, fontWeight: '800', color: theme.onSurface }}>{row.label}</Text>
                     <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.7 }}>{row.sub}</Text>

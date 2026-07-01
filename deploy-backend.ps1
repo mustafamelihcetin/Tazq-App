@@ -16,12 +16,17 @@ $files = @(
     "Controllers\SupportController.cs",
     "Services\IUserService.cs",
     "Services\UserService.cs",
+    "Services\ITaskService.cs",
     "Services\TaskService.cs",
+    "Services\ICryptoService.cs",
+    "Services\CryptoService.cs",
     "Models\TaskItem.cs",
     "Models\SupportMessage.cs",
     "Data\AppDbContext.cs",
     "Migrations\20260629121823_AddSupportMessages.cs",
     "Migrations\20260629121823_AddSupportMessages.Designer.cs",
+    "Migrations\20260701230858_AddBlindIndicesAndReorder.cs",
+    "Migrations\20260701230858_AddBlindIndicesAndReorder.Designer.cs",
     "Migrations\AppDbContextModelSnapshot.cs",
     "Program.cs"
 )

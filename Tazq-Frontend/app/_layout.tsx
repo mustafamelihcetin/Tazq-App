@@ -55,6 +55,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { AnimatedSplash } from '@/shared/components/AnimatedSplash';
 import { Toast } from '@/shared/components/Toast';
 import { CelebrationOverlay } from '@/shared/components/CelebrationOverlay';
+import { ConfettiOverlay } from '@/shared/components/ConfettiOverlay';
 import { CustomAlertModal } from '@/shared/components/CustomAlert';
 import { Asset } from 'expo-asset';
 import { useOfflineSync } from '@/shared/hooks/useOfflineSync';
@@ -501,6 +502,7 @@ export default function RootLayout() {
         <FocusIsland />
         <Toast />
         <CelebrationOverlay />
+        <ConfettiOverlay />
         <CustomAlertModal />
       </View>
     </SafeAreaProvider>

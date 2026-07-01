@@ -53,6 +53,8 @@ namespace Tazq_App.Data
 			modelBuilder.Entity<TaskItem>().HasIndex(t => t.UserId);
 			// Idempotency lookup: aynı kullanıcıda ClientKey ile hızlı çift-kayıt kontrolü
 			modelBuilder.Entity<TaskItem>().HasIndex(t => new { t.UserId, t.ClientKey });
+			modelBuilder.Entity<TaskItem>().HasIndex(t => new { t.UserId, t.TitleBlindIndex });
+			modelBuilder.Entity<TaskItem>().HasIndex(t => new { t.UserId, t.TagsBlindIndex });
 			modelBuilder.Entity<FocusSession>().HasIndex(f => f.UserId);
 			modelBuilder.Entity<FocusSession>().HasIndex(f => f.StartedAt);
 			modelBuilder.Entity<PasswordResetToken>().HasIndex(t => t.Token).IsUnique();

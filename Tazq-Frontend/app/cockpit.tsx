@@ -300,6 +300,7 @@ export default function CockpitScreen() {
 
     if (!doneToday) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger();
       const opacity = new Animated.Value(1);
       const translateY = new Animated.Value(0);
       habitExitAnimMap.current.set(id, { opacity, translateY });

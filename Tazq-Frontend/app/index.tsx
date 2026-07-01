@@ -864,6 +864,7 @@ export default function HomeScreen() {
     }
     if (task.isCompleted) return; // aksiyon merkezi sadece tamamlar, hiç geri almaz
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger();
     toggleTaskCompletion(taskId);
     // Offline-first: çevrimdışıysa tamamlamayı kuyruğa al (optimistik UI korunur);
     // yoksa kullanıcının tamamlaması kaybolur.
@@ -1035,6 +1036,9 @@ export default function HomeScreen() {
           isDark={isDark}
           tr={tr}
           onPress={() => {
+            if (!item.isCompleted) {
+              require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger();
+            }
             Haptics.impactAsync(item.isCompleted ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
             toggleHabitDate(item.id as string, habitTodayKey);
           }}

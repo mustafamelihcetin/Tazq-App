@@ -179,8 +179,28 @@ namespace Tazq_App.Services
             var hash = HashRefreshToken(refreshToken);
 
             var stored = await _context.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash);
-            // Geçersiz, süresi dolmuş veya iptal edilmiş → reddet
-            if (stored == null || stored.RevokedAt != null || stored.ExpiresAt <= DateTime.UtcNow)
+            if (stored == null) return null;
+
+            // Yeniden Kullanım Tespiti (Reuse Detection): Token zaten iptal edilmişse,
+            // bu bir çalınma/replay belirtisidir. Kullanıcının tüm aktif oturumlarını kapat!
+            if (stored.RevokedAt != null)
+            {
+                var allActive = await _context.RefreshTokens
+                    .Where(t => t.UserId == stored.UserId && t.RevokedAt == null)
+                    .ToListAsync();
+                
+                foreach (var t in allActive)
+                {
+                    t.RevokedAt = DateTime.UtcNow;
+                }
+                
+                _context.RefreshTokens.UpdateRange(allActive);
+                await _context.SaveChangesAsync();
+                return null;
+            }
+
+            // Süresi dolmuş token → reddet
+            if (stored.ExpiresAt <= DateTime.UtcNow)
                 return null;
 
             var user = await _context.Users.FindAsync(stored.UserId);

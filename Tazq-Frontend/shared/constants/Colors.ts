@@ -44,14 +44,18 @@ const lightPalette = {
   outline: Platform.OS === 'android' ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.08)',
   outlineVariant: Platform.OS === 'android' ? 'rgba(0,0,0,0.03)' : 'rgba(0,0,0,0.04)',
 
+  // Interaction overlays
+  pressedOverlay: 'rgba(0, 0, 0, 0.08)',
+  hoverOverlay: 'rgba(0, 0, 0, 0.04)',
+
   // Semantic / status tokens — tema sisteminde merkezi tanım
   warning: '#FF9500',
   priorityHigh: '#FF3B30',
-  priorityMedium: '#FF9F0A',
-  priorityLow: '#34C759',
+  priorityMedium: '#FF9500',    // warning ile uyumlu hale getirildi (eski: #FF9F0A)
+  priorityLow: '#64748B',       // Düşük öncelik için yeşil yerine nötr slate seçildi (eski: #34C759)
   streak: '#FF6B35',
-  success: '#34C759',
-  info: '#4FC3F7',
+  success: '#059669',          // Marka yeşili (tertiary) ile uyumlu hale getirildi (eski: #34C759)
+  info: '#0284C7',             // Daha okunaklı mavi (eski: #4FC3F7)
 };
 
 const darkPalette = {
@@ -88,14 +92,18 @@ const darkPalette = {
   outline: Platform.OS === 'android' ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.07)',
   outlineVariant: Platform.OS === 'android' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.03)',
 
+  // Interaction overlays
+  pressedOverlay: 'rgba(255, 255, 255, 0.08)',
+  hoverOverlay: 'rgba(255, 255, 255, 0.04)',
+
   // Semantic / status tokens
   warning: '#FFB340',
-  priorityHigh: '#FF3B30',
-  priorityMedium: '#FF9F0A',
-  priorityLow: '#34C759',
+  priorityHigh: '#F87171',      // Karanlıkta göz almayan uyumlu kırmızı (eski: #FF3B30)
+  priorityMedium: '#FFB340',    // warning ile uyumlu hale getirildi (eski: #FF9F0A)
+  priorityLow: '#94A3B8',       // Düşük öncelik için yeşil yerine nötr slate seçildi (eski: #34C759)
   streak: '#FF6B35',
-  success: '#34C759',
-  info: '#4FC3F7',
+  success: '#34D399',          // Marka yeşili (tertiary) ile uyumlu hale getirildi (eski: #34C759)
+  info: '#38BDF8',             // Daha okunaklı mavi (eski: #4FC3F7)
 };
 
 export const Colors = {

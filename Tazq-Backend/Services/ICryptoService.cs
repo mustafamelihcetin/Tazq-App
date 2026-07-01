@@ -5,5 +5,6 @@ namespace Tazq_App.Services
         string Encrypt(string plainText, byte[] key);
         string Decrypt(string cipherTextBase64, byte[] key);
         byte[] GetKeyForUser(int userId);
+        string ComputeBlindIndex(string input, byte[] key);
     }
 }

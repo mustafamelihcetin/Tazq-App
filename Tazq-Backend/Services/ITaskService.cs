@@ -10,5 +10,6 @@ namespace Tazq_App.Services
         Task<bool> CreateTasksBulkAsync(int userId, List<TaskItem> tasks);
         Task<TaskItem?> UpdateTaskAsync(int userId, int taskId, TaskItem updatedTask);
         Task<bool> DeleteTaskAsync(int userId, int taskId);
+        Task<bool> ReorderTasksAsync(int userId, List<int> orderedIds);
     }
 }

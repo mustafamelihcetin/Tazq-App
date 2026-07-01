@@ -883,6 +883,7 @@ export default function ActionCenter() {
 
     const proceed = async () => {
       if (isCompleting) {
+        require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger();
         const nextPayload = checkAndCreateNextIntervalInstance(task);
         if (nextPayload) {
           if (isOnline) {

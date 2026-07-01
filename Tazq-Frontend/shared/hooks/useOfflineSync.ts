@@ -47,8 +47,9 @@ export function useOfflineSync() {
             await TaskService.updateTask(op.id, { isCompleted: op.isCompleted } as any);
           } else if (op.type === 'delete-task') {
             await TaskService.deleteTask(op.id);
+          } else if (op.type === 'reorder-tasks') {
+            await TaskService.reorderTasks(op.ids);
           }
-          // Note: reorder-tasks is not fully implemented in API yet, skipping for now
           
           processed++;
           // Dequeue one by one so if it crashes, remaining ops are saved

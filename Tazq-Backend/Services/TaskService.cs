@@ -34,61 +34,51 @@ namespace Tazq_App.Services
             if (endDate.HasValue)
                 query = query.Where(t => t.DueDate <= endDate.Value);
 
-            // If we have a search or tag filter, we must pull and decrypt (or implement blind indexing)
-            // For now, let's optimize the non-search path which is 90% of usage
-            if (string.IsNullOrEmpty(search) && string.IsNullOrEmpty(tag))
+            // 1. Tag Filtering using Blind Index
+            if (!string.IsNullOrEmpty(tag))
             {
-                var totalCount = await query.CountAsync();
-                
-                // Sort at DB level on non-encrypted fields
-                query = sortBy?.ToLower() switch
+                var tagHash = _cryptoService.ComputeBlindIndex(tag, key);
+                if (!string.IsNullOrEmpty(tagHash))
                 {
-                    "duedate" => query.OrderBy(t => t.DueDate),
-                    "priority" => query.OrderByDescending(t => t.Priority),
-                    _ => query.OrderByDescending(t => t.SortOrder)
-                };
-
-                var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-                foreach (var item in items) DecryptTask(item, key);
-                
-                return (items, totalCount);
+                    query = query.Where(t => t.TagsBlindIndex != null && t.TagsBlindIndex.Contains(tagHash));
+                }
             }
-            else
+
+            // 2. Search Filtering using Blind Index
+            if (!string.IsNullOrEmpty(search))
             {
-                // Fallback for search/tag (requires decryption in memory for now)
-                var allTasks = await query.ToListAsync();
-                foreach (var task in allTasks) DecryptTask(task, key);
+                var searchWords = System.Text.RegularExpressions.Regex.Split(search.ToLowerInvariant(), @"[^\p{L}\p{N}]+")
+                    .Where(w => !string.IsNullOrWhiteSpace(w))
+                    .Distinct()
+                    .ToList();
 
-                var filtered = allTasks.AsEnumerable();
-
-                if (!string.IsNullOrEmpty(tag))
+                if (searchWords.Count > 0)
                 {
-                    filtered = filtered.Where(t => t.Tags != null && t.Tags.Any(tg => tg.Equals(tag, StringComparison.OrdinalIgnoreCase)));
+                    using var hmac = new System.Security.Cryptography.HMACSHA256(key);
+                    foreach (var word in searchWords)
+                    {
+                        byte[] wordHashBytes = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(word));
+                        string wordHash = Convert.ToBase64String(wordHashBytes);
+                        
+                        query = query.Where(t => t.TitleBlindIndex != null && t.TitleBlindIndex.Contains(wordHash));
+                    }
                 }
-
-                if (!string.IsNullOrEmpty(search))
-                {
-                    filtered = filtered.Where(t =>
-                        (!string.IsNullOrEmpty(t.Title) && t.Title.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrEmpty(t.Description) && t.Description.Contains(search, StringComparison.OrdinalIgnoreCase))
-                    );
-                }
-
-                // Final sorting and pagination in memory
-                var sorted = sortBy?.ToLower() switch
-                {
-                    "duedate" => filtered.OrderBy(t => t.DueDate),
-                    "priority" => filtered.OrderByDescending(t => t.Priority),
-                    "title" => filtered.OrderBy(t => t.Title),
-                    _ => filtered.OrderByDescending(t => t.SortOrder)
-                };
-
-                var sortedList = sorted.ToList();
-                var finalCount = sortedList.Count;
-                var result = sortedList.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-
-                return (result, finalCount);
             }
+
+            var totalCount = await query.CountAsync();
+            
+            // Sort at DB level on non-encrypted fields
+            query = sortBy?.ToLower() switch
+            {
+                "duedate" => query.OrderBy(t => t.DueDate),
+                "priority" => query.OrderByDescending(t => t.Priority),
+                _ => query.OrderByDescending(t => t.SortOrder)
+            };
+
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            foreach (var item in items) DecryptTask(item, key);
+            
+            return (items, totalCount);
         }
 
 
@@ -231,6 +221,31 @@ namespace Tazq_App.Services
             return await _context.SaveChangesAsync() > 0;
         }
 
+        public async Task<bool> ReorderTasksAsync(int userId, List<int> orderedIds)
+        {
+            if (orderedIds == null || orderedIds.Count == 0) return false;
+
+            var tasks = await _context.Tasks
+                .Where(t => t.UserId == userId && orderedIds.Contains(t.Id))
+                .ToListAsync();
+
+            if (tasks.Count == 0) return false;
+
+            var taskMap = tasks.ToDictionary(t => t.Id);
+
+            for (int i = 0; i < orderedIds.Count; i++)
+            {
+                var id = orderedIds[i];
+                if (taskMap.TryGetValue(id, out var task))
+                {
+                    task.SortOrder = i;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         private async System.Threading.Tasks.Task CreateNextRecurrence(int userId, TaskItem source, byte[] key)
         {
             var nextDate = source.Recurrence switch
@@ -267,6 +282,11 @@ namespace Tazq_App.Services
 
         private void EncryptTask(TaskItem task, byte[] key)
         {
+            // Compute blind indexes using plaintext before encryption
+            task.TitleBlindIndex = _cryptoService.ComputeBlindIndex(task.Title, key);
+            var tagsText = string.Join(" ", task.Tags ?? new List<string>());
+            task.TagsBlindIndex = _cryptoService.ComputeBlindIndex(tagsText, key);
+
             task.Title = _cryptoService.Encrypt(task.Title, key);
             task.Description = _cryptoService.Encrypt(task.Description ?? string.Empty, key);
             var jsonTags = JsonSerializer.Serialize(task.Tags ?? new List<string>());

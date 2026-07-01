@@ -60,6 +60,9 @@ namespace Tazq_App.Models
 		[MaxLength(64)]
 		public string? ClientKey { get; set; }
 
+		public string? TitleBlindIndex { get; set; }
+		public string? TagsBlindIndex { get; set; }
+
 		[ForeignKey("User")]
 		public int UserId { get; set; }
 
