@@ -16,11 +16,14 @@ import { useFocusStore } from '@/features/focus';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
+import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
+import { useTaskStore } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
 import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
@@ -51,6 +54,7 @@ export default function ProfileScreen() {
 
   const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset } = useFocusStore();
   const { habits, toggleDate } = useHabitStore();
+  const { tasks } = useTaskStore();
   const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode } = usePrefsStore();
   const { unlocked: unlockedAchievements } = useAchievementStore();
 
@@ -93,6 +97,7 @@ export default function ProfileScreen() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
+  const [calendarSync, setCalendarSync] = useState(false);
   const [kbHeight, setKbHeight] = useState(0);
 
   useEffect(() => {
@@ -122,6 +127,11 @@ export default function ProfileScreen() {
   useEffect(() => {
     loadStats();
     requestNotificationPermissions().then((granted) => setNotifEnabled(granted));
+    
+    AsyncStorage.getItem('tazq_calendar_sync_enabled').then((val) => {
+      setCalendarSync(val === 'true');
+    }).catch(() => {});
+
     // Avatarları profil açılır açılmaz önceden çöz/cache'le → "Düzenle"ye girince
     // 12 PNG ilk kez decode olurken boş/beyaz görünmesin, anında çıksınlar.
     Asset.loadAsync(Object.values(AVATAR_MAP)).catch(() => {});
@@ -190,6 +200,59 @@ export default function ProfileScreen() {
           { text: t.openSettings, onPress: () => Linking.openSettings() },
         ]);
       }
+    }
+  };
+
+  const toggleCalendarSync = async (val: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (val) {
+      const granted = await requestCalendarPermissions();
+      if (granted) {
+        await AsyncStorage.setItem('tazq_calendar_sync_enabled', 'true');
+        setCalendarSync(true);
+        showToast(language === 'tr' ? 'Takvim senkronizasyonu aktif! Görevler aktarılıyor...' : 'Calendar sync active! Exporting tasks...', 'info');
+        
+        const result = await bulkExportTasksToCalendar(tasks);
+        if (result.success) {
+          if (result.fallback) {
+            showToast(
+              language === 'tr'
+                ? 'TAZQ takvimi oluşturulamadı. Görevler varsayılan sistem takviminize aktarıldı.'
+                : 'Could not create TAZQ calendar. Tasks exported to your default calendar.',
+              'success'
+            );
+          } else {
+            showToast(
+              language === 'tr'
+                ? 'TAZQ takvimi oluşturuldu ve görevler aktarıldı.'
+                : 'TAZQ calendar created and tasks exported.',
+              'success'
+            );
+          }
+        } else {
+          showToast(
+            language === 'tr' ? 'Takvim senkronizasyonu başlatılamadı.' : 'Could not initialize calendar sync.',
+            'error'
+          );
+          await AsyncStorage.setItem('tazq_calendar_sync_enabled', 'false');
+          setCalendarSync(false);
+        }
+      } else {
+        Alert.alert(
+          language === 'tr' ? 'Takvim İzni Gerekli' : 'Calendar Permission Required',
+          language === 'tr'
+            ? 'Lütfen uygulama ayarlarından takvim iznini etkinleştirin.'
+            : 'Please enable calendar permission in your device settings.',
+          [
+            { text: t.cancel, style: 'cancel' },
+            { text: t.openSettings, onPress: () => Linking.openSettings() }
+          ]
+        );
+      }
+    } else {
+      await AsyncStorage.setItem('tazq_calendar_sync_enabled', 'false');
+      setCalendarSync(false);
+      showToast(language === 'tr' ? 'Takvim senkronizasyonu kapatıldı.' : 'Calendar sync disabled.', 'info');
     }
   };
 
@@ -489,6 +552,16 @@ export default function ProfileScreen() {
                     subtitle={language === 'tr' ? 'Her Pazar akşamı momentum özeti' : 'Momentum recap every Sunday'}
                     value={weeklyNotification}
                     onValueChange={(v: boolean) => { Haptics.selectionAsync(); setWeeklyNotification(v); if (!v) cancelWeeklySummary(); }}
+                    theme={theme} isDark={isDark}
+                />
+                <RowDivider isDark={isDark} />
+                <ToggleRow
+                    icon={<CalendarDays size={18} color={theme.primary} />}
+                    bg={theme.primary + '15'}
+                    title={language === 'tr' ? 'Takvim Senkronizasyonu' : 'Calendar Sync'}
+                    subtitle={language === 'tr' ? 'Görevleri sistem takvimine kaydeder' : 'Syncs tasks to system calendar'}
+                    value={calendarSync}
+                    onValueChange={toggleCalendarSync}
                     theme={theme} isDark={isDark}
                 />
             </SettingsCard>

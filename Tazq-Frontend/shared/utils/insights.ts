@@ -263,6 +263,7 @@ export interface WeeklyInsightInput {
   streak: number;
   momentumLast7: number[];        // -1 = veri yok
   productivityHour: ProductivityHour;
+  habits?: any[];
 }
 
 export interface WeeklyMetrics {
@@ -316,6 +317,58 @@ export function generateWeeklyTips(input: WeeklyInsightInput, max = 3): Insight[
   const m = computeWeeklyMetrics(input);
   const tips: Insight[] = [];
   const hour = HOUR_LABEL[input.productivityHour] ?? HOUR_LABEL.morning;
+
+  // Habit-based local AI coach tips
+  if (input.habits && input.habits.length > 0) {
+    const today = new Date();
+    const last7Keys: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const y = d.getFullYear();
+      const monthStr = String(d.getMonth() + 1).padStart(2, '0');
+      const dayStr = String(d.getDate()).padStart(2, '0');
+      last7Keys.push(`${y}-${monthStr}-${dayStr}`);
+    }
+
+    let mostSkippedHabit: any = null;
+    let maxSkips = 0;
+    input.habits.forEach(habit => {
+      const safeSkipped = Array.isArray(habit.skippedDates) ? habit.skippedDates : [];
+      const skipsThisWeek = safeSkipped.filter((dateStr: string) => last7Keys.includes(dateStr)).length;
+      if (skipsThisWeek > maxSkips) {
+        maxSkips = skipsThisWeek;
+        mostSkippedHabit = habit;
+      }
+    });
+
+    if (mostSkippedHabit && maxSkips > 0) {
+      tips.push({
+        tone: 'warning',
+        textTr: `"${mostSkippedHabit.name}" alışkanlığını bu hafta ${maxSkips} kez pas geçmişsin. Kendine mola hakkı tanıman güzel ancak rutini kaybetmemeye çalışalım.`,
+        textEn: `You skipped "${mostSkippedHabit.name}" ${maxSkips} times this week. Breaks are healthy, but let's try to maintain the routine.`
+      });
+    }
+
+    let mostCompletedHabit: any = null;
+    let maxCompletions = 0;
+    input.habits.forEach(habit => {
+      const safeCompletions = Array.isArray(habit.completedDates) ? habit.completedDates : [];
+      const completionsThisWeek = safeCompletions.filter((dateStr: string) => last7Keys.includes(dateStr)).length;
+      if (completionsThisWeek > maxCompletions) {
+        maxCompletions = completionsThisWeek;
+        mostCompletedHabit = habit;
+      }
+    });
+
+    if (mostCompletedHabit && maxCompletions >= 4) {
+      tips.push({
+        tone: 'positive',
+        textTr: `Tebrikler, "${mostCompletedHabit.name}" alışkanlığını bu hafta ${maxCompletions} kez tamamlayarak mükemmel bir kararlılık gösterdin.`,
+        textEn: `Congratulations, you completed "${mostCompletedHabit.name}" ${maxCompletions} times this week, showing excellent determination.`
+      });
+    }
+  }
 
   if (input.streak <= 0) {
     tips.push({ tone: 'motivational',

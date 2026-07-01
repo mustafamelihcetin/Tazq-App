@@ -62,7 +62,7 @@ export async function shareTask(task: ShareableTask, lang = 'tr'): Promise<boole
   }
 
   lines.push('');
-  lines.push(isTR ? '— Tazq ile paylaşıldı' : '— Shared via Tazq');
+  lines.push(isTR ? '— TAZQ ile paylaşıldı' : '— Shared via TAZQ');
 
   // Future: append deep link when backend share tokens are ready
   // lines.push(`${DEEP_LINK_BASE}/${task.id}`);
@@ -101,7 +101,7 @@ export async function shareTaskList(
   });
 
   lines.push('');
-  lines.push(isTR ? '— Tazq ile paylaşıldı' : '— Shared via Tazq');
+  lines.push(isTR ? '— TAZQ ile paylaşıldı' : '— Shared via TAZQ');
 
   try {
     const result = await Share.share({

@@ -52,16 +52,24 @@ export async function registerNotificationCategories(): Promise<void> {
       },
     ]);
 
-    // Task due reminder — complete or view
+    const lang = require('@/shared/store/useLanguageStore').useLanguageStore.getState().language;
+    const tr = lang === 'tr';
+
+    // Task due reminder — complete, snooze, or view
     await Notifications.setNotificationCategoryAsync('task-reminder', [
       {
         identifier: 'task-complete',
-        buttonTitle: '✅ Tamamla',
+        buttonTitle: tr ? '✅ Tamamla' : '✅ Complete',
+        options: { opensAppToForeground: false },
+      },
+      {
+        identifier: 'task-snooze',
+        buttonTitle: tr ? '⏰ 15 Dk Ertele' : '⏰ Snooze 15m',
         options: { opensAppToForeground: false },
       },
       {
         identifier: 'open-tasks',
-        buttonTitle: '➡️ Göreve Git',
+        buttonTitle: tr ? '➡️ Göreve Git' : '➡️ Go to Task',
         options: { opensAppToForeground: true },
       },
     ]);

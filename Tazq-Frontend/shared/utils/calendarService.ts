@@ -32,20 +32,20 @@ export async function getCalendarPermissionStatus(): Promise<any> {
 async function getTazqCalendar(): Promise<string | null> {
   const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
 
-  // Prefer a calendar named Tazq we created previously
-  const existing = calendars.find(c => c.title === 'Tazq' && c.allowsModifications);
+  // Prefer a calendar named TAZQ we created previously
+  const existing = calendars.find(c => c.title === 'TAZQ' && c.allowsModifications);
   if (existing) return existing.id;
 
   // On iOS create a dedicated calendar; on Android use the default writable calendar
   if (Platform.OS === 'ios') {
     const defaultSource = calendars.find(c => c.source?.name === 'Default') ?? calendars[0];
     const newCalId = await Calendar.createCalendarAsync({
-      title: 'Tazq',
+      title: 'TAZQ',
       color: '#6366F1',
       entityType: Calendar.EntityTypes.EVENT,
       sourceId: defaultSource?.source?.id,
-      source: defaultSource?.source ?? { isLocalAccount: true, name: 'Tazq', type: '' },
-      name: 'Tazq',
+      source: defaultSource?.source ?? { isLocalAccount: true, name: 'TAZQ', type: '' },
+      name: 'TAZQ',
       ownerAccount: 'personal',
       accessLevel: Calendar.CalendarAccessLevel.OWNER,
     });
@@ -131,7 +131,7 @@ export async function addFocusBlockToCalendar(
 
     const eventId = await Calendar.createEventAsync(calendarId, {
       title: `🎯 ${taskTitle}`,
-      notes: 'Tazq odak seansı',
+      notes: 'TAZQ odak seansı',
       startDate,
       endDate,
     });

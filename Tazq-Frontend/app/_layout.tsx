@@ -253,7 +253,6 @@ export default function RootLayout() {
 
   // Notification response handler — covers tap, Watch action buttons, and Lock Screen actions
   useEffect(() => {
-    if (isExpoGo) return;
     let sub: any;
     try {
       const Notifs = require('expo-notifications');
@@ -268,6 +267,25 @@ export default function RootLayout() {
             taskApi.patch(`/tasks/${data.taskId}`, { isCompleted: true }).catch(() => {});
             // Refresh local store
             require('@/features/tasks').useTaskStore.getState().fetchTasks?.();
+          } catch (_) {}
+          return;
+        }
+
+        // Watch/Lock Screen: "⏰ 15 Dk Ertele" (reschedule notification 15m later)
+        if (action === 'task-snooze' && data.taskId) {
+          try {
+            const snoozeTime = new Date();
+            snoozeTime.setMinutes(snoozeTime.getMinutes() + 15);
+            
+            Notifs.scheduleNotificationAsync({
+              content: {
+                title: response?.notification?.request?.content?.title ?? 'TAZQ Reminder',
+                body: response?.notification?.request?.content?.body ?? '',
+                data: data,
+                categoryIdentifier: 'task-reminder',
+              },
+              trigger: snoozeTime,
+            }).catch(() => {});
           } catch (_) {}
           return;
         }

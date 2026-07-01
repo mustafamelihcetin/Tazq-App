@@ -8,6 +8,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes';
 import { useMomentumStore } from '@/features/user';
+import { useHabitStore } from '@/features/habits';
 import { FocusService, UserStatsResponse } from '@/shared/services/api';
 import { S, R, F, B, TRACKING, MAX_W } from '@/shared/constants/tokens';
 import { generateWeeklyTips, computeWeeklyMetrics, getCoachAction, ProductivityHour } from '@/shared/utils/insights';
@@ -27,6 +28,7 @@ export default function ReportScreen() {
   const router = useRouter();
   const productivityHour = usePrefsStore(s => s.productivityHour);
   const getLastNDays = useMomentumStore(s => s.getLastNDays);
+  const habits = useHabitStore(s => s.habits);
 
   const [stats, setStats] = useState<UserStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +58,7 @@ export default function ReportScreen() {
     streak: stats?.activeStreak ?? 0,
     momentumLast7,
     productivityHour: productivityHour as ProductivityHour,
+    habits,
   };
   const metrics = computeWeeklyMetrics(input);
   const tips = generateWeeklyTips(input, 3);

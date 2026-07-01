@@ -35,6 +35,12 @@
           "microphonePermission": "Tazq needs access to the microphone to record your tasks.",
           "speechRecognitionPermission": "Tazq needs access to speech recognition to convert your voice to text."
         }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Tazq needs access to your calendar to sync your tasks."
+        }
       ]
     ],
     "splash": {

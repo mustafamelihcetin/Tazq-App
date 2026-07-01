@@ -29,6 +29,7 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
+import { syncTaskToCalendar, deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
 import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
 import VoiceService from '@/shared/utils/voice';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
@@ -924,6 +925,7 @@ export default function ActionCenter() {
     if (!snapshot) return;
     removeTask(id);
     cancelTaskNotification(id);
+    deleteTaskFromCalendar(id).catch(() => {});
 
     // Clean deleted task from any plan task ID arrays
     const ps = usePrefsStore.getState();
@@ -975,6 +977,7 @@ export default function ActionCenter() {
         const t = pendingDeleteRef.current.get(id);
         if (t) { clearTimeout(t); pendingDeleteRef.current.delete(id); }
         addTask(snapshot);
+        syncTaskToCalendar(snapshot).catch(() => {});
       },
     });
   };
@@ -1121,6 +1124,7 @@ export default function ActionCenter() {
           } else {
               cancelTaskNotification(editingId);
           }
+          syncTaskToCalendar({ id: editingId, ...payload } as any).catch(() => {});
         } else {
           // Race online update request with a 4.5s timeout to prevent freeze on slow networks
           await Promise.race([
@@ -1133,6 +1137,7 @@ export default function ActionCenter() {
           } else {
               cancelTaskNotification(editingId);
           }
+          syncTaskToCalendar({ id: editingId, ...payload } as any).catch(() => {});
         }
       } else {
         if (!isOnline) {
@@ -1143,6 +1148,7 @@ export default function ActionCenter() {
           if (form.reminderEnabled) {
             scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
           }
+          syncTaskToCalendar({ id: tempId, ...payload } as any).catch(() => {});
         } else {
           // Race online create request with a 4.5s timeout to prevent freeze on slow networks
           const created = await Promise.race([
@@ -1153,6 +1159,7 @@ export default function ActionCenter() {
           if (created.id && form.reminderEnabled) {
             scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
           }
+          syncTaskToCalendar({ id: created.id, ...payload } as any).catch(() => {});
         }
       }
       setModalVisible(false);
@@ -1184,12 +1191,14 @@ export default function ActionCenter() {
           enqueueOffline({ type: 'update-task', id: editingId, payload: safePayload });
           updateTask(editingId, { ...safePayload, id: editingId } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          syncTaskToCalendar({ id: editingId, ...safePayload } as any).catch(() => {});
           setModalVisible(false);
         } else {
           const tempId = -Date.now();
           enqueueOffline({ type: 'create-task', tempId, payload: safePayload });
           addTask({ ...safePayload, id: tempId, title: form.title.trim() } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          syncTaskToCalendar({ id: tempId, ...safePayload } as any).catch(() => {});
           setModalVisible(false);
         }
       } else if (err.response?.status === 429) {
@@ -1362,8 +1371,8 @@ export default function ActionCenter() {
       
         {/* Floating TopBar */}
         <MotiView
-            from={{ translateY: -20, opacity: 0 }}
-            animate={{ translateY: 0, opacity: 1 }}
+            from={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             style={[
                 styles.floatingTopBar,
                 {
@@ -1561,10 +1570,10 @@ export default function ActionCenter() {
         
         <MotiView 
           key="list" 
-          from={{ opacity: 0, translateY: 20 }} 
-          animate={{ opacity: 1, translateY: 0 }} 
+          from={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
           style={{ flex: 1 }}
-          transition={{ type: 'timing', duration: 400 }}
+          transition={{ type: 'timing', duration: 250 }}
         >
           
         <Animated.FlatList itemLayoutAnimation={LinearTransition.springify().damping(18).stiffness(90)}

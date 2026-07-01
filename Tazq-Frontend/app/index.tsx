@@ -656,8 +656,8 @@ export default function HomeScreen() {
       <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
       {/* TopBar — sibling of SafeAreaView, uses insets.top to clear status bar */}
       <MotiView
-          from={{ translateY: -20, opacity: 0 }}
-          animate={{ translateY: 0, opacity: 1 }}
+          from={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           style={[
               styles.floatingTopBar,
               {
@@ -976,8 +976,8 @@ export default function HomeScreen() {
         >
             {/* Welcome Hero */}
             <MotiView
-                from={{ opacity: 0, translateY: 10 }}
-                animate={{ opacity: 1, translateY: 0 }}
+                from={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 style={[styles.heroSection, { paddingHorizontal: S.lg }]}
             >
                 {/* Selamlama + isim TEK blok (isim iç-span, primary): doğal sarar,
@@ -1179,9 +1179,9 @@ export default function HomeScreen() {
             {!(tasks.length === 0 && habits.length === 0) && (
             <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <MotiView
-                    from={{ opacity: 0, translateY: 8 }}
-                    animate={{ opacity: 1, translateY: 0 }}
-                    transition={{ type: 'spring', damping: 15 }}
+                    from={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ type: 'timing', duration: 250 }}
                 >
                     <BentoCard index={1} style={[styles.nextMissionCard, { minHeight: isSmallScreen ? 120 : 140, padding: isSmallScreen ? S.md : S.lg }]}>
                         <LinearGradient

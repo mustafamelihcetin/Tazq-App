@@ -60,9 +60,9 @@ function getLast28Days(): Date[] {
   });
 }
 
-const DAY_LABELS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-const DAY_LABELS_EN_MON = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const DAY_LABELS_EN_SUN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_LABELS_TR = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pa'];
+const DAY_LABELS_EN_MON = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const DAY_LABELS_EN_SUN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function CockpitScreen() {
   const { theme, colorScheme } = useAppTheme();
@@ -128,6 +128,7 @@ export default function CockpitScreen() {
   const [selectedDay, setSelectedDay] = useState(todayKey);
   const [addVisible, setAddVisible] = useState(false);
   const [showDayHint, setShowDayHint] = useState(false);
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [planVisible, setPlanVisible] = useState(false);
   useUiDepth(addVisible || planVisible);
   const [completingHabitIds, setCompletingHabitIds] = useState<Set<string>>(new Set());
@@ -178,6 +179,18 @@ export default function CockpitScreen() {
         setShowDayHint(true);
         setTimeout(() => setShowDayHint(false), 4000);
         AsyncStorage.setItem('tazq-day-hint-shown', 'true').catch(() => {});
+      }
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem('tazq-seen-swipe-hint').then(val => {
+      if (!val) {
+        const timer = setTimeout(() => {
+          setShowSwipeHint(true);
+          AsyncStorage.setItem('tazq-seen-swipe-hint', 'true').catch(() => {});
+        }, 1200);
+        return () => clearTimeout(timer);
       }
     }).catch(() => {});
   }, []);
@@ -394,9 +407,9 @@ export default function CockpitScreen() {
       <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
 
       <MotiView 
-            from={{ opacity: 0, translateY: -20 }} 
-            animate={{ opacity: 1, translateY: 0 }} 
-            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            from={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            transition={{ type: 'timing', duration: 250 }}
             style={[
                 styles.floatingTopBar,
                 {
@@ -794,6 +807,7 @@ export default function CockpitScreen() {
                         toggleSkipDate(habit.id, todayKey);
                       }}
                       isSkipped={isSkipped}
+                      showPeekHint={showSwipeHint && hIdx === 0}
                     >
                       <Touchable
                         onPress={() => toggleHabitExpand(habit.id)}
@@ -1270,14 +1284,14 @@ const styles = StyleSheet.create({
 
   // Week strip
   sectionLabel: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1.5, marginBottom: S.md },
-  weekRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  weekRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
   dayCell: {
-    flex: 1, alignItems: 'center', paddingVertical: S.sm,
-    borderRadius: R.md, borderWidth: B.thin, gap: 3,
+    flex: 1, alignItems: 'center', paddingVertical: 6,
+    borderRadius: 10, borderWidth: B.thin, gap: 4,
   },
-  dayAbbr: { fontSize: 9, fontWeight: '600', letterSpacing: 0.3 },
-  dayCircle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  dayNum: { fontSize: 13, fontWeight: '600' },
+  dayAbbr: { fontSize: 10, fontWeight: '600', letterSpacing: 0.2 },
+  dayCircle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  dayNum: { fontSize: 13, fontWeight: '700' },
   taskDot: { width: 5, height: 5, borderRadius: 2.5 },
 
   // Day tasks card

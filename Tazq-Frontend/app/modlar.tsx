@@ -660,9 +660,9 @@ export default function ModlarScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <MotiView 
-            from={{ opacity: 0, translateY: -20 }} 
-            animate={{ opacity: 1, translateY: 0 }} 
-            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            from={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            transition={{ type: 'timing', duration: 250 }}
             style={[
                 styles.floatingTopBar,
                 {
@@ -746,9 +746,9 @@ export default function ModlarScreen() {
             {/* ── DURUM ÖZETİ KARTI ── aktif modlar: geri sayım + bugünkü plan + motivasyon; boşken davet. */}
             {statusActiveCount > 0 ? (
               <MotiView
-                from={{ opacity: 0, translateY: -8 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={SPRING}
+                from={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ type: 'timing', duration: 250 }}
                 style={[styles.modeCard, {
                   backgroundColor: statusNearest ? (isDark ? statusNearest.color + '1A' : statusNearest.color + '12') : (isDark ? '#1C1C22' : theme.surfaceContainerLowest),
                   borderColor: statusNearest ? statusNearest.color + (isDark ? '40' : '30') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'),
@@ -810,9 +810,9 @@ export default function ModlarScreen() {
               </MotiView>
             ) : (
               <MotiView
-                from={{ opacity: 0, translateY: -8 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={SPRING}
+                from={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ type: 'timing', duration: 250 }}
                 style={[styles.modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', padding: S.md }]}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

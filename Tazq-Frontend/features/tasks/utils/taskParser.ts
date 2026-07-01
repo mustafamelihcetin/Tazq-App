@@ -312,12 +312,12 @@ export function parseTaskHint(text: string, preferredLang?: 'tr' | 'en'): Parsed
     hint.tags.push(isTR ? 'etkinlik' : 'event');
   } else if (finalContext === 'sensitive') {
     if (scores.sensitive >= 10) {
-        hint.wittyMessage = isTR ? "Başınız sağ olsun. Tazq bu süreçte ajandanızı sadeleştirecek. 🙏" : "My condolences. Tazq will simplify your agenda during this time. 🙏";
-    } else {
-        hint.wittyMessage = isTR ? "Geçmiş olsun, sağlığınız her şeyden önemli. Kaydedildi. 🙏" : "Get well soon, your health is priority #1. Noted. 🙏";
-    }
-  } else if (finalContext === 'joyful') {
-    hint.wittyMessage = isTR ? "Harika bir plan! Tazq kutlama moduna hazır. 🎉" : "Great plan! Tazq is ready for celebration mode. 🎉";
+         hint.wittyMessage = isTR ? "Başınız sağ olsun. TAZQ bu süreçte ajandanızı sadeleştirecek. 🙏" : "My condolences. TAZQ will simplify your agenda during this time. 🙏";
+     } else {
+         hint.wittyMessage = isTR ? "Geçmiş olsun, sağlığınız her şeyden önemli. Kaydedildi. 🙏" : "Get well soon, your health is priority #1. Noted. 🙏";
+     }
+   } else if (finalContext === 'joyful') {
+     hint.wittyMessage = isTR ? "Harika bir plan! TAZQ kutlama moduna hazır. 🎉" : "Great plan! TAZQ is ready for celebration mode. 🎉";
   } else if (finalContext === 'stressful') {
     hint.wittyMessage = isTR ? "Zorlu bir görev ama üstesinden gelebilirsin. Odaklanalım! 💪" : "A tough task, but you can handle it. Let's focus! 💪";
   } else {
