@@ -6,6 +6,8 @@ namespace Tazq_App.Services
     {
         Task<bool> RegisterAsync(UserRegisterDto userDto);
         Task<AuthTokens?> LoginAsync(UserLoginDto userDto, string? ipAddress);
+        Task<AuthTokens?> GoogleLoginAsync(string idToken, string? ipAddress);
+        Task<AuthTokens?> AppleLoginAsync(AppleLoginDto dto, string? ipAddress);
         Task<User?> GetUserByIdAsync(int userId);
         Task<bool> UpdateNotificationPreferencesAsync(int userId, UserNotificationPreferences preferences);
         Task<bool> SendForgotPasswordTokenAsync(string email);

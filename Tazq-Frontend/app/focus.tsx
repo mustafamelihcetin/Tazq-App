@@ -106,6 +106,8 @@ export default function FocusScreen() {
   const [summaryMinutes, setSummaryMinutes] = useState(0);
   const [summaryCompleted, setSummaryCompleted] = useState(false);
   const [completionRitual, setCompletionRitual] = useState(false);
+  const [userRating, setUserRating] = useState<number | null>(null);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
   const [isExiting, setIsExiting] = useState(false);
   const [quote, setQuote] = useState('');
@@ -134,7 +136,7 @@ export default function FocusScreen() {
   const timerSize = Math.min(width * 0.72, height * 0.35);
   const elapsed = totalSeconds - seconds;
   const progress = totalSeconds > 0 ? elapsed / totalSeconds : 0;
-  const sessionStarted = elapsed > 0;
+  const sessionStarted = isActive || elapsed > 0;
 
   const progressAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -332,6 +334,11 @@ export default function FocusScreen() {
   };
 
   useEffect(() => {
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'mixWithOthers',
+    }).catch(() => {});
     return () => { stopAllSounds(); };
   }, []);
 
@@ -527,28 +534,31 @@ export default function FocusScreen() {
     return () => sub.remove();
   }, [language]);
 
+  const playCompletionSound = () => {
+    try {
+      const p = createAudioPlayer(require('../assets/sounds/focus_done.mp3'));
+      p.volume = 0.85;
+      p.play();
+      chimePlayerRef.current = p;
+      setTimeout(() => {
+        try {
+          p.remove();
+          if (chimePlayerRef.current === p) chimePlayerRef.current = null;
+        } catch {}
+      }, 8000);
+    } catch (e) {
+      console.warn('[Focus Chime Play Error]', e);
+    }
+  };
+
   // ── Session completion / Pomodoro transitions ─────────────────────────────
   useEffect(() => {
     if (seconds === 0 && totalSeconds > 0 && !completedRef.current) {
       completedRef.current = true;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Seans bitimi sesi — soundEffects toggle'ından bağımsız, her zaman çalar
-      setTimeout(async () => {
-        try {
-          await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'mixWithOthers' });
-          const p = createAudioPlayer(require('../assets/sounds/focus_done.mp3'));
-          p.volume = 0.85;
-          p.play();
-          chimePlayerRef.current = p;
-          setTimeout(() => {
-            try {
-              p.remove();
-              if (chimePlayerRef.current === p) chimePlayerRef.current = null;
-            } catch {}
-          }, 8000);
-        } catch (e) {
-          console.warn('[Focus Chime Play Error]', e);
-        }
+      setTimeout(() => {
+        playCompletionSound();
       }, 250);
 
       const { pomodoroMode: isPomo, pomodoroPhase: phase, pomodoroRound: round } = useFocusStore.getState();
@@ -661,6 +671,9 @@ export default function FocusScreen() {
       setSummaryMinutes(minutesDone);
       setSummaryCompleted(false);
       setSummaryVisible(true);
+      setTimeout(() => {
+        playCompletionSound();
+      }, 250);
     } else {
       reset();
       useToastStore.getState().show(
@@ -1542,6 +1555,50 @@ export default function FocusScreen() {
               )}
             </View>
 
+            {/* Customer Effort / Experience Rating */}
+            <View style={{ width: '100%', alignItems: 'center', marginVertical: S.xs }}>
+              {!ratingSubmitted ? (
+                <>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceVariant, letterSpacing: 0.5, marginBottom: S.xs }}>
+                    {language === 'tr' ? 'BU SEANS NASIL GEÇTİ?' : 'HOW WAS THIS SESSION?'}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: S.sm }}>
+                    {[1, 2, 3, 4, 5].map((num) => {
+                      const emojis = ['😫', '😕', '😐', '🙂', '🤩'];
+                      const isSelected = userRating === num;
+                      return (
+                        <Touchable
+                          key={num}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setUserRating(num);
+                            track('ux_rating_submitted', { score: num, type: 'CES_focus' });
+                            setRatingSubmitted(true);
+                          }}
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 19,
+                            backgroundColor: isSelected ? theme.primary + '20' : 'transparent',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderWidth: 1,
+                            borderColor: isSelected ? theme.primary : 'transparent'
+                          }}
+                        >
+                          <Text style={{ fontSize: 20 }}>{emojis[num - 1]}</Text>
+                        </Touchable>
+                      );
+                    })}
+                  </View>
+                </>
+              ) : (
+                <Text style={{ fontSize: 12, fontWeight: '600', color: theme.tertiary, letterSpacing: 0.2 }}>
+                  ✦ {language === 'tr' ? 'Geri bildiriminiz kaydedildi, teşekkürler!' : 'Feedback recorded, thank you!'} ✦
+                </Text>
+              )}
+            </View>
+
             <View style={{ width: '100%', height: 1, backgroundColor: theme.onSurface + '12', marginVertical: S.xs }} />
 
             {/* Break button (only after standard completed session) */}
@@ -1560,6 +1617,8 @@ export default function FocusScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 setSummaryVisible(false);
+                setUserRating(null);
+                setRatingSubmitted(false);
                 stopAllSounds();
                 setAmbientSound('off');
                 setIsExiting(true);
@@ -1576,7 +1635,13 @@ export default function FocusScreen() {
             </Touchable>
 
             <Touchable
-              onPress={() => { setSummaryVisible(false); completedRef.current = false; reset(); }}
+              onPress={() => { 
+                setSummaryVisible(false); 
+                setUserRating(null); 
+                setRatingSubmitted(false); 
+                completedRef.current = false; 
+                reset(); 
+              }}
               style={{ paddingVertical: S.sm }}
             >
               <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>

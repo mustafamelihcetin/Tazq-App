@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Tazq_App.Data;
@@ -13,6 +14,8 @@ namespace Tazq_Backend.Tests
         private readonly Mock<ICustomEmailService> _emailMock;
         private readonly Mock<IJwtService> _jwtMock;
         private readonly Mock<ILogger<UserService>> _loggerMock;
+        private readonly Mock<IGoogleTokenValidator> _googleMock;
+        private readonly Mock<IAppleTokenValidator> _appleMock;
         private readonly UserService _userService;
 
         public UserServiceAdditionalTests()
@@ -24,7 +27,9 @@ namespace Tazq_Backend.Tests
             _emailMock = new Mock<ICustomEmailService>();
             _jwtMock = new Mock<IJwtService>();
             _loggerMock = new Mock<ILogger<UserService>>();
-            _userService = new UserService(_context, _emailMock.Object, _jwtMock.Object, _loggerMock.Object);
+            _googleMock = new Mock<IGoogleTokenValidator>();
+            _appleMock = new Mock<IAppleTokenValidator>();
+            _userService = new UserService(_context, _emailMock.Object, _jwtMock.Object, _loggerMock.Object, _googleMock.Object, _appleMock.Object);
         }
 
         [Fact]
@@ -101,21 +106,22 @@ namespace Tazq_Backend.Tests
         {
             var dto = new UserRegisterDto { Email = "forgot@test.com", Name = "ForgotUser", Password = "Pass!1" };
             await _userService.RegisterAsync(dto);
-            _emailMock.Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            _emailMock.Setup(e => e.SendForgotPasswordEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
                 .Returns(Task.CompletedTask);
 
             var result = await _userService.SendForgotPasswordTokenAsync(dto.Email);
 
             Assert.True(result);
-            _emailMock.Verify(e => e.SendEmailAsync(dto.Email, It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+            await Task.Delay(100); // Give Task.Run a moment to execute background thread
+            _emailMock.Verify(e => e.SendForgotPasswordEmailAsync(dto.Email, It.IsAny<string>(), It.IsAny<string>()), Times.Once);
         }
 
         [Fact]
-        public async Task SendForgotPasswordTokenAsync_ShouldReturnTrue_WhenUserNotFound()
+        public async Task SendForgotPasswordTokenAsync_ShouldReturnFalse_WhenUserNotFound()
         {
             var result = await _userService.SendForgotPasswordTokenAsync("nobody@test.com");
-            Assert.True(result);
-            _emailMock.Verify(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+            Assert.False(result);
+            _emailMock.Verify(e => e.SendForgotPasswordEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
@@ -193,6 +199,128 @@ namespace Tazq_Backend.Tests
             // All active tokens should now be revoked
             var revokedTokens = await _context.RefreshTokens.Where(t => t.UserId == user.Id).ToListAsync();
             Assert.All(revokedTokens, t => Assert.NotNull(t.RevokedAt));
+        }
+
+        [Fact]
+        public async Task GoogleLoginAsync_ShouldRegisterAndLoginNewUser_WhenTokenIsValid()
+        {
+            // Arrange
+            var payload = new Google.Apis.Auth.GoogleJsonWebSignature.Payload
+            {
+                Email = "new_google@test.com",
+                Name = "Google User"
+            };
+            _googleMock.Setup(g => g.ValidateAsync("valid-token"))
+                .ReturnsAsync(payload);
+            _jwtMock.Setup(j => j.GenerateToken(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns("jwt-token");
+
+            // Act
+            var tokens = await _userService.GoogleLoginAsync("valid-token", "127.0.0.1");
+
+            // Assert
+            Assert.NotNull(tokens);
+            Assert.Equal("jwt-token", tokens!.Token);
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == payload.Email);
+            Assert.NotNull(user);
+            Assert.Equal(payload.Name, user!.Name);
+            Assert.True(string.IsNullOrEmpty(user.PasswordHash)); // Password auth should be empty
+        }
+
+        [Fact]
+        public async Task GoogleLoginAsync_ShouldLoginExistingUser_WhenTokenIsValid()
+        {
+            // Arrange
+            var dto = new UserRegisterDto { Email = "exist_google@test.com", Name = "Existing", Password = "Pass123!" };
+            await _userService.RegisterAsync(dto);
+
+            var payload = new Google.Apis.Auth.GoogleJsonWebSignature.Payload
+            {
+                Email = dto.Email,
+                Name = dto.Name
+            };
+            _googleMock.Setup(g => g.ValidateAsync("valid-token"))
+                .ReturnsAsync(payload);
+            _jwtMock.Setup(j => j.GenerateToken(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns("jwt-token");
+
+            // Act
+            var tokens = await _userService.GoogleLoginAsync("valid-token", "127.0.0.1");
+
+            // Assert
+            Assert.NotNull(tokens);
+            Assert.Equal("jwt-token", tokens!.Token);
+        }
+
+        [Fact]
+        public async Task AppleLoginAsync_ShouldRegisterAndLoginNewUser_WhenTokenIsValid()
+        {
+            // Arrange
+            var claims = new[]
+            {
+                new Claim("email", "new_apple@test.com"),
+                new Claim(ClaimTypes.NameIdentifier, "apple-sub-123")
+            };
+            var identity = new ClaimsIdentity(claims, "TestAuthType");
+            var principal = new ClaimsPrincipal(identity);
+
+            var dto = new AppleLoginDto
+            {
+                IdentityToken = "valid-apple-token",
+                FirstName = "Apple",
+                LastName = "User"
+            };
+
+            _appleMock.Setup(a => a.ValidateAsync("valid-apple-token"))
+                .ReturnsAsync(principal);
+            _jwtMock.Setup(j => j.GenerateToken(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns("jwt-token");
+
+            // Act
+            var tokens = await _userService.AppleLoginAsync(dto, "127.0.0.1");
+
+            // Assert
+            Assert.NotNull(tokens);
+            Assert.Equal("jwt-token", tokens!.Token);
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == "new_apple@test.com");
+            Assert.NotNull(user);
+            Assert.Equal("Apple User", user!.Name);
+            Assert.True(string.IsNullOrEmpty(user.PasswordHash));
+        }
+
+        [Fact]
+        public async Task AppleLoginAsync_ShouldLoginExistingUser_WhenTokenIsValid()
+        {
+            // Arrange
+            var existingDto = new UserRegisterDto { Email = "exist_apple@test.com", Name = "Existing", Password = "Pass123!" };
+            await _userService.RegisterAsync(existingDto);
+
+            var claims = new[]
+            {
+                new Claim("email", "exist_apple@test.com"),
+                new Claim(ClaimTypes.NameIdentifier, "apple-sub-456")
+            };
+            var identity = new ClaimsIdentity(claims, "TestAuthType");
+            var principal = new ClaimsPrincipal(identity);
+
+            var dto = new AppleLoginDto
+            {
+                IdentityToken = "valid-apple-token"
+            };
+
+            _appleMock.Setup(a => a.ValidateAsync("valid-apple-token"))
+                .ReturnsAsync(principal);
+            _jwtMock.Setup(j => j.GenerateToken(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns("jwt-token");
+
+            // Act
+            var tokens = await _userService.AppleLoginAsync(dto, "127.0.0.1");
+
+            // Assert
+            Assert.NotNull(tokens);
+            Assert.Equal("jwt-token", tokens!.Token);
         }
     }
 }

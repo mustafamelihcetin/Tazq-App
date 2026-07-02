@@ -71,8 +71,8 @@ export const DynamicIsland = () => {
                 <Text style={[styles.label, { color: isActive ? theme.primary : (isDark ? theme.secondary : theme.onSurfaceVariant) }]}>
                     {isActive ? t.activeFocus : t.dailyGoal}
                 </Text>
-                <Text adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.title, { color: theme.onSurface }]} numberOfLines={1}>
-                    {isActive ? (currentTask || t.focusSession) : t.focusReady}
+                <Text adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.title, { color: theme.onSurface }]} numberOfLines={1}>
+                    {isActive ? (currentTask && currentTask.length > 24 ? currentTask.substring(0, 24) + '...' : (currentTask || t.focusSession)) : t.focusReady}
                 </Text>
             </View>
 

@@ -33,7 +33,9 @@ export type AnalyticsEvent =
   | 'mode_summary_opened'
   | 'coach_tip_shown'
   // UI
-  | 'ui_mode_changed';
+  | 'ui_mode_changed'
+  | 'ui_rage_click'
+  | 'ux_rating_submitted';
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 

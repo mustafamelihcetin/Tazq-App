@@ -47,6 +47,32 @@ namespace Tazq_App.Controllers
                 : Unauthorized("Geçersiz e-posta veya şifre.");
         }
 
+        [HttpPost("google-login")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.IdToken))
+                return BadRequest(new { message = "Google Token bulunamadı." });
+
+            var tokens = await _userService.GoogleLoginAsync(dto.IdToken, HttpContext.Connection.RemoteIpAddress?.ToString());
+            return tokens != null
+                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken })
+                : BadRequest(new { message = "Google doğrulaması başarısız oldu veya hesap engellendi." });
+        }
+
+        [HttpPost("apple-login")]
+        [AllowAnonymous]
+        public async Task<IActionResult> AppleLogin([FromBody] AppleLoginDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.IdentityToken))
+                return BadRequest(new { message = "Apple Identity Token bulunamadı." });
+
+            var tokens = await _userService.AppleLoginAsync(dto, HttpContext.Connection.RemoteIpAddress?.ToString());
+            return tokens != null
+                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken })
+                : BadRequest(new { message = "Apple doğrulaması başarısız oldu veya hesap engellendi." });
+        }
+
         [HttpPatch("update-notification-preferences")]
         [Authorize]
         public async Task<IActionResult> UpdateNotificationPreferences([FromBody] UserNotificationPreferences preferencesDto)
@@ -90,7 +116,11 @@ namespace Tazq_App.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            await _userService.SendForgotPasswordTokenAsync(request.Email);
+            var success = await _userService.SendForgotPasswordTokenAsync(request.Email);
+            if (!success)
+            {
+                return BadRequest(new { message = "Bu e-posta adresiyle kayıtlı bir hesap bulunamadı." });
+            }
             return Ok("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.");
         }
 

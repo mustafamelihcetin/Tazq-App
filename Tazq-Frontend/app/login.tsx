@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, useWindowDimension
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react-native';
+import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '@/shared/services/api';
@@ -52,9 +52,122 @@ export default function LoginScreen() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotMsg, setForgotMsg] = useState<{ text: string; success: boolean } | null>(null);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
   
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
+
+  const handleGoogleSignIn = async () => {
+    let GoogleSignin: any;
+    const { NativeModules } = require('react-native');
+    if (!NativeModules.RNGoogleSignin) {
+      Alert.alert(
+        language === 'tr' ? 'Desteklenmiyor' : 'Unsupported',
+        language === 'tr'
+          ? 'Google ile giriş bu cihaz derlemesinde desteklenmiyor. Lütfen yeni bir geliştirici build\'i alın.'
+          : 'Google Sign-In is not supported in this client build. Please build a new development client.'
+      );
+      return;
+    }
+
+    try {
+      GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+    } catch (e) {
+      console.warn('[Google Sign-In] Failed to require package:', e);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      const idToken = response.data?.idToken;
+      if (!idToken) {
+        throw new Error('Google ID Token was not returned.');
+      }
+
+      const { token, refreshToken } = await AuthService.googleLogin(idToken);
+      const userData = await AuthService.getCurrentUser(token);
+      setAuth(userData, token, refreshToken);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/');
+    } catch (err: any) {
+      console.warn('[Google Sign-In Error]', err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (err?.code === 'SIGN_IN_CANCELLED' || err?.message?.includes('Sign in cancelled')) {
+        return;
+      }
+      setError(language === 'tr' ? 'Google ile giriş başarısız oldu.' : 'Google Sign-In failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    let AppleAuthentication: any;
+    try {
+      AppleAuthentication = require('expo-apple-authentication');
+      const isAvailable = await AppleAuthentication.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert(
+          language === 'tr' ? 'Desteklenmiyor' : 'Unsupported',
+          language === 'tr'
+            ? 'Apple ile giriş bu cihazda desteklenmiyor.'
+            : 'Apple Sign-In is not supported on this device.'
+        );
+        return;
+      }
+    } catch (e) {
+      Alert.alert(
+        language === 'tr' ? 'Desteklenmiyor' : 'Unsupported',
+        language === 'tr'
+          ? 'Apple ile giriş bu cihaz derlemesinde desteklenmiyor. Lütfen yeni bir geliştirici build\'i alın.'
+          : 'Apple Sign-In is not supported in this client build. Please build a new development client.'
+      );
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      const identityToken = credential.identityToken;
+      if (!identityToken) {
+        throw new Error('Apple identity token was not returned.');
+      }
+
+      const { token, refreshToken } = await AuthService.appleLogin(
+        identityToken,
+        credential.fullName?.givenName || undefined,
+        credential.fullName?.familyName || undefined
+      );
+
+      const userData = await AuthService.getCurrentUser(token);
+      setAuth(userData, token, refreshToken);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/');
+    } catch (err: any) {
+      console.warn('[Apple Sign-In Error]', err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (err?.code === 'ERR_REQUEST_CANCELED' || err?.code === 'ERR_CANCELED') {
+        return;
+      }
+      setError(language === 'tr' ? 'Apple ile giriş başarısız oldu.' : 'Apple Sign-In failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     const invalid = validateLogin(email, password);
@@ -93,6 +206,7 @@ export default function LoginScreen() {
     setForgotVisible(false);
     setForgotEmail('');
     setForgotMsg(null);
+    setForgotSuccess(false);
   };
 
   const handleForgotPassword = async () => {
@@ -102,11 +216,13 @@ export default function LoginScreen() {
       return;
     }
     setForgotLoading(true);
+    setForgotMsg(null);
     try {
       await AuthService.forgotPassword(forgotEmail.trim());
-      setForgotMsg({ text: t.login.forgotSuccess, success: true });
-    } catch {
-      setForgotMsg({ text: t.login.forgotError, success: false });
+      setForgotSuccess(true);
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.response?.data || t.login.forgotError;
+      setForgotMsg({ text: errMsg, success: false });
     } finally {
       setForgotLoading(false);
     }
@@ -125,26 +241,26 @@ export default function LoginScreen() {
           >
           <ScrollView
             style={styles.keyboardView}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, { justifyContent: 'space-between', paddingVertical: isSmallScreen ? 16 : 32 }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={[styles.content, { paddingVertical: isSmallScreen ? 12 : isMediumScreen ? 20 : 32 }]}>
+            <View style={{ gap: isSmallScreen ? 8 : isMediumScreen ? 14 : 20, width: '100%' }}>
               <MotiView
                 from={{ opacity: 0, scale: 0.8, translateY: -20 }}
                 animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                style={[styles.header, { marginBottom: isSmallScreen ? 10 : isMediumScreen ? 16 : 28 }]}
+                style={styles.header}
               >
-                <TazqLogo size={isSmallScreen ? 52 : isMediumScreen ? 64 : 80} />
+                <TazqLogo size={isSmallScreen ? 44 : isMediumScreen ? 56 : 72} />
                 <MotiText
                   from={{ opacity: 0, translateY: 10 }}
                   animate={{ opacity: 1, translateY: 0 }}
                   transition={{ delay: 200 }}
-                  style={[styles.title, { color: theme.onSurface, fontSize: isSmallScreen ? 24 : isMediumScreen ? 28 : 34, marginTop: isSmallScreen ? 8 : 16 }]}
+                  style={[styles.title, { color: theme.onSurface, fontSize: isSmallScreen ? 20 : isMediumScreen ? 26 : 32, marginTop: isSmallScreen ? 4 : 10 }]}
                 >
                   {t.login.title}
                 </MotiText>
-                <Text style={[styles.subtitle, { color: theme.onSurfaceVariant }]}>
+                <Text style={[styles.subtitle, { color: theme.onSurfaceVariant, fontSize: isSmallScreen ? 12 : 14, marginTop: isSmallScreen ? 2 : 4 }]}>
                   {t.login.sub}
                 </Text>
               </MotiView>
@@ -155,7 +271,7 @@ export default function LoginScreen() {
                 transition={{ delay: 400 }}
                 style={styles.cardContainer}
               >
-                <GlassCard style={[styles.glassCard, { padding: isSmallScreen ? 16 : isMediumScreen ? 20 : 28 }]}>
+                <GlassCard style={[styles.glassCard, { padding: isSmallScreen ? 12 : isMediumScreen ? 18 : 24 }]}>
                   {error && (
                     <MotiView 
                       from={{ opacity: 0, height: 0 }}
@@ -167,11 +283,12 @@ export default function LoginScreen() {
                     </MotiView>
                   )}
 
-                  <View style={styles.form}>
-                    <View style={styles.inputGroup}>
+                  <View style={[styles.form, { gap: isSmallScreen ? 8 : 14 }]}>
+                    <View style={[styles.inputGroup, { gap: isSmallScreen ? 4 : 8 }]}>
                       <View style={[styles.inputWrapper, {
                         backgroundColor: theme.surfaceContainerLow,
                         borderColor: theme.outlineVariant,
+                        height: isSmallScreen ? 42 : 52,
                       }]}>
                         <Mail size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
@@ -194,10 +311,11 @@ export default function LoginScreen() {
                       </View>
                     </View>
 
-                    <View style={styles.inputGroup}>
+                    <View style={[styles.inputGroup, { gap: isSmallScreen ? 4 : 8 }]}>
                       <View style={[styles.inputWrapper, {
                         backgroundColor: theme.surfaceContainerLow,
                         borderColor: theme.outlineVariant,
+                        height: isSmallScreen ? 42 : 52,
                       }]}>
                         <Lock size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
@@ -224,7 +342,7 @@ export default function LoginScreen() {
                     <Touchable
                       onPress={handleLogin}
                       disabled={isLoading}
-                      style={styles.loginButton}
+                      style={[styles.loginButton, { height: isSmallScreen ? 42 : 52 }]}
                     >
                       <MotiView
                         animate={{ backgroundColor: theme.primary }}
@@ -242,7 +360,7 @@ export default function LoginScreen() {
                     </Touchable>
 
                     {/* OR Divider */}
-                    <View style={styles.dividerRow}>
+                    <View style={[styles.dividerRow, { marginVertical: isSmallScreen ? 4 : 10 }]}>
                       <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '40' }]} />
                       <Text style={[styles.dividerText, { color: theme.onSurfaceVariant }]}>{t.login.orDivider}</Text>
                       <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '40' }]} />
@@ -251,32 +369,62 @@ export default function LoginScreen() {
                     {/* Social Buttons — Coming soon */}
                     <View style={styles.socialRow}>
                       <Touchable
-                        style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, opacity: 0.5 }]}
-                        onPress={() => Alert.alert('Yakında', 'Google ile giriş yakında eklenecek.')}
+                        style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, height: isSmallScreen ? 38 : 46 }]}
+                        onPress={handleGoogleSignIn}
                         activeOpacity={0.7}
+                        disabled={isLoading}
                       >
                         <GoogleIcon color={theme.onSurface} />
                         <Text style={[styles.socialText, { color: theme.onSurface }]}>Google</Text>
                       </Touchable>
-                      <Touchable
-                        style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, opacity: 0.5 }]}
-                        onPress={() => Alert.alert('Yakında', 'Apple ile giriş yakında eklenecek.')}
-                        activeOpacity={0.7}
-                      >
-                        <AppleIcon color={theme.onSurface} />
-                        <Text style={[styles.socialText, { color: theme.onSurface }]}>Apple</Text>
-                      </Touchable>
+                      {Platform.OS === 'ios' && (
+                        <Touchable
+                          style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, height: isSmallScreen ? 38 : 46 }]}
+                          onPress={handleAppleSignIn}
+                          activeOpacity={0.7}
+                          disabled={isLoading}
+                        >
+                          <AppleIcon color={theme.onSurface} />
+                          <Text style={[styles.socialText, { color: theme.onSurface }]}>Apple</Text>
+                        </Touchable>
+                      )}
                     </View>
+
+                    <Text style={[styles.disclaimerText, { color: theme.onSurfaceVariant, marginTop: isSmallScreen ? 4 : 10 }]}>
+                      {language === 'tr' ? 'Google veya Apple ile devam ederek, ' : 'By continuing with Google or Apple, you agree to our '}
+                      <Text
+                        style={{ color: theme.primary, fontWeight: '800' }}
+                        onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
+                      >
+                        {language === 'tr' ? 'Kullanıcı Sözleşmesi' : 'Terms of Service'}
+                      </Text>
+                      {language === 'tr' ? "'ni, " : ', '}
+                      <Text
+                        style={{ color: theme.primary, fontWeight: '800' }}
+                        onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
+                      >
+                        {language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}
+                      </Text>
+                      {language === 'tr' ? ' ve ' : ' and '}
+                      <Text
+                        style={{ color: theme.primary, fontWeight: '800' }}
+                        onPress={() => router.push({ pathname: '/legal', params: { doc: 'kvkk' } })}
+                      >
+                        {language === 'tr' ? 'KVKK Metni' : 'Data Notice'}
+                      </Text>
+                      {language === 'tr' ? "'ni kabul etmiş olursunuz." : '.'}
+                    </Text>
                   </View>
                 </GlassCard>
               </MotiView>
+            </View>
 
               {/* Fixed Footer Alignment */}
               <MotiView
                 from={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 600 }}
-                style={[styles.footer, { marginTop: isSmallScreen ? 8 : isMediumScreen ? 16 : 28 }]}
+                style={[styles.footer, { marginTop: error ? (isSmallScreen ? 4 : 8) : (isSmallScreen ? 8 : isMediumScreen ? 16 : 28) }]}
               >
                 {/* Tek Text + iç span'ler → "TAZQ" marka fontuyla ama footer metniyle AYNI
                     fontSize'ı miras alır: her ekranda/font ölçeğinde aynı baseline, orantılı,
@@ -294,7 +442,6 @@ export default function LoginScreen() {
                   </Text>
                 </Text>
               </MotiView>
-            </View>
           </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
@@ -307,42 +454,76 @@ export default function LoginScreen() {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
             <GlassCard style={styles.modalCard}>
-              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.modalTitle, { color: theme.onSurface }]}>{t.login.forgotTitle}</Text>
-              <Text style={[styles.modalSub, { color: theme.onSurfaceVariant }]}>{t.login.forgotSub}</Text>
-              
-              <TextInput
-                placeholder={t.login.email}
-                placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
-                style={[styles.modalInput, {
-                  backgroundColor: theme.surfaceContainerLow,
-                  color: theme.onSurface,
-                  borderColor: theme.outlineVariant,
-                }]}
-                value={forgotEmail}
-                onChangeText={setForgotEmail}
-                autoCapitalize="none"
-                autoCorrect={false}
-                spellCheck={false}
-                autoComplete="email"
-                textContentType="emailAddress"
-                keyboardType="email-address"
-                underlineColorAndroid="transparent"
-              />
+              {forgotSuccess ? (
+                <View style={{ alignItems: 'center', gap: S.md, paddingVertical: S.sm }}>
+                  <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: theme.tertiary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                    <CheckCircle2 size={32} color={theme.tertiary} />
+                  </View>
+                  <Text style={[styles.modalTitle, { color: theme.onSurface, textAlign: 'center', marginBottom: 0 }]}>
+                    {language === 'tr' ? 'E-posta Gönderildi' : 'Email Sent'}
+                  </Text>
+                  <Text style={{ fontSize: 14, color: theme.onSurfaceVariant, textAlign: 'center', lineHeight: 20, fontFamily: 'Jakarta-SemiBold' }}>
+                    {language === 'tr' 
+                      ? 'Şifre sıfırlama talimatları e-posta adresinize gönderildi. Lütfen gelen kutunuzu kontrol edin.'
+                      : 'Password reset instructions have been sent to your email. Please check your inbox.'}
+                  </Text>
+                  <Touchable onPress={closeForgotModal} style={[styles.modalSend, { backgroundColor: theme.primary, width: '100%', marginTop: S.md, height: 48, borderRadius: R.md }]}>
+                    <Text style={{ color: theme.onPrimary, fontWeight: '700' }}>{language === 'tr' ? 'Harika' : 'Got it'}</Text>
+                  </Touchable>
+                </View>
+              ) : (
+                <>
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.modalTitle, { color: theme.onSurface }]}>{t.login.forgotTitle}</Text>
+                  <Text style={[styles.modalSub, { color: theme.onSurfaceVariant }]}>{t.login.forgotSub}</Text>
+                  
+                  {forgotMsg && (
+                    <MotiView 
+                      from={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      style={{ 
+                        flexDirection: 'row', 
+                        alignItems: 'center', 
+                        gap: S.sm, 
+                        padding: S.sm + 4, 
+                        borderRadius: R.sm + 4, 
+                        backgroundColor: theme.error + '15',
+                        marginBottom: S.sm
+                      }}
+                    >
+                      <AlertCircle size={16} color={theme.error} />
+                      <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: theme.error }}>{forgotMsg.text}</Text>
+                    </MotiView>
+                  )}
 
-              {forgotMsg && (
-                <Text style={{ fontSize: 13, fontWeight: '600', color: forgotMsg.success ? theme.tertiary : theme.error, textAlign: 'center' }}>
-                  {forgotMsg.text}
-                </Text>
+                  <TextInput
+                    placeholder={t.login.email}
+                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
+                    style={[styles.modalInput, {
+                      backgroundColor: theme.surfaceContainerLow,
+                      color: theme.onSurface,
+                      borderColor: theme.outlineVariant,
+                    }]}
+                    value={forgotEmail}
+                    onChangeText={setForgotEmail}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    spellCheck={false}
+                    autoComplete="email"
+                    textContentType="emailAddress"
+                    keyboardType="email-address"
+                    underlineColorAndroid="transparent"
+                  />
+
+                  <View style={styles.modalActions}>
+                    <Touchable onPress={closeForgotModal} style={styles.modalCancel}>
+                      <Text style={{ color: theme.onSurfaceVariant }}>{t.cancel}</Text>
+                    </Touchable>
+                    <Touchable onPress={handleForgotPassword} disabled={forgotLoading} style={[styles.modalSend, { backgroundColor: theme.primary }]}>
+                      {forgotLoading ? <ActivityIndicator color={theme.onPrimary} size="small" /> : <Text style={{ color: theme.onPrimary, fontWeight: '700' }}>{t.login.forgotSend}</Text>}
+                    </Touchable>
+                  </View>
+                </>
               )}
-
-              <View style={styles.modalActions}>
-                <Touchable onPress={closeForgotModal} style={styles.modalCancel}>
-                  <Text style={{ color: theme.onSurfaceVariant }}>{t.cancel}</Text>
-                </Touchable>
-                <Touchable onPress={handleForgotPassword} disabled={forgotLoading} style={[styles.modalSend, { backgroundColor: theme.primary }]}>
-                  {forgotLoading ? <ActivityIndicator color={theme.onPrimary} size="small" /> : <Text style={{ color: theme.onPrimary }}>{t.login.forgotSend}</Text>}
-                </Touchable>
-              </View>
             </GlassCard>
           </View>
           </TouchableWithoutFeedback>
@@ -357,8 +538,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   keyboardView: { flex: 1 },
-  scrollContent: { flexGrow: 1, justifyContent: 'center' },
-  content: { paddingHorizontal: scale(24), gap: 0, width: '100%', maxWidth: 480, alignSelf: 'center' },
+  scrollContent: { flexGrow: 1, paddingHorizontal: scale(24), width: '100%', maxWidth: 480, alignSelf: 'center' },
   header: { alignItems: 'center' },
   title: { fontFamily: 'Jakarta-ExtraBold', letterSpacing: -1.2 },
   subtitle: { fontSize: moderateScale(15), fontWeight: '500', marginTop: verticalScale(6), opacity: 0.6, letterSpacing: 0.1 },
@@ -382,6 +562,7 @@ const styles = StyleSheet.create({
   socialRow: { flexDirection: 'row', gap: S.md },
   socialButton: { flex: 1, height: Platform.OS === 'android' ? verticalScale(48) : verticalScale(56), borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10), borderWidth: B.thin },
   socialText: { fontSize: moderateScale(15), fontWeight: '700' },
+  disclaimerText: { fontSize: moderateScale(11), lineHeight: verticalScale(16), textAlign: 'center', marginTop: S.sm + 2, paddingHorizontal: S.xs, opacity: 0.75 },
   footer: { alignItems: 'center', marginTop: verticalScale(28) },
   footerRow: { flexDirection: 'row', alignItems: 'center' },
   footerText: { fontSize: moderateScale(15), fontWeight: '500' },

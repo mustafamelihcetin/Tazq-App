@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Tazq_App.Data;
 using Tazq_App.Models;
+using Tazq_App.Services;
 
 namespace Tazq_App.Controllers
 {
@@ -13,10 +14,14 @@ namespace Tazq_App.Controllers
 	public class SupportController : ControllerBase
 	{
 		private readonly AppDbContext _db;
+		private readonly ICustomEmailService _emailService;
+		private readonly ILogger<SupportController> _logger;
 
-		public SupportController(AppDbContext db)
+		public SupportController(AppDbContext db, ICustomEmailService emailService, ILogger<SupportController> logger)
 		{
 			_db = db;
+			_emailService = emailService;
+			_logger = logger;
 		}
 
 		private int? GetUserId()
@@ -62,6 +67,18 @@ namespace Tazq_App.Controllers
 			_db.SupportMessages.Add(supportMsg);
 			await _db.SaveChangesAsync();
 
+			_ = Task.Run(async () =>
+			{
+				try
+				{
+					await _emailService.SendSupportConfirmationEmailAsync(user.Email, user.Name, supportMsg.Message);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Failed to send support message confirmation to {Email}", user.Email);
+				}
+			});
+
 			return Ok(new { success = true, id = supportMsg.Id });
 		}
 
@@ -104,6 +121,18 @@ namespace Tazq_App.Controllers
 			msg.RepliedAt = DateTime.UtcNow;
 			msg.IsRead = true;
 			await _db.SaveChangesAsync();
+
+			_ = Task.Run(async () =>
+			{
+				try
+				{
+					await _emailService.SendSupportReplyEmailAsync(msg.UserEmail, msg.UserName, msg.Message, msg.AdminReply);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Failed to send support reply notification to {Email}", msg.UserEmail);
+				}
+			});
 
 			return Ok(new { success = true, repliedAt = msg.RepliedAt });
 		}

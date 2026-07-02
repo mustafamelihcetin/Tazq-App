@@ -49,6 +49,14 @@ export const F = {
   hero: moderateScale(34),
 } as const;
 
+export const FONT_FAMILY = {
+  extraBold: Platform.OS === 'ios' ? 'System' : 'Jakarta-ExtraBold',
+  bold: Platform.OS === 'ios' ? 'System' : 'Jakarta-Bold',
+  semiBold: Platform.OS === 'ios' ? 'System' : 'Jakarta-SemiBold',
+  medium: Platform.OS === 'ios' ? 'System' : 'Jakarta-Medium',
+  regular: Platform.OS === 'ios' ? 'System' : 'Jakarta-Regular',
+} as const;
+
 export const LH = {
   tight: 1.2,
   normal: 1.45,

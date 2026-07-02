@@ -8,7 +8,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MotiView } from 'moti';
 import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { AuthService, FocusService, SupportService, MySupportMessage } from '@/shared/services/api';
+import { AuthService, FocusService } from '@/shared/services/api';
+import { SupportModal } from '@/shared/components/SupportModal';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { useAuthStore, getAvatarSource, AVATAR_CONFIGS, AVATAR_MAP, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -60,27 +61,9 @@ export default function ProfileScreen() {
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   useUiDepth(editModalVisible);
-  const [supportModalVisible, setSupportModalVisible] = useState(false);
-  const [supportText, setSupportText] = useState('');
-  const [sendingSupport, setSendingSupport] = useState(false);
-  const [myMessages, setMyMessages] = useState<MySupportMessage[]>([]);
-  const [loadingMine, setLoadingMine] = useState(false);
-  useUiDepth(supportModalVisible);
-
-  const loadMyMessages = React.useCallback(async () => {
-    setLoadingMine(true);
-    try {
-      const r = await SupportService.getMyMessages();
-      setMyMessages(r.messages || []);
-    } catch { /* sessiz — liste boş kalır */ }
-    finally { setLoadingMine(false); }
-  }, []);
-
-  // Destek modalı açılınca kullanıcının kendi mesajları + admin yanıtlarını getir.
-  useEffect(() => {
-    if (supportModalVisible) loadMyMessages();
-  }, [supportModalVisible, loadMyMessages]);
   const [selectedAvatar, setSelectedAvatar] = useState(user?.avatar || 'm1');
+  const [supportModalVisible, setSupportModalVisible] = useState(false);
+  useUiDepth(supportModalVisible);
   const [newName, setNewName] = useState(user?.name || '');
   const [selectedGoal, setSelectedGoal] = useState(dailyGoalMinutes);
   const [newMotto, setNewMotto] = useState(motto);
@@ -277,42 +260,6 @@ export default function ProfileScreen() {
       }
     ]);
   };
-
-  const handleSendSupport = async () => {
-    if (!supportText.trim()) {
-      Alert.alert(language === 'tr' ? 'Hata' : 'Error', (t as any).support?.emptyError || 'Lütfen bir mesaj yaz.');
-      return;
-    }
-    const tr = language === 'tr';
-    setSendingSupport(true);
-    try {
-      await SupportService.sendMessage(supportText);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setSupportText('');
-      // Modalı kapatma — listeyi tazele ki kullanıcı mesajını (ve gelince yanıtı) görsün.
-      loadMyMessages();
-      Alert.alert(tr ? 'Başarılı' : 'Success', (t as any).support?.success || 'Mesajın destek ekibine iletildi.');
-    } catch (err: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      // Gerçek nedeni göster (genel "gönderilemedi" sebebi gizliyordu) + konsola detay.
-      console.warn('[Support] send failed:', err?.response?.status, err?.response?.data);
-      let msg = (t as any).support?.error || (tr ? 'Mesaj gönderilemedi.' : 'Could not send message.');
-      if (!err?.response) {
-        msg = (t as any).login?.networkError || (tr ? 'Bağlantı hatası. Ağını kontrol et.' : 'Connection failed. Check your network.');
-      } else {
-        const status = err.response.status;
-        const body = err.response.data;
-        const serverMsg = typeof body === 'string' ? body : body?.message;
-        if (status === 401) msg = tr ? 'Oturumun doğrulanamadı. Lütfen çıkıp tekrar giriş yap.' : 'Session could not be verified. Please sign out and back in.';
-        else if (status >= 500) msg = tr ? 'Sunucu hatası. Lütfen sonra tekrar dene.' : 'Server error. Please try again later.';
-        else if (serverMsg) msg = serverMsg;
-      }
-      Alert.alert(tr ? 'Hata' : 'Error', msg);
-    } finally {
-      setSendingSupport(false);
-    }
-  };
-
 
   const toggleLanguage = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -716,7 +663,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.logoutText, { color: theme.error, fontSize: F.body }]}>{t.logout}</Text>
             </Touchable>
 
-            <Touchable onPress={handleDeleteAccount} style={[styles.logoutBtn, { backgroundColor: 'transparent', marginTop: S.sm, paddingVertical: S.sm, paddingHorizontal: S.md }]}>
+            <Touchable onPress={handleDeleteAccount} style={[styles.logoutBtn, { backgroundColor: 'transparent', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md }]}>
                 <Trash2 size={16} color={theme.onSurfaceVariant} opacity={0.6} />
                 <Text style={[styles.logoutText, { color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6 }]}>{t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account')}</Text>
             </Touchable>
@@ -946,83 +893,14 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* Support Modal */}
-      <Modal visible={supportModalVisible} transparent animationType="slide" onRequestClose={() => setSupportModalVisible(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
-            <Touchable style={StyleSheet.absoluteFill} onPress={() => setSupportModalVisible(false)} />
-            <View style={[styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', paddingBottom: insets.bottom + S.lg }]}>
-              <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
-              <Text style={[styles.modalTitle, { color: theme.onSurface, fontSize: F.subhead }]}>
-                {(t as any).support?.title || (language === 'tr' ? 'Destek & İletişim' : 'Support & Contact')}
-              </Text>
-              <View style={{ paddingHorizontal: S.lg, gap: S.md }}>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center' }}>
-                  {(t as any).support?.sub || (language === 'tr' ? 'Soru, öneri ve destek taleplerini doğrudan ekibimize ilet.' : 'Send us your questions, feedback, or support requests.')}
-                </Text>
-                <View style={[styles.inputGroup, { height: 120, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, paddingVertical: S.sm, alignItems: 'flex-start' }]}>
-                  <TextInput
-                    value={supportText}
-                    onChangeText={setSupportText}
-                    placeholder={(t as any).support?.placeholder || (language === 'tr' ? 'Mesajını buraya yaz...' : 'Write your message here...')}
-                    placeholderTextColor={theme.onSurfaceVariant + '99'}
-                    style={[{ color: theme.onSurface, fontSize: F.body, width: '100%', height: '100%' }]}
-                    multiline
-                    maxLength={500}
-                    textAlignVertical="top"
-                    underlineColorAndroid="transparent"
-                  />
-                </View>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, alignSelf: 'flex-end', marginTop: -S.sm }}>
-                  {supportText.length}/500
-                </Text>
-                <Touchable
-                  onPress={handleSendSupport}
-                  disabled={sendingSupport}
-                  style={[styles.saveBtn, { backgroundColor: '#3B82F6', flexDirection: 'row', gap: S.sm, justifyContent: 'center' }]}
-                >
-                  {sendingSupport ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <>
-                      <Send size={18} color="white" />
-                      <Text style={{ color: 'white', fontWeight: '900', fontSize: F.body }}>{(t as any).support?.send || (language === 'tr' ? 'Mesajı Gönder' : 'Send Message')}</Text>
-                    </>
-                  )}
-                </Touchable>
-
-                {/* Geçmiş mesajlar + admin yanıtları — SALT OKUNUR (kullanıcı yanıtlayamaz) */}
-                {(loadingMine || myMessages.length > 0) && (
-                  <View style={{ marginTop: S.sm, gap: S.sm }}>
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 }}>
-                      {language === 'tr' ? 'Mesajların' : 'Your messages'}
-                    </Text>
-                    <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
-                      <View style={{ gap: S.sm }}>
-                        {myMessages.map((mm) => (
-                          <View key={mm.id} style={{ backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderRadius: R.md, padding: S.sm, gap: 6 }}>
-                            <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>{mm.message}</Text>
-                            <Text style={{ color: theme.onSurfaceVariant, fontSize: 9, opacity: 0.5 }}>
-                              {new Date(mm.createdAt).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                            </Text>
-                            {mm.adminReply ? (
-                              <View style={{ backgroundColor: '#10B98112', borderLeftWidth: 3, borderLeftColor: '#10B981', borderRadius: R.sm, padding: S.sm, gap: 2 }}>
-                                <Text style={{ color: '#10B981', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }}>{language === 'tr' ? '✓ DESTEK YANITI' : '✓ SUPPORT REPLY'}</Text>
-                                <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>{mm.adminReply}</Text>
-                              </View>
-                            ) : (
-                              <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, fontStyle: 'italic', opacity: 0.6 }}>
-                                {language === 'tr' ? 'Yanıt bekleniyor…' : 'Awaiting reply…'}
-                              </Text>
-                            )}
-                          </View>
-                        ))}
-                      </View>
-                    </ScrollView>
-                  </View>
-                )}
-              </View>
-            </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <SupportModal
+        visible={supportModalVisible}
+        onClose={() => setSupportModalVisible(false)}
+        theme={theme}
+        isDark={isDark}
+        language={language}
+        t={t}
+      />
     </View>
   );
 }
@@ -1112,7 +990,7 @@ const styles = StyleSheet.create({
   skeletonCircle: { width: 24, height: 24, borderRadius: R.full },
   skeletonLine: { height: 14, borderRadius: R.sm },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.lg },
-  logoutText: { fontWeight: '800' },
+  logoutText: { fontFamily: 'Jakarta-Bold', fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, borderBottomLeftRadius: S.xl, borderBottomRightRadius: S.xl, paddingTop: S.sm, overflow: 'hidden' },
   modalHandle: { width: 40, height: 4, borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },

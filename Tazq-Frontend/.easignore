@@ -8,8 +8,8 @@ node_modules/
 
 # Native klasörler — EAS build sırasında `expo prebuild` ile YENİDEN ÜRETİR.
 # (4GB+ android/ klasörü 301MB upload'ın asıl sebebiydi.)
-/android
-/ios
+android/
+ios/
 
 # Expo / derleme çıktıları
 .expo/

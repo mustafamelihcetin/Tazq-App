@@ -15,7 +15,18 @@
         {
           "ios": {
             "deploymentTarget": "16.4",
-            "newArchEnabled": false
+            "newArchEnabled": false,
+            "useFrameworks": "static",
+            "extraPods": [
+              {
+                "name": "GoogleUtilities",
+                "modular_headers": true
+              },
+              {
+                "name": "RecaptchaInterop",
+                "modular_headers": true
+              }
+            ]
           },
           "android": {
             "usesCleartextTraffic": true,
@@ -41,7 +52,14 @@
         {
           "calendarPermission": "Tazq needs access to your calendar to sync your tasks."
         }
-      ]
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.995645524095-cd867f78b9768j1j8amr5oipee2cnr55"
+        }
+      ],
+      "expo-apple-authentication"
     ],
     "splash": {
       "image": "./assets/brand/splash_logo.png",

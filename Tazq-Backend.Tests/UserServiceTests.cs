@@ -25,8 +25,10 @@ namespace Tazq_Backend.Tests
             _emailMock = new Mock<ICustomEmailService>();
             _jwtMock = new Mock<IJwtService>();
             _loggerMock = new Mock<ILogger<UserService>>();
+            var googleMock = new Mock<IGoogleTokenValidator>();
+            var appleMock = new Mock<IAppleTokenValidator>();
 
-            _userService = new UserService(_context, _emailMock.Object, _jwtMock.Object, _loggerMock.Object);
+            _userService = new UserService(_context, _emailMock.Object, _jwtMock.Object, _loggerMock.Object, googleMock.Object, appleMock.Object);
         }
 
         [Fact]

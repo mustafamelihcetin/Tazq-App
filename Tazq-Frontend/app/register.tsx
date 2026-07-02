@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
@@ -64,6 +65,118 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [consentChecked, setConsentChecked] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    let GoogleSignin: any;
+    const { NativeModules } = require('react-native');
+    if (!NativeModules.RNGoogleSignin) {
+      Alert.alert(
+        language === 'tr' ? 'Desteklenmiyor' : 'Unsupported',
+        language === 'tr'
+          ? 'Google ile giriş bu cihaz derlemesinde desteklenmiyor. Lütfen yeni bir geliştirici build\'i alın.'
+          : 'Google Sign-In is not supported in this client build. Please build a new development client.'
+      );
+      return;
+    }
+
+    try {
+      GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+    } catch (e) {
+      console.warn('[Google Sign-In] Failed to require package:', e);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      const idToken = response.data?.idToken;
+      if (!idToken) {
+        throw new Error('Google ID Token was not returned.');
+      }
+
+      const { token, refreshToken } = await AuthService.googleLogin(idToken);
+      const userData = await AuthService.getCurrentUser(token);
+      setAuth(userData, token, refreshToken);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/');
+    } catch (err: any) {
+      console.warn('[Google Sign-In Error]', err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (err?.code === 'SIGN_IN_CANCELLED' || err?.message?.includes('Sign in cancelled')) {
+        return;
+      }
+      setError(language === 'tr' ? 'Google ile kayıt başarısız oldu.' : 'Google Sign-In failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    let AppleAuthentication: any;
+    try {
+      AppleAuthentication = require('expo-apple-authentication');
+      const isAvailable = await AppleAuthentication.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert(
+          language === 'tr' ? 'Desteklenmiyor' : 'Unsupported',
+          language === 'tr'
+            ? 'Apple ile giriş bu cihazda desteklenmiyor.'
+            : 'Apple Sign-In is not supported on this device.'
+        );
+        return;
+      }
+    } catch (e) {
+      Alert.alert(
+        language === 'tr' ? 'Desteklenmiyor' : 'Unsupported',
+        language === 'tr'
+          ? 'Apple ile giriş bu cihaz derlemesinde desteklenmiyor. Lütfen yeni bir geliştirici build\'i alın.'
+          : 'Apple Sign-In is not supported in this client build. Please build a new development client.'
+      );
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      const identityToken = credential.identityToken;
+      if (!identityToken) {
+        throw new Error('Apple identity token was not returned.');
+      }
+
+      const { token, refreshToken } = await AuthService.appleLogin(
+        identityToken,
+        credential.fullName?.givenName || undefined,
+        credential.fullName?.familyName || undefined
+      );
+
+      const userData = await AuthService.getCurrentUser(token);
+      setAuth(userData, token, refreshToken);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace('/');
+    } catch (err: any) {
+      console.warn('[Apple Sign-In Error]', err);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (err?.code === 'ERR_REQUEST_CANCELED' || err?.code === 'ERR_CANCELED') {
+        return;
+      }
+      setError(language === 'tr' ? 'Apple ile kayıt başarısız oldu.' : 'Apple Sign-In failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleRegister = async () => {
     const invalid = validateRegister(name, email, password, consentChecked);
@@ -148,26 +261,26 @@ export default function RegisterScreen() {
           >
           <ScrollView
             style={styles.keyboardView}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, { justifyContent: 'space-between', paddingVertical: isSmallScreen ? 16 : 32 }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={[styles.content, { paddingVertical: isSmallScreen ? 12 : isMediumScreen ? 20 : 32 }]}>
+            <View style={{ gap: isSmallScreen ? 8 : isMediumScreen ? 12 : 20, width: '100%' }}>
               <MotiView
                 from={{ opacity: 0, scale: 0.8, translateY: -20 }}
                 animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                style={[styles.header, { marginBottom: isSmallScreen ? 12 : 32 }]}
+                style={styles.header}
               >
-                <TazqLogo size={isSmallScreen ? 44 : isMediumScreen ? 52 : 60} />
+                <TazqLogo size={isSmallScreen ? 36 : isMediumScreen ? 46 : 56} />
                 <MotiText
                   from={{ opacity: 0, translateY: 10 }}
                   animate={{ opacity: 1, translateY: 0 }}
                   transition={{ delay: 200 }}
-                  style={[styles.title, { color: theme.onSurface, fontSize: isSmallScreen ? 22 : 28 }]}
+                  style={[styles.title, { color: theme.onSurface, fontSize: isSmallScreen ? 18 : isMediumScreen ? 22 : 26, marginTop: isSmallScreen ? 4 : 8 }]}
                 >
                   {t.login.signUp}
                 </MotiText>
-                <Text style={[styles.subtitle, { color: theme.onSurfaceVariant }]}>
+                <Text style={[styles.subtitle, { color: theme.onSurfaceVariant, fontSize: isSmallScreen ? 11 : 13, marginTop: isSmallScreen ? 2 : 4 }]}>
                   {t.onboardingBody2}
                 </Text>
               </MotiView>
@@ -178,7 +291,7 @@ export default function RegisterScreen() {
                 transition={{ delay: 400 }}
                 style={styles.cardContainer}
               >
-                <GlassCard style={[styles.glassCard, { padding: isSmallScreen ? 16 : 24 }]}>
+                <GlassCard style={[styles.glassCard, { padding: isSmallScreen ? 12 : isMediumScreen ? 18 : 24 }]}>
                   {error && (
                     <MotiView 
                       from={{ opacity: 0, height: 0 }}
@@ -190,9 +303,9 @@ export default function RegisterScreen() {
                     </MotiView>
                   )}
 
-                  <View style={styles.form}>
-                    <View style={styles.inputGroup}>
-                      <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
+                  <View style={[styles.form, { gap: isSmallScreen ? 6 : 12 }]}>
+                    <View style={[styles.inputGroup, { gap: isSmallScreen ? 2 : 6 }]}>
+                      <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, height: isSmallScreen ? 38 : 48 }]}>
                         <User size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
                           placeholder={t.login.name}
@@ -206,8 +319,8 @@ export default function RegisterScreen() {
                       </View>
                     </View>
 
-                    <View style={styles.inputGroup}>
-                      <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
+                    <View style={[styles.inputGroup, { gap: isSmallScreen ? 2 : 6 }]}>
+                      <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, height: isSmallScreen ? 38 : 48 }]}>
                         <Mail size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
                           placeholder={t.login.email}
@@ -226,8 +339,8 @@ export default function RegisterScreen() {
                       </View>
                     </View>
 
-                    <View style={styles.inputGroup}>
-                      <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
+                    <View style={[styles.inputGroup, { gap: isSmallScreen ? 2 : 6 }]}>
+                      <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, height: isSmallScreen ? 38 : 48 }]}>
                         <Lock size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
                           placeholder="••••••••"
@@ -248,7 +361,7 @@ export default function RegisterScreen() {
                     <Touchable
                       onPress={() => { Haptics.selectionAsync(); setConsentChecked(v => !v); }}
                       activeOpacity={0.7}
-                      style={styles.consentRow}
+                      style={[styles.consentRow, { marginVertical: isSmallScreen ? 2 : 4 }]}
                     >
                       <View style={{ marginTop: Platform.OS === 'ios' ? 1 : 2 }}>
                         {consentChecked
@@ -285,7 +398,7 @@ export default function RegisterScreen() {
                     <Touchable
                       onPress={handleRegister}
                       disabled={isLoading}
-                      style={styles.registerButton}
+                      style={[styles.registerButton, { height: isSmallScreen ? 38 : 48 }]}
                     >
                       <MotiView 
                         animate={{ backgroundColor: theme.secondary }}
@@ -302,31 +415,69 @@ export default function RegisterScreen() {
                       </MotiView>
                     </Touchable>
 
-                    <View style={styles.dividerRow}>
+                    <View style={[styles.dividerRow, { marginVertical: isSmallScreen ? 2 : 8 }]}>
                       <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '40' }]} />
                       <Text style={[styles.dividerText, { color: theme.onSurfaceVariant }]}>{t.login.orDivider}</Text>
                       <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '40' }]} />
                     </View>
 
                     <View style={styles.socialRow}>
-                      <Touchable style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant }]}>
+                      <Touchable
+                        style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, height: isSmallScreen ? 36 : 44 }]}
+                        onPress={handleGoogleSignIn}
+                        activeOpacity={0.7}
+                        disabled={isLoading}
+                      >
                         <GoogleIcon color={theme.onSurface} />
                         <Text style={[styles.socialText, { color: theme.onSurface }]}>Google</Text>
                       </Touchable>
-                      <Touchable style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant }]}>
-                        <AppleIcon color={theme.onSurface} />
-                        <Text style={[styles.socialText, { color: theme.onSurface }]}>Apple</Text>
-                      </Touchable>
+                      {Platform.OS === 'ios' && (
+                        <Touchable
+                          style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, height: isSmallScreen ? 36 : 44 }]}
+                          onPress={handleAppleSignIn}
+                          activeOpacity={0.7}
+                          disabled={isLoading}
+                        >
+                          <AppleIcon color={theme.onSurface} />
+                          <Text style={[styles.socialText, { color: theme.onSurface }]}>Apple</Text>
+                        </Touchable>
+                      )}
                     </View>
+
+                    <Text style={[styles.disclaimerText, { color: theme.onSurfaceVariant, marginTop: isSmallScreen ? 4 : 8 }]}>
+                      {language === 'tr' ? 'Google veya Apple ile devam ederek, ' : 'By continuing with Google or Apple, you agree to our '}
+                      <Text
+                        style={{ color: theme.primary, fontWeight: '800' }}
+                        onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
+                      >
+                        {language === 'tr' ? 'Kullanıcı Sözleşmesi' : 'Terms of Service'}
+                      </Text>
+                      {language === 'tr' ? "'ni, " : ', '}
+                      <Text
+                        style={{ color: theme.primary, fontWeight: '800' }}
+                        onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
+                      >
+                        {language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}
+                      </Text>
+                      {language === 'tr' ? ' ve ' : ' and '}
+                      <Text
+                        style={{ color: theme.primary, fontWeight: '800' }}
+                        onPress={() => router.push({ pathname: '/legal', params: { doc: 'kvkk' } })}
+                      >
+                        {language === 'tr' ? 'KVKK Metni' : 'Data Notice'}
+                      </Text>
+                      {language === 'tr' ? "'ni kabul etmiş olursunuz." : '.'}
+                    </Text>
                   </View>
                 </GlassCard>
               </MotiView>
+            </View>
 
               <MotiView
                 from={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 600 }}
-                style={styles.footer}
+                style={[styles.footer, { marginTop: error ? (Platform.OS === 'android' ? 6 : 12) : (Platform.OS === 'android' ? 12 : 24) }]}
               >
                 <View style={styles.footerRow}>
                   <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
@@ -337,7 +488,6 @@ export default function RegisterScreen() {
                   </Touchable>
                 </View>
               </MotiView>
-            </View>
           </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
@@ -351,8 +501,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   backButton: { position: 'absolute', left: scale(20), zIndex: 10, width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
   keyboardView: { flex: 1 },
-  scrollContent: { flexGrow: 1, justifyContent: 'center' },
-  content: { paddingHorizontal: scale(24), width: '100%', maxWidth: 480, alignSelf: 'center' },
+  scrollContent: { flexGrow: 1, paddingHorizontal: scale(24), width: '100%', maxWidth: 480, alignSelf: 'center' },
   header: { alignItems: 'center' },
   title: { fontSize: F.title + 6, fontFamily: 'Jakarta-ExtraBold', marginTop: verticalScale(10), letterSpacing: -0.5 },
   subtitle: { fontSize: F.body, fontWeight: '500', marginTop: verticalScale(4), opacity: 0.7, textAlign: 'center' },
@@ -376,6 +525,7 @@ const styles = StyleSheet.create({
   socialRow: { flexDirection: 'row', gap: S.md },
   socialButton: { flex: 1, height: Platform.OS === 'android' ? verticalScale(46) : verticalScale(56), borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10), borderWidth: B.thin },
   socialText: { fontSize: moderateScale(15), fontWeight: '700' },
+  disclaimerText: { fontSize: moderateScale(11), lineHeight: verticalScale(16), textAlign: 'center', marginTop: S.sm + 2, paddingHorizontal: S.xs, opacity: 0.75 },
   footer: { alignItems: 'center', marginTop: Platform.OS === 'android' ? verticalScale(12) : verticalScale(24) },
   footerRow: { flexDirection: 'row', alignItems: 'center' },
   footerText: { fontSize: moderateScale(15), fontWeight: '500' },

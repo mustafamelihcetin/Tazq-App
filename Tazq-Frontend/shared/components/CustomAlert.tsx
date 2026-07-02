@@ -106,7 +106,9 @@ export function CustomAlertModal() {
 
   // Sıralama: Cancel solda, Primary/Destructive sağda olmalı.
   // Gelen array genelde [Cancel, Destructive] şeklindedir.
-  const isVertical = buttons.length > 2;
+  // Eğer buton etiketlerinden biri uzunsa, taşmayı önlemek için dikey sıralamaya geçiyoruz.
+  const hasLongButtonText = buttons.some(b => b.text && b.text.length > 12);
+  const isVertical = buttons.length > 2 || hasLongButtonText;
 
   return (
     <Modal transparent visible={true} animationType="none" onRequestClose={() => hide()}>
@@ -173,13 +175,19 @@ export function CustomAlertModal() {
                     }
                   ]}
                 >
-                  <Text style={[
-                    styles.buttonText, 
-                    { 
-                      color: textColor,
-                      fontWeight: isCancel ? '600' : '800'
-                    }
-                  ]}>
+                  <Text 
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                    style={[
+                      styles.buttonText, 
+                      { 
+                        color: textColor,
+                        fontWeight: isCancel ? '600' : '800',
+                        fontFamily: 'Jakarta-Bold'
+                      }
+                    ]}
+                  >
                     {btn.text}
                   </Text>
                 </Touchable>

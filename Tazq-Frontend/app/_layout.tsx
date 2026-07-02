@@ -2,6 +2,22 @@ import 'react-native-gesture-handler';
 import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
 
+try {
+  const { NativeModules } = require('react-native');
+  if (NativeModules.RNGoogleSignin) {
+    const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+    GoogleSignin.configure({
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '995645524095-m5hinfq75f1fa1kfi3oio2rcgm4cl05n.apps.googleusercontent.com',
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '995645524095-cd867f78b9768j1j8amr5oipee2cnr55.apps.googleusercontent.com',
+      offlineAccess: true,
+    });
+  } else {
+    console.warn('[Google Sign-In] Native module "RNGoogleSignin" not found. Google Sign-In is disabled.');
+  }
+} catch (e) {
+  console.warn('[Google Sign-In] Error initializing Google Sign-In:', e);
+}
+
 // Initialize crash reporting as early as possible — before any other imports
 import { initSentry } from '@/shared/utils/sentry';
 initSentry();
@@ -104,16 +120,26 @@ LogBox.ignoreLogs([
   '`setButtonStyleAsync` is not supported',
 ]);
 
-import { useFonts, PlusJakartaSans_800ExtraBold, PlusJakartaSans_700Bold, PlusJakartaSans_600SemiBold, PlusJakartaSans_800ExtraBold_Italic } from '@expo-google-fonts/plus-jakarta-sans';
+import {
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+  PlusJakartaSans_800ExtraBold_Italic
+} from '@expo-google-fonts/plus-jakarta-sans';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { usePrefsStore } from '@/features/modes';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    'Jakarta-ExtraBold': PlusJakartaSans_800ExtraBold,
-    'Jakarta-Bold': PlusJakartaSans_700Bold,
+    'Jakarta-Regular': PlusJakartaSans_400Regular,
+    'Jakarta-Medium': PlusJakartaSans_500Medium,
     'Jakarta-SemiBold': PlusJakartaSans_600SemiBold,
+    'Jakarta-Bold': PlusJakartaSans_700Bold,
+    'Jakarta-ExtraBold': PlusJakartaSans_800ExtraBold,
     'Jakarta-BoldItalic': PlusJakartaSans_800ExtraBold_Italic,
   });
 

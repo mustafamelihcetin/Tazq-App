@@ -140,6 +140,14 @@ export const AuthService = {
     const response = await api.post('/api/users/login', { email, password });
     return response.data;
   },
+  googleLogin: async (idToken: string) => {
+    const response = await api.post('/api/users/google-login', { idToken });
+    return response.data;
+  },
+  appleLogin: async (identityToken: string, firstName?: string, lastName?: string) => {
+    const response = await api.post('/api/users/apple-login', { identityToken, firstName, lastName });
+    return response.data;
+  },
   register: async (userData: any) => {
     const response = await api.post('/api/users/register', userData);
     return response.data;

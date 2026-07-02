@@ -35,6 +35,8 @@ import { MomentumPulse } from '@/shared/components/MomentumPulse';
 import { WeightEntryModal } from '@/shared/components/WeightEntryModal';
 import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
+import { StatusHubModal } from '@/shared/components/StatusHubModal';
+import { QuickDraftModal } from '@/shared/components/QuickDraftModal';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -236,7 +238,6 @@ export default function HomeScreen() {
   const [weightModalTaskId, setWeightModalTaskId] = useState<number | null>(null);
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   useUiDepth(quickDraftVisible);
-  const [draftTitle, setDraftTitle] = useState('');
   const [headerHighlight, setHeaderHighlight] = useState(false);
   const [todayHighlight, setTodayHighlight] = useState(false);
   const [momentumHighlight, setMomentumHighlight] = useState(false);
@@ -246,16 +247,6 @@ export default function HomeScreen() {
   const todayTapTime = useRef(0);
   const momentumTapTime = useRef(0);
   const headerScale = useRef(new Animated.Value(1)).current;
-
-  const { panResponder: draftPan, animatedStyle: draftSlide, prepare: prepareDraft, slideIn: draftSlideIn } = useSwipeToDismiss({
-    onDismiss: () => setQuickDraftVisible(false),
-  });
-
-  const { panResponder: hubPan, animatedStyle: hubSlide, prepare: prepareHub, slideIn: hubSlideIn } = useSwipeToDismiss({
-    onDismiss: () => setStatusHubVisible(false),
-  });
-  const [isSavingDraft, setIsSavingDraft] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [weeklyFocus, setWeeklyFocus] = useState<DailyFocusData[]>([]);
   const [lastWeekMinutes, setLastWeekMinutes] = useState(0);
   const [showAllIncomplete, setShowAllIncomplete] = useState(false);
@@ -431,13 +422,7 @@ export default function HomeScreen() {
     }, [])
   );
 
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvent, e => setKeyboardHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
+
 
   useEffect(() => {
     const now = new Date();
@@ -450,16 +435,14 @@ export default function HomeScreen() {
     return () => { clearTimeout(timeout); clearInterval(interval); };
   }, []);
 
-  const handleQuickSave = async () => {
-    if (!draftTitle.trim()) return;
-    setIsSavingDraft(true);
+  const handleQuickSave = async (title: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
-    const hint = parseTaskHint(draftTitle.trim(), language as 'tr' | 'en');
+    const hint = parseTaskHint(title, language as 'tr' | 'en');
     const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
     
     const payload = {
-        title: draftTitle.trim(),
+        title: title,
         description: '',
         priority: hint.priority || 'Medium',
         isCompleted: false,
@@ -478,8 +461,6 @@ export default function HomeScreen() {
             const { scheduleTaskNotification } = require('@/shared/utils/notifications');
             await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
           }
-          setDraftTitle('');
-          setQuickDraftVisible(false);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
         } else {
           const created = await TaskService.createTask(payload as any);
@@ -490,8 +471,6 @@ export default function HomeScreen() {
               const { scheduleTaskNotification } = require('@/shared/utils/notifications');
               await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
           }
-          setDraftTitle('');
-          setQuickDraftVisible(false);
           showToast(`"${payload.title}" ${t.toastTaskAdded}`, 'success');
         }
     } catch (error: any) {
@@ -503,14 +482,11 @@ export default function HomeScreen() {
             const { scheduleTaskNotification } = require('@/shared/utils/notifications');
             await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
           }
-          setDraftTitle('');
-          setQuickDraftVisible(false);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
         } else {
           showToast(t.saveError, 'error');
+          throw error;
         }
-    } finally {
-        setIsSavingDraft(false);
     }
   };
 
@@ -1146,83 +1122,28 @@ export default function HomeScreen() {
                   />
               </Touchable>
 
-              <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); prepareHub(); setStatusHubVisible(true); }} />
+              <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStatusHubVisible(true); }} />
           </View>
       </MotiView>
 
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
 
         {/* Smart Cockpit Modal — bottom sheet */}
-        <Modal visible={statusHubVisible} transparent animationType="none" onRequestClose={() => setStatusHubVisible(false)} onShow={() => hubSlideIn()}>
-            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
-                <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setStatusHubVisible(false)} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
-                <Animated.View style={[hubSlide, styles.insightCard, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant + '40', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderRadius: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
-                    <View {...hubPan.panHandlers} style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}>
-                        <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }} />
-                    </View>
-
-                    <View style={styles.insightHeader}>
-                        <View style={[styles.insightIcon, { backgroundColor: theme.primary + '15' }]}>
-                            <BrainCircuit size={20} color={theme.primary} />
-                        </View>
-                        <Text style={[styles.insightHeaderTitle, { color: theme.onSurface }]}>TAZQ INSIGHTS</Text>
-                    </View>
-
-                    <View style={styles.insightBody}>
-                        <View style={[styles.bentoMini, { backgroundColor: theme.surfaceContainerLow }]}>
-                            <Text style={[styles.insightMainText, { color: theme.onSurface }]}>
-                                {insight}
-                            </Text>
-                        </View>
-
-                        <View style={styles.insightStats}>
-                            <View style={{ flexDirection: 'row', gap: 12 }}>
-                                <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1 }]}>
-                                    <Zap size={16} color={momentumColor} fill={momentumColor} />
-                                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.statValue, { color: theme.onSurface }]}>{momentum}%</Text>
-                                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>Momentum</Text>
-                                </View>
-                                <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1 }]}>
-                                    <Target size={16} color={theme.secondary} />
-                                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.statValue, { color: theme.onSurface }]}>{todayCompleted}/{dailyGoal}</Text>
-                                    <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>{t.cockpitTarget}</Text>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={styles.cockpitActions}>
-                        <Touchable
-                            onPress={() => {
-                                if (isActive) {
-                                    setStatusHubVisible(false);
-                                    router.replace('/focus');
-                                } else {
-                                    startQuickFocus();
-                                }
-                            }}
-                            style={[styles.actionButtonMain, { backgroundColor: isActive ? theme.tertiary : theme.primary }]}
-                        >
-                            <Play size={20} color={theme.onPrimary} fill={theme.onPrimary} />
-                            <Text style={[styles.actionButtonText, { color: theme.onPrimary }]}>
-                                {isActive ? t.cockpitGoToFocus :
-                                 (!topTaskToday && futureTasksIncomplete.length > 0 ? t.cockpitPrepTomorrow :
-                                 t.cockpitFocusNow)}
-                            </Text>
-                        </Touchable>
-
-                        <Touchable
-                            onPress={() => setStatusHubVisible(false)}
-                            style={[styles.actionButtonSecondary, { backgroundColor: theme.surfaceContainerHigh }]}
-                        >
-                            <Text style={[styles.actionButtonTextSecondary, { color: theme.onSurfaceVariant }]}>
-                                {t.cockpitClose}
-                            </Text>
-                        </Touchable>
-                    </View>
-                </Animated.View>
-            </View>
-        </Modal>
+        <StatusHubModal
+          visible={statusHubVisible}
+          onClose={() => setStatusHubVisible(false)}
+          theme={theme}
+          isDark={isDark}
+          language={language}
+          t={t}
+          insight={insight}
+          momentum={momentum}
+          momentumColor={momentumColor}
+          todayCompleted={todayCompleted}
+          dailyGoal={dailyGoal}
+          isActive={isActive}
+          startQuickFocus={startQuickFocus}
+        />
 
         {/* Periodic App Store Review & Feedback Prompt Modal */}
         <Modal
@@ -1716,7 +1637,7 @@ export default function HomeScreen() {
                         </View>
 
                         <View style={styles.missionContent}>
-                            <Text adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.missionTitle, { color: theme.onSurface, fontSize: F.title }]} numberOfLines={1} ellipsizeMode="tail">
+                            <Text adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.missionTitle, { color: theme.onSurface, fontSize: F.title }]} numberOfLines={2} ellipsizeMode="tail">
                                 {topTask ? topTask.title : t.noTasksHint}
                             </Text>
                             <Text style={[styles.missionSub, { color: theme.onSurfaceVariant }]}>
@@ -1971,69 +1892,22 @@ export default function HomeScreen() {
         </ScrollView>
 
         {/* Quick Draft Modal */}
-        <Modal visible={quickDraftVisible} transparent animationType="none" onRequestClose={() => setQuickDraftVisible(false)} onShow={() => draftSlideIn()}>
-          <View style={styles.draftOverlay}>
-            <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setQuickDraftVisible(false)} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
-                <View style={[styles.bottomSheetWrapper, { marginBottom: Platform.OS === 'ios' ? keyboardHeight : 0 }]}>
-                    <Animated.View style={[draftSlide, styles.quickDraftSheet, {
-                          backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                          paddingBottom: keyboardHeight > 0 ? S.md : S.xl,
-                          borderBottomLeftRadius: keyboardHeight > 0 ? R.lg : 0,
-                          borderBottomRightRadius: keyboardHeight > 0 ? R.lg : 0,
-                        }]}>
-                        <View {...draftPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
-                          <View style={styles.sheetHandle} />
-                        </View>
-                        <View style={styles.sheetHeader}>
-                            <View style={[styles.sheetIcon, { backgroundColor: '#F59E0B20' }]}>
-                                <Zap size={20} color="#F59E0B" fill="#F59E0B" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.quickDraftTitle, { color: theme.onSurface }]}>{t.draftNote}</Text>
-                                <Text style={{ fontSize: F.caption, fontWeight: '600', color: '#F59E0B', opacity: 0.8, marginTop: 1 }}>
-                                    {language === 'tr' ? 'Aklındakini yaz, sonra düzenlersin' : 'Capture now, refine later'}
-                                </Text>
-                            </View>
-                        </View>
-                        
-                        <View style={[styles.quickInputGroup, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', marginTop: S.md }]}>
-                            <TextInput
-                                style={[styles.quickInput, { color: theme.onSurface, height: 60 }]}
-                                placeholder={language === 'tr' ? 'Aklına ne geldi?' : "What's on your mind?"}
-                                placeholderTextColor={theme.onSurfaceVariant + '99'}
-                                value={draftTitle}
-                                onChangeText={setDraftTitle}
-                                returnKeyType="done"
-                                onSubmitEditing={handleQuickSave}
-                                underlineColorAndroid="transparent"
-                            />
-                        </View>
-                        <Text style={{ fontSize: 10, fontWeight: '600', color: '#F59E0B', opacity: 0.55, marginTop: S.sm, letterSpacing: 0.2 }}>
-                            {language === 'tr' ? '📌 Görevler ekranına taslak olarak eklenir' : '📌 Saved as a draft in your task list'}
-                        </Text>
-                        
-                        <View style={styles.quickActions}>
-                            <Touchable
-                                onPress={handleQuickSave}
-                                disabled={isSavingDraft || !draftTitle.trim()}
-                                style={[styles.quickSave, { backgroundColor: draftTitle.trim() ? '#F59E0B' : theme.surfaceContainerHigh, flex: 1 }]}
-                            >
-                                {isSavingDraft ? <ActivityIndicator color="white" /> : (
-                                    <Text style={{ color: draftTitle.trim() ? 'white' : theme.onSurfaceVariant, fontWeight: '600' }}>{t.save}</Text>
-                                )}
-                            </Touchable>
-                        </View>
-                    </Animated.View>
-                </View>
-          </View>
-        </Modal>
+        <QuickDraftModal
+          visible={quickDraftVisible}
+          onClose={() => setQuickDraftVisible(false)}
+          onSave={handleQuickSave}
+          theme={theme}
+          isDark={isDark}
+          language={language}
+          t={t}
+        />
 
       </SafeAreaView>
 
       {/* Quick Draft FAB */}
-      {!(Platform.OS === 'android' && keyboardHeight > 0) && (
+      {true && (
         <MagneticFAB
-          onPress={() => { prepareDraft(); setQuickDraftVisible(true); }}
+          onPress={() => setQuickDraftVisible(true)}
           storageKey={`@fab_dashboard_${user?.id ?? 'guest'}`}
           isDark={isDark}
           theme={theme}

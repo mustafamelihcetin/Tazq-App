@@ -6,11 +6,12 @@ import { BlurView } from 'expo-blur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import Animated, { Layout, LinearTransition, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, Search, SlidersHorizontal, CheckSquare, Scale, Target, Archive } from 'lucide-react-native';
+import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, Search, SlidersHorizontal, CheckSquare, Scale, Target, Archive, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { SubtaskProgressRing } from '@/shared/components/SubtaskProgressRing';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { WeightEntryModal } from '@/shared/components/WeightEntryModal';
+import { TaskFormModal } from '@/shared/components/TaskFormModal';
 import { useTaskStore, parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
@@ -65,30 +66,6 @@ const VoiceWave = ({ active, theme }: { active: boolean; theme: any }) => (
 
 type FilterType = 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done';
 
-interface TaskForm {
-  title: string;
-  description: string;
-  dueDate: string;
-  dueTime: string | null;
-  priority: 'Low' | 'Medium' | 'High';
-  tags: string[];
-  subtasks: SubtaskItem[];
-  recurrence: RecurrenceType;
-  reminderEnabled: boolean;
-}
-
-const EMPTY_FORM: TaskForm = { 
-  title: '', 
-  description: '', 
-  priority: 'Medium', 
-  dueDate: '', 
-  dueTime: null, 
-  tags: [], 
-  subtasks: [], 
-  recurrence: 'None',
-  reminderEnabled: false 
-};
-
 const RECURRENCE_OPTIONS: { key: RecurrenceType; labelKey: string }[] = [
   { key: 'None', labelKey: 'recurrenceNone' },
   { key: 'Daily', labelKey: 'recurrenceDaily' },
@@ -130,7 +107,7 @@ function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrenc
 
 
 const MemoizedTaskItem = React.memo((props: any) => {
-    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, subtaskSaveTimers } = props;
+    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, subtaskSaveTimers, sortBy, onMoveUp, onMoveDown } = props;
     
     const prefs = usePrefsStore();
     const modeInfo = useMemo(() => {
@@ -253,12 +230,31 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                 )}
                             </View>
 
+                            {sortBy === 'creation' && !isBulkMode && (
+                                <View style={{ flexDirection: 'column', gap: 2, marginRight: S.sm, alignItems: 'center' }}>
+                                    <Touchable 
+                                        disabled={!onMoveUp} 
+                                        onPress={onMoveUp}
+                                        style={{ opacity: onMoveUp ? 0.8 : 0.15, padding: 2 }}
+                                        hitSlop={{ top: 8, bottom: 4, left: 8, right: 8 }}
+                                    >
+                                        <ChevronUp size={16} color={theme.onSurfaceVariant} />
+                                    </Touchable>
+                                    <Touchable 
+                                        disabled={!onMoveDown} 
+                                        onPress={onMoveDown}
+                                        style={{ opacity: onMoveDown ? 0.8 : 0.15, padding: 2 }}
+                                        hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}
+                                    >
+                                        <ChevronDown size={16} color={theme.onSurfaceVariant} />
+                                    </Touchable>
+                                </View>
+                            )}
+
                             <Touchable
                                 onPress={() => handleToggle(task.id)}
                                 hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                                 style={[
-                                    // Yuvarlatılmış KARE kutu = "görev" (listeden tikle, biter). Alışkanlıklar
-                                    // DAİRE/halka kullanır (günlük tekrarlayan ritim) → şekil grameri farkı betimsel anlatır.
                                     { width: 24, height: 24, borderRadius: 7, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginLeft: S.sm },
                                     {
                                         backgroundColor: (task.isCompleted || completingIds.has(task.id)) ? theme.success : 'transparent',
@@ -432,7 +428,7 @@ export default function ActionCenter() {
       backgroundColor: theme.background
     };
   });
-  const { tasks, toggleTaskCompletion, addTask, removeTask, updateTask, setTasks, setLoading, isLoading, toggleSubtask } = useTaskStore(useShallow(state => ({
+  const { tasks, toggleTaskCompletion, addTask, removeTask, updateTask, setTasks, setLoading, isLoading, toggleSubtask, reorderTasks } = useTaskStore(useShallow(state => ({
     tasks: state.tasks,
     toggleTaskCompletion: state.toggleTaskCompletion,
     addTask: state.addTask,
@@ -441,7 +437,8 @@ export default function ActionCenter() {
     setTasks: state.setTasks,
     setLoading: state.setLoading,
     isLoading: state.isLoading,
-    toggleSubtask: state.toggleSubtask
+    toggleSubtask: state.toggleSubtask,
+    reorderTasks: state.reorderTasks
   })));
   const { t, language } = useLanguageStore();
   const { user } = useAuthStore();
@@ -482,39 +479,12 @@ export default function ActionCenter() {
   const [modalVisible, setModalVisible] = useState(false);
   useUiDepth(modalVisible || weightModalTaskId !== null);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
-  const [titleError, setTitleError] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [kbHeight, setKbHeight] = useState(0);
-  const [nlpHint, setNlpHint] = useState('');
-  const [showSmartHint, setShowSmartHint] = useState(false);
   const [showSwipePeek, setShowSwipePeek] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [pickerDate, setPickerDate] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, day: new Date().getDate() });
-  const [pickerTime, setPickerTime] = useState({ hour: new Date().getHours(), minute: new Date().getMinutes() });
-  const [newSubtaskText, setNewSubtaskText] = useState('');
-  const [dateError, setDateError] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [isListeningTitle, setIsListeningTitle] = useState(false);
-  const [isListeningDesc, setIsListeningDesc] = useState(false);
   const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
   const exitAnimMap = useRef<Map<number, { opacity: RNAnimated.Value; translateY: RNAnimated.Value }>>(new Map());
   const TASK_PAGE_SIZE = 20;
   const [visibleCount, setVisibleCount] = useState(TASK_PAGE_SIZE);
-
-  const { panResponder: taskPan, animatedStyle: taskSlide, prepare: prepareTask, slideIn: taskSlideIn } = useSwipeToDismiss({
-    onDismiss: () => !saving && setModalVisible(false),
-  });
-
-  // Stop voice recognition whenever the modal is hidden
-  useEffect(() => {
-    if (!modalVisible && (isListeningTitle || isListeningDesc)) {
-      VoiceService.stop().catch(() => {});
-      setIsListeningTitle(false);
-      setIsListeningDesc(false);
-    }
-  }, [modalVisible]);
 
   // Auto-exit bulk mode when all items are deselected
   useEffect(() => {
@@ -528,75 +498,7 @@ export default function ActionCenter() {
     setVisibleCount(TASK_PAGE_SIZE);
   }, [filter, tagFilter, searchQuery, sortBy, hideCompleted]);
 
-  const toggleVoice = async (field: 'title' | 'description') => {
-    const isActive = field === 'title' ? isListeningTitle : isListeningDesc;
-    
-    if (isActive) {
-      await VoiceService.stop();
-      field === 'title' ? setIsListeningTitle(false) : setIsListeningDesc(false);
-      return;
-    }
 
-    if (isListeningTitle || isListeningDesc) {
-      await VoiceService.stop();
-      setIsListeningTitle(false);
-      setIsListeningDesc(false);
-    }
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    field === 'title' ? setIsListeningTitle(true) : setIsListeningDesc(true);
-
-    await VoiceService.start({
-      language: language === 'tr' ? 'tr-TR' : 'en-US',
-      initialText: field === 'title' ? form.title : form.description,
-      onResults: (results: string[]) => {
-        if (results.length > 0) {
-          const text = results[0];
-          // Use a special internal flag or just set the form directly to avoid trigger loop
-          if (field === 'title') {
-            const hint = parseTaskHint(text, language as 'tr' | 'en');
-            const hasReminderWord = text.toLowerCase().includes('hatırlat') || text.toLowerCase().includes('remind');
-            setForm(f => ({
-                ...f,
-                title: text,
-                dueDate: hint.dueDate || f.dueDate,
-                dueTime: hint.dueTime || f.dueTime,
-                priority: hint.priority || f.priority,
-                recurrence: hint.recurrence || f.recurrence,
-                reminderEnabled: hasReminderWord ? true : f.reminderEnabled
-            }));
-            if (hint.dueDate || hint.dueTime || hint.priority || hint.recurrence) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            }
-          } else {
-            setForm(f => ({ ...f, description: text }));
-          }
-        }
-      },
-      onError: (err: any) => {
-        const msg = err?.message ?? String(err);
-        field === 'title' ? setIsListeningTitle(false) : setIsListeningDesc(false);
-        if (msg === 'permission-denied') {
-          Alert.alert(
-            language === 'tr' ? 'Mikrofon İzni Gerekli' : 'Microphone Permission Required',
-            language === 'tr'
-              ? 'Lütfen uygulama ayarlarından mikrofon iznini etkinleştirin.'
-              : 'Please enable microphone permission in your device settings.'
-          );
-        } else if (msg === 'not-available') {
-          Alert.alert(
-            language === 'tr' ? 'Desteklenmiyor' : 'Not Supported',
-            language === 'tr'
-              ? 'Ses tanıma bu ortamda desteklenmiyor.'
-              : 'Voice recognition is not supported in this environment.'
-          );
-        }
-      },
-      onEnded: () => {
-        field === 'title' ? setIsListeningTitle(false) : setIsListeningDesc(false);
-      }
-    });
-  };
   const subtaskSaveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   // Collect unique tags from all tasks for tag filter — içsel/sistem etiketleri hariç
@@ -606,48 +508,7 @@ export default function ActionCenter() {
     return Array.from(tagSet);
   }, [tasks]);
 
-  const openDatePicker = () => {
-    const base = form.dueDate ? new Date(form.dueDate) : new Date();
-    setPickerDate({ year: base.getFullYear(), month: base.getMonth() + 1, day: base.getDate() });
-    setShowDatePicker(true);
-  };
 
-  const openTimePicker = () => {
-    const base = form.dueTime ? new Date(form.dueTime) : new Date();
-    setPickerTime({ hour: base.getHours(), minute: base.getMinutes() });
-    setShowTimePicker(true);
-  };
-
-  const confirmDate = () => {
-    const { year, month, day } = pickerDate;
-    const mm = String(month).padStart(2, '0');
-    const dd = String(day).padStart(2, '0');
-    
-    // Validation: Don't allow past dates
-    const selected = new Date(year, month - 1, day);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (selected < today) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setDateError(true);
-      setTimeout(() => setDateError(false), 2500);
-      return;
-    }
-
-    setDateError(false);
-    setForm(f => ({ ...f, dueDate: `${year}-${mm}-${dd}` }));
-    setShowDatePicker(false);
-  };
-
-  const confirmTime = () => {
-    const base = new Date();
-    base.setHours(pickerTime.hour, pickerTime.minute, 0, 0);
-    setForm(f => ({ ...f, dueTime: base.toISOString() }));
-    setShowTimePicker(false);
-  };
-
-  const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
 
   // Mount/unmount only — voice cleanup must not run on every route-param change
   useEffect(() => {
@@ -671,10 +532,10 @@ export default function ActionCenter() {
   useEffect(() => {
     if (action === 'add') {
       setTimeout(() => {
-        openAdd();
+        handleAddBtnPress();
         // If a specific date was passed from cockpit, prefill it
         if (dateFilter) {
-          setForm(f => ({ ...f, dueDate: dateFilter }));
+          // Note: State management moved to TaskFormModal
         }
       }, 400);
     }
@@ -694,13 +555,7 @@ export default function ActionCenter() {
     return () => sub.remove();
   }, []);
 
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvent, e => setKbHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener(hideEvent, () => setKbHeight(0));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
+
 
   const loadTasks = async () => {
     setLoading(true);
@@ -733,90 +588,32 @@ export default function ActionCenter() {
     }
   };
 
-  const handleDescriptionChange = (text: string) => {
-    // If user is manually typing, stop voice recognition
-    if (isListeningDesc) {
-      VoiceService.stop().catch(() => {});
-      setIsListeningDesc(false);
-    }
-    setForm(f => ({ ...f, description: text }));
+  const handleAddBtnPress = () => {
+    setEditingId(null);
+    setModalVisible(true);
   };
 
-  const handleTitleChange = (text: string) => {
-    // If user is manually typing, stop voice recognition to prevent conflicts
-    if (isListeningTitle) {
-      VoiceService.stop().catch(() => {});
-      setIsListeningTitle(false);
-    }
-
-    // When title is fully cleared on a new task, reset all NLP-derived state
-    if (!text.trim() && editingId === null) {
-      setForm(f => ({ ...f, title: '', priority: 'Medium', tags: [], dueDate: '', dueTime: null }));
-      setNlpHint('');
-      if (titleError) setTitleError(false);
+  const handleEditBtnPress = (id: number) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    const modeInfo = getModeInfoForTask(task, usePrefsStore.getState(), theme);
+    if (modeInfo && (modeInfo as any).isLocked) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        language === 'tr' ? 'Otomatik Plan Görevi' : 'Automated Plan Task',
+        language === 'tr' 
+          ? `Bu görev "${modeInfo.labelTr}" tarafından otomatik yönetildiği için manuel düzenlenemez. Ayarlarını değiştirmek için Modlar sayfasından hedef kartını kullanabilirsin.` 
+          : `This task is automatically managed by "${modeInfo.labelEn}". To adjust its behavior, please modify your settings in the Modes overview.`
+      );
       return;
     }
-
-    const hint = parseTaskHint(text, language as 'tr' | 'en');
-    const hasReminderWord = text.toLowerCase().includes('hatırlat') || text.toLowerCase().includes('remind');
-    const nlpTags = hint.tags || [];
-
-    setForm(f => {
-      const currentInternal = f.tags.filter(t => isInternalTag(t) || ICON_TAGS.includes(t));
-      let mergedTags = Array.from(new Set([...currentInternal, ...nlpTags]));
-      if (hasReminderWord && !mergedTags.includes('hatırlatıcı')) {
-        mergedTags.push('hatırlatıcı');
-      }
-      return {
-        ...f,
-        title: text,
-        priority: hint.priority || f.priority,
-        dueDate: hint.dueDate || f.dueDate,
-        dueTime: hint.dueTime || f.dueTime,
-        recurrence: hint.recurrence || f.recurrence,
-        reminderEnabled: hasReminderWord ? true : f.reminderEnabled,
-        tags: mergedTags
-      };
-    });
-
-    if (titleError) setTitleError(false);
-
-    // UI Hint Parts
-    const parts = [];
-    if (hint.dueDate) {
-      const dateStr = new Date(hint.dueDate).toLocaleDateString();
-      parts.push(`📅 ${dateStr}`);
-    }
-    if (hint.dueTime) {
-      const timeStr = new Date(hint.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      parts.push(`⏰ ${timeStr}`);
-    }
-    if (hint.recurrence && hint.recurrence !== 'None') {
-      const isTR = language === 'tr';
-      const recurrenceLabel: Record<string, string> = {
-        Daily: isTR ? 'Her gün' : 'Daily',
-        Weekly: isTR ? 'Her hafta' : 'Weekly',
-        Monthly: isTR ? 'Her ay' : 'Monthly',
-      };
-      const label = hint.recurrenceDayLabel
-        ? `Her ${hint.recurrenceDayLabel}`
-        : recurrenceLabel[hint.recurrence];
-      parts.push(`🔁 ${label}`);
-    }
-
-    const userFacingTags = visibleTextTags(hint.tags);
-    if (userFacingTags.length > 0) {
-      const translated = userFacingTags.map(t => translateTag(t, language as 'tr' | 'en'));
-      parts.push(`🏷️ ${translated.join(', ')}`);
-    }
-
-    const fullHint = [
-      hint.wittyMessage,
-      parts.length > 0 ? `(${parts.join('  ')})` : ''
-    ].filter(Boolean).join(' ');
-
-    setNlpHint(fullHint);
+    setEditingId(id);
+    setModalVisible(true);
   };
+
+
+
+
 
   const getDateColor = (dateStr: string | undefined | null, thm: typeof theme) => {
     if (!dateStr || dateStr.startsWith('0001-01-01')) return thm.onSurfaceVariant;
@@ -1108,80 +905,33 @@ export default function ActionCenter() {
     });
   };
 
-  const openAdd = async () => {
-    prepareTask();
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setNlpHint('');
-    setTitleError(false);
-    setModalVisible(true);
-
-    try {
-      const raw = await AsyncStorage.getItem('tazq-smart-hint-count');
-      const count = raw ? parseInt(raw, 10) : 0;
-      if (count < 6) {
-        setShowSmartHint(true);
-        await AsyncStorage.setItem('tazq-smart-hint-count', String(count + 1));
-      } else {
-        setShowSmartHint(false);
-      }
-    } catch {
-      setShowSmartHint(false);
-    }
-  };
-
-  const openEdit = (id: number) => {
-    prepareTask();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-    const modeInfo = getModeInfoForTask(task, usePrefsStore.getState(), theme);
-    if (modeInfo) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(
-        language === 'tr' ? 'Otomatik Plan Görevi' : 'Automated Plan Task',
-        language === 'tr' 
-          ? `Bu görev "${modeInfo.labelTr}" tarafından otomatik yönetildiği için manuel düzenlenemez. Ayarlarını değiştirmek için Modlar sayfasından hedef kartını kullanabilirsin.` 
-          : `This task is automatically managed by "${modeInfo.labelEn}". To adjust its behavior, please modify your settings in the Modes overview.`
-      );
-      return;
-    }
-    setEditingId(id);
-    setForm({
-      title: task.title,
-      description: task.description || '',
-      priority: task.priority as Priority,
-      dueDate: task.dueDate?.split('T')[0] ?? '',
-      dueTime: task.dueTime || '',
-      tags: task.tags || [],
-      subtasks: task.subtasks || [],
-      recurrence: (task.recurrence as RecurrenceType) || 'None',
-      reminderEnabled: task.tags?.includes('hatırlatıcı') || task.tags?.includes('reminder') || false
-    });
-    setNlpHint('');
-    setTitleError(false);
-    setModalVisible(true);
-  };
-
-  const handleSave = async () => {
-    if (!form.title.trim()) { 
-      setTitleError(true); 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); 
-      Alert.alert(t.errorTitle, t.titleRequired);
-      return; 
-    }
-    setSaving(true);
+  const handleMoveTask = (index: number, direction: 'up' | 'down') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newTasks = [...filteredTasks];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
     
+    if (targetIndex < 0 || targetIndex >= newTasks.length) return;
+    
+    const temp = newTasks[index];
+    newTasks[index] = newTasks[targetIndex];
+    newTasks[targetIndex] = temp;
+    
+    const orderedIds = newTasks.map(t => t.id);
+    reorderTasks(orderedIds);
+    enqueueOffline({ type: 'reorder-tasks', ids: orderedIds });
+  };
+
+
+  const handleFormSave = async (formPayload: any) => {
     try {
-      // Professional Enrichment: Run AI with a strict timeout
-      let finalTags = form.tags || [];
+      let finalTags: string[] = formPayload.tags || [];
       try {
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('AI Timeout')), 1500)
         );
 
         const aiMatch = await Promise.race([
-          categorizeTask(form.title.trim()),
+          categorizeTask(formPayload.title.trim()),
           timeoutPromise
         ]) as any;
 
@@ -1195,49 +945,43 @@ export default function ActionCenter() {
       const isTR = language === 'tr';
       const existingTask = editingId !== null ? tasks.find(t => t.id === editingId) : null;
 
-      // Sync reminder tag with toggle
       let finalTagsWithReminder = [...finalTags];
-      if (form.reminderEnabled && !finalTagsWithReminder.includes('hatırlatıcı')) {
+      if (formPayload.reminderEnabled && !finalTagsWithReminder.includes('hatırlatıcı')) {
           finalTagsWithReminder.push('hatırlatıcı');
-      } else if (!form.reminderEnabled) {
-          finalTagsWithReminder = finalTagsWithReminder.filter(t => t !== 'hatırlatıcı' && t !== 'reminder');
+      } else if (!formPayload.reminderEnabled) {
+          finalTagsWithReminder = finalTagsWithReminder.filter(tag => tag !== 'hatırlatıcı' && tag !== 'reminder');
       }
 
-      // Smart Validation: Reminder without time or past time
-      if (form.reminderEnabled) {
-          if (!form.dueTime) {
+      if (formPayload.reminderEnabled) {
+          if (!formPayload.dueTime) {
               Alert.alert(t.warningTitle || 'Warning', isTR ? "Hatırlatıcı için saat seçmelisiniz." : "Please select a time for the reminder.");
-              setSaving(false);
-              return;
+              throw new Error('Validation failed');
           }
-          if (!form.dueDate) {
+          if (!formPayload.dueDate) {
               Alert.alert(t.warningTitle || 'Warning', isTR ? "Hatırlatıcı için tarih seçmelisiniz." : "Please select a date for the reminder.");
-              setSaving(false);
-              return;
+              throw new Error('Validation failed');
           }
 
-          // Past time check
-          const target = new Date(form.dueDate);
-          const { hours, minutes } = parseTimeParts(form.dueTime);
+          const target = new Date(formPayload.dueDate);
+          const { hours, minutes } = parseTimeParts(formPayload.dueTime);
           target.setHours(hours, minutes, 0, 0);
           
           if (target < new Date()) {
               Alert.alert(t.warningTitle || 'Warning', isTR ? "Geçmiş bir saate hatırlatıcı kurulamaz." : "Cannot set a reminder for a past time.");
-              setSaving(false);
-              return;
+              throw new Error('Validation failed');
           }
       }
 
       const payload = {
-        title: form.title.trim(),
-        description: form.description.trim(),
+        title: formPayload.title.trim(),
+        description: formPayload.description.trim(),
         isCompleted: existingTask ? existingTask.isCompleted : false,
-        priority: form.priority,
-        dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
-        dueTime: form.dueTime || null,
+        priority: formPayload.priority,
+        dueDate: formPayload.dueDate ? new Date(formPayload.dueDate).toISOString() : null,
+        dueTime: formPayload.dueTime || null,
         tags: finalTagsWithReminder,
-        subtasks: form.subtasks,
-        recurrence: form.recurrence,
+        subtasks: formPayload.subtasks,
+        recurrence: formPayload.recurrence,
       };
 
       if (editingId !== null) {
@@ -1245,20 +989,19 @@ export default function ActionCenter() {
           enqueueOffline({ type: 'update-task', id: editingId, payload });
           updateTask(editingId, { ...payload, id: editingId } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
-          if (form.reminderEnabled && !payload.isCompleted) {
+          if (formPayload.reminderEnabled && !payload.isCompleted) {
               scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language);
           } else {
               cancelTaskNotification(editingId);
           }
           syncTaskToCalendar({ id: editingId, ...payload } as any).catch(() => {});
         } else {
-          // Race online update request with a 4.5s timeout to prevent freeze on slow networks
           await Promise.race([
             TaskService.updateTask(editingId, payload),
             new Promise((_, reject) => setTimeout(() => reject(new Error('Update Timeout')), 4500))
           ]);
           updateTask(editingId, { ...payload, id: editingId } as any);
-          if (form.reminderEnabled && !payload.isCompleted) {
+          if (formPayload.reminderEnabled && !payload.isCompleted) {
               scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language);
           } else {
               cancelTaskNotification(editingId);
@@ -1269,47 +1012,46 @@ export default function ActionCenter() {
         if (!isOnline) {
           const tempId = -Date.now();
           enqueueOffline({ type: 'create-task', tempId, payload });
-          addTask({ ...payload, id: tempId, title: form.title.trim() } as any);
+          addTask({ ...payload, id: tempId, title: formPayload.title.trim() } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
-          if (form.reminderEnabled) {
+          if (formPayload.reminderEnabled) {
             scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
           }
           syncTaskToCalendar({ id: tempId, ...payload } as any).catch(() => {});
         } else {
-          // Race online create request with a 4.5s timeout to prevent freeze on slow networks
           const created = await Promise.race([
             TaskService.createTask(payload),
             new Promise((_, reject) => setTimeout(() => reject(new Error('Create Timeout')), 4500))
           ]) as any;
-          addTask({ ...created, title: form.title.trim() } as any);
-          if (created.id && form.reminderEnabled) {
+          addTask({ ...created, title: formPayload.title.trim() } as any);
+          if (created.id && formPayload.reminderEnabled) {
             scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
           }
           syncTaskToCalendar({ id: created.id, ...payload } as any).catch(() => {});
         }
       }
-      setModalVisible(false);
-      setNewSubtaskText('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
-      // Reconstruct payload locally to ensure catch block can reference it even if parsing crashed
+      if (err.message === 'Validation failed') {
+        throw err;
+      }
       const existingTask = editingId !== null ? tasks.find(t => t.id === editingId) : null;
-      let finalTagsWithReminder = form.tags || [];
-      if (form.reminderEnabled && !finalTagsWithReminder.includes('hatırlatıcı')) {
+      let finalTagsWithReminder: string[] = formPayload.tags || [];
+      if (formPayload.reminderEnabled && !finalTagsWithReminder.includes('hatırlatıcı')) {
           finalTagsWithReminder.push('hatırlatıcı');
-      } else if (!form.reminderEnabled) {
-          finalTagsWithReminder = finalTagsWithReminder.filter(t => t !== 'hatırlatıcı' && t !== 'reminder');
+      } else if (!formPayload.reminderEnabled) {
+          finalTagsWithReminder = finalTagsWithReminder.filter(tag => tag !== 'hatırlatıcı' && tag !== 'reminder');
       }
       const safePayload = {
-        title: form.title.trim(),
-        description: form.description.trim(),
+        title: formPayload.title.trim(),
+        description: formPayload.description.trim(),
         isCompleted: existingTask ? existingTask.isCompleted : false,
-        priority: form.priority,
-        dueDate: form.dueDate && !isNaN(new Date(form.dueDate).getTime()) ? new Date(form.dueDate).toISOString() : null,
-        dueTime: form.dueTime || null,
+        priority: formPayload.priority,
+        dueDate: formPayload.dueDate && !isNaN(new Date(formPayload.dueDate).getTime()) ? new Date(formPayload.dueDate).toISOString() : null,
+        dueTime: formPayload.dueTime || null,
         tags: finalTagsWithReminder,
-        subtasks: form.subtasks,
-        recurrence: form.recurrence,
+        subtasks: formPayload.subtasks,
+        recurrence: formPayload.recurrence,
       };
 
       if (!err.response) {
@@ -1318,14 +1060,12 @@ export default function ActionCenter() {
           updateTask(editingId, { ...safePayload, id: editingId } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
           syncTaskToCalendar({ id: editingId, ...safePayload } as any).catch(() => {});
-          setModalVisible(false);
         } else {
           const tempId = -Date.now();
           enqueueOffline({ type: 'create-task', tempId, payload: safePayload });
-          addTask({ ...safePayload, id: tempId, title: form.title.trim() } as any);
+          addTask({ ...safePayload, id: tempId, title: formPayload.title.trim() } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
           syncTaskToCalendar({ id: tempId, ...safePayload } as any).catch(() => {});
-          setModalVisible(false);
         }
       } else if (err.response?.status === 429) {
         const msg = language === 'tr' ? 'Maksimum görev sayısına ulaştın (200). Eski görevleri tamamla veya sil.' : 'Task limit reached (200). Complete or delete existing tasks.';
@@ -1334,8 +1074,7 @@ export default function ActionCenter() {
         const serverMsg = err.response?.data?.message || err.response?.data?.Message || err.message;
         Alert.alert(t.errorTitle, `${t.saveError}: ${serverMsg}`);
       }
-    } finally {
-      setSaving(false);
+      throw err;
     }
   };
 
@@ -1472,7 +1211,7 @@ export default function ActionCenter() {
   };
 
   const handleClearCompleted = () => {
-    const completedTasks = tasks.filter(t => t.isCompleted);
+    const completedTasks = tasks.filter(tk => tk.isCompleted);
     if (completedTasks.length === 0) return;
     Alert.alert(
       t.clearCompleted,
@@ -1876,7 +1615,7 @@ export default function ActionCenter() {
                       <Text style={[styles.emptyText, { color: theme.onSurfaceVariant, textAlign: 'center', marginTop: 6, maxWidth: 280, lineHeight: 20 }]}>{bodyText}</Text>
                       {!isSearch && !hasCompletedTasks && (
                         <Touchable
-                          onPress={openAdd}
+                          onPress={handleAddBtnPress}
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.primary, paddingHorizontal: S.lg, paddingVertical: S.sm + 2, borderRadius: R.full, marginTop: S.lg }}
                           accessibilityRole="button"
                           accessibilityLabel={language === 'tr' ? 'İlk görevini ekle' : 'Add your first task'}
@@ -1905,6 +1644,9 @@ export default function ActionCenter() {
                     priorityColor={priorityColor}
                     handleDelete={handleDelete}
                     handleToggleExpand={handleToggleExpand}
+                    sortBy={sortBy}
+                    onMoveUp={i > 0 && sortBy === 'creation' ? () => handleMoveTask(i, 'up') : undefined}
+                    onMoveDown={i < filteredTasks.length - 1 && sortBy === 'creation' ? () => handleMoveTask(i, 'down') : undefined}
                     handleLongPress={(id: number) => {
                         if (!isBulkMode) {
                             import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
@@ -1992,7 +1734,7 @@ export default function ActionCenter() {
                 }
                 setIsBulkMode(false);
                 setSelectedIds(new Set());
-                openEdit(id);
+                handleEditBtnPress(id);
               }}
               style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: selectedIds.size === 1 && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme) ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
             >
@@ -2020,9 +1762,9 @@ export default function ActionCenter() {
         )}
       </AnimatePresence>
 
-      {!isBulkMode && !(Platform.OS === 'android' && kbHeight > 0) && (
+      {!isBulkMode && (
         <MagneticFAB
-          onPress={openAdd}
+          onPress={handleAddBtnPress}
           storageKey={`@fab_tasks_${user?.id ?? 'guest'}`}
           isDark={isDark}
           theme={theme}
@@ -2047,478 +1789,18 @@ export default function ActionCenter() {
         onClose={() => setWeightModalTaskId(null)}
       />
 
-      {/* Modern Stitch Modal */}
-      <Modal visible={modalVisible} transparent animationType="none" onRequestClose={() => !saving && setModalVisible(false)} onShow={() => taskSlideIn()}>
-        <View style={styles.overlay}>
-          <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && setModalVisible(false)} />
-
-          <View style={styles.sheetContainer}>
-            <RNAnimated.View style={[styles.sheet, taskSlide, { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF', padding: S.lg, borderBottomLeftRadius: kbHeight > 0 ? S.xl : 0, borderBottomRightRadius: kbHeight > 0 ? S.xl : 0, maxHeight: height - insets.top - 16 }]}>
-                <View {...taskPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
-                  <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
-                </View>
-                
-                <View style={[styles.sheetHeader, { marginBottom: !editingId ? S.sm : S.lg }]}>
-                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface, fontSize: F.title }]}>
-                        {editingId ? t.editTask : t.addTask}
-                    </Text>
-                    <Touchable
-                        onPress={() => !saving && setModalVisible(false)}
-                        style={[styles.closeModalBtn, saving && { opacity: 0.35 }]}
-                        disabled={saving}
-                        accessibilityRole="button"
-                        accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'}
-                    >
-                        <X size={20} color={theme.onSurfaceVariant} />
-                    </Touchable>
-                </View>
-                {!editingId && (
-                    <View style={{ flexDirection: 'row', gap: S.xs, marginBottom: S.lg, flexWrap: 'wrap' }}>
-                        {[
-                            { text: language === 'tr' ? 'Tarih' : 'Due date', icon: <Calendar size={10} color={theme.primary} /> },
-                            { text: language === 'tr' ? 'Öncelik' : 'Priority', icon: <Target size={10} color={theme.primary} /> },
-                            { text: language === 'tr' ? 'Hatırlatıcı' : 'Reminder', icon: <Bell size={10} color={theme.primary} /> }
-                        ].map((chip) => (
-                            <View key={chip.text} style={{ backgroundColor: theme.primary + '14', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                {chip.icon}
-                                <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary, letterSpacing: 0.3 }}>{chip.text}</Text>
-                            </View>
-                        ))}
-                    </View>
-                )}
-
-                <ScrollView
-                    style={styles.formContainer}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: S.lg }}
-                    keyboardShouldPersistTaps="handled"
-                    automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-                >
-                    <View style={styles.section}>
-                        <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 60 }]}>
-                                <TextInput
-                                    style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
-                                    placeholder={isListeningTitle ? t.listeningLabel : t.taskTitle}
-                                    placeholderTextColor={theme.onSurfaceVariant + '99'}
-                                    value={form.title}
-                                    onChangeText={handleTitleChange}
-                                    maxLength={150}
-                                    underlineColorAndroid="transparent"
-                                />
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                                    {nlpHint ? <Sparkles size={16} color={theme.primary} /> : null}
-                                    <Touchable onPress={() => toggleVoice('title')} style={{ padding: S.xs, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={isListeningTitle ? (language === 'tr' ? 'Dinlemeyi durdur' : 'Stop listening') : (language === 'tr' ? 'Sesle yaz' : 'Voice input')} accessibilityState={{ busy: isListeningTitle }}>
-                                        <VoiceWave active={isListeningTitle} theme={theme} />
-                                        <Mic size={18} color={isListeningTitle ? theme.primary : theme.onSurfaceVariant} />
-                                    </Touchable>
-                                </View>
-                            </View>
-                            {nlpHint ? (
-                                <MotiText
-                                    from={{ opacity: 0, translateY: -5 }}
-                                    animate={{ opacity: 1, translateY: 0 }}
-                                    style={{ color: theme.primary, fontSize: F.caption, marginTop: S.sm, marginLeft: S.md, fontWeight: '600', letterSpacing: 0.5 }}
-                                >
-                                    {nlpHint}
-                                </MotiText>
-                            ) : showSmartHint && !editingId ? (
-                                <MotiView
-                                    from={{ opacity: 0, translateY: -4 }}
-                                    animate={{ opacity: 1, translateY: 0 }}
-                                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm, marginLeft: S.md }}
-                                >
-                                    <Sparkles size={11} color={theme.primary} />
-                                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '600', opacity: 0.75 }}>
-                                        {language === 'tr'
-                                            ? '"yarın", "acil", "hatırlatıcı" gibi kelimeler otomatik algılanır'
-                                            : '"tomorrow", "urgent", "reminder" are auto-detected'}
-                                    </Text>
-                                </MotiView>
-                            ) : null}
-
-                            <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, marginTop: S.sm, height: 100 }]}>
-                                <TextInput
-                                    style={[styles.modalInput, { color: theme.onSurface, paddingTop: S.sm, fontSize: F.body }]}
-                                    placeholder={isListeningDesc ? t.listeningLabel : t.taskDescription + '...'}
-                                    placeholderTextColor={theme.onSurfaceVariant + '99'}
-                                    value={form.description}
-                                    onChangeText={handleDescriptionChange}
-                                    multiline
-                                    numberOfLines={3}
-                                    maxLength={500}
-                                    underlineColorAndroid="transparent"
-                                />
-                                <Touchable onPress={() => toggleVoice('description')} style={{ position: 'absolute', right: S.md, top: 14, padding: S.xs, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={isListeningDesc ? (language === 'tr' ? 'Dinlemeyi durdur' : 'Stop listening') : (language === 'tr' ? 'Sesle yaz' : 'Voice input')} accessibilityState={{ busy: isListeningDesc }}>
-                                    <VoiceWave active={isListeningDesc} theme={theme} />
-                                    <Mic size={18} color={isListeningDesc ? theme.primary : theme.onSurfaceVariant} />
-                                </Touchable>
-                            </View>
-                    </View>
-
-                    <View style={styles.section}>
-                        {/* Date & Time Chips */}
-                        {!showDatePicker && !showTimePicker && (
-                          <View style={styles.dateTimeRow}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.md }]}>{t.dueDate.toUpperCase()}</Text>
-                                <Touchable
-                                    onPress={openDatePicker}
-                                    style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
-                                >
-                                    <Timer size={14} color={theme.primary} />
-                                    <Text style={[styles.chipText, { color: form.dueDate ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]}>
-                                        {form.dueDate || t.selectDate}
-                                    </Text>
-                                </Touchable>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.md }]}>{t.dueTime.toUpperCase()}</Text>
-                                <Touchable
-                                    onPress={openTimePicker}
-                                    style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
-                                >
-                                    <Sparkles size={14} color={theme.secondary} />
-                                    <Text style={[styles.chipText, { color: form.dueTime ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]}>
-                                        {form.dueTime ? new Date(form.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t.selectTime}
-                                    </Text>
-                                </Touchable>
-                            </View>
-                          </View>
-                        )}
-
-                        {/* Inline Date Picker */}
-                        {showDatePicker && (
-                          <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]}>
-                            <Text style={[styles.inlinePickerTitle, { color: theme.onSurface }]}>{t.dueDate}</Text>
-                            <View style={styles.pickerRow}>
-                              <View style={styles.pickerCol}>
-                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.day}</Text>
-                                <Touchable onPress={() => setPickerDate(d => ({ ...d, day: Math.min(d.day + 1, daysInMonth(d.year, d.month)) }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
-                                <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.day).padStart(2, '0')}</Text>
-                                <Touchable 
-                                  onPress={() => setPickerDate(d => {
-                                    const now = new Date();
-                                    const minDay = (d.year === now.getFullYear() && d.month === (now.getMonth() + 1)) ? now.getDate() : 1;
-                                    return { ...d, day: Math.max(d.day - 1, minDay) };
-                                  })} 
-                                  style={styles.pickerArrow}
-                                >
-                                  <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
-                                </Touchable>
-                              </View>
-                              <View style={styles.pickerCol}>
-                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.month}</Text>
-                                <Touchable onPress={() => setPickerDate(d => ({ ...d, month: d.month === 12 ? 1 : d.month + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
-                                <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.month).padStart(2, '0')}</Text>
-                                <Touchable 
-                                  onPress={() => setPickerDate(d => {
-                                    const now = new Date();
-                                    const minMonth = d.year === now.getFullYear() ? (now.getMonth() + 1) : 1;
-                                    return { ...d, month: Math.max(d.month - 1, minMonth) };
-                                  })} 
-                                  style={styles.pickerArrow}
-                                >
-                                  <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
-                                </Touchable>
-                              </View>
-                              <View style={styles.pickerCol}>
-                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.year}</Text>
-                                <Touchable onPress={() => setPickerDate(d => ({ ...d, year: d.year + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
-                                <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{pickerDate.year}</Text>
-                                <Touchable 
-                                  onPress={() => setPickerDate(d => ({ ...d, year: Math.max(d.year - 1, new Date().getFullYear()) }))} 
-                                  style={styles.pickerArrow}
-                                >
-                                  <Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text>
-                                </Touchable>
-                              </View>
-                            </View>
-                            {dateError && (
-                              <MotiView from={{ opacity: 0, translateY: -4 }} animate={{ opacity: 1, translateY: 0 }} style={[{ backgroundColor: theme.error + '15', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, marginBottom: S.sm, flexDirection: 'row', alignItems: 'center', gap: S.sm }]}>
-                                <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '600' }}>{t.invalidDate}</Text>
-                              </MotiView>
-                            )}
-                            <View style={styles.pickerActions}>
-                              <Touchable onPress={() => setShowDatePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></Touchable>
-                              <Touchable onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '600' }]}>{t.save}</Text></Touchable>
-                            </View>
-                          </View>
-                        )}
-
-                        {/* Inline Time Picker */}
-                        {showTimePicker && (
-                          <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]}>
-                            <Text style={[styles.inlinePickerTitle, { color: theme.onSurface }]}>{t.dueTime}</Text>
-                            <View style={styles.pickerRow}>
-                              <View style={styles.pickerCol}>
-                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.hour}</Text>
-                                <Touchable onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 23 ? 0 : pt.hour + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
-                                <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.hour).padStart(2, '0')}</Text>
-                                <Touchable onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 0 ? 23 : pt.hour - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></Touchable>
-                              </View>
-                              <Text style={[styles.pickerColon, { color: theme.onSurface }]}>:</Text>
-                              <View style={styles.pickerCol}>
-                                <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.minute}</Text>
-                                <Touchable onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 59 ? 0 : pt.minute + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
-                                <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.minute).padStart(2, '0')}</Text>
-                                <Touchable onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 0 ? 59 : pt.minute - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></Touchable>
-                              </View>
-                            </View>
-                            <View style={styles.pickerActions}>
-                              <Touchable onPress={() => setShowTimePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></Touchable>
-                              <Touchable onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '600' }]}>{t.save}</Text></Touchable>
-                            </View>
-                          </View>
-                        )}
-                    </View>
-
-                    <View style={styles.section}>
-                        <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.priority.toUpperCase()}</Text>
-                        <View style={[styles.priorityRow, { gap: S.sm }]}>
-                            {([
-                                { key: 'Low', label: t.filterLow },
-                                { key: 'Medium', label: t.filterMedium },
-                                { key: 'High', label: t.filterHigh }
-                            ] as { key: Priority, label: string }[]).map((p) => (
-                                <Touchable
-                                    key={p.key}
-                                    onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, priority: p.key })); }}
-                                    style={[styles.priorityTab, { backgroundColor: form.priority === p.key ? priorityColor(p.key) : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 48 }]}
-                                >
-                                    <Text style={[
-                                        styles.priorityTabText,
-                                        {
-                                            color: form.priority === p.key
-                                                ? (p.key === 'Low' ? theme.onTertiary : p.key === 'High' ? 'white' : 'white')
-                                                : theme.onSurfaceVariant,
-                                            fontSize: F.body
-                                        }
-                                    ]}>
-                                        {p.label}
-                                    </Text>
-                                </Touchable>
-                            ))}
-                        </View>
-                    </View>
-
-                    {/* Recurrence Picker */}
-                    <View style={styles.section}>
-                        <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.recurrence.toUpperCase()}</Text>
-                        <View style={[styles.priorityRow, { gap: S.sm }]}>
-                            {RECURRENCE_OPTIONS.map((r) => (
-                                <Touchable
-                                    key={r.key}
-                                    onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, recurrence: r.key })); }}
-                                    style={[styles.priorityTab, { backgroundColor: form.recurrence === r.key ? theme.secondary : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 42 }]}
-                                >
-                                    {r.key !== 'None' && <Repeat size={12} color={form.recurrence === r.key ? 'white' : theme.onSurfaceVariant} />}
-                                    <Text style={[styles.priorityTabText, { color: form.recurrence === r.key ? 'white' : theme.onSurfaceVariant, fontSize: F.caption }]}>
-                                        {(t as any)[r.labelKey]}
-                                    </Text>
-                                </Touchable>
-                            ))}
-                        </View>
-                        {/* Next occurrence hint */}
-                        {form.recurrence !== 'None' && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm }}>
-                                <Repeat size={11} color={theme.secondary} />
-                                {form.dueDate ? (
-                                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.secondary }}>
-                                        {getNextOccurrenceLabel(form.dueDate, form.recurrence, language)}
-                                    </Text>
-                                ) : (
-                                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant }}>
-                                        {language === 'tr' ? 'Tekrar için tarih seçin' : 'Set a due date to track recurrence'}
-                                    </Text>
-                                )}
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Reminder Toggle */}
-                    <View style={styles.section}>
-                        <Touchable
-                            onPress={() => {
-                                Haptics.selectionAsync();
-                                setForm(f => {
-                                    const nextReminderEnabled = !f.reminderEnabled;
-                                    let nextDueTime = f.dueTime;
-                                    let nextDueDate = f.dueDate;
-
-                                    if (nextReminderEnabled) {
-                                        const now = new Date();
-                                        const defaultTime = new Date();
-                                        
-                                        const formatLocal = (dObj: Date) => {
-                                            const y = dObj.getFullYear();
-                                            const m = String(dObj.getMonth() + 1).padStart(2, '0');
-                                            const d = String(dObj.getDate()).padStart(2, '0');
-                                            return `${y}-${m}-${d}`;
-                                        };
-
-                                        if (!f.dueTime) {
-                                            if (!f.dueDate) {
-                                                // If both empty, check if 9:00 AM has passed today
-                                                if (now.getHours() < 9) {
-                                                    defaultTime.setHours(9, 0, 0, 0);
-                                                    nextDueTime = defaultTime.toISOString();
-                                                    nextDueDate = formatLocal(now);
-                                                } else {
-                                                    const tomorrow = new Date(now);
-                                                    tomorrow.setDate(now.getDate() + 1);
-                                                    defaultTime.setHours(9, 0, 0, 0);
-                                                    nextDueTime = defaultTime.toISOString();
-                                                    nextDueDate = formatLocal(tomorrow);
-                                                }
-                                            } else {
-                                                // Date is set, but time is empty
-                                                const targetDate = new Date(f.dueDate);
-                                                targetDate.setHours(0, 0, 0, 0);
-                                                const todayZero = new Date();
-                                                todayZero.setHours(0, 0, 0, 0);
-                                                
-                                                if (targetDate > todayZero) {
-                                                    defaultTime.setHours(9, 0, 0, 0);
-                                                    nextDueTime = defaultTime.toISOString();
-                                                } else {
-                                                    let nextHour = now.getHours() + 1;
-                                                    if (nextHour > 23) {
-                                                        const tomorrow = new Date(now);
-                                                        tomorrow.setDate(now.getDate() + 1);
-                                                        nextDueDate = formatLocal(tomorrow);
-                                                        defaultTime.setHours(9, 0, 0, 0);
-                                                        nextDueTime = defaultTime.toISOString();
-                                                    } else {
-                                                        defaultTime.setHours(nextHour, 0, 0, 0);
-                                                        nextDueTime = defaultTime.toISOString();
-                                                    }
-                                                }
-                                            }
-                                        } else if (!f.dueDate) {
-                                            // Time is set, but date is empty
-                                            const { hours, minutes } = parseTimeParts(f.dueTime);
-                                            const target = new Date(now);
-                                            target.setHours(hours, minutes, 0, 0);
-                                            if (target < now) {
-                                                const tomorrow = new Date(now);
-                                                tomorrow.setDate(now.getDate() + 1);
-                                                nextDueDate = formatLocal(tomorrow);
-                                            } else {
-                                                nextDueDate = formatLocal(now);
-                                            }
-                                        }
-                                    }
-
-                                    return {
-                                        ...f,
-                                        reminderEnabled: nextReminderEnabled,
-                                        dueTime: nextDueTime,
-                                        dueDate: nextDueDate
-                                    };
-                                });
-                            }}
-                            style={[styles.inputGroup, {
-                                backgroundColor: form.reminderEnabled
-                                    ? theme.priorityMedium + (isDark ? '1F' : '14')
-                                    : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow),
-                                height: 52,
-                            }]}
-                        >
-                            <Bell size={18} color={form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant} />
-                            <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant, marginLeft: S.sm }}>
-                                {t.reminderLabel}
-                            </Text>
-                            <View style={{
-                                width: 44, height: 26, borderRadius: 13,
-                                backgroundColor: form.reminderEnabled ? theme.priorityMedium : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'),
-                                justifyContent: 'center', paddingHorizontal: 2,
-                            }}>
-                                <MotiView
-                                    animate={{ translateX: form.reminderEnabled ? 18 : 0 }}
-                                    transition={{ type: 'spring', damping: 15 }}
-                                    style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: 'white' }}
-                                />
-                            </View>
-                        </Touchable>
-                    </View>
-
-                    {/* Subtasks Editor */}
-                    <View style={styles.section}>
-                        <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.subtasks.toUpperCase()}</Text>
-                        {form.subtasks.map((sub, i) => (
-                            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
-                                <Touchable onPress={() => {
-                                    const subs = [...form.subtasks];
-                                    subs[i] = { ...subs[i], done: !subs[i].done };
-                                    setForm(f => ({ ...f, subtasks: subs }));
-                                }}>
-                                    {sub.done 
-                                        ? <CheckCircle2 size={18} color={theme.tertiary} />
-                                        : <Circle size={18} color={theme.onSurfaceVariant} />
-                                    }
-                                </Touchable>
-                                <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: theme.onSurface, textDecorationLine: sub.done ? 'line-through' : 'none', opacity: sub.done ? 0.4 : 1 }}>{sub.text}</Text>
-                                <Touchable onPress={() => {
-                                    setForm(f => ({ ...f, subtasks: f.subtasks.filter((_, idx) => idx !== i) }));
-                                }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Alt görevi kaldır' : 'Remove subtask'}>
-                                    <X size={16} color={theme.onSurfaceVariant} />
-                                </Touchable>
-                            </View>
-                        ))}
-                        <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: verticalScale(44) }]}>
-                            <TextInput
-                                style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
-                                placeholder={t.addSubtask}
-                                placeholderTextColor={theme.onSurfaceVariant + '99'}
-                                value={newSubtaskText}
-                                onChangeText={setNewSubtaskText}
-                                returnKeyType="done"
-                                maxLength={100}
-                                underlineColorAndroid="transparent"
-                                onSubmitEditing={() => {
-                                    if (newSubtaskText.trim() && form.subtasks.length < 15) {
-                                        setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));
-                                        setNewSubtaskText('');
-                                    }
-                                }}
-                            />
-                            <Touchable
-                                onPress={() => {
-                                    if (newSubtaskText.trim() && form.subtasks.length < 15) {
-                                        setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));
-                                        setNewSubtaskText('');
-                                    }
-                                }}
-                                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-                            >
-                                <Plus size={18} color={theme.primary} />
-                            </Touchable>
-                        </View>
-                    </View>
-
-                </ScrollView>
-
-                {/* Sticky save — always visible outside the scroll area */}
-                <Touchable onPress={handleSave} disabled={saving} style={[styles.modalSaveBtn, { marginTop: S.sm, marginBottom: 0 }]}>
-                    <LinearGradient colors={isDark ? [theme.primary, theme.primaryDim] : [theme.primary, theme.primaryContainer]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalSaveGradient}>
-                        {saving ? <ActivityIndicator color="white" /> : (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md }}>
-                                <Check size={20} color={theme.onPrimary} strokeWidth={3} />
-                                <Text
-                                    style={[styles.modalSaveText, { color: theme.onPrimary, fontSize: F.subhead, flexShrink: 1 }]}
-                                    numberOfLines={1}
-                                    adjustsFontSizeToFit
-                                >
-                                    {t.save}
-                                </Text>
-                            </View>
-                        )}
-                    </LinearGradient>
-                </Touchable>
-            </RNAnimated.View>
-          </View>
-        </View>
-      </Modal>
+      {/* Task Form Modal */}
+      <TaskFormModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        task={editingId !== null ? tasks.find(t => t.id === editingId) : null}
+        onSave={handleFormSave}
+        onDelete={editingId !== null ? async (id) => handleDelete(id) : undefined}
+        theme={theme}
+        isDark={isDark}
+        language={language}
+        t={t}
+      />
     </View>
   );
 }

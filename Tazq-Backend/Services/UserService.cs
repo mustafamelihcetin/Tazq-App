@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Google.Apis.Auth;
 using System.Security.Cryptography;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -14,13 +15,17 @@ namespace Tazq_App.Services
         private readonly ICustomEmailService _emailService;
         private readonly IJwtService _jwtService;
         private readonly ILogger<UserService> _logger;
+        private readonly IGoogleTokenValidator _googleTokenValidator;
+        private readonly IAppleTokenValidator _appleTokenValidator;
 
-        public UserService(AppDbContext context, ICustomEmailService emailService, IJwtService jwtService, ILogger<UserService> logger)
+        public UserService(AppDbContext context, ICustomEmailService emailService, IJwtService jwtService, ILogger<UserService> logger, IGoogleTokenValidator googleTokenValidator, IAppleTokenValidator appleTokenValidator)
         {
             _context = context;
             _emailService = emailService;
             _jwtService = jwtService;
             _logger = logger;
+            _googleTokenValidator = googleTokenValidator;
+            _appleTokenValidator = appleTokenValidator;
         }
 
         public async Task<bool> RegisterAsync(UserRegisterDto userDto)
@@ -42,7 +47,24 @@ namespace Tazq_App.Services
             };
 
             _context.Users.Add(user);
-            return await _context.SaveChangesAsync() > 0;
+            var registered = await _context.SaveChangesAsync() > 0;
+
+            if (registered)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _emailService.SendWelcomeEmailAsync(user.Email, user.Name);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email);
+                    }
+                });
+            }
+
+            return registered;
         }
 
         // Refresh token ömrü
@@ -100,6 +122,144 @@ namespace Tazq_App.Services
             return new AuthTokens(accessToken, refreshToken);
         }
 
+        public async Task<AuthTokens?> GoogleLoginAsync(string idToken, string? ipAddress)
+        {
+            GoogleJsonWebSignature.Payload? payload;
+            try
+            {
+                payload = await _googleTokenValidator.ValidateAsync(idToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Google token validation failed.");
+                return null;
+            }
+
+            if (payload == null || string.IsNullOrEmpty(payload.Email))
+            {
+                return null;
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == payload.Email);
+            if (user == null)
+            {
+                user = new User
+                {
+                    Name = payload.Name ?? payload.Email.Split('@')[0],
+                    Email = payload.Email,
+                    Role = "User",
+                    PasswordHash = string.Empty,
+                    PasswordSalt = string.Empty
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _emailService.SendWelcomeEmailAsync(user.Email, user.Name);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email);
+                    }
+                });
+            }
+
+            if (user.IsBanned)
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrEmpty(ipAddress))
+            {
+                user.LastLoginIp = ipAddress;
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+            }
+
+            var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
+            var refreshToken = await IssueRefreshTokenAsync(user.Id);
+            return new AuthTokens(accessToken, refreshToken);
+        }
+
+        public async Task<AuthTokens?> AppleLoginAsync(AppleLoginDto dto, string? ipAddress)
+        {
+            try
+            {
+                var principal = await _appleTokenValidator.ValidateAsync(dto.IdentityToken);
+                if (principal == null)
+                {
+                    _logger.LogWarning("Apple identity token validation failed.");
+                    return null;
+                }
+
+                var email = principal.FindFirst("email")?.Value ?? principal.FindFirst(ClaimTypes.Email)?.Value;
+                if (string.IsNullOrEmpty(email))
+                {
+                    _logger.LogWarning("Apple token did not contain email claim.");
+                    return null;
+                }
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+                if (user == null)
+                {
+                    var firstName = dto.FirstName;
+                    var lastName = dto.LastName;
+                    var name = !string.IsNullOrWhiteSpace(firstName) 
+                        ? $"{firstName} {lastName}".Trim() 
+                        : email.Split('@')[0];
+
+                    user = new User
+                    {
+                        Name = name,
+                        Email = email,
+                        Role = "User",
+                        PasswordHash = string.Empty,
+                        PasswordSalt = string.Empty
+                    };
+
+                    _context.Users.Add(user);
+                    await _context.SaveChangesAsync();
+
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _emailService.SendWelcomeEmailAsync(user.Email, user.Name);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email);
+                        }
+                    });
+                }
+
+                if (user.IsBanned)
+                {
+                    return null;
+                }
+
+                if (!string.IsNullOrEmpty(ipAddress))
+                {
+                    user.LastLoginIp = ipAddress;
+                    _context.Users.Update(user);
+                    await _context.SaveChangesAsync();
+                }
+
+                var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
+                var refreshToken = await IssueRefreshTokenAsync(user.Id);
+                return new AuthTokens(accessToken, refreshToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing Apple Login");
+                return null;
+            }
+        }
+
         public async Task<User?> GetUserByIdAsync(int userId)
         {
             return await _context.Users.AsNoTracking().Include(u => u.NotificationPreferences).FirstOrDefaultAsync(u => u.Id == userId);
@@ -130,7 +290,7 @@ namespace Tazq_App.Services
         public async Task<bool> SendForgotPasswordTokenAsync(string email)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user == null) return true; // Pretend success for security
+            if (user == null) return false;
 
             var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
             // Store SHA-256 hash; send raw token to user so a DB breach doesn't expose tokens
@@ -148,8 +308,17 @@ namespace Tazq_App.Services
             _context.PasswordResetTokens.Add(resetToken);
             await _context.SaveChangesAsync();
 
-            var mailBody = $"Şifre sıfırlama kodunuz: <b>{rawToken}</b>";
-            await _emailService.SendEmailAsync(user.Email, "Şifre Sıfırlama", mailBody);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _emailService.SendForgotPasswordEmailAsync(user.Email, user.Name, rawToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send forgot password email to {Email}", user.Email);
+                }
+            });
 
             return true;
         }

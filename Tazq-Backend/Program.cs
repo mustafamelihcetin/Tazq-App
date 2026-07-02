@@ -190,14 +190,26 @@ builder.Services.AddSingleton<ICryptoService>(new CryptoService(encryptionKey));
 
 builder.Services.Configure<SmtpSettings>(opt =>
 {
-    opt.From = Environment.GetEnvironmentVariable("SMTP_FROM_EMAIL") ?? "";
-    opt.Username = Environment.GetEnvironmentVariable("SMTP_USERNAME") ?? "";
-    opt.Password = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? "";
-    opt.Port = int.Parse(Environment.GetEnvironmentVariable("SMTP_PORT") ?? "587");
-    opt.Host = Environment.GetEnvironmentVariable("SMTP_SERVER") ?? "";
+    var section = builder.Configuration.GetSection("SmtpSettings");
+    opt.From = Environment.GetEnvironmentVariable("SMTP_FROM_EMAIL") ?? section["From"] ?? "";
+    opt.Username = Environment.GetEnvironmentVariable("SMTP_USERNAME") ?? section["Username"] ?? "";
+    opt.Password = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? section["Password"] ?? "";
+    opt.Host = Environment.GetEnvironmentVariable("SMTP_SERVER") ?? section["Host"] ?? "";
+    
+    var portEnv = Environment.GetEnvironmentVariable("SMTP_PORT");
+    if (!string.IsNullOrEmpty(portEnv) && int.TryParse(portEnv, out int p))
+    {
+        opt.Port = p;
+    }
+    else
+    {
+        opt.Port = int.TryParse(section["Port"], out int sp) ? sp : 587;
+    }
 });
 
 builder.Services.AddSingleton<ICustomEmailService, CustomEmailService>();
+builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
+builder.Services.AddSingleton<IAppleTokenValidator, AppleTokenValidator>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IFocusSessionService, FocusSessionService>();
