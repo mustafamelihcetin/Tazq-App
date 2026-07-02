@@ -243,6 +243,7 @@ export default function OnboardingScreen() {
                   <MotiView
                     animate={{
                       left: isActive ? ['0%', '100%'] : '0%',
+                      backgroundColor: isActive ? ['#3367ff', '#10b981'] : '#3367ff',
                     }}
                     transition={{
                       loop: true,
@@ -255,7 +256,6 @@ export default function OnboardingScreen() {
                       width: 8,
                       height: 8,
                       borderRadius: 4,
-                      backgroundColor: isActive ? ['#3367ff', '#10b981'] : '#3367ff',
                       top: -3,
                     }}
                   />

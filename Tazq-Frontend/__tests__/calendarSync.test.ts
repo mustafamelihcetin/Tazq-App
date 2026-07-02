@@ -1,9 +1,8 @@
 import { requestCalendarPermissions, syncTaskToCalendar, deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// @ts-ignore
-import * as Calendar from 'expo-calendar/build/legacy/index';
+import * as Calendar from 'expo-calendar';
 
-jest.mock('expo-calendar/build/legacy/index', () => ({
+jest.mock('expo-calendar', () => ({
   requestCalendarPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
   getCalendarsAsync: jest.fn().mockResolvedValue([{ title: 'TAZQ', id: 'tazq-cal-id', source: { id: 'source-1', type: 'local' } }]),
   createCalendarAsync: jest.fn().mockResolvedValue('tazq-cal-id'),
@@ -13,7 +12,7 @@ jest.mock('expo-calendar/build/legacy/index', () => ({
   EntityTypes: { EVENT: 'event' },
   Frequency: { DAILY: 'daily', WEEKLY: 'weekly', MONTHLY: 'monthly' },
   CalendarAccessLevel: { OWNER: 'owner' },
-}), { virtual: true });
+}));
 
 describe('CalendarSync utility', () => {
   beforeEach(async () => {

@@ -1,5 +1,4 @@
-// @ts-ignore
-import * as Calendar from 'expo-calendar/build/legacy/index';
+import * as Calendar from 'expo-calendar';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
