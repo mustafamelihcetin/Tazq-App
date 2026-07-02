@@ -112,6 +112,14 @@ export function renderModeEmojiIcon(emoji: string, size = 16, color?: string) {
       return <Lucide.Wine size={size} color={color} />;
     case '🎲':
       return <Lucide.Dices size={size} color={color} />;
+    case '🎨':
+      return <Lucide.Palette size={size} color={color} />;
+    case '💊':
+      return <Lucide.Pill size={size} color={color} />;
+    case '🌿':
+      return <Lucide.Sprout size={size} color={color} />;
+    case '🎵':
+      return <Lucide.Music size={size} color={color} />;
 
     // Habits & Tasks
     case '🚶':

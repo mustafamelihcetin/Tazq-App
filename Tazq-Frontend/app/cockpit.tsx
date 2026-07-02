@@ -145,7 +145,17 @@ export default function CockpitScreen() {
   };
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('💪');
-  const [newColor, setNewColor] = useState(HABIT_COLORS[0]);
+  const habitColors = [
+    theme.primary,
+    theme.secondary,
+    theme.tertiary,
+    theme.warning,
+    theme.error,
+    theme.info,
+    theme.streak,
+    isDark ? '#E2E8F0' : '#475569',
+  ];
+  const [newColor, setNewColor] = useState(() => theme.primary);
   const [weeklyFocusMin, setWeeklyFocusMin] = useState(0);
   const [planGoal, setPlanGoal] = useState('');
   const nameInputRef = useRef<any>(null);
@@ -1122,7 +1132,7 @@ export default function CockpitScreen() {
                 {tr ? 'Yeni Alışkanlık' : 'New Habit'}
               </Text>
               <View style={{ backgroundColor: newColor + '20', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={{ fontSize: 10 }}>🔄</Text>
+                {renderModeEmojiIcon('🔄', 10, newColor)}
                 <Text style={{ fontSize: 10, fontWeight: '600', color: newColor, letterSpacing: 0.3 }}>
                   {tr ? 'Her gün takip edilir' : 'Tracked daily'}
                 </Text>
@@ -1137,7 +1147,7 @@ export default function CockpitScreen() {
                 borderColor: theme.outline + '40',
               },
             ]}>
-              <Text style={{ fontSize: 22 }}>{newEmoji}</Text>
+              {renderModeEmojiIcon(newEmoji, 22, newColor)}
               <TextInput
                 ref={nameInputRef}
                 value={newName}
@@ -1167,7 +1177,11 @@ export default function CockpitScreen() {
                       },
                     ]}
                   >
-                    <Text style={{ fontSize: 22 }}>{e}</Text>
+                    {renderModeEmojiIcon(
+                      e,
+                      22,
+                      e === newEmoji ? newColor : (isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.4)')
+                    )}
                   </Touchable>
                 ))}
               </View>
@@ -1175,7 +1189,7 @@ export default function CockpitScreen() {
 
             {/* Color row */}
             <View style={{ flexDirection: 'row', gap: S.md, marginBottom: S.xl }}>
-              {HABIT_COLORS.map((c) => (
+              {habitColors.map((c) => (
                 <Touchable
                   key={c}
                   onPress={() => setNewColor(c)}

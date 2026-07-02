@@ -60,53 +60,35 @@ const StarGroup = React.memo(({ timerSize, duration, initialVal, starCount }: St
   useEffect(() => {
     progress.setValue(initialVal);
 
-    // 1. Staggered initial timing animation to reach 1.0 (runs exactly once)
-    const initialAnim = Animated.timing(progress, {
-      toValue: 1,
-      duration: duration * (1 - initialVal),
-      easing: Easing.linear,
-      useNativeDriver: true,
-    });
-
-    // 2. Continuous native loop timing animation from 0.0 to 1.0
-    const loopAnim = Animated.loop(
-      Animated.timing(progress, {
-        toValue: 1,
-        duration: duration,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
+    // Staggered slow twinkling loop (pulses opacity back and forth)
+    const twinklingAnim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(progress, {
+          toValue: 1,
+          duration: duration,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(progress, {
+          toValue: 0,
+          duration: duration,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
     );
 
-    initialAnim.start(({ finished }) => {
-      if (finished) {
-        progress.setValue(0);
-        loopAnim.start();
-      }
-    });
+    twinklingAnim.start();
 
     return () => {
-      initialAnim.stop();
-      loopAnim.stop();
+      twinklingAnim.stop();
     };
   }, []);
 
-  // Quadratic scale growth for smooth 3D perspective acceleration
-  const scale = progress.interpolate({
-    inputRange: [0, 0.2, 0.4, 0.6, 0.8, 1],
-    outputRange: [
-      0.05,
-      0.05 + 2.15 * 0.04,
-      0.05 + 2.15 * 0.16,
-      0.05 + 2.15 * 0.36,
-      0.05 + 2.15 * 0.64,
-      2.2,
-    ],
-  });
-
+  // Twinkle opacity (slowly pulsing up and down)
   const opacity = progress.interpolate({
-    inputRange: [0, 0.05, 0.95, 1],
-    outputRange: [0, 0.85, 0.85, 0],
+    inputRange: [0, 1],
+    outputRange: [0.12, 0.78],
   });
 
   return (
@@ -116,7 +98,6 @@ const StarGroup = React.memo(({ timerSize, duration, initialVal, starCount }: St
         position: 'absolute',
         width: maxRadius * 2,
         height: maxRadius * 2,
-        transform: [{ scale }],
         opacity,
       }}
     >
@@ -277,13 +258,9 @@ export default function FocusScreen() {
     // reducing CPU load by 98.3% and eliminating device heating.
     progressAnim.setValue(progress);
 
-    // Native animation track for GPU transforms (Cosmic Clock Rotation)
-    Animated.timing(nativeProgressAnim, {
-      toValue: progress,
-      duration: 1000,
-      easing: Easing.linear,
-      useNativeDriver: true,
-    }).start();
+    // Directly set nativeProgressAnim value to avoid running a continuous 60fps rotation loop.
+    // This makes the star tick once per second like a precision clock hand, saving 100% GPU calculation between ticks.
+    nativeProgressAnim.setValue(progress);
   }, [progress]);
 
   const { panResponder: customPan, animatedStyle: customSlide, prepare: prepareCustom, slideIn: customSlideIn } = useSwipeToDismiss({
@@ -1737,8 +1714,8 @@ export default function FocusScreen() {
           >
             {/* Icon */}
             <MotiView
-              from={{ scale: 0, rotate: '-20deg' }}
-              animate={{ scale: 1, rotate: '0deg' }}
+              from={{ scale: 0.15, opacity: 0, rotate: '-20deg' }}
+              animate={{ scale: 1, opacity: 1, rotate: '0deg' }}
               transition={{ type: 'spring', damping: 14, stiffness: 300, delay: 120 }}
               style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: summaryCompleted ? theme.primaryContainer : theme.secondaryContainer, alignItems: 'center', justifyContent: 'center' }}
             >

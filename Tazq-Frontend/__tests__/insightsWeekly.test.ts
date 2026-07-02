@@ -10,7 +10,7 @@ describe('getSmartInsight (Akıllı İçgörü Motoru)', () => {
 
   it('congratulates when daily target is met', () => {
     const res = getSmartInsight('tr', false, 80, dummyTask, dummyTask, [], undefined, 3, 3);
-    expect(res).toContain('Tebrikler');
+    expect(res).toContain('başarıyla ulaştın');
     expect(res).toContain('3/3');
   });
 
@@ -25,22 +25,22 @@ describe('getSmartInsight (Akıllı İçgörü Motoru)', () => {
   it('categorizes academic task and offers custom advice', () => {
     const academicTask = { title: 'Fizik konu tekrarı yap', priority: 'Medium', isCompleted: false };
     const res = getSmartInsight('tr', false, 50, undefined, academicTask, []);
-    expect(res).toContain('Zihninin en açık olduğu saatleri');
+    expect(res).toContain('Zihninin en berrak saatlerini');
     expect(res).toContain('Fizik konu tekrarı yap');
   });
 
   it('categorizes health/sport task and offers movement advice', () => {
     const healthTask = { title: 'Kardiyo egzersizi yap', priority: 'Medium', isCompleted: false };
     const res = getSmartInsight('tr', false, 50, undefined, healthTask, []);
-    expect(res).toContain('vücudunu ve zihnini canlandırma vakti');
+    expect(res).toContain('bedenini ve zihnini biraz hareketlendirme zamanı');
   });
 
   it('handles todayRating for excellent and terrible days', () => {
     const resExcellent = getSmartInsight('tr', false, 50, undefined, undefined, [], undefined, 0, 0, 5);
-    expect(resExcellent).toContain('Harika bir gün! 😎');
+    expect(resExcellent).toContain('Bugün gerçekten harika bir uyum yakalamışsın.');
 
     const resTough = getSmartInsight('tr', false, 50, undefined, undefined, [], undefined, 0, 0, 1);
-    expect(resTough).toContain('Bugün zor bir gün olmuş. 😫');
+    expect(resTough).toContain('Bugün senin için biraz yorucu ve zor geçmiş.');
   });
 });
 

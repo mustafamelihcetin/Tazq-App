@@ -63,8 +63,8 @@ export function getSmartInsight(
 ): string {
   if (isActive) {
     return tr(
-      'Odak modu aktif. Akışını bozma, harika gidiyorsun. 🔥',
-      'Focus mode active. Stay in the zone, you\'re doing great. 🔥',
+      'Odak modu aktif. Akışını bozma, harika gidiyorsun.',
+      'Focus mode active. Stay in the zone, you\'re doing great.',
       lang,
     );
   }
@@ -73,36 +73,36 @@ export function getSmartInsight(
   if (todayRating) {
     if (todayRating === 5) {
       return tr(
-        'Harika bir gün! 😎 Bugünün yüksek performansını ve pozitif enerjisini yarınki hedeflerine de taşımaya hazır mısın?',
-        'What an excellent day! 😎 Ready to carry today\'s high performance and positive energy into tomorrow\'s goals?',
+        'Bugün gerçekten harika bir uyum yakalamışsın. Bu yüksek enerjiyi ve odaklanma ritmini yarına da taşımak için mükemmel bir zemin hazırladın.',
+        'You really found your flow today. This is the perfect foundation to carry this focus and momentum into tomorrow.',
         lang,
       );
     }
     if (todayRating === 4) {
       return tr(
-        'Çok iyi bir gün geçiriyorsun. 🙂 Hedeflerine emin adımlarla yaklaşıyorsun, bu çizgiyi koru!',
-        'You\'re having a very good day. 🙂 You\'re moving closer to your goals, keep it up!',
+        'Oldukça verimli ve kararlı adımlarla ilerlediğin bir gün. Ritmini hiç bozmadan bu çizgiyi koruman harika.',
+        'A highly productive day with steady progress. It\'s great to see you keeping this consistent rhythm.',
         lang,
       );
     }
     if (todayRating === 3) {
       return tr(
-        'Orta karar, dengeli bir gün. 😐 Tutarlı kalmak da önemli bir başarıdır. Yarın ivmeyi bir tık artırabiliriz.',
-        'A steady, balanced day. 😐 Staying consistent is a great achievement in itself. We can push the pace slightly tomorrow.',
+        'Dengeli ve sakin bir gün geçiriyorsun. Her gün zirvede olmak zorunda değiliz; istikrarlı kalmak da başlı başına büyük bir kazançtır.',
+        'A balanced and steady day. We don\'t have to be at peak performance every single day; staying consistent is a victory in itself.',
         lang,
       );
     }
     if (todayRating === 2) {
       return tr(
-        'Bugün biraz yavaş geçmiş gibi görünüyor. 😕 Kendini fazla zorlama. Yarın taze bir başlangıç yapmak için bugün dinlenmeye odaklan.',
-        'Looks like today was a bit slow. 😕 Don\'t push yourself too hard. Focus on resting today to make a fresh start tomorrow.',
+        'Bugün biraz yavaşlamış veya enerjini toplamaya odaklanmış olabilirsin. Kendine yüklenmek yerine bugün dinlenip zihnini tazelemeye alan aç.',
+        'It looks like a slower day, and that\'s completely fine. Instead of pushing hard, give yourself some space to rest and recharge.',
         lang,
       );
     }
     if (todayRating === 1) {
       return tr(
-        'Bugün zor bir gün olmuş. 😫 Unutma, her gün mükemmel olamaz. Kendine karşı nazik ol ve bugün sadece pillerini şarj et. 🛌',
-        'Today was a tough day. 😫 Remember, not every day can be perfect. Be kind to yourself and just recharge your batteries today. 🛌',
+        'Bugün senin için biraz yorucu ve zor geçmiş. Her günün kusursuz olması gerekmez; kendine karşı nazik ol ve sadece zihnini dinlendirmeye çalış.',
+        'Today felt heavy and challenging. Not every day can be perfect; show yourself some kindness and focus on recovering today.',
         lang,
       );
     }
@@ -113,8 +113,8 @@ export function getSmartInsight(
   // 1) Progress Nudges: Celebrations and Encouragements
   if (hasProgress && todayCompleted >= dailyGoal) {
     return tr(
-      `Tebrikler! Bugünün hedefine ulaştın (${todayCompleted}/${dailyGoal}) 🎉 İvmeni korumak için istersen hafif bir odaklanma daha yapabilirsin.`,
-      `Congratulations! You reached today's goal (${todayCompleted}/${dailyGoal}) 🎉 Feel free to do a light focus session to keep the momentum going.`,
+      `Bugün için belirlediğin hedeflere başarıyla ulaştın (${todayCompleted}/${dailyGoal}). Harika bir iş çıkardın; istersen günü kapatıp dinlenebilir ya da hafif bir odaklanmayla günü taçlandırabilirsin.`,
+      `You successfully reached your targets for today (${todayCompleted}/${dailyGoal}). Great work! You can call it a day or add a light session to lock it in.`,
       lang,
     );
   }
@@ -197,8 +197,8 @@ export function getSmartInsight(
   // 3) Progress-based Nudge (If not started yet)
   if (hasProgress && todayCompleted === 0 && momentum < 40 && activeTask) {
     return tr(
-      `Bugün henüz başlamadın. "${activeTask.title}" görevi için sadece 5 dakikalık bir odaklanma başlatıp ilk adımı atalım! 🚀`,
-      `You haven't started today. Let's start a quick 5-minute focus session for "${activeTask.title}" to take the first step! 🚀`,
+      `Bugün henüz ilk adımı atmadın gibi görünüyor. Zihnini harekete geçirmek için sadece 5 dakikalık ufak bir odaklanma ile ısınmaya ne dersin?`,
+      `It looks like you haven't taken the first step yet. How about a quick 5-minute warmup session to get your mind in gear?`,
       lang,
     );
   }
@@ -209,36 +209,36 @@ export function getSmartInsight(
     const category = getCategory(title);
     if (category === 'academic') {
       return tr(
-        `Zihninin en açık olduğu saatleri "${title}" konusu için değerlendir. Sonrası büyük bir rahatlama! 📚`,
-        `Spend your peak focus hours on "${title}". You will feel great once it's done! 📚`,
+        `Zihninin en berrak saatlerini "${title}" konusuna ayırmak işini çok kolaylaştıracak. Bitirdiğinde üzerinde hissedeceğin o rahatlama paha biçilemez.`,
+        `Spending your clearest hours on "${title}" will make it so much easier. The relief you'll feel once it's done is worth it.`,
         lang,
       );
     }
     if (category === 'health') {
       return tr(
-        `Bugün vücudunu ve zihnini canlandırma vakti. "${title}" egzersizine başlamak enerjini tavan yapacak. ⚡`,
-        `Time to energize your body and mind today. Starting "${title}" will boost your energy. ⚡`,
+        `Bugün bedenini ve zihnini biraz hareketlendirme zamanı. "${title}" egzersizine başlamak kan akışını hızlandırıp enerjini tazeleyecektir.`,
+        `Time to get your body and mind moving. Starting "${title}" will refresh your energy levels completely.`,
         lang,
       );
     }
     if (category === 'finance') {
       return tr(
-        `Finansal huzurun için kritik bir adım: "${title}". Bugün bunu netleştirip kafanı rahatlat. 💳`,
-        `A key step for your financial peace: "${title}". Resolve this today to clear your mind. 💳`,
+        `Parasal konuları netliğe kavuşturmak zihnindeki gereksiz yükü hafifletir. "${title}" adımını tamamlayarak kafanı rahatlatabilirsin.`,
+        `Getting financial tasks out of the way clears a lot of mental noise. Wrap up "${title}" today to give yourself peace of mind.`,
         lang,
       );
     }
     if (category === 'career') {
       return tr(
-        `Kariyer hedeflerine giden yolda bugünün en önemli işi: "${title}". Odaklan ve bitir! 🚀`,
-        `Today's key task on your career path: "${title}". Focus and finish strong! 🚀`,
+        `Geleceğine ve kariyerine yapacağın en net katkı bu adımdan geçiyor. Derin bir nefes alıp odağını sadece "${title}" işine vermeyi dene.`,
+        `Your progress on this career milestone starts with "${title}". Take a deep breath and dedicate your focus entirely to this.`,
         lang,
       );
     }
     if (category === 'leisure') {
       return tr(
-        `Kendine zaman ayırmak üretkenliğini besler. "${title}" aktivitesinin keyfini çıkar. ☕`,
-        `Taking time for yourself fuels productivity. Enjoy your "${title}" time. ☕`,
+        `Zihnini dinlendirmek ve kendine vakit ayırmak da üretkenliğin ayrılmaz bir parçasıdır. "${title}" aktivitesinin keyfini çıkarıp pillerini doldur.`,
+        `Resting and setting aside personal time is a key part of productivity. Enjoy "${title}" and let your mind recharge.`,
         lang,
       );
     }

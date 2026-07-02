@@ -26,7 +26,7 @@ import { useFocusStore } from '@/features/focus';
 import { useSporStore } from '@/shared/store/useSporStore';
 import { StatusHub } from '@/shared/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getSmartInsight } from '@/shared/utils/insights';
+import { getSmartInsight, generateWeeklyTips } from '@/shared/utils/insights';
 import { computeMomentum } from '@/shared/utils/momentum';
 import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
@@ -111,9 +111,8 @@ const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme, isDar
   );
 });
 
-interface MyDayHabitRowProps {
+interface HabitBubbleProps {
   item: any;
-  isLast: boolean;
   theme: any;
   isDark: boolean;
   tr: boolean;
@@ -121,60 +120,110 @@ interface MyDayHabitRowProps {
   onLongPress: () => void;
 }
 
-const MyDayHabitRow = React.memo<MyDayHabitRowProps>(({ item, isLast, theme, isDark, tr, onPress, onLongPress }) => {
+const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, tr, onPress, onLongPress }) => {
   const streakVal = item.streak || 0;
+  const size = 50;
+  const isCompleted = item.isCompleted;
+  const isSkipped = item.isSkipped;
+  
+  // Flat styling:
+  // 1. The outer circle border is ALWAYS a quiet neutral color (borderını boyamıyoruz).
+  // 2. Completed state uses a soft mode-colored background tint (flat).
+  // 3. The icon and the badges are painted in the solid mode's color.
+  
+  const bgColor = isCompleted
+    ? item.color + (isDark ? '24' : '15') // soft flat tint matching the mode's color
+    : isSkipped
+    ? (isDark ? 'rgba(217, 119, 6, 0.15)' : 'rgba(217, 119, 6, 0.08)')
+    : 'transparent';
+
+  const borderColor = isDark
+    ? 'rgba(255, 255, 255, 0.1)'
+    : 'rgba(0, 0, 0, 0.06)';
+
+  const iconColor = isCompleted
+    ? item.color // icon is solid mode color!
+    : isSkipped
+    ? '#d97706'
+    : isDark
+    ? 'rgba(255, 255, 255, 0.45)' // quiet neutral icon when pending
+    : 'rgba(0, 0, 0, 0.4)';
+
   return (
     <Touchable
       onPress={onPress}
       onLongPress={onLongPress}
       activeOpacity={0.7}
-      style={{
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: S.md, paddingVertical: 13,
-        borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-      }}
+      style={{ alignItems: 'center', width: 62, gap: 6 }}
     >
       <View style={{
-        width: 20, height: 20, borderRadius: 10,
-        backgroundColor: item.isCompleted 
-          ? item.color 
-          : item.isSkipped
-          ? '#d97706'
-          : item.color + (isDark ? '1F' : '14'),
-        alignItems: 'center', justifyContent: 'center',
-        marginRight: S.md
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: bgColor,
+        borderWidth: 1.5,
+        borderColor: borderColor,
+        alignItems: 'center',
+        justifyContent: 'center',
       }}>
-        {item.isSkipped ? (
-          <Coffee size={10} color="#fff" />
+        {isSkipped ? (
+          <Coffee size={18} color="#d97706" />
         ) : (
-          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: item.isCompleted ? '#fff' : item.color }} />
+          renderModeEmojiIcon(item.emoji ?? '📌', 20, iconColor)
+        )}
+
+        {streakVal >= 3 && !isSkipped && (
+          <View style={{
+            position: 'absolute',
+            bottom: -3,
+            right: -3,
+            backgroundColor: item.color, // flame badge colored matching the mode's color!
+            borderRadius: 7,
+            paddingHorizontal: 4,
+            paddingVertical: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            borderWidth: 1.5,
+            borderColor: isDark ? '#1C1C1E' : '#FFFFFF',
+          }}>
+            <Flame size={8} color="#FFFFFF" fill="#FFFFFF" />
+            <Text style={{ fontSize: 7.5, fontWeight: '800', color: '#FFFFFF', marginLeft: 1 }}>{streakVal}</Text>
+          </View>
+        )}
+
+        {isCompleted && (
+          <View style={{
+            position: 'absolute',
+            top: -2,
+            right: -2,
+            backgroundColor: item.color, // checkmark badge colored matching the mode's color!
+            borderRadius: 6.5,
+            width: 13,
+            height: 13,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: isDark ? '#1C1C1E' : '#FFFFFF',
+          }}>
+            <CheckCircle2 size={9} color="#FFFFFF" />
+          </View>
         )}
       </View>
-      <Text style={{
-        flex: 1,
-        fontSize: F.body,
-        fontWeight: '600',
-        color: item.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
-        textDecorationLine: item.isCompleted ? 'line-through' : 'none',
-        opacity: item.isCompleted ? 0.5 : 1
-      }} numberOfLines={1}>
+
+      <Text
+        style={{
+          fontSize: 9.5,
+          fontWeight: '700',
+          color: isCompleted ? theme.onSurfaceVariant : theme.onSurface,
+          textAlign: 'center',
+          textDecorationLine: isCompleted ? 'line-through' : 'none',
+          opacity: isCompleted ? 0.55 : 0.8,
+          width: '100%',
+        }}
+        numberOfLines={1}
+      >
         {item.title}
       </Text>
-      {item.isSkipped ? (
-        <View style={{ backgroundColor: '#d9770620', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
-          <Text style={{ fontSize: 8.5, fontWeight: '700', color: '#d97706' }}>{tr ? 'MOLA' : 'SKIP'}</Text>
-        </View>
-      ) : streakVal >= 3 ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-          <Flame size={11} color="#F97316" fill="#F97316" />
-          <Text style={{ fontSize: 10, fontWeight: '800', color: '#F97316' }}>{streakVal}</Text>
-        </View>
-      ) : item.isCompleted ? (
-        <CheckCircle2 size={14} color="#10B981" />
-      ) : (
-        <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: theme.outline }} />
-      )}
     </Touchable>
   );
 });
@@ -808,19 +857,15 @@ export default function HomeScreen() {
     return due >= todayStart && due <= new Date(todayStart.getTime() + 86400000);
   });
 
-  // Unified My Day feed items
-  const myDayItems = (() => {
+  // Unified My Day feed items (Tasks only)
+  const myDayTasks = (() => {
     const items: Array<{
-      type: 'task' | 'habit';
+      type: 'task';
       id: string | number;
       title: string;
       priority?: string;
-      color?: string;
-      emoji?: string;
       isCompleted: boolean;
-      isSkipped?: boolean;
       original: any;
-      streak?: number;
     }> = [];
 
     // Add today's incomplete tasks
@@ -847,24 +892,6 @@ export default function HomeScreen() {
       });
     });
 
-    // Add today's habits
-    habits.forEach(h => {
-      const done = (h.completedDates ?? []).includes(habitTodayKey);
-      const skipped = (h.skippedDates ?? []).includes(habitTodayKey);
-      const streakVal = getHabitStreak(h);
-      items.push({
-        type: 'habit',
-        id: h.id,
-        title: h.name,
-        color: h.color,
-        emoji: h.emoji,
-        isCompleted: done,
-        isSkipped: skipped,
-        streak: streakVal,
-        original: h
-      });
-    });
-
     // Add today's completed tasks
     todayTasksCompleted.forEach(t => {
       items.push({
@@ -878,22 +905,40 @@ export default function HomeScreen() {
     });
 
     // Sort items:
-    // 1. Incomplete first, completed/skipped last
-    // 2. For incomplete: tasks first (sorted by priority: High > Medium > Low), then habits
-    // 3. For completed: completed tasks and completed habits mixed (alphabetical)
+    // 1. Incomplete first, completed last
+    // 2. For incomplete: sorted by priority (High > Medium > Low)
+    // 3. For completed: alphabetical
     return items.sort((a, b) => {
-      const aDone = a.isCompleted || a.isSkipped;
-      const bDone = b.isCompleted || b.isSkipped;
+      const aDone = a.isCompleted;
+      const bDone = b.isCompleted;
       if (aDone !== bDone) return aDone ? 1 : -1;
 
       if (!aDone) {
-        if (a.type !== b.type) return a.type === 'task' ? -1 : 1;
-        if (a.type === 'task') {
-          const priorityMap: Record<string, number> = { 'High': 3, 'Medium': 2, 'Low': 1 };
-          return (priorityMap[b.priority || 'Medium'] || 2) - (priorityMap[a.priority || 'Medium'] || 2);
-        }
+        const priorityMap: Record<string, number> = { 'High': 3, 'Medium': 2, 'Low': 1 };
+        const scoreA = priorityMap[a.priority || 'Medium'] || 2;
+        const scoreB = priorityMap[b.priority || 'Medium'] || 2;
+        if (scoreA !== scoreB) return scoreB - scoreA;
       }
       return a.title.localeCompare(b.title);
+    });
+  })();
+
+  // Today's Habits
+  const myDayHabits = (() => {
+    return habits.map(h => {
+      const done = (h.completedDates ?? []).includes(habitTodayKey);
+      const skipped = (h.skippedDates ?? []).includes(habitTodayKey);
+      const streakVal = getHabitStreak(h);
+      return {
+        id: h.id,
+        title: h.name,
+        color: h.color,
+        emoji: h.emoji,
+        isCompleted: done,
+        isSkipped: skipped,
+        streak: streakVal,
+        original: h
+      };
     });
   })();
 
@@ -913,6 +958,21 @@ export default function HomeScreen() {
     dailyGoal,
     todayRating
   );
+
+  const weeklyTips = React.useMemo(() => {
+    return generateWeeklyTips({
+      weeklyFocusMinutes: mergedWeeklyFocus.map(d => d.minutes || 0),
+      completedTasksWeek: tasks.filter(t => t.isCompleted && (t.completedAt ? (Date.now() - new Date(t.completedAt).getTime() < 7 * 86400000) : true)).length,
+      streak: streak,
+      momentumLast7: [],
+      productivityHour: 'afternoon',
+      habits: habits.map(h => ({
+        name: h.name,
+        skippedDates: h.skippedDates || [],
+        completedDates: h.completedDates || []
+      }))
+    });
+  }, [mergedWeeklyFocus, tasks, streak, habits]);
 
   const handleCheckTask = async (taskId: number) => {
     const task = tasks.find(t => t.id === taskId);
@@ -1129,77 +1189,19 @@ export default function HomeScreen() {
   };
 
   const renderMyDayItem = (item: any, isLast: boolean, index: number) => {
-    if (item.type === 'task') {
-      return (
-        <MyDayTaskRow
-          key={`task-${item.id}`}
-          item={item}
-          isLast={isLast}
-          theme={theme}
-          isDark={isDark}
-          tr={tr}
-          onPress={() => router.push({ pathname: '/tasks', params: { highlightId: item.id } })}
-          priorityColor={priorityColor}
-          prefs={usePrefsStore.getState()}
-        />
-      );
-    } else {
-      return (
-        <MyDayHabitRow
-          key={`habit-${item.id}`}
-          item={item}
-          isLast={isLast}
-          theme={theme}
-          isDark={isDark}
-          tr={tr}
-          onPress={() => {
-            if (!item.isCompleted) {
-              const pendingHabits = habits.filter(h => h.id !== item.id && !h.completedDates?.includes(habitTodayKey));
-              const allHabitsDone = pendingHabits.length === 0;
-
-              if (soundEffects && !allHabitsDone) try {
-                const { createAudioPlayer } = require('expo-audio');
-                const soundFile = require('../assets/sounds/habit.mp3');
-                const p = createAudioPlayer(soundFile);
-                const targetVolume = 0.18;
-                p.volume = targetVolume;
-                activeAudioPlayers.add(p);
-                p.play();
-
-                setTimeout(() => {
-                  try {
-                    p.volume = targetVolume;
-                  } catch {}
-                }, 150);
-
-                setTimeout(() => { 
-                  try { 
-                    p.remove(); 
-                    activeAudioPlayers.delete(p);
-                  } catch {} 
-                }, 4000);
-              } catch {}
-
-              if (allHabitsDone) {
-                require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
-                  language === 'tr' ? 'Alışkanlıklar Tamam!' : 'All Habits Done!',
-                  language === 'tr' ? 'Bugünkü tüm alışkanlık hedeflerini tamamladın. Harika istikrar! 🌟' : 'You completed all habit targets for today. Great consistency! 🌟',
-                  'medium',
-                  'day_cleared'
-                );
-                useFocusStore.getState().addFocusPoints(20);
-              }
-            }
-            Haptics.impactAsync(item.isCompleted ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
-            toggleHabitDate(item.id as string, habitTodayKey);
-          }}
-          onLongPress={() => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            toggleHabitSkipDate(item.id as string, habitTodayKey);
-          }}
-        />
-      );
-    }
+    return (
+      <MyDayTaskRow
+        key={`task-${item.id}`}
+        item={item}
+        isLast={isLast}
+        theme={theme}
+        isDark={isDark}
+        tr={tr}
+        onPress={() => router.push({ pathname: '/tasks', params: { highlightId: item.id } })}
+        priorityColor={priorityColor}
+        prefs={usePrefsStore.getState()}
+      />
+    );
   };
 
   const priorityColor = (p: string) => {
@@ -1318,6 +1320,11 @@ export default function HomeScreen() {
           dailyGoal={dailyGoal}
           isActive={isActive}
           startQuickFocus={startQuickFocus}
+          weeklyTips={weeklyTips}
+          weeklyFocusData={mergedWeeklyFocus}
+          lastWeekMinutes={lastWeekMinutes}
+          habits={habits}
+          streak={streak}
         />
 
         {/* Periodic App Store Review & Feedback Prompt Modal */}
@@ -1630,7 +1637,7 @@ export default function HomeScreen() {
             </View>
 
             {/* Unified My Day Bento Card */}
-            {myDayItems.length > 0 && (
+            {(myDayTasks.length > 0 || myDayHabits.length > 0) && (
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 {overdueCount > 0 && (
                   <Touchable
@@ -1647,6 +1654,125 @@ export default function HomeScreen() {
                 )}
                 
                 <BentoCard index={1} style={{ padding: 0, overflow: 'hidden' }}>
+                  {/* BUGÜNKÜ RİTÜELLERİM (Daily Habits) */}
+                  <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: 2 }}>
+                    <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.primary }}>
+                      {tr ? 'BUGÜNKÜ RİTÜELLERİM' : 'MY DAILY RITUALS'}
+                    </Text>
+                    <Text style={{ fontSize: 8.5, color: theme.onSurfaceVariant, opacity: 0.45, marginTop: 1 }}>
+                      {tr ? 'Alışkanlığı tamamlamak için bas, mola için basılı tut' : 'Tap habit to complete, hold for break'}
+                    </Text>
+                  </View>
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: S.md, paddingVertical: 12, gap: 14, alignItems: 'center' }}
+                  >
+                    {myDayHabits.map((item) => (
+                      <HabitBubble
+                        key={`habit-${item.id}`}
+                        item={item}
+                        theme={theme}
+                        isDark={isDark}
+                        tr={tr}
+                        onPress={() => {
+                          if (!item.isCompleted) {
+                            const pendingHabits = habits.filter(h => h.id !== item.id && !h.completedDates?.includes(habitTodayKey));
+                            const allHabitsDone = pendingHabits.length === 0;
+
+                            if (soundEffects && !allHabitsDone) try {
+                              const { createAudioPlayer } = require('expo-audio');
+                              const soundFile = require('../assets/sounds/habit.mp3');
+                              const p = createAudioPlayer(soundFile);
+                              const targetVolume = 0.18;
+                              p.volume = targetVolume;
+                              activeAudioPlayers.add(p);
+                              p.play();
+
+                              setTimeout(() => {
+                                try { p.volume = targetVolume; } catch {}
+                              }, 150);
+
+                              setTimeout(() => { 
+                                try { 
+                                  p.release(); 
+                                  activeAudioPlayers.delete(p);
+                                } catch {} 
+                              }, 4000);
+                            } catch {}
+
+                            if (allHabitsDone) {
+                              require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
+                                language === 'tr' ? 'Alışkanlıklar Tamam!' : 'All Habits Done!',
+                                language === 'tr' ? 'Bugünkü tüm alışkanlık hedeflerini tamamladın. Harika istikrar! 🌟' : 'You completed all habit targets for today. Great consistency! 🌟',
+                                'medium',
+                                'day_cleared'
+                              );
+                              useFocusStore.getState().addFocusPoints(20);
+                            }
+                          }
+                          Haptics.impactAsync(item.isCompleted ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
+                          toggleHabitDate(item.id as string, habitTodayKey);
+                        }}
+                        onLongPress={() => {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          toggleHabitSkipDate(item.id as string, habitTodayKey);
+                        }}
+                      />
+                    ))}
+
+                    {/* Add Habit Shortcut Bubble */}
+                    <Touchable
+                      onPress={() => { Haptics.selectionAsync(); router.push('/cockpit'); }}
+                      activeOpacity={0.7}
+                      style={{ alignItems: 'center', width: 62, gap: 6 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={tr ? 'Alışkanlık ekle' : 'Add habit'}
+                    >
+                      <View style={{
+                        width: 50,
+                        height: 50,
+                        borderRadius: 25,
+                        borderWidth: 1.5,
+                        borderStyle: 'dashed',
+                        borderColor: theme.outline,
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        <Plus size={18} color={theme.onSurfaceVariant} opacity={0.6} />
+                      </View>
+                      <Text style={{ fontSize: 9.5, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6, textAlign: 'center' }}>
+                        {tr ? 'Ekle' : 'Add'}
+                      </Text>
+                    </Touchable>
+
+                    {/* Empty State Guide Card (Shows up only when habits array is empty to introduce habits cleanly) */}
+                    {myDayHabits.length === 0 && (
+                      <View style={{
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+                        borderRadius: 12,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        marginLeft: 4,
+                        maxWidth: 220,
+                        borderWidth: 1,
+                        borderColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                      }}>
+                        <Text style={{ fontSize: 9.5, fontWeight: '600', color: theme.onSurfaceVariant, lineHeight: 13 }}>
+                          {tr 
+                            ? 'Günlük ritüellerini belirle. Yaşam modlarını açtığında hedefler otomatik eklenir.'
+                            : 'Set daily rituals. Active life modes will automatically populate habits here.'
+                          }
+                        </Text>
+                      </View>
+                    )}
+                  </ScrollView>
+
+                  <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }} />
+
+                  {/* GÜNLÜK GÖREVLERİM (Daily Tasks) */}
                   <Touchable
                     onPress={() => router.push('/tasks')}
                     style={{
@@ -1662,19 +1788,26 @@ export default function HomeScreen() {
                   >
                     <View>
                       <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.primary }}>
-                        {tr ? 'BUGÜNÜM' : 'MY DAY'}
-                      </Text>
-                      <Text style={{ fontSize: 8.5, color: theme.onSurfaceVariant, opacity: 0.45, marginTop: 1 }}>
-                        {tr ? 'Alışkanlığı tamamlamak için bas, mola için basılı tut' : 'Tap habit to complete, hold for break'}
+                        {tr ? 'GÜNLÜK GÖREVLERİM' : 'MY DAILY TASKS'}
                       </Text>
                     </View>
                   </Touchable>
 
-                  {/* Render Incomplete Items */}
+                  {/* Render Incomplete Tasks */}
                   {(() => {
-                    const incompleteItems = myDayItems.filter(item => !item.isCompleted && !item.isSkipped);
-                    const visibleIncomplete = showAllIncomplete ? incompleteItems : incompleteItems.slice(0, 4);
+                    const incompleteTasks = myDayTasks.filter(item => !item.isCompleted);
+                    const visibleIncomplete = showAllIncomplete ? incompleteTasks : incompleteTasks.slice(0, 4);
                     
+                    if (incompleteTasks.length === 0) {
+                      return (
+                        <View style={{ padding: S.md, alignItems: 'center' }}>
+                          <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                            {tr ? 'Bugün için bekleyen görevin kalmadı 🎉' : 'No pending tasks for today 🎉'}
+                          </Text>
+                        </View>
+                      );
+                    }
+
                     return (
                       <View>
                         {visibleIncomplete.map((item, idx) => {
@@ -1682,7 +1815,7 @@ export default function HomeScreen() {
                           return renderMyDayItem(item, isLast, idx);
                         })}
                         
-                        {incompleteItems.length > 4 && (
+                        {incompleteTasks.length > 4 && (
                           <Touchable
                             onPress={() => { Haptics.selectionAsync(); setShowAllIncomplete(!showAllIncomplete); }}
                             style={{
@@ -1696,7 +1829,7 @@ export default function HomeScreen() {
                             <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
                               {showAllIncomplete
                                 ? (language === 'tr' ? 'Daha Az Göster' : 'Show Less')
-                                : (language === 'tr' ? `Daha Fazla Göster (${incompleteItems.length - 4} adet)` : `Show More (${incompleteItems.length - 4})`)
+                                : (language === 'tr' ? `Daha Fazla Göster (${incompleteTasks.length - 4} adet)` : `Show More (${incompleteTasks.length - 4})`)
                               }
                             </Text>
                           </Touchable>
@@ -1705,10 +1838,10 @@ export default function HomeScreen() {
                     );
                   })()}
 
-                  {/* Render Completed Items (Collapsible Section) */}
+                  {/* Render Completed Tasks (Collapsible Section) */}
                   {(() => {
-                    const completedItems = myDayItems.filter(item => item.isCompleted || item.isSkipped);
-                    if (completedItems.length === 0) return null;
+                    const completedTasks = myDayTasks.filter(item => item.isCompleted);
+                    if (completedTasks.length === 0) return null;
                     
                     return (
                       <View style={{ borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
@@ -1724,7 +1857,7 @@ export default function HomeScreen() {
                           }}
                         >
                           <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>
-                            {language === 'tr' ? `Tamamlananlar (${completedItems.length})` : `Completed (${completedItems.length})`}
+                            {language === 'tr' ? `Tamamlananlar (${completedTasks.length})` : `Completed (${completedTasks.length})`}
                           </Text>
                           <ChevronRight
                             size={14}
@@ -1736,8 +1869,8 @@ export default function HomeScreen() {
                         
                         {showCompletedSection && (
                           <View>
-                            {completedItems.map((item, idx) => {
-                              const isLast = idx === completedItems.length - 1;
+                            {completedTasks.map((item, idx) => {
+                              const isLast = idx === completedTasks.length - 1;
                               return renderMyDayItem(item, isLast, idx);
                             })}
                           </View>
@@ -1904,166 +2037,7 @@ export default function HomeScreen() {
               </Touchable>
             )}
 
-            {/* Metrics Grid */}
-            <View style={{ paddingHorizontal: S.lg, gap: S.md }}>
 
-                {/* ── QUICK STATS STRIP ── */}
-                <View style={{ flexDirection: 'row', gap: S.sm }}>
-                    <PremiumStatChip
-                        icon={<Flame size={16} color={theme.streak} />}
-                        value={statsLoading ? '--' : `${streak}`}
-                        label={tr ? 'günlük seri' : 'day streak'}
-                        color={theme.streak}
-                        isDark={isDark}
-                        theme={theme}
-                        getSurprise={getStreakSurprise}
-                    />
-                    <PremiumStatChip
-                        icon={<Zap size={16} color={theme.primary} fill={theme.primary} />}
-                        value={statsLoading ? '--' : weeklyMinutes >= 60
-                            ? `${Math.floor(weeklyMinutes / 60)}${tr ? 'sa' : 'h'}`
-                            : `${weeklyMinutes}${tr ? 'dk' : 'm'}`}
-                        label={tr ? 'haftalık odak' : 'weekly focus'}
-                        color={theme.primary}
-                        isDark={isDark}
-                        theme={theme}
-                        getSurprise={getFocusSurprise}
-                    />
-                </View>
-
-                {/* ── WEEKLY FOCUS CHART ── */}
-                <BentoCard index={2} style={{ paddingHorizontal: bentoPad, paddingVertical: bentoPad - 4, overflow: 'hidden' }}>
-                    <LinearGradient
-                        colors={isDark
-                            ? [theme.primary + '12', 'transparent']
-                            : [theme.primary + '0C', 'transparent']}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFill}
-                    />
-
-                    {/* Header row */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: S.sm }}>
-                        <View>
-                            <Text style={{ fontSize: 9, fontWeight: '500', letterSpacing: 1.5, color: theme.onSurfaceVariant, opacity: 0.5, marginBottom: 3 }}>
-                                {t.weeklyFocusLabel?.toUpperCase() ?? 'HAFTALIK ODAK'}
-                            </Text>
-                            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '600', letterSpacing: -1.2, color: theme.onSurface, lineHeight: 26 }}>
-                                {statsLoading ? '--' : weeklyMinutes >= 60
-                                    ? `${Math.floor(weeklyMinutes / 60)}sa ${weeklyMinutes % 60 > 0 ? weeklyMinutes % 60 + 'dk' : ''}`
-                                    : `${weeklyMinutes}dk`}
-                            </Text>
-                        </View>
-                        {weekTrend !== null && !statsLoading && (
-                            <View style={{
-                                flexDirection: 'row', alignItems: 'center', gap: 4,
-                                backgroundColor: weekTrend >= 0 ? theme.tertiary + '1C' : theme.error + '1C',
-                                borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 5,
-                            }}>
-                                <Text style={{ fontSize: 13, fontWeight: '600', color: weekTrend >= 0 ? theme.tertiary : theme.error }}>
-                                    {weekTrend >= 0 ? '↑' : '↓'} {Math.abs(weekTrend)}%
-                                </Text>
-                                <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.55 }}>
-                                    {language === 'tr' ? 'geçen hf' : 'vs last wk'}
-                                </Text>
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Bars */}
-                    <View style={{ position: 'relative', height: 60, justifyContent: 'flex-end', marginBottom: 4 }}>
-                        {/* Minimalist dashed gridline */}
-                        <View style={{ position: 'absolute', left: 0, right: 0, bottom: '50%', height: 1, borderStyle: 'dashed', borderWidth: 0.5, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }} />
-                        
-                        <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: '100%', gap: 5 }}>
-                            {(statsLoading
-                                ? Array(7).fill({ minutes: 0 })
-                                : mergedWeeklyFocus
-                            ).map((d: any, i: number) => {
-                                const maxMin = Math.max(...(mergedWeeklyFocus.map((w: any) => w.minutes)), 1);
-                                const isToday = !statsLoading && i === currentDayIndex;
-                                const isFuture = !statsLoading && i > currentDayIndex;
-                                const hasData = d.minutes > 0;
-                                
-                                const pct = statsLoading 
-                                    ? (8 + i * 9) 
-                                    : isFuture 
-                                        ? 20 // 20% height for future day placeholders (more visible)
-                                        : Math.max((d.minutes / maxMin) * 82, 8); // min 8% height for past days so they don't disappear
-
-                                return (
-                                    <View key={i} style={{ flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                        {isToday && hasData && (
-                                            <Text style={{ fontSize: 8, fontWeight: '700', color: theme.primary, marginBottom: 4 }}>
-                                                {d.minutes}{tr ? 'dk' : 'm'}
-                                            </Text>
-                                        )}
-                                        <MotiView
-                                            from={{ height: '0%' }}
-                                            animate={{ height: `${pct}%`, opacity: statsLoading ? [0.2, 0.5, 0.2] : 1 }}
-                                            transition={{ type: 'timing', duration: 600, delay: i * 55, loop: statsLoading }}
-                                            style={{ 
-                                                width: 6, 
-                                                borderRadius: 3, 
-                                                overflow: 'hidden',
-                                                ...(isFuture ? {
-                                                    borderWidth: 1.2,
-                                                    borderStyle: 'dashed',
-                                                    borderColor: isDark ? 'rgba(255,255,255,0.30)' : 'rgba(0,0,0,0.22)',
-                                                    backgroundColor: 'transparent'
-                                                } : {})
-                                            }}
-                                        >
-                                            {isToday ? (
-                                                <LinearGradient
-                                                    colors={isDark
-                                                        ? [theme.secondary, theme.primary]
-                                                        : [theme.primary, theme.secondary]}
-                                                    start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                                                    style={{ flex: 1 }}
-                                                />
-                                            ) : isFuture ? (
-                                                null
-                                            ) : (
-                                                <View style={{
-                                                    flex: 1,
-                                                    backgroundColor: hasData
-                                                        ? (isDark ? theme.primary + '50' : theme.primary + '35') // Higher opacity for completed focus past days
-                                                        : (isDark ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.15)'), // Faint pill for past days with 0 focus
-                                                }} />
-                                            )}
-                                        </MotiView>
-                                    </View>
-                                );
-                            })}
-                        </View>
-                    </View>
-
-                    {/* Day labels */}
-                    <View style={{ flexDirection: 'row', marginTop: 4 }}>
-                        {dayLabels.map((day, i) => {
-                            const isToday = !statsLoading && i === currentDayIndex;
-                            const isFuture = !statsLoading && i > currentDayIndex;
-                            return (
-                                <View key={i} style={{ flex: 1, alignItems: 'center', gap: 2 }}>
-                                    <Text style={{
-                                        textAlign: 'center', fontSize: 8.5,
-                                        color: isToday ? theme.primary : theme.onSurfaceVariant,
-                                        fontWeight: isToday ? '800' : '600',
-                                        opacity: isToday ? 1 : isFuture ? 0.28 : 0.48, // Improved visibility contrast
-                                        letterSpacing: 0.2,
-                                    }}>
-                                        {day}
-                                    </Text>
-                                    {isToday && (
-                                        <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: theme.primary }} />
-                                    )}
-                                </View>
-                            );
-                        })}
-                    </View>
-                </BentoCard>
-
-            </View>
         </ScrollView>
 
         {/* Quick Draft Modal */}
