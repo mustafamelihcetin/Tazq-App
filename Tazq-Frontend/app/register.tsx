@@ -93,7 +93,7 @@ export default function RegisterScreen() {
     try {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
-      const idToken = response.data?.idToken;
+      const idToken = response.data?.idToken || response.idToken;
       if (!idToken) {
         throw new Error('Google ID Token was not returned.');
       }
@@ -227,7 +227,7 @@ export default function RegisterScreen() {
       try {
         const { token, refreshToken } = await AuthService.login(email, password);
         const userData = await AuthService.getCurrentUser(token);
-        setAuth(userData, token, refreshToken);
+        setAuth(userData, token, refreshToken, true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace('/');
       } catch {

@@ -85,14 +85,14 @@ export default function LoginScreen() {
     try {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
-      const idToken = response.data?.idToken;
+      const idToken = response.data?.idToken || response.idToken;
       if (!idToken) {
         throw new Error('Google ID Token was not returned.');
       }
 
-      const { token, refreshToken } = await AuthService.googleLogin(idToken);
+      const { token, refreshToken, isNewUser } = await AuthService.googleLogin(idToken);
       const userData = await AuthService.getCurrentUser(token);
-      setAuth(userData, token, refreshToken);
+      setAuth(userData, token, refreshToken, isNewUser);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/');
     } catch (err: any) {
@@ -148,14 +148,14 @@ export default function LoginScreen() {
         throw new Error('Apple identity token was not returned.');
       }
 
-      const { token, refreshToken } = await AuthService.appleLogin(
+      const { token, refreshToken, isNewUser } = await AuthService.appleLogin(
         identityToken,
         credential.fullName?.givenName || undefined,
         credential.fullName?.familyName || undefined
       );
 
       const userData = await AuthService.getCurrentUser(token);
-      setAuth(userData, token, refreshToken);
+      setAuth(userData, token, refreshToken, isNewUser);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/');
     } catch (err: any) {

@@ -1,5 +1,5 @@
 {
-    email tazq.app@gmail.com
+    email contact@malthen.io
 }
 
 # ─────────────────────────────────────────────
@@ -8,7 +8,7 @@
 # ─────────────────────────────────────────────
 
 # Tazq — AI-Powered Productivity App
-:80 {
+api.tazqapp.com {
     reverse_proxy tazq-backend:80
 }
 

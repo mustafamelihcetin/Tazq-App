@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+const activeAudioPlayers = new Set<any>();
 
 export interface Achievement {
   id: string;
@@ -71,10 +72,16 @@ export const useAchievementStore = create<AchievementState>()(
           const { soundEffects } = usePrefsStore.getState();
           if (soundEffects) {
             const { createAudioPlayer } = require('expo-audio');
-            const p = createAudioPlayer(require('../../../assets/sounds/level_up.mp3'));
+            const p = createAudioPlayer(require('../../../assets/sounds/levelup.mp3'));
             p.volume = 0.85;
+            activeAudioPlayers.add(p);
             p.play();
-            setTimeout(() => { try { p.remove(); } catch {} }, 3000);
+            setTimeout(() => { 
+              try { 
+                p.remove(); 
+                activeAudioPlayers.delete(p);
+              } catch {} 
+            }, 3000);
           }
         } catch (e) {
           // Ignore sound playback errors

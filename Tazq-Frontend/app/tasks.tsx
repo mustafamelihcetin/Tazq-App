@@ -22,6 +22,7 @@ import { track } from '@/shared/utils/analytics';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
 import * as Haptics from 'expo-haptics';
 import { createAudioPlayer } from 'expo-audio';
+const activeAudioPlayers = new Set<any>();
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
@@ -680,7 +681,40 @@ export default function ActionCenter() {
 
     const proceed = async () => {
       if (isCompleting) {
-        require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger();
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date(todayStart.getTime() + 86400000);
+        
+        const pendingToday = tasks.filter(t => {
+          if (!t) return false;
+          if (t.id === id) return false;
+          if (t.isCompleted) return false;
+          if (!t.dueDate) return false;
+          const due = new Date(t.dueDate);
+          return due <= todayEnd;
+        });
+        const allTasksDone = pendingToday.length === 0;
+
+        const prefsState = usePrefsStore.getState();
+        const isFirstWin = !prefsState.firstWinAt;
+
+        if (isFirstWin) {
+          require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
+            language === 'tr' ? 'İlk Başarı!' : 'First Victory!',
+            language === 'tr' ? 'Tebrikler, TAZQ\'daki ilk görevini tamamladın! 🎉' : 'Congratulations on completing your first task on TAZQ! 🎉',
+            'high',
+            'levelup'
+          );
+          useFocusStore.getState().addFocusPoints(10);
+        } else if (allTasksDone) {
+          require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
+            language === 'tr' ? 'Günü Temizledin!' : 'Day Cleared!',
+            language === 'tr' ? 'Bugünün tüm görevlerini başarıyla tamamladın! 🏆' : 'You completed all of today\'s tasks successfully! 🏆',
+            'high',
+            'day_cleared'
+          );
+          useFocusStore.getState().addFocusPoints(25);
+        }
+
         const nextPayload = checkAndCreateNextIntervalInstance(task);
         if (nextPayload) {
           if (isOnline) {
@@ -703,8 +737,7 @@ export default function ActionCenter() {
         recordCompletion(task.id, task.title);
         // İlk-zafer: kullanıcının HAYATTAKİ ilk görev tamamlaması → milestone + (Pro'da)
         // ilk kutlama. Onboarding'in "anında değer" vaadini gerçek bir aksiyona bağlar.
-        const prefsState = usePrefsStore.getState();
-        if (!prefsState.firstWinAt) {
+        if (isFirstWin) {
           prefsState.markFirstWin();
           track('first_task_completed');
           track('first_win');
@@ -713,11 +746,26 @@ export default function ActionCenter() {
           }
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        if (soundEffects) try {
-          const p = createAudioPlayer(require('../assets/sounds/success.mp3'));
-          p.volume = 0.6;
+        if (soundEffects && !allTasksDone) try {
+          const soundFile = require('../assets/sounds/success.mp3');
+          const p = createAudioPlayer(soundFile);
+          const targetVolume = 0.15;
+          p.volume = targetVolume;
+          activeAudioPlayers.add(p);
           p.play();
-          setTimeout(() => { try { p.remove(); } catch {} }, 3000);
+
+          setTimeout(() => {
+            try {
+              p.volume = targetVolume;
+            } catch {}
+          }, 150);
+
+          setTimeout(() => { 
+            try { 
+              p.remove(); 
+              activeAudioPlayers.delete(p);
+            } catch {} 
+          }, 4000);
         } catch {}
         await cancelTaskNotification(id);
 
@@ -1387,7 +1435,7 @@ export default function ActionCenter() {
             )}
         </AnimatePresence>
 
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <View style={{ flex: 1 }}>
 
 
 
@@ -1458,7 +1506,7 @@ export default function ActionCenter() {
             maxToRenderPerBatch={10}
             windowSize={5}
             removeClippedSubviews={false} // Must be false for itemLayoutAnimation to work when items jump large distances
-            contentContainerStyle={{ gap: S.sm, paddingBottom: 100, paddingTop: 80, paddingHorizontal: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+            contentContainerStyle={{ gap: S.sm, paddingBottom: 100, paddingTop: 80 + insets.top, paddingHorizontal: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
             extraData={{ highlightedId, isBulkMode, selectedIds, completingIds, language, expandedId }}
             ListHeaderComponent={() => (
         <React.Fragment>
@@ -1678,7 +1726,7 @@ export default function ActionCenter() {
             )}
         />
         </MotiView>
-      </SafeAreaView>
+      </View>
 
             {/* Minimalist Premium Bulk Action Pill */}
       <AnimatePresence>

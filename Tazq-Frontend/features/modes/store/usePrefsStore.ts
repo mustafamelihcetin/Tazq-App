@@ -96,6 +96,8 @@ interface PrefsState {
   setDismissedBannerKey: (key: string) => void;
   motto: string;
   setMotto: (v: string) => void;
+  gender: 'male' | 'female' | '';
+  setGender: (v: 'male' | 'female' | '') => void;
   productivityHour: 'morning' | 'afternoon' | 'evening' | 'night';
   setProductivityHour: (v: 'morning' | 'afternoon' | 'evening' | 'night') => void;
   avatarBorderColor: string;
@@ -130,6 +132,7 @@ interface PrefsState {
 const CLOUD_PREF_KEYS = [
   'seasonal',
   'planSpecs',
+  'gender',
   'productivityHour',
   'weeklyNotification',
   'morningBrief',
@@ -249,6 +252,8 @@ export const usePrefsStore = create<PrefsState>()(
       setDismissedBannerKey: (key) => set({ dismissedBannerKey: key }),
       motto: '',
       setMotto: (v) => set({ motto: v }),
+      gender: '',
+      setGender: (v) => set({ gender: v }),
       productivityHour: 'morning',
       setProductivityHour: (v) => set({ productivityHour: v }),
       avatarBorderColor: 'transparent',

@@ -6,7 +6,7 @@ import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTaskStore, parseTaskHint } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
-import { useAuthStore, useAchievementStore, useMomentumStore, checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS, getAvatarSource } from '@/features/user';
+import { useAuthStore, useAchievementStore, useMomentumStore, checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS, getAvatarSource, AVATAR_CONFIGS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { DynamicIsland } from '@/features/focus';
@@ -15,13 +15,15 @@ import { MotiView, MotiText, AnimatePresence } from 'moti';
 import { Plus, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp, Flame, Check, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee, CheckCircle2, X } from 'lucide-react-native';
 import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
-import { TaskService, FocusService, DailyFocusData } from '@/shared/services/api';
+import { TaskService, FocusService, DailyFocusData, AuthService } from '@/shared/services/api';
 import * as Haptics from 'expo-haptics';
 import { useRouter, useFocusEffect } from 'expo-router';
+const activeAudioPlayers = new Set<any>();
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { PremiumStatChip } from '@/shared/components/PremiumStatChip';
 import { useFocusStore } from '@/features/focus';
+import { useSporStore } from '@/shared/store/useSporStore';
 import { StatusHub } from '@/shared/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getSmartInsight } from '@/shared/utils/insights';
@@ -37,6 +39,7 @@ import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
 import { StatusHubModal } from '@/shared/components/StatusHubModal';
 import { QuickDraftModal } from '@/shared/components/QuickDraftModal';
+import { ProfileSetupModal } from '@/shared/components/ProfileSetupModal';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -190,7 +193,7 @@ export default function HomeScreen() {
     addTask: state.addTask,
     toggleTaskCompletion: state.toggleTaskCompletion
   })));
-  const { user } = useAuthStore();
+  const { user, setUser, token, isFirstLogin, setIsFirstLogin } = useAuthStore();
   const { t, language } = useLanguageStore();
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -201,7 +204,46 @@ export default function HomeScreen() {
   const { trigger: triggerAchievement, baseline: baselineAchievements } = useAchievementStore();
   const achHydrated = useAchievementStore(s => s._hasHydrated);
   const uiMode = usePrefsStore(s => s.uiMode);
-  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor } = usePrefsStore();
+  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects } = usePrefsStore();
+
+  const [profileSetupVisible, setProfileSetupVisible] = useState(false);
+  const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
+
+  useEffect(() => {
+    if (user && isFirstLogin) {
+      setProfileSetupVisible(true);
+    } else {
+      setProfileSetupVisible(false);
+    }
+  }, [user, isFirstLogin]);
+
+  const handleProfileSetupSave = async (name: string, avatar: string, borderColor: string, motto: string, productivityHour: string, gender: 'male' | 'female' | '') => {
+    try {
+      await AuthService.updateProfile({
+        name,
+        avatar,
+        avatarBorderColor: borderColor,
+        motto
+      });
+      usePrefsStore.getState().setProductivityHour(productivityHour as any);
+      usePrefsStore.getState().setGender(gender);
+      useSporStore.getState().setGender(gender);
+      await usePrefsStore.getState().syncToCloud();
+      setIsFirstLogin(false);
+      if (token) {
+        const updatedUser = await AuthService.getCurrentUser(token);
+        setUser(updatedUser);
+      }
+      setProfileSetupVisible(false);
+      showToast(
+        language === 'tr' ? 'Profiliniz başarıyla oluşturuldu!' : 'Profile created successfully!',
+        'success'
+      );
+    } catch (err) {
+      console.error('[Profile Setup Save Error]', err);
+      throw err;
+    }
+  };
 
   // Turkish mode (only if user opted in)
   const detectedMode = detectTurkishMode();
@@ -301,41 +343,83 @@ export default function HomeScreen() {
       const lastChecked = store.lastCheckedDate;
 
       if (lastChecked && lastChecked !== todayStr) {
-        // Find yesterday
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toDateString();
+        const lastCheckedDate = new Date(lastChecked);
+        const todayDate = new Date(todayStr);
+        
+        // Calculate difference in calendar days
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const diffDays = Math.floor((todayDate.getTime() - lastCheckedDate.getTime()) / msPerDay);
+        
+        if (diffDays > 0) {
+          // If only 1 day missed, we check if they met the goal on that day
+          let metGoal = false;
+          if (diffDays === 1) {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toDateString();
+            const yesterdayKey = fmtDateKey(yesterday);
+            const yesterdayCompletedTasksCount = tasks.filter(t => 
+              t.isCompleted && t.completedAt && new Date(t.completedAt).toDateString() === yesterdayStr
+            ).length;
+            
+            const yesterdayCompletedHabitsCount = habits.filter(h => 
+              (h.completedDates ?? []).includes(yesterdayKey)
+            ).length;
 
-        if (lastChecked === yesterdayStr) {
-          const yesterdayKey = fmtDateKey(yesterday);
-          const yesterdayCompletedTasksCount = tasks.filter(t => 
-            t.isCompleted && t.completedAt && new Date(t.completedAt).toDateString() === yesterdayStr
-          ).length;
-          
-          const yesterdayCompletedHabitsCount = habits.filter(h => 
-            (h.completedDates ?? []).includes(yesterdayKey)
-          ).length;
-
-          const yesterdayFocusMins = store.dailyFocusDate === yesterdayStr ? store.dailyFocusMinutes : 0;
-          const metGoal = yesterdayCompletedTasksCount > 0 || yesterdayCompletedHabitsCount > 0 || yesterdayFocusMins >= store.dailyGoalMinutes;
+            const yesterdayFocusMins = store.dailyFocusDate === yesterdayStr ? store.dailyFocusMinutes : 0;
+            metGoal = yesterdayCompletedTasksCount > 0 || yesterdayCompletedHabitsCount > 0 || yesterdayFocusMins >= store.dailyGoalMinutes;
+          }
 
           if (!metGoal && store.localStreak > 0) {
-            const consumed = store.consumeStreakShield();
-            if (consumed) {
+            const remainingShields = store.streakShields;
+            const shieldsNeeded = diffDays;
+
+            if (remainingShields >= shieldsNeeded) {
+              const nextShields = remainingShields - shieldsNeeded;
+              useFocusStore.setState({
+                streakShields: nextShields,
+                streakFreezeAvailable: nextShields > 0
+              });
+
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+              // Play freeze SFX
+              const { soundEffects } = usePrefsStore.getState();
+              if (soundEffects) try {
+                const { createAudioPlayer } = require('expo-audio');
+                const p = createAudioPlayer(require('../assets/sounds/freeze.mp3'));
+                p.volume = 0.75;
+                activeAudioPlayers.add(p);
+                p.play();
+                setTimeout(() => { 
+                  try { 
+                    p.remove(); 
+                    activeAudioPlayers.delete(p);
+                  } catch {} 
+                }, 3000);
+              } catch {}
+
               Alert.alert(
                 language === 'tr' ? 'Seri Korundu!' : 'Streak Protected!',
                 language === 'tr'
-                  ? 'Dün hedefinizi tamamlayamadınız fakat TAZQ Kalkanı serinizi başarıyla korudu.'
-                  : 'You missed yesterday\'s goal, but TAZQ Shield successfully protected your streak.'
+                  ? `Son ${diffDays} gündür aktif değildiniz fakat ${diffDays} adet TAZQ Kalkanı kullanılarak seriniz başarıyla korundu.`
+                  : `You were inactive for the last ${diffDays} days, but ${diffDays} TAZQ Shields successfully protected your streak.`
               );
             } else {
-              useFocusStore.setState({ localStreak: 0 });
+              useFocusStore.setState({ 
+                localStreak: 0,
+                streakShields: 0,
+                streakFreezeAvailable: false
+              });
+
+              Alert.alert(
+                language === 'tr' ? 'Seri Sıfırlandı' : 'Streak Reset',
+                language === 'tr'
+                  ? `Son ${diffDays} gündür aktif değildiniz. ${remainingShields} kalkanınız yetersiz kaldığı için seriniz sıfırlandı.`
+                  : `You were inactive for the last ${diffDays} days. Since your ${remainingShields} shields were not enough, your streak was reset.`
+              );
             }
           }
-        } else {
-          // More than 1 day missed
-          useFocusStore.setState({ localStreak: 0 });
         }
       }
 
@@ -840,7 +924,64 @@ export default function HomeScreen() {
     }
     if (task.isCompleted) return; // aksiyon merkezi sadece tamamlar, hiç geri almaz
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger();
+    
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart.getTime() + 86400000);
+    
+    const pendingToday = tasks.filter(t => {
+      if (!t) return false;
+      if (t.id === taskId) return false;
+      if (t.isCompleted) return false;
+      if (!t.dueDate) return false;
+      const due = new Date(t.dueDate);
+      return due <= todayEnd;
+    });
+    const allTasksDone = pendingToday.length === 0;
+
+    if (soundEffects && !allTasksDone) try {
+      const { createAudioPlayer } = require('expo-audio');
+      const soundFile = require('../assets/sounds/success.mp3');
+      const p = createAudioPlayer(soundFile);
+      const targetVolume = 0.15;
+      p.volume = targetVolume;
+      activeAudioPlayers.add(p);
+      p.play();
+
+      setTimeout(() => {
+        try {
+          p.volume = targetVolume;
+        } catch {}
+      }, 150);
+
+      setTimeout(() => { 
+        try { 
+          p.remove(); 
+          activeAudioPlayers.delete(p);
+        } catch {} 
+      }, 4000);
+    } catch {}
+
+    const prefsState = usePrefsStore.getState();
+    const isFirstWin = !prefsState.firstWinAt;
+
+    if (isFirstWin) {
+      require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
+        language === 'tr' ? 'İlk Başarı!' : 'First Victory!',
+        language === 'tr' ? 'Tebrikler, TAZQ\'daki ilk görevini tamamladın! 🎉' : 'Congratulations on completing your first task on TAZQ! 🎉',
+        'high',
+        'levelup'
+      );
+      prefsState.markFirstWin();
+      useFocusStore.getState().addFocusPoints(10);
+    } else if (allTasksDone) {
+      require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
+        language === 'tr' ? 'Günü Temizledin!' : 'Day Cleared!',
+        language === 'tr' ? 'Bugünün tüm görevlerini başarıyla tamamladın! 🏆' : 'You completed all of today\'s tasks successfully! 🏆',
+        'high',
+        'day_cleared'
+      );
+      useFocusStore.getState().addFocusPoints(25);
+    }
     toggleTaskCompletion(taskId);
     // Offline-first: çevrimdışıysa tamamlamayı kuyruğa al (optimistik UI korunur);
     // yoksa kullanıcının tamamlaması kaybolur.
@@ -1013,7 +1154,41 @@ export default function HomeScreen() {
           tr={tr}
           onPress={() => {
             if (!item.isCompleted) {
-              require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger();
+              const pendingHabits = habits.filter(h => h.id !== item.id && !h.completedDates?.includes(habitTodayKey));
+              const allHabitsDone = pendingHabits.length === 0;
+
+              if (soundEffects && !allHabitsDone) try {
+                const { createAudioPlayer } = require('expo-audio');
+                const soundFile = require('../assets/sounds/habit.mp3');
+                const p = createAudioPlayer(soundFile);
+                const targetVolume = 0.18;
+                p.volume = targetVolume;
+                activeAudioPlayers.add(p);
+                p.play();
+
+                setTimeout(() => {
+                  try {
+                    p.volume = targetVolume;
+                  } catch {}
+                }, 150);
+
+                setTimeout(() => { 
+                  try { 
+                    p.remove(); 
+                    activeAudioPlayers.delete(p);
+                  } catch {} 
+                }, 4000);
+              } catch {}
+
+              if (allHabitsDone) {
+                require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
+                  language === 'tr' ? 'Alışkanlıklar Tamam!' : 'All Habits Done!',
+                  language === 'tr' ? 'Bugünkü tüm alışkanlık hedeflerini tamamladın. Harika istikrar! 🌟' : 'You completed all habit targets for today. Great consistency! 🌟',
+                  'medium',
+                  'day_cleared'
+                );
+                useFocusStore.getState().addFocusPoints(20);
+              }
             }
             Haptics.impactAsync(item.isCompleted ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
             toggleHabitDate(item.id as string, habitTodayKey);
@@ -1126,7 +1301,7 @@ export default function HomeScreen() {
           </View>
       </MotiView>
 
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <View style={{ flex: 1 }}>
 
         {/* Smart Cockpit Modal — bottom sheet */}
         <StatusHubModal
@@ -1332,7 +1507,7 @@ export default function HomeScreen() {
 
         <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={[styles.scrollContent, { paddingTop: 82, /* SafeAreaView(edges=top) insets.top'u ekliyor; bu sadece floating bar açıklığı (bar alt kenarı). insets.top'u TEKRAR ekleme. Gap'i heroSection.marginTop verir. */ paddingBottom: 120, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }]}
+            contentContainerStyle={[styles.scrollContent, { paddingTop: 82 + insets.top, paddingBottom: 120, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }]}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={isDark ? '#1a1b1e' : '#ffffff'} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
@@ -1902,7 +2077,19 @@ export default function HomeScreen() {
           t={t}
         />
 
-      </SafeAreaView>
+        {/* Profile Onboarding/Setup Modal */}
+        <ProfileSetupModal
+          visible={profileSetupVisible}
+          theme={theme}
+          isDark={isDark}
+          language={language}
+          t={t}
+          currentName={user?.name || ''}
+          isNamePlaceholder={isNamePlaceholder}
+          onSave={handleProfileSetupSave}
+        />
+
+      </View>
 
       {/* Quick Draft FAB */}
       {true && (

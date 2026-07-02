@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, AppState, Animated, ScrollView, BackHandler, Easing } from 'react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
-import Svg, { Circle, G } from 'react-native-svg';
+import Svg, { Circle, G, Path } from 'react-native-svg';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -18,12 +18,142 @@ import { FocusService } from '@/shared/services/api';
 import { useAchievementStore, checkFocusAchievement } from '@/features/user';
 import { usePrefsStore } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
+import { StatusBar } from 'expo-status-bar';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { getRandomQuote } from '@/shared/constants/Quotes';
 import { S, R, F, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { Easing as RNEasing } from 'react-native';
+
+interface StarGroupProps {
+  timerSize: number;
+  duration: number;
+  initialVal: number;
+  starCount: number;
+}
+
+const StarGroup = React.memo(({ timerSize, duration, initialVal, starCount }: StarGroupProps) => {
+  const progress = useRef(new Animated.Value(0)).current;
+  const maxRadius = Math.max(200, timerSize * 2.0); // Safe fallback radius
+
+  // Lazy initialize stars to prevent allocation and Garbage Collection thrashing on every render tick
+  const starsData = useRef<{ x: number; y: number; size: number; color: string }[] | null>(null);
+  if (!starsData.current) {
+    starsData.current = Array.from({ length: starCount }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 15 + Math.random() * (maxRadius - 15);
+      const size = 1.2 + Math.random() * 2.0; // fine stellar dots (1.2px to 3.2px)
+      const colors = ['#FFFFFF', '#E3F2FD', '#E0F7FA', '#FFF9C4', '#F3E5F5']; // cosmic white, cyan, blue, pale yellow, lavender
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      return {
+        // Pre-offset to SVG viewport coordinate system [0, maxRadius*2]
+        x: maxRadius + Math.cos(angle) * distance,
+        y: maxRadius + Math.sin(angle) * distance,
+        size,
+        color,
+      };
+    });
+  }
+
+  useEffect(() => {
+    progress.setValue(initialVal);
+
+    // 1. Staggered initial timing animation to reach 1.0 (runs exactly once)
+    const initialAnim = Animated.timing(progress, {
+      toValue: 1,
+      duration: duration * (1 - initialVal),
+      easing: Easing.linear,
+      useNativeDriver: true,
+    });
+
+    // 2. Continuous native loop timing animation from 0.0 to 1.0
+    const loopAnim = Animated.loop(
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: duration,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+
+    initialAnim.start(({ finished }) => {
+      if (finished) {
+        progress.setValue(0);
+        loopAnim.start();
+      }
+    });
+
+    return () => {
+      initialAnim.stop();
+      loopAnim.stop();
+    };
+  }, []);
+
+  // Quadratic scale growth for smooth 3D perspective acceleration
+  const scale = progress.interpolate({
+    inputRange: [0, 0.2, 0.4, 0.6, 0.8, 1],
+    outputRange: [
+      0.05,
+      0.05 + 2.15 * 0.04,
+      0.05 + 2.15 * 0.16,
+      0.05 + 2.15 * 0.36,
+      0.05 + 2.15 * 0.64,
+      2.2,
+    ],
+  });
+
+  const opacity = progress.interpolate({
+    inputRange: [0, 0.05, 0.95, 1],
+    outputRange: [0, 0.85, 0.85, 0],
+  });
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        width: maxRadius * 2,
+        height: maxRadius * 2,
+        transform: [{ scale }],
+        opacity,
+      }}
+    >
+      <Svg width={maxRadius * 2} height={maxRadius * 2}>
+        {starsData.current?.map((star, idx) => (
+          <Circle
+            key={idx}
+            cx={star.x}
+            cy={star.y}
+            r={star.size / 2}
+            fill={star.color}
+          />
+        ))}
+      </Svg>
+    </Animated.View>
+  );
+});
+
+const Starfield = React.memo(({ active, timerSize }: { active: boolean; timerSize: number }) => {
+  if (!active) return null;
+
+  return (
+    <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }]} pointerEvents="none">
+      {/* Background Plane Staggered Pairs (50 tiny slow stars) */}
+      <StarGroup timerSize={timerSize} duration={22000} initialVal={0.0} starCount={25} />
+      <StarGroup timerSize={timerSize} duration={22000} initialVal={0.5} starCount={25} />
+
+      {/* Midground Plane Staggered Pairs (50 medium stars) */}
+      <StarGroup timerSize={timerSize} duration={16000} initialVal={0.0} starCount={25} />
+      <StarGroup timerSize={timerSize} duration={16000} initialVal={0.5} starCount={25} />
+
+      {/* Foreground Plane Staggered Pairs (40 larger stars) */}
+      <StarGroup timerSize={timerSize} duration={10000} initialVal={0.0} starCount={20} />
+      <StarGroup timerSize={timerSize} duration={10000} initialVal={0.5} starCount={20} />
+    </View>
+  );
+});
 
 // Named focus presets — each encodes work + break durations
 const PRESETS = [
@@ -139,12 +269,20 @@ export default function FocusScreen() {
   const sessionStarted = isActive || elapsed > 0;
 
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const nativeProgressAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    Animated.timing(progressAnim, {
+    // Directly set progressAnim value to avoid running a 60fps JS-driven animation loop.
+    // This prevents continuous CPU vector path rasterization (rendering strokeDashoffset at 60fps),
+    // reducing CPU load by 98.3% and eliminating device heating.
+    progressAnim.setValue(progress);
+
+    // Native animation track for GPU transforms (Cosmic Clock Rotation)
+    Animated.timing(nativeProgressAnim, {
       toValue: progress,
       duration: 1000,
       easing: Easing.linear,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [progress]);
 
@@ -189,7 +327,7 @@ export default function FocusScreen() {
     clearCrossfade();
     currentSoundTypeRef.current = 'off';
     if (soundRef.current) {
-      try { soundRef.current.pause(); soundRef.current.remove(); } catch {}
+      try { soundRef.current.pause(); soundRef.current.release(); } catch {}
       soundRef.current = null;
     }
   };
@@ -199,7 +337,7 @@ export default function FocusScreen() {
     clearCrossfade();
     stopAmbientSound();
     if (chimePlayerRef.current) {
-      try { chimePlayerRef.current.pause(); chimePlayerRef.current.remove(); } catch {}
+      try { chimePlayerRef.current.pause(); chimePlayerRef.current.release(); } catch {}
       chimePlayerRef.current = null;
     }
   };
@@ -217,7 +355,7 @@ export default function FocusScreen() {
       try { player.volume = vol; } catch {}
       if (vol <= 0) {
         clearFade();
-        try { player.pause(); player.remove(); } catch {}
+        try { player.pause(); player.release(); } catch {}
         soundRef.current = null;
       }
     }, FADE_MS);
@@ -236,64 +374,6 @@ export default function FocusScreen() {
     return sources[type];
   };
 
-  // Crossfade loop: ses bitmeden önce yeni player başlat, ikisi arasında yumuşak geçiş
-  const startCrossfadeLoop = (type: AmbientSound, currentPlayer: AudioPlayer) => {
-    clearCrossfade();
-    crossfadeIntervalRef.current = setInterval(() => {
-      const player = soundRef.current;
-      if (!player || currentSoundTypeRef.current !== type) {
-        clearCrossfade();
-        return;
-      }
-      const duration = player.duration;
-      const currentTime = player.currentTime;
-      if (!duration || duration <= 0) return;
-
-      const remaining = duration - currentTime;
-      if (remaining <= CROSSFADE_SEC && remaining > 0) {
-        clearCrossfade();
-        // Yeni player'ı başlat, fade-in yap
-        try {
-          const nextPlayer = createAudioPlayer(getSoundSource(type));
-          nextPlayer.volume = 0;
-          nextPlayer.play();
-
-          const crossFadeSteps = Math.floor((CROSSFADE_SEC * 1000) / FADE_MS);
-          const stepVal = ambientVolumeRef.current / crossFadeSteps;
-          let vol = 0;
-          let step = 0;
-
-          const xfInterval = setInterval(() => {
-            step++;
-            vol = Math.min(vol + stepVal, ambientVolumeRef.current);
-            try { nextPlayer.volume = vol; } catch {}
-            // Mevcut player'ı fade-out
-            try {
-              if (player) player.volume = Math.max(0, ambientVolumeRef.current - vol);
-            } catch {}
-
-            if (step >= crossFadeSteps) {
-              clearInterval(xfInterval);
-              // Eski player'ı temizle
-              try { player.pause(); player.remove(); } catch {}
-              // Yeni player şimdi aktif
-              if (currentSoundTypeRef.current === type) {
-                soundRef.current = nextPlayer;
-                nextPlayer.volume = ambientVolumeRef.current;
-                startCrossfadeLoop(type, nextPlayer);
-              } else {
-                try { nextPlayer.pause(); nextPlayer.remove(); } catch {}
-              }
-            }
-          }, FADE_MS);
-        } catch {
-          // crossfade başarısız olursa basit loop'a dön
-          try { player.loop = true; } catch {}
-        }
-      }
-    }, 500); // Her 500ms'de bir kontrol et
-  };
-
   const playAmbientSound = async (type: AmbientSound, fadeIn = false) => {
     stopAmbientSound();
     if (type === 'off') return;
@@ -304,8 +384,7 @@ export default function FocusScreen() {
         interruptionMode: 'mixWithOthers',
       });
       const player = createAudioPlayer(getSoundSource(type));
-      // loop=false — crossfade ile manuel döngü yapacağız
-      player.loop = false;
+      player.loop = true; // Use native looping
       currentSoundTypeRef.current = type;
 
       if (fadeIn) {
@@ -319,14 +398,12 @@ export default function FocusScreen() {
           try { if (soundRef.current) soundRef.current.volume = vol; } catch {}
           if (vol >= ambientVolumeRef.current) {
             clearFade();
-            startCrossfadeLoop(type, player);
           }
         }, FADE_MS);
       } else {
         player.volume = ambientVolumeRef.current;
         player.play();
         soundRef.current = player;
-        startCrossfadeLoop(type, player);
       }
     } catch (e) {
       console.warn('Ambient sound error:', e);
@@ -342,19 +419,18 @@ export default function FocusScreen() {
     return () => { stopAllSounds(); };
   }, []);
 
-  // Session transitions: clear preview timer, manage sound
+  // Session and ambient sound transition manager - Unified to prevent double parallel audio loads
   useEffect(() => {
-    if (previewTimerRef.current) { clearTimeout(previewTimerRef.current); previewTimerRef.current = null; }
-    if (isActive && ambientSound !== 'off') playAmbientSound(ambientSound);
-    else if (!isActive) stopAmbientSound();
-  }, [isActive]);
-
-  // Sound changes during an active session
-  useEffect(() => {
-    if (!isActive) return;
-    if (ambientSound === 'off') stopAmbientSound();
-    else playAmbientSound(ambientSound);
-  }, [ambientSound]);
+    if (previewTimerRef.current) { 
+      clearTimeout(previewTimerRef.current); 
+      previewTimerRef.current = null; 
+    }
+    if (isActive && ambientSound !== 'off') {
+      playAmbientSound(ambientSound);
+    } else {
+      stopAmbientSound();
+    }
+  }, [isActive, ambientSound]);
 
   // Breath cue cycle
   const [breathSeconds, setBreathSeconds] = useState(0);
@@ -502,7 +578,7 @@ export default function FocusScreen() {
               const p = createAudioPlayer(require('../assets/sounds/warning.mp3'));
               p.volume = 0.85;
               p.play();
-              setTimeout(() => { try { p.remove(); } catch {} }, 3000);
+              setTimeout(() => { try { p.release(); } catch {} }, 3000);
             }
           } catch {}
 
@@ -542,7 +618,7 @@ export default function FocusScreen() {
       chimePlayerRef.current = p;
       setTimeout(() => {
         try {
-          p.remove();
+          p.release();
           if (chimePlayerRef.current === p) chimePlayerRef.current = null;
         } catch {}
       }, 8000);
@@ -745,18 +821,41 @@ export default function FocusScreen() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <MotiView
-      animate={{ opacity: isExiting ? 0 : 1 }}
+      animate={{
+        opacity: isExiting ? 0 : 1,
+        backgroundColor: (zenMode && isActive) ? '#000000' : theme.background
+      }}
       transition={{ type: 'timing', duration: 400 }}
-      style={{ flex: 1, backgroundColor: theme.background }}
+      style={{ flex: 1 }}
     >
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+      <StatusBar style={(zenMode && isActive) ? 'light' : (isDark ? 'light' : 'dark')} />
+      <AnimatePresence>
+        {zenMode && isActive && (
+          <MotiView
+            from={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ type: 'timing', duration: 600 }}
+            style={StyleSheet.absoluteFill}
+          >
+            <LinearGradient
+              colors={['#010006', '#08031d', '#13042b', '#06162d']}
+              start={{ x: 0.1, y: 0.1 }}
+              end={{ x: 0.9, y: 0.9 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </MotiView>
+        )}
+      </AnimatePresence>
+      <Starfield active={zenMode && isActive} timerSize={timerSize} />
+      <View style={{ flex: 1, paddingBottom: insets.bottom || S.md }}>
 
         {/* Header — left/right slots are equal width so badge stays perfectly centered */}
         <MotiView
           pointerEvents={zenMode && isActive ? "none" : "auto"}
           animate={{ opacity: zenMode && isActive ? 0 : 1 }}
           transition={{ type: 'timing', duration: 400 }}
-          style={[styles.header, { paddingVertical: S.md }]}
+          style={[styles.header, { paddingTop: insets.top, paddingBottom: S.md }]}
         >
           <View style={{ flex: 1, alignItems: 'flex-start' }}>
             <Touchable
@@ -925,8 +1024,7 @@ export default function FocusScreen() {
           {/* Timer Container (Takes remaining space to prevent overlap) */}
           <View style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', zIndex: 0 }} pointerEvents="box-none">
             <MotiView style={[styles.timerContainer, { width: timerSize, height: timerSize }]} pointerEvents="auto">
-            {/* Breath glow */}
-            {/* Breath glow */}
+            {/* Volumetric Outer Halo / Corona */}
             <Animated.View
               pointerEvents="none"
               style={[
@@ -936,8 +1034,26 @@ export default function FocusScreen() {
                   borderRadius: timerSize / 2,
                   width: timerSize,
                   height: timerSize,
-                  transform: [{ scale: glowScaleAnim }],
-                  opacity: isActive && breathMode !== 'off' ? (isDark ? 0.18 : 0.10) : 0,
+                  transform: [{ scale: Animated.multiply(glowScaleAnim, 1.1) }],
+                  opacity: isActive && breathMode !== 'off' ? ((isDark || (zenMode && isActive)) ? 0.08 : 0.04) : 0,
+                }
+              ]}
+            />
+
+            {/* Inner Core Glowing Orb */}
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.breathGlow,
+                {
+                  backgroundColor: pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary,
+                  borderRadius: timerSize / 2,
+                  width: timerSize,
+                  height: timerSize,
+                  transform: [{ scale: Animated.multiply(glowScaleAnim, 0.95) }],
+                  opacity: isActive && breathMode !== 'off' ? ((isDark || (zenMode && isActive)) ? 0.20 : 0.12) : 0,
+                  borderWidth: (zenMode && isActive) ? 1.5 : 0,
+                  borderColor: (pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary) + '50',
                 }
               ]}
             />
@@ -952,7 +1068,7 @@ export default function FocusScreen() {
               });
               const strokeColor = pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary;
               return (
-                <Svg pointerEvents="none" width={timerSize} height={timerSize} style={{ position: 'absolute', zIndex: 12, opacity: zenMode && isActive ? 0.5 : 1 }}>
+                <Svg pointerEvents="none" width={timerSize} height={timerSize} style={{ position: 'absolute', zIndex: 12, opacity: (zenMode && isActive) ? 0.15 : 1 }}>
                   <G rotation={-90} origin={`${timerSize / 2}, ${timerSize / 2}`}>
                     <Circle cx={timerSize / 2} cy={timerSize / 2} r={r} fill="none" stroke={isDark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.08)'} strokeWidth={8} />
                     {progress > 0 && (
@@ -963,6 +1079,96 @@ export default function FocusScreen() {
                 </Svg>
               );
             })()}
+
+            {/* Cosmic Orbit Clock - Zen Mode Timer Indicator */}
+            <AnimatePresence>
+              {zenMode && isActive && (
+                <MotiView
+                  from={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ type: 'timing', duration: 500 }}
+                  style={{
+                    position: 'absolute',
+                    width: timerSize + 28,
+                    height: timerSize + 28,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 11,
+                  }}
+                  pointerEvents="none"
+                >
+                  {/* Dashed Orbit Ring with Astronomical Time Dial Ticks */}
+                  <View
+                    style={{
+                      position: 'absolute',
+                      width: timerSize + 28,
+                      height: timerSize + 28,
+                      borderRadius: (timerSize + 28) / 2,
+                      borderWidth: 1,
+                      borderStyle: 'dashed',
+                      borderColor: 'rgba(255, 255, 255, 0.16)', // Brighter dashed orbit ring
+                    }}
+                  >
+                    {/* 12 O'Clock Inward Tick (Top) */}
+                    <View style={{ position: 'absolute', top: 0, left: '50%', marginLeft: -0.5, width: 1, height: 6, backgroundColor: 'rgba(255, 255, 255, 0.45)' }} />
+                    {/* 3 O'Clock Inward Tick (Right) */}
+                    <View style={{ position: 'absolute', top: '50%', marginTop: -0.5, right: 0, width: 6, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.45)' }} />
+                    {/* 6 O'Clock Inward Tick (Bottom) */}
+                    <View style={{ position: 'absolute', bottom: 0, left: '50%', marginLeft: -0.5, width: 1, height: 6, backgroundColor: 'rgba(255, 255, 255, 0.45)' }} />
+                    {/* 9 O'Clock Inward Tick (Left) */}
+                    <View style={{ position: 'absolute', top: '50%', marginTop: -0.5, left: 0, width: 6, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.45)' }} />
+                  </View>
+
+                  {/* Rotating Container */}
+                  <Animated.View
+                    style={{
+                      width: timerSize + 28,
+                      height: timerSize + 28,
+                      alignItems: 'center',
+                      transform: [
+                        {
+                          rotate: nativeProgressAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['0deg', '360deg'],
+                          }),
+                        },
+                      ],
+                    }}
+                  >
+                    {/* Sirius 4-Point Sparkle Star Progress Indicator */}
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: -16, // Centered on the dashed ring (based on 32px halo container)
+                        width: 32,
+                        height: 32,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {/* Outer Stellar Halo (Cyan Flare Glow) */}
+                      <View
+                        style={{
+                          position: 'absolute',
+                          width: 24,
+                          height: 24,
+                          borderRadius: 12,
+                          backgroundColor: 'rgba(0, 229, 255, 0.14)', // Soft glowing cyan aura
+                        }}
+                      />
+                      {/* Inner Pure White Sparkle Flare (4-Point Diamond Vector) */}
+                      <Svg width={16} height={16} viewBox="0 0 16 16" style={{ position: 'absolute' }}>
+                        <Path
+                          d="M 8 0 Q 8 8 0 8 Q 8 8 8 16 Q 8 8 16 8 Q 8 8 8 0"
+                          fill="#FFFFFF"
+                        />
+                      </Svg>
+                    </View>
+                  </Animated.View>
+                </MotiView>
+              )}
+            </AnimatePresence>
 
             <Animated.View
               pointerEvents={zenMode && isActive ? "box-none" : "auto"}
@@ -985,93 +1191,104 @@ export default function FocusScreen() {
                 style={{
                   width: '100%',
                   height: '100%',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest,
                   borderRadius: timerSize / 2,
                   overflow: 'hidden',
                 }}
               >
-                {/* Standard Timer View (Fades out when Zen Mode is active) */}
                 <MotiView
-                  pointerEvents={zenMode && isActive ? "none" : "auto"}
                   animate={{
-                    opacity: zenMode && isActive ? 0 : 1,
-                    scale: zenMode && isActive ? 0.92 : 1,
+                    backgroundColor: (zenMode && isActive)
+                      ? 'transparent'
+                      : (isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest)
                   }}
                   transition={{ type: 'timing', duration: 400 }}
-                  style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
+                  style={[StyleSheet.absoluteFill, {
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }]}
                 >
-                  <Text style={[styles.timerText, { color: theme.onSurface, fontSize: Math.round(timerSize * 0.195) }]}>
-                    {formatTime(seconds)}
-                  </Text>
-
-                  {/* Status badge */}
-                  <View style={[styles.statusBadge, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary + '20' : theme.primary + '20') : theme.surfaceContainerHigh, marginTop: 12, flexDirection: 'row', alignItems: 'center' }]}>
-                    <View style={[styles.statusDot, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary) : theme.onSurfaceVariant }]} />
-                    <Text style={[styles.statusText, { color: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary) : theme.onSurfaceVariant, fontSize: F.caption }]}>
-                      {isActive ? t.focusRunning : seconds === totalSeconds ? t.focusReady : t.focusPaused}
+                  {/* Standard Timer View (Fades out when Zen Mode is active) */}
+                  <MotiView
+                    pointerEvents={zenMode && isActive ? "none" : "auto"}
+                    animate={{
+                      opacity: zenMode && isActive ? 0 : 1,
+                      scale: zenMode && isActive ? 0.92 : 1,
+                    }}
+                    transition={{ type: 'timing', duration: 400 }}
+                    style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
+                  >
+                    <Text style={[styles.timerText, { color: theme.onSurface, fontSize: Math.round(timerSize * 0.195) }]}>
+                      {formatTime(seconds)}
                     </Text>
-                    {strictMode && (
-                      <Shield size={10} color={theme.primary} style={{ marginLeft: 6 }} strokeWidth={3} />
-                    )}
-                  </View>
 
-                  {/* Breath cue — fades between phases in sync with glow animation */}
-                  <View style={{ height: 16, marginTop: 7, justifyContent: 'center', alignItems: 'center' }}>
-                    <AnimatePresence>
-                      {isActive && breathMode !== 'off' && (
-                        <MotiView
-                          key={`normal-breath-${breathPhase}`}
-                          from={{ opacity: 0 }}
-                          animate={{ opacity: 0.4 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ type: 'timing', duration: 400 }}
-                        >
-                          <Text style={{ fontSize: 9, letterSpacing: 2.5, fontWeight: '700', textAlign: 'center', color: pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary }}>
-                            {getBreathText()}
-                          </Text>
-                        </MotiView>
+                    {/* Status badge */}
+                    <View style={[styles.statusBadge, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary + '20' : theme.primary + '20') : theme.surfaceContainerHigh, marginTop: 12, flexDirection: 'row', alignItems: 'center' }]}>
+                      <View style={[styles.statusDot, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary) : theme.onSurfaceVariant }]} />
+                      <Text style={[styles.statusText, { color: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary) : theme.onSurfaceVariant, fontSize: F.caption }]}>
+                        {isActive ? t.focusRunning : seconds === totalSeconds ? t.focusReady : t.focusPaused}
+                      </Text>
+                      {strictMode && (
+                        <Shield size={10} color={theme.primary} style={{ marginLeft: 6 }} strokeWidth={3} />
                       )}
-                    </AnimatePresence>
-                  </View>
-                </MotiView>
+                    </View>
 
-                {/* Zen Mode View (Fades in when Zen Mode is active) */}
-                <MotiView
-                  pointerEvents={zenMode && isActive ? "auto" : "none"}
-                  animate={{
-                    opacity: zenMode && isActive ? 1 : 0,
-                    scale: zenMode && isActive ? 1 : 0.95,
-                  }}
-                  transition={{ type: 'timing', duration: 400 }}
-                  style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.md }]}
-                >
-                  {breathMode !== 'off' ? (
-                    <View style={{ alignItems: 'center', justifyContent: 'center', minHeight: 80 }}>
+                    {/* Breath cue — fades between phases in sync with glow animation */}
+                    <View style={{ height: 16, marginTop: 7, justifyContent: 'center', alignItems: 'center', width: '100%' }}>
                       <AnimatePresence>
-                        <MotiView
-                          key={`zen-breath-${breathPhase}`}
-                          from={{ opacity: 0, scale: 0.96 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.96 }}
-                          transition={{ type: 'timing', duration: 400 }}
-                          style={{ alignItems: 'center' }}
-                        >
-                          <Text style={{ fontFamily: 'Jakarta-Bold', fontSize: Math.round(timerSize * 0.088), letterSpacing: 5, color: pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary, textAlign: 'center' }}>
-                            {getBreathText()}
-                          </Text>
-                        </MotiView>
+                        {isActive && breathMode !== 'off' && (
+                          <MotiView
+                            key={`normal-breath-${breathPhase}`}
+                            from={{ opacity: 0 }}
+                            animate={{ opacity: 0.4 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ type: 'timing', duration: 400 }}
+                            style={{ position: 'absolute', alignItems: 'center', width: '100%' }}
+                          >
+                            <Text style={{ fontSize: 9, letterSpacing: 2.5, fontWeight: '700', textAlign: 'center', color: pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary }}>
+                              {getBreathText()}
+                            </Text>
+                          </MotiView>
+                        )}
                       </AnimatePresence>
                     </View>
-                  ) : (
-                    <View style={{ height: 40, alignItems: 'center', justifyContent: 'center' }}>
-                      <Sparkles size={24} color={theme.onSurface} style={{ opacity: 0.2 }} />
-                    </View>
-                  )}
-                  <Text style={{ fontFamily: 'Jakarta-SemiBold', fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.35, marginTop: 28, letterSpacing: 1 }}>
-                    {language === 'tr' ? 'Çıkmak için dokun' : 'Tap to exit Zen Mode'}
-                  </Text>
+                  </MotiView>
+
+                  {/* Zen Mode View (Fades in when Zen Mode is active) */}
+                  <MotiView
+                    pointerEvents={zenMode && isActive ? "auto" : "none"}
+                    animate={{
+                      opacity: zenMode && isActive ? 1 : 0,
+                      scale: zenMode && isActive ? 1 : 0.95,
+                    }}
+                    transition={{ type: 'timing', duration: 400 }}
+                    style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.md }]}
+                  >
+                    {breathMode !== 'off' ? (
+                      <View style={{ alignItems: 'center', justifyContent: 'center', minHeight: 80, width: '100%' }}>
+                        <AnimatePresence>
+                          <MotiView
+                            key={`zen-breath-${breathPhase}`}
+                            from={{ opacity: 0, scale: 0.96 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.96 }}
+                            transition={{ type: 'timing', duration: 400 }}
+                            style={{ position: 'absolute', alignItems: 'center', width: '100%' }}
+                          >
+                            <Text style={{ fontFamily: 'Jakarta-Bold', fontSize: Math.round(timerSize * 0.088), letterSpacing: 5, color: pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary, textAlign: 'center' }}>
+                              {getBreathText()}
+                            </Text>
+                          </MotiView>
+                        </AnimatePresence>
+                      </View>
+                    ) : (
+                      <View style={{ height: 40, alignItems: 'center', justifyContent: 'center' }}>
+                        <Sparkles size={24} color={theme.onSurface} style={{ opacity: 0.2 }} />
+                      </View>
+                    )}
+                    <Text style={{ fontFamily: 'Jakarta-SemiBold', fontSize: 10, color: '#8E8E93', opacity: 0.25, marginTop: 28, letterSpacing: 1 }}>
+                      {language === 'tr' ? 'Çıkmak için dokun' : 'Tap to exit Zen Mode'}
+                    </Text>
+                  </MotiView>
                 </MotiView>
               </Touchable>
             </Animated.View>
@@ -1149,6 +1366,7 @@ export default function FocusScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={{ marginHorizontal: -S.lg }}
               contentContainerStyle={[styles.ambientRow, { marginTop: 0 }]}
               keyboardShouldPersistTaps="handled"
             >
@@ -1274,7 +1492,7 @@ export default function FocusScreen() {
 
           </View>
         </View>
-      </SafeAreaView>
+      </View>
 
       {/* ── Session completion ritual overlay ────────────────────────────────── */}
       <AnimatePresence>

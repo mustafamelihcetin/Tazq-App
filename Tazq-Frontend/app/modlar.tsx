@@ -731,12 +731,12 @@ export default function ModlarScreen() {
             </View>
         </MotiView>
 
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <View style={{ flex: 1 }}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView
             ref={scrollViewRef}
             style={{ flex: 1 }}
-            contentContainerStyle={{ paddingBottom: 240 + insets.bottom, paddingHorizontal: S.lg, paddingTop: 80, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+            contentContainerStyle={{ paddingBottom: 240 + insets.bottom, paddingHorizontal: S.lg, paddingTop: 80 + insets.top, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             scrollEventThrottle={16}
@@ -959,7 +959,7 @@ export default function ModlarScreen() {
           </View>
         </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
 
       <BottomNavBar />
 

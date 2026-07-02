@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+const activeAudioPlayers = new Set<any>();
 
 interface FocusState {
   isActive: boolean;
   seconds: number;
   totalSeconds: number;
+  pausedSeconds: number | null;
   currentTask: string;
   lastActiveAt: number | null;
   expectedFinishAt: number | null;
@@ -73,6 +75,7 @@ export const useFocusStore = create<FocusState>()(
       isActive: false,
       seconds: 1500,
       totalSeconds: 1500,
+      pausedSeconds: null,
       currentTask: '',
       lastActiveAt: null,
       expectedFinishAt: null,
@@ -96,7 +99,8 @@ export const useFocusStore = create<FocusState>()(
         set({ 
           isActive, 
           lastActiveAt: isActive ? Date.now() : null,
-          expectedFinishAt: isActive ? (Date.now() + seconds * 1000) : null
+          expectedFinishAt: isActive ? (Date.now() + seconds * 1000) : null,
+          pausedSeconds: isActive ? null : seconds
         });
       },
 
@@ -117,8 +121,9 @@ export const useFocusStore = create<FocusState>()(
           totalSeconds: secs, 
           seconds: secs, 
           isActive: false, 
-          lastActiveAt: null,
-          expectedFinishAt: null
+          lastActiveAt: null, 
+          expectedFinishAt: null,
+          pausedSeconds: null
         });
       },
 
@@ -127,7 +132,7 @@ export const useFocusStore = create<FocusState>()(
         if (isActive && seconds > 0) {
           set({ seconds: seconds - 1 });
         } else if (seconds === 0) {
-          set({ isActive: false, lastActiveAt: null, expectedFinishAt: null });
+          set({ isActive: false, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null });
         }
       },
 
@@ -138,13 +143,40 @@ export const useFocusStore = create<FocusState>()(
           seconds: totalSeconds, 
           currentTask: '',
           lastActiveAt: null,
-          expectedFinishAt: null
+          expectedFinishAt: null,
+          pausedSeconds: null
         });
       },
 
       rehydrateTimer: () => {
-        const { isActive, expectedFinishAt, lastActiveAt, seconds } = get();
-        if (!isActive) return;
+        const { isActive, expectedFinishAt, lastActiveAt, seconds, pausedSeconds } = get();
+        let totalSeconds = Math.max(60, get().totalSeconds || 1500);
+        
+        // Reset if the day changed!
+        const { dailyFocusDate } = get();
+        const today = getISODate();
+        if (dailyFocusDate && dailyFocusDate !== today) {
+          set({
+            isActive: false,
+            seconds: 1500,
+            totalSeconds: 1500,
+            currentTask: '',
+            lastActiveAt: null,
+            expectedFinishAt: null,
+            pausedSeconds: null
+          });
+          return;
+        }
+
+        if (!isActive) {
+          if (pausedSeconds !== null && pausedSeconds !== undefined) {
+            const validPaused = Math.max(0, Math.min(totalSeconds, pausedSeconds));
+            set({ seconds: validPaused, totalSeconds });
+          } else {
+            set({ seconds: totalSeconds, totalSeconds });
+          }
+          return;
+        }
         
         let remaining = seconds;
         if (expectedFinishAt) {
@@ -156,10 +188,13 @@ export const useFocusStore = create<FocusState>()(
           return;
         }
 
+        // Clamp remaining seconds defensively
+        remaining = Math.min(totalSeconds, remaining);
+
         if (remaining === 0) {
-          set({ isActive: false, seconds: 0, lastActiveAt: null, expectedFinishAt: null });
+          set({ isActive: false, seconds: 0, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null, totalSeconds });
         } else {
-          set({ seconds: remaining, lastActiveAt: null });
+          set({ seconds: remaining, lastActiveAt: null, totalSeconds });
         }
       },
 
@@ -242,10 +277,16 @@ export const useFocusStore = create<FocusState>()(
               const { soundEffects } = usePrefsStore.getState();
               if (soundEffects) {
                 const { createAudioPlayer } = require('expo-audio');
-                const p = createAudioPlayer(require('../../../assets/sounds/level_up.mp3'));
+                const p = createAudioPlayer(require('../../../assets/sounds/levelup.mp3'));
                 p.volume = 0.85;
+                activeAudioPlayers.add(p);
                 p.play();
-                setTimeout(() => { try { p.remove(); } catch {} }, 3000);
+                setTimeout(() => { 
+                  try { 
+                    p.release(); 
+                    activeAudioPlayers.delete(p);
+                  } catch {} 
+                }, 3000);
               }
             } catch (e) {
               // Ignore sound errors
@@ -287,13 +328,17 @@ export const useFocusStore = create<FocusState>()(
     {
       name: 'tazq-focus-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: (state) => {
+        return (state, error) => {
+          if (!error && state) {
+            state.rehydrateTimer();
+          }
+        };
+      },
       partialize: (state) => ({
-        // NOTE: 'seconds' is intentionally NOT persisted.
-        // Persisting it caused AsyncStorage writes every second (via tick()),
-        // which caused severe CPU/thermal issues on iOS. Instead, we persist
-        // 'lastActiveAt' and recompute remaining time on rehydration.
         isActive: state.isActive,
         totalSeconds: state.totalSeconds,
+        pausedSeconds: state.pausedSeconds,
         currentTask: state.currentTask,
         lastActiveAt: state.lastActiveAt,
         expectedFinishAt: state.expectedFinishAt,

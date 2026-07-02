@@ -114,7 +114,9 @@ interface AuthState {
   isLoggedIn: boolean;
   _hasHydrated: boolean;
   lastUserId: number | null; // bu cihazda en son giriş yapan kullanıcı (hesap değişimi tespiti)
-  setAuth: (user: User, token: string, refreshToken?: string | null) => void;
+  isFirstLogin: boolean;
+  setAuth: (user: User, token: string, refreshToken?: string | null, isFirstLogin?: boolean) => void;
+  setIsFirstLogin: (val: boolean) => void;
   setUser: (user: User) => void;
   logout: () => void;
   setHasHydrated: (val: boolean) => void;
@@ -129,7 +131,8 @@ export const useAuthStore = create<AuthState>()(
       isLoggedIn: false,
       _hasHydrated: false,
       lastUserId: null,
-      setAuth: (user, token, refreshToken) => {
+      isFirstLogin: false,
+      setAuth: (user, token, refreshToken, isFirstLogin) => {
         // Bu cihazda FARKLI bir hesap giriş yapıyorsa, önceki kullanıcının yerel verisini
         // temizle (logout çalışmamış olsa bile sızıntıyı kapatır).
         const prevId = useAuthStore.getState().lastUserId;
@@ -137,8 +140,16 @@ export const useAuthStore = create<AuthState>()(
           clearLocalUserData();
         }
         hydrateProfilePrefs(user);
-        set({ user, token, ...(refreshToken !== undefined ? { refreshToken } : {}), isLoggedIn: true, lastUserId: user?.id ?? null });
+        set({
+          user,
+          token,
+          ...(refreshToken !== undefined ? { refreshToken } : {}),
+          isLoggedIn: true,
+          lastUserId: user?.id ?? null,
+          isFirstLogin: isFirstLogin ?? false
+        });
       },
+      setIsFirstLogin: (val) => set({ isFirstLogin: val }),
       setUser: (user) => { hydrateProfilePrefs(user); set({ user }); },
       logout: () => {
         // Sunucuda refresh token'ı iptal et (best-effort, beklemeden)
@@ -148,7 +159,7 @@ export const useAuthStore = create<AuthState>()(
         } catch {}
         // isLoggedIn=false; lastUserId KORUNUR ki bir sonraki girişte hesap değişimi
         // tespit edilebilsin (aynı kullanıcı geri girerse veri sıfırlanmasın).
-        set({ user: null, token: null, refreshToken: null, isLoggedIn: false });
+        set({ user: null, token: null, refreshToken: null, isLoggedIn: false, isFirstLogin: false });
         clearLocalUserData();
       },
       setHasHydrated: (val) => set({ _hasHydrated: val }),

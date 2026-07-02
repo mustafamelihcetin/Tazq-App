@@ -23,6 +23,7 @@ import { FocusService } from '@/shared/services/api';
 import { S, R, F, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
+const activeAudioPlayers = new Set<any>();
 import { SwipeableHabitItem } from '@/shared/components/SwipeableHabitItem';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 
@@ -88,6 +89,7 @@ export default function CockpitScreen() {
     mulakatPlanHabitIds, mulakat2PlanHabitIds, mulakat3PlanHabitIds,
     sporPlanHabitIds, spor2PlanHabitIds, spor3PlanHabitIds,
     ramazanPlanHabitIds,
+    soundEffects,
   } = usePrefsStore();
   const hasActiveSeasonalMode = seasonal.ramazan || seasonal.examMode || seasonal.tezMode || seasonal.mulakatMode || seasonal.sporMode;
 
@@ -300,7 +302,41 @@ export default function CockpitScreen() {
 
     if (!doneToday) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger();
+      const pendingHabits = habits.filter(h => h.id !== id && !h.completedDates?.includes(todayKey));
+      const allHabitsDone = pendingHabits.length === 0;
+
+      if (soundEffects && !allHabitsDone) try {
+        const { createAudioPlayer } = require('expo-audio');
+        const soundFile = require('../assets/sounds/habit.mp3');
+        const p = createAudioPlayer(soundFile);
+        const targetVolume = 0.18;
+        p.volume = targetVolume;
+        activeAudioPlayers.add(p);
+        p.play();
+
+        setTimeout(() => {
+          try {
+            p.volume = targetVolume;
+          } catch {}
+        }, 150);
+
+        setTimeout(() => { 
+          try { 
+            p.remove(); 
+            activeAudioPlayers.delete(p);
+          } catch {} 
+        }, 4000);
+      } catch {}
+
+      if (allHabitsDone) {
+        require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
+          language === 'tr' ? 'Alışkanlıklar Tamam!' : 'All Habits Done!',
+          language === 'tr' ? 'Bugünkü tüm alışkanlık hedeflerini tamamladın. Harika istikrar! 🌟' : 'You completed all habit targets for today. Great consistency! 🌟',
+          'medium',
+          'day_cleared'
+        );
+        useFocusStore.getState().addFocusPoints(20);
+      }
       const opacity = new Animated.Value(1);
       const translateY = new Animated.Value(0);
       habitExitAnimMap.current.set(id, { opacity, translateY });
@@ -476,10 +512,10 @@ export default function CockpitScreen() {
             </View>
         </MotiView>
 
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <View style={{ flex: 1 }}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingTop: 80, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: 140, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingTop: 80 + insets.top, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: 140, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
         >
           {/* ── WEEK STRIP ── */}
@@ -1049,7 +1085,7 @@ export default function CockpitScreen() {
             </Touchable>
           </BentoCard>
         </ScrollView>
-      </SafeAreaView>
+      </View>
 
       {/* ══ ADD HABIT SHEET ══ */}
       <Modal

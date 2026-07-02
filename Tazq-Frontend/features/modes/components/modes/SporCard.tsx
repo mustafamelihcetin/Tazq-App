@@ -182,6 +182,12 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
     return !(state.sporPlanHabitIds.length > 0 || state.sporPlanTaskIds.length > 0);
   });
   const [showPicker, setShowPicker] = useState(false);
+  const userPrefsGender = usePrefsStore(s => s.gender);
+  useEffect(() => {
+    if (userPrefsGender && gender !== userPrefsGender) {
+      setGender(userPrefsGender);
+    }
+  }, [userPrefsGender]);
   const [weightEntryInput, setWeightEntryInput] = useState('');
   const [showWeightEntry, setShowWeightEntry] = useState(false);
 
@@ -469,14 +475,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: 12, fontWeight: '600', opacity: 0.6 }}>{tr ? 'yaş' : 'yrs'}</Text>
                     </View>
                   </View>
-                  <View style={{ flexDirection: 'row', gap: S.sm }}>
-                    {(['male', 'female'] as const).map((g) => (
-                      <Touchable key={g} onPress={() => setGender(gender === g ? '' : g)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, borderRadius: R.md, height: 40, borderWidth: B.medium, backgroundColor: gender === g ? (SPOR + '20') : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), borderColor: gender === g ? SPOR : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }} activeOpacity={0.75}>
-                        {g === 'male' ? <MarsIcon size={16} color={gender === 'male' ? SPOR : theme.onSurfaceVariant} /> : <VenusIcon size={16} color={gender === 'female' ? SPOR : theme.onSurfaceVariant} />}
-                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: gender === g ? SPOR : theme.onSurfaceVariant }}>{tr ? (g === 'male' ? 'Erkek' : 'Kadın') : (g === 'male' ? 'Male' : 'Female')}</Text>
-                      </Touchable>
-                    ))}
-                  </View>
+
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.8, marginTop: S.xs }}>{tr ? 'Kilo bilgileri (kaydırarak seçin)' : 'Weight info (scroll to select)'}</Text>
                   <View style={{ flexDirection: 'row', gap: S.sm, justifyContent: 'center', alignItems: 'center' }}>
                     <View style={{ flex: 1, alignItems: 'center', gap: 6 }}>

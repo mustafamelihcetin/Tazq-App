@@ -141,8 +141,10 @@ namespace Tazq_App.Services
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == payload.Email);
+            bool isNewUser = false;
             if (user == null)
             {
+                isNewUser = true;
                 user = new User
                 {
                     Name = payload.Name ?? payload.Email.Split('@')[0],
@@ -182,7 +184,7 @@ namespace Tazq_App.Services
 
             var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
             var refreshToken = await IssueRefreshTokenAsync(user.Id);
-            return new AuthTokens(accessToken, refreshToken);
+            return new AuthTokens(accessToken, refreshToken, isNewUser);
         }
 
         public async Task<AuthTokens?> AppleLoginAsync(AppleLoginDto dto, string? ipAddress)
@@ -204,13 +206,26 @@ namespace Tazq_App.Services
                 }
 
                 var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+                bool isNewUser = false;
                 if (user == null)
                 {
+                    isNewUser = true;
                     var firstName = dto.FirstName;
                     var lastName = dto.LastName;
-                    var name = !string.IsNullOrWhiteSpace(firstName) 
-                        ? $"{firstName} {lastName}".Trim() 
-                        : email.Split('@')[0];
+                    string name;
+                    
+                    if (!string.IsNullOrWhiteSpace(firstName))
+                    {
+                        name = $"{firstName} {lastName}".Trim();
+                    }
+                    else if (email.Contains("privaterelay.appleid.com", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        name = "TAZQ Kullanıcısı";
+                    }
+                    else
+                    {
+                        name = email.Split('@')[0];
+                    }
 
                     user = new User
                     {
@@ -251,7 +266,7 @@ namespace Tazq_App.Services
 
                 var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
                 var refreshToken = await IssueRefreshTokenAsync(user.Id);
-                return new AuthTokens(accessToken, refreshToken);
+                return new AuthTokens(accessToken, refreshToken, isNewUser);
             }
             catch (Exception ex)
             {

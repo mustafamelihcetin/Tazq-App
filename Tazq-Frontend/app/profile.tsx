@@ -23,6 +23,7 @@ import { S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
+import { useSporStore } from '@/shared/store/useSporStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
@@ -56,7 +57,7 @@ export default function ProfileScreen() {
   const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset, focusPoints, streakShields } = useFocusStore();
   const { habits, toggleDate } = useHabitStore();
   const { tasks } = useTaskStore();
-  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode } = usePrefsStore();
+  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender } = usePrefsStore();
   const { unlocked: unlockedAchievements } = useAchievementStore();
 
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -67,6 +68,7 @@ export default function ProfileScreen() {
   const [newName, setNewName] = useState(user?.name || '');
   const [selectedGoal, setSelectedGoal] = useState(dailyGoalMinutes);
   const [newMotto, setNewMotto] = useState(motto);
+  const [newGender, setNewGender] = useState(gender);
   const [newProductivityHour, setNewProductivityHour] = useState(productivityHour);
   const [selectedBorderColor, setSelectedBorderColor] = useState(avatarBorderColor);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -126,6 +128,7 @@ export default function ProfileScreen() {
     setNewName(user?.name || '');
     setSelectedGoal(dailyGoalMinutes);
     setNewMotto(motto);
+    setNewGender(gender);
     setNewProductivityHour(productivityHour);
     setSelectedBorderColor(avatarBorderColor);
     setProfileError(null);
@@ -152,8 +155,11 @@ export default function ProfileScreen() {
       setUser({ ...user, avatar: selectedAvatar, name: newName.trim() });
       setDailyGoal(selectedGoal);
       setMotto(newMotto.trim());
+      setGender(newGender);
+      useSporStore.getState().setGender(newGender);
       setProductivityHour(newProductivityHour);
       setAvatarBorderColor(selectedBorderColor);
+      await usePrefsStore.getState().syncToCloud();
       setEditModalVisible(false);
       showToast(t.toastProfileUpdated, 'success');
     } catch (e: any) {
@@ -294,6 +300,13 @@ export default function ProfileScreen() {
             if (!h.completedDates.includes(todayKey)) toggleDate(h.id, todayKey);
           });
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          if (soundEffects) try {
+            const { createAudioPlayer } = require('expo-audio');
+            const p = createAudioPlayer(require('../assets/sounds/freeze.mp3'));
+            p.volume = 0.75;
+            p.play();
+            setTimeout(() => { try { p.remove(); } catch {} }, 3000);
+          } catch {}
           showToast(language === 'tr' ? 'Kalkan başarıyla kullanıldı!' : 'Shield successfully used!', 'success');
         } }
       ]
@@ -306,11 +319,11 @@ export default function ProfileScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <View style={{ flex: 1 }}>
         <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 190, paddingHorizontal: S.lg, paddingTop: S.xl, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingBottom: 190, paddingHorizontal: S.lg, paddingTop: S.xl + insets.top, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -669,7 +682,7 @@ export default function ProfileScreen() {
             </Touchable>
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </View>
 
       <BottomNavBar />
       {/* Edit Profile Modal */}
@@ -707,11 +720,62 @@ export default function ProfileScreen() {
                     </View>
                   </View>
 
+                  {/* Gender selection */}
+                  <View style={{ width: '100%', marginBottom: S.md }}>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
+                      {language === 'tr' ? 'Cinsiyet' : 'Gender'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: S.xs }}>
+                      {([
+                        { key: 'male', labelTr: 'Erkek', labelEn: 'Male' },
+                        { key: 'female', labelTr: 'Kadın', labelEn: 'Female' },
+                      ] as const).map((g) => {
+                        const isSelected = newGender === g.key;
+                        return (
+                          <Touchable
+                            key={g.key}
+                            onPress={() => {
+                              Haptics.selectionAsync();
+                              setNewGender(g.key);
+                              if (g.key === 'male') {
+                                setSelectedAvatar('m1');
+                              } else {
+                                setSelectedAvatar('f1');
+                              }
+                            }}
+                            style={{
+                              flex: 1,
+                              paddingVertical: 10,
+                              borderRadius: R.sm,
+                              borderWidth: 1.5,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderColor: isSelected ? theme.primary : theme.outline + '20',
+                              backgroundColor: isSelected ? theme.primaryContainer : 'transparent',
+                            }}
+                          >
+                            <Text style={{
+                              fontSize: 12,
+                              fontFamily: 'Jakarta-Bold',
+                              color: isSelected ? theme.onPrimaryContainer : theme.onSurfaceVariant,
+                            }}>
+                              {language === 'tr' ? g.labelTr : g.labelEn}
+                            </Text>
+                          </Touchable>
+                        );
+                      })}
+                    </View>
+                  </View>
+
                   {/* Avatar selection */}
                   <View style={{ width: '100%', marginBottom: S.md }}>
                     <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>Avatar</Text>
                     <View style={[styles.avatarGrid, { gap: S.sm }]}>
-                      {AVATAR_CONFIGS.map((config) => {
+                      {AVATAR_CONFIGS.filter(config => {
+                        if (newGender === 'male') return config.key.startsWith('m');
+                        if (newGender === 'female') return config.key.startsWith('f');
+                        return true;
+                      }).map((config) => {
                         const isSelected = selectedAvatar === config.key;
                         return (
                           <Touchable
@@ -769,13 +833,23 @@ export default function ProfileScreen() {
                     >
                       {([
                         { key: 'transparent', color: 'transparent', labelTr: 'Yok', labelEn: 'None' },
-                        { key: 'blue', color: '#2563EB', labelTr: 'Mavi', labelEn: 'Blue' },
-                        { key: 'orange', color: '#F97316', labelTr: 'Turuncu', labelEn: 'Orange' },
-                        { key: 'indigo', color: '#6366F1', labelTr: 'İndigo', labelEn: 'Indigo' },
-                        { key: 'emerald', color: '#10B981', labelTr: 'Zümrüt', labelEn: 'Emerald' },
-                        { key: 'amber', color: '#F59E0B', labelTr: 'Kehribar', labelEn: 'Amber' },
-                        { key: 'rose', color: '#EC4899', labelTr: 'Gül', labelEn: 'Rose' },
-                        { key: 'violet', color: '#8B5CF6', labelTr: 'Menekşe', labelEn: 'Violet' },
+                        { key: 'red', color: '#FF4D4D', labelTr: 'Kırmızı', labelEn: 'Red' },
+                        { key: 'fuchsia', color: '#F43F5E', labelTr: 'Fuşya', labelEn: 'Fuchsia' },
+                        { key: 'rose', color: '#F472B6', labelTr: 'Gül', labelEn: 'Rose' },
+                        { key: 'orange', color: '#FB923C', labelTr: 'Turuncu', labelEn: 'Orange' },
+                        { key: 'bronze', color: '#FDBA74', labelTr: 'Bronz', labelEn: 'Bronze' },
+                        { key: 'gold', color: '#F59E0B', labelTr: 'Altın', labelEn: 'Gold' },
+                        { key: 'yellow', color: '#FFFF00', labelTr: 'Sarı', labelEn: 'Yellow' },
+                        { key: 'lime', color: '#A3E635', labelTr: 'Fıstık', labelEn: 'Lime' },
+                        { key: 'green', color: '#4ADE80', labelTr: 'Yeşil', labelEn: 'Green' },
+                        { key: 'mint', color: '#34D399', labelTr: 'Nane', labelEn: 'Mint' },
+                        { key: 'teal', color: '#2DD4BF', labelTr: 'Turkuaz', labelEn: 'Teal' },
+                        { key: 'sky', color: '#38BDF8', labelTr: 'Gök', labelEn: 'Sky Blue' },
+                        { key: 'blue', color: '#60A5FA', labelTr: 'Mavi', labelEn: 'Blue' },
+                        { key: 'violet', color: '#A78BFA', labelTr: 'Menekşe', labelEn: 'Violet' },
+                        { key: 'lavender', color: '#C084FC', labelTr: 'Lavanta', labelEn: 'Lavender' },
+                        { key: 'sakura', color: '#F472B6', labelTr: 'Gül', labelEn: 'Rose' },
+                        { key: 'platinum', color: '#E2E8F0', labelTr: 'Gümüş', labelEn: 'Silver' },
                       ] as const).map((colorOpt) => {
                         const isSelected = selectedBorderColor === colorOpt.color;
                         const isNone = colorOpt.color === 'transparent';

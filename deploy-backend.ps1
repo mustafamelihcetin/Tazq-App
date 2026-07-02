@@ -79,7 +79,8 @@ $files = @(
 
     # Project Files
     "Tazq-Backend.csproj",
-    "Program.cs"
+    "Program.cs",
+    "appsettings.json"
 )
 
 foreach ($f in $files) {

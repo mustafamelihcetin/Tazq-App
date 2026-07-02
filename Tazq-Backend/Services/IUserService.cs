@@ -20,5 +20,5 @@ namespace Tazq_App.Services
     }
 
     // Access (kısa ömürlü JWT) + Refresh (uzun ömürlü, DB-destekli) token çifti
-    public record AuthTokens(string Token, string RefreshToken);
+    public record AuthTokens(string Token, string RefreshToken, bool IsNewUser = false);
 }

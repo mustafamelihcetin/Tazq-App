@@ -214,9 +214,8 @@ export function BirakmaCard() {
             );
           })}
 
-          {/* Paylaşılan günlük check-in */}
           <Touchable
-            onPress={() => { if (checkinHabit) { if (!doneToday) { require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(); } Haptics.impactAsync(doneToday ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium); toggleDate(checkinHabit.id, todayKey); } }}
+            onPress={() => { if (checkinHabit) { if (!doneToday) { require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(tr ? 'Günü Kurtardın!' : 'Day Saved!', tr ? 'Tebrikler, bugünü de temiz geçtin. 🛡️' : 'Congratulations on keeping today clean. 🛡️'); } Haptics.impactAsync(doneToday ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium); toggleDate(checkinHabit.id, todayKey); } }}
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: doneToday ? C : C + '12', borderWidth: doneToday ? 0 : B.thin, borderColor: C + '30' }}
           >
             {renderModeEmojiIcon('🛡️', 15, doneToday ? '#fff' : C)}
