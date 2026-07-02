@@ -7,9 +7,11 @@
 //  • Habit bileşeni çağıran tarafça BUGÜN HARİÇ verilir (sonsuz salınımı önler).
 
 export interface MomentumTaskLike {
+  id?: string | number;
   priority?: string;
   isCompleted?: boolean;
   dueDate?: string | null;
+  completedAt?: string | null;
 }
 
 export interface MomentumInput {
@@ -58,6 +60,25 @@ export function computeMomentum(input: MomentumInput): MomentumResult {
   const totalCount = weeklyTasks.length;
   const completedCount = weeklyTasks.filter(t => t.isCompleted).length;
 
+  // Velocity Guard: Identify spammed task IDs completed less than 10s apart
+  const spammedIds = new Set<string | number>();
+  const sortedCompleted = weeklyTasks
+    .filter(t => t.isCompleted && t.completedAt)
+    .map(t => ({
+      id: t.id,
+      time: new Date(t.completedAt!).getTime()
+    }))
+    .sort((a, b) => a.time - b.time);
+
+  for (let i = 1; i < sortedCompleted.length; i++) {
+    const diffSeconds = (sortedCompleted[i].time - sortedCompleted[i - 1].time) / 1000;
+    if (diffSeconds < 10) {
+      if (sortedCompleted[i].id !== undefined) {
+        spammedIds.add(sortedCompleted[i].id!);
+      }
+    }
+  }
+
   // Öncelik-ağırlıklı, recency-azalmalı tamamlanma oranı.
   const weightedCompletion = (() => {
     if (weeklyTasks.length === 0) return 0;
@@ -67,9 +88,13 @@ export function computeMomentum(input: MomentumInput): MomentumResult {
       const taskDate = task.dueDate ? parseLocalDate(task.dueDate) : new Date(logicalToday);
       const daysAgo = Math.round((logicalToday.getTime() - taskDate.getTime()) / 86400000);
       const recency = Math.max(0.3, 1 - Math.max(0, daysAgo) * 0.1);
+      
+      const isSpammed = task.id !== undefined && spammedIds.has(task.id);
       const weight = (PRIORITY_WEIGHTS[task.priority ?? 'Low'] || 1) * recency;
       totalPts += weight;
-      if (task.isCompleted) earnedPts += weight;
+      if (task.isCompleted && !isSpammed) {
+        earnedPts += weight;
+      }
     }
     return totalPts > 0 ? earnedPts / totalPts : 0;
   })();

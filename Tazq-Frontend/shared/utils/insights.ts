@@ -264,6 +264,7 @@ export interface WeeklyInsightInput {
   momentumLast7: number[];        // -1 = veri yok
   productivityHour: ProductivityHour;
   habits?: any[];
+  tasks?: any[];
 }
 
 export interface WeeklyMetrics {
@@ -312,11 +313,43 @@ export function computeWeeklyMetrics(input: WeeklyInsightInput): WeeklyMetrics {
   return { totalFocusMin, activeDays, bestDayIndex, bestDayMinutes, avgMomentum, momentumTrend };
 }
 
-/** Önceliklendirilmiş öneriler (en kritik üstte). En fazla `max` döner. */
 export function generateWeeklyTips(input: WeeklyInsightInput, max = 3): Insight[] {
   const m = computeWeeklyMetrics(input);
   const tips: Insight[] = [];
   const hour = HOUR_LABEL[input.productivityHour] ?? HOUR_LABEL.morning;
+
+  // Velocity Guard check: detect if tasks were spammed in the last 7 days
+  if (input.tasks && input.tasks.length > 0) {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const weeklyCompleted = input.tasks.filter(t => {
+      if (!t.isCompleted || !t.completedAt) return false;
+      const completedDate = new Date(t.completedAt);
+      return completedDate >= sevenDaysAgo;
+    });
+
+    const sortedCompleted = [...weeklyCompleted]
+      .map(t => ({ id: t.id, time: new Date(t.completedAt!).getTime() }))
+      .sort((a, b) => a.time - b.time);
+
+    let spammedCount = 0;
+    for (let i = 1; i < sortedCompleted.length; i++) {
+      const diffSeconds = (sortedCompleted[i].time - sortedCompleted[i - 1].time) / 1000;
+      if (diffSeconds < 10) {
+        spammedCount++;
+      }
+    }
+
+    if (spammedCount >= 3) {
+      tips.push({
+        tone: 'warning',
+        textTr: 'Görevlerinizi tamamlama hızınız normalin üzerinde saptandı. Sayaçsız ve çok hızlı tik atmak odak kalitenizi izlememizi zorlaştırır.',
+        textEn: 'Unusually high task completion speed detected. Checking off tasks without focus sessions skews productivity analytics.'
+      });
+    }
+  }
 
   // Habit-based local AI coach tips
   if (input.habits && input.habits.length > 0) {

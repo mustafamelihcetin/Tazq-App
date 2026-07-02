@@ -970,6 +970,13 @@ export default function HomeScreen() {
         name: h.name,
         skippedDates: h.skippedDates || [],
         completedDates: h.completedDates || []
+      })),
+      tasks: tasks.map(t => ({
+        id: t.id,
+        priority: t.priority,
+        isCompleted: t.isCompleted,
+        dueDate: t.dueDate,
+        completedAt: t.completedAt
       }))
     });
   }, [mergedWeeklyFocus, tasks, streak, habits]);

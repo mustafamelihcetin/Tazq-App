@@ -124,4 +124,23 @@ describe('generateWeeklyTips', () => {
     const tips = generateWeeklyTips({ weeklyFocusMinutes: [60, 60, 60, 60, 60, 60, 60], completedTasksWeek: 5, streak: 3, momentumLast7: [60, 60, 60, 60, 60, 60, 60], productivityHour: 'morning' });
     expect(tips.length).toBeGreaterThan(0);
   });
+
+  it('adds a warning when tasks are completed too quickly (Velocity Guard)', () => {
+    const time1 = new Date().toISOString();
+    const time2 = new Date(Date.now() + 2000).toISOString();
+    const time3 = new Date(Date.now() + 4000).toISOString();
+    const time4 = new Date(Date.now() + 6000).toISOString();
+
+    const tips = generateWeeklyTips({
+      ...base,
+      tasks: [
+        { id: 1, isCompleted: true, completedAt: time1 },
+        { id: 2, isCompleted: true, completedAt: time2 },
+        { id: 3, isCompleted: true, completedAt: time3 },
+        { id: 4, isCompleted: true, completedAt: time4 },
+      ]
+    });
+
+    expect(tips.some(t => t.tone === 'warning' && /hız/i.test(t.textTr))).toBe(true);
+  });
 });

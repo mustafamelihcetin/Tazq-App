@@ -60,4 +60,21 @@ describe('computeMomentum', () => {
     expect(long).toBeGreaterThan(1);
     expect(long).toBeLessThanOrEqual(1.15);
   });
+
+  it('penalizes tasks completed in rapid succession (Velocity Guard)', () => {
+    const time1 = new Date('2026-06-29T12:00:00Z').toISOString();
+    const time2 = new Date('2026-06-29T12:00:05Z').toISOString();
+    const time3 = new Date('2026-06-29T12:00:30Z').toISOString();
+
+    const r = computeMomentum({
+      ...base,
+      tasks: [
+        { id: 1, priority: 'High', isCompleted: true, dueDate: todayIso, completedAt: time1 },
+        { id: 2, priority: 'High', isCompleted: true, dueDate: todayIso, completedAt: time2 },
+        { id: 3, priority: 'High', isCompleted: true, dueDate: todayIso, completedAt: time3 },
+      ],
+    });
+
+    expect(r.weightedCompletion).toBeCloseTo(0.67, 2);
+  });
 });

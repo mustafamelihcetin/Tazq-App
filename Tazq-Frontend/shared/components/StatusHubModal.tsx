@@ -296,8 +296,8 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                   </Text>
                   <Text style={{ fontSize: 9.5, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.5 }}>
                     {language === 'tr'
-                      ? `Odak: ${totalFocusMins}dk • Ritüel: ${completedHabitsCount} tamamlandı • Seri: ${streak}g`
-                      : `Focus: ${totalFocusMins}m • Rituals: ${completedHabitsCount} done • Streak: ${streak}d`}
+                      ? `Odak: ${totalFocusMins}dk • Ritüel: ${completedHabitsCount} tamamlandı • Seri: ${streak}g\n(10s altında tamamlananlar odak skorunu etkilemez)`
+                      : `Focus: ${totalFocusMins}m • Rituals: ${completedHabitsCount} done • Streak: ${streak}d\n(Tasks checked in <10s do not count towards the score)`}
                   </Text>
                 </View>
               </LinearGradient>
@@ -648,6 +648,22 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                 </View>
               </View>
             </View>
+
+            {/* Velocity Guard Footnote Caption */}
+            <Text style={{
+              fontSize: 9,
+              fontWeight: '500',
+              color: theme.onSurfaceVariant,
+              opacity: 0.45,
+              textAlign: 'center',
+              lineHeight: 13,
+              marginTop: 4,
+              paddingHorizontal: 8
+            }}>
+              {language === 'tr'
+                ? '* Momentum ve Odak Skoru, en az 10 saniye aralıklarla tamamlanan görevlerden beslenir.'
+                : '* Momentum and Focus Score are driven by tasks completed with at least 10-second intervals.'}
+            </Text>
           </ScrollView>
 
         </Animated.View>
