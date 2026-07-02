@@ -72,7 +72,7 @@ namespace Tazq_App.Services
 
 		public async Task SendWelcomeEmailAsync(string toEmail, string userName)
 		{
-			string subject = "Tazq Dünyasına Hoş Geldin! 🚀";
+			string subject = "Tazq Dünyasına Hoş Geldin!";
 			string content = $@"
 				<p>Merhaba <b>{userName}</b>,</p>
 				<p>Tazq ailesine katıldığın için çok mutluyuz! Artık derin odaklanma, hayat modlarını yönetme ve üretkenliğini zirveye taşıma yolunda ilk adımını attın.</p>
@@ -95,16 +95,16 @@ namespace Tazq_App.Services
 
 		public async Task SendForgotPasswordEmailAsync(string toEmail, string userName, string resetCode)
 		{
-			string subject = "Tazq Şifre Sıfırlama Talebi 🔑";
+			string subject = "Tazq Şifre Sıfırlama Talebi";
+			string resetUrl = $"https://api.tazqapp.com/api/users/reset-password-form?token={Uri.EscapeDataString(resetCode)}";
 			string content = $@"
 				<p>Merhaba <b>{userName}</b>,</p>
-				<p>Tazq hesabının şifresini sıfırlamak için bir talepte bulundun. Şifreni yenilemek için aşağıdaki güvenlik kodunu kullanabilirsin:</p>
-				<div class=""code-box"">
-					<p style=""margin: 0 0 10px 0; font-size: 12px; font-weight: 700; color: #64748b; letter-spacing: 1px;"">GÜVENLİK KODU</p>
-					<h2 class=""code-value"">{resetCode}</h2>
+				<p>Tazq hesabının şifresini sıfırlamak için bir talepte bulundun. Aşağıdaki butona tıklayarak şifreni güvenli bir şekilde sıfırlayabilirsin:</p>
+				<div style=""text-align: center; margin: 30px 0;"">
+					<a href=""{resetUrl}"" class=""btn"" style=""background-color: #6366f1; color: #ffffff; padding: 14px 28px; border-radius: 12px; font-weight: 700; text-decoration: none; display: inline-block; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);"">Şifremi Sıfırla</a>
 				</div>
-				<p>Bu kod <b>1 saat</b> boyunca geçerlidir. Kodun süresi dolduğunda yeni bir şifre sıfırlama talebi oluşturman gerekecektir.</p>
-				<p style=""font-size: 13px; color: #ef4444; font-weight: 500;"">⚠️ Eğer bu talebi siz yapmadıysanız, lütfen bu e-postayı dikkate almayın. Hesabınız tamamen güvendedir.</p>
+				<p>Bu bağlantı <b>1 saat</b> boyunca geçerlidir. Süre dolduğunda yeni bir şifre sıfırlama talebi oluşturman gerekecektir.</p>
+				<p style=""font-size: 13px; color: #ef4444; font-weight: 500; margin-top: 25px;"">⚠️ Eğer bu talebi siz yapmadıysanız, lütfen bu e-postayı dikkate almayın. Hesabınız tamamen güvendedir.</p>
 				<p>Sevgilerle,<br><b>Tazq Güvenlik Ekibi</b></p>";
 
 			string body = GetHtmlBaseLayout("Şifre Sıfırlama", content);
@@ -113,7 +113,7 @@ namespace Tazq_App.Services
 
 		public async Task SendSupportConfirmationEmailAsync(string toEmail, string userName, string userMessage)
 		{
-			string subject = "Destek Talebiniz Alındı ✉️";
+			string subject = "Destek Talebiniz Alındı";
 			string content = $@"
 				<p>Merhaba <b>{userName}</b>,</p>
 				<p>Destek ekibimize gönderdiğin mesaj başarıyla bize ulaştı. Talebini incelemeye aldık ve en kısa sürede (genellikle 24 saat içinde) sana yanıt vereceğiz.</p>
@@ -130,7 +130,7 @@ namespace Tazq_App.Services
 
 		public async Task SendSupportReplyEmailAsync(string toEmail, string userName, string originalMessage, string adminReply)
 		{
-			string subject = "Destek Talebiniz Yanıtlandı 💬";
+			string subject = "Destek Talebiniz Yanıtlandı";
 			string content = $@"
 				<p>Merhaba <b>{userName}</b>,</p>
 				<p>Destek ekibimize ilettiğin talebin yanıtlandı! Yanıt ayrıntıları aşağıda yer almaktadır:</p>

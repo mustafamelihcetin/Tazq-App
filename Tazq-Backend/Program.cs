@@ -93,8 +93,23 @@ builder.Services.Configure<IpRateLimitOptions>(opt =>
             Endpoint = "*",
             Period = "1h",
             Limit = 1000
+        },
+        // Strict limit to prevent email spam / brute force on forgot password
+        new RateLimitRule
+        {
+            Endpoint = "post:/api/users/forgot-password",
+            Period = "1h",
+            Limit = 5
+        },
+        // Strict limit to prevent brute force on reset password
+        new RateLimitRule
+        {
+            Endpoint = "post:/api/users/reset-password",
+            Period = "1h",
+            Limit = 5
         }
     };
+    opt.QuotaExceededMessage = "Çok fazla istek gönderdiniz. Güvenliğiniz için sınırlandırıldınız. Lütfen daha sonra tekrar deneyin.";
 });
 
 builder.Services.AddHealthChecks();
@@ -331,6 +346,16 @@ app.UseExceptionHandler(errorApp =>
 app.Use(async (context, next) =>
 {
     if (app.Environment.IsDevelopment())
+    {
+        await next();
+        return;
+    }
+
+    // Bypass signature check for the web-based password reset endpoints
+    if (context.Request.Path.Value != null && (
+        (context.Request.Method == "GET" && context.Request.Path.Value.Equals("/api/users/reset-password-form", StringComparison.OrdinalIgnoreCase)) ||
+        (context.Request.Method == "POST" && context.Request.Path.Value.Equals("/api/users/reset-password", StringComparison.OrdinalIgnoreCase))
+    ))
     {
         await next();
         return;

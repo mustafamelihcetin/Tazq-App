@@ -124,6 +124,273 @@ namespace Tazq_App.Controllers
             return Ok("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.");
         }
 
+        [HttpGet("reset-password-form")]
+        [AllowAnonymous]
+        public IActionResult ResetPasswordForm([FromQuery] string token)
+        {
+            var html = @"<!DOCTYPE html>
+<html lang=""tr"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>Şifre Sıfırlama | TAZQ</title>
+    <link href=""https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"" rel=""stylesheet"">
+    <style>
+        :root {
+            --bg-color: #0d0e12;
+            --surface-color: rgba(255, 255, 255, 0.03);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary-color: #6366f1;
+            --primary-hover: #4f46e5;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 420px;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+        .logo {
+            text-align: center;
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #a5b4fc, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 32px 24px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 0;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input {
+            width: 100%;
+            padding: 14px 16px;
+            box-sizing: border-box;
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-color);
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background-color: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 8px;
+        }
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .banner {
+            display: none;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+        .banner-error {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+        }
+        .banner-success {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+        }
+        .success-screen {
+            display: none;
+            text-align: center;
+        }
+        .success-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin: 0 auto 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <div class=""container"">
+        <div class=""logo"">TAZQ</div>
+        
+        <div class=""card"" id=""formCard"">
+            <div class=""banner banner-error"" id=""errorBanner""></div>
+            
+            <h2>Şifre Sıfırlama</h2>
+            <p>TAZQ hesabınız için yeni bir şifre belirleyin. Bu bağlantı güvenlik nedeniyle 1 saat geçerlidir.</p>
+            
+            <form id=""resetForm"">
+                <div class=""form-group"">
+                    <label for=""password"">Yeni Şifre</label>
+                    <input type=""password"" id=""password"" required minlength=""6"" placeholder=""••••••••"">
+                </div>
+                
+                <div class=""form-group"">
+                    <label for=""confirmPassword"">Yeni Şifre (Tekrar)</label>
+                    <input type=""password"" id=""confirmPassword"" required minlength=""6"" placeholder=""••••••••"">
+                </div>
+                
+                <button type=""submit"" id=""submitBtn"">Şifreyi Güncelle</button>
+            </form>
+        </div>
+
+        <div class=""card success-screen"" id=""successCard"">
+            <div class=""success-icon"">✓</div>
+            <h2>Şifreniz Güncellendi</h2>
+            <p>Şifreniz başarıyla yenilendi. Aşağıdaki butondan doğrudan uygulamaya dönerek yeni şifrenizle giriş yapabilirsiniz.</p>
+            <a href=""tazq-app://"" style=""display: block; text-align: center; text-decoration: none; margin-top: 24px; background-color: var(--primary-color); color: white; padding: 14px; border-radius: 12px; font-weight: 700; transition: background-color 0.2s;"">TAZQ Uygulamasını Aç</a>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        const formCard = document.getElementById('formCard');
+        const successCard = document.getElementById('successCard');
+        const errorBanner = document.getElementById('errorBanner');
+        const resetForm = document.getElementById('resetForm');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (!token) {
+            showError(""Geçersiz veya eksik güvenlik bağlantısı."");
+            submitBtn.disabled = true;
+        }
+
+        function showError(msg) {
+            errorBanner.innerText = msg;
+            errorBanner.style.display = 'block';
+        }
+
+        resetForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (password !== confirmPassword) {
+                showError(""Şifreler birbiriyle eşleşmiyor."");
+                return;
+            }
+
+            errorBanner.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Güncelleniyor...';
+
+            try {
+                const response = await fetch('/api/users/reset-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ token, newPassword: password })
+                });
+
+                if (response.ok) {
+                    formCard.style.display = 'none';
+                    successCard.style.display = 'block';
+                } else {
+                    let errorText = ""Bir hata oluştu."";
+                    try {
+                        const data = await response.json();
+                        errorText = data.message || errorText;
+                    } catch {
+                        const rawText = await response.text();
+                        if (rawText) errorText = rawText;
+                    }
+                    showError(errorText);
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'Şifreyi Güncelle';
+                }
+            } catch (err) {
+                showError(""Sunucuya bağlanılamadı."");
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Şifreyi Güncelle';
+            }
+        });
+    </script>
+</body>
+</html>";
+            return Content(html, "text/html", System.Text.Encoding.UTF8);
+        }
+
         [HttpPost("reset-password")]
         [AllowAnonymous]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)

@@ -13,6 +13,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { GlassCard } from '@/shared/components/GlassCard';
 import { AnimatedBackground } from '@/shared/components/AnimatedBackground';
 import { TazqLogo } from '@/shared/components/TazqLogo';
+import { BlurView } from 'expo-blur';
 import { S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
@@ -453,28 +454,42 @@ export default function LoginScreen() {
           >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
+            <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
             <GlassCard style={styles.modalCard}>
               {forgotSuccess ? (
                 <View style={{ alignItems: 'center', gap: S.md, paddingVertical: S.sm }}>
                   <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: theme.tertiary + '15', alignItems: 'center', justifyContent: 'center' }}>
                     <CheckCircle2 size={32} color={theme.tertiary} />
                   </View>
-                  <Text style={[styles.modalTitle, { color: theme.onSurface, textAlign: 'center', marginBottom: 0 }]}>
+                  <Text style={{ fontFamily: 'Jakarta-ExtraBold', fontSize: F.title, color: theme.onSurface, textAlign: 'center' }}>
                     {language === 'tr' ? 'E-posta Gönderildi' : 'Email Sent'}
                   </Text>
-                  <Text style={{ fontSize: 14, color: theme.onSurfaceVariant, textAlign: 'center', lineHeight: 20, fontFamily: 'Jakarta-SemiBold' }}>
+                  <Text style={{ fontSize: 13, color: theme.onSurfaceVariant, textAlign: 'center', lineHeight: 18, fontFamily: 'Jakarta-SemiBold', paddingHorizontal: S.xs }}>
                     {language === 'tr' 
-                      ? 'Şifre sıfırlama talimatları e-posta adresinize gönderildi. Lütfen gelen kutunuzu kontrol edin.'
+                      ? 'Şifre sıfırlama talimatları e-posta adresinize başarıyla gönderildi. Gelen kutunuzu kontrol edin.'
                       : 'Password reset instructions have been sent to your email. Please check your inbox.'}
                   </Text>
-                  <Touchable onPress={closeForgotModal} style={[styles.modalSend, { backgroundColor: theme.primary, width: '100%', marginTop: S.md, height: 48, borderRadius: R.md }]}>
-                    <Text style={{ color: theme.onPrimary, fontWeight: '700' }}>{language === 'tr' ? 'Harika' : 'Got it'}</Text>
+                  <Touchable 
+                    onPress={closeForgotModal} 
+                    style={{ 
+                      backgroundColor: theme.primary, 
+                      width: '100%', 
+                      marginTop: S.sm, 
+                      height: 44, 
+                      borderRadius: R.md,
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <Text style={{ color: theme.onPrimary, fontWeight: '800', fontFamily: 'Jakarta-Bold' }}>
+                      {language === 'tr' ? 'Harika' : 'Got it'}
+                    </Text>
                   </Touchable>
                 </View>
               ) : (
                 <>
-                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.modalTitle, { color: theme.onSurface }]}>{t.login.forgotTitle}</Text>
-                  <Text style={[styles.modalSub, { color: theme.onSurfaceVariant }]}>{t.login.forgotSub}</Text>
+                  <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.modalTitle, { color: theme.onSurface, fontFamily: 'Jakarta-ExtraBold' }]}>{t.login.forgotTitle}</Text>
+                  <Text style={[styles.modalSub, { color: theme.onSurfaceVariant, fontFamily: 'Jakarta-Medium', marginTop: 2, marginBottom: 10 }]}>{t.login.forgotSub}</Text>
                   
                   {forgotMsg && (
                     <MotiView 
@@ -495,31 +510,60 @@ export default function LoginScreen() {
                     </MotiView>
                   )}
 
-                  <TextInput
-                    placeholder={t.login.email}
-                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
-                    style={[styles.modalInput, {
-                      backgroundColor: theme.surfaceContainerLow,
-                      color: theme.onSurface,
-                      borderColor: theme.outlineVariant,
-                    }]}
-                    value={forgotEmail}
-                    onChangeText={setForgotEmail}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    spellCheck={false}
-                    autoComplete="email"
-                    textContentType="emailAddress"
-                    keyboardType="email-address"
-                    underlineColorAndroid="transparent"
-                  />
+                  <View style={[styles.inputWrapper, {
+                    backgroundColor: theme.surfaceContainerLow,
+                    borderColor: theme.outlineVariant,
+                    height: 46,
+                    marginBottom: S.md,
+                  }]}>
+                    <Mail size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
+                    <TextInput
+                      placeholder={t.login.email}
+                      placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
+                      style={[styles.input, { color: theme.onSurface }]}
+                      value={forgotEmail}
+                      onChangeText={setForgotEmail}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      spellCheck={false}
+                      autoComplete="email"
+                      textContentType="emailAddress"
+                      keyboardType="email-address"
+                      underlineColorAndroid="transparent"
+                    />
+                  </View>
 
                   <View style={styles.modalActions}>
-                    <Touchable onPress={closeForgotModal} style={styles.modalCancel}>
-                      <Text style={{ color: theme.onSurfaceVariant }}>{t.cancel}</Text>
+                    <Touchable 
+                      onPress={closeForgotModal} 
+                      style={{ 
+                        flex: 1, 
+                        height: 44, 
+                        borderRadius: R.md, 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' 
+                      }}
+                    >
+                      <Text style={{ color: theme.onSurfaceVariant, fontFamily: 'Jakarta-Bold', fontSize: 14 }}>{t.cancel}</Text>
                     </Touchable>
-                    <Touchable onPress={handleForgotPassword} disabled={forgotLoading} style={[styles.modalSend, { backgroundColor: theme.primary }]}>
-                      {forgotLoading ? <ActivityIndicator color={theme.onPrimary} size="small" /> : <Text style={{ color: theme.onPrimary, fontWeight: '700' }}>{t.login.forgotSend}</Text>}
+                    <Touchable 
+                      onPress={handleForgotPassword} 
+                      disabled={forgotLoading} 
+                      style={{ 
+                        flex: 2, 
+                        height: 44, 
+                        borderRadius: R.md, 
+                        backgroundColor: theme.primary, 
+                        alignItems: 'center', 
+                        justifyContent: 'center' 
+                      }}
+                    >
+                      {forgotLoading ? (
+                        <ActivityIndicator color={theme.onPrimary} size="small" />
+                      ) : (
+                        <Text style={{ color: theme.onPrimary, fontFamily: 'Jakarta-Bold', fontSize: 14 }}>{t.login.forgotSend}</Text>
+                      )}
                     </Touchable>
                   </View>
                 </>
