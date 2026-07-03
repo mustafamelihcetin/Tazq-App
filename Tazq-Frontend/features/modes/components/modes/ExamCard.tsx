@@ -8,7 +8,7 @@ import { View, Text, Switch, TextInput, Platform, useWindowDimensions } from 're
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
-import { ChevronRight, CalendarDays, BookOpen, X, Sprout, TrendingUp, Flame } from 'lucide-react-native';
+import { ChevronRight, CalendarDays, BookOpen, X, Sprout, TrendingUp, Flame, Sparkles } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
@@ -84,14 +84,39 @@ function PresetEditor({ name, onName, preset, onPreset, suggestions, onSuggestio
           onSubmitEditing={() => { if (suggestions.length > 0) { const top = suggestions[0]; onName(top.shortName); onPreset(top); onSuggestions([]); } }}
         />
       </View>
-      {suggestions.length > 0 && (
+      {(suggestions.length > 0 || (name.trim().length > 0 && !preset)) && (
         <View style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.09)', backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface, overflow: 'hidden', marginTop: -S.xs }}>
           {suggestions.map((p, idx) => (
-            <Touchable key={p.id} onPress={() => { Haptics.selectionAsync(); onName(p.shortName); onPreset(p); onSuggestions([]); }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 10, borderTopWidth: idx > 0 ? 1 : 0, borderTopColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)' }} activeOpacity={0.7}>
+            <Touchable key={p.id} onPress={() => { Haptics.selectionAsync(); onName(p.shortName); onPreset(p); onSuggestions([]); }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)' }} activeOpacity={0.7}>
               <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurface, minWidth: 44 }}>{p.shortName}</Text>
               <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, flex: 1 }} numberOfLines={1}>{p.displayName}</Text>
             </Touchable>
           ))}
+          {name.trim().length > 0 && !preset && (
+            <Touchable onPress={() => {
+              Haptics.selectionAsync();
+              const trimmed = name.trim();
+              const customPreset: ExamPreset = {
+                id: 'custom-' + encodeURIComponent(trimmed),
+                displayName: trimmed,
+                shortName: trimmed,
+                aliases: [trimmed.toLowerCase()],
+                category: 'other',
+                defaultDailyMinutes: 90,
+                preferredTemplates: ['active-recall', 'spaced-repetition', 'deep-work', 'sprint'],
+                tipTr: 'Özel çalışma planı — kendi hızında, düzenli konu tekrarları ve soru çözümü.',
+                tipEn: 'Custom study plan — self-paced, regular concept review and practice.',
+              };
+              onName(trimmed);
+              onPreset(customPreset);
+              onSuggestions([]);
+            }} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 11 }} activeOpacity={0.7}>
+              <Sparkles size={13} color={ACCENT} style={{ marginRight: S.sm }} />
+              <Text style={{ fontSize: F.body, fontWeight: '600', color: ACCENT, flex: 1 }}>
+                {tr ? `+ Yeni Ekle: "${name}"` : `+ Add Custom: "${name}"`}
+              </Text>
+            </Touchable>
+          )}
         </View>
       )}
     </>
@@ -141,14 +166,31 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
 
   const name = (seasonal as any)[nameKey] || '';
   const date = (seasonal as any)[dateKey] || '';
-  const complete = name.trim() !== '' && date !== '';
+
+  const [preset, setPreset] = useState<ExamPreset | null>(() => {
+    if (!name) return null;
+    const detected = detectExamFromInput(name);
+    if (detected) return detected;
+    return {
+      id: 'custom-' + encodeURIComponent(name),
+      displayName: name,
+      shortName: name,
+      aliases: [name.toLowerCase()],
+      category: 'other',
+      defaultDailyMinutes: 90,
+      preferredTemplates: ['active-recall', 'spaced-repetition', 'deep-work', 'sprint'],
+      tipTr: 'Özel çalışma planı — kendi hızında, düzenli konu tekrarları ve soru çözümü.',
+      tipEn: 'Custom study plan — self-paced, regular concept review and practice.',
+    };
+  });
+
+  const complete = name.trim() !== '' && date !== '' && !!preset;
   const past = isDatePast(date);
   const daysLeft = daysLeftOf(date);
   const dateObj = date ? new Date(date) : new Date(Date.now() + 60 * 86400000);
 
   const [expanded, setExpanded] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
-  const [preset, setPreset] = useState<ExamPreset | null>(() => detectExamFromInput(name));
   const [suggestions, setSuggestions] = useState<ExamPreset[]>([]);
   const [dailyMinutes, setDailyMinutes] = useState<number | null>(null);
   useEffect(() => { if (preset) setDailyMinutes(preset.defaultDailyMinutes); }, [preset?.id]);
@@ -226,7 +268,25 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
 
   const name = seasonal.examName || '';
   const date = seasonal.examDate || '';
-  const isComplete = name.trim() !== '' && date !== '';
+
+  const [preset, setPreset] = useState<ExamPreset | null>(() => {
+    if (!name) return null;
+    const detected = detectExamFromInput(name);
+    if (detected) return detected;
+    return {
+      id: 'custom-' + encodeURIComponent(name),
+      displayName: name,
+      shortName: name,
+      aliases: [name.toLowerCase()],
+      category: 'other',
+      defaultDailyMinutes: 90,
+      preferredTemplates: ['active-recall', 'spaced-repetition', 'deep-work', 'sprint'],
+      tipTr: 'Özel çalışma planı — kendi hızında, düzenli konu tekrarları ve soru çözümü.',
+      tipEn: 'Custom study plan — self-paced, regular concept review and practice.',
+    };
+  });
+
+  const isComplete = name.trim() !== '' && date !== '' && !!preset;
   const past = isDatePast(date);
   const daysLeft = daysLeftOf(date);
   const dateObj = date ? new Date(date) : new Date(Date.now() + 60 * 86400000);
@@ -242,7 +302,6 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
     return !(usePrefsStore.getState().examPlanHabitIds.length > 0 || usePrefsStore.getState().examPlanTaskIds.length > 0);
   });
   const [showPicker, setShowPicker] = useState(false);
-  const [preset, setPreset] = useState<ExamPreset | null>(() => detectExamFromInput(name));
   const [suggestions, setSuggestions] = useState<ExamPreset[]>([]);
   const [dailyMinutes, setDailyMinutes] = useState<number | null>(null);
   useEffect(() => { if (preset) setDailyMinutes(preset.defaultDailyMinutes); }, [preset?.id]);

@@ -141,3 +141,18 @@ export function birakmaTypeLabel(type: QuitType, tr: boolean): string {
   };
   const e = map[type]; return e ? (tr ? e[0] : e[1]) : (tr ? 'Bırakma' : 'Quit');
 }
+
+export function getAllLifeModePairs(): Array<{ tr: string; en: string }> {
+  const pairs: Array<{ tr: string; en: string }> = [];
+
+  TASARRUF_BASE_HABITS.forEach(h => pairs.push({ tr: h.name, en: h.nameEn }));
+  Object.values(TASARRUF_TYPE_HABITS).forEach(h => pairs.push({ tr: h.name, en: h.nameEn }));
+  BIRAKMA_BASE_HABITS.forEach(h => pairs.push({ tr: h.name, en: h.nameEn }));
+
+  TASARRUF_BASE_TASKS.forEach(t => pairs.push({ tr: t.title, en: t.titleEn }));
+  Object.values(TASARRUF_TYPE_TASKS).forEach(list => list.forEach(t => pairs.push({ tr: t.title, en: t.titleEn })));
+  BIRAKMA_BASE_TASKS.forEach(t => pairs.push({ tr: t.title, en: t.titleEn }));
+  Object.values(BIRAKMA_TYPE_TASKS).forEach(list => list.forEach(t => pairs.push({ tr: t.title, en: t.titleEn })));
+
+  return pairs;
+}

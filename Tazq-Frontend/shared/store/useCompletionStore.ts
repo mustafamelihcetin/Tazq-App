@@ -13,6 +13,7 @@ export interface CompletionEvent {
 interface CompletionState {
   events: CompletionEvent[];
   record: (taskId: number, taskName: string, completedAt?: string, planMode?: string) => void;
+  removeEvent: (taskId: number) => void;
   getEventsForDate: (dateKey: string) => CompletionEvent[];
   purgeOlderThan: (days: number) => void;
 }
@@ -29,6 +30,12 @@ export const useCompletionStore = create<CompletionState>()(
             ...s.events,
             { id: `${taskId}-${Date.now()}`, taskId, taskName, completedAt: at, planMode },
           ],
+        }));
+      },
+
+      removeEvent: (taskId) => {
+        set(s => ({
+          events: s.events.filter(e => e.taskId !== taskId),
         }));
       },
 

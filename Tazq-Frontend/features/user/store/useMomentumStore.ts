@@ -6,8 +6,10 @@ interface DayScore { date: string; score: number }
 
 interface MomentumState {
   history: DayScore[];
+  momentumShieldActive: boolean;
   recordScore: (score: number) => void;
   getLastNDays: (n: number) => DayScore[];
+  toggleMomentumShield: () => void;
 }
 
 function getLocalDateString(d: Date = new Date()): string {
@@ -31,16 +33,29 @@ export const useMomentumStore = create<MomentumState>()(
   persist(
     (set, get) => ({
       history: [],
+      momentumShieldActive: false,
 
       recordScore: (score) => {
+        const { momentumShieldActive } = get();
         const today = todayISO();
         const prev = get().history;
         const idx = prev.findIndex(h => h.date === today);
+        
+        let finalScore = score;
+        if (momentumShieldActive) {
+          const lastActive = prev.find(h => h.score >= 0);
+          finalScore = lastActive ? Math.max(75, lastActive.score) : 75;
+        }
+
         const updated = idx >= 0
-          ? prev.map((h, i) => i === idx ? { date: today, score } : h)
-          : [...prev, { date: today, score }];
+          ? prev.map((h, i) => i === idx ? { date: today, score: finalScore } : h)
+          : [...prev, { date: today, score: finalScore }];
         const cutoff = cutoffISO(14);
         set({ history: updated.filter(h => h.date >= cutoff) });
+      },
+
+      toggleMomentumShield: () => {
+        set({ momentumShieldActive: !get().momentumShieldActive });
       },
 
       getLastNDays: (n) => {

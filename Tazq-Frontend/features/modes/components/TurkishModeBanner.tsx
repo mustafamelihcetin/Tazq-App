@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet,
-  ActivityIndicator, Animated, useWindowDimensions,
+  ActivityIndicator, Animated, useWindowDimensions, Alert, TextInput
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MotiView } from 'moti';
-import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle, Star } from 'lucide-react-native';
+import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle, Star, Shield } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,11 +18,12 @@ import { TurkishMode, StudyTemplate, ModeHabit, ModeTask } from '../utils/turkis
 import { getCurrentRamadanStatus } from '@/shared/utils/ramadanDates';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { extractPlanFromText, QUICK_EMOJIS, QUICK_COLORS, DraftHabit, DraftTask } from '@/shared/utils/planExtractor';
-import { TextInput } from 'react-native';
 import { S, R, F, B } from '@/shared/constants/tokens';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Touchable } from '@/shared/components/Touchable';
+import { usePrefsStore, PlanMode, PlanSpec, SeasonalPrefs } from '../store/usePrefsStore';
+import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
 
 interface Props {
   mode: TurkishMode;
@@ -36,12 +37,44 @@ interface Props {
   onClearPlan?: (preserveMeta?: boolean) => void;
   defaultTemplateId?: string;
   onRatingChange?: (rating: number) => void;
+  activeSlot?: string;
 }
+
+const ALGORITHM_DESCRIPTIONS = {
+  exam: {
+    tr: 'Sınav tarihine kalan güne göre 5 farklı eğitim fazı (Konu Tarama ➔ Derinleşme ➔ Hızlanma ➔ Sprint ➔ Sınav Günü) otomatik tetiklenir ve günlük çalışma süresi bu fazlara göre adapte edilir.',
+    en: 'Automatically schedules 5 study phases (Coverage ➔ Deepening ➔ Focus ➔ Sprint ➔ Exam Day) based on your remaining days, adjusting daily minutes and difficulty.'
+  },
+  tez: {
+    tr: 'Tezin teslim tarihine kalan güne göre haftalık raporlama sıklığı ve teslim adımları (son 2 hafta kaynakça/dipnot format kontrolü vb.) otomatik planlanır.',
+    en: 'Weekly reporting frequencies and final formatting checks (footnotes, bibliography in final 2 weeks) are automatically adapted based on your deadline.'
+  },
+  mulakat: {
+    tr: 'Mülakat tarihine kalan süreye göre hazırlık havuzunu daraltır (Son 14 gün CV uyarlama, son 7 gün şirket araştırması, son 3 gün mock mülakat ve ses kaydı, son 24 saat hazırlık).',
+    en: 'Narrows your preparation focus as the date nears (CV tailoring 14 days out, company research at 7 days, mock interviews/recording at 3 days, final details in last 24h).'
+  },
+  spor: {
+    tr: 'Spor tarihine kalan süreyi izler. Maraton için son 3 hafta tapering (mesafe azaltma) evresini başlatır; Güç planı için her 4 haftada bir hafif çalışma (Deload) haftası atar.',
+    en: 'Monitors remaining weeks. Triggers 3-week tapering (mileage drop) for marathons, and schedules deload weeks every 4 weeks for strength/hypertrophy programs.'
+  },
+  ramazan: {
+    tr: 'Bayram tarihine kalan süreyi hesaplar ve son 10 güne girildiğinde Kadir Gecesi ibadet programı görevi gibi dönemsel görevler üretir.',
+    en: 'Counts down to the end of Ramadan, automatically generating laylat al-qadr worship plans and bayram preparation steps during the final 10 days.'
+  },
+  tasarruf: {
+    tr: 'Hedeflenen bütçe/birikim tarihine kalan süreyi izler, haftalık harcama ve bütçe planlamalarını bu ritme göre organize eder.',
+    en: 'Tracks remaining weeks to your savings target date, structuring weekly spending reviews and emergency fund actions around your timeline.'
+  },
+  birakma: {
+    tr: 'Bir bitiş tarihi yerine, başladığın andan itibaren geçen temiz gün serini takip eder, kritik haftalık ve aylık dönemeçlerde özel kilometre taşları belirler.',
+    en: 'Instead of counting down to a deadline, it tracks your elapsed clean days, creating custom milestones at critical weekly and monthly intervals.'
+  }
+};
 
 export const TurkishModeBanner: React.FC<Props> = ({
   mode, onDismiss, showSheetImmediately, onApplied, onSheetClose,
   planApplied, planHabitIds = [], planTaskIds = [], onClearPlan,
-  defaultTemplateId, onRatingChange,
+  defaultTemplateId, onRatingChange, activeSlot,
 }) => {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -72,9 +105,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
   onSheetCloseRef.current = onSheetClose;
 
   const [step, setStep] = useState<'template' | 'review' | 'custom'>(() => {
-    // "Uygulanmış" sayılması için plan id'leri GERÇEK öğelere karşılık gelmeli.
-    // Aksi halde (id var ama görev/alışkanlık silinmiş — eski global-off kalıntısı)
-    // oluşturma akışını göster; yoksa boş sheet kalır ("plan gelmedi").
     const hasItems = habits.some(h => planHabitIds.includes(h.id)) || tasks.some(t => planTaskIds.includes(t.id));
     const reallyApplied = !!planApplied && hasItems;
     if (reallyApplied || !mode.templates?.length) return 'review';
@@ -87,6 +117,96 @@ export const TurkishModeBanner: React.FC<Props> = ({
   const [customTasks,  setCustomTasks]  = useState<DraftTask[]>([]);
   const [customAiText, setCustomAiText] = useState('');
   const [customGoal,   setCustomGoal]   = useState(60);
+
+  // Timeline editing state
+  const [isEditingTimeline, setIsEditingTimeline] = useState(false);
+  const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
+  const planSpecs = usePrefsStore(s => s.planSpecs);
+  const setPlanSpec = usePrefsStore(s => s.setPlanSpec);
+  const seasonal = usePrefsStore(s => s.seasonal);
+  const { runAdaptations: runPlanAdaptations } = usePlanAdaptations();
+  const { show: showToast } = useToastStore();
+
+  const initialDateStr = useMemo(() => {
+    if (!activeSlot) return '';
+    const dateKeyMap: Record<string, keyof SeasonalPrefs> = {
+      exam: 'examDate', exam2: 'exam2Date', exam3: 'exam3Date',
+      tez: 'tezDate', mulakat: 'mulakatDate', mulakat2: 'mulakat2Date',
+      mulakat3: 'mulakat3Date', spor: 'sporDate', spor2: 'spor2Date',
+      spor3: 'spor3Date', tasarruf: 'tasarrufDate'
+    };
+    const key = dateKeyMap[activeSlot];
+    return key ? (seasonal[key] as string || '') : '';
+  }, [activeSlot, seasonal]);
+
+  const initialMinutes = useMemo(() => {
+    if (!activeSlot) return 60;
+    const spec = planSpecs[activeSlot as PlanMode];
+    return spec?.dailyMinutes ?? 60;
+  }, [activeSlot, planSpecs]);
+
+  const [editedDate, setEditedDate] = useState(initialDateStr);
+  const [editedMinutes, setEditedMinutes] = useState(initialMinutes);
+
+  useEffect(() => {
+    setEditedDate(initialDateStr);
+  }, [initialDateStr]);
+
+  useEffect(() => {
+    setEditedMinutes(initialMinutes);
+  }, [initialMinutes]);
+
+  const handleSaveTimeline = () => {
+    if (!activeSlot) return;
+    
+    if (activeSlot !== 'birakma' && activeSlot !== 'ramazan') {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(editedDate)) {
+        Alert.alert(
+          tr ? 'Geçersiz Tarih' : 'Invalid Date',
+          tr ? 'Lütfen tarihi YYYY-AA-GG formatında girin.' : 'Please enter the date in YYYY-MM-DD format.'
+        );
+        return;
+      }
+      
+      const parsed = Date.parse(editedDate);
+      if (isNaN(parsed)) {
+        Alert.alert(
+          tr ? 'Geçersiz Tarih' : 'Invalid Date',
+          tr ? 'Girdiğiniz tarih geçerli değil.' : 'The date you entered is not valid.'
+        );
+        return;
+      }
+
+      const dateKeyMap: Record<string, keyof SeasonalPrefs> = {
+        exam: 'examDate', exam2: 'exam2Date', exam3: 'exam3Date',
+        tez: 'tezDate', mulakat: 'mulakatDate', mulakat2: 'mulakat2Date',
+        mulakat3: 'mulakat3Date', spor: 'sporDate', spor2: 'spor2Date',
+        spor3: 'spor3Date', tasarruf: 'tasarrufDate'
+      };
+      const key = dateKeyMap[activeSlot];
+      if (key) {
+        setSeasonalPref(key, editedDate);
+      }
+    }
+
+    if (activeSlot !== 'birakma') {
+      const currentSpec = planSpecs[activeSlot as PlanMode] || {};
+      setPlanSpec(activeSlot as PlanMode, {
+        ...currentSpec,
+        dailyMinutes: editedMinutes
+      });
+      setDailyGoal(editedMinutes);
+    }
+
+    setIsEditingTimeline(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showToast(tr ? 'Zaman çizelgesi güncellendi ve plan adapte edildi.' : 'Timeline updated and plan adapted.', 'success');
+
+    setTimeout(() => {
+      runPlanAdaptations(true);
+    }, 300);
+  };
 
   useEffect(() => {
     if (sheetVisible) {
@@ -414,13 +534,29 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
     // newTasks zaten gelecek-tarihli dökümü hariç tutuyor (bkz. tanımı) — doğrudan oluştur.
     const addedTaskIds: number[] = [];
+    const visibleTagsMap: Record<string, string> = {
+      exam: 'education',
+      tez: 'education',
+      mulakat: 'work',
+      spor: 'fitness',
+      ramazan: 'ramazan',
+    };
+    const extraVisibleTag = visibleTagsMap[mode.type];
+
     for (const task of newTasks) {
       const title = tr ? task.titleTr : task.titleEn;
       const dueDate = getTaskDueDate(task);
+      const description = JSON.stringify({ tr: task.titleTr, en: task.titleEn });
+      
+      const finalTags = [mode.type, ...(task.tags ?? [])];
+      if (extraVisibleTag && !finalTags.includes(extraVisibleTag)) {
+        finalTags.push(extraVisibleTag);
+      }
+
       try {
         const created = await TaskService.createTask({
-          title, description: '', priority: task.priority,
-          isCompleted: false, tags: [mode.type, ...(task.tags ?? [])], subtasks: [],
+          title, description, priority: task.priority,
+          isCompleted: false, tags: finalTags, subtasks: [],
           ...(dueDate && { dueDate }),
         } as any);
         addTask({ ...created, title, titleTr: task.titleTr, titleEn: task.titleEn } as any);
@@ -428,8 +564,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
       } catch {
         const localId = Math.floor(Date.now() + Math.random() * 1000);
         addTask({
-          id: localId, title, description: '', priority: task.priority,
-          isCompleted: false, tags: [mode.type, ...(task.tags ?? [])], subtasks: [],
+          id: localId, title, description, priority: task.priority,
+          isCompleted: false, tags: finalTags, subtasks: [],
           ...(dueDate && { dueDate }),
           titleTr: task.titleTr, titleEn: task.titleEn,
         } as any);
@@ -454,6 +590,34 @@ export const TurkishModeBanner: React.FC<Props> = ({
     : mode.type === 'mulakat' ? (isDark ? '#6EE7B7' : '#10B981')
     : mode.type === 'spor' ? (isDark ? '#FCA5A1' : '#F97316')
     : (isDark ? '#F9A8D4' : '#EC4899');
+
+  const renderAlgorithmInfo = () => {
+    const desc = ALGORITHM_DESCRIPTIONS[mode.type as keyof typeof ALGORITHM_DESCRIPTIONS];
+    if (!desc) return null;
+
+    return (
+      <View style={{
+        backgroundColor: isDark ? modeAccent + '0C' : modeAccent + '06',
+        borderColor: isDark ? modeAccent + '25' : modeAccent + '15',
+        borderWidth: 1,
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        marginTop: 6,
+        marginBottom: 12,
+      }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <Zap size={12} color={modeAccent} fill={modeAccent} strokeWidth={0} />
+          <Text style={{ fontSize: 9.5, fontWeight: '800', color: modeAccent, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+            {tr ? 'Akıllı Sistem Mantığı' : 'Smart Engine Logic'}
+          </Text>
+        </View>
+        <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, lineHeight: 15.5, fontWeight: '500', opacity: 0.9 }}>
+          {tr ? desc.tr : desc.en}
+        </Text>
+      </View>
+    );
+  };
 
   const selectTemplate = (tpl: StudyTemplate) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -740,6 +904,119 @@ export const TurkishModeBanner: React.FC<Props> = ({
       </View>
 
       <ScrollView style={{ maxHeight: screenHeight * 0.45 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+        {renderAlgorithmInfo()}
+
+        {/* Adjust Timeline / Date / Intensity Editor */}
+        {activeSlot && activeSlot !== 'birakma' && (
+          isEditingTimeline ? (
+            <MotiView
+              from={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              style={{
+                backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                borderColor: modeAccent + '30',
+                borderWidth: 1.5,
+                borderRadius: R.md,
+                padding: S.md,
+                marginBottom: S.md,
+                gap: S.sm
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '800', color: theme.onSurface }}>
+                {tr ? 'Zaman Çizelgesini Düzenle' : 'Edit Timeline'}
+              </Text>
+
+              {/* Target Date Input (if not ramadan or quit mode) */}
+              {activeSlot !== 'birakma' && activeSlot !== 'ramazan' && (
+                <View style={{ gap: 6 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: theme.onSurfaceVariant }}>
+                    {tr ? 'Hedef Tarih (YYYY-AA-GG)' : 'Target Date (YYYY-MM-DD)'}
+                  </Text>
+                  <TextInput
+                    value={editedDate}
+                    onChangeText={setEditedDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={theme.onSurfaceVariant + '80'}
+                    style={{
+                      backgroundColor: isDark ? '#2C2C2E' : '#F0F0F2',
+                      color: theme.onSurface,
+                      borderRadius: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      fontSize: 14,
+                      fontWeight: '600'
+                    }}
+                  />
+                </View>
+              )}
+
+              {/* Daily Minutes Input (if has minutes) */}
+              <View style={{ gap: 6 }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: theme.onSurfaceVariant }}>
+                  {tr ? 'Günlük Çalışma Süresi' : 'Daily Study Duration'}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Touchable
+                    onPress={() => setEditedMinutes((prev: number) => Math.max(15, prev - 15))}
+                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Text style={{ color: theme.onSurface, fontSize: 18, fontWeight: 'bold' }}>-</Text>
+                  </Touchable>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: theme.onSurface, minWidth: 60, textAlign: 'center' }}>
+                    {editedMinutes} {tr ? 'dk' : 'min'}
+                  </Text>
+                  <Touchable
+                    onPress={() => setEditedMinutes((prev: number) => Math.min(480, prev + 15))}
+                    style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Text style={{ color: theme.onSurface, fontSize: 18, fontWeight: 'bold' }}>+</Text>
+                  </Touchable>
+                </View>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.xs }}>
+                <Touchable
+                  onPress={handleSaveTimeline}
+                  style={{ flex: 1, backgroundColor: modeAccent, paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>
+                    {tr ? 'Kaydet' : 'Save'}
+                  </Text>
+                </Touchable>
+                <Touchable
+                  onPress={() => setIsEditingTimeline(false)}
+                  style={{ flex: 1, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', paddingVertical: 10, borderRadius: 10, alignItems: 'center' }}
+                >
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 12, fontWeight: '800' }}>
+                    {tr ? 'İptal' : 'Cancel'}
+                  </Text>
+                </Touchable>
+              </View>
+            </MotiView>
+          ) : (
+            <Touchable
+              onPress={() => setIsEditingTimeline(true)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: modeAccent + '12',
+                borderColor: modeAccent + '28',
+                borderWidth: 1,
+                borderRadius: R.md,
+                paddingVertical: 10,
+                marginBottom: S.md,
+                gap: 6
+              }}
+            >
+              <RefreshCw size={14} color={modeAccent} />
+              <Text style={{ fontSize: 12, fontWeight: '800', color: modeAccent }}>
+                {tr ? 'Zaman Çizelgesini Ayarla' : 'Adjust Timeline'}
+              </Text>
+            </Touchable>
+          )
+        )}
 
         {/* İçgörü & Değerlendirme (AI Insight & Evaluation) Card */}
         <View style={{
@@ -1019,6 +1296,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     </Text>
                   </View>
                 ) : null}
+                {renderAlgorithmInfo()}
                 <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
                   <Text style={[styles.expertNote, { color: theme.onSurfaceVariant }]}>
                     {tr ? '✦ Eğitim psikolojisi araştırmalarına dayalı metodlar' : '✦ Methods based on educational psychology research'}
@@ -1128,6 +1406,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     </Text>
                   </View>
                 </View>
+                {renderAlgorithmInfo()}
                 <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
                   <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>{tr ? 'EKLENECEK ALIŞKANLIKLAR' : 'HABITS TO ADD'}</Text>
                   {activeHabits.map((h) => {

@@ -1,5 +1,5 @@
 export { usePrefsStore } from './store/usePrefsStore';
-export { getModeInfoForTask, deriveDateSlot } from './utils/modeHelpers';
+export { getModeInfoForTask, deriveDateSlot, getTaskRemainingTime } from './utils/modeHelpers';
 export { renderModeEmojiIcon } from './utils/modeIcons';
 export { 
   detectTurkishMode, 

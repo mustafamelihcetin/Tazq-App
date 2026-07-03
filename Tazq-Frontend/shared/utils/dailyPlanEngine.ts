@@ -334,18 +334,36 @@ export function buildDailyTasks(
   const name = spec.name?.trim() || (tr ? 'Hedefin' : 'Your goal');
 
   const out: CreateTaskPayload[] = [];
+  const visibleTagsMap: Record<string, string> = {
+    exam: 'education',
+    tez: 'education',
+    mulakat: 'work',
+    kilo: 'fitness',
+    maraton: 'fitness',
+    guc: 'fitness',
+    genel: 'fitness',
+    ramazan: 'ramazan',
+  };
+  const extraVisibleTag = visibleTagsMap[spec.kind];
+
   for (let i = 0; i < count; i++) {
     const item = pool[(offset + i) % pool.length];
     const titleTr = item.tr.replace('{name}', name);
     const titleEn = item.en.replace('{name}', name);
     const title = tr ? titleTr : titleEn;
+
+    const finalTags = [tagKey, 'daily'];
+    if (extraVisibleTag && !finalTags.includes(extraVisibleTag)) {
+      finalTags.push(extraVisibleTag);
+    }
+
     out.push({
       title,
-      description: '',
+      description: JSON.stringify({ tr: titleTr, en: titleEn }),
       priority: i === 0 ? 'High' : 'Medium',
       dueDate: due,
       isCompleted: false,
-      tags: [tagKey, 'daily'],
+      tags: finalTags,
       titleTr,
       titleEn,
     } as any);

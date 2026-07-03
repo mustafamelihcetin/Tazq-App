@@ -10,7 +10,7 @@ const CATEGORIES = [
   { id: 'shopping', label: 'alışveriş', anchors: ['market', 'sipariş', 'satın al', 'hediye', 'fiyat', 'ayran', 'yoğurt', 'ekmek', 'süt', 'grocery', 'order', 'sepet'] },
   { id: 'finance', label: 'finans', anchors: ['fatura', 'ödeme', 'banka', 'borç', 'kredi', 'maaş', 'bütçe', 'kira', 'aidat', 'vergi', 'dekont'] },
   { id: 'personal', label: 'kişisel', anchors: ['aile', 'arkadaş', 'kitap', 'film', 'tatil', 'yemek', 'temizlik', 'maç', 'halı saha', 'buluşma', 'doğum günü'] },
-  { id: 'study', label: 'eğitim', anchors: ['ders', 'sınav', 'ödev', 'kurs', 'öğren', 'okul', 'vize', 'final', 'akademi', 'homework', 'exam'] },
+  { id: 'education', label: 'eğitim', anchors: ['ders', 'sınav', 'ödev', 'kurs', 'öğren', 'okul', 'vize', 'final', 'akademi', 'homework', 'exam'] },
 ];
 
 /**

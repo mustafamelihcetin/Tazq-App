@@ -15,7 +15,7 @@ export const ICON_TAGS = ['hatırlatıcı', 'reminder', 'etkinlik', 'event', 'no
 // Plan/mod/sistem etiketleri — kullanıcıya hiçbir biçimde gösterilmez
 const SYSTEM_TAGS = new Set<string>([
   // mod tipleri
-  'ramazan', 'yks', 'kpss', 'exam', 'tez', 'mulakat', 'spor',
+  'yks', 'kpss', 'exam', 'tez', 'mulakat', 'spor',
   // günlük plan motoru türleri
   'kilo', 'maraton', 'guc', 'genel', 'daily',
   // taslak/yer tutucu
@@ -75,6 +75,9 @@ const TAG_TRANSLATIONS: Record<string, { tr: string; en: string }> = {
   'fitness':     { tr: 'spor',       en: 'fitness'     },
   'randevu':     { tr: 'randevu',    en: 'appointment' },
   'appointment': { tr: 'randevu',    en: 'appointment' },
+  'study':       { tr: 'eğitim',     en: 'education'   },
+  'ramazan':     { tr: 'ramazan',    en: 'ramadan'     },
+  'ramadan':     { tr: 'ramazan',    en: 'ramadan'     },
 };
 
 export function translateTag(tag: string, lang: 'tr' | 'en'): string {

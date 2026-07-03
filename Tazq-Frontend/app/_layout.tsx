@@ -411,21 +411,38 @@ export default function RootLayout() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [_hasHydrated, isLoggedIn]);
 
-  // BR-01: Recover focus session that ended while app was killed
+  // BR-01: Recover focus session that ended while app was killed or backgrounded
   useEffect(() => {
-    const { isActive, lastActiveAt, totalSeconds, seconds, currentTask } = useFocusStore.getState();
-    if (!isActive || !lastActiveAt) return;
-    const elapsed = Math.floor((Date.now() - lastActiveAt) / 1000);
-    const remaining = seconds - elapsed; // use current remaining, not total (handles pause/resume)
-    if (remaining <= 0) {
-      // Session would have finished — save it and reset
-      const minutes = Math.max(1, Math.round(totalSeconds / 60));
-      FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
-      useFocusStore.setState({ isActive: false, seconds: 0, lastActiveAt: null });
-    } else {
-      // Session still in progress — rehydrate with correct remaining time
-      useFocusStore.getState().rehydrateTimer();
-    }
+    const checkTimerRehydration = () => {
+      const { isActive, lastActiveAt, totalSeconds, seconds, currentTask } = useFocusStore.getState();
+      if (!isActive || !lastActiveAt) return;
+      const elapsed = Math.floor((Date.now() - lastActiveAt) / 1000);
+      const remaining = seconds - elapsed; // use current remaining, not total (handles pause/resume)
+      if (remaining <= 0) {
+        // Session would have finished — save it and reset
+        const minutes = Math.max(1, Math.round(totalSeconds / 60));
+        FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
+        useFocusStore.setState({ isActive: false, seconds: 0, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null });
+      } else {
+        // Session still in progress — rehydrate with correct remaining time
+        useFocusStore.getState().rehydrateTimer();
+      }
+    };
+
+    // Run on startup
+    checkTimerRehydration();
+
+    // Run when app returns to foreground
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        checkTimerRehydration();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   // Purge completion journal entries older than 90 days on launch

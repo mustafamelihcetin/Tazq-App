@@ -47,7 +47,7 @@ describe('taskIntelligence - categorizeTask', () => {
   it('should categorize study-related tasks', async () => {
     const result = await categorizeTask('Final sınavına çalış');
     expect(result).not.toBeNull();
-    expect(result?.id).toBe('study');
+    expect(result?.id).toBe('education');
     expect(result?.label).toBe('eğitim');
   });
 });

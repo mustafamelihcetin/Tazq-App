@@ -59,10 +59,11 @@ export async function ensureWeeklyWeightTask(dueDate: Date, language: 'tr' | 'en
   if (findOpenWeightTask() != null) return; // zaten açık görev var
   const sporPlanTaskIds = usePrefsStore.getState().sporPlanTaskIds;
   const sporPlanHabitIds = usePrefsStore.getState().sporPlanHabitIds;
-  const title = language === 'tr' ? 'Güncel kilonu gir' : 'Log current weight';
+  const titleTr = 'Güncel kilonu gir';
+  const titleEn = 'Log current weight';
   const payload = {
-    title,
-    description: language === 'tr' ? 'Haftalık tartım — basıp kilonu gir' : 'Weekly weigh-in — tap to log your weight',
+    title: language === 'tr' ? titleTr : titleEn,
+    description: JSON.stringify({ tr: titleTr, en: titleEn }),
     priority: 'Medium' as const,
     dueDate: dueDate.toISOString(),
     isCompleted: false,

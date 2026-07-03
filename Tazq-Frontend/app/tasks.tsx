@@ -12,12 +12,12 @@ import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { WeightEntryModal } from '@/shared/components/WeightEntryModal';
 import { TaskFormModal } from '@/shared/components/TaskFormModal';
-import { useTaskStore, parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask } from '@/features/tasks';
+import { useTaskStore, parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask, getLocalizedTaskTitle } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
-import { usePrefsStore, getModeInfoForTask } from '@/features/modes';
+import { usePrefsStore, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
 import * as Haptics from 'expo-haptics';
@@ -160,7 +160,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                             { color: theme.onSurface, fontSize: F.body, flexShrink: 1 },
                                             (task.isCompleted || completingIds.has(task.id)) && { textDecorationLine: 'line-through' }
                                         ]} numberOfLines={expandedId === task.id ? 0 : 1}>
-                                            {task.title}
+                                            {getLocalizedTaskTitle(task, language === 'tr')}
                                         </Text>
                                     </MotiView>
                                     {task.tags && task.tags.includes('weight_entry') && (
@@ -175,60 +175,86 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                     )}
                                 </View>
 
-                                {(task.description || task.dueDate || task.dueTime || modeInfo || (task.subtasks && task.subtasks.length > 0)) && (
-                                    <MotiView
-                                        animate={{ opacity: task.isCompleted || completingIds.has(task.id) ? 0.4 : 1 }}
-                                        transition={{ type: 'timing', duration: 300 }}
-                                        style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 2 }}
-                                    >
-                                        {modeInfo && (
-                                            <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: modeInfo.color + '1A', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                <Sparkles size={12} color={modeInfo.color} opacity={0.9} />
-                                                <Text style={[{ fontSize: 11 }, { color: modeInfo.color, fontWeight: '600' }]}>
-                                                    {language === 'tr' ? modeInfo.labelTr : modeInfo.labelEn}
-                                                </Text>
-                                            </View>
-                                        )}
-                                        {task.dueDate && (
-                                            <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                <Calendar size={12} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
-                                                    {new Date(task.dueDate).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short' })}
-                                                </Text>
-                                            </View>
-                                        )}
-                                        {task.dueTime && (
-                                            <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                <Clock size={12} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
-                                                    {(() => {
-                                                        const date = new Date(task.dueTime);
-                                                        return isNaN(date.getTime())
-                                                            ? task.dueTime
-                                                            : date.toLocaleTimeString(language === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
-                                                    })()}
-                                                </Text>
-                                            </View>
-                                        )}
-                                        {task.subtasks && task.subtasks.length > 0 && (
-                                            <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                <ListChecks size={12} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
-                                                    {task.subtasks.filter((s: any) => s.done).length}/{task.subtasks.length}
-                                                </Text>
-                                            </View>
-                                        )}
-                                        {/* User-facing text tags */}
-                                        {visibleTextTags(task.tags).map((tag, tagIdx) => (
-                                            <View key={tagIdx} style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                <Tag size={12} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
-                                                    {translateTag(tag, language as 'tr' | 'en')}
-                                                </Text>
-                                            </View>
-                                        ))}
-                                    </MotiView>
-                                )}
+                                {(task.description || task.dueDate || task.dueTime || modeInfo || (task.subtasks && task.subtasks.length > 0)) && (() => {
+                                    const taskCountdown = getTaskRemainingTime(task.dueDate, task.dueTime, task.isCompleted, language === 'tr');
+                                    return (
+                                        <MotiView
+                                            animate={{ opacity: task.isCompleted || completingIds.has(task.id) ? 0.4 : 1 }}
+                                            transition={{ type: 'timing', duration: 300 }}
+                                            style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 2 }}
+                                        >
+                                            {modeInfo && (
+                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: modeInfo.color + '1A', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
+                                                    <Sparkles size={12} color={modeInfo.color} opacity={0.9} />
+                                                    <Text style={[{ fontSize: 11 }, { color: modeInfo.color, fontWeight: '600' }]}>
+                                                        {language === 'tr' ? modeInfo.labelTr : modeInfo.labelEn}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            {taskCountdown && (() => {
+                                                const isOverdue = taskCountdown === 'Süresi geçti' || taskCountdown === 'Overdue';
+                                                return (
+                                                    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isOverdue ? theme.error + '15' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'), borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
+                                                        <Clock size={12} color={isOverdue ? theme.error : theme.onSurfaceVariant} opacity={0.7} />
+                                                        <Text style={[{ fontSize: 11 }, { color: isOverdue ? theme.error : theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                            {taskCountdown}
+                                                        </Text>
+                                                    </View>
+                                                );
+                                            })()}
+                                            {modeInfo && modeInfo.daysLeft !== undefined && (
+                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: modeInfo.color + '18', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
+                                                    <Target size={12} color={modeInfo.color} opacity={0.9} />
+                                                    <Text style={[{ fontSize: 11 }, { color: modeInfo.color, fontWeight: '600' }]}>
+                                                        {modeInfo.unit === 'clean_day'
+                                                            ? (modeInfo.daysLeft === 0
+                                                                ? (language === 'tr' ? '1. Gün' : 'Day 1')
+                                                                : (language === 'tr' ? `Temiz: ${modeInfo.daysLeft} gün` : `Clean: ${modeInfo.daysLeft} ${modeInfo.daysLeft === 1 ? 'day' : 'days'}`))
+                                                            : (language === 'tr' ? `Hedef: ${modeInfo.daysLeft} gün` : `Goal: ${modeInfo.daysLeft} days`)}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            {task.dueDate && !taskCountdown && (
+                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
+                                                    <Calendar size={12} color={theme.onSurfaceVariant} opacity={0.7} />
+                                                    <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                        {new Date(task.dueDate).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short' })}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            {task.dueTime && (
+                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
+                                                    <Clock size={12} color={theme.onSurfaceVariant} opacity={0.7} />
+                                                    <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                        {(() => {
+                                                            const date = new Date(task.dueTime);
+                                                            return isNaN(date.getTime())
+                                                                ? task.dueTime
+                                                                : date.toLocaleTimeString(language === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+                                                        })()}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            {task.subtasks && task.subtasks.length > 0 && (
+                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
+                                                    <ListChecks size={12} color={theme.onSurfaceVariant} opacity={0.7} />
+                                                    <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                        {task.subtasks.filter((s: any) => s.done).length}/{task.subtasks.length}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            {/* User-facing text tags */}
+                                            {visibleTextTags(task.tags).map((tag, tagIdx) => (
+                                                <View key={tagIdx} style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
+                                                    <Tag size={12} color={theme.onSurfaceVariant} opacity={0.7} />
+                                                    <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                        {translateTag(tag, language as 'tr' | 'en')}
+                                                    </Text>
+                                                </View>
+                                            ))}
+                                        </MotiView>
+                                    );
+                                })()}
                             </View>
 
                             {sortBy === 'creation' && !isBulkMode && (

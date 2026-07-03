@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTaskStore, parseTaskHint } from '@/features/tasks';
+import { useTaskStore, parseTaskHint, getLocalizedTaskTitle } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, useAchievementStore, useMomentumStore, checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS, getAvatarSource, AVATAR_CONFIGS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -30,7 +30,7 @@ import { getSmartInsight, generateWeeklyTips } from '@/shared/utils/insights';
 import { computeMomentum } from '@/shared/utils/momentum';
 import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
-import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask } from '@/features/modes';
+import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { MomentumPulse } from '@/shared/components/MomentumPulse';
@@ -43,6 +43,7 @@ import { ProfileSetupModal } from '@/shared/components/ProfileSetupModal';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
+import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
 
 interface MyDayTaskRowProps {
@@ -71,36 +72,78 @@ const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme, isDar
       }}
     >
       <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: modeInfo ? modeInfo.color : priorityColor(item.priority), marginRight: S.md }} />
-      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-        <Text style={{
-          fontSize: F.body,
-          fontWeight: '600',
-          color: item.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
-          textDecorationLine: item.isCompleted ? 'line-through' : 'none',
-          opacity: item.isCompleted ? 0.5 : 1,
-          flexShrink: 1
-        }} numberOfLines={1}>
-          {item.title}
-        </Text>
-        {modeInfo && (
-          <View style={{
-            backgroundColor: modeInfo.color + (isDark ? '24' : '15'),
-            borderRadius: 6,
-            paddingHorizontal: 5,
-            paddingVertical: 1.5,
-            borderWidth: 0.5,
-            borderColor: modeInfo.color + '40'
-          }}>
-            <Text style={{
-              fontSize: 7.5,
-              fontWeight: '800',
-              color: modeInfo.color,
-              letterSpacing: 0.4
+      <View style={{ flex: 1, gap: 2 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+          <Text style={{
+            fontSize: F.body,
+            fontWeight: '600',
+            color: item.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
+            textDecorationLine: item.isCompleted ? 'line-through' : 'none',
+            opacity: item.isCompleted ? 0.5 : 1,
+            flexShrink: 1
+          }} numberOfLines={1}>
+            {getLocalizedTaskTitle(item.original || item, tr)}
+          </Text>
+          {modeInfo && (
+            <View style={{
+              backgroundColor: modeInfo.color + (isDark ? '24' : '15'),
+              borderRadius: 6,
+              paddingHorizontal: 5,
+              paddingVertical: 1.5,
+              borderWidth: 0.5,
+              borderColor: modeInfo.color + '40'
             }}>
-              {(tr ? modeInfo.labelTr : modeInfo.labelEn).toUpperCase()}
+              <Text style={{
+                fontSize: 7.5,
+                fontWeight: '800',
+                color: modeInfo.color,
+                letterSpacing: 0.4
+              }}>
+                {(tr ? modeInfo.labelTr : modeInfo.labelEn).toUpperCase()}
+              </Text>
+            </View>
+          )}
+        </View>
+        {(() => {
+          const isQuitMode = modeInfo && (modeInfo.unit === 'clean_day');
+          if (isQuitMode) {
+            return (
+              <Text style={{
+                fontSize: 9,
+                fontWeight: '600',
+                color: theme.onSurfaceVariant,
+                opacity: 0.5,
+                marginTop: 0.5
+              }}>
+                {modeInfo.daysLeft === 0
+                  ? (tr ? '1. Gün' : 'Day 1')
+                  : (tr ? `Temiz: ${modeInfo.daysLeft} gün` : `Clean: ${modeInfo.daysLeft} ${modeInfo.daysLeft === 1 ? 'day' : 'days'}`)}
+              </Text>
+            );
+          }
+
+          const taskCountdown = getTaskRemainingTime(item.original?.dueDate, item.original?.dueTime, item.original?.isCompleted, tr);
+          if (!taskCountdown) return null;
+
+          const planCountdown = modeInfo && modeInfo.daysLeft !== undefined && modeInfo.unit === 'day'
+            ? (tr ? `Hedef: ${modeInfo.daysLeft} gün` : `Goal: ${modeInfo.daysLeft} days`)
+            : null;
+
+          const displayLabel = planCountdown ? `${planCountdown} · ${taskCountdown}` : taskCountdown;
+          const isOverdue = taskCountdown === 'Süresi geçti' || taskCountdown === 'Overdue';
+
+          return (
+            <Text style={{
+              fontSize: 9,
+              fontWeight: '600',
+              color: isOverdue ? theme.error : theme.onSurfaceVariant,
+              opacity: 0.5,
+              marginTop: 0.5
+            }}>
+              {displayLabel}
             </Text>
-          </View>
-        )}
+          );
+        })()}
       </View>
       {item.isCompleted ? (
         <CheckCircle2 size={14} color="#10B981" style={{ marginLeft: S.sm }} />
@@ -249,7 +292,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { show: showToast } = useToastStore();
-  const { recordScore, getLastNDays } = useMomentumStore();
+  const { recordScore, getLastNDays, momentumShieldActive } = useMomentumStore();
   const { trigger: triggerAchievement, baseline: baselineAchievements } = useAchievementStore();
   const achHydrated = useAchievementStore(s => s._hasHydrated);
   const uiMode = usePrefsStore(s => s.uiMode);
@@ -680,15 +723,20 @@ export default function HomeScreen() {
     streak,
     habitActivityDays,
   });
+  // Momentum history (last 8 days for sparkline delta)
+  const momentumHistory = getLastNDays(8);
+
   const momentum = (() => {
+    if (momentumShieldActive) {
+      const hist = momentumHistory.filter(h => h.score >= 0);
+      const lastActive = hist.length ? hist[hist.length - 1] : null;
+      return lastActive ? Math.max(75, lastActive.score) : 75;
+    }
     if (!todayRating) return rawMomentum;
     const modifier = todayRating === 5 ? 10 : todayRating === 4 ? 5 : todayRating === 2 ? -5 : todayRating === 1 ? -10 : 0;
     return Math.min(100, Math.max(0, rawMomentum + modifier));
   })();
-  const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? theme.warning : theme.primary;
-
-  // Momentum history (last 8 days for sparkline delta)
-  const momentumHistory = getLastNDays(8);
+  const momentumColor = momentum >= 75 ? theme.tertiary : momentum >= 40 ? theme.streak : theme.onSurfaceVariant;
 
   // Daily target coaching: reverse-compute what's needed to hit 75
   const targetTasks = totalCount === 0 ? 3 : Math.max(0, Math.ceil(3 - completedCount));
@@ -1050,6 +1098,12 @@ export default function HomeScreen() {
       useFocusStore.getState().addFocusPoints(25);
     }
     toggleTaskCompletion(taskId);
+    
+    const modeInfo = getModeInfoForTask(task, prefsState, theme);
+    if (modeInfo) {
+      const planMode = task.tags?.find(tag => ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'tasarruf', 'birakma'].includes(tag));
+      useCompletionStore.getState().record(task.id, task.title, new Date().toISOString(), planMode);
+    }
     // Offline-first: çevrimdışıysa tamamlamayı kuyruğa al (optimistik UI korunur);
     // yoksa kullanıcının tamamlaması kaybolur.
     const isOnline = useNetworkStore.getState().isOnline;
@@ -2342,7 +2396,7 @@ export default function HomeScreen() {
                                   textDecorationLine: task.isCompleted ? 'line-through' : 'none',
                                   opacity: task.isCompleted ? 0.5 : 1
                                 }} numberOfLines={1}>
-                                  {task.title}
+                                    {getLocalizedTaskTitle(task, language === 'tr')}
                                 </Text>
                               </View>
                               <ChevronRight size={12} color={theme.onSurfaceVariant} opacity={0.3} />

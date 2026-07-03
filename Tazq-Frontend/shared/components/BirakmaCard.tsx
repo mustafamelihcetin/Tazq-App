@@ -90,7 +90,13 @@ export function BirakmaCard() {
     });
     const taskIds: number[] = [];
     for (const t of content.tasks) {
-      const id = await createPlanTask({ title: tr ? t.title : t.titleEn, description: '', priority: t.priority, isCompleted: false, tags: t.tags });
+      const id = await createPlanTask({
+        title: tr ? t.title : t.titleEn,
+        description: JSON.stringify({ tr: t.title, en: t.titleEn }),
+        priority: t.priority,
+        isCompleted: false,
+        tags: t.tags
+      });
       if (id != null) taskIds.push(id);
     }
     return { habitIds, taskIds };
@@ -110,7 +116,13 @@ export function BirakmaCard() {
     // (Tür çipleri zaten eklenmişse devre dışı → aynı türün görevleri tekrarlanmaz.)
     for (const k of selectedKeys) {
       for (const t of birakmaTypeTasks(k)) {
-        const id = await createPlanTask({ title: tr ? t.title : t.titleEn, description: '', priority: t.priority, isCompleted: false, tags: t.tags });
+        const id = await createPlanTask({
+          title: tr ? t.title : t.titleEn,
+          description: JSON.stringify({ tr: t.title, en: t.titleEn }),
+          priority: t.priority,
+          isCompleted: false,
+          tags: t.tags
+        });
         if (id != null) taskIds.push(id);
       }
     }

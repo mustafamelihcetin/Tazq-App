@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from '@/shared/services/api';
 
-interface SeasonalPrefs {
+export interface SeasonalPrefs {
   ramazan: boolean;
   examMode: boolean;
   examName: string;
@@ -38,7 +38,7 @@ interface SeasonalPrefs {
   birakmaName: string;
 }
 
-type PlanMode = 'exam' | 'exam2' | 'exam3' | 'ramazan' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'spor' | 'spor2' | 'spor3' | 'tasarruf' | 'birakma';
+export type PlanMode = 'exam' | 'exam2' | 'exam3' | 'ramazan' | 'tez' | 'mulakat' | 'mulakat2' | 'mulakat3' | 'spor' | 'spor2' | 'spor3' | 'tasarruf' | 'birakma';
 
 // Günlük plan motorunun ihtiyaç duyduğu kompakt plan tarifi.
 // Görevler artık önceden materyalize edilmiyor; bu spec'ten her gün üretiliyor.

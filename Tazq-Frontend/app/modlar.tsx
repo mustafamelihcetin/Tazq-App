@@ -967,6 +967,13 @@ export default function ModlarScreen() {
         <TurkishModeBanner
           key={modePreview.key}
           defaultTemplateId={modePreview.templateId}
+          activeSlot={(() => {
+            const t = modePreview.type;
+            if (t === 'exam' || t === 'yks' || t === 'kpss') return modePreview.examSlot ?? 'exam';
+            if (t === 'mulakat') return modePreview.mulakatSlot ?? 'mulakat';
+            if (t === 'spor') return modePreview.sporSlot ?? 'spor';
+            return t; // 'tez', 'ramazan', 'tasarruf', 'birakma'
+          })()}
           mode={getModePreview(modePreview.type, {
             examName: modePreview.examName ?? examNameInput,
             examDate: modePreview.examDate ?? examDateInput,

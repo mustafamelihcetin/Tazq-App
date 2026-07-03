@@ -11,7 +11,7 @@ import {
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { useTaskStore } from '@/features/tasks';
+import { useTaskStore, getLocalizedTaskTitle } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus';
 import { useHabitStore, Habit, fmtDateKey } from '@/features/habits';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -706,7 +706,7 @@ export default function CockpitScreen() {
                       ]}
                       numberOfLines={2}
                     >
-                      {task.title}
+                      {getLocalizedTaskTitle(task, tr)}
                     </Text>
                     <View style={[
                       styles.priorityPip,

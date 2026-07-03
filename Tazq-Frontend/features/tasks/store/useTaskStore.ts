@@ -41,12 +41,34 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
   setTasks: (tasks) => {
     // Preserve local completedAt timestamps when server refreshes (server doesn't track this)
     const existing = new Map(get().tasks.map(t => [t.id, t]));
+    let lang: 'tr' | 'en' = 'tr';
+    let lookupSystemString: any = null;
+    try {
+      lang = require('@/shared/store/useLanguageStore').useLanguageStore.getState().language;
+      lookupSystemString = require('@/shared/utils/systemTaskTranslator').lookupSystemString;
+    } catch {}
+
     const merged = tasks.map(t => {
       const local = existing.get(t.id);
+      let updatedTask = { ...t };
       if (t.isCompleted && local?.completedAt && !t.completedAt) {
-        return { ...t, completedAt: local.completedAt };
+        updatedTask.completedAt = local.completedAt;
       }
-      return t;
+
+      if (updatedTask.description && updatedTask.description.startsWith('{"tr":')) {
+        try {
+          const parsed = JSON.parse(updatedTask.description);
+          if (parsed.tr && parsed.en) {
+            updatedTask.title = lang === 'tr' ? parsed.tr : parsed.en;
+          }
+        } catch {}
+      } else if (lookupSystemString) {
+        const found = lookupSystemString(updatedTask.title, lang);
+        if (found) {
+          updatedTask.title = found;
+        }
+      }
+      return updatedTask;
     });
 
     // Deduplicate by ID to prevent repeating items in the store state
@@ -169,4 +191,17 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
     return { ...current, tasks: persisted?.tasks || [], dailyProgressText: persisted?.dailyProgressText || '' };
   }
 }));
+
+export function getLocalizedTaskTitle(task: { title: string; description?: string | null }, isTr: boolean): string {
+  if (!task.description) return task.title;
+  if (task.description.startsWith('{"tr":')) {
+    try {
+      const parsed = JSON.parse(task.description);
+      if (parsed.tr && parsed.en) {
+        return isTr ? parsed.tr : parsed.en;
+      }
+    } catch {}
+  }
+  return task.title;
+}
 

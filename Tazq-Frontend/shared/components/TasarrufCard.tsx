@@ -156,11 +156,25 @@ export function TasarrufCard() {
     });
     const taskIds: number[] = [];
     for (const t of content.tasks) {
-      const id = await createPlanTask({ title: tr ? t.title : t.titleEn, description: '', priority: t.priority, isCompleted: false, tags: t.tags });
+      const id = await createPlanTask({
+        title: tr ? t.title : t.titleEn,
+        description: JSON.stringify({ tr: t.title, en: t.titleEn }),
+        priority: t.priority,
+        isCompleted: false,
+        tags: t.tags
+      });
       if (id != null) taskIds.push(id);
     }
-    // Haftalık "bakiyeni gir" görevi (bugüne)
-    const wId = await createPlanTask({ title: tr ? 'Bu hafta birikimini gir' : 'Log this week\'s balance', description: '', priority: 'Medium', dueDate: new Date().toISOString(), isCompleted: false, tags: ['tasarruf', 'budget_entry'] });
+    const titleTr = 'Bu hafta birikimini gir';
+    const titleEn = 'Log this week\'s balance';
+    const wId = await createPlanTask({
+      title: tr ? titleTr : titleEn,
+      description: JSON.stringify({ tr: titleTr, en: titleEn }),
+      priority: 'Medium',
+      dueDate: new Date().toISOString(),
+      isCompleted: false,
+      tags: ['tasarruf', 'budget_entry']
+    });
     if (wId != null) taskIds.push(wId);
 
     const d = new Date(); d.setMonth(d.getMonth() + (durationMonths || 6));

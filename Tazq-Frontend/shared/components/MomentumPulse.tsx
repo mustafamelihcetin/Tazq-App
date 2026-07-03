@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { MotiView } from 'moti';
-import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame, Shield } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { S, F, R } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { useMomentumStore } from '@/features/user/store/useMomentumStore';
 
 interface DayScore { date: string; score: number }
 
@@ -20,8 +21,9 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const [infoVisible, setInfoVisible] = useState(false);
+  const { momentumShieldActive, toggleMomentumShield } = useMomentumStore();
 
-  const accentColor = score >= 75 ? theme.tertiary : score >= 40 ? theme.warning : theme.primary;
+  const accentColor = score >= 75 ? theme.tertiary : score >= 40 ? theme.streak : theme.onSurfaceVariant;
 
   // Week-over-week delta: yesterday vs 7 days ago
   const isEight = history.length >= 8;
@@ -74,8 +76,8 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             const barColor = !has
               ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)')
               : day.score >= 75 ? theme.tertiary
-              : day.score >= 40 ? theme.warning
-              : theme.primary;
+              : day.score >= 40 ? theme.streak
+              : theme.onSurfaceVariant;
             return (
               <MotiView
                 key={day.date}
@@ -152,6 +154,50 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
               <Text style={{ fontSize: 14, fontWeight: '900', color: row.color }}>{row.pct}</Text>
             </View>
           ))}
+
+          {/* Momentum Shield (İvme Kalkanı) Toggle Card */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: momentumShieldActive ? theme.streak + '15' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+            borderRadius: 12,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            borderWidth: 1.5,
+            borderColor: momentumShieldActive ? theme.streak : 'transparent'
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
+              <Shield size={16} color={momentumShieldActive ? theme.streak : theme.onSurfaceVariant} strokeWidth={2.2} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)' }}>
+                  {tr ? 'İvme Kalkanı' : 'Momentum Shield'}
+                </Text>
+                <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.7, marginTop: 2, lineHeight: 13 }} numberOfLines={2}>
+                  {tr ? 'Hastalık / tatil günlerinde ivmeyi korur' : 'Freezes momentum on sick / vacation days'}
+                </Text>
+              </View>
+            </View>
+            <Touchable
+              onPress={() => {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                toggleMomentumShield();
+              }}
+              style={{
+                backgroundColor: momentumShieldActive ? theme.streak : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: momentumShieldActive ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)')
+              }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: '800', color: momentumShieldActive ? '#fff' : theme.onSurfaceVariant }}>
+                {momentumShieldActive ? (tr ? 'AKTİF' : 'ACTIVE') : (tr ? 'ETKİNLEŞTİR' : 'ACTIVATE')}
+              </Text>
+            </Touchable>
+          </View>
+
           <Touchable onPress={() => setInfoVisible(false)} style={{ backgroundColor: accentColor, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 4 }}>
             <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>{tr ? 'Anladım' : 'Got it'}</Text>
           </Touchable>
