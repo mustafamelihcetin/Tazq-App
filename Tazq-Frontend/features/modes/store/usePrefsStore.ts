@@ -112,6 +112,10 @@ interface PrefsState {
   // İlk-değer akışı izleme
   onboardingCompleted: boolean;
   setOnboardingCompleted: (v: boolean) => void;
+  helpTourShown: boolean;
+  setHelpTourShown: (v: boolean) => void;
+  completedTours: Record<string, boolean>;
+  setTourCompleted: (page: string, completed: boolean) => void;
   firstWinAt: string | null;
   markFirstWin: () => void;
   setPlanIds: (mode: PlanMode, habitIds: string[], taskIds: number[]) => void;
@@ -140,6 +144,8 @@ const CLOUD_PREF_KEYS = [
   'uiMode',
   'featureFlags',
   'onboardingCompleted',
+  'helpTourShown',
+  'completedTours',
   'firstWinAt',
   'examPlanHabitIds', 'examPlanTaskIds',
   'exam2PlanHabitIds', 'exam2PlanTaskIds',
@@ -266,6 +272,10 @@ export const usePrefsStore = create<PrefsState>()(
       setFeatureFlag: (key, value) => set((s) => ({ featureFlags: { ...s.featureFlags, [key]: value } })),
       onboardingCompleted: false,
       setOnboardingCompleted: (v) => set({ onboardingCompleted: v }),
+      helpTourShown: false,
+      setHelpTourShown: (v) => set({ helpTourShown: v }),
+      completedTours: {},
+      setTourCompleted: (page, completed) => set((s) => ({ completedTours: { ...s.completedTours, [page]: completed } })),
       firstWinAt: null,
       markFirstWin: () => { if (!get().firstWinAt) set({ firstWinAt: new Date().toISOString() }); },
       setPlanIds: (mode, habitIds, taskIds) => {
@@ -318,6 +328,15 @@ export const usePrefsStore = create<PrefsState>()(
         },
         planSpecs: {},
         examReviewShown: false,
+        helpTourShown: false,
+        completedTours: {},
+        uiMode: 'pro',
+        onboardingCompleted: false,
+        motto: '',
+        gender: '',
+        productivityHour: 'morning',
+        avatarBorderColor: 'transparent',
+        firstWinAt: null,
         examPlanHabitIds: [], examPlanTaskIds: [],
         exam2PlanHabitIds: [], exam2PlanTaskIds: [],
         exam3PlanHabitIds: [], exam3PlanTaskIds: [],

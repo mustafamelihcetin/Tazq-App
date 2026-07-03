@@ -28,6 +28,8 @@ import {
 import { S, R, F, B, TRACKING, SPRING, MAX_W, sideInset } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useSporStore, getThisWeekEntry } from '@/shared/store/useSporStore';
+import { TourTarget, useTour } from '@/shared/components/TourContext';
+import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/shared/utils/weightCheckin';
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
 import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '@/shared/utils/examPresets';
@@ -122,7 +124,23 @@ export default function ModlarScreen() {
     spor2PlanHabitIds, spor2PlanTaskIds,
     spor3PlanHabitIds, spor3PlanTaskIds,
     setPlanIds, clearPlanIds, setPlanSpec,
+    completedTours,
   } = usePrefsStore();
+  const { measureAll } = useTour();
+  const handleStepChange = (step: number) => {
+    try {
+      if (step === 1) {
+        scrollViewRef.current?.scrollTo({ y: 220, animated: true });
+      } else {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      }
+      setTimeout(() => {
+        measureAll();
+      }, 350);
+    } catch (e) {
+      console.error('[Modes] error during step scroll:', e);
+    }
+  };
   const { habits, removeHabit } = useHabitStore();
   const { removeTask } = useTaskStore();
   const { record: recordCompletion } = useCompletionStore();
@@ -691,6 +709,7 @@ export default function ModlarScreen() {
               {/* Left Side (Fixed Width for Perfect Centering) */}
               <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
                   {/* Sol: Modların Özeti (içgörü) sayfası. Back butonu YOK — alt navigasyondan gezilir. */}
+                  <TourTarget id="overview">
                   <Touchable
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/mod-ozet'); }}
                     style={styles.headerIconBtn}
@@ -699,6 +718,7 @@ export default function ModlarScreen() {
                   >
                     <BarChart3 size={24} color={theme.onSurfaceVariant} />
                   </Touchable>
+                  </TourTarget>
               </View>
 
               {/* Center Title (Takes remaining space, perfectly centered) */}
@@ -744,6 +764,7 @@ export default function ModlarScreen() {
           >
           <View style={{ gap: S.md }}>
             {/* ── DURUM ÖZETİ KARTI ── aktif modlar: geri sayım + bugünkü plan + motivasyon; boşken davet. */}
+            <TourTarget id="presets">
             {statusActiveCount > 0 ? (
               <MotiView
                 from={{ opacity: 0 }}
@@ -822,7 +843,9 @@ export default function ModlarScreen() {
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '500', marginTop: 6, lineHeight: 18 }}>{language === 'tr' ? 'Sınav, tez, mülakat ya da spor — birini aç, hazır plan otomatik olarak Haftalık Merkez ve görevlerine düşsün.' : 'Exam, thesis, interview or fitness — turn one on and a ready plan flows into your Weekly Hub and tasks automatically.'}</Text>
               </MotiView>
             )}
+            </TourTarget>
             {/* ── KATMAN 1: AKTİF HEDEFLERİM ── */}
+            <TourTarget id="contents">
             {(statusActiveCount > 0 || hasAnyActiveMode) && (
               <View style={{ gap: S.md, marginTop: S.sm }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 4 }}>
@@ -956,11 +979,13 @@ export default function ModlarScreen() {
                 </View>
               );
             })()}
+            </TourTarget>
           </View>
         </ScrollView>
         </KeyboardAvoidingView>
       </View>
 
+      <HelpTourModal pageId="modlar" onStepChange={handleStepChange} />
       <BottomNavBar />
 
       {modePreview && (

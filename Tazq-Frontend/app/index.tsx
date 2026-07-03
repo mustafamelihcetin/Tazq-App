@@ -35,6 +35,8 @@ import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { MomentumPulse } from '@/shared/components/MomentumPulse';
 import { WeightEntryModal } from '@/shared/components/WeightEntryModal';
+import { HelpTourModal } from '@/shared/components/HelpTourModal';
+import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
 import { StatusHubModal } from '@/shared/components/StatusHubModal';
@@ -296,16 +298,44 @@ export default function HomeScreen() {
   const { trigger: triggerAchievement, baseline: baselineAchievements } = useAchievementStore();
   const achHydrated = useAchievementStore(s => s._hasHydrated);
   const uiMode = usePrefsStore(s => s.uiMode);
-  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects } = usePrefsStore();
+  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, helpTourShown, completedTours } = usePrefsStore();
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
 
+  const scrollViewRef = useRef<ScrollView>(null);
+  const { measureAll } = useTour();
+  const handleStepChange = (step: number) => {
+    try {
+      if (step === 2) {
+        // Scroll down to center the daily tasks card, keeping it clear of navigation bar overlays
+        scrollViewRef.current?.scrollTo({ y: 140, animated: true });
+      } else {
+        // Scroll back up for top elements (Momentum score, habits card, cockpit)
+        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      }
+      // Re-measure after scroll animation completes (320ms) to ensure exact positioning
+      setTimeout(() => {
+        measureAll();
+      }, 350);
+    } catch (e) {
+      console.error('[Dashboard] Error during tour step scroll:', e);
+    }
+  };
+
   useEffect(() => {
-    if (user && isFirstLogin) {
+    if (!profileSetupVisible && completedTours?.dashboard !== true) {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }
+  }, [profileSetupVisible, completedTours]);
+
+  const hasSetupPrompted = useRef(false);
+  useEffect(() => {
+    if (user && isFirstLogin && !hasSetupPrompted.current) {
+      hasSetupPrompted.current = true;
       setProfileSetupVisible(true);
-    } else {
-      setProfileSetupVisible(false);
+      usePrefsStore.getState().setTourCompleted('dashboard', false);
+      usePrefsStore.getState().setHelpTourShown(false);
     }
   }, [user, isFirstLogin]);
 
@@ -913,6 +943,35 @@ export default function HomeScreen() {
 
   // Unified My Day feed items (Tasks only)
   const myDayTasks = (() => {
+    if (completedTours?.dashboard !== true) {
+      return [
+        {
+          type: 'task' as const,
+          id: 'mock-task-1',
+          title: language === 'tr' ? 'Haftalık Raporu Hazırla' : 'Prepare Weekly Report',
+          priority: 'High',
+          isCompleted: false,
+          original: {}
+        },
+        {
+          type: 'task' as const,
+          id: 'mock-task-2',
+          title: language === 'tr' ? 'Kitap Oku (20 sayfa)' : 'Read Book (20 pages)',
+          priority: 'Medium',
+          isCompleted: false,
+          original: {}
+        },
+        {
+          type: 'task' as const,
+          id: 'mock-task-3',
+          title: language === 'tr' ? 'Spor Salonuna Git' : 'Go to Gym',
+          priority: 'Low',
+          isCompleted: true,
+          original: {}
+        }
+      ];
+    }
+
     const items: Array<{
       type: 'task';
       id: string | number;
@@ -979,6 +1038,41 @@ export default function HomeScreen() {
 
   // Today's Habits
   const myDayHabits = (() => {
+    if (completedTours?.dashboard !== true) {
+      return [
+        {
+          id: 'mock-habit-1',
+          title: language === 'tr' ? 'Kitap Oku' : 'Read Book',
+          color: theme.streak,
+          emoji: '📚',
+          isCompleted: false,
+          isSkipped: false,
+          streak: 3,
+          original: {}
+        },
+        {
+          id: 'mock-habit-2',
+          title: language === 'tr' ? 'Su İç' : 'Drink Water',
+          color: theme.tertiary,
+          emoji: '🥛',
+          isCompleted: true,
+          isSkipped: false,
+          streak: 5,
+          original: {}
+        },
+        {
+          id: 'mock-habit-3',
+          title: language === 'tr' ? 'Yürüyüş' : 'Walk',
+          color: theme.primary,
+          emoji: '👟',
+          isCompleted: false,
+          isSkipped: false,
+          streak: 0,
+          original: {}
+        }
+      ];
+    }
+
     return habits.map(h => {
       const done = (h.completedDates ?? []).includes(habitTodayKey);
       const skipped = (h.skippedDates ?? []).includes(habitTodayKey);
@@ -1373,7 +1467,9 @@ export default function HomeScreen() {
                   />
               </Touchable>
 
-              <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStatusHubVisible(true); }} />
+              <TourTarget id="cockpit">
+                <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStatusHubVisible(true); }} />
+              </TourTarget>
           </View>
       </MotiView>
 
@@ -1587,6 +1683,7 @@ export default function HomeScreen() {
         </Modal>
 
         <ScrollView
+            ref={scrollViewRef}
             style={{ flex: 1 }}
             contentContainerStyle={[styles.scrollContent, { paddingTop: 82 + insets.top, paddingBottom: 120, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }]}
             showsVerticalScrollIndicator={false}
@@ -1611,13 +1708,14 @@ export default function HomeScreen() {
                 </Text>
             </MotiView>
 
-            {/* ── Momentum Pulse — günün tek skoru; en üstte "kuzey yıldızı" konumu ── */}
-            <MomentumPulse
-              score={momentum}
-              history={momentumHistory}
-              language={language}
-              loading={statsLoading}
-            />
+            <TourTarget id="momentum">
+              <MomentumPulse
+                score={momentum}
+                history={momentumHistory}
+                language={language}
+                loading={statsLoading}
+              />
+            </TourTarget>
 
             {/* ── TODAY CARD ── */}
             <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
@@ -1729,7 +1827,8 @@ export default function HomeScreen() {
                 
                 <BentoCard index={1} style={{ padding: 0, overflow: 'hidden' }}>
                   {/* BUGÜNKÜ RİTÜELLERİM (Daily Habits) */}
-                  <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: 2 }}>
+                  <TourTarget id="habits">
+                    <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: 2 }}>
                     <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.primary }}>
                       {tr ? 'BUGÜNKÜ RİTÜELLERİM' : 'MY DAILY RITUALS'}
                     </Text>
@@ -1843,12 +1942,13 @@ export default function HomeScreen() {
                       </View>
                     )}
                   </ScrollView>
+                  </TourTarget>
 
                   <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }} />
 
-                  {/* GÜNLÜK GÖREVLERİM (Daily Tasks) */}
-                  <Touchable
-                    onPress={() => router.push('/tasks')}
+                  <TourTarget id="tasks">
+                    <Touchable
+                      onPress={() => router.push('/tasks')}
                     style={{
                       flexDirection: 'row',
                       justifyContent: 'space-between',
@@ -1952,6 +2052,7 @@ export default function HomeScreen() {
                       </View>
                     );
                   })()}
+                  </TourTarget>
                 </BentoCard>
               </View>
             )}
@@ -1960,7 +2061,7 @@ export default function HomeScreen() {
             <DynamicIsland />
 
             {/* İlk açılış — soğuk başlangıç kartı: görev ve alışkanlık yokken kullanıcıya net 3 giriş noktası sunar */}
-            {tasks.length === 0 && habits.length === 0 && (
+            {completedTours?.dashboard === true && tasks.length === 0 && habits.length === 0 && (
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <BentoCard index={1} style={{ padding: isSmallScreen ? S.md : S.lg, gap: S.sm }}>
                     <Text style={{ fontSize: F.subhead, fontWeight: '800', color: theme.onSurface, letterSpacing: -0.3, marginBottom: S.xs }}>
@@ -2431,6 +2532,13 @@ export default function HomeScreen() {
         taskId={weightModalTaskId}
         onClose={() => setWeightModalTaskId(null)}
       />
+
+      {(!isFirstLogin && !profileSetupVisible) && (
+        <HelpTourModal 
+          pageId="dashboard" 
+          onStepChange={handleStepChange} 
+        />
+      )}
     </View>
   );
 }

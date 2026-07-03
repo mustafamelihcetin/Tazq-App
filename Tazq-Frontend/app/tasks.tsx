@@ -31,6 +31,8 @@ import { SwipeableItem } from '@/shared/components/SwipeableItem';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
+import { HelpTourModal } from '@/shared/components/HelpTourModal';
+import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
 import { syncTaskToCalendar, deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
 import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
@@ -477,8 +479,15 @@ export default function ActionCenter() {
   const { show: showToast } = useToastStore();
   const isOnline = useNetworkStore((s) => s.isOnline);
   const { enqueue: enqueueOffline } = useOfflineQueue();
-  const { soundEffects } = usePrefsStore();
+  const { soundEffects, completedTours } = usePrefsStore();
   const { record: recordCompletion } = useCompletionStore();
+  const { measureAll } = useTour();
+
+  const handleStepChange = (step: number) => {
+    setTimeout(() => {
+      measureAll();
+    }, 150);
+  };
   const setCurrentTask = useFocusStore(s => s.setCurrentTask);
   const { width, height } = useWindowDimensions();
   const router = useRouter();
@@ -803,6 +812,7 @@ export default function ActionCenter() {
         if (hideCompleted) {
           // Optimistically mark as completing so it shows ✓ immediately
           toggleTaskCompletion(id);
+
           setCompletingIds(prev => new Set([...prev, id]));
 
           const opacity = new RNAnimated.Value(1);
@@ -854,6 +864,7 @@ export default function ActionCenter() {
       if (completingIds.has(id)) return;
       setCompletingIds(prev => new Set([...prev, id]));
       toggleTaskCompletion(id);
+
 
       if (!isOnline) {
         enqueueOffline({ type: 'toggle-task', id, isCompleted: isCompleting, completedAt: isCompleting ? new Date().toISOString() : null });
@@ -1166,6 +1177,37 @@ export default function ActionCenter() {
   const getTagColor = getTagColorStatic;
 
   const filteredAndSortedTasks = useMemo(() => {
+    if (completedTours?.tasks !== true) {
+      return [
+        {
+          id: 99991,
+          title: language === 'tr' ? 'Haftalık raporu tamamla' : 'Finish weekly report',
+          description: language === 'tr' ? 'Öncelikli işler arasında' : 'High priority item',
+          priority: 'High',
+          isCompleted: false,
+          dueDate: new Date().toISOString(),
+          tags: ['personal']
+        },
+        {
+          id: 99992,
+          title: language === 'tr' ? 'Kitap oku (20 sayfa)' : 'Read a book (20 pages)',
+          description: language === 'tr' ? 'Kararlılık serisi için' : 'For consistency streak',
+          priority: 'Medium',
+          isCompleted: false,
+          dueDate: new Date().toISOString(),
+          tags: ['personal']
+        },
+        {
+          id: 99993,
+          title: language === 'tr' ? 'E-postaları yanıtla' : 'Reply to emails',
+          description: language === 'tr' ? 'İletişim takibi' : 'Communication check',
+          priority: 'Low',
+          isCompleted: true,
+          dueDate: new Date().toISOString(),
+          tags: ['work']
+        }
+      ];
+    }
     const todayEndMs = (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); })();
 
     let result = tasks.filter((task) => {
@@ -1225,7 +1267,7 @@ export default function ActionCenter() {
       });
     }
     return result;
-  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds, showFutureManualTasks, theme]);
+  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds, showFutureManualTasks, theme, completedTours, language]);
 
   const filteredTasks = filteredAndSortedTasks;
   const visibleTasks = useMemo(() => filteredTasks.slice(0, visibleCount), [filteredTasks, visibleCount]);
@@ -1267,6 +1309,9 @@ export default function ActionCenter() {
     const ids = Array.from(selectedIds);
     // Optimistic update
     ids.forEach(id => toggleTaskCompletion(id));
+    
+
+
     setSelectedIds(new Set());
     setIsBulkMode(false);
 
@@ -1520,6 +1565,7 @@ export default function ActionCenter() {
           )}
         </AnimatePresence>
         
+        <TourTarget id="list" style={{ flex: 1 }}>
         <MotiView 
           key="list" 
           from={{ opacity: 0 }} 
@@ -1588,6 +1634,7 @@ export default function ActionCenter() {
           </View>
 
           {/* Filter Pills */}
+          <TourTarget id="filters">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ gap: 8 }}>
             {filters.map((f) => {
               const label = f === 'all' ? t.filterAll :
@@ -1618,6 +1665,7 @@ export default function ActionCenter() {
               );
             })}
           </ScrollView>
+          </TourTarget>
 
           {/* Tag Filter Pills */}
           {allTags.length > 0 && (
@@ -1757,6 +1805,7 @@ export default function ActionCenter() {
             )}
         />
         </MotiView>
+        </TourTarget>
       </View>
 
             {/* Minimalist Premium Bulk Action Pill */}
@@ -1848,6 +1897,10 @@ export default function ActionCenter() {
           isDark={isDark}
           theme={theme}
           style={{
+            position: 'absolute',
+            bottom: 44,
+            right: 24,
+            zIndex: 100,
             backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F',
             shadowColor: '#000',
             alignItems: 'center',
@@ -1855,6 +1908,7 @@ export default function ActionCenter() {
           }}
           buttonSize={64}
           borderRadius={R.lg}
+          tourId="quickAdd"
         >
           <Plus size={32} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={3} />
         </MagneticFAB>
@@ -1879,6 +1933,10 @@ export default function ActionCenter() {
         isDark={isDark}
         language={language}
         t={t}
+      />
+      <HelpTourModal 
+        pageId="tasks" 
+        onStepChange={handleStepChange} 
       />
     </View>
   );

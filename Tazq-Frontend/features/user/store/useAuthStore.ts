@@ -89,8 +89,23 @@ function clearLocalUserData() {
   safe(() => require('@/shared/store/useSubjectStore').useSubjectStore.getState().reset());
   safe(() => require('@/shared/store/useOfflineQueue').useOfflineQueue.getState().clear());
   safe(() => require('@/shared/store/useCompletionStore').useCompletionStore.setState({ events: [] }));
-  safe(() => require('./useMomentumStore').useMomentumStore.setState({ history: [] }));
-  safe(() => require('./useAchievementStore').useAchievementStore.setState({ unlocked: [], pending: null }));
+  safe(() => require('./useMomentumStore').useMomentumStore.setState({
+    history: [],
+    momentumShieldActive: false,
+    shieldCharges: 2,
+    focusMinutesForNextCharge: 0,
+    tasksCompletedForNextCharge: 0,
+    engineHeat: 0,
+    isOverheated: false,
+    lastCompletedTaskTitle: null,
+    showRocketFeedback: false,
+  }));
+  safe(() => require('./useAchievementStore').useAchievementStore.setState({
+    unlocked: [],
+    baselined: false,
+    pending: null,
+    queue: [],
+  }));
 }
 
 // Backend'den gelen profil tercihlerini prefs store'a hidrate et.

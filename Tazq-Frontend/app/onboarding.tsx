@@ -24,6 +24,7 @@ import { TazqLogo } from '@/shared/components/TazqLogo';
 import { Touchable } from '@/shared/components/Touchable';
 import { track } from '@/shared/utils/analytics';
 import { usePrefsStore } from '@/features/modes';
+import { useAuthStore } from '@/features/user';
 
 const SLIDES = [
   {
@@ -118,7 +119,8 @@ export default function OnboardingScreen() {
       }
       usePrefsStore.getState().setOnboardingCompleted(true);
       track('onboarding_completed', { skipped: false, lastStep: currentIndex });
-      router.replace('/login');
+      const nextPath = useAuthStore.getState().token ? '/' : '/login';
+      router.replace(nextPath as any);
     }
   };
 
@@ -411,7 +413,8 @@ export default function OnboardingScreen() {
                     try { await AsyncStorage.setItem('tazq-onboarding-done', 'true'); } catch {}
                     usePrefsStore.getState().setOnboardingCompleted(true);
                     track('onboarding_completed', { skipped: true, lastStep: currentIndex });
-                    router.replace('/login');
+                    const nextPath = useAuthStore.getState().token ? '/' : '/login';
+                    router.replace(nextPath as any);
                 }}
                 style={styles.skipBtn}
             >

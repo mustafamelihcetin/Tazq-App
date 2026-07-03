@@ -21,7 +21,25 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const [infoVisible, setInfoVisible] = useState(false);
-  const { momentumShieldActive, toggleMomentumShield } = useMomentumStore();
+  const { 
+    momentumShieldActive, 
+    toggleMomentumShield, 
+    shieldCharges, 
+    focusMinutesForNextCharge, 
+    tasksCompletedForNextCharge,
+    engineHeat,
+    isOverheated,
+    decayEngineHeat
+  } = useMomentumStore();
+
+  React.useEffect(() => {
+    if (!infoVisible) return;
+    decayEngineHeat();
+    const timer = setInterval(() => {
+      decayEngineHeat();
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [infoVisible]);
 
   const accentColor = score >= 75 ? theme.tertiary : score >= 40 ? theme.streak : theme.onSurfaceVariant;
 
@@ -155,47 +173,160 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             </View>
           ))}
 
+          {/* Rocket Thruster Overheat Card (only if not lite mode) */}
+          {(() => {
+            let isLite = false;
+            try {
+              const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
+              isLite = usePrefsStore.getState().uiMode === 'lite';
+            } catch {}
+
+            if (isLite) return null;
+
+            const roundedHeat = Math.round(engineHeat);
+
+            return (
+              <View style={{
+                backgroundColor: isOverheated ? theme.error + '10' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                borderRadius: 16,
+                padding: 14,
+                borderWidth: 1.5,
+                borderColor: isOverheated ? theme.error : 'transparent',
+                gap: 8
+              }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Zap size={16} color={isOverheated ? theme.error : theme.tertiary} />
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)' }}>
+                      {tr ? 'İvme Roket Motoru' : 'Propulsion Thruster'}
+                    </Text>
+                  </View>
+                  <Text style={{
+                    fontSize: 11,
+                    fontWeight: '900',
+                    color: isOverheated ? theme.error : (roundedHeat > 50 ? theme.streak : theme.success)
+                  }}>
+                    {isOverheated ? (tr ? 'AŞIRI ISINDI 🌋' : 'OVERHEATED 🌋') : (tr ? 'NOMİNAL 🔥' : 'NOMINAL 🔥')}
+                  </Text>
+                </View>
+
+                {/* Progress bar representing heat */}
+                <View style={{ height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', borderRadius: 3, overflow: 'hidden' }}>
+                  <View style={{
+                    height: '100%',
+                    width: `${roundedHeat}%`,
+                    backgroundColor: isOverheated ? theme.error : (roundedHeat > 50 ? theme.streak : theme.tertiary),
+                    borderRadius: 3
+                  }} />
+                </View>
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.7 }}>
+                    {tr ? `Motor Sıcaklığı: %${roundedHeat}` : `Thruster Temperature: ${roundedHeat}%`}
+                  </Text>
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                    {isOverheated 
+                      ? (tr ? 'Soğuyor... (ivme devredışı)' : 'Cooling... (propulsion disabled)') 
+                      : (tr ? 'Güvenli limit altında' : 'Safe limits')}
+                  </Text>
+                </View>
+              </View>
+            );
+          })()}
+
           {/* Momentum Shield (İvme Kalkanı) Toggle Card */}
           <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
             backgroundColor: momentumShieldActive ? theme.streak + '15' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
-            borderRadius: 12,
-            paddingHorizontal: 14,
-            paddingVertical: 10,
+            borderRadius: 16,
+            padding: 14,
             borderWidth: 1.5,
-            borderColor: momentumShieldActive ? theme.streak : 'transparent'
+            borderColor: momentumShieldActive ? theme.streak : 'transparent',
+            gap: 12
           }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
-              <Shield size={16} color={momentumShieldActive ? theme.streak : theme.onSurfaceVariant} strokeWidth={2.2} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)' }}>
-                  {tr ? 'İvme Kalkanı' : 'Momentum Shield'}
-                </Text>
-                <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.7, marginTop: 2, lineHeight: 13 }} numberOfLines={2}>
-                  {tr ? 'Hastalık / tatil günlerinde ivmeyi korur' : 'Freezes momentum on sick / vacation days'}
-                </Text>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
+                <Shield size={18} color={momentumShieldActive ? theme.streak : theme.onSurfaceVariant} strokeWidth={2.2} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)' }}>
+                    {tr ? 'İvme Kalkanı' : 'Momentum Shield'}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.7, marginTop: 2, lineHeight: 13 }}>
+                    {tr ? 'Hastalık / tatil günlerinde ivmeyi korur' : 'Freezes momentum on sick / vacation days'}
+                  </Text>
+                </View>
               </View>
+              <Touchable
+                disabled={!momentumShieldActive && shieldCharges <= 0}
+                onPress={() => {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  toggleMomentumShield();
+                }}
+                style={{
+                  backgroundColor: momentumShieldActive 
+                    ? theme.streak 
+                    : (shieldCharges <= 0 ? 'rgba(0,0,0,0.05)' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)')),
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: momentumShieldActive ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'),
+                  opacity: (!momentumShieldActive && shieldCharges <= 0) ? 0.4 : 1
+                }}
+              >
+                <Text style={{ fontSize: 10, fontWeight: '800', color: momentumShieldActive ? '#fff' : theme.onSurfaceVariant }}>
+                  {momentumShieldActive 
+                    ? (tr ? 'AKTİF' : 'ACTIVE') 
+                    : (shieldCharges <= 0 ? (tr ? 'ŞARJ YOK' : 'NO CHARGE') : (tr ? 'ETKİNLEŞTİR' : 'ACTIVATE'))}
+                </Text>
+              </Touchable>
             </View>
-            <Touchable
-              onPress={() => {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                toggleMomentumShield();
-              }}
-              style={{
-                backgroundColor: momentumShieldActive ? theme.streak : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
-                paddingHorizontal: 10,
-                paddingVertical: 6,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: momentumShieldActive ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)')
-              }}
-            >
-              <Text style={{ fontSize: 10, fontWeight: '800', color: momentumShieldActive ? '#fff' : theme.onSurfaceVariant }}>
-                {momentumShieldActive ? (tr ? 'AKTİF' : 'ACTIVE') : (tr ? 'ETKİNLEŞTİR' : 'ACTIVATE')}
-              </Text>
-            </Touchable>
+
+            {/* Divider */}
+            <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }} />
+
+            {/* Charges and progress details */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              {/* Charge Pills */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, marginRight: 2 }}>
+                  {tr ? 'Şarj:' : 'Charges:'}
+                </Text>
+                {Array.from({ length: 3 }).map((_, idx) => {
+                  const filled = idx < shieldCharges;
+                  return (
+                    <View
+                      key={idx}
+                      style={{
+                        width: 14,
+                        height: 7,
+                        borderRadius: 3,
+                        backgroundColor: filled 
+                          ? (momentumShieldActive ? theme.streak : theme.tertiary) 
+                          : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+                      }}
+                    />
+                  );
+                })}
+              </View>
+
+              {/* Progress to next charge */}
+              {shieldCharges < 3 ? (
+                <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.65 }}>
+                  {tr 
+                    ? `Yeni şarj için: ${60 - focusMinutesForNextCharge}dk odak / ${5 - tasksCompletedForNextCharge} görev`
+                    : `${60 - focusMinutesForNextCharge}m focus / ${5 - tasksCompletedForNextCharge} tasks next`
+                  }
+                </Text>
+              ) : (
+                <Text style={{ fontSize: 9, fontWeight: '800', color: theme.tertiary }}>
+                  {tr ? 'Maksimum Şarj' : 'Maximum Charged'}
+                </Text>
+              )}
+            </View>
           </View>
 
           <Touchable onPress={() => setInfoVisible(false)} style={{ backgroundColor: accentColor, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 4 }}>

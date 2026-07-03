@@ -6,6 +6,7 @@ describe('useMomentumStore', () => {
     useMomentumStore.setState({
       history: [],
       momentumShieldActive: false,
+      shieldCharges: 2,
     });
   });
 
@@ -58,5 +59,46 @@ describe('useMomentumStore', () => {
     const updated = useMomentumStore.getState();
     const todayScore = updated.history[0];
     expect(todayScore.score).toBe(75);
+  });
+
+  it('accumulates shield charges and caps at 3', () => {
+    useMomentumStore.setState({
+      shieldCharges: 1,
+      tasksCompletedForNextCharge: 0,
+      focusMinutesForNextCharge: 0,
+    });
+
+    // Complete 5 tasks to get a charge
+    for (let i = 0; i < 5; i++) {
+      useMomentumStore.getState().addCompletedTask();
+    }
+    expect(useMomentumStore.getState().shieldCharges).toBe(2);
+
+    // Focus 60 minutes to get another charge
+    useMomentumStore.getState().addFocusMinutes(60);
+    expect(useMomentumStore.getState().shieldCharges).toBe(3);
+
+    // Further completions shouldn't exceed 3
+    useMomentumStore.getState().addFocusMinutes(60);
+    expect(useMomentumStore.getState().shieldCharges).toBe(3);
+  });
+
+  it('heats and overheats momentum rocket engine on consecutive completions', () => {
+    useMomentumStore.setState({
+      engineHeat: 0,
+      isOverheated: false,
+      lastHeatUpdateTime: Date.now(),
+    });
+
+    // Each task adds 35 heat
+    useMomentumStore.getState().addCompletedTask();
+    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(35, 0);
+
+    useMomentumStore.getState().addCompletedTask();
+    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(70, 0);
+
+    useMomentumStore.getState().addCompletedTask();
+    expect(useMomentumStore.getState().engineHeat).toBe(100);
+    expect(useMomentumStore.getState().isOverheated).toBe(true);
   });
 });

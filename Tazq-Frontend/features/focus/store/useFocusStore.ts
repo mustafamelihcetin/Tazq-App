@@ -144,7 +144,9 @@ export const useFocusStore = create<FocusState>()(
           currentTask: '',
           lastActiveAt: null,
           expectedFinishAt: null,
-          pausedSeconds: null
+          pausedSeconds: null,
+          localStreak: 0,
+          bestStreak: 0
         });
       },
 
@@ -205,6 +207,13 @@ export const useFocusStore = create<FocusState>()(
           set({ dailyFocusMinutes: mins, dailyFocusDate: today });
         } else {
           set({ dailyFocusMinutes: dailyFocusMinutes + mins });
+        }
+
+        try {
+          const { useMomentumStore } = require('../../user/store/useMomentumStore');
+          useMomentumStore.getState().addFocusMinutes(mins);
+        } catch (e) {
+          console.warn("Could not register focus minutes in Momentum Store:", e);
         }
       },
 

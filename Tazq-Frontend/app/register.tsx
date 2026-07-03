@@ -489,6 +489,16 @@ export default function RegisterScreen() {
                     <Text style={[styles.link, { color: theme.secondary }]}> {t.login.title}</Text>
                   </Touchable>
                 </View>
+
+                <TouchableOpacity
+                  onPress={() => router.push('/onboarding')}
+                  style={{ marginTop: 14, alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 6 }}
+                  accessibilityRole="link"
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: theme.onSurfaceVariant, textDecorationLine: 'underline', opacity: 0.8 }}>
+                    {language === 'tr' ? 'Uygulama Tanıtımını İzle' : 'Watch App Preview'}
+                  </Text>
+                </TouchableOpacity>
               </MotiView>
           </ScrollView>
           </KeyboardAvoidingView>

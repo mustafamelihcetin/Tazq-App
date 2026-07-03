@@ -47,6 +47,7 @@ import { AuthService, FocusService, api } from '@/shared/services/api';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { TourProvider } from '@/shared/components/TourContext';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { syncTasksAndHabitsLanguage } from '@/shared/utils/systemTaskTranslator';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -73,6 +74,7 @@ import { Toast } from '@/shared/components/Toast';
 import { CelebrationOverlay } from '@/shared/components/CelebrationOverlay';
 import { ConfettiOverlay } from '@/shared/components/ConfettiOverlay';
 import { CustomAlertModal } from '@/shared/components/CustomAlert';
+import { RocketFeedback } from '@/shared/components/RocketFeedback';
 import { Asset } from 'expo-asset';
 import { useOfflineSync } from '@/shared/hooks/useOfflineSync';
 import { usePrefsSync } from '@/shared/hooks/usePrefsSync';
@@ -389,16 +391,16 @@ export default function RootLayout() {
       try {
         const onboardingDone = await AsyncStorage.getItem('tazq-onboarding-done');
 
-        // If not logged in and onboarding not done, force onboarding
-        if (!isLoggedIn && onboardingDone !== 'true' && !inOnboarding) {
+        // If onboarding not done, force onboarding
+        if (onboardingDone !== 'true' && !inOnboarding) {
           router.replace('/onboarding');
         }
         // If logged in and in auth/onboarding, go to home
-        else if (isLoggedIn && (inAuthGroup || inOnboarding)) {
+        else if (isLoggedIn && onboardingDone === 'true' && (inAuthGroup || inOnboarding)) {
           router.replace('/');
         }
         // If not logged in and not in auth/onboarding, go to login
-        else if (!isLoggedIn && !inAuthGroup && !inOnboarding) {
+        else if (!isLoggedIn && onboardingDone === 'true' && !inAuthGroup && !inOnboarding) {
           router.replace('/login');
         }
         setIsInitialized(true);
@@ -509,6 +511,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.background }}>
     <ErrorBoundary>
     <SafeAreaProvider>
+      <TourProvider>
       <View style={{ flex: 1, backgroundColor: theme.background }}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
 
@@ -546,8 +549,10 @@ export default function RootLayout() {
         <Toast />
         <CelebrationOverlay />
         <ConfettiOverlay />
+        <RocketFeedback />
         <CustomAlertModal />
       </View>
+      </TourProvider>
     </SafeAreaProvider>
     </ErrorBoundary>
     </GestureHandlerRootView>

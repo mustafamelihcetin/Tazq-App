@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
+import { TourTarget } from '@/shared/components/TourContext';
 
 // Lite modda gösterilecek sekmeler (sade to-do deneyimi). Pro'da hepsi görünür.
 const LITE_TAB_IDS = ['home', 'tasks', 'focus'];
@@ -135,16 +136,9 @@ export const BottomNavBar = () => {
           {tabs.map((tab) => {
             const isActive = pathname === tab.path || (tab.path === '/' && pathname === '/index');
             const Icon = tab.icon;
-            return (
-              <Touchable
-                key={tab.id}
-                onPress={() => handlePress(tab.path)}
-                activeOpacity={0.7}
-                style={styles.tab}
-                accessibilityRole="tab"
-                accessibilityLabel={tr ? TAB_LABELS[tab.id].tr : TAB_LABELS[tab.id].en}
-                accessibilityState={{ selected: isActive }}
-              >
+            
+            const content = (
+              <>
                 <Icon
                   size={22}
                   color={isActive ? theme.primary : theme.onSurfaceVariant}
@@ -156,6 +150,26 @@ export const BottomNavBar = () => {
                     animate={{ scale: 1 }}
                     style={[styles.dot, { backgroundColor: theme.primary }]}
                   />
+                )}
+              </>
+            );
+
+            return (
+              <Touchable
+                key={tab.id}
+                onPress={() => handlePress(tab.path)}
+                activeOpacity={0.7}
+                style={styles.tab}
+                accessibilityRole="tab"
+                accessibilityLabel={tr ? TAB_LABELS[tab.id].tr : TAB_LABELS[tab.id].en}
+                accessibilityState={{ selected: isActive }}
+              >
+                {tab.id === 'focus' ? (
+                  <TourTarget id="focus" style={{ alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                    {content}
+                  </TourTarget>
+                ) : (
+                  content
                 )}
               </Touchable>
             );

@@ -10,6 +10,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
+import { TourTarget } from '@/shared/components/TourContext';
+
 interface MagneticFABProps {
   onPress: () => void;
   storageKey: string;
@@ -19,6 +21,7 @@ interface MagneticFABProps {
   style?: any;
   buttonSize?: number;
   borderRadius?: number;
+  tourId?: string;
 }
 
 export const MagneticFAB: React.FC<MagneticFABProps> = ({
@@ -30,6 +33,7 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
   style,
   buttonSize = 64,
   borderRadius,
+  tourId,
 }) => {
   const finalBorderRadius = borderRadius !== undefined ? borderRadius : buttonSize / 2;
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -163,6 +167,12 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
 
   if (!loaded) return null;
 
+  const innerContent = (
+    <View style={[StyleSheet.absoluteFill, { borderRadius: finalBorderRadius, alignItems: 'center', justifyContent: 'center' }]}>
+      {children}
+    </View>
+  );
+
   return (
     <Animated.View
       {...panResponder.panHandlers}
@@ -181,9 +191,13 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
         style,
       ]}
     >
-      <View style={[StyleSheet.absoluteFill, { borderRadius: finalBorderRadius, alignItems: 'center', justifyContent: 'center' }]}>
-        {children}
-      </View>
+      {tourId ? (
+        <TourTarget id={tourId} style={StyleSheet.absoluteFill}>
+          {innerContent}
+        </TourTarget>
+      ) : (
+        innerContent
+      )}
     </Animated.View>
   );
 };

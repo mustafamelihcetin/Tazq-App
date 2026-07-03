@@ -17,6 +17,7 @@ export interface Task {
   recurrence?: RecurrenceType;
   sortOrder?: number;
   isArchived?: boolean;
+  ignoreMomentum?: boolean;
 }
 
 interface TaskState {
@@ -126,10 +127,40 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
   },
 
   toggleTaskCompletion: (taskId) => {
+    const now = new Date();
     const newTasks = get().tasks.map((t) => {
       if (t.id !== taskId) return t;
       const completing = !t.isCompleted;
-      return { ...t, isCompleted: completing, completedAt: completing ? new Date().toISOString() : null };
+      if (completing) {
+        let isOverheated = false;
+        let isLite = false;
+
+        try {
+          const { useMomentumStore } = require('../../user/store/useMomentumStore');
+          const momentumStore = useMomentumStore.getState();
+          momentumStore.addCompletedTask();
+          isOverheated = momentumStore.isOverheated;
+          momentumStore.triggerRocketFeedback(t.title);
+        } catch (e) {
+          console.warn("Could not register task completion in Momentum Store:", e);
+        }
+
+        try {
+          const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
+          isLite = usePrefsStore.getState().uiMode === 'lite';
+        } catch {}
+
+        const ignore = !isLite && isOverheated;
+
+        return { 
+          ...t, 
+          isCompleted: true, 
+          completedAt: now.toISOString(),
+          ignoreMomentum: ignore
+        };
+      } else {
+        return { ...t, isCompleted: false, completedAt: null, ignoreMomentum: false };
+      }
     });
     get().setTasks(newTasks);
   },
@@ -182,6 +213,7 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
       recurrence: t.recurrence,
       sortOrder: t.sortOrder,
       isArchived: t.isArchived,
+      ignoreMomentum: t.ignoreMomentum,
       // subtasks intentionally omitted to keep storage lean
     })),
     dailyProgressText: state.dailyProgressText,

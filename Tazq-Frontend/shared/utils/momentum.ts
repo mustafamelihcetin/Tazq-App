@@ -12,6 +12,7 @@ export interface MomentumTaskLike {
   isCompleted?: boolean;
   dueDate?: string | null;
   completedAt?: string | null;
+  ignoreMomentum?: boolean;
 }
 
 export interface MomentumInput {
@@ -89,7 +90,7 @@ export function computeMomentum(input: MomentumInput): MomentumResult {
       const daysAgo = Math.round((logicalToday.getTime() - taskDate.getTime()) / 86400000);
       const recency = Math.max(0.3, 1 - Math.max(0, daysAgo) * 0.1);
       
-      const isSpammed = task.id !== undefined && spammedIds.has(task.id);
+      const isSpammed = (task.id !== undefined && spammedIds.has(task.id)) || task.ignoreMomentum;
       const weight = (PRIORITY_WEIGHTS[task.priority ?? 'Low'] || 1) * recency;
       totalPts += weight;
       if (task.isCompleted && !isSpammed) {

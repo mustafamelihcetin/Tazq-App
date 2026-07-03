@@ -25,6 +25,8 @@ import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 const activeAudioPlayers = new Set<any>();
 import { SwipeableHabitItem } from '@/shared/components/SwipeableHabitItem';
+import { TourTarget, useTour } from '@/shared/components/TourContext';
+import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 
 // Alışkanlık odaklı kalmalı — mantıklı üst sınır (plan + manuel toplam).
@@ -75,8 +77,8 @@ export default function CockpitScreen() {
   const isSmallScreen = screenWidth < 380 || screenHeight < 700;
   const compactPad = isSmallScreen ? S.sm : S.md;
   const { language } = useLanguageStore();
-  const { tasks } = useTaskStore();
-  const { habits, addHabit, removeHabit, toggleDate, toggleSkipDate, weeklyGoal, setWeeklyGoal, getStreak } = useHabitStore();
+  const rawTasks = useTaskStore(s => s.tasks);
+  const { habits: rawHabits, addHabit, removeHabit, toggleDate, toggleSkipDate, weeklyGoal, setWeeklyGoal, getStreak } = useHabitStore();
   const {
     seasonal,
     examPlanTaskIds, exam2PlanTaskIds, exam3PlanTaskIds,
@@ -90,7 +92,75 @@ export default function CockpitScreen() {
     sporPlanHabitIds, spor2PlanHabitIds, spor3PlanHabitIds,
     ramazanPlanHabitIds,
     soundEffects,
+    completedTours,
   } = usePrefsStore();
+
+  const { measureAll } = useTour();
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const handleStepChange = (step: number) => {
+    try {
+      if (step === 2) {
+        scrollViewRef.current?.scrollTo({ y: 380, animated: true });
+      } else {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      }
+      setTimeout(() => {
+        measureAll();
+      }, 350);
+    } catch (e) {
+      console.error('[Cockpit] error during step scroll:', e);
+    }
+  };
+
+  const tasks = useMemo(() => {
+    if (completedTours?.cockpit !== true) {
+      return [
+        {
+          id: '88881',
+          title: language === 'tr' ? 'Haftalık raporu tamamla' : 'Finish weekly report',
+          isCompleted: true,
+          dueDate: new Date().toISOString(),
+          priority: 'High',
+          tags: ['personal']
+        },
+        {
+          id: '88882',
+          title: language === 'tr' ? 'Kitap oku (20 sayfa)' : 'Read a book (20 pages)',
+          isCompleted: false,
+          dueDate: new Date().toISOString(),
+          priority: 'Medium',
+          tags: ['personal']
+        }
+      ] as any[];
+    }
+    return rawTasks;
+  }, [rawTasks, completedTours, language]);
+
+  const habits = useMemo(() => {
+    if (completedTours?.cockpit !== true) {
+      return [
+        {
+          id: 'mock-habit-1',
+          name: language === 'tr' ? 'Su İç' : 'Drink Water',
+          emoji: '🥛',
+          completedDates: [fmtDateKey(new Date())],
+          skippedDates: [],
+          color: '#10B981'
+        },
+        {
+          id: 'mock-habit-2',
+          name: language === 'tr' ? 'Kitap Oku' : 'Read Book',
+          emoji: '📚',
+          completedDates: [],
+          skippedDates: [],
+          color: '#6366F1'
+        }
+      ] as any[];
+    }
+    return rawHabits;
+  }, [rawHabits, completedTours, language]);
+
   const hasActiveSeasonalMode = seasonal.ramazan || seasonal.examMode || seasonal.tezMode || seasonal.mulakatMode || seasonal.sporMode;
 
   const planTaskIdSet = useMemo(() => new Set([
@@ -269,7 +339,7 @@ export default function CockpitScreen() {
     const total = personalHabits.length * 7;
     if (total === 0) return 0;
     const done = personalHabits.reduce(
-      (acc, h) => acc + (Array.isArray(h.completedDates) ? h.completedDates : []).filter((d) => weekKeys.has(d)).length,
+      (acc, h) => acc + (Array.isArray(h.completedDates) ? h.completedDates : []).filter((d: string) => weekKeys.has(d)).length,
       0
     );
     return Math.round((done / total) * 100);
@@ -524,11 +594,13 @@ export default function CockpitScreen() {
 
       <View style={{ flex: 1 }}>
         <ScrollView
+          ref={scrollViewRef}
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingTop: 80 + insets.top, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: 140, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
         >
           {/* ── WEEK STRIP ── */}
+          <TourTarget id="weekStrip">
           <BentoCard index={0} style={{ padding: compactPad, marginBottom: S.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
@@ -609,8 +681,10 @@ export default function CockpitScreen() {
               })}
             </View>
           </BentoCard>
+          </TourTarget>
 
           {/* ── SELECTED DAY TASKS ── */}
+          <TourTarget id="dailySection">
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
               {selectedDayLabel.toUpperCase()}
@@ -737,6 +811,7 @@ export default function CockpitScreen() {
               </MotiView>
             )}
           </AnimatePresence>
+          </TourTarget>
 
           {/* ── HABITS ── */}
           <View style={styles.sectionHeader}>
@@ -1004,6 +1079,7 @@ export default function CockpitScreen() {
           )}
 
           {/* ── WEEKLY REVIEW ── */}
+          <TourTarget id="weeklyReview">
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
               {tr ? 'Haftalık Özet' : 'Weekly Review'}
@@ -1094,6 +1170,7 @@ export default function CockpitScreen() {
               <ChevronRight size={15} color={theme.onSurfaceVariant} />
             </Touchable>
           </BentoCard>
+          </TourTarget>
         </ScrollView>
       </View>
 
@@ -1312,6 +1389,10 @@ export default function CockpitScreen() {
         </KeyboardAvoidingView>
       </Modal>
       <BottomNavBar />
+      <HelpTourModal 
+        pageId="cockpit" 
+        onStepChange={handleStepChange} 
+      />
     </View>
   );
 }

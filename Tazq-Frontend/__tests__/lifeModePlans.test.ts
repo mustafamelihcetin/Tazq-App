@@ -23,7 +23,7 @@ describe('lifeModePlans', () => {
     const { habits, tasks } = buildBirakmaPlan('sigara');
     expect(habits.some(h => /temiz/i.test(h.name))).toBe(true);
     expect(tasks.some(t => /[Ss]igara/.test(t.title))).toBe(true);
-    expect(tasks.some(t => /kül tablası|cue/i.test(t.title))).toBe(true);
+    expect(tasks.some(t => /çağrıştıran|cues/i.test(t.title) || (t.desc && /kül/i.test(t.desc)))).toBe(true);
     expect(tasks.every(t => t.tags.includes('birakma'))).toBe(true);
   });
 

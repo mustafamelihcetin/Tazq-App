@@ -442,6 +442,16 @@ export default function LoginScreen() {
                     {t.login.signUp}
                   </Text>
                 </Text>
+
+                <TouchableOpacity
+                  onPress={() => router.push('/onboarding')}
+                  style={{ marginTop: 14, alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 6 }}
+                  accessibilityRole="link"
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: theme.onSurfaceVariant, textDecorationLine: 'underline', opacity: 0.8 }}>
+                    {language === 'tr' ? 'Uygulama Tanıtımını İzle' : 'Watch App Preview'}
+                  </Text>
+                </TouchableOpacity>
               </MotiView>
           </ScrollView>
           </KeyboardAvoidingView>

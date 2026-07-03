@@ -25,6 +25,8 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { getRandomQuote } from '@/shared/constants/Quotes';
 import { S, R, F, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { HelpTourModal } from '@/shared/components/HelpTourModal';
+import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { Easing as RNEasing } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as ReEasing } from 'react-native-reanimated';
 
@@ -234,6 +236,12 @@ export default function FocusScreen() {
   const completedRef = useRef(false);
   const { trigger: triggerAchievement } = useAchievementStore();
   const { soundEffects } = usePrefsStore();
+  const { measureAll } = useTour();
+  const handleStepChange = (step: number) => {
+    setTimeout(() => {
+      measureAll();
+    }, 150);
+  };
 
   // Sound
   const soundRef = useRef<AudioPlayer | null>(null);
@@ -892,6 +900,7 @@ export default function FocusScreen() {
           <View style={{ flex: 1, alignItems: 'flex-end' }}>
             <AnimatePresence>
               {!isActive && (
+                <TourTarget id="modeSelect">
                 <MotiView
                   key="pomo-controls"
                   from={{ opacity: 0 }}
@@ -922,6 +931,7 @@ export default function FocusScreen() {
                     <Shield size={15} color={strictMode ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
                   </Touchable>
                 </MotiView>
+                </TourTarget>
               )}
             </AnimatePresence>
           </View>
@@ -1029,6 +1039,7 @@ export default function FocusScreen() {
 
           {/* Timer Container (Takes remaining space to prevent overlap) */}
           <View style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', zIndex: 0 }} pointerEvents="box-none">
+            <TourTarget id="timer">
             <MotiView style={[styles.timerContainer, { width: timerSize, height: timerSize }]} pointerEvents="auto">
             {/* Volumetric Outer Halo / Corona */}
             <Animated.View
@@ -1299,6 +1310,7 @@ export default function FocusScreen() {
               </Touchable>
             </Animated.View>
             </MotiView>
+            </TourTarget>
           </View>
 
           {/* Controls & Bottom Section Wrapper */}
@@ -1334,6 +1346,7 @@ export default function FocusScreen() {
               </AnimatePresence>
             </View>
 
+            <TourTarget id="startButton">
             <Touchable
               onPress={toggleTimer}
               accessibilityRole="button"
@@ -1358,6 +1371,7 @@ export default function FocusScreen() {
                 ? <Pause size={28} color={theme.onSurface} fill={theme.onSurface} style={{ opacity: 0.8 }} />
                 : <Play size={28} color={theme.onPrimary} fill={theme.onPrimary} style={{ marginLeft: 4 }} />}
             </Touchable>
+            </TourTarget>
 
             <View style={{ width: 56, height: 56 }} />
           </MotiView>
@@ -1946,6 +1960,10 @@ export default function FocusScreen() {
           </MotiView>
         </Touchable>
       </Modal>
+      <HelpTourModal 
+        pageId="focus" 
+        onStepChange={handleStepChange} 
+      />
     </MotiView>
   );
 }
