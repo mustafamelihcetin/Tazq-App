@@ -48,7 +48,7 @@ namespace Tazq_App.Services
 					EnableSsl = true
 				};
 
-				string displayName = Environment.GetEnvironmentVariable("SMTP_DISPLAY_NAME") ?? _smtpSettings.DisplayName ?? "Tazq";
+				string displayName = Environment.GetEnvironmentVariable("SMTP_DISPLAY_NAME") ?? _smtpSettings.DisplayName ?? "TAZQ";
 				var fromAddress = new MailAddress(smtpFrom, displayName, Encoding.UTF8);
 
 				var mailMessage = new MailMessage
@@ -72,11 +72,11 @@ namespace Tazq_App.Services
 
 		public async Task SendWelcomeEmailAsync(string toEmail, string userName)
 		{
-			string subject = "Tazq Dünyasına Hoş Geldin!";
+			string subject = "TAZQ Dünyasına Hoş Geldin!";
 			string content = $@"
 				<p>Merhaba <b>{userName}</b>,</p>
-				<p>Tazq ailesine katıldığın için çok mutluyuz! Artık derin odaklanma, hayat modlarını yönetme ve üretkenliğini zirveye taşıma yolunda ilk adımını attın.</p>
-				<p>Tazq ile yapabileceklerinden bazıları:</p>
+				<p>TAZQ ailesine katıldığın için çok mutluyuz! Artık derin odaklanma, hayat modlarını yönetme ve üretkenliğini zirveye taşıma yolunda ilk adımını attın.</p>
+				<p>TAZQ ile yapabileceklerinden bazıları:</p>
 				<ul style=""padding-left: 20px; color: #334155; margin-bottom: 25px;"">
 					<li style=""margin-bottom: 8px;""><b>Dönemsel Modlar:</b> Sınav, spor, kariyer gibi hayat dönemlerini otomatik planlarla yönet.</li>
 					<li style=""margin-bottom: 8px;""><b>Derin Odaklanma:</b> Özelleştirilmiş Pomodoro zamanlayıcısı ve nefes egzersizleri ile dikkatini topla.</li>
@@ -87,7 +87,7 @@ namespace Tazq_App.Services
 					<a href=""#"" class=""btn"">Hemen Giriş Yap</a>
 				</div>
 				<p>Herhangi bir sorun veya önerin olursa, uygulama içinden bize istediğin zaman destek talebi gönderebilirsin. Her zaman yanındayız.</p>
-				<p>Keyifli ve odaklı günler dileriz,<br><b>Tazq Ekibi</b></p>";
+				<p>Keyifli ve odaklı günler dileriz,<br><b>TAZQ Ekibi</b></p>";
 
 			string body = GetHtmlBaseLayout("Hoş Geldin!", content);
 			await SendEmailAsync(toEmail, subject, body);
@@ -95,17 +95,17 @@ namespace Tazq_App.Services
 
 		public async Task SendForgotPasswordEmailAsync(string toEmail, string userName, string resetCode)
 		{
-			string subject = "Tazq Şifre Sıfırlama Talebi";
+			string subject = "TAZQ Şifre Sıfırlama Talebi";
 			string resetUrl = $"https://api.tazqapp.com/api/users/reset-password-form?token={Uri.EscapeDataString(resetCode)}";
 			string content = $@"
 				<p>Merhaba <b>{userName}</b>,</p>
-				<p>Tazq hesabının şifresini sıfırlamak için bir talepte bulundun. Aşağıdaki butona tıklayarak şifreni güvenli bir şekilde sıfırlayabilirsin:</p>
+				<p>TAZQ hesabının şifresini sıfırlamak için bir talepte bulundun. Aşağıdaki butona tıklayarak şifreni güvenli bir şekilde sıfırlayabilirsin:</p>
 				<div style=""text-align: center; margin: 30px 0;"">
 					<a href=""{resetUrl}"" class=""btn"" style=""background-color: #6366f1; color: #ffffff; padding: 14px 28px; border-radius: 12px; font-weight: 700; text-decoration: none; display: inline-block; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);"">Şifremi Sıfırla</a>
 				</div>
 				<p>Bu bağlantı <b>1 saat</b> boyunca geçerlidir. Süre dolduğunda yeni bir şifre sıfırlama talebi oluşturman gerekecektir.</p>
 				<p style=""font-size: 13px; color: #ef4444; font-weight: 500; margin-top: 25px;"">⚠️ Eğer bu talebi siz yapmadıysanız, lütfen bu e-postayı dikkate almayın. Hesabınız tamamen güvendedir.</p>
-				<p>Sevgilerle,<br><b>Tazq Güvenlik Ekibi</b></p>";
+				<p>Sevgilerle,<br><b>TAZQ Güvenlik Ekibi</b></p>";
 
 			string body = GetHtmlBaseLayout("Şifre Sıfırlama", content);
 			await SendEmailAsync(toEmail, subject, body);
@@ -122,7 +122,7 @@ namespace Tazq_App.Services
 					""{userMessage}""
 				</div>
 				<p>Yanıt geldiğinde sana yine bir bilgilendirme e-postası göndereceğiz. Ayrıca yanıtları uygulama içindeki Destek ekranından da her zaman takip edebilirsin.</p>
-				<p>Sabrın için teşekkür eder, iyi günler dileriz,<br><b>Tazq Destek Ekibi</b></p>";
+				<p>Sabrın için teşekkür eder, iyi günler dileriz,<br><b>TAZQ Destek Ekibi</b></p>";
 
 			string body = GetHtmlBaseLayout("Destek Talebiniz Alındı", content);
 			await SendEmailAsync(toEmail, subject, body);
@@ -147,7 +147,7 @@ namespace Tazq_App.Services
 				</div>
 
 				<p>Detayları görmek veya ek bir soru sormak istersen, uygulama içindeki Destek ekranından bizimle yazışmaya devam edebilirsin.</p>
-				<p style=""margin-bottom: 0;"">Sağlıklı günler dileriz,<br><b>Tazq Destek Ekibi</b></p>";
+				<p style=""margin-bottom: 0;"">Sağlıklı günler dileriz,<br><b>TAZQ Destek Ekibi</b></p>";
 
 			string body = GetHtmlBaseLayout("Talebiniz Yanıtlandı", content);
 			await SendEmailAsync(toEmail, subject, body);
@@ -281,7 +281,7 @@ namespace Tazq_App.Services
                 {bodyContent}
             </div>
             <div class=""footer"">
-                <p>© {DateTime.UtcNow.Year} Tazq. Tüm Hakları Saklıdır.</p>
+                <p>© {DateTime.UtcNow.Year} TAZQ. Tüm Hakları Saklıdır.</p>
                 <p>Bu e-posta otomatik olarak gönderilmiştir. Lütfen doğrudan yanıtlamayın.</p>
                 <p><a href=""https://malthen.io"">malthen.io</a></p>
             </div>

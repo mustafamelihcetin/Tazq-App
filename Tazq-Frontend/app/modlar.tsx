@@ -1142,7 +1142,12 @@ export default function ModlarScreen() {
               // KILO: plan kurulur kurulmaz görevlere haftalık tartım görevini ekle
               // (bugün dolu kayıt yoksa bugüne, varsa +7 güne). Basılınca kilo girilir.
               if (slot === 'spor' && sporType === 'kilo') {
-                const due = canLogWeight(weightLog) ? new Date() : (() => { const d = new Date(); d.setDate(d.getDate() + Math.max(1, daysUntilNextWeight(weightLog))); d.setHours(8, 0, 0, 0); return d; })();
+                const startW = parseFloat(useSporStore.getState().currentWeight);
+                if (!isNaN(startW) && startW > 0 && useSporStore.getState().weightLog.length === 0) {
+                  useSporStore.getState().addWeightEntry(startW);
+                }
+                const updatedLog = useSporStore.getState().weightLog;
+                const due = canLogWeight(updatedLog) ? new Date() : (() => { const d = new Date(); d.setDate(d.getDate() + Math.max(1, daysUntilNextWeight(updatedLog))); d.setHours(8, 0, 0, 0); return d; })();
                 ensureWeeklyWeightTask(due, language as 'tr' | 'en');
               }
             } else {

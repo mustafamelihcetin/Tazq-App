@@ -55,7 +55,7 @@ const withAppleWatch: ConfigPlugin = (config) => {
 <plist version="1.0">
 <dict>
   <key>CFBundleDisplayName</key>
-  <string>Tazq</string>
+  <string>TAZQ</string>
   <key>CFBundleIdentifier</key>
   <string>${WATCH_BUNDLE_ID}</string>
   <key>CFBundleVersion</key>

@@ -345,6 +345,23 @@ export const SupportService = {
   deleteMessage: async (id: number): Promise<void> => {
     await api.delete(`/api/support/admin/${id}`);
   },
+  reportCrash: async (payload: {
+    errorMessage: string;
+    stackTrace: string;
+    deviceName: string;
+    platform: string;
+    appVersion: string;
+  }): Promise<{ success: boolean; id: number }> => {
+    const r = await api.post('/api/support/report-crash', payload);
+    return r.data;
+  },
+  getCrashes: async (limit = 50): Promise<{ crashes: any[] }> => {
+    const r = await api.get('/api/support/admin/crashes', { params: { limit } });
+    return r.data;
+  },
+  resolveCrash: async (id: number): Promise<void> => {
+    await api.patch(`/api/support/admin/crashes/${id}/resolve`);
+  },
 };
 
 // ── Admin Sistem Konsolu ─────────────────────────────────────────────────────

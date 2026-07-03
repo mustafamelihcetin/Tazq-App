@@ -20,7 +20,9 @@ export const DynamicIsland = () => {
   const { theme, colorScheme } = useAppTheme();
   const { t } = useLanguageStore();
   const router = useRouter();
-  const { isActive, seconds, currentTask } = useFocusStore();
+  const isActive = useFocusStore(s => s.isActive);
+  const seconds = useFocusStore(s => s.seconds);
+  const currentTask = useFocusStore(s => s.currentTask);
 
   const formatTime = (s: number) => {
     const mins = Math.floor(s / 60);

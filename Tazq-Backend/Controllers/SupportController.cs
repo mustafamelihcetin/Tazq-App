@@ -41,6 +41,78 @@ namespace Tazq_App.Controllers
 			public string Reply { get; set; } = string.Empty;
 		}
 
+		public class ReportCrashDto
+		{
+			public string ErrorMessage { get; set; } = string.Empty;
+			public string StackTrace { get; set; } = string.Empty;
+			public string DeviceName { get; set; } = string.Empty;
+			public string Platform { get; set; } = string.Empty;
+			public string AppVersion { get; set; } = string.Empty;
+		}
+
+		// POST: api/support/report-crash (Public / AllowAnonymous)
+		[HttpPost("report-crash")]
+		[AllowAnonymous]
+		public async Task<IActionResult> ReportCrash([FromBody] ReportCrashDto dto)
+		{
+			var crash = new ClientCrash
+			{
+				ErrorMessage = dto.ErrorMessage ?? "Unknown Error",
+				StackTrace = dto.StackTrace ?? string.Empty,
+				DeviceName = dto.DeviceName ?? "Unknown Device",
+				Platform = dto.Platform ?? "Unknown Platform",
+				AppVersion = dto.AppVersion ?? "1.0.0",
+				CreatedAt = DateTime.UtcNow
+			};
+
+			var userId = GetUserId();
+			if (userId != null)
+			{
+				crash.UserId = userId.Value;
+				var user = await _db.Users.FindAsync(userId.Value);
+				if (user != null)
+				{
+					crash.UserEmail = user.Email;
+				}
+			}
+
+			_db.ClientCrashes.Add(crash);
+			await _db.SaveChangesAsync();
+
+			_logger.LogError("CLIENT CRASH [{Platform} - {DeviceName} - v{AppVersion}]: {ErrorMessage}\nStack: {StackTrace}", 
+				crash.Platform, crash.DeviceName, crash.AppVersion, crash.ErrorMessage, crash.StackTrace);
+
+			return Ok(new { success = true, id = crash.Id });
+		}
+
+		// GET: api/support/admin/crashes (Sadece Admin)
+		[HttpGet("admin/crashes")]
+		[Authorize(Roles = "Admin")]
+		public async Task<IActionResult> GetCrashes([FromQuery] int limit = 50)
+		{
+			var crashes = await _db.ClientCrashes
+				.OrderByDescending(c => c.CreatedAt)
+				.Take(limit)
+				.AsNoTracking()
+				.ToListAsync();
+
+			return Ok(new { crashes });
+		}
+
+		// PATCH: api/support/admin/crashes/{id}/resolve (Sadece Admin)
+		[HttpPatch("admin/crashes/{id}/resolve")]
+		[Authorize(Roles = "Admin")]
+		public async Task<IActionResult> ResolveCrash(int id)
+		{
+			var crash = await _db.ClientCrashes.FindAsync(id);
+			if (crash == null) return NotFound();
+
+			crash.IsResolved = true;
+			await _db.SaveChangesAsync();
+
+			return Ok(new { success = true });
+		}
+
 		// POST: api/support
 		[HttpPost]
 		public async Task<IActionResult> SendMessage([FromBody] SendSupportDto dto)

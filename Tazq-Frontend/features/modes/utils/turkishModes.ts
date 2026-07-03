@@ -10,6 +10,8 @@ export interface ModeHabit {
 export interface ModeTask {
   titleTr: string;
   titleEn: string;
+  descTr?: string;
+  descEn?: string;
   priority: 'High' | 'Medium' | 'Low';
   tags?: string[];
   daysFromNow?: number; // gün 0 = bugün, 7 = 1 hafta sonra, vs.
@@ -136,10 +138,34 @@ const TEMPLATE_ACTIVE_RECALL = (examName = 'Sınav'): StudyTemplate => ({
     { name: 'Konu Mini Testi', nameTr: 'Konu Mini Testi', emoji: '🎯', color: '#10B981' },
   ],
   tasks: [
-    { titleTr: `${examName} için soru bankası bul veya satın al`, titleEn: `Get a question bank for ${examName}`, priority: 'High' },
-    { titleTr: 'Hata defteri oluştur (fiziksel veya Notion)', titleEn: 'Create error log (physical or Notion)', priority: 'High' },
-    { titleTr: 'İlk tarama denemesini çöz ve zayıfları belirle', titleEn: 'Solve a diagnostic test and identify weak areas', priority: 'High' },
-    { titleTr: 'Günlük soru hedefini belirle (en az 30 soru)', titleEn: 'Set daily question target (min 30 questions)', priority: 'Medium' },
+    { 
+      titleTr: 'Soru bankası temin et', 
+      titleEn: 'Get a question bank', 
+      descTr: `${examName} hazırlık sürecinde kullanacağınız güncel soru bankasını bulun veya satın alın.`,
+      descEn: `Find or purchase an up-to-date question bank for your ${examName} preparation.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Hata defteri oluştur', 
+      titleEn: 'Create error log', 
+      descTr: 'Yanlış yaptığınız soruları ve çözümlerini kaydetmek için fiziksel veya dijital (Notion vb.) bir hata defteri oluşturun.',
+      descEn: 'Create a physical or digital (Notion, etc.) error log to track and review questions you get wrong.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Tarama denemesi çöz', 
+      titleEn: 'Solve diagnostic test', 
+      descTr: 'Seviyenizi belirlemek için ilk tarama deneme sınavını çözün ve eksik olduğunuz konuları tespit edin.',
+      descEn: 'Take a diagnostic practice test to identify your current level and weak subject areas.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Günlük soru hedefi belirle', 
+      titleEn: 'Set daily question target', 
+      descTr: 'Kendinize günlük çözebileceğiniz gerçekçi bir soru hedefi belirleyin (en az 30 soru önerilir).',
+      descEn: 'Determine a realistic daily question goal (minimum 30 questions recommended).',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -160,10 +186,34 @@ const TEMPLATE_SPACED_REPETITION = (examName = 'Sınav'): StudyTemplate => ({
     { name: 'Konu Özeti Yazma', nameTr: 'Konu Özeti Yazma', emoji: '✍️', color: '#EC4899' },
   ],
   tasks: [
-    { titleTr: 'Anki veya Quizlet kur ve ilk desteyi oluştur', titleEn: 'Set up Anki or Quizlet and create first deck', priority: 'High' },
-    { titleTr: `${examName} konu listesini kartlara böl`, titleEn: `Break ${examName} syllabus into card topics`, priority: 'High' },
-    { titleTr: '7 günlük tekrar takvimi oluştur', titleEn: 'Create 7-day review schedule', priority: 'Medium' },
-    { titleTr: 'İlk 50 kartı bugün oluştur', titleEn: 'Create the first 50 cards today', priority: 'Medium' },
+    { 
+      titleTr: 'Anki veya Quizlet kur', 
+      titleEn: 'Set up Anki or Quizlet', 
+      descTr: 'Aralıklı tekrar için dijital kart uygulaması olan Anki veya Quizlet\'i kurun ve ilk çalışma destenizi oluşturun.',
+      descEn: 'Install Anki or Quizlet for spaced repetition and initialize your first study deck.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Müfredatı kartlara böl', 
+      titleEn: 'Split syllabus into cards', 
+      descTr: `${examName} konularını ve kavramlarını kısa bilgi kartlarına (flashcard) dönüştürmek için parçalara ayırın.`,
+      descEn: `Deconstruct the ${examName} syllabus into bite-sized concepts suitable for flashcards.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Tekrar takvimi oluştur', 
+      titleEn: 'Create review schedule', 
+      descTr: 'Öğrendiğiniz bilgilerin kalıcı olması için 7 günlük aralıklı tekrar planı hazırlayın.',
+      descEn: 'Design a 7-day spaced repetition calendar to reinforce new concepts.',
+      priority: 'Medium' 
+    },
+    { 
+      titleTr: 'İlk 50 kartı oluştur', 
+      titleEn: 'Create first 50 cards', 
+      descTr: 'Öğrendiğiniz önemli tanımları ve formülleri içeren ilk 50 bilgi kartını bugün hazırlayın.',
+      descEn: 'Prepare your first 50 flashcards containing definitions, formulas, or key facts today.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -184,10 +234,34 @@ const TEMPLATE_DEEP_WORK = (examName = 'Sınav'): StudyTemplate => ({
     { name: 'Günlük 3 Hedef', nameTr: 'Günlük 3 Hedef', emoji: '📋', color: '#10B981' },
   ],
   tasks: [
-    { titleTr: 'Çalışma alanını düzenle — telefon başka odada', titleEn: 'Set up study space — phone in another room', priority: 'High' },
-    { titleTr: `${examName} için haftalık konu planı oluştur`, titleEn: `Create weekly topic plan for ${examName}`, priority: 'High' },
-    { titleTr: 'Sabah bloğu için alarm kur (en geç 08:00)', titleEn: 'Set alarm for morning block (by 08:00)', priority: 'Medium' },
-    { titleTr: 'Site engelleyici (Cold Turkey vb.) kur', titleEn: 'Install site blocker (Cold Turkey etc.)', priority: 'Low' },
+    { 
+      titleTr: 'Çalışma alanını düzenle', 
+      titleEn: 'Set up study space', 
+      descTr: 'Çalışma masanızı dikkatinizi dağıtmayacak şekilde düzenleyin ve telefonunuzu mutlaka başka bir odaya bırakın.',
+      descEn: 'Organize your desk to eliminate distractions and keep your phone in another room.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Haftalık konu planı yap', 
+      titleEn: 'Create weekly topic plan', 
+      descTr: `${examName} müfredatına göre bu hafta hangi konulara odaklanacağınızı net bir şekilde belirleyin.`,
+      descEn: `Define exactly which subject areas and chapters you will focus on this week for ${examName}.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Sabah bloğu için alarm kur', 
+      titleEn: 'Set alarm for morning block', 
+      descTr: 'Güne erken ve zinde başlamak için sabah en geç 08:00\'e alarm kurun ve çalışma bloğunu başlatın.',
+      descEn: 'Set an alarm by 08:00 AM to kick off your first focused morning study session.',
+      priority: 'Medium' 
+    },
+    { 
+      titleTr: 'Site engelleyici kur', 
+      titleEn: 'Install site blocker', 
+      descTr: 'Sosyal medya ve dikkat dağıtıcı web sitelerine erişimi engellemek için Cold Turkey veya benzeri bir uygulama kurun.',
+      descEn: 'Install Cold Turkey or a similar tool to block social media and distracting websites during study blocks.',
+      priority: 'Low' 
+    },
   ],
 });
 
@@ -208,10 +282,34 @@ const TEMPLATE_SPRINT = (examName = 'Sınav'): StudyTemplate => ({
     { name: 'Akşam Tekrarı', nameTr: 'Akşam Tekrarı', emoji: '🌙', color: '#6366F1' },
   ],
   tasks: [
-    { titleTr: 'Mock sınav takvimini oluştur: hangi günler deneme, hangi günler hata analizi', titleEn: 'Build mock exam schedule: which days for tests, which for error analysis', priority: 'High' },
-    { titleTr: 'En zayıf 5 konuyu listele ve her birine bu haftadan başlayarak gün ata', titleEn: 'List 5 weakest topics and assign each a day starting this week', priority: 'High' },
-    { titleTr: 'Bir önceki denemeni çıkar: hangi sorular gitti, hangi konular tekrar lazım', titleEn: 'Review your last mock: which questions failed, which topics need review', priority: 'High' },
-    { titleTr: 'Son haftayı sadece tekrara ayır — o haftadan itibaren yeni konu açma', titleEn: 'Designate final week as review-only — no new topics after that point', priority: 'Medium' },
+    { 
+      titleTr: 'Mock sınav takvimini oluştur', 
+      titleEn: 'Build mock exam schedule', 
+      descTr: 'Mock sınav takvimini oluşturun: Hangi günler deneme sınavı çözeceksiniz, hangi günler hata analizi yapacaksınız belirleyin.',
+      descEn: 'Build mock exam schedule: Determine which days are for test practice and which are for error analysis.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'En zayıf 5 konuyu listele', 
+      titleEn: 'List 5 weakest topics', 
+      descTr: 'En zayıf olduğunuz 5 konuyu listeleyin ve her birine bu haftadan başlayarak çalışacağınız özel birer gün atayın.',
+      descEn: 'List your 5 weakest topics and assign each a study day starting this week.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Son deneme sonucunu analiz et', 
+      titleEn: 'Analyze last mock result', 
+      descTr: 'Bir önceki denemenizi çıkarın: Hangi soruları yanlış yaptınız, hangi konuları tekrar etmeniz gerekiyor analiz edin.',
+      descEn: 'Review your last mock test: Check which questions failed and identify which topics need review.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Son haftayı tekrara ayır', 
+      titleEn: 'Set final week for review', 
+      descTr: 'Son haftayı sadece konu tekrarlarına ayırın; o haftadan itibaren kesinlikle yeni bir konu çalışmaya başlamayın.',
+      descEn: 'Designate the final week as review-only — do not start any new study topics after that point.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -232,10 +330,34 @@ const TEMPLATE_FOUNDATION = (examName = 'Sınav'): StudyTemplate => ({
     { name: 'Temel Soru Çözümü', nameTr: 'Temel Soru Çözümü', emoji: '✏️', color: '#10B981' },
   ],
   tasks: [
-    { titleTr: `${examName} müfredatını listele ve konulara böl`, titleEn: `List ${examName} syllabus and break it into topics`, priority: 'High' },
-    { titleTr: 'Kaynak kitapları belirle (en fazla 2-3 kaynak)', titleEn: 'Choose study books (2-3 sources max)', priority: 'High' },
-    { titleTr: 'Aylık konu takvimi oluştur — acele etme', titleEn: 'Create monthly topic calendar — no rush', priority: 'High' },
-    { titleTr: 'Teşhis denemesi çöz, zayıf alanları işaretle', titleEn: 'Take a diagnostic test, mark weak areas', priority: 'Medium' },
+    { 
+      titleTr: 'Müfredatı listele ve böl', 
+      titleEn: 'List syllabus and split', 
+      descTr: `${examName} müfredatını tam liste halinde çıkartın ve haftalık/aylık çalışabileceğiniz küçük konu başlıklarına bölün.`,
+      descEn: `Create a full list of the ${examName} syllabus and split it into manageable weekly study topics.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Kaynak kitapları belirle', 
+      titleEn: 'Choose study books', 
+      descTr: 'Konu anlatımı ve soru çözümü için kendinize en fazla 2 veya 3 kaliteli ana kaynak kitap belirleyin.',
+      descEn: 'Select a maximum of 2 to 3 high-quality textbooks or resource guides for your study preparation.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Aylık konu takvimi yap', 
+      titleEn: 'Create monthly topic calendar', 
+      descTr: 'Önünüzdeki aylar için hangi konuyu ne zaman bitireceğinizi planlayan gerçekçi bir konu takvimi hazırlayın.',
+      descEn: 'Draft a realistic calendar outlining when you will cover and complete each major syllabus topic.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Teşhis denemesi çöz', 
+      titleEn: 'Take diagnostic test', 
+      descTr: 'Bilgi seviyenizi ölçmek için başlangıç teşhis denemesi çözün ve eksik olduğunuz konuları not edin.',
+      descEn: 'Complete an initial diagnostic practice test to pinpoint your current performance and flag weak areas.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -257,9 +379,27 @@ const TEMPLATE_RAMAZAN_GECE: StudyTemplate = {
     { name: 'Şükür Günlüğü', nameTr: 'Şükür Günlüğü', emoji: '🙏', color: '#EC4899' },
   ],
   tasks: [
-    { titleTr: 'Gece çalışma alanını hazırla: masa, lamba, su, telefon sessiz modda', titleEn: 'Set up night study space: desk, lamp, water, phone on silent', priority: 'High' },
-    { titleTr: 'Bu akşam teravih saatini öğren ve bittikten sonraki 60 dk\'lık çalışma bloğunu takvine ekle', titleEn: "Find tonight's Tarawih time and block 60 min after it in your calendar", priority: 'High' },
-    { titleTr: '3 ibadet + 3 dünya hedefi yaz ve çalışma alanına as', titleEn: 'Write 3 spiritual + 3 worldly goals and post them in your study area', priority: 'Medium' },
+    { 
+      titleTr: 'Gece çalışma alanını hazırla', 
+      titleEn: 'Set up night study space', 
+      descTr: 'Çalışma alanınızı geceye hazırlayın: Masayı düzenleyin, lambayı ayarlayın, suyunuzu alın ve telefonunuzu sessiz moda geçirin.',
+      descEn: 'Set up your study space for the night: clean desk, turn on lamp, grab water, and put phone on silent.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Teravih sonrası çalışma bloğu ekle', 
+      titleEn: 'Schedule study after Tarawih', 
+      descTr: 'Bu akşamki teravih namazı saatini öğrenin ve bittikten sonraki 60 dakikalık çalışma bloğunu takviminize ekleyin.',
+      descEn: 'Find tonight\'s Tarawih time and block a 60-minute study session after it in your calendar.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Hedeflerini çalışma alanına as', 
+      titleEn: 'Post your goals in study area', 
+      descTr: 'Kendinize 3 ibadet ve 3 dünya hedefi yazın ve çalışma alanınıza görünür bir şekilde asın.',
+      descEn: 'Write down 3 spiritual and 3 worldly goals and post them visibly in your study area.',
+      priority: 'Medium' 
+    },
   ],
 };
 
@@ -281,9 +421,27 @@ const TEMPLATE_RAMAZAN_SABAH: StudyTemplate = {
     { name: 'İftar Hazırlığı', nameTr: 'İftar Hazırlığı', emoji: '🍽️', color: '#10B981' },
   ],
   tasks: [
-    { titleTr: 'Sahur alarmını kur (çalışma için 30 dk erken)', titleEn: 'Set Suhoor alarm (30 min early for study)', priority: 'High' },
-    { titleTr: 'Sahur masasına çalışma materyalini hazırla', titleEn: 'Prepare study material on Suhoor table', priority: 'Medium' },
-    { titleTr: 'Günlük niyet kartı yaz (1 ibadet + 1 dünya hedefi)', titleEn: 'Write daily intention card (1 spiritual + 1 worldly)', priority: 'Medium' },
+    { 
+      titleTr: 'Sahur alarmını kur', 
+      titleEn: 'Set Suhoor alarm', 
+      descTr: 'Sahur alarmını kurun. Sahur sonrası hemen çalışmaya başlamak için uyanma saatinizi 30 dakika erkene planlayın.',
+      descEn: 'Set your Suhoor alarm 30 minutes earlier than usual to leave time for study after the meal.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Çalışma materyalini masada hazırla', 
+      titleEn: 'Prepare study materials', 
+      descTr: 'Sahur masasındaki veya çalışma masanızdaki kitap, defter ve notlarınızı şimdiden hazırlayın.',
+      descEn: 'Prepare your study books, laptop, or notepad on the table ahead of time.',
+      priority: 'Medium' 
+    },
+    { 
+      titleTr: 'Günlük niyet kartı yaz', 
+      titleEn: 'Write daily intention card', 
+      descTr: 'Güne başlarken bir niyet kartı yazın: Kendinize 1 ibadet ve 1 dünya hedefi belirleyin.',
+      descEn: 'Write a daily intention card: Set 1 spiritual and 1 worldly goal for the day.',
+      priority: 'Medium' 
+    },
   ],
 };
 
@@ -305,9 +463,27 @@ const TEMPLATE_RAMAZAN_OGRENCI: StudyTemplate = {
     { name: 'Dua & Zikir', nameTr: 'Dua & Zikir', emoji: '☪️', color: '#10B981' },
   ],
   tasks: [
-    { titleTr: 'Haftalık ders programını oruç saatlerine göre yeniden düzenle', titleEn: 'Rearrange your weekly study plan around fasting hours', priority: 'High' },
-    { titleTr: 'En verimli olduğun saati belirle ve ağır dersleri o saate koy', titleEn: 'Find your most productive hour and place hard subjects there', priority: 'Medium' },
-    { titleTr: 'Sınav/ödev tarihlerini takvime işle ve geri sayım kur', titleEn: 'Add exam/assignment dates to the calendar and set a countdown', priority: 'Medium' },
+    { 
+      titleTr: 'Ders programını oruca göre düzenle', 
+      titleEn: 'Rearrange study plan for fasting', 
+      descTr: 'Haftalık ders ve çalışma programınızı oruç saatlerine (özellikle iftar öncesi ve sahur sonrası verimli saatlere) göre yeniden düzenleyin.',
+      descEn: 'Rearrange your weekly study schedule around fasting hours (such as high-energy periods after Suhoor).',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'En verimli saatine ağır dersleri koy', 
+      titleEn: 'Schedule hard subjects for high energy', 
+      descTr: 'Günün en verimli olduğunuz saatini belirleyin (örneğin sahur sonrası veya sabah saatleri) ve en ağır dersleri o saatlere yerleştirin.',
+      descEn: 'Identify your peak energy hour of the day and schedule your most difficult subjects during that block.',
+      priority: 'Medium' 
+    },
+    { 
+      titleTr: 'Sınav ve ödev takvimi oluştur', 
+      titleEn: 'Set exam and homework calendar', 
+      descTr: 'Ramazan ayı içindeki tüm sınav ve ödev teslim tarihlerini takviminize işleyin ve TAZQ üzerinde geri sayım kurun.',
+      descEn: 'Add all exam and homework due dates to your calendar and configure countdown indicators in TAZQ.',
+      priority: 'Medium' 
+    },
   ],
 };
 
@@ -328,9 +504,27 @@ const TEMPLATE_RAMAZAN_CALISAN: StudyTemplate = {
     { name: 'Su & Beslenme Dengesi', nameTr: 'Su & Beslenme Dengesi', emoji: '💧', color: '#10B981' },
   ],
   tasks: [
-    { titleTr: 'En zorlu işleri sabahın ilk saatlerine al (enerji yüksekken)', titleEn: 'Move the hardest tasks to early morning (when energy is highest)', priority: 'High' },
-    { titleTr: 'Toplantıları mümkünse öğleden önceye çek', titleEn: 'Shift meetings to before noon where possible', priority: 'Medium' },
-    { titleTr: 'İftar sonrası 30 dk dinlenme + ibadet bloğu planla', titleEn: 'Plan a 30-min rest + worship block after iftar', priority: 'Medium' },
+    { 
+      titleTr: 'Zor işleri sabahın ilk saatlerine al', 
+      titleEn: 'Move hard tasks to morning', 
+      descTr: 'Enerjinizin en yüksek olduğu sabah saatlerine günün en zorlu işlerini ve odaklanma gerektiren görevlerini yerleştirin.',
+      descEn: 'Schedule your most complex and high-focus work for the early morning hours when energy is highest.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Toplantıları öğleden önceye planla', 
+      titleEn: 'Schedule meetings before noon', 
+      descTr: 'Mümkünse iş toplantılarınızı öğleden önceye çekin; böylece öğleden sonraki düşük enerjili saatlerde sunum ve raporlama gibi işlerle ilgilenebilirsiniz.',
+      descEn: 'Try to schedule meetings before noon to preserve afternoon slots for low-energy tasks like reporting.',
+      priority: 'Medium' 
+    },
+    { 
+      titleTr: 'İftar sonrası dinlenme ve ibadet bloğu kur', 
+      titleEn: 'Plan rest and worship block after Iftar', 
+      descTr: 'İftardan hemen sonra kendinize 30 dakikalık bir dinlenme ve ibadet bloğu planlayın.',
+      descEn: 'Designate a 30-minute block immediately after Iftar for quiet rest and spiritual reflection.',
+      priority: 'Medium' 
+    },
   ],
 };
 
@@ -344,8 +538,20 @@ const RAMAZAN_DEFAULT_HABITS: ModeHabit[] = [
 
 const RAMAZAN_DEFAULT_TASKS: ModeTask[] = [
   { titleTr: 'Zekat hesapla ve öde', titleEn: 'Calculate and pay Zakat', priority: 'High' },
-  { titleTr: 'Bu hafta için iftar menüsü hazırla: 3 ana yemek + sahur listesi yap', titleEn: 'Plan this week\'s iftar menu: 3 main dishes + suhoor shopping list', priority: 'Medium' },
-  { titleTr: '3 ibadet + 3 dünya hedefi yaz ve görünür bir yere as (telefon kilidi veya duvar)', titleEn: 'Write 3 spiritual + 3 worldly goals and put them somewhere visible (phone lock screen or wall)', priority: 'Medium' },
+  { 
+    titleTr: 'İftar ve sahur menüsü hazırla', 
+    titleEn: 'Plan iftar and suhoor menu', 
+    descTr: 'Bu hafta için iftar menüsü hazırlayın: 3 ana yemek belirleyin ve sahur alışveriş listesi yapın.',
+    descEn: 'Plan this week\'s iftar menu: choose 3 main dishes and write a suhoor shopping list.',
+    priority: 'Medium' 
+  },
+  { 
+    titleTr: 'İbadet ve dünya hedeflerini yaz', 
+    titleEn: 'Write spiritual and worldly goals', 
+    descTr: 'Kendinize 3 ibadet ve 3 dünya hedefi yazıp görünür bir yere asın (telefon kilit ekranı veya duvar gibi).',
+    descEn: 'Write down 3 spiritual and 3 worldly goals and place them somewhere visible (like your phone lock screen or wall).',
+    priority: 'Medium' 
+  },
 ];
 
 // ── Mode definitions ───────────────────────────────────────────────────────────
@@ -419,10 +625,34 @@ const TEMPLATE_TEZ_WRITING = (projectName = 'Tez'): StudyTemplate => ({
     { name: 'Danışman İletişimi', nameTr: 'Danışman İletişimi', emoji: '🤝', color: '#10B981' },
   ],
   tasks: [
-    { titleTr: `${projectName} için taslak outline oluştur`, titleEn: `Create rough outline for ${projectName}`, priority: 'High' },
-    { titleTr: 'Kaynak yöneticisi kur (Zotero, Mendeley vb.)', titleEn: 'Set up reference manager (Zotero, Mendeley etc.)', priority: 'High' },
-    { titleTr: 'Günlük yazım hedefini belirle ve bugün ilk 500 kelimeyi yaz', titleEn: 'Set daily writing target and write the first 500 words today', priority: 'Medium' },
-    { titleTr: 'Danışmanına bu hafta e-posta gönder: ilerleme özeti + bir sonraki toplantı tarihi iste', titleEn: 'Email your advisor this week: progress update + request next meeting date', priority: 'Medium' },
+    { 
+      titleTr: 'Taslak anahat oluştur', 
+      titleEn: 'Create rough outline', 
+      descTr: `${projectName} çalışmanızın bölümlerini ve ana başlıklarını içeren bir taslak anahat (outline) hazırlayın.`,
+      descEn: `Develop a structured chapter and section outline for your ${projectName}.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Kaynak yöneticisi kur', 
+      titleEn: 'Set up reference manager', 
+      descTr: 'Akademik atıflarınızı ve kaynakçanızı kolayca yönetmek için Zotero, Mendeley veya benzeri bir yazılım kurun.',
+      descEn: 'Install Zotero, Mendeley, or a similar tool to easily manage academic references and citations.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'İlk 500 kelimeyi yaz', 
+      titleEn: 'Write first 500 words', 
+      descTr: 'Günlük yazacağınız kelime hedefini belirleyin ve bugün başlangıç olarak ilk 500 kelimenizi yazın.',
+      descEn: 'Determine your daily word count target and write your first 500 words today.',
+      priority: 'Medium' 
+    },
+    { 
+      titleTr: 'Danışmana ilerleme raporu at', 
+      titleEn: 'Email progress to advisor', 
+      descTr: 'Danışman hocanıza bu hafta yaptığınız ilerlemelerin özetini içeren bir e-posta atın ve bir sonraki toplantı tarihini talep edin.',
+      descEn: 'Send a progress update email to your advisor and request a date for your next sync.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -442,10 +672,34 @@ const TEMPLATE_TEZ_MILESTONE = (projectName = 'Tez'): StudyTemplate => ({
     { name: 'Günlük İlerleme Notu', nameTr: 'Günlük İlerleme Notu', emoji: '📔', color: '#EC4899' },
   ],
   tasks: [
-    { titleTr: `${projectName} için 3 aylık milestone planı oluştur`, titleEn: `Create 3-month milestone plan for ${projectName}`, priority: 'High' },
-    { titleTr: 'Proje takip tahtası kur (Notion/Trello)', titleEn: 'Set up project tracking board (Notion/Trello)', priority: 'High' },
-    { titleTr: 'Bu hafta tamamlanacak ilk milestone\'u tanımla ve bitiş tarihini takvine ekle', titleEn: 'Define the first milestone to complete this week and add its deadline to your calendar', priority: 'High' },
-    { titleTr: 'Bugün 30 dk beyin fırtınası yap: araştırma sorusunu, ana argümanı ve 3 olası bölüm başlığını yaz', titleEn: 'Do a 30-min brainstorm today: write the research question, core argument, and 3 possible chapter titles', priority: 'Low' },
+    { 
+      titleTr: '3 aylık milestone planı yap', 
+      titleEn: 'Create 3-month milestone plan', 
+      descTr: `${projectName} sürecinde 3 ay boyunca ulaşmak istediğiniz temel aşamaları (milestones) ve hedefleri belirleyin.`,
+      descEn: `Outline major milestones and delivery goals to achieve over the next 3 months for ${projectName}.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Proje takip panosu kur', 
+      titleEn: 'Set up tracking board', 
+      descTr: 'Görevlerinizi görselleştirmek ve takvim planını izlemek için Notion veya Trello üzerinde bir proje tahtası hazırlayın.',
+      descEn: 'Initialize a Kanban tracking board on Notion or Trello to visualize tasks and deadlines.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: "İlk milestone'u tanımla", 
+      titleEn: 'Define first milestone', 
+      descTr: 'Bu hafta içinde tamamlayacağınız ilk önemli teslimatı netleştirin ve hedef bitiş tarihini takviminize işleyin.',
+      descEn: 'Specify the first concrete deliverable to complete this week and pin the deadline to your calendar.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: '30 dk beyin fırtınası yap', 
+      titleEn: 'Do 30-min brainstorm', 
+      descTr: 'Bugün 30 dakika odaklanıp araştırma sorunuzu, tezinizin ana argümanını ve 3 adet olası bölüm başlığını kağıda dökün.',
+      descEn: 'Allocate 30 minutes to brainstorm your core research question, central thesis, and 3 candidate chapter titles.',
+      priority: 'Low' 
+    },
   ],
 });
 
@@ -465,10 +719,34 @@ const TEMPLATE_TEZ_SOFTWARE = (projectName = 'Proje'): StudyTemplate => ({
     { name: 'Test', nameTr: 'Test yaz / çalıştır', emoji: '🧪', color: '#10B981' },
   ],
   tasks: [
-    { titleTr: `${projectName} için kullanıcı hikayeleri (user stories) listesi oluştur`, titleEn: `Create user stories list for ${projectName}`, priority: 'High' },
-    { titleTr: 'GitHub / GitLab repo kur, branching stratejisini belirle', titleEn: 'Set up GitHub / GitLab repo and define branching strategy', priority: 'High' },
-    { titleTr: 'Bu hafta için MVP kapsamını tanımla: en basit çalışır halini listele (maksimum 3 özellik)', titleEn: 'Define MVP scope for this week: list the simplest working version (max 3 features)', priority: 'High' },
-    { titleTr: 'CI/CD pipeline kur (GitHub Actions, Vercel vb.)', titleEn: 'Set up CI/CD pipeline (GitHub Actions, Vercel etc.)', priority: 'Medium' },
+    { 
+      titleTr: 'Kullanıcı hikayelerini listele', 
+      titleEn: 'List user stories', 
+      descTr: `${projectName} kapsamında geliştireceğiniz özelliklerin kullanıcı hikayelerini (User Stories) liste halinde hazırlayın.`,
+      descEn: `Write down detailed user stories for the features you plan to build for ${projectName}.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Git reposu kur', 
+      titleEn: 'Set up Git repository', 
+      descTr: 'Projeniz için GitHub veya GitLab\'de kod deposu açın ve Git branching (dal) stratejinizi netleştirin.',
+      descEn: 'Create a GitHub or GitLab repository for the codebase and decide on your Git branching model.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'MVP kapsamını tanımla', 
+      titleEn: 'Define MVP scope', 
+      descTr: 'Bu hafta içinde projenizin en sade ve çalışır halini (MVP) tanımlayın. Listede en fazla 3 özellik olmasına dikkat edin.',
+      descEn: 'Define the Minimum Viable Product (MVP) scope for this week, focusing on a maximum of 3 core features.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'CI/CD hattı kur', 
+      titleEn: 'Set up CI/CD pipeline', 
+      descTr: 'Kodunuzun otomatik test edilmesi ve yayına alınması için GitHub Actions veya Vercel entegrasyonu gibi bir CI/CD hattı kurun.',
+      descEn: 'Configure a basic CI/CD pipeline using GitHub Actions, Vercel, or similar for automatic tests and deployments.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -488,10 +766,34 @@ const TEMPLATE_TEZ_IS = (projectName = 'Proje'): StudyTemplate => ({
     { name: 'Risk Takibi', nameTr: 'Risk ve engel takibi', emoji: '⚠️', color: '#EF4444' },
   ],
   tasks: [
-    { titleTr: `${projectName} için proje şartnamesi (scope) ve başarı kriterleri yaz`, titleEn: `Write project scope and success criteria for ${projectName}`, priority: 'High' },
-    { titleTr: 'Paydaşları belirle ve iletişim planı oluştur', titleEn: 'Identify stakeholders and create a communication plan', priority: 'High' },
-    { titleTr: 'Proje takip aracı kur (Jira, Notion, Trello vb.)', titleEn: 'Set up project tracking tool (Jira, Notion, Trello etc.)', priority: 'Medium' },
-    { titleTr: 'Haftalık durum raporu şablonu hazırla', titleEn: 'Prepare a weekly status report template', priority: 'Medium' },
+    { 
+      titleTr: 'Proje şartnamesini yaz', 
+      titleEn: 'Write project scope', 
+      descTr: `${projectName} çalışmasının sınırlarını çizen proje şartnamesini (scope) ve başarı kriterlerini dokümante edin.`,
+      descEn: `Document a clear project scope statement and define key success metrics for ${projectName}.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Paydaş ve iletişim planı yap', 
+      titleEn: 'Make communication plan', 
+      descTr: 'Projeden etkilenecek paydaşları belirleyin ve onlara yapılacak raporlama/toplantı sıklığını planlayın.',
+      descEn: 'Identify project stakeholders and map out a structured communication/update schedule.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Proje takip aracı kur', 
+      titleEn: 'Set up tracking tool', 
+      descTr: 'Çalışmalarınızı ve görevlerinizi takip etmek için Jira, Notion veya Trello gibi bir yönetim paneli hazırlayın.',
+      descEn: 'Set up a workspace in Jira, Notion, or Trello to track milestones, tasks, and issues.',
+      priority: 'Medium' 
+    },
+    { 
+      titleTr: 'Durum raporu şablonu yap', 
+      titleEn: 'Prepare status template', 
+      descTr: 'Haftalık ilerlemeyi paydaşlara hızlıca sunabilmek için sade bir durum raporu (status report) şablonu hazırlayın.',
+      descEn: 'Draft a simple status update template to use for weekly stakeholder reporting.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -511,10 +813,34 @@ const TEMPLATE_TEZ_SPRINT = (projectName = 'Proje'): StudyTemplate => ({
     { name: 'Format Kontrolü', nameTr: 'Kaynakça & format standartları kontrolü', emoji: '📋', color: '#6366F1' },
   ],
   tasks: [
-    { titleTr: `${projectName} tamamlama yüzdesini hesapla ve kalan bölümleri listele`, titleEn: `Calculate ${projectName} completion % and list remaining sections`, priority: 'High' },
-    { titleTr: 'Danışmana son taslağı gönder — geri bildirim tarihi belirle', titleEn: 'Send final draft to advisor — set feedback deadline', priority: 'High' },
-    { titleTr: 'Kaynakça ve atıf formatını kontrol et (APA/MLA/IEEE)', titleEn: 'Check references and citation format (APA/MLA/IEEE)', priority: 'High' },
-    { titleTr: 'Teslim gereksinimlerini oku: format, sayfa sayısı, bağlama kuralları', titleEn: 'Read submission requirements: format, page count, binding rules', priority: 'Medium' },
+    { 
+      titleTr: 'Kalan bölümleri listele', 
+      titleEn: 'List remaining sections', 
+      descTr: `${projectName} çalışmanızın genel tamamlanma yüzdesini çıkartıp eksik olan kısımları liste halinde not edin.`,
+      descEn: `Evaluate the current completion percentage of ${projectName} and checklist all remaining parts.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Son taslağı danışmana ilet', 
+      titleEn: 'Send final draft to advisor', 
+      descTr: 'Projenin veya tezin son taslağını danışmanınıza gönderip geri bildirim alacağınız tarihi netleştirin.',
+      descEn: 'Send the completed final draft to your advisor and establish a clear timeline for feedback.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Atıf formatını kontrol et', 
+      titleEn: 'Check citation formatting', 
+      descTr: 'Dokümandaki kaynakçanın ve atıfların belirlenen akademik format standartlarına (APA, MLA, IEEE vb.) uygunluğunu test edin.',
+      descEn: 'Cross-check all references and citations against the specified academic formatting standard (APA, MLA, etc.).',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Teslim şartlarını gözden geçir', 
+      titleEn: 'Read submission requirements', 
+      descTr: 'Kurumun belirlediği sayfa sınırı, kağıt cinsi, ciltleme ve format gibi teslim şartnamelerini detaylıca okuyun.',
+      descEn: 'Review official guidelines regarding formatting, page limits, margins, and physical binding.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -545,10 +871,34 @@ const TEMPLATE_MULAKAT_TEKNIK = (company = 'Şirket'): StudyTemplate => ({
     { name: 'Mock Mülakat', nameTr: 'Mock Mülakat', emoji: '🎙️', color: '#8B5CF6' },
   ],
   tasks: [
-    { titleTr: `${company} için araştır: son çeyrek haberlerini oku, iş ilanının her satırını analiz et, şirket değerlerini not al`, titleEn: `Research ${company}: read recent news, analyze every line of the job posting, note company values`, priority: 'High' },
-    { titleTr: 'CV\'yi pozisyona göre güncelle: ilandaki anahtar kelimeleri CV\'ye yansıt', titleEn: 'Update CV for the position: reflect the job posting\'s keywords in your CV', priority: 'High' },
-    { titleTr: 'En zayıf teknik konularını listele ve önceliklendir (veri yapıları, sistem tasarımı, dil temelleri)', titleEn: 'List and prioritize your weakest technical topics (data structures, system design, language basics)', priority: 'High' },
-    { titleTr: 'Bu hafta 10 medium LeetCode çöz: Array ve String konularından başla', titleEn: 'Solve 10 medium LeetCode problems this week: start with Array and String topics', priority: 'Medium' },
+    { 
+      titleTr: 'Şirket araştırması yap', 
+      titleEn: 'Perform company research', 
+      descTr: `${company} ile ilgili son haberleri okuyun, iş ilanındaki aranan şartları detaylıca inceleyin ve şirketin temel değerlerini not edin.`,
+      descEn: `Read recent news about ${company}, analyze the job description requirements, and take note of their corporate values.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'CV\'yi ilana göre güncelle', 
+      titleEn: 'Update CV for role', 
+      descTr: 'Özgeçmişinizi pozisyona göre güncelleyin; iş ilanında geçen önemli kavram ve anahtar kelimeleri CV\'nize dahil edin.',
+      descEn: 'Tailor your resume by highlighting experience and keywords that directly map to the job description.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Zayıf teknik konuları listele', 
+      titleEn: 'List weak technical topics', 
+      descTr: 'Mülakatta çıkabilecek en çok zorlandığınız teknik konuları (veri yapıları, algoritmalar, sistem tasarımı vb.) listeleyin ve önceliklendirin.',
+      descEn: 'Identify and list your weakest technical areas (e.g. data structures, systems) to prioritize study.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: '10 medium LeetCode çöz', 
+      titleEn: 'Solve 10 medium LeetCode', 
+      descTr: 'Bu hafta içinde en az 10 adet orta zorlukta LeetCode sorusu çözerek algoritma pratiği yapın. Array ve String konularından başlayabilirsiniz.',
+      descEn: 'Solve 10 medium coding challenges on LeetCode this week, starting with array and string manipulation.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -568,10 +918,34 @@ const TEMPLATE_MULAKAT_BEHAVIORAL = (company = 'Şirket'): StudyTemplate => ({
     { name: 'Günlük Öz-Yansıma', nameTr: 'Günlük Öz-Yansıma', emoji: '🪞', color: '#EC4899' },
   ],
   tasks: [
-    { titleTr: `${company} değerleri ve kültürünü oku`, titleEn: `Read ${company} values and culture`, priority: 'High' },
-    { titleTr: '5 güçlü STAR hikayesi yaz', titleEn: 'Write 5 strong STAR stories', priority: 'High' },
-    { titleTr: 'Sık sorulan davranışsal soruları listele', titleEn: 'List frequently asked behavioral questions', priority: 'Medium' },
-    { titleTr: 'Aynaya bakarak 3 kez mock mülakat yap', titleEn: 'Do 3 mirror mock interviews', priority: 'Medium' },
+    { 
+      titleTr: 'Değerleri ve kültürü oku', 
+      titleEn: 'Read values and culture', 
+      descTr: `${company} firmasının kurum kültürünü, vizyonunu ve çalışan değerlerini detaylıca inceleyin.`,
+      descEn: `Explore and understand the core cultural pillars, mission, and employee values of ${company}.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: '5 adet STAR hikayesi yaz', 
+      titleEn: 'Write 5 STAR stories', 
+      descTr: 'Geçmiş projelerinizden başarı ve kriz durumlarını anlatan, STAR metoduna uygun 5 adet mülakat hikayesi hazırlayın.',
+      descEn: 'Draft 5 behavior stories using the STAR method highlighting leadership, conflict resolution, or success.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Davranışsal soruları listele', 
+      titleEn: 'List behavioral questions', 
+      descTr: 'Sıkça karşılaşılan davranışsal ve IK mülakat sorularını listeleyin ve bunlara vereceğiniz cevapların ana hatlarını oluşturun.',
+      descEn: 'Compile a list of common behavioral interview questions and outline your talking points.',
+      priority: 'Medium' 
+    },
+    { 
+      titleTr: '3 kez mock mülakat yap', 
+      titleEn: 'Do 3 mock interviews', 
+      descTr: 'Beden dilinizi ve konuşma hızınızı kontrol etmek için ayna karşısında veya kameraya kaydederek 3 kez mock mülakat provası yapın.',
+      descEn: 'Practice your delivery, speed, and body language by conducting 3 mock interviews in front of a mirror or camera.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -591,10 +965,34 @@ const TEMPLATE_MULAKAT_CASE = (company = 'Şirket'): StudyTemplate => ({
     { name: 'Math Drill', nameTr: 'Mental math hız pratiği (10 dk)', emoji: '🔢', color: '#F59E0B' },
   ],
   tasks: [
-    { titleTr: `${company} için şirket araştırması yap: değerler, son projeler, pazar pozisyonu`, titleEn: `Research ${company}: values, recent projects, market position`, priority: 'High' },
-    { titleTr: 'Case kitabı edin: Case in Point veya Victor Cheng LOMS', titleEn: 'Get a case book: Case in Point or Victor Cheng LOMS', priority: 'High' },
-    { titleTr: '5 temel framework\'ü öğren: Profitability, Market Entry, M&A, Operations, Pricing', titleEn: 'Learn 5 core frameworks: Profitability, Market Entry, M&A, Operations, Pricing', priority: 'High' },
-    { titleTr: 'Peer ile 3 mock case çöz — ses kaydı al ve dinle', titleEn: 'Solve 3 mock cases with a peer — record and review', priority: 'Medium' },
+    { 
+      titleTr: 'Şirket ve pazar araştırması yap', 
+      titleEn: 'Perform market research', 
+      descTr: `${company} şirketinin pazar payını, rakip analizini, son dönemdeki projelerini ve vizyonunu araştırın.`,
+      descEn: `Analyze the market position, competitors, recent projects, and corporate goals of ${company}.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Vaka (case) kitabı edin', 
+      titleEn: 'Get a case study book', 
+      descTr: 'Danışmanlık vakalarına hazırlanmak için Case in Point veya Victor Cheng LOMS gibi temel başucu kaynaklarından birini edinin.',
+      descEn: 'Acquire essential prep resources like "Case in Point" or Victor Cheng\'s LOMS to study consulting structures.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: '5 temel framework\'ü öğren', 
+      titleEn: 'Learn 5 core frameworks', 
+      descTr: 'Vaka analizlerinde kullanılan 5 ana framework\'ü (Profitability, Market Entry, M&A, Operations, Pricing) öğrenip pratik edin.',
+      descEn: 'Master the 5 key problem-solving frameworks: Profitability, Market Entry, M&A, Operations, and Pricing.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Eşli 3 mock case çöz', 
+      titleEn: 'Solve 3 mock cases with peer', 
+      descTr: 'Bir çalışma arkadaşı (peer) ile karşılıklı 3 vaka çalışması yapın; kendi sesinizi kaydederek çözüm sunumunuzu dinleyip geliştirin.',
+      descEn: 'Conduct 3 mock case interviews with a study partner, recording your audio to review your logic and delivery.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -614,10 +1012,34 @@ const TEMPLATE_MULAKAT_AKADEMIK = (company = 'Kurum'): StudyTemplate => ({
     { name: 'Soru Pratiği', nameTr: 'Muhtemel soruları yüksek sesle yanıtla', emoji: '🎙️', color: '#10B981' },
   ],
   tasks: [
-    { titleTr: `${company} araştırma önceliklerini ve yayınlarını incele`, titleEn: `Review ${company} research priorities and recent publications`, priority: 'High' },
-    { titleTr: 'Araştırma özetini (research statement) 2 sayfada hazırla', titleEn: 'Prepare 2-page research statement', priority: 'High' },
-    { titleTr: 'Job talk sunumunu hazırla: 45 dk + 15 dk soru bölümü', titleEn: 'Prepare job talk: 45 min presentation + 15 min Q&A', priority: 'High' },
-    { titleTr: 'Öğretim felsefeni (teaching philosophy) 1 sayfada özetle', titleEn: 'Summarize your teaching philosophy in 1 page', priority: 'Medium' },
+    { 
+      titleTr: 'Yayınları ve öncelikleri incele', 
+      titleEn: 'Review research priorities', 
+      descTr: `${company} kurumundaki akademisyenlerin/araştırmacıların son yayınlarını ve kurumun araştırma önceliklerini okuyun.`,
+      descEn: `Analyze the recent publications and strategic research directions of the faculty or team at ${company}.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: '2 sayfalık araştırma özeti yaz', 
+      titleEn: 'Write research statement', 
+      descTr: 'Çalışmalarınızı ve gelecekteki araştırma hedeflerinizi özetleyen en fazla 2 sayfalık bir araştırma beyannamesi (research statement) hazırlayın.',
+      descEn: 'Draft a concise 2-page statement outlining your past achievements and future research agenda.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Sunum (job talk) hazırla', 
+      titleEn: 'Prepare job talk', 
+      descTr: 'Mülakat kuruluna yapacağınız 45 dakikalık sunumu ve ardından gelecek 15 dakikalık soru-cevap bölümünün slaytlarını hazırlayın.',
+      descEn: 'Design slides for a 45-minute technical presentation followed by a 15-minute Q&A block.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Öğretim felsefeni özetle', 
+      titleEn: 'Summarize teaching philosophy', 
+      descTr: 'Eğitime bakış açınızı ve öğretim metodolojinizi anlatan 1 sayfalık bir öğretim felsefesi (teaching philosophy) metni yazın.',
+      descEn: 'Draft a 1-page document summarizing your educational values and pedagogical methodology.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -637,10 +1059,34 @@ const TEMPLATE_MULAKAT_SPRINT = (company = 'Şirket'): StudyTemplate => ({
     { name: 'Şirket Tarama', nameTr: 'Son dakika şirket/sektör haberleri', emoji: '🔍', color: '#10B981' },
   ],
   tasks: [
-    { titleTr: `${company} için son dakika haber ve gelişmeleri tara`, titleEn: `Scan latest news and developments for ${company}`, priority: 'High' },
-    { titleTr: 'En güçlü 3 STAR hikayeni sesli anlat ve zamanla', titleEn: 'Tell your 3 strongest STAR stories aloud and time them', priority: 'High' },
-    { titleTr: 'En zor sorunu belirle ve cevabını bir kez daha hazırla', titleEn: 'Identify your hardest question and prep the answer one more time', priority: 'High' },
-    { titleTr: 'Giysi, rota ve lojistik planını bugün tamamla — mülakat sabahını boşalt', titleEn: 'Plan outfit, route and logistics today — free up the interview morning', priority: 'Medium' },
+    { 
+      titleTr: 'Son dakika haberlerini tara', 
+      titleEn: 'Scan latest developments', 
+      descTr: `${company} firması ve bağlı olduğu sektör ile ilgili yayınlanan en son haberleri ve duyuruları kontrol edin.`,
+      descEn: `Check for any recent news, corporate reports, or industry alerts regarding ${company}.`,
+      priority: 'High' 
+    },
+    { 
+      titleTr: '3 STAR hikayesini sesli prova et', 
+      titleEn: 'Rehearse 3 STAR stories', 
+      descTr: 'En güvendiğiniz 3 adet STAR hikayesini sesli olarak anlatın ve mülakat süresine uygunluğunu (maksimum 2-3 dakika) süre tutarak test edin.',
+      descEn: 'Practice telling your top 3 STAR stories out loud while timing them to ensure they stay under 3 minutes.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Zor soruların cevabını hazırla', 
+      titleEn: 'Prepare answers for hard questions', 
+      descTr: 'Karşılaşmaktan en çok çekindiğiniz zor soruyu (örneğin kariyer boşlukları, zayıf yönler) belirleyin ve cevabınızı netleştirin.',
+      descEn: 'Pinpoint the interview question you dread most and refine a clear, confident response.',
+      priority: 'High' 
+    },
+    { 
+      titleTr: 'Lojistik planı bugün tamamla', 
+      titleEn: 'Finalize logistics plan', 
+      descTr: 'Giyeceğiniz kıyafeti hazırlayın, mülakat adresine giden rotayı kontrol edin ve lojistik planı bugün bitirerek mülakat sabahını rahat geçirin.',
+      descEn: 'Choose your outfit, confirm travel route, and set up alarms today to avoid any rush on interview morning.',
+      priority: 'Medium' 
+    },
   ],
 });
 
@@ -749,26 +1195,34 @@ function buildKiloTemplate(inputs: SporInputs, days: number): StudyTemplate {
 
   const lossSetupTasks: ModeTask[] = [
     {
-      titleTr: `İlk antrenman: bugün 30 dk tempolu yürüyüş yap — nefes biraz zorlanmalı, konuşabilmeli`,
-      titleEn: `First workout: 30 min brisk walk today — slightly breathless but able to talk`,
+      titleTr: `İlk antrenman: 30 dk tempolu yürüyüş`,
+      titleEn: `First workout: 30 min brisk walk`,
+      descTr: `Bugün 30 dk tempolu yürüyüş yapın. Nefesiniz hafif hızlanmalı fakat konuşurken zorlanmamalısınız.`,
+      descEn: `Do a 30-minute brisk walk today. Your breathing should speed up slightly, but you should not struggle to talk.`,
       priority: 'High',
       daysFromNow: 0,
     },
     {
-      titleTr: `Mutfak düzenlemesi: şekerli içecek, beyaz ekmek ve paketli atıştırmalıkları kaldır`,
-      titleEn: `Kitchen reset: remove sugary drinks, white bread and packaged snacks`,
+      titleTr: `Mutfak düzenlemesi yap`,
+      titleEn: `Perform kitchen reset`,
+      descTr: `Mutfaktaki şekerli içecekleri, beyaz ekmekleri ve paketli/işlenmiş atıştırmalıkları kaldırın.`,
+      descEn: `Remove sugary drinks, white bread, and packaged or processed snacks from your kitchen.`,
       priority: 'High',
       daysFromNow: 0,
     },
     {
-      titleTr: `Günlük protein hedefini belirle: ${cw > 0 ? Math.round(cw * (isFemale ? 1.4 : 1.6)) : (isFemale ? 90 : 100)}–${cw > 0 ? Math.round(cw * (isFemale ? 1.8 : 2.0)) : (isFemale ? 115 : 130)} g/gün`,
-      titleEn: `Set daily protein target: ${cw > 0 ? Math.round(cw * (isFemale ? 1.4 : 1.6)) : (isFemale ? 90 : 100)}–${cw > 0 ? Math.round(cw * (isFemale ? 1.8 : 2.0)) : (isFemale ? 115 : 130)} g/day`,
+      titleTr: `Günlük protein hedefini belirle`,
+      titleEn: `Determine daily protein target`,
+      descTr: `Günlük protein hedefinizi belirleyin: ${cw > 0 ? Math.round(cw * (isFemale ? 1.4 : 1.6)) : (isFemale ? 90 : 100)}–${cw > 0 ? Math.round(cw * (isFemale ? 1.8 : 2.0)) : (isFemale ? 115 : 130)} g/gün arası tüketmeye çalışın.`,
+      descEn: `Set daily protein target: aim for ${cw > 0 ? Math.round(cw * (isFemale ? 1.4 : 1.6)) : (isFemale ? 90 : 100)}–${cw > 0 ? Math.round(cw * (isFemale ? 1.8 : 2.0)) : (isFemale ? 115 : 130)} g/day.`,
       priority: 'Medium',
       daysFromNow: 1,
     },
     {
-      titleTr: `Hedef: ${cwStr} → ${twStr} · ${planWeeks} haftada ${rateStr}/hafta — bugün planı kaydet`,
-      titleEn: `Goal: ${cwStr} → ${twStr} · ${rateStr}/week for ${planWeeks} weeks — save the plan today`,
+      titleTr: `Kilo yönetimi hedefini kaydet`,
+      titleEn: `Save weight management goal`,
+      descTr: `Kilo yönetimi hedefinizi sisteme kaydedin: Hedef ${cwStr} → ${twStr} (${planWeeks} haftada haftalık ${rateStr} değişim).`,
+      descEn: `Save your weight management goal today: target ${cwStr} → ${twStr} (${rateStr}/week for ${planWeeks} weeks).`,
       priority: 'Medium',
       daysFromNow: 2,
     },
@@ -776,26 +1230,34 @@ function buildKiloTemplate(inputs: SporInputs, days: number): StudyTemplate {
 
   const gainSetupTasks: ModeTask[] = [
     {
-      titleTr: `Günlük kalori hedefini hesapla: TDEE + 300–500 kcal fazlası — myfitnesspal veya benzeri uygulama kullan`,
-      titleEn: `Calculate daily calorie target: TDEE + 300–500 kcal surplus — use myfitnesspal or similar`,
+      titleTr: `Günlük kalori hedefini hesapla`,
+      titleEn: `Calculate daily calorie target`,
+      descTr: `Günlük kalori ihtiyacınızı (TDEE) hesaplayıp üzerine 300–500 kcal fazlasını ekleyin. Takip için MyFitnessPal benzeri bir uygulama kullanabilirsiniz.`,
+      descEn: `Calculate daily calorie target: TDEE + 300–500 kcal surplus. Use MyFitnessPal or a similar app.`,
       priority: 'High',
       daysFromNow: 0,
     },
     {
-      titleTr: `Direnç antrenmanı programı seç ve ilk seansı yap (haftada 3–4 gün) — kas için antrenman zorunlu`,
-      titleEn: `Choose a resistance training program and do first session (3–4 days/week) — training is mandatory for muscle`,
+      titleTr: `Direnç antrenmanı programı seç`,
+      titleEn: `Choose resistance training program`,
+      descTr: `Kendinize uygun bir direnç/ağırlık antrenmanı programı seçip ilk seansı tamamlayın (haftada 3–4 gün). Kas gelişimi için ağırlık antrenmanları zorunludur.`,
+      descEn: `Choose a resistance training program and do your first session (3–4 days/week). Training is mandatory for muscle.`,
       priority: 'High',
       daysFromNow: 0,
     },
     {
-      titleTr: `Günlük protein hedefi: ${cw > 0 ? Math.round(cw * (isFemale ? 1.6 : 1.8)) : (isFemale ? 105 : 120)}–${cw > 0 ? Math.round(cw * (isFemale ? 2.0 : 2.2)) : (isFemale ? 130 : 150)} g/gün — yumurta, tavuk, yoğurt, baklagil`,
-      titleEn: `Daily protein target: ${cw > 0 ? Math.round(cw * (isFemale ? 1.6 : 1.8)) : (isFemale ? 105 : 120)}–${cw > 0 ? Math.round(cw * (isFemale ? 2.0 : 2.2)) : (isFemale ? 130 : 150)} g/day — eggs, chicken, yogurt, legumes`,
+      titleTr: `Günlük protein hedefini belirle`,
+      titleEn: `Determine daily protein target`,
+      descTr: `Günlük protein hedefinizi belirleyin: ${cw > 0 ? Math.round(cw * (isFemale ? 1.6 : 1.8)) : (isFemale ? 105 : 120)}–${cw > 0 ? Math.round(cw * (isFemale ? 2.0 : 2.2)) : (isFemale ? 130 : 150)} g/gün (yumurta, tavuk, yoğurt, baklagil vb.).`,
+      descEn: `Daily protein target: aim for ${cw > 0 ? Math.round(cw * (isFemale ? 1.6 : 1.8)) : (isFemale ? 105 : 120)}–${cw > 0 ? Math.round(cw * (isFemale ? 2.0 : 2.2)) : (isFemale ? 130 : 150)} g/day (eggs, chicken, yogurt, legumes).`,
       priority: 'High',
       daysFromNow: 1,
     },
     {
-      titleTr: `Hedef: ${cwStr} → ${twStr} · ${planWeeks} haftada ${rateStr}/hafta — bugün planı kaydet`,
-      titleEn: `Goal: ${cwStr} → ${twStr} · ${rateStr}/week for ${planWeeks} weeks — save the plan today`,
+      titleTr: `Kilo yönetimi hedefini kaydet`,
+      titleEn: `Save weight management goal`,
+      descTr: `Kilo yönetimi hedefinizi sisteme kaydedin: Hedef ${cwStr} → ${twStr} (${planWeeks} haftada haftalık ${rateStr} değişim).`,
+      descEn: `Save your weight management goal today: target ${cwStr} → ${twStr} (${rateStr}/week for ${planWeeks} weeks).`,
       priority: 'Medium',
       daysFromNow: 2,
     },

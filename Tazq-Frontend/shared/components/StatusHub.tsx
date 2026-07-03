@@ -13,7 +13,7 @@ export const StatusHub = ({ onPress }: { onPress: () => void }) => {
   const { theme, colorScheme } = useAppTheme();
   const { language } = useLanguageStore();
   const isDark = colorScheme === 'dark';
-  const { isActive } = useFocusStore();
+  const isActive = useFocusStore(s => s.isActive);
   const tr = language === 'tr';
 
   return (

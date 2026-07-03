@@ -151,8 +151,13 @@ export function buildKiloAdaptationTasks(
   if (!hasDuplicateAdaptation(existingTasks, 'kilo_adapt', 7, true)) {
     if (analysis.status === 'gaining_while_losing') {
       tasks.push({
-        title: tr ? `Kilo artıyor! 3 günlük yemek günlüğü tut ve kalori hesapla` : `Weight is going up! Keep a 3-day food diary and count calories`,
-      description: JSON.stringify({ tr: `Kilo artıyor! 3 günlük yemek günlüğü tut ve kalori hesapla`, en: `Weight is going up! Keep a 3-day food diary and count calories` }),
+        title: tr ? `Kilo artışı: Yemek günlüğü` : `Weight gain: Food diary`,
+        description: JSON.stringify({ 
+          tr: `Kilo artışı: Yemek günlüğü`, 
+          en: `Weight gain: Food diary`,
+          descTr: `Kilo artışı tespit edildi! Lütfen 3 günlük yemek günlüğü tutun ve günlük kalorilerinizi hesaplayın.`,
+          descEn: `Weight gain detected! Please keep a 3-day food diary and calculate your daily calories.`
+        }),
         priority: 'High',
         dueDate: daysFromNow(1),
         isCompleted: false,
@@ -161,8 +166,13 @@ export function buildKiloAdaptationTasks(
     } else if (analysis.status === 'behind') {
       const rateStr = Math.abs(analysis.actualRatePerWeek).toFixed(1);
       tasks.push({
-        title: tr ? `İlerleme yavaş (~${rateStr} kg/hafta). Bu hafta 1 antrenman ekle + şeker ve işlenmiş gıdaları azalt` : `Progress is slow (~${rateStr} kg/week). Add 1 workout + cut sugar and processed foods`,
-      description: JSON.stringify({ tr: `İlerleme yavaş (~${rateStr} kg/hafta). Bu hafta 1 antrenman ekle + şeker ve işlenmiş gıdaları azalt`, en: `Progress is slow (~${rateStr} kg/week). Add 1 workout + cut sugar and processed foods` }),
+        title: tr ? `Kilo kontrolü: İlerleme yavaş` : `Weight loss: Slow progress`,
+        description: JSON.stringify({ 
+          tr: `Kilo kontrolü: İlerleme yavaş`, 
+          en: `Weight loss: Slow progress`,
+          descTr: `İlerleme yavaş (~${rateStr} kg/hafta). Bu hafta programınıza 1 antrenman daha ekleyin; şeker ve işlenmiş gıdaları azaltın.`,
+          descEn: `Progress is slow (~${rateStr} kg/week). Add 1 workout this week and reduce sugar and processed foods.`
+        }),
         priority: 'High',
         dueDate: daysFromNow(2),
         isCompleted: false,
@@ -170,8 +180,13 @@ export function buildKiloAdaptationTasks(
       });
     } else if (analysis.status === 'ahead' && losing) {
       tasks.push({
-        title: tr ? `Çok hızlı gidiyor — kas kaybını önle: protein hedefini kontrol et (vücut ağırlığı × 2g/kg)` : `Going too fast — prevent muscle loss: check protein target (bodyweight × 2g/kg)`,
-      description: JSON.stringify({ tr: `Çok hızlı gidiyor — kas kaybını önle: protein hedefini kontrol et (vücut ağırlığı × 2g/kg)`, en: `Going too fast — prevent muscle loss: check protein target (bodyweight × 2g/kg)` }),
+        title: tr ? `Kas kaybını önleme kontrolü` : `Prevent muscle loss check`,
+        description: JSON.stringify({ 
+          tr: `Kas kaybını önleme kontrolü`, 
+          en: `Prevent muscle loss check`,
+          descTr: `Kilo kaybı çok hızlı gidiyor! Kas kaybını önlemek için protein hedefinizi kontrol edin (vücut ağırlığı × 2g/kg protein tüketin).`,
+          descEn: `Weight loss is too fast! To prevent muscle loss, check your protein target (aim for bodyweight × 2g/kg).`
+        }),
         priority: 'Medium',
         dueDate: daysFromNow(2),
         isCompleted: false,
@@ -184,8 +199,13 @@ export function buildKiloAdaptationTasks(
   const week = Math.floor(analysis.weeksElapsed);
   if (week > 0 && week % 2 === 0 && !hasDuplicateAdaptation(existingTasks, 'weight_entry', 7, true)) {
     tasks.push({
-      title: tr ? `Hafta ${week} tartısı — sabah aç karna` : `Week ${week} weigh-in — fasted morning`,
-      description: JSON.stringify({ tr: `Hafta ${week} tartısı — sabah aç karna`, en: `Week ${week} weigh-in — fasted morning` }),
+      title: tr ? `Haftalık tartım zamanı` : `Weekly weigh-in time`,
+      description: JSON.stringify({ 
+        tr: `Haftalık tartım zamanı`, 
+        en: `Weekly weigh-in time`,
+        descTr: `Hafta ${week} tartısı: Sabah aç karna tartılın ve güncel kilonuzu sisteme kaydedin.`,
+        descEn: `Week ${week} weigh-in: Weigh yourself in the morning fasted and log your weight.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(0),
       isCompleted: false,
@@ -196,8 +216,13 @@ export function buildKiloAdaptationTasks(
   // Her 4. hafta vücut ölçüsü hatırlatması
   if (week > 0 && week % 4 === 0 && !hasDuplicateAdaptation(existingTasks, 'kilo_measure', 7, true)) {
     tasks.push({
-      title: tr ? `${week}. hafta: bel çevresi + vücut ağırlığını kaydet — aynadaki değişim kilo kadar önemli` : `Week ${week}: record waist circumference + weight — mirror changes matter as much as the scale`,
-      description: JSON.stringify({ tr: `${week}. hafta: bel çevresi + vücut ağırlığını kaydet — aynadaki değişim kilo kadar önemli`, en: `Week ${week}: record waist circumference + weight — mirror changes matter as much as the scale` }),
+      title: tr ? `${week}. hafta: Bel ölçüsü` : `Week ${week}: Waist measurement`,
+      description: JSON.stringify({ 
+        tr: `${week}. hafta: Bel ölçüsü`, 
+        en: `Week ${week}: Waist measurement`,
+        descTr: `${week}. hafta değerlendirmesi: Bel çevrenizi ölçün ve vücut ağırlığınızı kaydedin. Aynadaki görsel değişim tartıdaki rakam kadar önemlidir.`,
+        descEn: `Week ${week} review: Record waist circumference and body weight. Changes in the mirror matter as much as the scale.`
+      }),
       priority: 'Medium',
       dueDate: daysFromNow(1),
       isCompleted: false,
@@ -231,8 +256,13 @@ export function buildMaratonAdaptationTasks(
   // Taper: yarışmaya 3 hafta kala
   if (daysToRace <= 21 && daysToRace > 0 && !hasDuplicateAdaptation(existingTasks, 'maraton_taper', 21, true)) {
     tasks.push({
-      title: tr ? `TAPER BAŞLADI (${weeksLeft} hafta kaldı): Haftalık km'yi %20 azalt — ${Math.round(weeklyKm * 0.8)} km hedef` : `TAPER BEGINS (${weeksLeft} weeks left): Reduce weekly km by 20% — target ${Math.round(weeklyKm * 0.8)} km`,
-      description: JSON.stringify({ tr: `TAPER BAŞLADI (${weeksLeft} hafta kaldı): Haftalık km'yi %20 azalt — ${Math.round(weeklyKm * 0.8)} km hedef`, en: `TAPER BEGINS (${weeksLeft} weeks left): Reduce weekly km by 20% — target ${Math.round(weeklyKm * 0.8)} km` }),
+      title: tr ? `Taper başladı: Mesafe azaltımı` : `Taper begins: Reduce volume`,
+      description: JSON.stringify({ 
+        tr: `Taper başladı: Mesafe azaltımı`, 
+        en: `Taper begins: Reduce volume`,
+        descTr: `Taper dönemi başladı (${weeksLeft} hafta kaldı). Sakatlanmayı önlemek ve dinlenmek için haftalık km hedefinizi %20 azaltın (Yeni hedef: ${Math.round(weeklyKm * 0.8)} km).`,
+        descEn: `Taper begins (${weeksLeft} weeks left). Reduce weekly distance by 20% to prevent injury and rest (New target: ${Math.round(weeklyKm * 0.8)} km).`
+      }),
       priority: 'High',
       dueDate: daysFromNow(1),
       isCompleted: false,
@@ -243,8 +273,13 @@ export function buildMaratonAdaptationTasks(
   // Yarış günü hazırlık: 1 hafta kala
   if (daysToRace <= 7 && daysToRace > 0 && !hasDuplicateAdaptation(existingTasks, 'maraton_race_week', 7, true)) {
     tasks.push({
-      title: tr ? `Yarış haftası: kıyafet + beslenme + rota + start zamanını planla` : `Race week: plan outfit + nutrition + route + start time`,
-      description: JSON.stringify({ tr: `Yarış haftası: kıyafet + beslenme + rota + start zamanını planla`, en: `Race week: plan outfit + nutrition + route + start time` }),
+      title: tr ? `Yarış haftası planlaması` : `Race week planning`,
+      description: JSON.stringify({ 
+        tr: `Yarış haftası planlaması`, 
+        en: `Race week planning`,
+        descTr: `Büyük gün yaklaşıyor! Yarış günü giyeceğiniz kıyafetleri, beslenme planınızı, rotayı ve start zamanını netleştirin.`,
+        descEn: `Race day is coming! Plan your race outfit, nutrition strategy, map route, and check start time.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(1),
       isCompleted: false,
@@ -253,8 +288,13 @@ export function buildMaratonAdaptationTasks(
     // Karbonhidrat yüklemesi sadece half/tam maraton için anlamlı
     if (targetEvent === 'Yarı' || targetEvent === 'Tam') {
       tasks.push({
-        title: tr ? `Son 3 gün: karbonhidrat yüklemesi — her öğünde pilav/makarna/ekmek ağırlıklı beslen` : `Last 3 days: carb loading — make rice/pasta/bread the base of every meal`,
-      description: JSON.stringify({ tr: `Son 3 gün: karbonhidrat yüklemesi — her öğünde pilav/makarna/ekmek ağırlıklı beslen`, en: `Last 3 days: carb loading — make rice/pasta/bread the base of every meal` }),
+        title: tr ? `Son 3 gün: Karbonhidrat yüklemesi` : `Last 3 days: Carb loading`,
+        description: JSON.stringify({ 
+          tr: `Son 3 gün: Karbonhidrat yüklemesi`, 
+          en: `Last 3 days: Carb loading`,
+          descTr: `Yarışa son 3 gün kaldı! Kas glikojen depolarınızı doldurmak için her öğünde pilav, makarna veya ekmek ağırlıklı beslenin.`,
+          descEn: `Last 3 days of preparation! Focus on eating quality carbs like rice, pasta, or bread to load glycogen stores.`
+        }),
         priority: 'Medium',
         dueDate: daysFromNow(2),
         isCompleted: false,
@@ -266,8 +306,13 @@ export function buildMaratonAdaptationTasks(
   // Yetersiz hazırlık süresi uyarısı
   if (weeksLeft < minWeeks && !hasDuplicateAdaptation(existingTasks, 'maraton_warn', 30, true)) {
     tasks.push({
-      title: tr ? `⚠️ ${targetEvent} için ${minWeeks} hafta gerekiyor, ${weeksLeft} haftan var — hedefi gözden geçir` : `⚠️ ${targetEvent} requires ${minWeeks} weeks, you have ${weeksLeft} — reconsider goal`,
-      description: JSON.stringify({ tr: `⚠️ ${targetEvent} için ${minWeeks} hafta gerekiyor, ${weeksLeft} haftan var — hedefi gözden geçir`, en: `⚠️ ${targetEvent} requires ${minWeeks} weeks, you have ${weeksLeft} — reconsider goal` }),
+      title: tr ? `Hazırlık süresi yetersiz` : `Insufficient preparation time`,
+      description: JSON.stringify({ 
+        tr: `Hazırlık süresi yetersiz`, 
+        en: `Insufficient preparation time`,
+        descTr: `⚠️ Seçilen ${targetEvent} hedefi için ideal olarak en az ${minWeeks} hafta hazırlanmak gerekir. Sizin yarışa ${weeksLeft} haftanız var. Sakatlanma riskini azaltmak için hedefinizi gözden geçirebilirsiniz.`,
+        descEn: `⚠️ ${targetEvent} ideally requires at least ${minWeeks} weeks of base building. You only have ${weeksLeft} weeks. Reconsider your target to prevent injury.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(1),
       isCompleted: false,
@@ -278,8 +323,13 @@ export function buildMaratonAdaptationTasks(
   // Haftalık ilerleme: düşük tamamlama oranı
   if (habitCompletionRate < 0.5 && !hasDuplicateAdaptation(existingTasks, 'maraton_missed', 7, true)) {
     tasks.push({
-      title: tr ? `Bu haftaki koşu eksik! Haftayı aynı km ile tekrarla — üste çıkma` : `Missed runs this week! Repeat the same km next week — don't push further`,
-      description: JSON.stringify({ tr: `Bu haftaki koşu eksik! Haftayı aynı km ile tekrarla — üste çıkma`, en: `Missed runs this week! Repeat the same km next week — don't push further` }),
+      title: tr ? `Koşu haftasını tekrar et` : `Repeat running week`,
+      description: JSON.stringify({ 
+        tr: `Koşu haftasını tekrar et`, 
+        en: `Repeat running week`,
+        descTr: `Bu haftaki koşu hedefiniz eksik kaldı. Formunuzu korumak için önümüzdeki haftayı aynı kilometre hedefiyle tekrarlayın, hacmi artırmayın.`,
+        descEn: `You missed your run goals this week. Repeat the same weekly distance next week without pushing further to protect your joints.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(1),
       isCompleted: false,
@@ -288,8 +338,13 @@ export function buildMaratonAdaptationTasks(
   } else if (habitCompletionRate >= 0.8 && weeklyKm < peak && !hasDuplicateAdaptation(existingTasks, 'maraton_progress', 7, true)) {
     const nextKm = Math.min(Math.round(weeklyKm * 1.1), peak);
     tasks.push({
-      title: tr ? `Harika hafta! Gelecek hafta hedef: ${nextKm} km/hafta (+10% kural)` : `Great week! Next week target: ${nextKm} km/week (+10% rule)`,
-      description: JSON.stringify({ tr: `Harika hafta! Gelecek hafta hedef: ${nextKm} km/hafta (+10% kural)`, en: `Great week! Next week target: ${nextKm} km/week (+10% rule)` }),
+      title: tr ? `Antrenman hacmini artır` : `Increase training volume`,
+      description: JSON.stringify({ 
+        tr: `Antrenman hacmini artır`, 
+        en: `Increase training volume`,
+        descTr: `Harika bir hafta geçirdiniz! Gelecek haftaki mesafenizi %10 artırın (Yeni hedef: ${nextKm} km/hafta).`,
+        descEn: `Excellent week! Increase your weekly volume by 10% next week (New target: ${nextKm} km/week).`
+      }),
       priority: 'Medium',
       dueDate: daysFromNow(1),
       isCompleted: false,
@@ -317,8 +372,13 @@ export function buildSinavAdaptationTasks(
       ? (tr ? 'Bugün' : 'Today')
       : (tr ? 'Yarın' : 'Tomorrow');
     tasks.push({
-      title: tr ? `${name} ${timing === 'Bugün' ? 'bugün' : 'yarın'}! Erken uyu (22:00), kalem + kimlik + su hazırla` : `${name} is ${timing.toLowerCase()}! Sleep early (10pm), prepare pen + ID + water`,
-      description: JSON.stringify({ tr: `${name} ${timing === 'Bugün' ? 'bugün' : 'yarın'}! Erken uyu (22:00), kalem + kimlik + su hazırla`, en: `${name} is ${timing.toLowerCase()}! Sleep early (10pm), prepare pen + ID + water` }),
+      title: tr ? `${name} hazırlıklarını tamamla` : `Complete prep for ${name}`,
+      description: JSON.stringify({ 
+        tr: `${name} hazırlıklarını tamamla`, 
+        en: `Complete prep for ${name}`,
+        descTr: `${name} ${timing === 'Bugün' ? 'bugün' : 'yarın'}! Erken uyuyun (22:00), sınav kalemi, kimlik ve suyunuzu şimdiden hazırlayın.`,
+        descEn: `${name} is ${timing.toLowerCase()}! Sleep early (10pm), and prepare your exam pen, ID, and water now.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(0),
       isCompleted: false,
@@ -328,16 +388,26 @@ export function buildSinavAdaptationTasks(
 
   if (daysLeft <= 7 && daysLeft > 1 && !hasDuplicateAdaptation(existingTasks, 'sinav_week', 7, true)) {
     tasks.push({
-      title: tr ? `${name} son ${daysLeft} gün: yeni konu yok — sadece deneme + hata analizi` : `${name}: ${daysLeft} days left — no new topics, only mock exams + error review`,
-      description: JSON.stringify({ tr: `${name} son ${daysLeft} gün: yeni konu yok — sadece deneme + hata analizi`, en: `${name}: ${daysLeft} days left — no new topics, only mock exams + error review` }),
+      title: tr ? `Yeni konu açma: Deneme çöz` : `No new topics: Solve mocks`,
+      description: JSON.stringify({ 
+        tr: `Yeni konu açma: Deneme çöz`, 
+        en: `No new topics: Solve mocks`,
+        descTr: `${name} için son ${daysLeft} gün kaldı. Yeni bir konu çalışmayın, sadece deneme sınavı çözün ve hata analizlerini yapın.`,
+        descEn: `${name}: ${daysLeft} days left. Do not start any new study topics; only solve practice exams and review errors.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(0),
       isCompleted: false,
       tags: ['sinav_week', 'education'],
     });
     tasks.push({
-      title: tr ? `Sınav yeri ve saatini teyit et, ulaşım planını yap` : `Confirm exam location & time, plan your route`,
-      description: JSON.stringify({ tr: `Sınav yeri ve saatini teyit et, ulaşım planını yap`, en: `Confirm exam location & time, plan your route` }),
+      title: tr ? `Sınav yerini teyit et ve yol planı yap` : `Confirm exam location & plan route`,
+      description: JSON.stringify({ 
+        tr: `Sınav yerini teyit et ve yol planı yap`, 
+        en: `Confirm exam location & plan route`,
+        descTr: `Sınav giriş belgenizden yer ve saati netleştirin. Sınav sabahı gecikmemek için ulaşım planınızı bugünden yapın.`,
+        descEn: `Check your exam entrance document to confirm location and time. Plan your commute route in advance.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(1),
       isCompleted: false,
@@ -347,16 +417,26 @@ export function buildSinavAdaptationTasks(
 
   if (daysLeft <= 30 && daysLeft > 7 && !hasDuplicateAdaptation(existingTasks, 'sinav_sprint_start', 30, true)) {
     tasks.push({
-      title: tr ? `${name} ${daysLeft} gün — sprint başlıyor: tüm zayıf konuları listele` : `${name} in ${daysLeft} days — sprint starts: list all weak topics`,
-      description: JSON.stringify({ tr: `${name} ${daysLeft} gün — sprint başlıyor: tüm zayıf konuları listele`, en: `${name} in ${daysLeft} days — sprint starts: list all weak topics` }),
+      title: tr ? `Sınav sprinti: Zayıf konular` : `Exam sprint: Weak topics`,
+      description: JSON.stringify({ 
+        tr: `Sınav sprinti: Zayıf konular`, 
+        en: `Exam sprint: Weak topics`,
+        descTr: `${name} sınavına ${daysLeft} gün kaldı — sprint başlıyor: Tüm zayıf olduğunuz konuları listeleyin ve çalışma planına dahil edin.`,
+        descEn: `${name} in ${daysLeft} days — sprint starts: List all your weak topics and allocate daily study slots for them.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(1),
       isCompleted: false,
       tags: ['sinav_sprint_start', 'education'],
     });
     tasks.push({
-      title: tr ? `Bu hafta 2 deneme sınavı çöz ve cevap anahtarıyla karşılaştır` : `Solve 2 practice exams this week and compare with answer keys`,
-      description: JSON.stringify({ tr: `Bu hafta 2 deneme sınavı çöz ve cevap anahtarıyla karşılaştır`, en: `Solve 2 practice exams this week and compare with answer keys` }),
+      title: tr ? `Bu hafta 2 deneme sınavı çöz` : `Solve 2 practice exams this week`,
+      description: JSON.stringify({ 
+        tr: `Bu hafta 2 deneme sınavı çöz`, 
+        en: `Solve 2 practice exams this week`,
+        descTr: `Bu hafta 2 adet deneme sınavı çözün ve her birinin ardından cevap anahtarıyla detaylı karşılaştırma yapın.`,
+        descEn: `Solve 2 practice exams this week and compare with answer keys in detail.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(3),
       isCompleted: false,
@@ -366,8 +446,13 @@ export function buildSinavAdaptationTasks(
 
   if (daysLeft <= 60 && daysLeft > 30 && !hasDuplicateAdaptation(existingTasks, 'sinav_60', 30, true)) {
     tasks.push({
-      title: tr ? `${name} 60 gün — tüm konuları taradın mı? Eksik topikleri listele` : `${name} in 60 days — have you covered all topics? List missing ones`,
-      description: JSON.stringify({ tr: `${name} 60 gün — tüm konuları taradın mı? Eksik topikleri listele`, en: `${name} in 60 days — have you covered all topics? List missing ones` }),
+      title: tr ? `Eksik konuları listele` : `List missing study topics`,
+      description: JSON.stringify({ 
+        tr: `Eksik konuları listele`, 
+        en: `List missing study topics`,
+        descTr: `${name} sınavına 60 gün kaldı. Şimdiye kadar tüm konuları taradınız mı? Eksik kalan başlıkları listeleyin.`,
+        descEn: `${name} in 60 days. Have you covered the entire syllabus? List all remaining/missing topics.`
+      }),
       priority: 'Medium',
       dueDate: daysFromNow(2),
       isCompleted: false,
@@ -413,16 +498,26 @@ export function buildTezAdaptationTasks(
 
   if (daysLeft <= 14 && !hasDuplicateAdaptation(existingTasks, 'tez_final_2weeks', 30, true)) {
     tasks.push({
-      title: tr ? `${name} son 2 hafta: format kontrol listesini çalıştır (dipnot, kaynakça, sayfa numarası)` : `${name} final 2 weeks: run format checklist (footnotes, bibliography, page numbers)`,
-      description: JSON.stringify({ tr: `${name} son 2 hafta: format kontrol listesini çalıştır (dipnot, kaynakça, sayfa numarası)`, en: `${name} final 2 weeks: run format checklist (footnotes, bibliography, page numbers)` }),
+      title: tr ? `Tez biçim kontrol listesi` : `Run thesis format checklist`,
+      description: JSON.stringify({ 
+        tr: `Tez biçim kontrol listesi`, 
+        en: `Run thesis format checklist`,
+        descTr: `${name} için son 2 hafta kaldı. Tez formatı kontrol listesini (dipnotlar, kaynakça, sayfa numaralandırması ve biçim kuralları) gözden geçirin.`,
+        descEn: `${name} final 2 weeks: Run format checklist (footnotes, bibliography, margins, and page numbering).`
+      }),
       priority: 'High',
       dueDate: daysFromNow(1),
       isCompleted: false,
       tags: ['tez_final_2weeks', 'education'],
     });
     tasks.push({
-      title: tr ? `Danışmana/yöneticiye final taslağı gönder ve onay al` : `Send final draft to advisor/manager and get approval`,
-      description: JSON.stringify({ tr: `Danışmana/yöneticiye final taslağı gönder ve onay al`, en: `Send final draft to advisor/manager and get approval` }),
+      title: tr ? `Final taslağını gönder ve onay al` : `Submit final draft for approval`,
+      description: JSON.stringify({ 
+        tr: `Final taslağını gönder ve onay al`, 
+        en: `Submit final draft for approval`,
+        descTr: `Final taslağınızı danışman hocanıza veya yöneticinize gönderip son onay sürecini başlatın.`,
+        descEn: `Send the complete final draft of your thesis to your advisor or manager for final review and approval.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(2),
       isCompleted: false,
@@ -432,8 +527,13 @@ export function buildTezAdaptationTasks(
 
   if (daysLeft <= 30 && daysLeft > 14 && !hasDuplicateAdaptation(existingTasks, 'tez_sprint_30', 30, true)) {
     tasks.push({
-      title: tr ? `${name} ${daysLeft} gün — bugün tamamlanma yüzdesini hesapla ve eksik bölümleri listele` : `${name} in ${daysLeft} days — calculate completion % today and list missing sections`,
-      description: JSON.stringify({ tr: `${name} ${daysLeft} gün — bugün tamamlanma yüzdesini hesapla ve eksik bölümleri listele`, en: `${name} in ${daysLeft} days — calculate completion % today and list missing sections` }),
+      title: tr ? `Tez tamamlanma analizi` : `Thesis completion analysis`,
+      description: JSON.stringify({ 
+        tr: `Tez tamamlanma analizi`, 
+        en: `Thesis completion analysis`,
+        descTr: `${name} için son 30 gün kaldı. Bugün tezin genel tamamlanma yüzdesini hesaplayın ve eksik kalan bölümleri listeleyin.`,
+        descEn: `${name} in ${daysLeft} days: Calculate the completion percentage of your thesis today and list all missing sections.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(1),
       isCompleted: false,
@@ -443,8 +543,13 @@ export function buildTezAdaptationTasks(
 
   if (daysLeft <= 60 && daysLeft > 30 && !hasDuplicateAdaptation(existingTasks, 'tez_60', 30, true)) {
     tasks.push({
-      title: tr ? `60 Gün Sprint Modu: her bölüm için teslim tarihi belirle` : `60-Day Sprint Mode: set a due date for each section`,
-      description: JSON.stringify({ tr: `60 Gün Sprint Modu: her bölüm için teslim tarihi belirle`, en: `60-Day Sprint Mode: set a due date for each section` }),
+      title: tr ? `Bölüm teslim tarihleri belirle` : `Set section due dates`,
+      description: JSON.stringify({ 
+        tr: `Bölüm teslim tarihleri belirle`, 
+        en: `Set section due dates`,
+        descTr: `60 Günlük Sprint Modu: Tezin/projenin kalan her ana bölümü için kendinize özel birer teslim tarihi belirleyin.`,
+        descEn: `60-Day Sprint Mode: Establish a clear and realistic deadline for each remaining section of the project.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(2),
       isCompleted: false,
@@ -483,16 +588,26 @@ export function buildMulakatAdaptationTasks(
 
   if (daysLeft <= 1 && !hasDuplicateAdaptation(existingTasks, 'mulakat_eve', 7, true)) {
     tasks.push({
-      title: tr ? `${name} yarın: kıyafet + rota + alarm hazır mı? 8 saat uyu` : `${name} tomorrow: outfit + route + alarm ready? Sleep 8 hours`,
-      description: JSON.stringify({ tr: `${name} yarın: kıyafet + rota + alarm hazır mı? 8 saat uyu`, en: `${name} tomorrow: outfit + route + alarm ready? Sleep 8 hours` }),
+      title: tr ? `Mülakat hazırlıklarını kontrol et` : `Verify interview preparations`,
+      description: JSON.stringify({ 
+        tr: `Mülakat hazırlıklarını kontrol et`, 
+        en: `Verify interview preparations`,
+        descTr: `${name} mülakatı yarın! Kıyafetiniz, yol rotanız ve alarmınız hazır mı kontrol edin. 8 saat uyumaya özen gösterin.`,
+        descEn: `${name} is tomorrow! Check if your outfit, commute route, and alarm are ready. Aim for 8 hours of sleep.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(0),
       isCompleted: false,
       tags: ['mulakat_eve', 'work'],
     });
     tasks.push({
-      title: tr ? `3 güçlü STAR hikayeni sesli anlat ve 2 dakikada bitir` : `Tell your 3 strongest STAR stories out loud and finish in 2 minutes`,
-      description: JSON.stringify({ tr: `3 güçlü STAR hikayeni sesli anlat ve 2 dakikada bitir`, en: `Tell your 3 strongest STAR stories out loud and finish in 2 minutes` }),
+      title: tr ? `STAR hikayelerini prova et` : `Rehearse STAR stories`,
+      description: JSON.stringify({ 
+        tr: `STAR hikayelerini prova et`, 
+        en: `Rehearse STAR stories`,
+        descTr: `Mülakatta anlatacağınız 3 güçlü STAR hikayesini sesli olarak prova edin ve her birini 2 dakikada bitirecek şekilde ayarlayın.`,
+        descEn: `Rehearse your 3 strongest STAR stories out loud and practice keeping each under 2 minutes.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(0),
       isCompleted: false,
@@ -502,16 +617,26 @@ export function buildMulakatAdaptationTasks(
 
   if (daysLeft <= 3 && daysLeft > 1 && !hasDuplicateAdaptation(existingTasks, 'mulakat_3days', 7, true)) {
     tasks.push({
-      title: tr ? `${name}: son haberler, ürünler ve kültür — 30 dk araştır` : `${name}: latest news, products & culture — research 30 min`,
-      description: JSON.stringify({ tr: `${name}: son haberler, ürünler ve kültür — 30 dk araştır`, en: `${name}: latest news, products & culture — research 30 min` }),
+      title: tr ? `Şirket haberlerini araştır` : `Research company news`,
+      description: JSON.stringify({ 
+        tr: `Şirket haberlerini araştır`, 
+        en: `Research company news`,
+        descTr: `${name} mülakatı için son haberleri, şirketin ürünlerini ve kurum kültürünü 30 dakika boyunca araştırın.`,
+        descEn: `${name}: Research latest news, products, and organizational culture for 30 minutes.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(0),
       isCompleted: false,
       tags: ['mulakat_3days', 'work'],
     });
     tasks.push({
-      title: tr ? `Mock mülakat yap — kaydet ve geri izle (video/ses)` : `Do a mock interview — record and review (video/audio)`,
-      description: JSON.stringify({ tr: `Mock mülakat yap — kaydet ve geri izle (video/ses)`, en: `Do a mock interview — record and review (video/audio)` }),
+      title: tr ? `Mock mülakat yap ve kaydet` : `Do a mock interview`,
+      description: JSON.stringify({ 
+        tr: `Mock mülakat yap ve kaydet`, 
+        en: `Do a mock interview`,
+        descTr: `Kendinize mock mülakat yapın. Verdiğiniz cevapları videoya veya sese kaydedip daha sonra geri izleyin/dinleyin.`,
+        descEn: `Do a mock interview: Record your answers (audio or video) and review your performance.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(1),
       isCompleted: false,
@@ -521,16 +646,26 @@ export function buildMulakatAdaptationTasks(
 
   if (daysLeft <= 7 && daysLeft > 3 && !hasDuplicateAdaptation(existingTasks, 'mulakat_week', 14, true)) {
     tasks.push({
-      title: tr ? `${name} ${daysLeft} gün — "Neden bu şirket?" ve "Neden sen?" sorularını yaz` : `${name} in ${daysLeft} days — write "Why this company?" and "Why you?"`,
-      description: JSON.stringify({ tr: `${name} ${daysLeft} gün — "Neden bu şirket?" ve "Neden sen?" sorularını yaz`, en: `${name} in ${daysLeft} days — write "Why this company?" and "Why you?"` }),
+      title: tr ? `Neden biz / Neden sen?` : `Why us / Why you?`,
+      description: JSON.stringify({ 
+        tr: `Neden biz / Neden sen?`, 
+        en: `Why us / Why you?`,
+        descTr: `${name} mülakatına ${daysLeft} gün kaldı. "Neden bu şirket?" ve "Neden sen?" sorularının cevaplarını yazın.`,
+        descEn: `${name} in ${daysLeft} days: Write down your answers for "Why this company?" and "Why you?".`
+      }),
       priority: 'High',
       dueDate: daysFromNow(1),
       isCompleted: false,
       tags: ['mulakat_week', 'work'],
     });
     tasks.push({
-      title: tr ? `Teknik/case konuları için odaklı 2 saatlik çalışma bloğu planla` : `Plan a focused 2-hour study block for technical/case topics`,
-      description: JSON.stringify({ tr: `Teknik/case konuları için odaklı 2 saatlik çalışma bloğu planla`, en: `Plan a focused 2-hour study block for technical/case topics` }),
+      title: tr ? `Teknik çalışma bloğu planla` : `Plan technical study block`,
+      description: JSON.stringify({ 
+        tr: `Teknik çalışma bloğu planla`, 
+        en: `Plan technical study block`,
+        descTr: `Teknik veya vaka (case) konuları için odaklanmış 2 saatlik bir çalışma bloğu planlayıp uygulayın.`,
+        descEn: `Plan and execute a focused 2-hour study block for technical or case topics.`
+      }),
       priority: 'Medium',
       dueDate: daysFromNow(2),
       isCompleted: false,
@@ -540,8 +675,13 @@ export function buildMulakatAdaptationTasks(
 
   if (daysLeft <= 14 && daysLeft > 7 && !hasDuplicateAdaptation(existingTasks, 'mulakat_2weeks', 30, true)) {
     tasks.push({
-      title: tr ? `${name}: CV'ni şirkete göre uyarla — ilgisiz maddeleri çıkar` : `${name}: tailor your CV to the company — remove irrelevant items`,
-      description: JSON.stringify({ tr: `${name}: CV'ni şirkete göre uyarla — ilgisiz maddeleri çıkar`, en: `${name}: tailor your CV to the company — remove irrelevant items` }),
+      title: tr ? `CV'ni şirkete göre uyarla` : `Tailor CV to company`,
+      description: JSON.stringify({ 
+        tr: `CV'ni şirkete göre uyarla`, 
+        en: `Tailor CV to company`,
+        descTr: `${name} mülakatı için CV'nizi şirkete/pozisyona göre uyarlayın. İlgisiz olan maddeleri CV'nizden çıkarın.`,
+        descEn: `${name}: Tailor your CV to match the specific company and role. Remove irrelevant details.`
+      }),
       priority: 'Medium',
       dueDate: daysFromNow(3),
       isCompleted: false,
@@ -566,8 +706,13 @@ export function buildGucAdaptationTasks(
   // Her 4 haftada bir deload haftası
   if (weeksInPlan > 0 && weeksInPlan % 4 === 0 && !hasDuplicateAdaptation(existingTasks, 'guc_deload', 28, true)) {
     tasks.push({
-      title: tr ? `${weeksInPlan}. hafta — DELOAD: ağırlıkları %40 azalt, aynı set/tekrar; kaslar büyür, sakatlanma riski düşer` : `Week ${weeksInPlan} — DELOAD: reduce weights by 40%, same sets/reps; muscles grow, injury risk drops`,
-      description: JSON.stringify({ tr: `${weeksInPlan}. hafta — DELOAD: ağırlıkları %40 azalt, aynı set/tekrar; kaslar büyür, sakatlanma riski düşer`, en: `Week ${weeksInPlan} — DELOAD: reduce weights by 40%, same sets/reps; muscles grow, injury risk drops` }),
+      title: tr ? `Deload haftası: Ağırlık düşür` : `Deload week: Reduce weights`,
+      description: JSON.stringify({ 
+        tr: `Deload haftası: Ağırlık düşür`, 
+        en: `Deload week: Reduce weights`,
+        descTr: `${weeksInPlan}. hafta — DELOAD: Ağırlıkları %40 oranında azaltın ancak set ve tekrar sayısını koruyun. Kasların dinlenmesini sağlar ve sakatlanma riskini düşürür.`,
+        descEn: `Week ${weeksInPlan} — DELOAD: Reduce training weights by 40% while keeping sets and reps same. Allows muscles to recover and prevents injury.`
+      }),
       priority: 'High',
       dueDate: daysFromNow(0),
       isCompleted: false,
@@ -578,8 +723,13 @@ export function buildGucAdaptationTasks(
   // Her 2 haftada bir ilerleme logu hatırlatması
   if (weeksInPlan > 0 && weeksInPlan % 2 === 0 && !hasDuplicateAdaptation(existingTasks, 'guc_progress', 14, true)) {
     tasks.push({
-      title: tr ? `2 Haftalık İlerleme: Temel hareketlerinde geçen seferden fazla ağırlık/tekrar yapabiliyor musun? Kaydet` : `2-Week Check: Can you lift more weight or do more reps than 2 weeks ago? Record it`,
-      description: JSON.stringify({ tr: `2 Haftalık İlerleme: Temel hareketlerinde geçen seferden fazla ağırlık/tekrar yapabiliyor musun? Kaydet`, en: `2-Week Check: Can you lift more weight or do more reps than 2 weeks ago? Record it` }),
+      title: tr ? `2 haftalık güç kontrolü` : `2-week strength check`,
+      description: JSON.stringify({ 
+        tr: `2 haftalık güç kontrolü`, 
+        en: `2-week strength check`,
+        descTr: `Temel hareketlerinizde (Squat, Bench Press, Deadlift vb.) geçen sefere kıyasla daha fazla ağırlık veya tekrar yapabiliyor musunuz? Kaydedin.`,
+        descEn: `2-Week Check: Can you lift more weight or do more reps in your main lifts than 2 weeks ago? Record it.`
+      }),
       priority: 'Medium',
       dueDate: daysFromNow(0),
       isCompleted: false,

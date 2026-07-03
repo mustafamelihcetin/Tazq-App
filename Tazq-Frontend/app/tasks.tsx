@@ -12,7 +12,7 @@ import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { WeightEntryModal } from '@/shared/components/WeightEntryModal';
 import { TaskFormModal } from '@/shared/components/TaskFormModal';
-import { useTaskStore, parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask, getLocalizedTaskTitle } from '@/features/tasks';
+import { useTaskStore, parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -130,6 +130,8 @@ const MemoizedTaskItem = React.memo((props: any) => {
                         onPress={() => {
                             if (isBulkMode) {
                                 handleBulkSelect(task.id);
+                            } else if (task.tags?.includes('weight_entry')) {
+                                handleToggle(task.id);
                             } else {
                                 handleToggleExpand(task.id);
                             }
@@ -175,7 +177,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                     )}
                                 </View>
 
-                                {(task.description || task.dueDate || task.dueTime || modeInfo || (task.subtasks && task.subtasks.length > 0)) && (() => {
+                                {(getLocalizedTaskDescription(task, language === 'tr') || task.dueDate || task.dueTime || modeInfo || (task.subtasks && task.subtasks.length > 0)) && (() => {
                                     const taskCountdown = getTaskRemainingTime(task.dueDate, task.dueTime, task.isCompleted, language === 'tr');
                                     return (
                                         <MotiView
@@ -305,11 +307,14 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                 >
                                     <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', marginBottom: S.md }} />
                                     
-                                    {task.description && (
-                                        <Text style={{ fontSize: F.subhead, color: theme.onSurfaceVariant, lineHeight: 20, marginBottom: S.sm }}>
-                                            {task.description}
-                                        </Text>
-                                    )}
+                                    {(() => {
+                                        const desc = getLocalizedTaskDescription(task, language === 'tr');
+                                        return desc ? (
+                                            <Text style={{ fontSize: F.subhead, color: theme.onSurfaceVariant, lineHeight: 20, marginBottom: S.sm }}>
+                                                {desc}
+                                            </Text>
+                                        ) : null;
+                                    })()}
 
                                     {/* Subtasks */}
                                     {task.subtasks && task.subtasks.length > 0 && (
@@ -474,7 +479,7 @@ export default function ActionCenter() {
   const { enqueue: enqueueOffline } = useOfflineQueue();
   const { soundEffects } = usePrefsStore();
   const { record: recordCompletion } = useCompletionStore();
-  const { setCurrentTask } = useFocusStore();
+  const setCurrentTask = useFocusStore(s => s.setCurrentTask);
   const { width, height } = useWindowDimensions();
   const router = useRouter();
   const { action, highlightId, dateFilter } = useLocalSearchParams<{ action?: string; highlightId?: string; dateFilter?: string }>();

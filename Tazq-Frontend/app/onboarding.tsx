@@ -281,7 +281,7 @@ export default function OnboardingScreen() {
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.surfaceContainerHighest, padding: 8, borderRadius: 8 }}
                 >
                   <Text style={{ fontSize: 10, fontWeight: '800', color: '#3367ff' }}>PLAIN:</Text>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurface }}>"Tazq Toplantısı"</Text>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurface }}>"TAZQ Toplantısı"</Text>
                 </MotiView>
 
                 {/* Encrypted Text row */}

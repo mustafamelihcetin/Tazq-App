@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTaskStore, parseTaskHint, getLocalizedTaskTitle } from '@/features/tasks';
+import { useTaskStore, parseTaskHint, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, useAchievementStore, useMomentumStore, checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS, getAvatarSource, AVATAR_CONFIGS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -365,7 +365,13 @@ export default function HomeScreen() {
   const habitsDoneToday = habits.filter(h => (h.completedDates ?? []).includes(habitTodayKey)).length;
 
   // Focus Store
-  const { isActive, seconds, setCurrentTask, setDuration, setIsActive, dailyFocusMinutes, dailyGoalMinutes, updateBestStreak } = useFocusStore();
+  const isActive = useFocusStore(s => s.isActive);
+  const setCurrentTask = useFocusStore(s => s.setCurrentTask);
+  const setDuration = useFocusStore(s => s.setDuration);
+  const setIsActive = useFocusStore(s => s.setIsActive);
+  const dailyFocusMinutes = useFocusStore(s => s.dailyFocusMinutes);
+  const dailyGoalMinutes = useFocusStore(s => s.dailyGoalMinutes);
+  const updateBestStreak = useFocusStore(s => s.updateBestStreak);
 
   // State
   const [statusHubVisible, setStatusHubVisible] = useState(false);
@@ -1258,7 +1264,14 @@ export default function HomeScreen() {
         theme={theme}
         isDark={isDark}
         tr={tr}
-        onPress={() => router.push({ pathname: '/tasks', params: { highlightId: item.id } })}
+        onPress={() => {
+          if (item.tags?.includes('weight_entry')) {
+            Haptics.selectionAsync();
+            setWeightModalTaskId(item.id);
+          } else {
+            router.push({ pathname: '/tasks', params: { highlightId: item.id } });
+          }
+        }}
         priorityColor={priorityColor}
         prefs={usePrefsStore.getState()}
       />
@@ -2007,10 +2020,10 @@ export default function HomeScreen() {
 
                         <View style={styles.missionContent}>
                             <Text adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.missionTitle, { color: theme.onSurface, fontSize: F.title }]} numberOfLines={2} ellipsizeMode="tail">
-                                {topTask ? topTask.title : t.noTasksHint}
+                                {topTask ? getLocalizedTaskTitle(topTask, language === 'tr') : t.noTasksHint}
                             </Text>
                             <Text style={[styles.missionSub, { color: theme.onSurfaceVariant }]}>
-                                {topTask ? (topTask.description || t.waitingForAction) : t.allTasksReady}
+                                {topTask ? (getLocalizedTaskDescription(topTask, language === 'tr') || t.waitingForAction) : t.allTasksReady}
                             </Text>
                         </View>
 

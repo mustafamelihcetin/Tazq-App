@@ -205,3 +205,16 @@ export function getLocalizedTaskTitle(task: { title: string; description?: strin
   return task.title;
 }
 
+export function getLocalizedTaskDescription(task: { description?: string | null }, isTr: boolean): string | null {
+  if (!task.description) return null;
+  if (task.description.startsWith('{"tr":')) {
+    try {
+      const parsed = JSON.parse(task.description);
+      if (isTr && parsed.descTr) return parsed.descTr;
+      if (!isTr && parsed.descEn) return parsed.descEn;
+      return null;
+    } catch {}
+  }
+  return task.description;
+}
+

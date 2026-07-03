@@ -370,7 +370,9 @@ export default function RegisterScreen() {
                         }
                       </View>
                       <Text style={[styles.consentText, { color: theme.onSurfaceVariant }]}>
-                        {tr ? '' : 'I have read and agree to the '}
+                        {tr 
+                          ? '13 yaş ve üzeri olduğumu (COPPA/GDPR/KVKK uyumluluk sınırıdır), '
+                          : 'I declare that I am 13 years or older (required for COPPA/GDPR/KVKK compliance) and agree to the '}
                         <Text
                           style={{ color: theme.primary, fontFamily: 'Jakarta-Bold' }}
                           onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}

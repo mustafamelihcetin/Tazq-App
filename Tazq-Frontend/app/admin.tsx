@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import {
   ChevronLeft, Users, CheckSquare, Clock, Trash2, Shield, ShieldOff,
   Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Mail, Send, CornerDownRight,
-  Server, RefreshCw, Power, Database, AlertTriangle, FileText, ExternalLink, BarChart3
+  Server, RefreshCw, Power, Database, AlertTriangle, FileText, ExternalLink, BarChart3, AlertCircle
 } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -56,6 +56,7 @@ export default function AdminScreen() {
   const [sysLogs, setSysLogs] = useState<SystemLogEntry[]>([]);
   const [sysSentry, setSysSentry] = useState<SentrySummary | null>(null);
   const [sysLogLevel, setSysLogLevel] = useState<string | null>(null);
+  const [crashes, setCrashes] = useState<any[]>([]);
   const [sysLoading, setSysLoading] = useState(false);
   const [sysBusy, setSysBusy] = useState<string | null>(null);
   const [messages, setMessages] = useState<SupportMessageItem[]>([]);
@@ -151,16 +152,18 @@ export default function AdminScreen() {
   const loadSystem = useCallback(async () => {
     setSysLoading(true);
     try {
-      const [h, s, l, se] = await Promise.all([
+      const [h, s, l, se, cr] = await Promise.all([
         AdminSystemService.health().catch(() => null),
         AdminSystemService.stats().catch(() => null),
         AdminSystemService.logs(200, sysLogLevel || undefined).catch(() => ({ logs: [] as SystemLogEntry[] })),
         AdminSystemService.sentry().catch(() => null),
+        SupportService.getCrashes(15).catch(() => ({ crashes: [] })),
       ]);
       setSysHealth(h);
       setSysStats(s);
       setSysLogs(l.logs || []);
       setSysSentry(se);
+      setCrashes(cr?.crashes || []);
     } finally {
       setSysLoading(false);
     }
@@ -874,6 +877,76 @@ export default function AdminScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: '#10B98112', borderRadius: R.md, padding: S.sm }}>
                     <Check size={15} color="#10B981" />
                     <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Son 24 saatte çözülmemiş hata yok' : 'No unresolved issues (24h)'}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Client Crashes — Son Hatalar ve Çökmeler */}
+              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                    <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#EF444420', alignItems: 'center', justifyContent: 'center' }}>
+                      <AlertCircle size={15} color="#EF4444" />
+                    </View>
+                    <View>
+                      <Text style={{ color: theme.onSurface, fontWeight: '900', fontSize: F.body }}>{tr ? 'Kullanıcı Hataları (Crash Log)' : 'Client Crashes'}</Text>
+                      <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.6 }}>{tr ? 'son çökmeler' : 'recent reports'}</Text>
+                    </View>
+                  </View>
+                  <View style={{ backgroundColor: crashes.filter(c => !c.isResolved).length > 0 ? '#EF444420' : '#10B98120', paddingHorizontal: S.sm, paddingVertical: 3, borderRadius: R.full }}>
+                    <Text style={{ color: crashes.filter(c => !c.isResolved).length > 0 ? '#EF4444' : '#10B981', fontSize: 10, fontWeight: '900' }}>
+                      {crashes.filter(c => !c.isResolved).length} {tr ? 'ÇÖZÜLMEMİŞ' : 'UNRESOLVED'}
+                    </Text>
+                  </View>
+                </View>
+
+                {crashes.length === 0 ? (
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, paddingVertical: S.xs }}>
+                    {tr ? 'Herhangi bir kullanıcı hatası kaydedilmedi.' : 'No client crashes recorded.'}
+                  </Text>
+                ) : (
+                  <View style={{ gap: S.sm }}>
+                    {crashes.map((crash, idx) => (
+                      <View key={crash.id || idx} style={{ borderTopWidth: idx > 0 ? B.thin : 0, borderTopColor: cardBorder, paddingTop: idx > 0 ? S.sm : 0, gap: 4 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={{ color: theme.onSurface, fontWeight: '800', fontSize: F.caption, flex: 1 }} numberOfLines={1}>
+                            {crash.errorMessage}
+                          </Text>
+                          <Text style={{ color: theme.onSurfaceVariant, fontSize: 9, opacity: 0.5 }}>
+                            {crash.createdAt ? new Date(crash.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </Text>
+                        </View>
+                        
+                        <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.8 }} numberOfLines={2}>
+                          {crash.stackTrace}
+                        </Text>
+                        
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+                          <Text style={{ color: theme.onSurfaceVariant, fontSize: 9, opacity: 0.6 }}>
+                            {crash.platform} · {crash.deviceName} · v{crash.appVersion} {crash.userEmail ? `(${crash.userEmail})` : ''}
+                          </Text>
+                          {!crash.isResolved ? (
+                            <Touchable
+                              onPress={async () => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                try {
+                                  await SupportService.resolveCrash(crash.id);
+                                  const cr = await SupportService.getCrashes(15).catch(() => ({ crashes: [] }));
+                                  setCrashes(cr.crashes || []);
+                                } catch {}
+                              }}
+                              style={{ backgroundColor: theme.primary + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}
+                            >
+                              <Text style={{ color: theme.primary, fontSize: 9, fontWeight: '900' }}>
+                                {tr ? 'Çözüldü İşaretle' : 'Mark Resolved'}
+                              </Text>
+                            </Touchable>
+                          ) : (
+                            <Text style={{ color: '#10B981', fontSize: 9, fontWeight: '800' }}>✓ {tr ? 'Çözüldü' : 'Resolved'}</Text>
+                          )}
+                        </View>
+                      </View>
+                    ))}
                   </View>
                 )}
               </View>

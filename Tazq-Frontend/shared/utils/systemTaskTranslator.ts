@@ -3,6 +3,7 @@ import { getAllKnownModePairs } from '@/features/modes/utils/turkishModes';
 import { getAllLifeModePairs } from './lifeModePlans';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { useHabitStore } from '@/features/habits/store/useHabitStore';
+import { translateTag } from '@/features/tasks';
 
 let trToEnMap: Map<string, string> | null = null;
 let enToTrMap: Map<string, string> | null = null;
@@ -203,11 +204,16 @@ export function syncTasksAndHabitsLanguage(lang: 'tr' | 'en') {
         }
       }
 
-      if (newTitle !== t.title || titleTr !== (t as any).titleTr || titleEn !== (t as any).titleEn) {
+      const oldTags = t.tags || [];
+      const newTags = oldTags.map(tag => translateTag(tag, lang));
+      const tagsChanged = oldTags.length !== newTags.length || oldTags.some((val, idx) => val !== newTags[idx]);
+
+      if (newTitle !== t.title || titleTr !== (t as any).titleTr || titleEn !== (t as any).titleEn || tagsChanged) {
         tasksChanged = true;
         return {
           ...t,
           title: newTitle,
+          tags: newTags,
           ...(titleTr ? { titleTr } : {}),
           ...(titleEn ? { titleEn } : {}),
         };

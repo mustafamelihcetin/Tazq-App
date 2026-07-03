@@ -15,6 +15,7 @@ namespace Tazq_App.Data
 		public DbSet<RefreshToken> RefreshTokens { get; set; }
 		public DbSet<ContentDocument> ContentDocuments { get; set; }
 		public DbSet<SupportMessage> SupportMessages { get; set; }
+		public DbSet<ClientCrash> ClientCrashes { get; set; }
 
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -68,6 +69,9 @@ namespace Tazq_App.Data
 			modelBuilder.Entity<RefreshToken>().HasIndex(t => t.UserId);
 
 			modelBuilder.Entity<ContentDocument>().HasIndex(c => c.Key).IsUnique();
+
+			modelBuilder.Entity<ClientCrash>().HasIndex(c => c.CreatedAt);
+			modelBuilder.Entity<ClientCrash>().HasIndex(c => c.UserId);
 		}
 	}
 }

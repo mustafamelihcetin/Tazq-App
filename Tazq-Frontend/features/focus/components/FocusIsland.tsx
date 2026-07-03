@@ -11,7 +11,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
 
 export const FocusIsland = () => {
-  const { isActive, seconds, currentTask } = useFocusStore();
+  const isActive = useFocusStore(s => s.isActive);
+  const seconds = useFocusStore(s => s.seconds);
+  const currentTask = useFocusStore(s => s.currentTask);
   const { theme, colorScheme } = useAppTheme();
   const router = useRouter();
   const pathname = usePathname();

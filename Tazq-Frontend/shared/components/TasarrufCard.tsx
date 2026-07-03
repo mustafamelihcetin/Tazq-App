@@ -158,7 +158,7 @@ export function TasarrufCard() {
     for (const t of content.tasks) {
       const id = await createPlanTask({
         title: tr ? t.title : t.titleEn,
-        description: JSON.stringify({ tr: t.title, en: t.titleEn }),
+        description: JSON.stringify({ tr: t.title, en: t.titleEn, descTr: t.desc, descEn: t.descEn }),
         priority: t.priority,
         isCompleted: false,
         tags: t.tags

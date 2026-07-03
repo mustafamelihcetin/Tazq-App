@@ -54,7 +54,15 @@ export default function ProfileScreen() {
   const { show: showToast } = useToastStore();
   const insets = useSafeAreaInsets();
 
-  const { bestStreak, streakFreezeAvailable, useStreakFreeze, dailyGoalMinutes, setDailyGoal, updateBestStreak, checkStreakFreezeReset, focusPoints, streakShields } = useFocusStore();
+  const bestStreak = useFocusStore(s => s.bestStreak);
+  const streakFreezeAvailable = useFocusStore(s => s.streakFreezeAvailable);
+  const useStreakFreeze = useFocusStore(s => s.useStreakFreeze);
+  const dailyGoalMinutes = useFocusStore(s => s.dailyGoalMinutes);
+  const setDailyGoal = useFocusStore(s => s.setDailyGoal);
+  const updateBestStreak = useFocusStore(s => s.updateBestStreak);
+  const checkStreakFreezeReset = useFocusStore(s => s.checkStreakFreezeReset);
+  const focusPoints = useFocusStore(s => s.focusPoints);
+  const streakShields = useFocusStore(s => s.streakShields);
   const { habits, toggleDate } = useHabitStore();
   const { tasks } = useTaskStore();
   const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender } = usePrefsStore();

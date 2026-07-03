@@ -1,4 +1,4 @@
-import { parseTaskHint } from '@/features/tasks';
+import { parseTaskHint, translateTag } from '@/features/tasks';
 
 describe('parseTaskHint', () => {
   it('detects high priority from "acil" keyword', () => {
@@ -71,5 +71,23 @@ describe('parseTaskHint', () => {
     expect(result.recurrence).toBe('None');
     expect(result.dueDate).toBeDefined();
     expect(new Date(result.dueDate!).toDateString()).toBe(new Date().toDateString());
+  });
+});
+
+describe('translateTag', () => {
+  it('translates Turkish tags to English', () => {
+    expect(translateTag('eğitim', 'en')).toBe('education');
+    expect(translateTag('iş', 'en')).toBe('work');
+    expect(translateTag('spor', 'en')).toBe('fitness');
+    expect(translateTag('tasarruf', 'en')).toBe('savings');
+    expect(translateTag('bırakma', 'en')).toBe('quit');
+  });
+
+  it('translates English tags to Turkish', () => {
+    expect(translateTag('education', 'tr')).toBe('eğitim');
+    expect(translateTag('work', 'tr')).toBe('iş');
+    expect(translateTag('fitness', 'tr')).toBe('spor');
+    expect(translateTag('savings', 'tr')).toBe('tasarruf');
+    expect(translateTag('quit', 'tr')).toBe('bırakma');
   });
 });

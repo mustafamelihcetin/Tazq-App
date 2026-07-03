@@ -11,7 +11,7 @@ import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
-import { useTaskStore } from '@/features/tasks';
+import { useTaskStore, translateTag } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus/store/useFocusStore';
 import { TaskService } from '@/shared/services/api';
 import { TurkishMode, StudyTemplate, ModeHabit, ModeTask } from '../utils/turkishModes';
@@ -85,7 +85,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
   const { habits, addHabit, getStreak } = useHabitStore();
   const { tasks, addTask } = useTaskStore();
-  const { setDailyGoal } = useFocusStore();
+  const setDailyGoal = useFocusStore(s => s.setDailyGoal);
   const ramazanStatus = useMemo(() => getCurrentRamadanStatus(), []);
   const isRamazanActive = ramazanStatus.isActive;
 
@@ -536,27 +536,37 @@ export const TurkishModeBanner: React.FC<Props> = ({
     const addedTaskIds: number[] = [];
     const visibleTagsMap: Record<string, string> = {
       exam: 'education',
+      yks: 'education',
+      kpss: 'education',
       tez: 'education',
       mulakat: 'work',
       spor: 'fitness',
       ramazan: 'ramazan',
+      tasarruf: 'savings',
+      birakma: 'quit'
     };
     const extraVisibleTag = visibleTagsMap[mode.type];
 
     for (const task of newTasks) {
       const title = tr ? task.titleTr : task.titleEn;
       const dueDate = getTaskDueDate(task);
-      const description = JSON.stringify({ tr: task.titleTr, en: task.titleEn });
+      const description = JSON.stringify({ 
+        tr: task.titleTr, 
+        en: task.titleEn,
+        ...(task.descTr && { descTr: task.descTr }),
+        ...(task.descEn && { descEn: task.descEn }),
+      });
       
       const finalTags = [mode.type, ...(task.tags ?? [])];
       if (extraVisibleTag && !finalTags.includes(extraVisibleTag)) {
         finalTags.push(extraVisibleTag);
       }
+      const translatedTags = finalTags.map(tag => translateTag(tag, tr ? 'tr' : 'en'));
 
       try {
         const created = await TaskService.createTask({
           title, description, priority: task.priority,
-          isCompleted: false, tags: finalTags, subtasks: [],
+          isCompleted: false, tags: translatedTags, subtasks: [],
           ...(dueDate && { dueDate }),
         } as any);
         addTask({ ...created, title, titleTr: task.titleTr, titleEn: task.titleEn } as any);
@@ -565,7 +575,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
         const localId = Math.floor(Date.now() + Math.random() * 1000);
         addTask({
           id: localId, title, description, priority: task.priority,
-          isCompleted: false, tags: finalTags, subtasks: [],
+          isCompleted: false, tags: translatedTags, subtasks: [],
           ...(dueDate && { dueDate }),
           titleTr: task.titleTr, titleEn: task.titleEn,
         } as any);

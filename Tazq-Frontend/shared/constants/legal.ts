@@ -2,7 +2,6 @@
 //  TAZQ – Yasal Metinler / Legal Texts
 //  Son güncelleme / Last updated: 2026-06-29
 // ─────────────────────────────────────────────────────────────────────────────
-
 export type LegalDocKey = 'terms' | 'privacy' | 'kvkk' | 'consent';
 
 export interface LegalDoc {
@@ -11,8 +10,6 @@ export interface LegalDoc {
   bodyTr: string;
   bodyEn: string;
 }
-
-// ── 1. KULLANICI SÖZLEŞMESİ / TERMS OF SERVICE ───────────────────────────────
 
 const TERMS: LegalDoc = {
   titleTr: 'Kullanıcı Sözleşmesi',
@@ -23,7 +20,7 @@ const TERMS: LegalDoc = {
 Son Güncelleme: 29 Haziran 2026
 Yürürlük Tarihi: 29 Haziran 2026
 
-Bu Kullanıcı Sözleşmesi ("Sözleşme"), TAZQ uygulamasını ("Uygulama") işleten Malthen ("Tazq", "Geliştirici", "biz") ile Uygulamayı kullanan gerçek kişi ("Kullanıcı", "siz") arasında akdedilmektedir.
+Bu Kullanıcı Sözleşmesi ("Sözleşme"), TAZQ uygulamasını ("Uygulama") işleten Malthen ("TAZQ", "Geliştirici", "biz") ile Uygulamayı kullanan gerçek kişi ("Kullanıcı", "siz") arasında akdedilmektedir.
 
 Uygulamayı indirerek, kaydolarak veya kullanmaya devam ederek bu Sözleşme'nin tüm hükümlerini okuduğunuzu, anladığınızı ve kabul ettiğinizi beyan edersiniz.
 
@@ -36,7 +33,7 @@ Uygulamayı indirerek, kaydolarak veya kullanmaya devam ederek bu Sözleşme'nin
 
 1.3 "İçerik": Kullanıcının Uygulama aracılığıyla oluşturduğu görev, not, alışkanlık kaydı ve benzeri verileri kapsar.
 
-1.4 "Hizmet": Tazq'ın Uygulama üzerinden sunduğu tüm dijital hizmetleri ifade eder.
+1.4 "Hizmet": TAZQ'un Uygulama üzerinden sunduğu tüm dijital hizmetleri ifade eder.
 
 
 2. HESAP OLUŞTURMA VE GÜVENLİK
@@ -45,14 +42,14 @@ Uygulamayı indirerek, kaydolarak veya kullanmaya devam ederek bu Sözleşme'nin
 
 2.2 Kayıt sırasında doğru, güncel ve eksiksiz bilgi vermeyi kabul edersiniz. Verilen yanıltıcı bilgilerden doğan her türlü sorumluluk kullanıcıya aittir.
 
-2.3 Hesap şifrenizin gizliliğini korumakla ve yetkisiz erişimleri derhal Tazq'a bildirmekle yükümlüsünüz. Şifrenizin üçüncü kişilerle paylaşılması durumunda oluşabilecek zararlardan Tazq sorumlu tutulamaz.
+2.3 Hesap şifrenizin gizliliğini korumakla ve yetkisiz erişimleri derhal TAZQ'a bildirmekle yükümlüsünüz. Şifrenizin üçüncü kişilerle paylaşılması durumunda oluşabilecek zararlardan TAZQ sorumlu tutulamaz.
 
 2.4 Her kullanıcı yalnızca bir hesap açabilir. Aynı kişiye ait birden fazla hesap tespit edilmesi durumunda tüm hesaplar askıya alınabilir.
 
 
 3. HİZMETİN KAPSAMI VE KULLANIM KOŞULLARI
 
-3.1 Tazq, Kullanıcı'ya şu hizmetleri sunar:
+3.1 TAZQ, Kullanıcı'ya şu hizmetleri sunar:
    – Görev oluşturma, önceliklendirme ve takibi
    – Pomodoro tabanlı odak zamanlayıcısı
    – Alışkanlık oluşturma ve günlük takip
@@ -73,11 +70,11 @@ Uygulamayı indirerek, kaydolarak veya kullanmaya devam ederek bu Sözleşme'nin
 
 4. FİKRİ MÜLKİYET HAKLARI
 
-4.1 Uygulama, tasarım, yazılım kodu, içerik, grafikler, logolar ve marka unsurları dahil olmak üzere tüm fikri mülkiyet hakları Tazq'a aittir ve 5846 sayılı Fikir ve Sanat Eserleri Kanunu ile uluslararası telif hukuku kapsamında koruma altındadır.
+4.1 Uygulama, tasarım, yazılım kodu, içerik, grafikler, logolar ve marka unsurları dahil olmak üzere tüm fikri mülkiyet hakları TAZQ'a aittir ve 5846 sayılı Fikir ve Sanat Eserleri Kanunu ile uluslararası telif hukuku kapsamında koruma altındadır.
 
-4.2 Kullanıcı, kendi oluşturduğu İçerik üzerindeki haklarını saklı tutar. Bununla birlikte, Uygulamayı kullanmaya devam ettiği sürece Tazq'a söz konusu İçeriği hizmetin sunumu amacıyla işleme, depolama ve yedekleme konusunda münhasır olmayan, devredilemeyen ve ücretsiz bir lisans vermektedir.
+4.2 Kullanıcı, kendi oluşturduğu İçerik üzerindeki haklarını saklı tutar. Bununla birlikte, Uygulamayı kullanmaya devam ettiği sürece TAZQ'a söz konusu İçeriği hizmetin sunumu amacıyla işleme, depolama ve yedekleme konusunda münhasır olmayan, devredilemeyen ve ücretsiz bir lisans vermektedir.
 
-4.3 Tazq'ın yazılı onayı olmaksızın uygulama içeriği ticari amaçla çoğaltılamaz, dağıtılamaz veya kamuya iletilemez.
+4.3 TAZQ'un yazılı onayı olmaksızın uygulama içeriği ticari amaçla çoğaltılamaz, dağıtılamaz veya kamuya iletilemez.
 
 
 5. HİZMETİN ÜCRETSİZ OLMASI VE GELECEKTEKİ HİZMETLER
@@ -94,27 +91,27 @@ Kişisel verilerinizin işlenmesine ilişkin detaylı bilgi için Gizlilik Polit
 
 7. GARANTİ RED VE SORUMLULUK SINIRLAMASI
 
-7.1 Tazq, Hizmet'i "olduğu gibi" (as-is) ve "mevcut olduğu şekilde" (as-available) sunmaktadır. Kesintisiz, hatasız veya güvenli bir hizmet sunulacağına ilişkin herhangi bir garanti verilmemektedir.
+7.1 TAZQ, Hizmet'i "olduğu gibi" (as-is) ve "mevcut olduğu şekilde" (as-available) sunmaktadır. Kesintisiz, hatasız veya güvenli bir hizmet sunulacağına ilişkin herhangi bir garanti verilmemektedir.
 
-7.2 Tazq'ın Kullanıcı'ya karşı doğrudan veya dolaylı maddi sorumluluğu bulunmamaktadır; hizmet tamamen ücretsiz olarak "olduğu gibi" sunulmaktadır.
+7.2 TAZQ'ın Kullanıcı'ya karşı doğrudan veya dolaylı maddi sorumluluğu bulunmamaktadır; hizmet tamamen ücretsiz olarak "olduğu gibi" sunulmaktadır.
 
-7.3 Kullanıcının veri kaybına uğramaması için düzenli yedek alınmasını tavsiye ederiz. Kullanıcı kaynaklı veri silme işlemlerinden Tazq sorumlu tutulamaz.
+7.3 Kullanıcının veri kaybına uğramaması için düzenli yedek alınmasını tavsiye ederiz. Kullanıcı kaynaklı veri silme işlemlerinden TAZQ sorumlu tutulamaz.
 
-7.4 Mücbir sebep halleri (doğal afet, siber saldırı, altyapı kesintisi vb.) nedeniyle yaşanan hizmet aksaklıklarından Tazq sorumlu değildir.
+7.4 Mücbir sebep halleri (doğal afet, siber saldırı, altyapı kesintisi vb.) nedeniyle yaşanan hizmet aksaklıklarından TAZQ sorumlu değildir.
 
 
 8. HİZMETİN ASKIYA ALINMASI VE SONLANDIRILMASI
 
-8.1 Tazq, bu Sözleşme'yi ihlal eden Kullanıcı'nın hesabını bildirimde bulunmaksızın askıya alma veya kalıcı olarak kapatma hakkını saklı tutar.
+8.1 TAZQ, bu Sözleşme'yi ihlal eden Kullanıcı'nın hesabını bildirimde bulunmaksızın askıya alma veya kalıcı olarak kapatma hakkını saklı tutar.
 
 8.2 Kullanıcı, hesabını istediği zaman uygulama içi ayarlar menüsünden veya contact@malthen.io adresine talep göndererek kapatabilir. Hesap kapatma talebi işleme alındıktan sonra veriler 30 (otuz) gün içinde kalıcı olarak silinir.
 
-8.3 Tazq, hizmetin tamamını veya belirli özelliklerini 30 (otuz) günlük önceden bildirimde bulunarak sonlandırabilir.
+8.3 TAZQ, hizmetin tamamını veya belirli özelliklerini 30 (otuz) günlük önceden bildirimde bulunarak sonlandırabilir.
 
 
 9. DEĞİŞİKLİKLER
 
-9.1 Tazq, bu Sözleşme'yi tek taraflı olarak değiştirme hakkını saklı tutar. Önemli değişiklikler uygulama içi bildirim veya e-posta yoluyla duyurulur.
+9.1 TAZQ, bu Sözleşme'yi tek taraflı olarak değiştirme hakkını saklı tutar. Önemli değişiklikler uygulama içi bildirim veya e-posta yoluyla duyurulur.
 
 9.2 Bildirim tarihinden itibaren 30 (otuz) gün içinde Uygulamayı kullanmaya devam etmeniz yeni sözleşme koşullarını kabul ettiğiniz anlamına gelir. Kabul etmiyorsanız hesabınızı kapatma hakkına sahipsiniz.
 
@@ -141,7 +138,7 @@ E-posta: contact@malthen.io
 Last Updated: June 29, 2026
 Effective Date: June 29, 2026
 
-This Terms of Service Agreement ("Agreement") is entered into between Malthen ("Tazq", "Developer", "we", "us") and the individual using the Application ("User", "you").
+This Terms of Service Agreement ("Agreement") is entered into between Malthen ("TAZQ", "Developer", "we", "us") and the individual using the Application ("User", "you").
 
 By downloading, registering, or continuing to use the Application, you represent that you have read, understood, and agree to all terms of this Agreement.
 
@@ -154,7 +151,7 @@ By downloading, registering, or continuing to use the Application, you represent
 
 1.3 "Content": Tasks, notes, habit records, and similar data created by the User through the Application.
 
-1.4 "Service": All digital services provided by Tazq through the Application.
+1.4 "Service": All digital services provided by TAZQ through the Application.
 
 
 2. ACCOUNT CREATION AND SECURITY
@@ -163,14 +160,14 @@ By downloading, registering, or continuing to use the Application, you represent
 
 2.2 You agree to provide accurate, current, and complete information during registration. You are solely responsible for any consequences arising from false or misleading information.
 
-2.3 You are responsible for maintaining the confidentiality of your password and for immediately notifying Tazq of any unauthorized access. Tazq shall not be held liable for damages arising from sharing your password with third parties.
+2.3 You are responsible for maintaining the confidentiality of your password and for immediately notifying TAZQ of any unauthorized access. TAZQ shall not be held liable for damages arising from sharing your password with third parties.
 
 2.4 Each user may maintain only one account. Detection of multiple accounts belonging to the same individual may result in suspension of all accounts.
 
 
 3. SCOPE OF SERVICE AND CONDITIONS OF USE
 
-3.1 Tazq provides the following services:
+3.1 TAZQ provides the following services:
    – Task creation, prioritization, and tracking
    – Pomodoro-based focus timer
    – Habit creation and daily tracking
@@ -191,11 +188,11 @@ By downloading, registering, or continuing to use the Application, you represent
 
 4. INTELLECTUAL PROPERTY RIGHTS
 
-4.1 All intellectual property rights in the Application, including design, software code, content, graphics, logos, and brand elements, belong to Tazq and are protected under Turkish Law No. 5846 on Intellectual and Artistic Works and international copyright law.
+4.1 All intellectual property rights in the Application, including design, software code, content, graphics, logos, and brand elements, belong to TAZQ and are protected under Turkish Law No. 5846 on Intellectual and Artistic Works and international copyright law.
 
-4.2 Users retain their rights to Content they create. However, by continuing to use the Application, you grant Tazq a non-exclusive, non-transferable, royalty-free license to process, store, and back up such Content for the purpose of providing the service.
+4.2 Users retain their rights to Content they create. However, by continuing to use the Application, you grant TAZQ a non-exclusive, non-transferable, royalty-free license to process, store, and back up such Content for the purpose of providing the service.
 
-4.3 Application content may not be reproduced, distributed, or communicated to the public for commercial purposes without Tazq's written consent.
+4.3 Application content may not be reproduced, distributed, or communicated to the public for commercial purposes without TAZQ's written consent.
 
 
 5. FREE OF CHARGE SERVICE AND FUTURE SERVICES
@@ -212,27 +209,27 @@ We strongly encourage you to review our Privacy Policy and Data Protection Notic
 
 7. DISCLAIMER OF WARRANTIES AND LIMITATION OF LIABILITY
 
-7.1 Tazq provides the Service "as-is" and "as-available" without warranty of any kind. No guarantee is made regarding uninterrupted, error-free, or secure service delivery.
+7.1 TAZQ provides the Service "as-is" and "as-available" without warranty of any kind. No guarantee is made regarding uninterrupted, error-free, or secure service delivery.
 
-7.2 Tazq's direct or indirect liability to the User is excluded as the service is provided completely free of charge on an "as-is" basis.
+7.2 TAZQ's direct or indirect liability to the User is excluded as the service is provided completely free of charge on an "as-is" basis.
 
-7.3 We recommend taking regular backups to avoid data loss. Tazq shall not be held liable for data deletions caused by the User.
+7.3 We recommend taking regular backups to avoid data loss. TAZQ shall not be held liable for data deletions caused by the User.
 
-7.4 Tazq is not liable for service disruptions caused by force majeure events (natural disasters, cyber attacks, infrastructure outages, etc.).
+7.4 TAZQ is not liable for service disruptions caused by force majeure events (natural disasters, cyber attacks, infrastructure outages, etc.).
 
 
 8. SUSPENSION AND TERMINATION OF SERVICE
 
-8.1 Tazq reserves the right to suspend or permanently close a User's account that violates this Agreement without prior notice.
+8.1 TAZQ reserves the right to suspend or permanently close a User's account that violates this Agreement without prior notice.
 
 8.2 Users may close their account at any time through the in-app settings or by submitting a request to contact@malthen.io. Data will be permanently deleted within 30 (thirty) days of account closure.
 
-8.3 Tazq may discontinue all or specific features of the service with 30 (thirty) days' prior notice.
+8.3 TAZQ may discontinue all or specific features of the service with 30 (thirty) days' prior notice.
 
 
 9. AMENDMENTS
 
-9.1 Tazq reserves the right to unilaterally modify this Agreement. Material changes will be communicated through in-app notifications or email.
+9.1 TAZQ reserves the right to unilaterally modify this Agreement. Material changes will be communicated through in-app notifications or email.
 
 9.2 Continued use of the Application for 30 (thirty) days following the notice date constitutes acceptance of the new terms. If you do not agree, you have the right to close your account.
 
@@ -386,7 +383,7 @@ Uygulama, 13 yaşın altındaki çocuklara yönelik değildir ve onlardan bilere
 Sunucularımız Türkiye ve/veya Avrupa Ekonomik Alanı (AEA) sınırları içindeki veri merkezlerinde konuşlandırılmıştır. AEA dışına veri aktarımı gerektiğinde Avrupa Komisyonu'nun Standart Sözleşme Maddeleri (SCC) uygulanır.
 
 
-10. KULLANICILARINHAKLARINIZINKULLANILMASI
+10. HAKLARINIZ VE KULLANILMASI
 
 KVKK ve GDPR kapsamında aşağıdaki haklara sahipsiniz:
 

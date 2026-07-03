@@ -78,6 +78,20 @@ const TAG_TRANSLATIONS: Record<string, { tr: string; en: string }> = {
   'study':       { tr: 'eğitim',     en: 'education'   },
   'ramazan':     { tr: 'ramazan',    en: 'ramadan'     },
   'ramadan':     { tr: 'ramazan',    en: 'ramadan'     },
+  'önemli':      { tr: 'önemli',     en: 'important'   },
+  'important':   { tr: 'önemli',     en: 'important'   },
+  'ev':          { tr: 'ev',         en: 'home'        },
+  'home':        { tr: 'ev',         en: 'home'        },
+  'tasarruf':    { tr: 'tasarruf',   en: 'savings'     },
+  'savings':     { tr: 'tasarruf',   en: 'savings'     },
+  'bırakma':     { tr: 'bırakma',    en: 'quit'        },
+  'quit':        { tr: 'bırakma',    en: 'quit'        },
+  'tez':         { tr: 'tez',        en: 'thesis'      },
+  'thesis':      { tr: 'tez',        en: 'thesis'      },
+  'mülakat':     { tr: 'mülakat',    en: 'interview'   },
+  'interview':   { tr: 'mülakat',    en: 'interview'   },
+  'yks':         { tr: 'yks',        en: 'yks'         },
+  'kpss':        { tr: 'kpss',       en: 'kpss'        },
 };
 
 export function translateTag(tag: string, lang: 'tr' | 'en'): string {

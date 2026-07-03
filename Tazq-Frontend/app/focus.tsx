@@ -26,6 +26,7 @@ import { getRandomQuote } from '@/shared/constants/Quotes';
 import { S, R, F, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { Easing as RNEasing } from 'react-native';
+import ReAnimated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as ReEasing } from 'react-native-reanimated';
 
 interface StarGroupProps {
   timerSize: number;
@@ -35,20 +36,17 @@ interface StarGroupProps {
 }
 
 const StarGroup = React.memo(({ timerSize, duration, initialVal, starCount }: StarGroupProps) => {
-  const progress = useRef(new Animated.Value(0)).current;
-  const maxRadius = Math.max(200, timerSize * 2.0); // Safe fallback radius
+  const maxRadius = Math.max(200, timerSize * 1.5);
 
-  // Lazy initialize stars to prevent allocation and Garbage Collection thrashing on every render tick
   const starsData = useRef<{ x: number; y: number; size: number; color: string }[] | null>(null);
   if (!starsData.current) {
     starsData.current = Array.from({ length: starCount }, () => {
       const angle = Math.random() * Math.PI * 2;
-      const distance = 15 + Math.random() * (maxRadius - 15);
-      const size = 1.2 + Math.random() * 2.0; // fine stellar dots (1.2px to 3.2px)
-      const colors = ['#FFFFFF', '#E3F2FD', '#E0F7FA', '#FFF9C4', '#F3E5F5']; // cosmic white, cyan, blue, pale yellow, lavender
+      const distance = 10 + Math.random() * (maxRadius - 10);
+      const size = 1.0 + Math.random() * 1.6;
+      const colors = ['#FFFFFF', '#E3F2FD', '#E0F7FA', '#FFF9C4', '#F3E5F5'];
       const color = colors[Math.floor(Math.random() * colors.length)];
       return {
-        // Pre-offset to SVG viewport coordinate system [0, maxRadius*2]
         x: maxRadius + Math.cos(angle) * distance,
         y: maxRadius + Math.sin(angle) * distance,
         size,
@@ -57,62 +55,88 @@ const StarGroup = React.memo(({ timerSize, duration, initialVal, starCount }: St
     });
   }
 
-  useEffect(() => {
-    progress.setValue(initialVal);
+  const scaleShared = useSharedValue(0.1 + initialVal * 2.9);
+  const rotationShared = useSharedValue(0);
 
-    // Staggered slow twinkling loop (pulses opacity back and forth)
-    const twinklingAnim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(progress, {
-          toValue: 1,
-          duration: duration,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(progress, {
-          toValue: 0,
-          duration: duration,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
+  useEffect(() => {
+    const initialProgress = initialVal;
+    const remainingProgress = 1 - initialProgress;
+    const firstDuration = duration * remainingProgress;
+
+    const direction = initialVal < 0.5 ? 1 : -1;
+    rotationShared.value = withRepeat(
+      withTiming(360 * direction, { duration: duration * 10, easing: ReEasing.linear }),
+      -1,
+      false
     );
 
-    twinklingAnim.start();
-
-    return () => {
-      twinklingAnim.stop();
-    };
+    if (firstDuration > 0) {
+      scaleShared.value = withTiming(3.0, { duration: firstDuration, easing: ReEasing.linear }, (finished) => {
+        if (finished) {
+          scaleShared.value = 0.1;
+          scaleShared.value = withRepeat(
+            withTiming(3.0, { duration: duration, easing: ReEasing.linear }),
+            -1,
+            false
+          );
+        }
+      });
+    } else {
+      scaleShared.value = withRepeat(
+        withTiming(3.0, { duration: duration, easing: ReEasing.linear }),
+        -1,
+        false
+      );
+    }
   }, []);
 
-  // Twinkle opacity (slowly pulsing up and down)
-  const opacity = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.12, 0.78],
+  const animatedStyle = useAnimatedStyle(() => {
+    const scale = scaleShared.value;
+    let opacity = 0;
+    if (scale < 0.6) {
+      opacity = (scale - 0.1) / 0.5;
+    } else if (scale < 2.0) {
+      opacity = 1;
+    } else {
+      opacity = Math.max(0, 1 - (scale - 2.0) / 1.0);
+    }
+
+    return {
+      opacity: opacity,
+      transform: [
+        { scale: scale },
+        { rotate: `${rotationShared.value}deg` }
+      ],
+    };
   });
 
   return (
-    <Animated.View
+    <ReAnimated.View
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        width: maxRadius * 2,
-        height: maxRadius * 2,
-        opacity,
-      }}
+      style={[
+        {
+          position: 'absolute',
+          width: maxRadius * 2,
+          height: maxRadius * 2,
+        },
+        animatedStyle,
+      ]}
     >
-      <Svg width={maxRadius * 2} height={maxRadius * 2}>
-        {starsData.current?.map((star, idx) => (
-          <Circle
-            key={idx}
-            cx={star.x}
-            cy={star.y}
-            r={star.size / 2}
-            fill={star.color}
-          />
-        ))}
-      </Svg>
-    </Animated.View>
+      {starsData.current?.map((star, idx) => (
+        <View
+          key={idx}
+          style={{
+            position: 'absolute',
+            left: star.x - star.size / 2,
+            top: star.y - star.size / 2,
+            width: star.size,
+            height: star.size,
+            borderRadius: star.size / 2,
+            backgroundColor: star.color,
+          }}
+        />
+      ))}
+    </ReAnimated.View>
   );
 });
 
@@ -121,17 +145,9 @@ const Starfield = React.memo(({ active, timerSize }: { active: boolean; timerSiz
 
   return (
     <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }]} pointerEvents="none">
-      {/* Background Plane Staggered Pairs (50 tiny slow stars) */}
-      <StarGroup timerSize={timerSize} duration={22000} initialVal={0.0} starCount={25} />
-      <StarGroup timerSize={timerSize} duration={22000} initialVal={0.5} starCount={25} />
-
-      {/* Midground Plane Staggered Pairs (50 medium stars) */}
-      <StarGroup timerSize={timerSize} duration={16000} initialVal={0.0} starCount={25} />
-      <StarGroup timerSize={timerSize} duration={16000} initialVal={0.5} starCount={25} />
-
-      {/* Foreground Plane Staggered Pairs (40 larger stars) */}
-      <StarGroup timerSize={timerSize} duration={10000} initialVal={0.0} starCount={20} />
-      <StarGroup timerSize={timerSize} duration={10000} initialVal={0.5} starCount={20} />
+      <StarGroup timerSize={timerSize} duration={12000} initialVal={0.0} starCount={15} />
+      <StarGroup timerSize={timerSize} duration={12000} initialVal={0.33} starCount={15} />
+      <StarGroup timerSize={timerSize} duration={12000} initialVal={0.66} starCount={15} />
     </View>
   );
 });
@@ -157,6 +173,46 @@ const SOUND_LABELS: Record<AmbientSound, { icon: React.ComponentType<any> | null
   relaxing:  { icon: Music2,     labelTr: 'Rahatlatıcı',  labelEn: 'Relaxing'  },
   binaural:  { icon: Headphones, labelTr: 'Frekans',      labelEn: 'Binaural'  },
 };
+
+interface PomodoroIndicatorProps {
+  pomodoroPhase: 'work' | 'break';
+  pomodoroRound: number;
+  theme: any;
+  language: string;
+  isDark: boolean;
+}
+
+const PomodoroIndicator = React.memo(({ pomodoroPhase, pomodoroRound, theme, language, isDark }: PomodoroIndicatorProps) => (
+  <View style={styles.pomodoroRow}>
+    <View style={[styles.phaseBadge, { backgroundColor: pomodoroPhase === 'work' ? theme.primary + '20' : theme.tertiary + '20' }]}>
+      <Text style={[styles.phaseLabel, { color: pomodoroPhase === 'work' ? theme.primary : theme.tertiary }]}>
+        {pomodoroPhase === 'work'
+          ? (language === 'tr' ? 'ÇALIŞMA' : 'WORK')
+          : (language === 'tr' ? 'MOLA' : 'BREAK')}
+      </Text>
+    </View>
+    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+      {[1, 2, 3, 4].map(i => (
+        <View
+          key={i}
+          style={{
+            width: i === pomodoroRound ? 10 : 7,
+            height: i === pomodoroRound ? 10 : 7,
+            borderRadius: 5,
+            backgroundColor: i < pomodoroRound
+              ? theme.primary
+              : i === pomodoroRound
+                ? (pomodoroPhase === 'work' ? theme.primary : theme.tertiary)
+                : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
+          }}
+        />
+      ))}
+    </View>
+    <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, fontWeight: '600', opacity: 0.6 }}>
+      {language === 'tr' ? `Tur ${pomodoroRound}/4` : `Round ${pomodoroRound}/4`}
+    </Text>
+  </View>
+));
 
 export default function FocusScreen() {
   const { theme, colorScheme } = useAppTheme();
@@ -410,34 +466,32 @@ export default function FocusScreen() {
   }, [isActive, ambientSound]);
 
   // Breath cue cycle
-  const [breathSeconds, setBreathSeconds] = useState(0);
+  const breathSecondsRef = useRef(0);
   useEffect(() => {
     if (!isActive || breathMode === 'off') {
       setBreathPhase('in');
-      setBreathSeconds(0);
+      breathSecondsRef.current = 0;
       return;
     }
     const iv = setInterval(() => {
-      setBreathSeconds((prev) => {
-        const next = prev + 1;
-        if (breathMode === 'classic') {
-          const mod = next % 8;
-          if (mod < 4) setBreathPhase('in');
-          else setBreathPhase('out');
-        } else if (breathMode === 'box') {
-          const mod = next % 16;
-          if (mod < 4) setBreathPhase('in');
-          else if (mod < 8) setBreathPhase('hold_in');
-          else if (mod < 12) setBreathPhase('out');
-          else setBreathPhase('hold_out');
-        } else if (breathMode === 'calm') {
-          const mod = next % 19;
-          if (mod < 4) setBreathPhase('in');
-          else if (mod < 11) setBreathPhase('hold_in');
-          else setBreathPhase('out');
-        }
-        return next;
-      });
+      const next = breathSecondsRef.current + 1;
+      breathSecondsRef.current = next;
+      if (breathMode === 'classic') {
+        const mod = next % 8;
+        if (mod < 4) setBreathPhase('in');
+        else setBreathPhase('out');
+      } else if (breathMode === 'box') {
+        const mod = next % 16;
+        if (mod < 4) setBreathPhase('in');
+        else if (mod < 8) setBreathPhase('hold_in');
+        else if (mod < 12) setBreathPhase('out');
+        else setBreathPhase('hold_out');
+      } else if (breathMode === 'calm') {
+        const mod = next % 19;
+        if (mod < 4) setBreathPhase('in');
+        else if (mod < 11) setBreathPhase('hold_in');
+        else setBreathPhase('out');
+      }
     }, 1000);
     return () => clearInterval(iv);
   }, [isActive, breathMode]);
@@ -761,38 +815,7 @@ export default function FocusScreen() {
     useFocusStore.setState({ isActive: true, lastActiveAt: Date.now() });
   };
 
-  // ── Pomodoro round dots ───────────────────────────────────────────────────
-  const PomodoroIndicator = () => (
-    <View style={styles.pomodoroRow}>
-      <View style={[styles.phaseBadge, { backgroundColor: pomodoroPhase === 'work' ? theme.primary + '20' : theme.tertiary + '20' }]}>
-        <Text style={[styles.phaseLabel, { color: pomodoroPhase === 'work' ? theme.primary : theme.tertiary }]}>
-          {pomodoroPhase === 'work'
-            ? (language === 'tr' ? 'ÇALIŞMA' : 'WORK')
-            : (language === 'tr' ? 'MOLA' : 'BREAK')}
-        </Text>
-      </View>
-      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-        {[1, 2, 3, 4].map(i => (
-          <View
-            key={i}
-            style={{
-              width: i === pomodoroRound ? 10 : 7,
-              height: i === pomodoroRound ? 10 : 7,
-              borderRadius: 5,
-              backgroundColor: i < pomodoroRound
-                ? theme.primary
-                : i === pomodoroRound
-                  ? (pomodoroPhase === 'work' ? theme.primary : theme.tertiary)
-                  : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'),
-            }}
-          />
-        ))}
-      </View>
-      <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, fontWeight: '600', opacity: 0.6 }}>
-        {language === 'tr' ? `Tur ${pomodoroRound}/4` : `Round ${pomodoroRound}/4`}
-      </Text>
-    </View>
-  );
+  // PomodoroIndicator has been extracted out and memoized
 
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -921,7 +944,13 @@ export default function FocusScreen() {
               style={{ width: '100%', alignItems: 'center', paddingTop: S.sm }}
             >
             {pomodoroMode ? (
-              <PomodoroIndicator />
+              <PomodoroIndicator
+                pomodoroPhase={pomodoroPhase}
+                pomodoroRound={pomodoroRound}
+                theme={theme}
+                language={language}
+                isDark={isDark}
+              />
             ) : (
               <AnimatePresence>
                 {!sessionStarted && (
@@ -1714,14 +1743,22 @@ export default function FocusScreen() {
           >
             {/* Icon */}
             <MotiView
-              from={{ scale: 0.15, opacity: 0, rotate: '-20deg' }}
+              from={{ scale: 0.8, opacity: 0, rotate: '-10deg' }}
               animate={{ scale: 1, opacity: 1, rotate: '0deg' }}
-              transition={{ type: 'spring', damping: 14, stiffness: 300, delay: 120 }}
-              style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: summaryCompleted ? theme.primaryContainer : theme.secondaryContainer, alignItems: 'center', justifyContent: 'center' }}
+              transition={{ type: 'spring', damping: 15, stiffness: 250, delay: 100 }}
+              style={{ 
+                width: 72, 
+                height: 72, 
+                borderRadius: 36, 
+                backgroundColor: summaryCompleted ? theme.primaryContainer : theme.secondaryContainer, 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                overflow: 'hidden'
+              }}
             >
               {summaryCompleted
-                ? <CheckCircle2 size={36} color={theme.primary} strokeWidth={2.5} />
-                : <Sparkles size={36} color={theme.secondary} strokeWidth={2.5} />}
+                ? <CheckCircle2 size={36} color={theme.primary} strokeWidth={2.2} />
+                : <Sparkles size={36} color={theme.secondary} strokeWidth={2.2} />}
             </MotiView>
 
             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}>
