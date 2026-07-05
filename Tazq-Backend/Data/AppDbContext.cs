@@ -22,6 +22,10 @@ namespace Tazq_App.Data
 		{
 			base.OnModelCreating(modelBuilder);
 
+			// Soft-delete: silinmiş (DeletedAt != null) kullanıcılar tüm normal sorgulardan otomatik hariç.
+			// Login/register reaktivasyon akışları IgnoreQueryFilters() ile bu filtreyi bilerek atlar.
+			modelBuilder.Entity<User>().HasQueryFilter(u => u.DeletedAt == null);
+
 			modelBuilder.Entity<User>()
 				.HasMany(u => u.Tasks)
 				.WithOne(t => t.User)

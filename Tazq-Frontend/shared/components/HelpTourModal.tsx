@@ -1,424 +1,471 @@
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, Dimensions, Animated, Pressable } from 'react-native';
+import { StyleSheet, View, Text, Animated, Easing, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Easing as REasing } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
+import { MotiView } from 'moti';
+import { TourFeaturePreview } from '@/shared/components/TourFeaturePreview';
+import {
+  Rocket,
+  Flame,
+  ListChecks,
+  BarChart3,
+  Search,
+  Target,
+  SlidersHorizontal,
+  Timer,
+  Play,
+  Sparkles,
+  Zap,
+  LayoutGrid,
+  CalendarDays,
+  TrendingUp,
+  Trophy,
+  Moon,
+} from 'lucide-react-native';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Touchable } from '@/shared/components/Touchable';
-import { S, R, F, B } from '@/shared/constants/tokens';
+import { R, F } from '@/shared/constants/tokens';
 import * as Haptics from 'expo-haptics';
 
+type PageId = 'dashboard' | 'focus' | 'tasks' | 'modlar' | 'cockpit';
+type IconType = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+
 interface HelpTourModalProps {
-  pageId: 'dashboard' | 'focus' | 'tasks' | 'modlar' | 'cockpit';
+  pageId: PageId;
   onStepChange?: (step: number) => void;
 }
 
-export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId, onStepChange }) => {
+interface TourStep {
+  Icon: IconType;
+  color: (t: any) => string;
+  title: { tr: string; en: string };
+  desc: { tr: string; en: string };
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Sayfa turları — uygulamanın kendi ikon seti (lucide), emoji yok.
+//  Betimleyici, kısa, boğmayan dil.
+// ─────────────────────────────────────────────────────────────
+const TOURS: Record<PageId, TourStep[]> = {
+  dashboard: [
+    {
+      Icon: Rocket,
+      color: (t) => t.primary,
+      title: { tr: 'İvme Skorun', en: 'Your Momentum' },
+      desc: {
+        tr: 'Görev, odak ve serin tek bir skorda toplanır. Tatil günlerinde İvme Kalkanı’nı açarak skorunun erimesini durdurabilirsin.',
+        en: 'Tasks, focus and streak roll into one score. Turn on the Momentum Shield to keep it from decaying on rest days.',
+      },
+    },
+    {
+      Icon: Flame,
+      color: (t) => t.streak,
+      title: { tr: 'Günlük Alışkanlıklar', en: 'Daily Habits' },
+      desc: {
+        tr: 'Su içmek, kitap okumak gibi rutinlerini gün bitmeden işaretle. Serini bozmadan devam ettikçe güçlenir.',
+        en: 'Check off routines like water or reading before the day ends. Keep the streak alive and it grows stronger.',
+      },
+    },
+    {
+      Icon: ListChecks,
+      color: (t) => t.success,
+      title: { tr: 'Görev Akışın', en: 'Task Flow' },
+      desc: {
+        tr: 'Bugünün görevleri burada. Bir görevi tamamladığında ivmene anında güç ekler.',
+        en: 'Today’s tasks live here. Completing one gives your momentum an instant boost.',
+      },
+    },
+    {
+      Icon: BarChart3,
+      color: (t) => t.tertiary,
+      title: { tr: 'Bugün & Kokpit', en: 'Today & Cockpit' },
+      desc: {
+        tr: 'Günlük hedefine ne kadar yaklaştığını gör. Karta dokunarak haftalık karneni, odak süreni ve detaylı istatistiklerini aç.',
+        en: 'See how close you are to today’s goal. Tap the card to open your weekly review, focus time and detailed stats.',
+      },
+    },
+  ],
+  tasks: [
+    {
+      Icon: Search,
+      color: (t) => t.primary,
+      title: { tr: 'Ara, Süz & Ekle', en: 'Search, Filter & Add' },
+      desc: {
+        tr: 'Görevlerini anında ara, duruma göre süz (Tümü, Bugün, Yüksek…). Sağ alttaki + butonuyla saniyeler içinde yeni görev ekle.',
+        en: 'Search instantly, filter by status (All, Today, High…). Tap the + button at the bottom-right to add a task in seconds.',
+      },
+    },
+    {
+      Icon: Target,
+      color: (t) => t.success,
+      title: { tr: 'Görev Listen', en: 'Your Task List' },
+      desc: {
+        tr: 'Tamamlamak için göreve dokun. Sola kaydırınca ertele (takvim) ve sil seçenekleri açılır. Renkli nokta önceliğini gösterir.',
+        en: 'Tap a task to complete it. Swipe left to reveal reschedule and delete. The colored dot shows its priority.',
+      },
+    },
+  ],
+  focus: [
+    {
+      Icon: SlidersHorizontal,
+      color: (t) => t.secondary,
+      title: { tr: 'Mod & Ambiyans', en: 'Mode & Ambience' },
+      desc: {
+        tr: 'Nefes, Pomodoro ya da katı odak modunu seç. Altındaki yağmur, kafe ve okyanus gibi ambiyans seslerinden birini açarak konsantre ol.',
+        en: 'Pick breathing, Pomodoro or strict focus. Turn on an ambient sound below — rain, cafe or ocean — to lock in.',
+      },
+    },
+    {
+      Icon: Timer,
+      color: (t) => t.primary,
+      title: { tr: 'Zamanlayıcı & Süre', en: 'Timer & Duration' },
+      desc: {
+        tr: 'Süreni seç (15, 25, 50 dk) ve geri sayımı başlat. Odaklandığın her dakika doğrudan ivme skoruna işler.',
+        en: 'Choose your length (15, 25, 50 min) and start the countdown. Every focused minute feeds your momentum.',
+      },
+    },
+    {
+      Icon: Play,
+      color: (t) => t.success,
+      title: { tr: 'Başlat & Katı Mod', en: 'Start & Strict Mode' },
+      desc: {
+        tr: 'Büyük butona dokunup seansı başlat. Katı Mod, seans bitene kadar dikkat dağıtıcıları ve çıkışı kilitler.',
+        en: 'Tap the big button to begin. Strict Mode locks out distractions and the exit until the session ends.',
+      },
+    },
+    {
+      Icon: Moon,
+      color: (t) => t.secondary,
+      title: { tr: 'Zen Modu', en: 'Zen Mode' },
+      desc: {
+        tr: 'Seansı başlat, sonra sayaç çemberine dokun: ekran koyu bir yıldız gökyüzüne dönüşür, geriye yalnızca zamanın ve yörüngedeki yıldız kalır. Derin odak için her şey kaybolur.',
+        en: 'Start the session, then tap the timer circle: the screen turns into a dark starfield, leaving only your time and an orbiting star. Everything fades for deep focus.',
+      },
+    },
+  ],
+  modlar: [
+    {
+      Icon: Sparkles,
+      color: (t) => t.primary,
+      title: { tr: 'Dönemsel Modlar', en: 'Seasonal Modes' },
+      desc: {
+        tr: 'Aktif dönem hedeflerinin özeti. Sınav, tez, tasarruf ya da spor gibi yolculuklarını buradan takip et.',
+        en: 'A summary of your active goals. Track journeys like exams, thesis, savings, or fitness here.',
+      },
+    },
+    {
+      Icon: Target,
+      color: (t) => t.tertiary,
+      title: { tr: 'Yeni Hedef Keşfet', en: 'Discover New Goals' },
+      desc: {
+        tr: 'Sınav, tez, tasarruf ya da spor… Bir hedef seç, Tazq o döneme özel görev ve alışkanlıkları senin için otomatik kursun.',
+        en: 'Exam, thesis, savings or fitness… Pick a goal and Tazq automatically builds tailored tasks and habits for that season.',
+      },
+    },
+    {
+      Icon: LayoutGrid,
+      color: (t) => t.success,
+      title: { tr: 'Plan İçeriği', en: 'Plan Contents' },
+      desc: {
+        tr: 'Aktif modun ürettiği görev ve alışkanlıkları buradan gör, düzenle veya kaldır.',
+        en: 'See, tweak, or remove the tasks and habits your active mode created — all in one place.',
+      },
+    },
+  ],
+  cockpit: [
+    {
+      Icon: CalendarDays,
+      color: (t) => t.tertiary,
+      title: { tr: 'Haftalık Şerit', en: 'Week Strip' },
+      desc: {
+        tr: 'Haftanın günleri arasında gez. Her günün üretkenliğini tek bakışta karşılaştır.',
+        en: 'Move across the days of your week. Compare each day’s output at a glance.',
+      },
+    },
+    {
+      Icon: TrendingUp,
+      color: (t) => t.primary,
+      title: { tr: 'Günlük Detay', en: 'Daily Detail' },
+      desc: {
+        tr: 'Seçtiğin günün odak süresi, tamamlanan görevleri ve alışkanlık oranı burada açılır.',
+        en: 'Focus time, completed tasks, and habit rate for the selected day open up here.',
+      },
+    },
+    {
+      Icon: Trophy,
+      color: (t) => t.success,
+      title: { tr: 'Haftalık Karne', en: 'Weekly Review' },
+      desc: {
+        tr: 'Haftanın genel karnesi. İstikrarlı yükselişini grafiklerle takip et ve kendini geçmiş haftalarla kıyasla.',
+        en: 'Your weekly report card. Track your steady climb and compare against past weeks.',
+      },
+    },
+  ],
+};
+
+export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
   const { theme, isDark } = useAppTheme();
-  const { completedTours, setTourCompleted, setHelpTourShown, language } = usePrefsStore();
-
-  const isTourShown = completedTours?.[pageId] === true;
-  const [currentStep, setCurrentStep] = useState(0);
-
-  // Animations
-  const cardSlide = useRef(new Animated.Value(0)).current; // 0 to 1 slide up
-  const contentFade = useRef(new Animated.Value(1)).current; // 1 to 0 to 1 step change fade
-  const backdropOpacity = useRef(new Animated.Value(0)).current; // Backdrop fade
-
+  const { completedTours, setTourCompleted, setHelpTourShown } = usePrefsStore();
+  const { language } = useLanguageStore();
   const tr = language === 'tr';
 
-  // Tour steps definition
-  const getTourSteps = () => {
-    switch (pageId) {
-      case 'dashboard':
-        return [
-          {
-            title: tr ? 'Tazq Uzay Üssü' : 'Tazq Space Hub',
-            desc: tr 
-              ? 'Tazq ile üretkenliğini kozmik seviyeye çıkar. İvme motorunu beslemek için günlük rutinlerini tamamla.' 
-              : 'Elevate your productivity with Tazq. Complete daily routines to fuel your momentum engine.',
-            icon: '🚀',
-            color: theme.primary,
-          },
-          {
-            title: tr ? 'Günlük İvme Motoru' : 'Daily Momentum',
-            desc: tr 
-              ? 'Günlük tamamladığın her görev ivmeni yükseltir. Tatil günlerinde puan erimesini durdurmak için İvme Kalkanı\'nı aktif edebilirsin.' 
-              : 'Every completed task drives your speed. Activate the Momentum Shield to freeze score decay on rest days.',
-            icon: '⚡',
-            color: theme.tertiary,
-          },
-          {
-            title: tr ? 'Günlük Alışkanlıklar' : 'Daily Habits',
-            desc: tr 
-              ? 'Günlük rutinlerini (Örn: Su iç, kitap oku) gün bitmeden tamamlayıp işaretleyerek serini ve istikrarını koru.' 
-              : 'Complete and check off habits (e.g., drink water, read) before the day ends to protect your streaks.',
-            icon: '🥛',
-            color: theme.streak,
-          },
-          {
-            title: tr ? 'Görev Akışı' : 'Task Flow',
-            desc: tr 
-              ? 'Tek seferlik ve önem derecesine göre önceliklendirilmiş görevlerini yönet. Tamamlanan her görev ivmene anlık güç sağlar.' 
-              : 'Manage one-off tasks prioritized by importance. Checking them off fires instant momentum thrusters.',
-            icon: '📝',
-            color: theme.success,
-          }
-        ];
-      case 'tasks':
-        return [
-          {
-            title: tr ? 'Görev Planlayıcı' : 'Task Planner',
-            desc: tr 
-              ? 'Görevlerini önem derecesine göre (Yüksek, Orta, Düşük) önceliklendir. Sürükleyip sıralayarak gününü organize et.' 
-              : 'Prioritize tasks by urgency (High, Medium, Low). Drag and drop to sort and organize your daily workflow.',
-            icon: '🎯',
-            color: theme.success,
-          },
-          {
-            title: tr ? 'Zamanlama & İşlemler' : 'Scheduling & Actions',
-            desc: tr 
-              ? 'Görevlere bitiş tarihi ata, ertelemek için sağa kaydır veya tamamladıkça tek dokunuşla listeden temizle.' 
-              : 'Assign due dates, swipe right to reschedule/delete, or clear completed items with a single tap.',
-            icon: '📅',
-            color: theme.primary,
-          }
-        ];
-      case 'focus':
-        return [
-          {
-            title: tr ? 'Odaklanma Merkezi' : 'Focus Hub',
-            desc: tr 
-              ? 'Pomodoro seansları veya kronometre başlatarak pürüzsüz çalış. Odaklandığın her dakika doğrudan ivme skorunu besler.' 
-              : 'Start Pomodoro sessions or stopwatches. Every minute of deep work directly fuels and charges your momentum.',
-            icon: '⏱️',
-            color: theme.primary,
-          },
-          {
-            title: tr ? 'Zen Modu & Nefes Kılavuzu' : 'Zen Mode & Breath Guide',
-            desc: tr 
-              ? 'Zen Modu ile ekrandaki dikkat dağıtıcıları temizle. Ritmik nefes rehberi (Nefes Al, Tut, Ver) ile zihnini sakinleştir.' 
-              : 'Zen Mode clears all screen distractions. Use the rhythmic breath guide (Inhale, Hold, Exhale) to center your mind.',
-            icon: '🌀',
-            color: theme.secondary,
-          },
-          {
-            title: tr ? 'Doğa Ambiyansları' : 'Ambient Sounds',
-            desc: tr 
-              ? 'Yağmur, fırtına veya kozmik uğultu... Çalışırken arka planda çalacak doğa seslerini seçerek dış dünyayı sessize al.' 
-              : 'Rain, storm, or cosmic hum... Play relaxing nature sounds in the background to block out the external world.',
-            icon: '🌧️',
-            color: theme.tertiary,
-          }
-        ];
-      case 'modlar':
-        return [
-          {
-            title: tr ? 'Dönemsel Modlar' : 'Seasonal Modes',
-            desc: tr 
-              ? 'Sınav hazırlığı, Tez yazımı, Ramazan veya Spor hedefleri gibi dönemlik yolculuklarını seçip özel planlar oluştur.' 
-              : 'Choose custom journeys like Exam prep, Thesis writing, Ramadan, or Gym targets to build tailored plans.',
-            icon: '🔮',
-            color: theme.primary,
-          },
-          {
-            title: tr ? 'Kozmik Plan Hazırlığı' : 'Tailored Integration',
-            desc: tr 
-              ? 'Seçtiğin moda özel üretilen dinamik görevler ve alışkanlıklar günlük akışına ve takvimine otomatik olarak entegre edilir.' 
-              : 'Dynamic habits and tasks generated specifically for your selected mode are automatically integrated into your feed.',
-            icon: '⚡',
-            color: theme.tertiary,
-          }
-        ];
-      case 'cockpit':
-        return [
-          {
-            title: tr ? 'Kokpit Analiz Merkezi' : 'Cockpit Analytics',
-            desc: tr 
-              ? 'Haftalık gelişim raporunu, toplam odaklanma süreni ve alışkanlık tamamlama oranlarını tek bir panelden izle.' 
-              : 'Monitor weekly growth reports, total focus durations, and habit consistency rates inside one dashboard.',
-            icon: '📊',
-            color: theme.tertiary,
-          },
-          {
-            title: tr ? 'Haftalık Karne & Karşılaştırma' : 'Weekly Review',
-            desc: tr 
-              ? 'Geçmiş günlerdeki performansını kıyaslayarak üretkenliğindeki istikrarlı artışı grafiklerle takip et.' 
-              : 'Compare metrics across days and watch your productivity climb with detailed growth charts.',
-            icon: '📈',
-            color: theme.success,
-          }
-        ];
-      default:
-        return [];
-    }
-  };
+  const steps = TOURS[pageId] ?? [];
+  const isTourShown = completedTours?.[pageId] === true || steps.length === 0;
 
-  const steps = getTourSteps();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [dir, setDir] = useState(1); // 1 ileri, -1 geri (slide yönü)
   const maxStep = steps.length - 1;
-  const currentStepData = steps[currentStep];
+  const stepData = steps[currentStep];
+  const accent = stepData ? stepData.color(theme) : theme.primary;
 
-  // Slide up card & fade in backdrop on mount
+  // Kart giriş/çıkış (native driver: opacity + translateY)
+  const enter = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     if (isTourShown) return;
-
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.spring(cardSlide, {
-        toValue: 1,
-        tension: 50,
-        friction: 10,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    setCurrentStep(0);
+    Animated.spring(enter, {
+      toValue: 1,
+      tension: 55,
+      friction: 11,
+      useNativeDriver: true,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTourShown]);
 
-  // Handle step change with haptic & fade transition
-  const goToStep = (nextStep: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    // Fade out current content
-    Animated.timing(contentFade, {
+  const finish = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Animated.timing(enter, {
       toValue: 0,
-      duration: 100,
+      duration: 240,
+      easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start(() => {
-      setCurrentStep(nextStep);
-      if (onStepChange) onStepChange(nextStep);
-      
-      // Fade in new content
-      Animated.timing(contentFade, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
-    });
-  };
-
-  const handleNext = () => {
-    if (currentStep < maxStep) {
-      goToStep(currentStep + 1);
-    } else {
-      handleFinish();
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentStep > 0) {
-      goToStep(currentStep - 1);
-    }
-  };
-
-  const handleFinish = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
-    // Slide down & fade out backdrop before closing
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardSlide, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
       setTourCompleted(pageId, true);
-      setHelpTourShown(true); // Legacy compatibility
+      setHelpTourShown(true); // legacy uyumluluk
     });
   };
 
-  if (isTourShown || steps.length === 0) return null;
+  const next = () => {
+    if (currentStep < maxStep) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setDir(1);
+      setCurrentStep((s) => s + 1);
+    } else {
+      finish();
+    }
+  };
 
-  const cardTranslateY = cardSlide.interpolate({
-    inputRange: [0, 1],
-    outputRange: [400, 0],
-  });
+  const back = () => {
+    if (currentStep > 0) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setDir(-1);
+      setCurrentStep((s) => s - 1);
+    }
+  };
+
+  if (isTourShown || !stepData) return null;
+
+  const Icon = stepData.Icon;
+  const contentShift = enter.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
+
+  // Sağa/sola kaydırarak adım değiştir
+  const swipe = Gesture.Pan()
+    .runOnJS(true)
+    .activeOffsetX([-16, 16])
+    .failOffsetY([-24, 24])
+    .onEnd((e) => {
+      if (e.translationX <= -46) next();
+      else if (e.translationX >= 46) back();
+    });
+
+  // İşlev animasyonu yüzeyi — genişlik responsive, yükseklik içeriğe göre (dinamik)
+  const screenW = Math.max(240, Math.min(winW - 40, 400));
+  const maxScreenH = winH * 0.5;
+  const frameW = screenW; // önizlemeye verilen içerik genişliği
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {/* Background Semi-Transparent Dark Dim */}
-      <Animated.View 
+    <Animated.View style={[StyleSheet.absoluteFill, styles.root, { opacity: enter }]} pointerEvents="auto">
+      {/* Çok hafif cam efekti (iOS blur) + ince karartma — uygulama silik görünür, yazı okunur */}
+      <BlurView
+        intensity={18}
+        tint={isDark ? 'dark' : 'light'}
+        style={StyleSheet.absoluteFill}
+      />
+      <View
         style={[
-          styles.backdrop, 
-          { opacity: backdropOpacity }
-        ]} 
-        pointerEvents="auto"
+          StyleSheet.absoluteFill,
+          { backgroundColor: isDark ? 'rgba(6, 8, 12, 0.58)' : 'rgba(17, 19, 26, 0.45)' },
+        ]}
       />
 
-      {/* Main Tour Card Container */}
-      <View style={styles.cardWrapper} pointerEvents="box-none">
-        <Animated.View
+      {/* Ortalanmış içerik — sağa/sola kaydırılabilir */}
+      <GestureDetector gesture={swipe}>
+      <Animated.View
+        style={[
+          styles.stage,
+          { paddingTop: insets.top, transform: [{ translateY: contentShift }] },
+        ]}
+      >
+        {/* ── İşlev animasyonu: uygulamadan temiz bir kesit (telefon yok) ── */}
+        <MotiView
+          key={`frame-${currentStep}`}
+          from={{ opacity: 0, translateX: dir * 40, scale: 0.97 }}
+          animate={{ opacity: 1, translateX: 0, scale: 1 }}
+          transition={{ type: 'timing', duration: 400, easing: REasing.out(REasing.cubic) }}
           style={[
-            styles.card,
+            styles.screen,
             {
-              backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-              borderColor: currentStepData?.color ?? theme.primary,
-              transform: [{ translateY: cardTranslateY }],
-              paddingBottom: insets.bottom + 20,
-            }
+              width: screenW,
+              maxHeight: maxScreenH,
+              backgroundColor: theme.background,
+              borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+            },
           ]}
         >
-          {/* Top colored indicator bar */}
-          <View style={[styles.colorBar, { backgroundColor: currentStepData?.color ?? theme.primary }]} />
+          <TourFeaturePreview pageId={pageId} step={currentStep} theme={theme} isDark={isDark} accent={accent} tr={tr} frameW={screenW} />
+        </MotiView>
 
-          <Animated.View style={{ opacity: contentFade, width: '100%' }}>
-            {/* Mascot / Icon bubble */}
-            <View style={styles.iconContainer}>
-              <Text style={styles.icon}>{currentStepData?.icon}</Text>
-            </View>
-
-            {/* Stepper text info */}
-            <Text style={[styles.stepText, { color: theme.onSurfaceVariant }]}>
-              {currentStep + 1} / {steps.length}
+        {/* ── Alt yazı: adım · başlık · açıklama ── */}
+        <MotiView
+          key={`text-${currentStep}`}
+          from={{ opacity: 0, translateX: dir * 26 }}
+          animate={{ opacity: 1, translateX: 0 }}
+          transition={{ type: 'timing', duration: 360, easing: REasing.out(REasing.cubic) }}
+          style={styles.textBlock}
+        >
+          <View style={styles.titleRow}>
+            <Icon size={17} color={accent} strokeWidth={2.4} />
+            <Text style={[styles.counter, { color: accent }]}>
+              {String(currentStep + 1).padStart(2, '0')}  ·  {String(steps.length).padStart(2, '0')}
             </Text>
-
-            {/* Title */}
-            <Text style={[styles.title, { color: theme.onSurface }]}>
-              {currentStepData?.title}
-            </Text>
-
-            {/* Description */}
-            <Text style={[styles.desc, { color: theme.onSurfaceVariant }]}>
-              {currentStepData?.desc}
-            </Text>
-          </Animated.View>
-
-          {/* Stepper Dots */}
-          <View style={styles.dotsRow}>
-            {steps.map((_, idx) => (
-              <View
-                key={idx}
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor: idx === currentStep 
-                      ? (currentStepData?.color ?? theme.primary) 
-                      : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'),
-                    width: idx === currentStep ? 16 : 6,
-                  }
-                ]}
-              />
-            ))}
           </View>
+          <Text style={[styles.title, { color: '#FFFFFF' }]}>
+            {tr ? stepData.title.tr : stepData.title.en}
+          </Text>
+          <Text style={[styles.desc, { color: 'rgba(255,255,255,0.86)' }]}>
+            {tr ? stepData.desc.tr : stepData.desc.en}
+          </Text>
+        </MotiView>
+      </Animated.View>
+      </GestureDetector>
 
-          {/* Controls Footer */}
-          <View style={styles.footer}>
-            {currentStep > 0 ? (
-              <Touchable onPress={handlePrev} style={styles.backBtn}>
-                <Text style={[styles.backBtnText, { color: theme.onSurfaceVariant }]}>
-                  {tr ? 'Geri' : 'Back'}
-                </Text>
-              </Touchable>
-            ) : (
-              <Touchable onPress={handleFinish} style={styles.backBtn}>
-                <Text style={[styles.backBtnText, { color: theme.onSurfaceVariant, opacity: 0.6 }]}>
-                  {tr ? 'Atla' : 'Skip'}
-                </Text>
-              </Touchable>
-            )}
+      {/* ── Alt kontroller (kutusuz, sahneye gömülü) ── */}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
+        <View style={styles.dotsRow}>
+          {steps.map((_, i) => (
+            <MotiView
+              key={i}
+              animate={{
+                width: i === currentStep ? 22 : 6,
+                backgroundColor: i === currentStep ? accent : 'rgba(255,255,255,0.22)',
+              }}
+              transition={{ type: 'timing', duration: 260 }}
+              style={styles.dot}
+            />
+          ))}
+        </View>
 
-            <Touchable
-              onPress={handleNext}
-              style={[
-                styles.nextBtn,
-                { backgroundColor: currentStepData?.color ?? theme.primary }
-              ]}
-            >
-              <Text style={styles.nextBtnText}>
-                {currentStep === maxStep 
-                  ? (tr ? 'Başla' : 'Get Started') 
-                  : (tr ? 'Sonraki' : 'Next')}
+        <View style={styles.controls}>
+          {currentStep > 0 ? (
+            <Touchable onPress={back} style={styles.textBtn}>
+              <Text style={[styles.textBtnLabel, { color: 'rgba(255,255,255,0.85)' }]}>
+                {tr ? 'Geri' : 'Back'}
               </Text>
             </Touchable>
-          </View>
-        </Animated.View>
+          ) : (
+            <Touchable onPress={finish} style={styles.textBtn}>
+              <Text style={[styles.textBtnLabel, { color: 'rgba(255,255,255,0.55)' }]}>
+                {tr ? 'Atla' : 'Skip'}
+              </Text>
+            </Touchable>
+          )}
+
+          <Touchable onPress={next} style={[styles.nextBtn, { backgroundColor: accent }]}>
+            <Text style={styles.nextBtnLabel}>
+              {currentStep === maxStep ? (tr ? 'Anladım' : 'Got it') : tr ? 'Sonraki' : 'Next'}
+            </Text>
+          </Touchable>
+        </View>
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+  root: {
     zIndex: 9990,
   },
-  cardWrapper: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-    zIndex: 9991,
-  },
-  card: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1.2,
-    borderBottomWidth: 0,
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 20,
-    width: '100%',
-    maxWidth: 600,
-    alignSelf: 'center',
-  },
-  colorBar: {
-    width: 60,
-    height: 5,
-    borderRadius: 3,
-    marginBottom: 20,
-    opacity: 0.8,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  stage: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    alignSelf: 'center',
+    paddingHorizontal: 32,
+    gap: 28,
+  },
+  screen: {
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.28,
+    shadowRadius: 30,
+    elevation: 18,
+  },
+  textBlock: {
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 420,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
     marginBottom: 10,
   },
-  icon: {
-    fontSize: 34,
-  },
-  stepText: {
+  counter: {
     fontSize: F.caption,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 4,
-    opacity: 0.6,
-    letterSpacing: 1,
+    fontWeight: '800',
+    letterSpacing: 3,
+    opacity: 0.9,
   },
   title: {
-    fontSize: F.title2,
-    fontWeight: '700',
+    fontSize: F.title,
+    fontWeight: '800',
+    letterSpacing: -0.4,
     textAlign: 'center',
     marginBottom: 12,
-    paddingHorizontal: 8,
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   desc: {
     fontSize: F.subhead,
+    lineHeight: 25,
     textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 16,
-    marginBottom: 24,
-    opacity: 0.85,
+    paddingHorizontal: 4,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 5,
+  },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 28,
+    alignItems: 'center',
   },
   dotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
     marginBottom: 24,
   },
@@ -426,34 +473,34 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
-  footer: {
+  controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
+    width: '100%',
   },
-  backBtn: {
+  textBtn: {
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
   },
-  backBtnText: {
+  textBtnLabel: {
     fontSize: F.body,
     fontWeight: '600',
   },
   nextBtn: {
     paddingVertical: 14,
-    paddingHorizontal: 28,
+    paddingHorizontal: 32,
     borderRadius: R.full,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  nextBtnText: {
+  nextBtnLabel: {
     color: '#FFFFFF',
     fontSize: F.body,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });

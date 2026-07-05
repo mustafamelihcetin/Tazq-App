@@ -181,7 +181,11 @@ var pgConnectionString = $"Host={pgHost};Port={pgPort};Database={pgDb};Username=
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(pgConnectionString)
-           .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
+           .ConfigureWarnings(w => w
+               .Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)
+               // Soft-delete global query filter (User) ile zorunlu ilişkiler arasındaki uyarı bilinçlidir:
+               // çocuk kayıtlar UserId ile sorgulanır (User join'lenmez), silinmiş kullanıcının verisi grace boyunca korunur.
+               .Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning)));
 
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -200,6 +204,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddSingleton<IJwtService, JwtService>();
+// Grace süresi dolmuş silinmiş hesapları kalıcı temizleyen arka plan servisi
+builder.Services.AddHostedService<Tazq_App.Services.AccountPurgeService>();
 var encryptionKey = Environment.GetEnvironmentVariable("ENCRYPTION_KEY") ?? jwtKey;
 builder.Services.AddSingleton<ICryptoService>(new CryptoService(encryptionKey));
 

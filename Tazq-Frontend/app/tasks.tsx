@@ -479,7 +479,7 @@ export default function ActionCenter() {
   const { show: showToast } = useToastStore();
   const isOnline = useNetworkStore((s) => s.isOnline);
   const { enqueue: enqueueOffline } = useOfflineQueue();
-  const { soundEffects, completedTours } = usePrefsStore();
+  const { soundEffects, completedTours, onboardingCompleted } = usePrefsStore();
   const { record: recordCompletion } = useCompletionStore();
   const { measureAll } = useTour();
 
@@ -1177,7 +1177,8 @@ export default function ActionCenter() {
   const getTagColor = getTagColorStatic;
 
   const filteredAndSortedTasks = useMemo(() => {
-    if (completedTours?.tasks !== true) {
+    // Demo veri yalnızca ilk kez onboarding yapan yeni kullanıcıya; dönen/reaktive kullanıcıya değil.
+    if (completedTours?.tasks !== true && !onboardingCompleted) {
       return [
         {
           id: 99991,
@@ -1267,7 +1268,7 @@ export default function ActionCenter() {
       });
     }
     return result;
-  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds, showFutureManualTasks, theme, completedTours, language]);
+  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds, showFutureManualTasks, theme, completedTours, onboardingCompleted, language]);
 
   const filteredTasks = filteredAndSortedTasks;
   const visibleTasks = useMemo(() => filteredTasks.slice(0, visibleCount), [filteredTasks, visibleCount]);

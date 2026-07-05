@@ -79,6 +79,8 @@ interface User {
 
 function clearLocalUserData() {
   const safe = (fn: () => void) => { try { fn(); } catch {} };
+  // Keep onboarding status on logout/delete so it only runs once per app download
+  // safe(() => { AsyncStorage.removeItem('tazq-onboarding-done'); });
   safe(() => require('@/features/tasks/store/useTaskStore').useTaskStore.setState({ tasks: [], isLoading: false }));
   safe(() => require('@/features/focus/store/useFocusStore').useFocusStore.getState().reset());
   safe(() => require('@/features/habits/store/useHabitStore').useHabitStore.setState({ habits: [] }));

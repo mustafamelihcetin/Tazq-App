@@ -130,7 +130,9 @@ export default function ModlarScreen() {
   const handleStepChange = (step: number) => {
     try {
       if (step === 1) {
-        scrollViewRef.current?.scrollTo({ y: 220, animated: true });
+        scrollViewRef.current?.scrollTo({ y: 200, animated: true });
+      } else if (step === 2) {
+        scrollViewRef.current?.scrollTo({ y: 440, animated: true });
       } else {
         scrollViewRef.current?.scrollTo({ y: 0, animated: true });
       }

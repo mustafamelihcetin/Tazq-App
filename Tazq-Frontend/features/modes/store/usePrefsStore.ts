@@ -129,6 +129,8 @@ interface PrefsState {
   // Cihazlar arası eşitleme: seçili tercihleri backend'e gönderir / login sonrası geri yükler.
   syncToCloud: () => Promise<void>;
   hydrateFromCloud: (prefsJson?: string | null) => void;
+  _hasHydrated: boolean;
+  setHasHydrated: (v: boolean) => void;
 }
 
 // Buluta eşitlenecek tercih alanları. (motto/avatarBorderColor kendi backend kolonlarıyla
@@ -197,6 +199,8 @@ export const usePrefsStore = create<PrefsState>()(
         birakmaMode: false,
         birakmaName: '',
       },
+      _hasHydrated: false,
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
       setSeasonalPref: (key, value) =>
         set((s) => ({ seasonal: { ...s.seasonal, [key]: value } })),
       planSpecs: {},
@@ -475,6 +479,9 @@ export const usePrefsStore = create<PrefsState>()(
         avatarBorderColor: (persisted as any)?.avatarBorderColor ?? 'transparent',
         planSpecs: (persisted as any)?.planSpecs ?? {},
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

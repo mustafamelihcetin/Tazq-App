@@ -43,7 +43,7 @@ namespace Tazq_App.Controllers
 
             var tokens = await _userService.LoginAsync(userDto, HttpContext.Connection.RemoteIpAddress?.ToString());
             return tokens != null
-                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken })
+                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken, isReactivated = tokens.IsReactivated })
                 : Unauthorized("Geçersiz e-posta veya şifre.");
         }
 
@@ -56,7 +56,7 @@ namespace Tazq_App.Controllers
 
             var tokens = await _userService.GoogleLoginAsync(dto.IdToken, HttpContext.Connection.RemoteIpAddress?.ToString());
             return tokens != null
-                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken, isNewUser = tokens.IsNewUser })
+                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken, isNewUser = tokens.IsNewUser, isReactivated = tokens.IsReactivated })
                 : BadRequest(new { message = "Google doğrulaması başarısız oldu veya hesap engellendi." });
         }
 
@@ -69,7 +69,7 @@ namespace Tazq_App.Controllers
 
             var tokens = await _userService.AppleLoginAsync(dto, HttpContext.Connection.RemoteIpAddress?.ToString());
             return tokens != null
-                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken, isNewUser = tokens.IsNewUser })
+                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken, isNewUser = tokens.IsNewUser, isReactivated = tokens.IsReactivated })
                 : BadRequest(new { message = "Apple doğrulaması başarısız oldu veya hesap engellendi." });
         }
 

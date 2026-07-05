@@ -48,5 +48,15 @@ namespace Tazq_App.Models
 		public List<TaskItem> Tasks { get; set; } = new List<TaskItem>();
         public string? LastLoginIp { get; set; }
 
+        // Soft-delete: hesap silindiğinde işaretlenir. Grace period içinde tekrar giriş = reaktivasyon;
+        // süre dolunca arka plan servisi kalıcı olarak siler. null = aktif hesap.
+        public DateTime? DeletedAt { get; set; }
+
+        // E-posta doğrulama. Google/Apple ile girenlerde sağlayıcı doğruladığı için true;
+        // e-posta/şifre kaydında kod girilene kadar false.
+        public bool IsEmailVerified { get; set; } = false;
+        public string? EmailVerificationCode { get; set; }
+        public DateTime? EmailVerificationExpiresAt { get; set; }
+
     }
 }

@@ -22,6 +22,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { Colors } from '@/shared/constants/Colors';
 import { getRandomQuote } from '@/shared/constants/Quotes';
 import { S, R, F, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
@@ -217,8 +218,11 @@ const PomodoroIndicator = React.memo(({ pomodoroPhase, pomodoroRound, theme, lan
 ));
 
 export default function FocusScreen() {
-  const { theme, colorScheme } = useAppTheme();
-  const isDark = colorScheme === 'dark';
+  // Derin odak ekranı sistem temasından bağımsızdır: her iki modda da sakin, koyu meditatif kimlik.
+  useAppTheme();
+  const theme = Colors.dark;
+  const isDark = true;
+  const colorScheme: 'light' | 'dark' = 'dark';
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -831,11 +835,21 @@ export default function FocusScreen() {
     <MotiView
       animate={{
         opacity: isExiting ? 0 : 1,
-        backgroundColor: (zenMode && isActive) ? '#000000' : theme.background
+        backgroundColor: (zenMode && isActive) ? '#000000' : '#080b16'
       }}
       transition={{ type: 'timing', duration: 400 }}
       style={{ flex: 1 }}
     >
+      {/* Derin gece zemini — orb'la uyumlu, hafif dikey derinlik (her iki modda) */}
+      {!(zenMode && isActive) && (
+        <LinearGradient
+          pointerEvents="none"
+          colors={['#0c1024', '#080b16', '#05070f']}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
       <StatusBar style={(zenMode && isActive) ? 'light' : (isDark ? 'light' : 'dark')} />
       <AnimatePresence>
         {zenMode && isActive && (
@@ -934,16 +948,42 @@ export default function FocusScreen() {
                 </TourTarget>
               )}
             </AnimatePresence>
+
+            {/* Seans sırasında aktif modlar yazı ile belirtilir (pill gizliyken) */}
+            {isActive && (strictMode || pomodoroMode || breathMode !== 'off') && (
+              <MotiView
+                key="active-mode-tags"
+                from={{ opacity: 0, translateY: -4 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 260 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}
+              >
+                {breathMode !== 'off' && (
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: theme.primary + '18' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>{language === 'tr' ? 'Nefes' : 'Breath'}</Text>
+                  </View>
+                )}
+                {pomodoroMode && (
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: theme.primary + '18' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>Pomodoro</Text>
+                  </View>
+                )}
+                {strictMode && (
+                  <View style={{ paddingHorizontal: 9, paddingVertical: 3.5, borderRadius: 999, backgroundColor: theme.primary }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onPrimary, letterSpacing: 0.3 }}>{language === 'tr' ? 'Katı Mod' : 'Strict Mode'}</Text>
+                  </View>
+                )}
+              </MotiView>
+            )}
           </View>
         </MotiView>
 
         <View style={[styles.content, { paddingHorizontal: S.lg }]}>
 
-          {/* Top Foreground (Chips) - Animates height to push timer smoothly */}
-          <MotiView 
-            animate={{ height: sessionStarted ? 20 : 90 }}
-            transition={{ type: 'timing', duration: 400 }}
-            style={{ width: '100%', zIndex: 10 }} 
+          {/* Üst alan (preset'ler) — sabit yükseklik: seans başlayınca çember yerinden oynamaz,
+              chip'ler yalnızca fade ile kaybolur (layout reflow/jank yok) */}
+          <View
+            style={{ width: '100%', height: 84, zIndex: 10 }}
             pointerEvents="box-none"
           >
             {/* Preset chips (standard mode) / Pomodoro indicator */}
@@ -971,71 +1011,57 @@ export default function FocusScreen() {
                     exit={{ opacity: 0, translateY: -6 }}
                     transition={{ type: 'timing', duration: 220 }}
                   >
-                    <View style={[styles.durationRow, { marginBottom: S.md, gap: S.sm, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }]}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={{ alignSelf: 'stretch', marginBottom: S.md }}
+                      contentContainerStyle={{ gap: 8, paddingHorizontal: 20, flexGrow: 1, alignItems: 'center', justifyContent: 'center' }}
+                    >
                       {PRESETS.map((preset) => {
                         const isSelected = totalSeconds === preset.workMins * 60;
                         return (
                           <Touchable
                             key={preset.key}
-                            onPress={() => {
-                              Haptics.selectionAsync();
-                              setSelectedPreset(preset.key);
-                              setDuration(preset.workMins);
-                            }}
-                            style={[
-                              styles.durationChip,
-                              {
-                                backgroundColor: isSelected ? theme.primary + '18' : (Platform.OS === 'android' ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') : 'transparent'),
-                                borderColor: isSelected ? theme.primary : theme.outline,
-                                borderWidth: B.thin,
-                                paddingHorizontal: S.md,
-                                paddingVertical: S.sm,
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                minWidth: 64,
-                              },
-                            ]}
+                            onPress={() => { Haptics.selectionAsync(); setSelectedPreset(preset.key); setDuration(preset.workMins); }}
                           >
-                            <Text style={[styles.durationText, { color: isSelected ? theme.primary : theme.onSurfaceVariant, fontSize: F.caption + 1, fontWeight: isSelected ? '900' : '700', letterSpacing: 0.2 }]}>
-                              {language === 'tr' ? preset.labelTr : preset.labelEn}
-                            </Text>
-                            <Text style={{ fontSize: 10, color: isSelected ? theme.primary : theme.onSurfaceVariant, opacity: 0.7, fontWeight: '600', marginTop: 1 }}>
-                              {preset.workMins}m
-                            </Text>
+                            <MotiView
+                              animate={{ backgroundColor: isSelected ? theme.primary : 'rgba(255,255,255,0.06)' }}
+                              transition={{ type: 'timing', duration: 220 }}
+                              style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5, paddingHorizontal: 15, paddingVertical: 9, borderRadius: 999 }}
+                            >
+                              <Text style={{ fontSize: 13, fontWeight: isSelected ? '800' : '600', color: isSelected ? '#fff' : 'rgba(255,255,255,0.72)', letterSpacing: 0.2 }}>
+                                {language === 'tr' ? preset.labelTr : preset.labelEn}
+                              </Text>
+                              <Text style={{ fontSize: 10.5, fontWeight: '700', color: isSelected ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.38)' }}>
+                                {preset.workMins}
+                              </Text>
+                            </MotiView>
                           </Touchable>
                         );
                       })}
-                      <Touchable
-                        onPress={() => { prepareCustom(); Haptics.selectionAsync(); setCustomVisible(true); }}
-                        style={[
-                          styles.durationChip,
-                          {
-                            backgroundColor: !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0 ? theme.primary + '18' : (Platform.OS === 'android' ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') : 'transparent'),
-                            borderColor: !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0 ? theme.primary : theme.outline,
-                            borderWidth: B.thin,
-                            paddingHorizontal: S.md,
-                            paddingVertical: S.sm,
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            minWidth: 64,
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.durationText, {
-                          color: !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0 ? theme.primary : theme.onSurfaceVariant,
-                          fontSize: F.subhead, fontWeight: '900',
-                        }]}>···</Text>
-                        <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.7, fontWeight: '600', marginTop: 1 }}>
-                          {language === 'tr' ? 'Özel' : 'Custom'}
-                        </Text>
-                      </Touchable>
-                    </View>
+                      {(() => {
+                        const isCustom = !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0;
+                        return (
+                          <Touchable onPress={() => { prepareCustom(); Haptics.selectionAsync(); setCustomVisible(true); }}>
+                            <MotiView
+                              animate={{ backgroundColor: isCustom ? theme.primary : 'rgba(255,255,255,0.06)' }}
+                              transition={{ type: 'timing', duration: 220 }}
+                              style={{ paddingHorizontal: 15, paddingVertical: 9, borderRadius: 999 }}
+                            >
+                              <Text style={{ fontSize: 13, fontWeight: isCustom ? '800' : '600', color: isCustom ? '#fff' : 'rgba(255,255,255,0.72)', letterSpacing: 0.2 }}>
+                                {language === 'tr' ? 'Özel' : 'Custom'}
+                              </Text>
+                            </MotiView>
+                          </Touchable>
+                        );
+                      })()}
+                    </ScrollView>
                   </MotiView>
                 )}
               </AnimatePresence>
             )}
             </MotiView>
-          </MotiView>
+          </View>
 
           {/* Timer Container (Takes remaining space to prevent overlap) */}
           <View style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', zIndex: 0 }} pointerEvents="box-none">
@@ -1087,7 +1113,7 @@ export default function FocusScreen() {
               return (
                 <Svg pointerEvents="none" width={timerSize} height={timerSize} style={{ position: 'absolute', zIndex: 12, opacity: (zenMode && isActive) ? 0.15 : 1 }}>
                   <G rotation={-90} origin={`${timerSize / 2}, ${timerSize / 2}`}>
-                    <Circle cx={timerSize / 2} cy={timerSize / 2} r={r} fill="none" stroke={isDark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.08)'} strokeWidth={8} />
+                    <Circle cx={timerSize / 2} cy={timerSize / 2} r={r} fill="none" stroke={'rgba(255,255,255,0.14)'} strokeWidth={8} />
                     {progress > 0 && (
                       <AnimatedCircle cx={timerSize / 2} cy={timerSize / 2} r={r} fill="none" stroke={strokeColor} strokeWidth={8}
                         strokeDasharray={`${circumference}`} strokeDashoffset={offsetAnim} strokeLinecap="round" />
@@ -1212,18 +1238,35 @@ export default function FocusScreen() {
                   overflow: 'hidden',
                 }}
               >
-                <MotiView
-                  animate={{
-                    backgroundColor: (zenMode && isActive)
-                      ? 'transparent'
-                      : (isDark ? theme.surfaceContainerLow : theme.surfaceContainerLowest)
-                  }}
-                  transition={{ type: 'timing', duration: 400 }}
-                  style={[StyleSheet.absoluteFill, {
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }]}
-                >
+                <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+                  {/* Meditatif animasyonlu iç dünya (aurora) — zen'de kaybolur */}
+                  <MotiView
+                    pointerEvents="none"
+                    animate={{ opacity: (zenMode && isActive) ? 0 : 1 }}
+                    transition={{ type: 'timing', duration: 400 }}
+                    style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: timerSize / 2 }]}
+                  >
+                    <LinearGradient colors={['#101a34', '#0d1428', '#0a0f22']} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
+                    <MotiView
+                      from={{ translateX: -timerSize * 0.12, translateY: -timerSize * 0.06, scale: 0.9 }}
+                      animate={{ translateX: timerSize * 0.12, translateY: timerSize * 0.1, scale: 1.15 }}
+                      transition={{ loop: true, repeatReverse: true, type: 'timing', duration: 7000 }}
+                      style={{ position: 'absolute', top: '6%', left: '10%', width: timerSize * 0.6, height: timerSize * 0.6, borderRadius: timerSize, backgroundColor: theme.primary, opacity: 0.3 }}
+                    />
+                    <MotiView
+                      from={{ translateX: timerSize * 0.1, translateY: timerSize * 0.08, scale: 1.1 }}
+                      animate={{ translateX: -timerSize * 0.1, translateY: -timerSize * 0.1, scale: 0.95 }}
+                      transition={{ loop: true, repeatReverse: true, type: 'timing', duration: 9000 }}
+                      style={{ position: 'absolute', bottom: '4%', right: '8%', width: timerSize * 0.52, height: timerSize * 0.52, borderRadius: timerSize, backgroundColor: theme.tertiary, opacity: 0.22 }}
+                    />
+                    <MotiView
+                      from={{ translateY: timerSize * 0.05, opacity: 0.14 }}
+                      animate={{ translateY: -timerSize * 0.05, opacity: 0.26 }}
+                      transition={{ loop: true, repeatReverse: true, type: 'timing', duration: 5500 }}
+                      style={{ position: 'absolute', top: '32%', left: '34%', width: timerSize * 0.42, height: timerSize * 0.42, borderRadius: timerSize, backgroundColor: theme.secondary }}
+                    />
+                  </MotiView>
+
                   {/* Standard Timer View (Fades out when Zen Mode is active) */}
                   <MotiView
                     pointerEvents={zenMode && isActive ? "none" : "auto"}
@@ -1234,19 +1277,23 @@ export default function FocusScreen() {
                     transition={{ type: 'timing', duration: 400 }}
                     style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
                   >
-                    <Text style={[styles.timerText, { color: theme.onSurface, fontSize: Math.round(timerSize * 0.195) }]}>
-                      {formatTime(seconds)}
-                    </Text>
+                    {/* Tatlı zaman — dakika · atan iki nokta · saniye (aurora üstünde beyaz) */}
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                      <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: Math.round(timerSize * 0.205) }]}>
+                        {Math.floor(seconds / 60).toString().padStart(2, '0')}
+                      </Text>
+                      <Text style={[styles.timerText, { color: (pomodoroMode && pomodoroPhase === 'break') ? theme.tertiary : theme.primary, fontSize: Math.round(timerSize * 0.185), marginHorizontal: 2, opacity: (isActive && seconds % 2 === 1) ? 0.2 : 1 }]}>:</Text>
+                      <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: Math.round(timerSize * 0.205) }]}>
+                        {(seconds % 60).toString().padStart(2, '0')}
+                      </Text>
+                    </View>
 
-                    {/* Status badge */}
-                    <View style={[styles.statusBadge, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary + '20' : theme.primary + '20') : theme.surfaceContainerHigh, marginTop: 12, flexDirection: 'row', alignItems: 'center' }]}>
-                      <View style={[styles.statusDot, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary) : theme.onSurfaceVariant }]} />
-                      <Text style={[styles.statusText, { color: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary) : theme.onSurfaceVariant, fontSize: F.caption }]}>
+                    {/* Durum — zarif, kalkansız (Katı Mod zaten üst barda yazıyla) */}
+                    <View style={[styles.statusBadge, { backgroundColor: isActive ? 'rgba(255,255,255,0.08)' : 'transparent', marginTop: 14 }]}>
+                      <View style={[styles.statusDot, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary) : 'rgba(255,255,255,0.5)' }]} />
+                      <Text style={[styles.statusText, { color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.65)', fontSize: F.caption }]}>
                         {isActive ? t.focusRunning : seconds === totalSeconds ? t.focusReady : t.focusPaused}
                       </Text>
-                      {strictMode && (
-                        <Shield size={10} color={theme.primary} style={{ marginLeft: 6 }} strokeWidth={3} />
-                      )}
                     </View>
 
                     {/* Breath cue — fades between phases in sync with glow animation */}
@@ -1306,7 +1353,7 @@ export default function FocusScreen() {
                       {language === 'tr' ? 'Çıkmak için dokun' : 'Tap to exit Zen Mode'}
                     </Text>
                   </MotiView>
-                </MotiView>
+                </View>
               </Touchable>
             </Animated.View>
             </MotiView>
@@ -1984,7 +2031,8 @@ const styles = StyleSheet.create({
   durationText: { fontWeight: '800' },
   timerContainer: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
   timerCircle: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.1, shadowRadius: 30, elevation: 10 },
-  timerText: { fontWeight: '900', letterSpacing: -2 },
+  timerText: { fontWeight: '200', letterSpacing: -1, fontVariant: ['tabular-nums'] },
+  timerGlow: { textShadowColor: 'rgba(150,180,255,0.45)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 18 },
   currentTaskText: { fontWeight: '600', marginTop: 8, textAlign: 'center' },
   breathGlow: { position: 'absolute', zIndex: -1 },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full },

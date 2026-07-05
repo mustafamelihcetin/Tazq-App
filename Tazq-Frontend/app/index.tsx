@@ -47,232 +47,13 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
+import { MyDayTaskRow } from '@/shared/components/MyDayTaskRow';
+import { HabitBubble } from '@/shared/components/HabitBubble';
 
-interface MyDayTaskRowProps {
-  item: any;
-  isLast: boolean;
-  theme: any;
-  isDark: boolean;
-  tr: boolean;
-  onPress: () => void;
-  priorityColor: (p: string) => string;
-  prefs: any;
-}
 
-const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme, isDark, tr, onPress, priorityColor, prefs }) => {
-  const modeInfo = getModeInfoForTask(item.original, prefs, theme);
-  return (
-    <Touchable
-      onPress={onPress}
-      activeOpacity={0.7}
-      style={{
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: S.md, paddingVertical: 13,
-        borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-        backgroundColor: modeInfo ? (isDark ? modeInfo.color + '0B' : modeInfo.color + '04') : 'transparent'
-      }}
-    >
-      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: modeInfo ? modeInfo.color : priorityColor(item.priority), marginRight: S.md }} />
-      <View style={{ flex: 1, gap: 2 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-          <Text style={{
-            fontSize: F.body,
-            fontWeight: '600',
-            color: item.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
-            textDecorationLine: item.isCompleted ? 'line-through' : 'none',
-            opacity: item.isCompleted ? 0.5 : 1,
-            flexShrink: 1
-          }} numberOfLines={1}>
-            {getLocalizedTaskTitle(item.original || item, tr)}
-          </Text>
-          {modeInfo && (
-            <View style={{
-              backgroundColor: modeInfo.color + (isDark ? '24' : '15'),
-              borderRadius: 6,
-              paddingHorizontal: 5,
-              paddingVertical: 1.5,
-              borderWidth: 0.5,
-              borderColor: modeInfo.color + '40'
-            }}>
-              <Text style={{
-                fontSize: 7.5,
-                fontWeight: '800',
-                color: modeInfo.color,
-                letterSpacing: 0.4
-              }}>
-                {(tr ? modeInfo.labelTr : modeInfo.labelEn).toUpperCase()}
-              </Text>
-            </View>
-          )}
-        </View>
-        {(() => {
-          const isQuitMode = modeInfo && (modeInfo.unit === 'clean_day');
-          if (isQuitMode) {
-            return (
-              <Text style={{
-                fontSize: 9,
-                fontWeight: '600',
-                color: theme.onSurfaceVariant,
-                opacity: 0.5,
-                marginTop: 0.5
-              }}>
-                {modeInfo.daysLeft === 0
-                  ? (tr ? '1. Gün' : 'Day 1')
-                  : (tr ? `Temiz: ${modeInfo.daysLeft} gün` : `Clean: ${modeInfo.daysLeft} ${modeInfo.daysLeft === 1 ? 'day' : 'days'}`)}
-              </Text>
-            );
-          }
-
-          const taskCountdown = getTaskRemainingTime(item.original?.dueDate, item.original?.dueTime, item.original?.isCompleted, tr);
-          if (!taskCountdown) return null;
-
-          const planCountdown = modeInfo && modeInfo.daysLeft !== undefined && modeInfo.unit === 'day'
-            ? (tr ? `Hedef: ${modeInfo.daysLeft} gün` : `Goal: ${modeInfo.daysLeft} days`)
-            : null;
-
-          const displayLabel = planCountdown ? `${planCountdown} · ${taskCountdown}` : taskCountdown;
-          const isOverdue = taskCountdown === 'Süresi geçti' || taskCountdown === 'Overdue';
-
-          return (
-            <Text style={{
-              fontSize: 9,
-              fontWeight: '600',
-              color: isOverdue ? theme.error : theme.onSurfaceVariant,
-              opacity: 0.5,
-              marginTop: 0.5
-            }}>
-              {displayLabel}
-            </Text>
-          );
-        })()}
-      </View>
-      {item.isCompleted ? (
-        <CheckCircle2 size={14} color="#10B981" style={{ marginLeft: S.sm }} />
-      ) : (
-        <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
-      )}
-    </Touchable>
-  );
-});
-
-interface HabitBubbleProps {
-  item: any;
-  theme: any;
-  isDark: boolean;
-  tr: boolean;
-  onPress: () => void;
-  onLongPress: () => void;
-}
-
-const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, tr, onPress, onLongPress }) => {
-  const streakVal = item.streak || 0;
-  const size = 50;
-  const isCompleted = item.isCompleted;
-  const isSkipped = item.isSkipped;
-  
-  // Flat styling:
-  // 1. The outer circle border is ALWAYS a quiet neutral color (borderını boyamıyoruz).
-  // 2. Completed state uses a soft mode-colored background tint (flat).
-  // 3. The icon and the badges are painted in the solid mode's color.
-  
-  const bgColor = isCompleted
-    ? item.color + (isDark ? '24' : '15') // soft flat tint matching the mode's color
-    : isSkipped
-    ? (isDark ? 'rgba(217, 119, 6, 0.15)' : 'rgba(217, 119, 6, 0.08)')
-    : 'transparent';
-
-  const borderColor = isDark
-    ? 'rgba(255, 255, 255, 0.1)'
-    : 'rgba(0, 0, 0, 0.06)';
-
-  const iconColor = isCompleted
-    ? item.color // icon is solid mode color!
-    : isSkipped
-    ? '#d97706'
-    : isDark
-    ? 'rgba(255, 255, 255, 0.45)' // quiet neutral icon when pending
-    : 'rgba(0, 0, 0, 0.4)';
-
-  return (
-    <Touchable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      activeOpacity={0.7}
-      style={{ alignItems: 'center', width: 62, gap: 6 }}
-    >
-      <View style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: bgColor,
-        borderWidth: 1.5,
-        borderColor: borderColor,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        {isSkipped ? (
-          <Coffee size={18} color="#d97706" />
-        ) : (
-          renderModeEmojiIcon(item.emoji ?? '📌', 20, iconColor)
-        )}
-
-        {streakVal >= 3 && !isSkipped && (
-          <View style={{
-            position: 'absolute',
-            bottom: -3,
-            right: -3,
-            backgroundColor: item.color, // flame badge colored matching the mode's color!
-            borderRadius: 7,
-            paddingHorizontal: 4,
-            paddingVertical: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            borderWidth: 1.5,
-            borderColor: isDark ? '#1C1C1E' : '#FFFFFF',
-          }}>
-            <Flame size={8} color="#FFFFFF" fill="#FFFFFF" />
-            <Text style={{ fontSize: 7.5, fontWeight: '800', color: '#FFFFFF', marginLeft: 1 }}>{streakVal}</Text>
-          </View>
-        )}
-
-        {isCompleted && (
-          <View style={{
-            position: 'absolute',
-            top: -2,
-            right: -2,
-            backgroundColor: item.color, // checkmark badge colored matching the mode's color!
-            borderRadius: 6.5,
-            width: 13,
-            height: 13,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            borderColor: isDark ? '#1C1C1E' : '#FFFFFF',
-          }}>
-            <CheckCircle2 size={9} color="#FFFFFF" />
-          </View>
-        )}
-      </View>
-
-      <Text
-        style={{
-          fontSize: 9.5,
-          fontWeight: '700',
-          color: isCompleted ? theme.onSurfaceVariant : theme.onSurface,
-          textAlign: 'center',
-          textDecorationLine: isCompleted ? 'line-through' : 'none',
-          opacity: isCompleted ? 0.55 : 0.8,
-          width: '100%',
-        }}
-        numberOfLines={1}
-      >
-        {item.title}
-      </Text>
-    </Touchable>
-  );
-});
-
+// Hoş geldin (profil kurulumu) oturum başına yalnızca bir kez — remount'ta sıfırlanmasın diye
+// component ref yerine modül seviyesinde tutulur; kullanıcı çıkışında sıfırlanır.
+let welcomeSetupShown = false;
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
@@ -298,7 +79,7 @@ export default function HomeScreen() {
   const { trigger: triggerAchievement, baseline: baselineAchievements } = useAchievementStore();
   const achHydrated = useAchievementStore(s => s._hasHydrated);
   const uiMode = usePrefsStore(s => s.uiMode);
-  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, helpTourShown, completedTours } = usePrefsStore();
+  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, helpTourShown, completedTours, onboardingCompleted, setOnboardingCompleted, _hasHydrated: prefsHydrated } = usePrefsStore();
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
@@ -329,15 +110,19 @@ export default function HomeScreen() {
     }
   }, [profileSetupVisible, completedTours]);
 
-  const hasSetupPrompted = useRef(false);
   useEffect(() => {
-    if (user && isFirstLogin && !hasSetupPrompted.current) {
-      hasSetupPrompted.current = true;
+    // Kullanıcı çıkışında bayrağı sıfırla (yeni/başka ilk-giriş kullanıcısı için tekrar gösterilebilsin)
+    if (!user) {
+      welcomeSetupShown = false;
+      return;
+    }
+    if (prefsHydrated && onboardingCompleted === false && isFirstLogin && !welcomeSetupShown) {
+      welcomeSetupShown = true;
       setProfileSetupVisible(true);
       usePrefsStore.getState().setTourCompleted('dashboard', false);
       usePrefsStore.getState().setHelpTourShown(false);
     }
-  }, [user, isFirstLogin]);
+  }, [user, prefsHydrated, onboardingCompleted, isFirstLogin]);
 
   const handleProfileSetupSave = async (name: string, avatar: string, borderColor: string, motto: string, productivityHour: string, gender: 'male' | 'female' | '') => {
     try {
@@ -350,6 +135,7 @@ export default function HomeScreen() {
       usePrefsStore.getState().setProductivityHour(productivityHour as any);
       usePrefsStore.getState().setGender(gender);
       useSporStore.getState().setGender(gender);
+      setOnboardingCompleted(true);
       await usePrefsStore.getState().syncToCloud();
       setIsFirstLogin(false);
       if (token) {
@@ -943,7 +729,9 @@ export default function HomeScreen() {
 
   // Unified My Day feed items (Tasks only)
   const myDayTasks = (() => {
-    if (completedTours?.dashboard !== true) {
+    // Demo/mock veri YALNIZCA ilk kez onboarding yapan yeni kullanıcıya gösterilir.
+    // Dönen/reaktive kullanıcı (onboardingCompleted=true) her zaman gerçek verisini görür.
+    if (completedTours?.dashboard !== true && !onboardingCompleted) {
       return [
         {
           type: 'task' as const,
@@ -1038,7 +826,7 @@ export default function HomeScreen() {
 
   // Today's Habits
   const myDayHabits = (() => {
-    if (completedTours?.dashboard !== true) {
+    if (completedTours?.dashboard !== true && !onboardingCompleted) {
       return [
         {
           id: 'mock-habit-1',

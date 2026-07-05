@@ -411,7 +411,7 @@ export default function RootLayout() {
 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [_hasHydrated, isLoggedIn]);
+  }, [_hasHydrated, isLoggedIn, segments]);
 
   // BR-01: Recover focus session that ended while app was killed or backgrounded
   useEffect(() => {

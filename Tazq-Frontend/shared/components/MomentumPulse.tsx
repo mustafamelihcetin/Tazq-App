@@ -51,15 +51,20 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
   const tr = language === 'tr';
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <View style={{ height: 64, marginHorizontal: 16, marginBottom: 16 }} />
+    );
+  }
 
   const displayHistory = isEight ? history.slice(1) : history;
 
   return (
     <>
-    <View style={{ paddingHorizontal: S.lg, flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.lg }}>
+    <View style={{ marginHorizontal: S.lg, flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.lg }}>
 
       {/* Score + info */}
+      <View>
       <MotiView
         from={{ opacity: 0, translateY: 4 }}
         animate={{ opacity: 1, translateY: 0 }}
@@ -80,6 +85,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           </Touchable>
         </View>
       </MotiView>
+      </View>
 
       {/* Divider */}
       <View style={{ width: 1, height: 36, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)' }} />

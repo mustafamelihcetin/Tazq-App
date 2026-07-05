@@ -30,8 +30,18 @@ namespace Tazq_App.Services
 
         public async Task<bool> RegisterAsync(UserRegisterDto userDto)
         {
-            if (await _context.Users.AnyAsync(u => u.Email == userDto.Email))
-                return false;
+            // Soft-deleted hesaplar dahil e-posta kontrolü (global filtre bunları normalde gizler)
+            var existing = await _context.Users.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => u.Email == userDto.Email);
+            if (existing != null)
+            {
+                // Aktif ya da grace içinde silinmiş → e-posta kullanımda (grace içindeyse giriş yaparak geri getirilir)
+                if (existing.DeletedAt == null || DateTime.UtcNow - existing.DeletedAt.Value <= AccountGracePeriod)
+                    return false;
+                // Grace süresi dolmuş → eski kaydı temizle, aynı e-postayla yeni kayda izin ver
+                _context.Users.Remove(existing);
+                await _context.SaveChangesAsync();
+            }
 
             var salt = RandomNumberGenerator.GetBytes(16);
             using var pbkdf2 = new Rfc2898DeriveBytes(userDto.Password, salt, 100000, HashAlgorithmName.SHA256);
@@ -70,6 +80,28 @@ namespace Tazq_App.Services
         // Refresh token ömrü
         private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(60);
 
+        // Hesap silme sonrası geri getirme (grace) süresi. Bu süre içinde tekrar giriş = reaktivasyon.
+        public static readonly TimeSpan AccountGracePeriod = TimeSpan.FromDays(30);
+
+        // Silinmiş kullanıcıyı grace durumuna göre değerlendirir:
+        //  - grace içinde  → reaktive eder (DeletedAt=null), true döner (giriş devam etsin)
+        //  - grace geçmiş  → kalıcı siler, user'ı null yapar (yeni hesap gibi devam edilir)
+        //  - silinmemiş     → dokunmaz, true döner
+        private async Task<bool> ResolveSoftDeletedAsync(User? user)
+        {
+            if (user == null) return false;
+            if (user.DeletedAt == null) return true;
+            if (DateTime.UtcNow - user.DeletedAt.Value <= AccountGracePeriod)
+            {
+                user.DeletedAt = null; // reaktivasyon
+                return true;
+            }
+            // Grace süresi dolmuş ama henüz temizlenmemiş → kalıcı sil, çağıran yeni hesap açsın
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+            return false;
+        }
+
         // Ham (istemciye dönen) opak token üretir; DB'ye yalnızca hash'i yazılır.
         private static string GenerateRawRefreshToken() =>
             Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
@@ -96,7 +128,8 @@ namespace Tazq_App.Services
 
         public async Task<AuthTokens?> LoginAsync(UserLoginDto userDto, string? ipAddress)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userDto.Email);
+            // Soft-deleted hesapları da bul (grace içinde giriş = reaktivasyon)
+            var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Email == userDto.Email);
             if (user == null || string.IsNullOrEmpty(user.PasswordSalt))
                 return null;
 
@@ -105,6 +138,14 @@ namespace Tazq_App.Services
 
             if (computedHash != user.PasswordHash)
                 return null;
+
+            // Silinmişse: grace içinde reaktive et, süresi geçmişse girişi reddet
+            bool wasReactivated = false;
+            if (user.DeletedAt != null)
+            {
+                if (!await ResolveSoftDeletedAsync(user)) return null;
+                wasReactivated = true;
+            }
 
             // Banlı kullanıcı giriş yapamaz
             if (user.IsBanned)
@@ -119,7 +160,7 @@ namespace Tazq_App.Services
 
             var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
             var refreshToken = await IssueRefreshTokenAsync(user.Id);
-            return new AuthTokens(accessToken, refreshToken);
+            return new AuthTokens(accessToken, refreshToken, false, wasReactivated);
         }
 
         public async Task<AuthTokens?> GoogleLoginAsync(string idToken, string? ipAddress)
@@ -140,7 +181,14 @@ namespace Tazq_App.Services
                 return null;
             }
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == payload.Email);
+            var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Email == payload.Email);
+            // Silinmişse: grace içinde reaktive et, süresi geçmişse temizle ve yeni hesap gibi devam et
+            bool wasReactivated = false;
+            if (user != null && user.DeletedAt != null)
+            {
+                if (DateTime.UtcNow - user.DeletedAt.Value <= AccountGracePeriod) { user.DeletedAt = null; wasReactivated = true; }
+                else { _context.Users.Remove(user); await _context.SaveChangesAsync(); user = null; }
+            }
             bool isNewUser = false;
             if (user == null)
             {
@@ -184,7 +232,7 @@ namespace Tazq_App.Services
 
             var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
             var refreshToken = await IssueRefreshTokenAsync(user.Id);
-            return new AuthTokens(accessToken, refreshToken, isNewUser);
+            return new AuthTokens(accessToken, refreshToken, isNewUser, wasReactivated);
         }
 
         public async Task<AuthTokens?> AppleLoginAsync(AppleLoginDto dto, string? ipAddress)
@@ -205,7 +253,14 @@ namespace Tazq_App.Services
                     return null;
                 }
 
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+                var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Email == email);
+                // Silinmişse: grace içinde reaktive et, süresi geçmişse temizle ve yeni hesap gibi devam et
+                bool wasReactivated = false;
+                if (user != null && user.DeletedAt != null)
+                {
+                    if (DateTime.UtcNow - user.DeletedAt.Value <= AccountGracePeriod) { user.DeletedAt = null; wasReactivated = true; }
+                    else { _context.Users.Remove(user); await _context.SaveChangesAsync(); user = null; }
+                }
                 bool isNewUser = false;
                 if (user == null)
                 {
@@ -266,7 +321,7 @@ namespace Tazq_App.Services
 
                 var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
                 var refreshToken = await IssueRefreshTokenAsync(user.Id);
-                return new AuthTokens(accessToken, refreshToken, isNewUser);
+                return new AuthTokens(accessToken, refreshToken, isNewUser, wasReactivated);
             }
             catch (Exception ex)
             {
@@ -388,7 +443,7 @@ namespace Tazq_App.Services
                 return null;
 
             var user = await _context.Users.FindAsync(stored.UserId);
-            if (user == null) return null;
+            if (user == null || user.DeletedAt != null) return null;
 
             // Banlı kullanıcının oturumu yenilenemez
             if (user.IsBanned)
@@ -423,10 +478,17 @@ namespace Tazq_App.Services
 
         public async Task<bool> DeleteUserAsync(int userId)
         {
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null) return false;
+            var user = await _context.Users.FindAsync(userId); // FindAsync global filtreyi atlar
+            if (user == null || user.DeletedAt != null) return false;
 
-            _context.Users.Remove(user);
+            // Soft-delete: veriyi koru, hesabı işaretle. Grace içinde tekrar giriş = reaktivasyon.
+            user.DeletedAt = DateTime.UtcNow;
+
+            // Tüm oturumları kapat: kullanıcının refresh token'larını iptal et (her cihazdan çıkış)
+            var tokens = await _context.RefreshTokens.Where(t => t.UserId == userId).ToListAsync();
+            _context.RefreshTokens.RemoveRange(tokens);
+
+            _context.Users.Update(user);
             return await _context.SaveChangesAsync() > 0;
         }
 

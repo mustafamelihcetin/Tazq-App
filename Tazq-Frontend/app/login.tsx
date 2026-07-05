@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, useWindowDimension
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react-native';
+import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '@/shared/services/api';
@@ -11,6 +11,7 @@ import { useAuthStore } from '@/features/user';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { GlassCard } from '@/shared/components/GlassCard';
+import { useToastStore } from '@/shared/store/useToastStore';
 import { AnimatedBackground } from '@/shared/components/AnimatedBackground';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { BlurView } from 'expo-blur';
@@ -90,10 +91,11 @@ export default function LoginScreen() {
         throw new Error('Google ID Token was not returned.');
       }
 
-      const { token, refreshToken, isNewUser } = await AuthService.googleLogin(idToken);
+      const { token, refreshToken, isNewUser, isReactivated } = await AuthService.googleLogin(idToken);
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken, isNewUser);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
       router.replace('/');
     } catch (err: any) {
       console.warn('[Google Sign-In Error]', err);
@@ -148,7 +150,7 @@ export default function LoginScreen() {
         throw new Error('Apple identity token was not returned.');
       }
 
-      const { token, refreshToken, isNewUser } = await AuthService.appleLogin(
+      const { token, refreshToken, isNewUser, isReactivated } = await AuthService.appleLogin(
         identityToken,
         credential.fullName?.givenName || undefined,
         credential.fullName?.familyName || undefined
@@ -157,6 +159,7 @@ export default function LoginScreen() {
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken, isNewUser);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
       router.replace('/');
     } catch (err: any) {
       console.warn('[Apple Sign-In Error]', err);
@@ -186,10 +189,11 @@ export default function LoginScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const { token, refreshToken } = await AuthService.login(email, password);
+      const { token, refreshToken, isReactivated } = await AuthService.login(email, password);
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
       router.replace('/');
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -445,12 +449,15 @@ export default function LoginScreen() {
 
                 <TouchableOpacity
                   onPress={() => router.push('/onboarding')}
-                  style={{ marginTop: 14, alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 6 }}
-                  accessibilityRole="link"
+                  activeOpacity={0.7}
+                  style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: 8 }}
+                  accessibilityRole="button"
                 >
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: theme.onSurfaceVariant, textDecorationLine: 'underline', opacity: 0.8 }}>
-                    {language === 'tr' ? 'Uygulama Tanıtımını İzle' : 'Watch App Preview'}
+                  <Sparkles size={14} color={theme.primary} strokeWidth={2.2} />
+                  <Text style={{ fontSize: 13.5, fontWeight: '700', color: theme.primary, letterSpacing: 0.2 }}>
+                    {language === 'tr' ? 'Uygulamayı keşfet' : 'Explore the app'}
                   </Text>
+                  <ArrowRight size={15} color={theme.primary} strokeWidth={2.4} />
                 </TouchableOpacity>
               </MotiView>
           </ScrollView>

@@ -17,7 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, User, ArrowRight, ArrowLeft, AlertCircle, Eye, EyeOff, CheckSquare, Square } from 'lucide-react-native';
+import { Mail, Lock, User, ArrowRight, ArrowLeft, AlertCircle, Eye, EyeOff, CheckSquare, Square, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '@/shared/services/api';
@@ -492,12 +492,15 @@ export default function RegisterScreen() {
 
                 <TouchableOpacity
                   onPress={() => router.push('/onboarding')}
-                  style={{ marginTop: 14, alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 6 }}
-                  accessibilityRole="link"
+                  activeOpacity={0.7}
+                  style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: 8 }}
+                  accessibilityRole="button"
                 >
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: theme.onSurfaceVariant, textDecorationLine: 'underline', opacity: 0.8 }}>
-                    {language === 'tr' ? 'Uygulama Tanıtımını İzle' : 'Watch App Preview'}
+                  <Sparkles size={14} color={theme.secondary} strokeWidth={2.2} />
+                  <Text style={{ fontSize: 13.5, fontWeight: '700', color: theme.secondary, letterSpacing: 0.2 }}>
+                    {language === 'tr' ? 'Uygulamayı keşfet' : 'Explore the app'}
                   </Text>
+                  <ArrowRight size={15} color={theme.secondary} strokeWidth={2.4} />
                 </TouchableOpacity>
               </MotiView>
           </ScrollView>

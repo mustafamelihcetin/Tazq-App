@@ -93,6 +93,7 @@ export default function CockpitScreen() {
     ramazanPlanHabitIds,
     soundEffects,
     completedTours,
+    onboardingCompleted,
   } = usePrefsStore();
 
   const { measureAll } = useTour();
@@ -114,7 +115,8 @@ export default function CockpitScreen() {
   };
 
   const tasks = useMemo(() => {
-    if (completedTours?.cockpit !== true) {
+    // Demo veri yalnızca ilk kez onboarding yapan yeni kullanıcıya; dönen/reaktive kullanıcıya değil.
+    if (completedTours?.cockpit !== true && !onboardingCompleted) {
       return [
         {
           id: '88881',
@@ -135,10 +137,10 @@ export default function CockpitScreen() {
       ] as any[];
     }
     return rawTasks;
-  }, [rawTasks, completedTours, language]);
+  }, [rawTasks, completedTours, onboardingCompleted, language]);
 
   const habits = useMemo(() => {
-    if (completedTours?.cockpit !== true) {
+    if (completedTours?.cockpit !== true && !onboardingCompleted) {
       return [
         {
           id: 'mock-habit-1',
@@ -159,7 +161,7 @@ export default function CockpitScreen() {
       ] as any[];
     }
     return rawHabits;
-  }, [rawHabits, completedTours, language]);
+  }, [rawHabits, completedTours, onboardingCompleted, language]);
 
   const hasActiveSeasonalMode = seasonal.ramazan || seasonal.examMode || seasonal.tezMode || seasonal.mulakatMode || seasonal.sporMode;
 
