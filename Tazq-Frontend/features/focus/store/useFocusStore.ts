@@ -3,6 +3,34 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const activeAudioPlayers = new Set<any>();
 
+// Timer her saniye set() çağırdığı için persist middleware her saniye AsyncStorage'a yazar.
+// Bu, uzun seanslarda ısınma/jank yapar. Yazımları throttle'la: en fazla FLUSH_MS'de bir yaz.
+// Seans başında yazılan expectedFinishAt zaten kalıcı olduğundan birkaç saniyelik gecikme veri kaybı yaratmaz.
+const throttledAsyncStorage = (() => {
+  const pending: Record<string, string> = {};
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const FLUSH_MS = 3000;
+  const flush = () => {
+    timer = null;
+    for (const key of Object.keys(pending)) {
+      const value = pending[key];
+      delete pending[key];
+      AsyncStorage.setItem(key, value).catch(() => {});
+    }
+  };
+  return {
+    getItem: (name: string) => AsyncStorage.getItem(name),
+    setItem: (name: string, value: string) => {
+      pending[name] = value;
+      if (!timer) timer = setTimeout(flush, FLUSH_MS);
+    },
+    removeItem: (name: string) => {
+      delete pending[name];
+      return AsyncStorage.removeItem(name);
+    },
+  };
+})();
+
 interface FocusState {
   isActive: boolean;
   seconds: number;
@@ -336,7 +364,7 @@ export const useFocusStore = create<FocusState>()(
     }),
     {
       name: 'tazq-focus-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => throttledAsyncStorage),
       onRehydrateStorage: (state) => {
         return (state, error) => {
           if (!error && state) {
@@ -346,6 +374,7 @@ export const useFocusStore = create<FocusState>()(
       },
       partialize: (state) => ({
         isActive: state.isActive,
+        seconds: state.seconds,
         totalSeconds: state.totalSeconds,
         pausedSeconds: state.pausedSeconds,
         currentTask: state.currentTask,

@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, useWindowDimensions, KeyboardAvoidingView, Platform, ActivityIndicator, TouchableWithoutFeedback, Keyboard, Modal, ScrollView } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, useWindowDimensions, KeyboardAvoidingView, Platform, ActivityIndicator, TouchableWithoutFeedback, Keyboard, Modal, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2, Sparkles } from 'lucide-react-native';
+import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2, Sparkles, Ban } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '@/shared/services/api';
@@ -49,15 +49,31 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bannedInfo, setBannedInfo] = useState<{ reason: string; until: string | null } | null>(null);
 
   const [forgotVisible, setForgotVisible] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotMsg, setForgotMsg] = useState<{ text: string; success: boolean } | null>(null);
   const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [forgotResendIn, setForgotResendIn] = useState(0);
   
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
+
+  // 403 banlı yanıtını ayrı "askıya alındı" kutusuna dönüştürür (login/google/apple ortak)
+  const applyBannedIfAny = (err: any): boolean => {
+    const d = err?.response?.data;
+    if (err?.response?.status === 403 && d?.banned) {
+      const tr = language === 'tr';
+      const until = d.bannedUntil
+        ? new Date(d.bannedUntil).toLocaleString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : null;
+      setBannedInfo({ reason: d.reason || (tr ? 'Belirtilmedi' : 'Not specified'), until });
+      return true;
+    }
+    return false;
+  };
 
   const handleGoogleSignIn = async () => {
     let GoogleSignin: any;
@@ -81,6 +97,7 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     setError(null);
+    setBannedInfo(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
@@ -103,6 +120,7 @@ export default function LoginScreen() {
       if (err?.code === 'SIGN_IN_CANCELLED' || err?.message?.includes('Sign in cancelled')) {
         return;
       }
+      if (applyBannedIfAny(err)) return;
       setError(language === 'tr' ? 'Google ile giriş başarısız oldu.' : 'Google Sign-In failed.');
     } finally {
       setIsLoading(false);
@@ -135,6 +153,7 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     setError(null);
+    setBannedInfo(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
@@ -167,6 +186,7 @@ export default function LoginScreen() {
       if (err?.code === 'ERR_REQUEST_CANCELED' || err?.code === 'ERR_CANCELED') {
         return;
       }
+      if (applyBannedIfAny(err)) return;
       setError(language === 'tr' ? 'Apple ile giriş başarısız oldu.' : 'Apple Sign-In failed.');
     } finally {
       setIsLoading(false);
@@ -186,10 +206,18 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     setError(null);
+    setBannedInfo(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const { token, refreshToken, isReactivated } = await AuthService.login(email, password);
+      const res = await AuthService.login(email, password);
+      // E-posta doğrulanmamış → doğrulama ekranına yönlendir (kod tekrar gönderildi)
+      if (res?.needsVerification) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        router.push({ pathname: '/verify-email', params: { email } });
+        return;
+      }
+      const { token, refreshToken, isReactivated } = res;
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -197,8 +225,17 @@ export default function LoginScreen() {
       router.replace('/');
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const data = err?.response?.data;
       if (!err?.response) {
         setError(t.login.networkError);
+      } else if (err.response.status === 403 && data?.banned) {
+        // Askıya alınmış hesap → ayrı, özel bir bilgilendirme kutusunda göster
+        const tr = language === 'tr';
+        const reason = data.reason || (tr ? 'Belirtilmedi' : 'Not specified');
+        const until = data.bannedUntil
+          ? new Date(data.bannedUntil).toLocaleString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : null;
+        setBannedInfo({ reason, until });
       } else {
         setError(t.login.error);
       }
@@ -207,11 +244,19 @@ export default function LoginScreen() {
     }
   };
 
+  // "Tekrar gönder" için geri sayım
+  useEffect(() => {
+    if (forgotResendIn <= 0) return;
+    const id = setInterval(() => setForgotResendIn((s) => s - 1), 1000);
+    return () => clearInterval(id);
+  }, [forgotResendIn]);
+
   const closeForgotModal = () => {
     setForgotVisible(false);
     setForgotEmail('');
     setForgotMsg(null);
     setForgotSuccess(false);
+    setForgotResendIn(0);
   };
 
   const handleForgotPassword = async () => {
@@ -225,9 +270,26 @@ export default function LoginScreen() {
     try {
       await AuthService.forgotPassword(forgotEmail.trim());
       setForgotSuccess(true);
+      setForgotResendIn(45);
     } catch (err: any) {
       const errMsg = err.response?.data?.message || err.response?.data || t.login.forgotError;
       setForgotMsg({ text: errMsg, success: false });
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  // Başarı ekranından yeni bağlantı yolla (öncekini backend geçersiz kılar)
+  const resendForgot = async () => {
+    if (forgotResendIn > 0 || forgotLoading) return;
+    setForgotLoading(true);
+    try {
+      await AuthService.forgotPassword(forgotEmail.trim());
+      setForgotResendIn(45);
+      Haptics.selectionAsync();
+      useToastStore.getState().show(language === 'tr' ? 'Yeni bağlantı gönderildi' : 'New link sent', 'success');
+    } catch {
+      /* sessiz — güvenlik için hesap varlığını sızdırmayız */
     } finally {
       setForgotLoading(false);
     }
@@ -278,13 +340,50 @@ export default function LoginScreen() {
               >
                 <GlassCard style={[styles.glassCard, { padding: isSmallScreen ? 12 : isMediumScreen ? 18 : 24 }]}>
                   {error && (
-                    <MotiView 
+                    <MotiView
                       from={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       style={[styles.errorContainer, { backgroundColor: theme.error + '15' }]}
                     >
-                      <AlertCircle size={16} color={theme.error} />
+                      <AlertCircle size={16} color={theme.error} style={{ marginTop: 1 }} />
                       <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
+                    </MotiView>
+                  )}
+
+                  {bannedInfo && (
+                    <MotiView
+                      from={{ opacity: 0, translateY: -8 }}
+                      animate={{ opacity: 1, translateY: 0 }}
+                      style={[styles.bannedBox, { backgroundColor: theme.error + '12', borderColor: theme.error + '35' }]}
+                    >
+                      <View style={styles.bannedHeader}>
+                        <View style={[styles.bannedIcon, { backgroundColor: theme.error + '20' }]}>
+                          <Ban size={16} color={theme.error} strokeWidth={2.4} />
+                        </View>
+                        <Text style={[styles.bannedTitle, { color: theme.error }]}>
+                          {language === 'tr' ? 'Hesabın askıya alındı' : 'Your account is suspended'}
+                        </Text>
+                      </View>
+                      <View style={styles.bannedRow}>
+                        <Text style={[styles.bannedLabel, { color: theme.onSurfaceVariant }]}>{language === 'tr' ? 'Sebep' : 'Reason'}</Text>
+                        <Text style={[styles.bannedValue, { color: theme.onSurface }]}>{bannedInfo.reason}</Text>
+                      </View>
+                      <View style={styles.bannedRow}>
+                        <Text style={[styles.bannedLabel, { color: theme.onSurfaceVariant }]}>{language === 'tr' ? 'Süre' : 'Duration'}</Text>
+                        <Text style={[styles.bannedValue, { color: theme.onSurface }]}>
+                          {bannedInfo.until ? (language === 'tr' ? `${bannedInfo.until} tarihine kadar` : `Until ${bannedInfo.until}`) : (language === 'tr' ? 'Kalıcı' : 'Permanent')}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => Linking.openURL(`mailto:destek@tazqapp.com?subject=${encodeURIComponent((language === 'tr' ? 'Ban itirazı - ' : 'Ban appeal - ') + email)}`)}
+                        activeOpacity={0.7}
+                        style={[styles.bannedAppeal, { borderColor: theme.error + '30' }]}
+                      >
+                        <Mail size={13} color={theme.error} />
+                        <Text style={[styles.bannedAppealText, { color: theme.error }]}>
+                          {language === 'tr' ? 'İtiraz et: destek@tazqapp.com' : 'Appeal: destek@tazqapp.com'}
+                        </Text>
+                      </TouchableOpacity>
                     </MotiView>
                   )}
 
@@ -502,6 +601,19 @@ export default function LoginScreen() {
                       {language === 'tr' ? 'Harika' : 'Got it'}
                     </Text>
                   </Touchable>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                    <Text style={{ fontSize: 12.5, color: theme.onSurfaceVariant, fontFamily: 'Jakarta-Medium' }}>
+                      {language === 'tr' ? 'Ulaşmadı mı?' : "Didn't arrive?"}
+                    </Text>
+                    <TouchableOpacity onPress={resendForgot} disabled={forgotResendIn > 0 || forgotLoading} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Text style={{ fontSize: 12.5, fontWeight: '800', fontFamily: 'Jakarta-Bold', color: forgotResendIn > 0 ? theme.onSurfaceVariant : theme.primary }}>
+                        {forgotResendIn > 0
+                          ? (language === 'tr' ? `${forgotResendIn} sn sonra tekrar gönder` : `Resend in ${forgotResendIn}s`)
+                          : (language === 'tr' ? 'Tekrar gönder' : 'Resend')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ) : (
                 <>
@@ -605,8 +717,17 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: moderateScale(15), fontWeight: '500', marginTop: verticalScale(6), opacity: 0.6, letterSpacing: 0.1 },
   cardContainer: { width: '100%' },
   glassCard: { width: '100%' },
-  errorContainer: { flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.sm + 4, borderRadius: R.sm + 4, marginBottom: S.md },
-  errorText: { fontSize: F.caption + 2, fontWeight: '600' },
+  errorContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm, padding: S.sm + 4, borderRadius: R.sm + 4, marginBottom: S.md },
+  errorText: { flex: 1, fontSize: F.caption + 2, fontWeight: '600', lineHeight: verticalScale(18), flexWrap: 'wrap' },
+  bannedBox: { borderWidth: B.thin, borderRadius: R.md, padding: S.md, marginBottom: S.md, gap: S.sm },
+  bannedHeader: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
+  bannedIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  bannedTitle: { flex: 1, fontSize: F.body, fontWeight: '800', letterSpacing: -0.2 },
+  bannedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm },
+  bannedLabel: { width: 52, fontSize: F.caption, fontWeight: '700' },
+  bannedValue: { flex: 1, fontSize: F.caption + 1, fontWeight: '600', lineHeight: verticalScale(17) },
+  bannedAppeal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: B.thin, borderRadius: R.sm + 2, paddingVertical: S.sm, marginTop: 2 },
+  bannedAppealText: { fontSize: F.caption + 1, fontWeight: '800' },
   form: { gap: moderateScale(14) },
   inputGroup: { gap: S.sm + 4 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

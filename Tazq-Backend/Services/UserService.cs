@@ -47,13 +47,17 @@ namespace Tazq_App.Services
             using var pbkdf2 = new Rfc2898DeriveBytes(userDto.Password, salt, 100000, HashAlgorithmName.SHA256);
             byte[] passwordHash = pbkdf2.GetBytes(32);
 
+            var code = GenerateVerificationCode();
             var user = new User
             {
                 Name = userDto.Name,
                 Email = userDto.Email,
                 PasswordHash = Convert.ToBase64String(passwordHash),
                 PasswordSalt = Convert.ToBase64String(salt),
-                Role = "User"
+                Role = "User",
+                IsEmailVerified = false,
+                EmailVerificationCode = code,
+                EmailVerificationExpiresAt = DateTime.UtcNow.Add(EmailCodeLifetime),
             };
 
             _context.Users.Add(user);
@@ -61,15 +65,16 @@ namespace Tazq_App.Services
 
             if (registered)
             {
+                // Hoş geldin maili doğrulama sonrası; kayıtta doğrulama kodu gönderilir.
                 _ = Task.Run(async () =>
                 {
                     try
                     {
-                        await _emailService.SendWelcomeEmailAsync(user.Email, user.Name);
+                        await _emailService.SendVerificationEmailAsync(user.Email, user.Name, code);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email);
+                        _logger.LogError(ex, "Failed to send verification email to {Email}", user.Email);
                     }
                 });
             }
@@ -82,6 +87,10 @@ namespace Tazq_App.Services
 
         // Hesap silme sonrası geri getirme (grace) süresi. Bu süre içinde tekrar giriş = reaktivasyon.
         public static readonly TimeSpan AccountGracePeriod = TimeSpan.FromDays(30);
+
+        // E-posta doğrulama kodu ömrü + üretici
+        public static readonly TimeSpan EmailCodeLifetime = TimeSpan.FromMinutes(10);
+        private static string GenerateVerificationCode() => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
 
         // Silinmiş kullanıcıyı grace durumuna göre değerlendirir:
         //  - grace içinde  → reaktive eder (DeletedAt=null), true döner (giriş devam etsin)
@@ -147,9 +156,25 @@ namespace Tazq_App.Services
                 wasReactivated = true;
             }
 
-            // Banlı kullanıcı giriş yapamaz
-            if (user.IsBanned)
-                return null;
+            // Banlı kullanıcı giriş yapamaz — sebep/bitiş bilgisiyle net bir yanıt döner
+            if (user.IsCurrentlyBanned)
+                return new AuthTokens("", "", IsBanned: true, BanReason: user.BanReason, BannedUntil: user.BannedUntil);
+
+            // E-posta doğrulanmamışsa: yeni kod gönder, oturum açma; frontend doğrulama ekranına yönlendirir.
+            if (!user.IsEmailVerified)
+            {
+                var code = GenerateVerificationCode();
+                user.EmailVerificationCode = code;
+                user.EmailVerificationExpiresAt = DateTime.UtcNow.Add(EmailCodeLifetime);
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+                _ = Task.Run(async () =>
+                {
+                    try { await _emailService.SendVerificationEmailAsync(user.Email, user.Name, code); }
+                    catch (Exception ex) { _logger.LogError(ex, "Failed to resend verification email to {Email}", user.Email); }
+                });
+                return new AuthTokens(string.Empty, string.Empty, false, false, true);
+            }
 
             if (!string.IsNullOrEmpty(ipAddress))
             {
@@ -199,7 +224,8 @@ namespace Tazq_App.Services
                     Email = payload.Email,
                     Role = "User",
                     PasswordHash = string.Empty,
-                    PasswordSalt = string.Empty
+                    PasswordSalt = string.Empty,
+                    IsEmailVerified = true // Google e-postayı doğrular
                 };
 
                 _context.Users.Add(user);
@@ -218,9 +244,9 @@ namespace Tazq_App.Services
                 });
             }
 
-            if (user.IsBanned)
+            if (user.IsCurrentlyBanned)
             {
-                return null;
+                return new AuthTokens("", "", IsBanned: true, BanReason: user.BanReason, BannedUntil: user.BannedUntil);
             }
 
             if (!string.IsNullOrEmpty(ipAddress))
@@ -288,7 +314,8 @@ namespace Tazq_App.Services
                         Email = email,
                         Role = "User",
                         PasswordHash = string.Empty,
-                        PasswordSalt = string.Empty
+                        PasswordSalt = string.Empty,
+                        IsEmailVerified = true // Apple e-postayı doğrular
                     };
 
                     _context.Users.Add(user);
@@ -307,9 +334,9 @@ namespace Tazq_App.Services
                     });
                 }
 
-                if (user.IsBanned)
+                if (user.IsCurrentlyBanned)
                 {
-                    return null;
+                    return new AuthTokens("", "", IsBanned: true, BanReason: user.BanReason, BannedUntil: user.BannedUntil);
                 }
 
                 if (!string.IsNullOrEmpty(ipAddress))
@@ -367,6 +394,11 @@ namespace Tazq_App.Services
             using var sha256 = System.Security.Cryptography.SHA256.Create();
             var tokenHash = Convert.ToBase64String(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawToken)));
             var expiration = DateTime.UtcNow.AddHours(1);
+
+            // Güvenlik: yeni link gönderilince kullanıcının önceki tüm sıfırlama token'larını geçersiz kıl.
+            // Böylece aynı anda yalnızca en son gönderilen link çalışır.
+            var oldTokens = await _context.PasswordResetTokens.Where(t => t.UserId == user.Id).ToListAsync();
+            if (oldTokens.Count > 0) _context.PasswordResetTokens.RemoveRange(oldTokens);
 
             var resetToken = new PasswordResetToken
             {
@@ -446,7 +478,7 @@ namespace Tazq_App.Services
             if (user == null || user.DeletedAt != null) return null;
 
             // Banlı kullanıcının oturumu yenilenemez
-            if (user.IsBanned)
+            if (user.IsCurrentlyBanned)
             {
                 stored.RevokedAt = DateTime.UtcNow;
                 _context.RefreshTokens.Update(stored);
@@ -490,6 +522,83 @@ namespace Tazq_App.Services
 
             _context.Users.Update(user);
             return await _context.SaveChangesAsync() > 0;
+        }
+
+        public async Task<AuthTokens?> VerifyEmailAsync(string email, string code, string? ipAddress)
+        {
+            var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null || user.IsCurrentlyBanned || user.DeletedAt != null) return null;
+
+            if (!user.IsEmailVerified)
+            {
+                if (string.IsNullOrEmpty(user.EmailVerificationCode) ||
+                    user.EmailVerificationExpiresAt == null ||
+                    user.EmailVerificationExpiresAt < DateTime.UtcNow ||
+                    user.EmailVerificationCode != code?.Trim())
+                {
+                    return null; // geçersiz veya süresi dolmuş kod
+                }
+
+                user.IsEmailVerified = true;
+                user.EmailVerificationCode = null;
+                user.EmailVerificationExpiresAt = null;
+
+                // Doğrulama tamam → hoş geldin maili
+                _ = Task.Run(async () =>
+                {
+                    try { await _emailService.SendWelcomeEmailAsync(user.Email, user.Name); }
+                    catch (Exception ex) { _logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email); }
+                });
+            }
+
+            if (!string.IsNullOrEmpty(ipAddress)) user.LastLoginIp = ipAddress;
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
+            var refreshToken = await IssueRefreshTokenAsync(user.Id);
+            // Yeni doğrulanan kullanıcı ilk kez giriyor → onboarding gösterilsin
+            return new AuthTokens(accessToken, refreshToken, true);
+        }
+
+        public async Task<bool> ResendVerificationCodeAsync(string email)
+        {
+            var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null || user.IsEmailVerified || user.DeletedAt != null) return false;
+
+            var code = GenerateVerificationCode();
+            user.EmailVerificationCode = code;
+            user.EmailVerificationExpiresAt = DateTime.UtcNow.Add(EmailCodeLifetime);
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            try { await _emailService.SendVerificationEmailAsync(user.Email, user.Name, code); return true; }
+            catch (Exception ex) { _logger.LogError(ex, "Failed to resend verification email to {Email}", user.Email); return false; }
+        }
+
+        // 0=başarılı, 1=mevcut şifre yanlış (veya kullanıcı yok), 2=şifresiz hesap (Google/Apple)
+        public async Task<int> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null || user.DeletedAt != null) return 1;
+            if (string.IsNullOrEmpty(user.PasswordHash) || string.IsNullOrEmpty(user.PasswordSalt))
+                return 2; // Google/Apple hesabı — şifresi yok
+
+            using (var verify = new Rfc2898DeriveBytes(currentPassword, Convert.FromBase64String(user.PasswordSalt), 100000, HashAlgorithmName.SHA256))
+            {
+                if (Convert.ToBase64String(verify.GetBytes(32)) != user.PasswordHash) return 1;
+            }
+
+            var salt = RandomNumberGenerator.GetBytes(16);
+            using (var derive = new Rfc2898DeriveBytes(newPassword, salt, 100000, HashAlgorithmName.SHA256))
+            {
+                user.PasswordHash = Convert.ToBase64String(derive.GetBytes(32));
+                user.PasswordSalt = Convert.ToBase64String(salt);
+            }
+
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+            return 0;
         }
 
         public async Task<bool> UpdateProfileAsync(int userId, string? name, string? avatar, string? motto, string? avatarBorderColor, string? preferences)

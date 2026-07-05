@@ -6,6 +6,11 @@ namespace Tazq_App.Services
     {
         Task<bool> RegisterAsync(UserRegisterDto userDto);
         Task<AuthTokens?> LoginAsync(UserLoginDto userDto, string? ipAddress);
+        // E-posta doğrulama (kod ile). Başarılıysa oturum token'ları döner.
+        Task<AuthTokens?> VerifyEmailAsync(string email, string code, string? ipAddress);
+        Task<bool> ResendVerificationCodeAsync(string email);
+        // Giriş yapmış kullanıcının şifresini değiştirir. 0=başarılı, 1=mevcut şifre yanlış, 2=şifresiz hesap (Google/Apple).
+        Task<int> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
         Task<AuthTokens?> GoogleLoginAsync(string idToken, string? ipAddress);
         Task<AuthTokens?> AppleLoginAsync(AppleLoginDto dto, string? ipAddress);
         Task<User?> GetUserByIdAsync(int userId);
@@ -20,5 +25,5 @@ namespace Tazq_App.Services
     }
 
     // Access (kısa ömürlü JWT) + Refresh (uzun ömürlü, DB-destekli) token çifti
-    public record AuthTokens(string Token, string RefreshToken, bool IsNewUser = false, bool IsReactivated = false);
+    public record AuthTokens(string Token, string RefreshToken, bool IsNewUser = false, bool IsReactivated = false, bool NeedsVerification = false, bool IsBanned = false, string? BanReason = null, DateTime? BannedUntil = null);
 }

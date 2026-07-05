@@ -152,6 +152,18 @@ export const AuthService = {
     const response = await api.post('/api/users/register', userData);
     return response.data;
   },
+  verifyEmail: async (email: string, code: string) => {
+    const response = await api.post('/api/users/verify-email', { email, code });
+    return response.data;
+  },
+  resendVerification: async (email: string) => {
+    const response = await api.post('/api/users/resend-verification', { email });
+    return response.data;
+  },
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const response = await api.post('/api/users/change-password', { currentPassword, newPassword });
+    return response.data;
+  },
   getCurrentUser: async (manualToken?: string) => {
     const config = manualToken ? { headers: { Authorization: `Bearer ${manualToken}` } } : {};
     const response = await api.get('/api/users/me', config);
@@ -261,6 +273,9 @@ export interface AdminUser {
   email: string;
   role: string;
   isBanned?: boolean;
+  bannedUntil?: string | null;
+  banReason?: string | null;
+  deletedAt?: string | null;
   profilePicture?: string;
   taskCount: number;
   completedTasks: number;
@@ -280,9 +295,38 @@ export interface AdminStats {
   dailyTrend: { day: string; minutes: number }[];
 }
 
+export interface AdminUsersPage {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminUserDetail {
+  email: string;
+  phoneNumber?: string | null;
+  motto?: string | null;
+  isEmailVerified: boolean;
+  lastLoginIp?: string | null;
+  recentTasks: { id: number; title: string; isCompleted: boolean; dueDate?: string | null; priority: string }[];
+  recentSessions: { id: number; taskName: string; durationMinutes: number; startedAt: string; completed: boolean }[];
+  devices: { createdAt: string; expiresAt: string; revokedAt?: string | null }[];
+}
+
+export interface AdminAuditItem {
+  id: number;
+  adminName?: string | null;
+  action: string;
+  targetType?: string | null;
+  targetUserId?: number | null;
+  targetName?: string | null;
+  details?: string | null;
+  createdAt: string;
+}
+
 export const AdminService = {
-  getUsers: async (): Promise<AdminUser[]> => {
-    const r = await api.get('/api/admin/users');
+  getUsers: async (opts?: { page?: number; pageSize?: number; search?: string; sort?: string; asc?: boolean }): Promise<AdminUsersPage> => {
+    const r = await api.get('/api/admin/users', { params: opts });
     return r.data;
   },
   getStats: async (): Promise<AdminStats> => {
@@ -295,10 +339,36 @@ export const AdminService = {
   setRole: async (id: number, role: string): Promise<void> => {
     await api.patch(`/api/admin/users/${id}/role`, { role });
   },
-  setBan: async (id: number, banned: boolean): Promise<void> => {
-    await api.patch(`/api/admin/users/${id}/ban`, { banned });
+  setBan: async (id: number, banned: boolean, durationDays?: number | null, reason?: string | null): Promise<void> => {
+    await api.patch(`/api/admin/users/${id}/ban`, { banned, durationDays: durationDays ?? null, reason: reason ?? null });
+  },
+  getBanHistory: async (id: number): Promise<BanHistoryItem[]> => {
+    const r = await api.get(`/api/admin/users/${id}/ban-history`);
+    return r.data;
+  },
+  getUserDetail: async (id: number): Promise<AdminUserDetail> => {
+    const r = await api.get(`/api/admin/users/${id}/detail`);
+    return r.data;
+  },
+  exportUser: async (id: number): Promise<any> => {
+    const r = await api.get(`/api/admin/users/${id}/export`);
+    return r.data;
+  },
+  getAuditLog: async (take = 100): Promise<AdminAuditItem[]> => {
+    const r = await api.get('/api/admin/audit', { params: { take } });
+    return r.data;
   },
 };
+
+export interface BanHistoryItem {
+  id: number;
+  action: 'ban' | 'unban';
+  reason?: string | null;
+  durationDays?: number | null;
+  bannedUntil?: string | null;
+  adminName?: string | null;
+  createdAt: string;
+}
 
 export interface SupportMessageItem {
   id: number;

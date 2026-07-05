@@ -385,10 +385,16 @@ export default function RootLayout() {
       // Read segments inside effect so we always get current value,
       // but don't add segments to deps — we don't want to re-fire on every navigation
       const currentSegments = segments;
-      const inAuthGroup = currentSegments[0] === 'login' || currentSegments[0] === 'register' || currentSegments[0] === 'legal';
-      const inOnboarding = currentSegments[0] === 'onboarding';
+      const seg = currentSegments[0];
+      const inAuthGroup = seg === 'login' || seg === 'register';
+      // Nötr ekranlar: hem girişli hem girişsiz görülebilir (legal sayfaları, e-posta doğrulama).
+      // Guard bunlara dokunmamalı — yoksa girişli kullanıcı legal'a girince dashboard'a geri atılır.
+      const isNeutral = seg === 'legal' || seg === 'verify-email';
+      const inOnboarding = seg === 'onboarding';
 
       try {
+        if (isNeutral) { setIsInitialized(true); return; }
+
         const onboardingDone = await AsyncStorage.getItem('tazq-onboarding-done');
 
         // If onboarding not done, force onboarding
@@ -421,9 +427,16 @@ export default function RootLayout() {
       const elapsed = Math.floor((Date.now() - lastActiveAt) / 1000);
       const remaining = seconds - elapsed; // use current remaining, not total (handles pause/resume)
       if (remaining <= 0) {
-        // Session would have finished — save it and reset
-        const minutes = Math.max(1, Math.round(totalSeconds / 60));
-        FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
+        // Seans süresi arka planda dolmuş. Ancak "bitişten ne kadar SONRA" geri dönüldüğüne bak:
+        // makul bir pencere içindeyse (kullanıcı telefonu bırakıp odaklanmış, sonra dönmüş) → kaydet.
+        // Çok geç dönülmüşse (uygulama çöktü/kapandı ve çok sonra açıldı) → sahte "tamamlandı" kredisi verme.
+        const overshoot = elapsed - seconds; // bitişin üstünden geçen saniye
+        const GRACE_SECONDS = 30 * 60; // 30 dk tolerans
+        if (overshoot <= GRACE_SECONDS) {
+          const minutes = Math.max(1, Math.round(totalSeconds / 60));
+          FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
+        }
+        // Her durumda timer'ı sıfırla (kredi verilmese bile takılı kalmasın)
         useFocusStore.setState({ isActive: false, seconds: 0, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null });
       } else {
         // Session still in progress — rehydrate with correct remaining time
@@ -535,6 +548,7 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" options={{ gestureEnabled: false, animation: 'none' }} />
             <Stack.Screen name="login" options={{ gestureEnabled: false, animation: 'none' }} />
             <Stack.Screen name="register" options={{ gestureEnabled: false, animation: 'none' }} />
+            <Stack.Screen name="verify-email" options={{ gestureEnabled: false, animation: 'slide_from_right' }} />
             <Stack.Screen name="index" options={{ gestureEnabled: false, animation: 'none' }} />
             <Stack.Screen name="tasks" options={{ gestureEnabled: false, animation: 'none' }} />
             <Stack.Screen name="cockpit" options={{ gestureEnabled: false, animation: 'none' }} />

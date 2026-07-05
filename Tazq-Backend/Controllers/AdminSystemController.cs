@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
+using System.Security.Claims;
 using Tazq_App.Data;
+using Tazq_App.Models;
 using Tazq_App.Services;
 
 namespace Tazq_App.Controllers
@@ -144,6 +146,15 @@ namespace Tazq_App.Controllers
 
         // ── DENETİMLİ BAKIM ────────────────────────────────────────────────────
 
+        private async Task WriteAuditAsync(string details)
+        {
+            var requesterId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var adminName = User.FindFirst(ClaimTypes.Name)?.Value
+                ?? await _db.Users.IgnoreQueryFilters().Where(u => u.Id == requesterId).Select(u => u.Name).FirstOrDefaultAsync();
+            _db.AdminAuditLogs.Add(new AdminAuditLog { AdminId = requesterId, AdminName = adminName, Action = "maintenance", TargetType = "system", Details = details, CreatedAt = DateTime.UtcNow });
+            await _db.SaveChangesAsync();
+        }
+
         [HttpPost("migrate")]
         public async Task<IActionResult> Migrate()
         {
@@ -153,6 +164,7 @@ namespace Tazq_App.Controllers
                 if (pending.Count == 0) return Ok(new { success = true, applied = Array.Empty<string>(), message = "Bekleyen migration yok." });
                 await _db.Database.MigrateAsync();
                 _logger.LogWarning("Admin applied migrations: {Migrations}", string.Join(", ", pending));
+                await WriteAuditAsync($"Migration uygulandı: {string.Join(", ", pending)}");
                 return Ok(new { success = true, applied = pending });
             }
             catch (Exception ex)
@@ -175,6 +187,7 @@ namespace Tazq_App.Controllers
                     if (!server.IsReplica) await server.FlushDatabaseAsync();
                 }
                 _logger.LogWarning("Admin cleared Redis cache.");
+                await WriteAuditAsync("Redis cache temizlendi");
                 return Ok(new { success = true });
             }
             catch (Exception ex)
@@ -184,11 +197,12 @@ namespace Tazq_App.Controllers
         }
 
         [HttpPost("restart")]
-        public IActionResult Restart()
+        public async Task<IActionResult> Restart()
         {
             // compose 'restart: unless-stopped' → temiz çıkış sonrası container otomatik kalkar.
             // Yanıtı döndürdükten ~1 sn sonra süreci sonlandır (kısa kesinti).
             _logger.LogWarning("Admin requested backend restart.");
+            await WriteAuditAsync("Backend yeniden başlatıldı");
             _ = Task.Run(async () => { await Task.Delay(1000); Environment.Exit(0); });
             return Ok(new { success = true, message = "Yeniden başlatılıyor… (birkaç saniye)" });
         }

@@ -26,7 +26,8 @@ namespace Tazq_App.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] UserRegisterDto userDto)
         {
-
+            if (!PasswordPolicy.IsStrong(userDto.Password))
+                return BadRequest(new { error = "weak_password", message = PasswordPolicy.RequirementTr });
 
             var success = await _userService.RegisterAsync(userDto);
             // Yapısal hata kodu: istemci sunucu mesaj metnine bağımlı kalmasın.
@@ -42,9 +43,56 @@ namespace Tazq_App.Controllers
 
 
             var tokens = await _userService.LoginAsync(userDto, HttpContext.Connection.RemoteIpAddress?.ToString());
+            if (tokens == null)
+                return Unauthorized("Geçersiz e-posta veya şifre.");
+            if (tokens.IsBanned)
+                return StatusCode(403, new { banned = true, reason = tokens.BanReason, bannedUntil = tokens.BannedUntil });
+            if (tokens.NeedsVerification)
+                return Ok(new { needsVerification = true, email = userDto.Email });
+            return Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken, isReactivated = tokens.IsReactivated });
+        }
+
+        [HttpPost("verify-email")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Code))
+                return BadRequest(new { message = "E-posta ve kod gerekli." });
+
+            var tokens = await _userService.VerifyEmailAsync(req.Email.Trim(), req.Code.Trim(), HttpContext.Connection.RemoteIpAddress?.ToString());
             return tokens != null
-                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken, isReactivated = tokens.IsReactivated })
-                : Unauthorized("Geçersiz e-posta veya şifre.");
+                ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken, isNewUser = tokens.IsNewUser })
+                : BadRequest(new { message = "Kod geçersiz veya süresi dolmuş." });
+        }
+
+        [HttpPost("resend-verification")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Email))
+                return BadRequest(new { message = "E-posta gerekli." });
+
+            await _userService.ResendVerificationCodeAsync(req.Email.Trim());
+            // Güvenlik: hesabın varlığını sızdırmamak için her durumda 200
+            return Ok(new { message = "Doğrulama kodu gönderildi." });
+        }
+
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
+        {
+            var userId = GetUserId();
+            if (userId == null) return Unauthorized();
+            if (!PasswordPolicy.IsStrong(req.NewPassword))
+                return BadRequest(new { message = PasswordPolicy.RequirementTr });
+
+            var result = await _userService.ChangePasswordAsync(userId.Value, req.CurrentPassword ?? string.Empty, req.NewPassword);
+            return result switch
+            {
+                0 => Ok(new { message = "Şifren güncellendi." }),
+                2 => BadRequest(new { message = "Bu hesap Google/Apple ile açıldığı için şifresi yok." }),
+                _ => BadRequest(new { message = "Mevcut şifren yanlış." }),
+            };
         }
 
         [HttpPost("google-login")]
@@ -55,6 +103,8 @@ namespace Tazq_App.Controllers
                 return BadRequest(new { message = "Google Token bulunamadı." });
 
             var tokens = await _userService.GoogleLoginAsync(dto.IdToken, HttpContext.Connection.RemoteIpAddress?.ToString());
+            if (tokens != null && tokens.IsBanned)
+                return StatusCode(403, new { banned = true, reason = tokens.BanReason, bannedUntil = tokens.BannedUntil });
             return tokens != null
                 ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken, isNewUser = tokens.IsNewUser, isReactivated = tokens.IsReactivated })
                 : BadRequest(new { message = "Google doğrulaması başarısız oldu veya hesap engellendi." });
@@ -68,6 +118,8 @@ namespace Tazq_App.Controllers
                 return BadRequest(new { message = "Apple Identity Token bulunamadı." });
 
             var tokens = await _userService.AppleLoginAsync(dto, HttpContext.Connection.RemoteIpAddress?.ToString());
+            if (tokens != null && tokens.IsBanned)
+                return StatusCode(403, new { banned = true, reason = tokens.BanReason, bannedUntil = tokens.BannedUntil });
             return tokens != null
                 ? Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken, isNewUser = tokens.IsNewUser, isReactivated = tokens.IsReactivated })
                 : BadRequest(new { message = "Apple doğrulaması başarısız oldu veya hesap engellendi." });
@@ -106,6 +158,8 @@ namespace Tazq_App.Controllers
                 user.Motto,
                 user.AvatarBorderColor,
                 user.Preferences,
+                user.IsEmailVerified,
+                HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
                 NotificationPreferences = user.NotificationPreferences
             });
         }
@@ -116,12 +170,9 @@ namespace Tazq_App.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            var success = await _userService.SendForgotPasswordTokenAsync(request.Email);
-            if (!success)
-            {
-                return BadRequest(new { message = "Bu e-posta adresiyle kayıtlı bir hesap bulunamadı." });
-            }
-            return Ok("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.");
+            // Güvenlik: hesabın varlığını sızdırmamak için her durumda aynı yanıt (e-posta enumeration'ı önler).
+            await _userService.SendForgotPasswordTokenAsync(request.Email);
+            return Ok("Şifre sıfırlama bağlantısı, hesap mevcutsa e-posta adresinize gönderildi.");
         }
 
         [HttpGet("reset-password-form")]
@@ -299,12 +350,13 @@ namespace Tazq_App.Controllers
             <form id=""resetForm"">
                 <div class=""form-group"">
                     <label for=""password"">Yeni Şifre</label>
-                    <input type=""password"" id=""password"" required minlength=""6"" placeholder=""••••••••"">
+                    <input type=""password"" id=""password"" required minlength=""8"" placeholder=""••••••••"">
+                    <small style=""display:block; margin-top:6px; color:#94a3b8; font-size:12px;"">En az 8 karakter, en az bir harf ve bir rakam.</small>
                 </div>
-                
+
                 <div class=""form-group"">
                     <label for=""confirmPassword"">Yeni Şifre (Tekrar)</label>
-                    <input type=""password"" id=""confirmPassword"" required minlength=""6"" placeholder=""••••••••"">
+                    <input type=""password"" id=""confirmPassword"" required minlength=""8"" placeholder=""••••••••"">
                 </div>
                 
                 <button type=""submit"" id=""submitBtn"">Şifreyi Güncelle</button>
@@ -314,8 +366,8 @@ namespace Tazq_App.Controllers
         <div class=""card success-screen"" id=""successCard"">
             <div class=""success-icon"">✓</div>
             <h2>Şifreniz Güncellendi</h2>
-            <p>Şifreniz başarıyla yenilendi. Aşağıdaki butondan doğrudan uygulamaya dönerek yeni şifrenizle giriş yapabilirsiniz.</p>
-            <a href=""tazq-app://"" style=""display: block; text-align: center; text-decoration: none; margin-top: 24px; background-color: var(--primary-color); color: white; padding: 14px; border-radius: 12px; font-weight: 700; transition: background-color 0.2s;"">TAZQ Uygulamasını Aç</a>
+            <p id=""successMsg"">Şifreniz başarıyla yenilendi.</p>
+            <a id=""openAppBtn"" href=""tazq-app://"" style=""display: block; text-align: center; text-decoration: none; margin-top: 24px; background-color: var(--primary-color); color: white; padding: 14px; border-radius: 12px; font-weight: 700; transition: background-color 0.2s;"">TAZQ Uygulamasını Aç</a>
         </div>
     </div>
 
@@ -334,6 +386,19 @@ namespace Tazq_App.Controllers
             submitBtn.disabled = true;
         }
 
+        // Cihaz-akıllı: 'Uygulamayı Aç' butonu yalnız mobilde anlamlı. Masaüstünde gizle.
+        (function () {
+            var isMobile = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
+            var openBtn = document.getElementById('openAppBtn');
+            var msg = document.getElementById('successMsg');
+            if (isMobile) {
+                if (msg) msg.innerText = 'Şifreniz başarıyla yenilendi. Aşağıdaki butondan uygulamaya dönerek yeni şifrenle giriş yapabilirsin.';
+            } else {
+                if (openBtn) openBtn.style.display = 'none';
+                if (msg) msg.innerText = 'Şifreniz başarıyla yenilendi. Telefonundaki TAZQ uygulamasını açıp yeni şifrenle giriş yapabilirsin.';
+            }
+        })();
+
         function showError(msg) {
             errorBanner.innerText = msg;
             errorBanner.style.display = 'block';
@@ -347,6 +412,11 @@ namespace Tazq_App.Controllers
 
             if (password !== confirmPassword) {
                 showError(""Şifreler birbiriyle eşleşmiyor."");
+                return;
+            }
+
+            if (password.length < 8 || !/[A-Za-zÇĞİÖŞÜçğıöşü]/.test(password) || !/[0-9]/.test(password)) {
+                showError(""Şifre en az 8 karakter olmalı ve en az bir harf ile bir rakam içermelidir."");
                 return;
             }
 
@@ -396,6 +466,8 @@ namespace Tazq_App.Controllers
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!PasswordPolicy.IsStrong(request.NewPassword))
+                return BadRequest(PasswordPolicy.RequirementTr);
 
             var success = await _userService.ResetPasswordAsync(request.Token, request.NewPassword);
             return success ? Ok("Şifreniz başarıyla güncellendi.") : BadRequest("Geçersiz veya süresi dolmuş bağlantı.");
@@ -455,6 +527,9 @@ namespace Tazq_App.Controllers
         }
         public class ResetPasswordRequest { public string Token { get; set; } = string.Empty; public string NewPassword { get; set; } = string.Empty; }
         public class RefreshRequest { public string RefreshToken { get; set; } = string.Empty; }
+        public class VerifyEmailRequest { public string Email { get; set; } = string.Empty; public string Code { get; set; } = string.Empty; }
+        public class ResendVerificationRequest { public string Email { get; set; } = string.Empty; }
+        public class ChangePasswordRequest { public string? CurrentPassword { get; set; } public string NewPassword { get; set; } = string.Empty; }
         public class UpdateProfileDto { public string? Name { get; set; } public string? Avatar { get; set; } public string? Motto { get; set; } public string? AvatarBorderColor { get; set; } public string? Preferences { get; set; } }
     }
 }

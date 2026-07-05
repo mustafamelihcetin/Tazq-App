@@ -222,19 +222,9 @@ export default function RegisterScreen() {
         return;
       }
 
-      // 2) Kayıt BAŞARILI — otomatik giriş. Bu adımın hatası "kayıt başarısız" DEĞİL:
-      // hesap oluştu, sadece otomatik giriş olmadı → kullanıcıyı girişe yönlendir.
-      try {
-        const { token, refreshToken } = await AuthService.login(email, password);
-        const userData = await AuthService.getCurrentUser(token);
-        setAuth(userData, token, refreshToken, true);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace('/');
-      } catch {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        setError(tr ? 'Hesabın oluşturuldu — lütfen giriş yap.' : 'Account created — please sign in.');
-        setTimeout(() => router.replace('/login'), 1200);
-      }
+      // 2) Kayıt BAŞARILI — kod e-postaya gönderildi. Doğrulama ekranına yönlendir.
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.push({ pathname: '/verify-email', params: { email } });
     } finally {
       setIsLoading(false);
     }

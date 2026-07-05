@@ -1,17 +1,18 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput, Linking } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput, Linking, Share, Modal, Platform, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
 import {
   ChevronLeft, Users, CheckSquare, Clock, Trash2, Shield, ShieldOff,
   Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Mail, Send, CornerDownRight,
-  Server, RefreshCw, Power, Database, AlertTriangle, FileText, ExternalLink, BarChart3, AlertCircle
+  Server, RefreshCw, Power, Database, AlertTriangle, FileText, ExternalLink, BarChart3, AlertCircle,
+  Download, ScrollText, Smartphone, History
 } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAuthStore } from '@/features/user';
-import { AdminService, AdminUser, AdminStats, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary } from '@/shared/services/api';
+import { AdminService, AdminUser, AdminStats, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary } from '@/shared/services/api';
 import { sendAdminSupportNotification } from '@/shared/utils/notifications';
 import { S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import * as Haptics from 'expo-haptics';
@@ -66,25 +67,62 @@ export default function AdminScreen() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadedCountRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('recent');
   const [sortAsc, setSortAsc] = useState(false);
+  // Kullanıcı detayı (drill-down)
+  const [userDetail, setUserDetail] = useState<Record<number, AdminUserDetail>>({});
+  const [detailLoadingFor, setDetailLoadingFor] = useState<number | null>(null);
+  const [exportingFor, setExportingFor] = useState<number | null>(null);
+  // Yazarak onaylı silme
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  // Denetim günlüğü
+  const [auditLogs, setAuditLogs] = useState<AdminAuditItem[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const PAGE_SIZE = 30;
   const [expandedUser, setExpandedUser] = useState<number | null>(null);
+  const [banPickerFor, setBanPickerFor] = useState<number | null>(null);
+  const [banReason, setBanReason] = useState<string | null>(null);
+  const [banReasonCustom, setBanReasonCustom] = useState('');
+  const [banHistory, setBanHistory] = useState<Record<number, BanHistoryItem[]>>({});
+  const [historyLoadingFor, setHistoryLoadingFor] = useState<number | null>(null);
+
+  const loadUsers = useCallback(async (reset: boolean) => {
+    if (!reset) setLoadingMore(true);
+    try {
+      const startCount = reset ? 0 : loadedCountRef.current;
+      const nextPage = Math.floor(startCount / PAGE_SIZE) + 1;
+      const res = await AdminService.getUsers({ page: nextPage, pageSize: PAGE_SIZE, search: search.trim() || undefined, sort: sortKey, asc: sortAsc });
+      setTotal(res.total);
+      setUsers(prev => {
+        const merged = reset ? res.users : [...prev, ...res.users];
+        loadedCountRef.current = merged.length;
+        return merged;
+      });
+    } catch {
+      if (reset) setError(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [search, sortKey, sortAsc]);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(false);
     try {
-      const [s, u, m] = await Promise.all([
+      const [s, m] = await Promise.all([
         AdminService.getStats(),
-        AdminService.getUsers(),
         SupportService.getAllMessages().catch(() => ({ messages: [], unreadCount: 0 })),
       ]);
       setStats(s);
-      setUsers(u);
       setMessages(m.messages);
       setUnreadCount(m.unreadCount);
       if (m.unreadCount > 0 && m.messages[0] && !m.messages[0].isRead) {
@@ -148,7 +186,25 @@ export default function AdminScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Kullanıcılar: ilk yükleme + arama/sıralama değişiminde (arama debounce'lu) sunucudan çek
+  useEffect(() => {
+    const id = setTimeout(() => { loadUsers(true); }, search ? 400 : 0);
+    return () => clearTimeout(id);
+  }, [loadUsers, search]);
+
   // ── Sistem konsolu ──────────────────────────────────────────────────────────
+  const loadAudit = useCallback(async () => {
+    setAuditLoading(true);
+    try {
+      const logs = await AdminService.getAuditLog(100);
+      setAuditLogs(logs);
+    } catch {
+      setAuditLogs([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, []);
+
   const loadSystem = useCallback(async () => {
     setSysLoading(true);
     try {
@@ -169,7 +225,7 @@ export default function AdminScreen() {
     }
   }, [sysLogLevel]);
 
-  useEffect(() => { if (activeTab === 'system') loadSystem(); }, [activeTab, loadSystem]);
+  useEffect(() => { if (activeTab === 'system') { loadSystem(); loadAudit(); } }, [activeTab, loadSystem, loadAudit]);
 
   const runMaintenance = (key: string, fn: () => Promise<any>, title: string, body: string) => {
     Alert.alert(title, body, [
@@ -192,45 +248,64 @@ export default function AdminScreen() {
     ]);
   };
 
-  const filteredUsers = useMemo(() => {
-    let list = [...users];
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+  // Arama/sıralama artık sunucu tarafında — liste doğrudan `users`
+  const filteredUsers = users;
+
+  const loadUserDetail = useCallback(async (userId: number) => {
+    setDetailLoadingFor(userId);
+    try {
+      const d = await AdminService.getUserDetail(userId);
+      setUserDetail(prev => ({ ...prev, [userId]: d }));
+    } catch {
+      // sessiz
+    } finally {
+      setDetailLoadingFor(null);
     }
-    list.sort((a, b) => {
-      let diff = 0;
-      if (sortKey === 'name')   diff = a.name.localeCompare(b.name);
-      if (sortKey === 'tasks')  diff = a.taskCount - b.taskCount;
-      if (sortKey === 'focus')  diff = a.focusMinutes - b.focusMinutes;
-      if (sortKey === 'recent') {
-        const ta = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0;
-        const tb = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0;
-        diff = ta - tb;
-      }
-      return sortAsc ? diff : -diff;
-    });
-    return list;
-  }, [users, search, sortKey, sortAsc]);
+  }, []);
+
+  const handleExport = async (user: AdminUser) => {
+    setExportingFor(user.id);
+    Haptics.selectionAsync();
+    try {
+      const data = await AdminService.exportUser(user.id);
+      await Share.share({
+        title: `Tazq-Export-${user.email}.json`,
+        message: JSON.stringify(data, null, 2),
+      });
+    } catch {
+      Alert.alert(tr ? 'Hata' : 'Error', tr ? 'Dışa aktarılamadı.' : 'Export failed.');
+    } finally {
+      setExportingFor(null);
+    }
+  };
+
+
+  const DELETE_WORD = tr ? 'SİL' : 'DELETE';
 
   const handleDelete = (user: AdminUser) => {
+    // Yazarak onaylı modal — yıkıcı hard-delete için ekstra sürtünme
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Alert.alert(
-      tr ? 'Kullanıcıyı Sil' : 'Delete User',
-      tr ? `${user.name} kalıcı olarak silinecek. Tüm verileri de silinir.` : `${user.name} will be permanently deleted with all their data.`,
-      [
-        { text: tr ? 'İptal' : 'Cancel', style: 'cancel' },
-        { text: tr ? 'Sil' : 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            await AdminService.deleteUser(user.id);
-            setUsers(prev => prev.filter(u => u.id !== user.id));
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          } catch {
-            Alert.alert(tr ? 'Hata' : 'Error', tr ? 'Silinemedi.' : 'Could not delete.');
-          }
-        }},
-      ]
-    );
+    setDeleteConfirmText('');
+    setDeleteTarget(user);
+  };
+
+  const performTypedDelete = async () => {
+    if (!deleteTarget || deleting) return;
+    if (deleteConfirmText.trim().toLocaleUpperCase(tr ? 'tr-TR' : 'en-US') !== DELETE_WORD) return;
+    setDeleting(true);
+    try {
+      await AdminService.deleteUser(deleteTarget.id);
+      setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
+      loadedCountRef.current = Math.max(0, loadedCountRef.current - 1);
+      setTotal(t => Math.max(0, t - 1));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Keyboard.dismiss();
+      setDeleteTarget(null);
+    } catch {
+      Alert.alert(tr ? 'Hata' : 'Error', tr ? 'Silinemedi.' : 'Could not delete.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleToggleRole = (user: AdminUser) => {
@@ -253,20 +328,45 @@ export default function AdminScreen() {
     );
   };
 
-  const handleToggleBan = (user: AdminUser) => {
-    const willBan = !user.isBanned;
+  const loadBanHistory = useCallback(async (userId: number) => {
+    setHistoryLoadingFor(userId);
+    try {
+      const h = await AdminService.getBanHistory(userId);
+      setBanHistory(prev => ({ ...prev, [userId]: h }));
+    } catch {
+      setBanHistory(prev => ({ ...prev, [userId]: prev[userId] || [] }));
+    } finally {
+      setHistoryLoadingFor(null);
+    }
+  }, []);
+
+  const performBan = async (user: AdminUser, durationDays: number | null, reason: string) => {
+    setBanPickerFor(null);
+    setBanReason(null);
+    setBanReasonCustom('');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      await AdminService.setBan(user.id, true, durationDays, reason);
+      const bannedUntil = durationDays ? new Date(Date.now() + durationDays * 86400000).toISOString() : null;
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isBanned: !durationDays, bannedUntil, banReason: reason } : u));
+      loadBanHistory(user.id);
+    } catch {
+      Alert.alert(tr ? 'Hata' : 'Error', tr ? 'İşlem başarısız.' : 'Action failed.');
+    }
+  };
+
+  const performUnban = (user: AdminUser) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      willBan ? (tr ? 'Kullanıcıyı Banla' : 'Ban User') : (tr ? 'Banı Kaldır' : 'Unban User'),
-      willBan
-        ? (tr ? `${user.name} giriş yapamayacak ve oturumu kapatılacak.` : `${user.name} will be unable to log in and will be signed out.`)
-        : (tr ? `${user.name} tekrar giriş yapabilecek.` : `${user.name} will be able to log in again.`),
+      tr ? 'Banı Kaldır' : 'Unban User',
+      tr ? `${user.name} tekrar giriş yapabilecek.` : `${user.name} will be able to log in again.`,
       [
         { text: tr ? 'İptal' : 'Cancel', style: 'cancel' },
-        { text: willBan ? (tr ? 'Banla' : 'Ban') : (tr ? 'Banı Kaldır' : 'Unban'), style: willBan ? 'destructive' : 'default', onPress: async () => {
+        { text: tr ? 'Banı Kaldır' : 'Unban', onPress: async () => {
           try {
-            await AdminService.setBan(user.id, willBan);
-            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isBanned: willBan } : u));
+            await AdminService.setBan(user.id, false);
+            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isBanned: false, bannedUntil: null, banReason: null } : u));
+            loadBanHistory(user.id);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           } catch {
             Alert.alert(tr ? 'Hata' : 'Error', tr ? 'İşlem başarısız.' : 'Action failed.');
@@ -341,7 +441,7 @@ export default function AdminScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: S.md, paddingBottom: insets.bottom + S.xl, gap: S.md, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); loadUsers(true); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}
           showsVerticalScrollIndicator={false}
         >
           {/* Tab Switcher (4 sekme) */}
@@ -486,7 +586,7 @@ export default function AdminScreen() {
 
           {/* ── User count ── */}
           <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.onSurfaceVariant, letterSpacing: 0.8 }}>
-            {tr ? 'KULLANICILAR' : 'USERS'} ({filteredUsers.length}{search ? `/${users.length}` : ''})
+            {tr ? 'KULLANICILAR' : 'USERS'} ({users.length}/{total})
           </Text>
 
           {/* ── User list ── */}
@@ -496,7 +596,12 @@ export default function AdminScreen() {
             const focusHrs = (user.focusMinutes / 60).toFixed(1);
             const isAdmin = user.role === 'Admin';
             const isSelf = user.id === myId;
-            const isBanned = !!user.isBanned;
+            const tempBanActive = !!user.bannedUntil && new Date(user.bannedUntil).getTime() > Date.now();
+            const isBanned = !!user.isBanned || tempBanActive;
+            const isDeleted = !!user.deletedAt;
+            const banUntilLabel = tempBanActive
+              ? new Date(user.bannedUntil!).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+              : null;
 
             return (
               <MotiView
@@ -508,7 +613,7 @@ export default function AdminScreen() {
               >
                 {/* Main row */}
                 <Touchable
-                  onPress={() => { setExpandedUser(isExpanded ? null : user.id); Haptics.selectionAsync(); }}
+                  onPress={() => { const opening = !isExpanded; setExpandedUser(opening ? user.id : null); if (opening && banHistory[user.id] === undefined) loadBanHistory(user.id); if (opening && userDetail[user.id] === undefined) loadUserDetail(user.id); setBanPickerFor(null); Haptics.selectionAsync(); }}
                   style={{ flexDirection: 'row', alignItems: 'center', padding: S.md, gap: S.sm }}
                   activeOpacity={0.7}
                 >
@@ -529,7 +634,12 @@ export default function AdminScreen() {
                       )}
                       {isBanned && (
                         <View style={{ backgroundColor: theme.error + '20', borderRadius: R.full, paddingHorizontal: 6, paddingVertical: 1 }}>
-                          <Text style={{ fontSize: 9, fontWeight: '800', color: theme.error }}>{tr ? 'BANLI' : 'BANNED'}</Text>
+                          <Text style={{ fontSize: 9, fontWeight: '800', color: theme.error }}>{tempBanActive ? (tr ? 'SÜRELİ BAN' : 'TEMP BAN') : (tr ? 'BANLI' : 'BANNED')}</Text>
+                        </View>
+                      )}
+                      {isDeleted && (
+                        <View style={{ backgroundColor: theme.onSurfaceVariant + '25', borderRadius: R.full, paddingHorizontal: 6, paddingVertical: 1 }}>
+                          <Text style={{ fontSize: 9, fontWeight: '800', color: theme.onSurfaceVariant }}>{tr ? 'SİLİNMİŞ' : 'DELETED'}</Text>
                         </View>
                       )}
                     </View>
@@ -584,6 +694,83 @@ export default function AdminScreen() {
                       </Text>
                     )}
 
+                    {/* Kullanıcı detayı (drill-down) + KVKK export */}
+                    <View style={{ gap: 6, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', paddingTop: S.sm }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, letterSpacing: 0.5, opacity: 0.7 }}>
+                          {tr ? 'KULLANICI DETAYI' : 'USER DETAIL'}
+                        </Text>
+                        <Touchable onPress={() => handleExport(user)} disabled={exportingFor === user.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: 5, borderRadius: R.full }}>
+                          {exportingFor === user.id ? <ActivityIndicator size="small" color={theme.primary} /> : <Download size={12} color={theme.primary} />}
+                          <Text style={{ color: theme.primary, fontSize: 10, fontWeight: '800' }}>{tr ? 'Verisini Dışa Aktar' : 'Export Data'}</Text>
+                        </Touchable>
+                      </View>
+                      {detailLoadingFor === user.id && !userDetail[user.id] ? (
+                        <ActivityIndicator size="small" color={theme.primary} style={{ alignSelf: 'flex-start' }} />
+                      ) : userDetail[user.id] ? (
+                        <View style={{ gap: 6 }}>
+                          <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.75 }}>
+                            {tr ? 'E-posta' : 'Email'}: {userDetail[user.id]!.isEmailVerified ? (tr ? 'doğrulandı ✓' : 'verified ✓') : (tr ? 'doğrulanmadı ✗' : 'unverified ✗')}
+                            {userDetail[user.id]!.phoneNumber ? ` · ${userDetail[user.id]!.phoneNumber}` : ''}
+                          </Text>
+                          {(userDetail[user.id]!.devices.length > 0) && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Smartphone size={11} color={theme.onSurfaceVariant} />
+                              <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.75 }}>
+                                {userDetail[user.id]!.devices.filter(d => !d.revokedAt).length} {tr ? 'aktif oturum' : 'active sessions'} · {userDetail[user.id]!.devices.length} {tr ? 'toplam' : 'total'}
+                              </Text>
+                            </View>
+                          )}
+                          {userDetail[user.id]!.recentTasks.length > 0 && (
+                            <View style={{ gap: 2 }}>
+                              <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>{tr ? 'SON GÖREVLER' : 'RECENT TASKS'}</Text>
+                              {userDetail[user.id]!.recentTasks.slice(0, 5).map(t => (
+                                <Text key={t.id} numberOfLines={1} style={{ fontSize: 10, color: theme.onSurface, opacity: 0.85 }}>
+                                  {t.isCompleted ? '✓' : '○'} {t.title || (tr ? '(başlıksız)' : '(untitled)')}
+                                </Text>
+                              ))}
+                            </View>
+                          )}
+                          {userDetail[user.id]!.recentSessions.length > 0 && (
+                            <View style={{ gap: 2 }}>
+                              <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>{tr ? 'SON ODAK SEANSLARI' : 'RECENT FOCUS'}</Text>
+                              {userDetail[user.id]!.recentSessions.slice(0, 5).map(s => (
+                                <Text key={s.id} numberOfLines={1} style={{ fontSize: 10, color: theme.onSurface, opacity: 0.85 }}>
+                                  {s.durationMinutes}{tr ? 'dk' : 'm'} · {new Date(s.startedAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short' })} · {s.taskName}
+                                </Text>
+                              ))}
+                            </View>
+                          )}
+                          {userDetail[user.id]!.recentTasks.length === 0 && userDetail[user.id]!.recentSessions.length === 0 && (
+                            <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.5 }}>{tr ? 'Aktivite yok' : 'No activity'}</Text>
+                          )}
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* Ban durumu notu */}
+                    {isBanned && (
+                      <View style={{ gap: 2 }}>
+                        <Text style={{ fontSize: 10, color: theme.error, opacity: 0.9, fontWeight: '700' }}>
+                          {tempBanActive
+                            ? (tr ? `Ban bitişi: ${banUntilLabel}` : `Ban ends: ${banUntilLabel}`)
+                            : (tr ? 'Kalıcı ban' : 'Permanent ban')}
+                        </Text>
+                        {!!user.banReason && (
+                          <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.8, fontWeight: '600' }}>
+                            {tr ? `Sebep: ${user.banReason}` : `Reason: ${user.banReason}`}
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                    {isDeleted && (
+                      <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.8, fontWeight: '600' }}>
+                        {tr
+                          ? `Kullanıcı tarafından silindi · ${new Date(user.deletedAt!).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                          : `Deleted by user · ${new Date(user.deletedAt!).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                      </Text>
+                    )}
+
                     {/* Action buttons */}
                     {isSelf ? (
                       <View style={{ alignItems: 'center', paddingVertical: S.xs }}>
@@ -591,6 +778,16 @@ export default function AdminScreen() {
                           {tr ? 'Bu senin hesabın' : 'This is your account'}
                         </Text>
                       </View>
+                    ) : isDeleted ? (
+                      <Touchable
+                        onPress={() => handleDelete(user)}
+                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isDark ? 'rgba(239,68,68,0.10)' : 'rgba(239,68,68,0.06)', borderWidth: B.thin, borderColor: theme.error + '40' }}
+                      >
+                        <Trash2 size={14} color={theme.error} />
+                        <Text style={{ fontSize: F.caption, fontWeight: '800', color: theme.error }}>
+                          {tr ? 'Kalıcı Sil (Hard Delete)' : 'Permanently Delete'}
+                        </Text>
+                      </Touchable>
                     ) : (
                       <View style={{ gap: S.sm }}>
                         <Touchable
@@ -605,8 +802,8 @@ export default function AdminScreen() {
 
                         <View style={{ flexDirection: 'row', gap: S.sm }}>
                           <Touchable
-                            onPress={() => handleToggleBan(user)}
-                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isBanned ? '#10B98115' : (isDark ? 'rgba(245,158,11,0.10)' : 'rgba(245,158,11,0.07)'), borderWidth: B.thin, borderColor: isBanned ? '#10B98140' : '#F59E0B40' }}
+                            onPress={() => { Haptics.selectionAsync(); if (isBanned) { performUnban(user); } else { const open = banPickerFor !== user.id; setBanPickerFor(open ? user.id : null); if (open) { setBanReason(null); setBanReasonCustom(''); } } }}
+                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isBanned ? '#10B98115' : (banPickerFor === user.id ? '#F59E0B22' : (isDark ? 'rgba(245,158,11,0.10)' : 'rgba(245,158,11,0.07)')), borderWidth: B.thin, borderColor: isBanned ? '#10B98140' : '#F59E0B40' }}
                           >
                             {isBanned ? <CheckSquare size={14} color="#10B981" /> : <Ban size={14} color="#F59E0B" />}
                             <Text style={{ fontSize: F.caption, fontWeight: '700', color: isBanned ? '#10B981' : '#F59E0B' }}>
@@ -624,6 +821,99 @@ export default function AdminScreen() {
                             </Text>
                           </Touchable>
                         </View>
+
+                        {/* Ban sebebi + süre seçici */}
+                        {banPickerFor === user.id && !isBanned && (() => {
+                          const reasonOptions = tr
+                            ? ['Spam', 'Taciz / Hakaret', 'Kötüye kullanım', 'Sahte hesap', 'Şüpheli aktivite', 'Diğer']
+                            : ['Spam', 'Harassment', 'Abuse', 'Fake account', 'Suspicious activity', 'Other'];
+                          const isOther = banReason === 'Diğer' || banReason === 'Other';
+                          const effectiveReason = isOther ? banReasonCustom.trim() : (banReason || '');
+                          const reasonReady = isOther ? effectiveReason.length > 0 : !!banReason;
+                          return (
+                          <MotiView from={{ opacity: 0, translateY: -6 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 200 }} style={{ gap: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.sm }}>
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, letterSpacing: 0.5, opacity: 0.7 }}>
+                              {tr ? 'BAN SEBEBİ' : 'BAN REASON'}
+                            </Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                              {reasonOptions.map((opt) => {
+                                const active = banReason === opt;
+                                return (
+                                  <Touchable
+                                    key={opt}
+                                    onPress={() => { Haptics.selectionAsync(); setBanReason(opt); }}
+                                    style={{ paddingHorizontal: S.sm, paddingVertical: 6, borderRadius: R.full, backgroundColor: active ? theme.primary + '22' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'), borderWidth: B.thin, borderColor: active ? theme.primary + '55' : cardBorder }}
+                                  >
+                                    <Text style={{ fontSize: 11, fontWeight: '700', color: active ? theme.primary : theme.onSurfaceVariant }}>{opt}</Text>
+                                  </Touchable>
+                                );
+                              })}
+                            </View>
+                            {isOther && (
+                              <TextInput
+                                value={banReasonCustom}
+                                onChangeText={setBanReasonCustom}
+                                placeholder={tr ? 'Sebebi yaz…' : 'Type a reason…'}
+                                placeholderTextColor={theme.onSurfaceVariant + '70'}
+                                maxLength={200}
+                                style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 8, fontSize: F.caption, color: theme.onSurface, borderWidth: B.thin, borderColor: cardBorder }}
+                              />
+                            )}
+
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, letterSpacing: 0.5, opacity: 0.7, marginTop: 2 }}>
+                              {tr ? 'BAN SÜRESİ' : 'BAN DURATION'}{!reasonReady ? (tr ? ' · önce sebep seç' : ' · pick a reason first') : ''}
+                            </Text>
+                            <View style={{ flexDirection: 'row', gap: S.xs, opacity: reasonReady ? 1 : 0.4 }}>
+                              {[
+                                { label: tr ? '1 Gün' : '1 Day', d: 1 as number | null },
+                                { label: tr ? '7 Gün' : '7 Days', d: 7 as number | null },
+                                { label: tr ? '30 Gün' : '30 Days', d: 30 as number | null },
+                                { label: tr ? 'Kalıcı' : 'Forever', d: null as number | null },
+                              ].map((opt) => {
+                                const perm = opt.d === null;
+                                return (
+                                  <Touchable
+                                    key={opt.label}
+                                    disabled={!reasonReady}
+                                    onPress={() => performBan(user, opt.d, effectiveReason)}
+                                    style={{ flex: 1, paddingVertical: S.sm, borderRadius: R.md, alignItems: 'center', backgroundColor: perm ? theme.error + '15' : (isDark ? 'rgba(245,158,11,0.10)' : 'rgba(245,158,11,0.08)'), borderWidth: B.thin, borderColor: perm ? theme.error + '40' : '#F59E0B40' }}
+                                  >
+                                    <Text style={{ fontSize: 11, fontWeight: '800', color: perm ? theme.error : '#F59E0B' }}>{opt.label}</Text>
+                                  </Touchable>
+                                );
+                              })}
+                            </View>
+                          </MotiView>
+                          );
+                        })()}
+                      </View>
+                    )}
+
+                    {/* Ban geçmişi */}
+                    {(banHistory[user.id]?.length ?? 0) > 0 && (
+                      <View style={{ gap: 6, borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', paddingTop: S.sm }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, letterSpacing: 0.5, opacity: 0.7 }}>
+                          {tr ? 'BAN GEÇMİŞİ' : 'BAN HISTORY'}
+                        </Text>
+                        {banHistory[user.id]!.map((h) => {
+                          const isBan = h.action === 'ban';
+                          const dur = h.durationDays ? (tr ? `${h.durationDays} gün` : `${h.durationDays}d`) : (tr ? 'kalıcı' : 'permanent');
+                          return (
+                            <View key={h.id} style={{ flexDirection: 'row', gap: S.sm, alignItems: 'flex-start' }}>
+                              <View style={{ backgroundColor: (isBan ? theme.error : '#10B981') + '18', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, marginTop: 1 }}>
+                                <Text style={{ fontSize: 8, fontWeight: '900', color: isBan ? theme.error : '#10B981' }}>{isBan ? 'BAN' : (tr ? 'KALDIR' : 'UNBAN')}</Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 11, color: theme.onSurface, fontWeight: '600' }}>
+                                  {isBan ? `${h.reason || '—'} · ${dur}` : (tr ? 'Ban kaldırıldı' : 'Ban lifted')}
+                                </Text>
+                                <Text style={{ fontSize: 9, color: theme.onSurfaceVariant, opacity: 0.55 }}>
+                                  {new Date(h.createdAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}{h.adminName ? ` · ${h.adminName}` : ''}
+                                </Text>
+                              </View>
+                            </View>
+                          );
+                        })}
                       </View>
                     )}
                   </View>
@@ -638,6 +928,20 @@ export default function AdminScreen() {
                 {tr ? 'Kullanıcı bulunamadı' : 'No users found'}
               </Text>
             </View>
+          )}
+
+          {/* Daha fazla yükle (sunucu sayfalama) */}
+          {users.length > 0 && users.length < total && (
+            <Touchable
+              onPress={() => loadUsers(false)}
+              disabled={loadingMore}
+              style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.primary + '15', paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, marginTop: S.xs }}
+            >
+              {loadingMore ? <ActivityIndicator size="small" color={theme.primary} /> : <ChevronDown size={16} color={theme.primary} />}
+              <Text style={{ color: theme.primary, fontWeight: '800', fontSize: F.caption }}>
+                {tr ? `Daha fazla (${users.length}/${total})` : `Load more (${users.length}/${total})`}
+              </Text>
+            </Touchable>
           )}
             </>
           ) : activeTab === 'support' ? (
@@ -758,6 +1062,56 @@ export default function AdminScreen() {
           ) : activeTab === 'system' ? (
             /* ── SİSTEM KONSOLU ── */
             <View style={{ gap: S.md }}>
+              {/* Denetim günlüğü (audit log) */}
+              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                    <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#6366F120', alignItems: 'center', justifyContent: 'center' }}>
+                      <ScrollText size={15} color="#6366F1" />
+                    </View>
+                    <View>
+                      <Text style={{ color: theme.onSurface, fontWeight: '900', fontSize: F.body }}>{tr ? 'Denetim Günlüğü' : 'Audit Log'}</Text>
+                      <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.6 }}>{tr ? 'admin aksiyonları' : 'admin actions'}</Text>
+                    </View>
+                  </View>
+                  <Touchable onPress={loadAudit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    {auditLoading ? <ActivityIndicator size="small" color={theme.primary} /> : <RefreshCw size={14} color={theme.primary} />}
+                  </Touchable>
+                </View>
+                {auditLogs.length === 0 ? (
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6 }}>{tr ? 'Kayıt yok' : 'No records'}</Text>
+                ) : (
+                  <View>
+                    {auditLogs.slice(0, 40).map((a, i) => {
+                      const actionMeta: Record<string, { c: string; l: string }> = {
+                        ban: { c: theme.error, l: 'BAN' },
+                        unban: { c: '#10B981', l: tr ? 'KALDIR' : 'UNBAN' },
+                        delete_user: { c: theme.error, l: tr ? 'SİL' : 'DELETE' },
+                        role_change: { c: '#6366F1', l: tr ? 'ROL' : 'ROLE' },
+                        maintenance: { c: '#F59E0B', l: tr ? 'BAKIM' : 'MAINT' },
+                        export: { c: '#06B6D4', l: 'EXPORT' },
+                      };
+                      const meta = actionMeta[a.action] || { c: theme.onSurfaceVariant, l: a.action.toUpperCase() };
+                      return (
+                        <View key={a.id} style={{ flexDirection: 'row', gap: S.sm, paddingVertical: 7, borderTopWidth: i > 0 ? B.thin : 0, borderTopColor: cardBorder }}>
+                          <View style={{ backgroundColor: meta.c + '1A', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2, alignSelf: 'flex-start', marginTop: 1 }}>
+                            <Text style={{ color: meta.c, fontSize: 8, fontWeight: '900' }}>{meta.l}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text numberOfLines={2} style={{ color: theme.onSurface, fontSize: 11, fontWeight: '600', lineHeight: 15 }}>
+                              {a.targetName ? `${a.targetName} — ` : ''}{a.details || '—'}
+                            </Text>
+                            <Text style={{ color: theme.onSurfaceVariant, fontSize: 9, opacity: 0.55 }}>
+                              {a.adminName || '—'} · {new Date(a.createdAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
               {/* Sağlık kartı */}
               <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1000,6 +1354,49 @@ export default function AdminScreen() {
           ) : null}
         </ScrollView>
       )}
+
+      {/* Yazarak onaylı hard-delete modalı */}
+      <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => { if (!deleting) setDeleteTarget(null); }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: S.lg }}>
+          <TouchableOpacity style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} activeOpacity={1} onPress={() => { if (!deleting) { Keyboard.dismiss(); setDeleteTarget(null); } }} />
+          <MotiView from={{ opacity: 0, scale: 0.96, translateY: 12 }} animate={{ opacity: 1, scale: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18 }}
+            style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderRadius: R.lg, padding: S.lg, gap: S.md }}>
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: theme.error + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
+              <Trash2 size={24} color={theme.error} strokeWidth={2.2} />
+            </View>
+            <Text style={{ fontSize: F.subhead, fontWeight: '800', color: theme.onSurface, textAlign: 'center' }}>
+              {tr ? 'Kalıcı Olarak Sil' : 'Permanently Delete'}
+            </Text>
+            <Text style={{ fontSize: F.caption + 1, color: theme.onSurfaceVariant, textAlign: 'center', lineHeight: 19 }}>
+              {tr
+                ? `${deleteTarget?.name} ve TÜM verileri (görevler, seanslar, oturumlar) geri alınamaz şekilde silinecek. Onaylamak için "${DELETE_WORD}" yaz.`
+                : `${deleteTarget?.name} and ALL their data (tasks, sessions, sessions) will be irreversibly deleted. Type "${DELETE_WORD}" to confirm.`}
+            </Text>
+            <TextInput
+              value={deleteConfirmText}
+              onChangeText={setDeleteConfirmText}
+              placeholder={DELETE_WORD}
+              placeholderTextColor={theme.onSurfaceVariant + '70'}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              editable={!deleting}
+              style={{ borderWidth: B.medium, borderColor: theme.outline, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, color: theme.onSurface, fontSize: F.body, fontWeight: '800', textAlign: 'center', letterSpacing: 2 }}
+            />
+            <View style={{ flexDirection: 'row', gap: S.sm }}>
+              <Touchable onPress={() => { if (!deleting) { Keyboard.dismiss(); setDeleteTarget(null); } }} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center' }}>
+                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Vazgeç' : 'Cancel'}</Text>
+              </Touchable>
+              <Touchable
+                onPress={performTypedDelete}
+                disabled={deleting || deleteConfirmText.trim().toLocaleUpperCase(tr ? 'tr-TR' : 'en-US') !== DELETE_WORD}
+                style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.error, alignItems: 'center', justifyContent: 'center', opacity: (deleting || deleteConfirmText.trim().toLocaleUpperCase(tr ? 'tr-TR' : 'en-US') !== DELETE_WORD) ? 0.5 : 1 }}
+              >
+                {deleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: F.body }}>{tr ? 'Kalıcı Sil' : 'Delete'}</Text>}
+              </Touchable>
+            </View>
+          </MotiView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

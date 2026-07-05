@@ -6,7 +6,7 @@ import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SupportModal } from '@/shared/components/SupportModal';
@@ -95,6 +95,13 @@ export default function ProfileScreen() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [pwModalVisible, setPwModalVisible] = useState(false);
+  const [curPw, setCurPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confPw, setConfPw] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -271,6 +278,34 @@ export default function ProfileScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setDeleteConfirmText('');
     setDeleteModalVisible(true);
+  };
+
+  const openChangePassword = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCurPw(''); setNewPw(''); setConfPw(''); setShowPw(false); setPwError(null);
+    setPwModalVisible(true);
+  };
+
+  const performChangePassword = async () => {
+    if (changingPw) return;
+    setPwError(null);
+    if (!curPw) { setPwError(language === 'tr' ? 'Mevcut şifreni gir.' : 'Enter your current password.'); return; }
+    if (!(newPw.length >= 8 && /[A-Za-zÇĞİÖŞÜçğıöşü]/.test(newPw) && /[0-9]/.test(newPw))) { setPwError(language === 'tr' ? 'Şifre en az 8 karakter olmalı ve en az bir harf ile bir rakam içermelidir.' : 'Password must be at least 8 characters and include a letter and a number.'); return; }
+    if (newPw !== confPw) { setPwError(language === 'tr' ? 'Yeni şifreler eşleşmiyor.' : 'New passwords do not match.'); return; }
+    setChangingPw(true);
+    try {
+      await AuthService.changePassword(curPw, newPw);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Keyboard.dismiss();
+      setPwModalVisible(false);
+      showToast(language === 'tr' ? 'Şifren güncellendi.' : 'Password updated.', 'success');
+    } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const msg = err?.response?.data?.message;
+      setPwError(msg || (language === 'tr' ? 'Şifre değiştirilemedi.' : 'Could not change password.'));
+    } finally {
+      setChangingPw(false);
+    }
   };
 
   const performDeleteAccount = async () => {
@@ -688,7 +723,18 @@ export default function ProfileScreen() {
               </Touchable>
             )}
 
-            <Touchable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
+            {(user as any)?.hasPassword && (
+              <Touchable
+                onPress={openChangePassword}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl }}
+              >
+                <Lock size={18} color={theme.onSurfaceVariant} />
+                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body, flex: 1 }}>{language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}</Text>
+                <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.5} />
+              </Touchable>
+            )}
+
+            <Touchable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: (user as any)?.hasPassword ? S.md : S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
                 <LogOut size={18} color={theme.error} />
                 <Text style={[styles.logoutText, { color: theme.error, fontSize: F.body }]}>{t.logout}</Text>
             </Touchable>
@@ -765,6 +811,61 @@ export default function ProfileScreen() {
               </Touchable>
               <Touchable disabled={!canConfirmDelete || deleting} onPress={performDeleteAccount} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.error, alignItems: 'center', justifyContent: 'center', opacity: (canConfirmDelete && !deleting) ? 1 : 0.4 }}>
                 {deleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: F.body }}>{language === 'tr' ? 'Hesabı Sil' : 'Delete'}</Text>}
+              </Touchable>
+            </View>
+          </MotiView>
+        </View>
+      </Modal>
+
+      {/* Şifre Değiştir */}
+      <Modal visible={pwModalVisible} transparent animationType="fade" onRequestClose={() => { if (!changingPw) setPwModalVisible(false); }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insets.top + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insets.bottom) + S.lg }}>
+          <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { if (!changingPw) { Keyboard.dismiss(); setPwModalVisible(false); } }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
+          <MotiView
+            from={{ opacity: 0, scale: 0.96, translateY: 16 }}
+            animate={{ opacity: 1, scale: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 18 }}
+            style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderRadius: R.lg, padding: S.lg, gap: S.md }}
+          >
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: theme.primary + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
+              <Lock size={24} color={theme.primary} strokeWidth={2.2} />
+            </View>
+            <Text style={{ fontSize: F.subhead, fontWeight: '800', color: theme.onSurface, textAlign: 'center', letterSpacing: -0.3 }}>
+              {language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}
+            </Text>
+
+            {[
+              { val: curPw, set: setCurPw, ph: language === 'tr' ? 'Mevcut şifren' : 'Current password', eye: false },
+              { val: newPw, set: setNewPw, ph: language === 'tr' ? 'Yeni şifre (8+ karakter, harf ve rakam)' : 'New password (8+ chars, letter & number)', eye: true },
+              { val: confPw, set: setConfPw, ph: language === 'tr' ? 'Yeni şifre (tekrar)' : 'Confirm new password', eye: false },
+            ].map((f, i) => (
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: B.medium, borderColor: theme.outline, borderRadius: R.md, paddingHorizontal: S.md, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+                <TextInput
+                  value={f.val}
+                  onChangeText={(v) => { f.set(v); if (pwError) setPwError(null); }}
+                  secureTextEntry={!showPw}
+                  placeholder={f.ph}
+                  placeholderTextColor={theme.onSurfaceVariant + '80'}
+                  autoCapitalize="none"
+                  editable={!changingPw}
+                  style={{ flex: 1, paddingVertical: S.sm, color: theme.onSurface, fontSize: F.body }}
+                />
+                {f.eye && (
+                  <TouchableOpacity onPress={() => setShowPw((s) => !s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    {showPw ? <EyeOff size={18} color={theme.onSurfaceVariant} /> : <Eye size={18} color={theme.onSurfaceVariant} />}
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+
+            {pwError && <Text style={{ color: theme.error, textAlign: 'center', fontSize: F.caption + 1, fontWeight: '600' }}>{pwError}</Text>}
+
+            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: 2 }}>
+              <Touchable onPress={() => { if (!changingPw) { Keyboard.dismiss(); setPwModalVisible(false); } }} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center' }}>
+                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Vazgeç' : 'Cancel'}</Text>
+              </Touchable>
+              <Touchable onPress={performChangePassword} disabled={changingPw} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', opacity: changingPw ? 0.6 : 1 }}>
+                {changingPw ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: F.body }}>{language === 'tr' ? 'Kaydet' : 'Save'}</Text>}
               </Touchable>
             </View>
           </MotiView>
@@ -856,7 +957,12 @@ export default function ProfileScreen() {
                   {/* Avatar selection */}
                   <View style={{ width: '100%', marginBottom: S.md }}>
                     <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>Avatar</Text>
-                    <View style={[styles.avatarGrid, { gap: S.sm }]}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg }}
+                      style={{ marginTop: S.xs, marginHorizontal: -S.lg }}
+                    >
                       {AVATAR_CONFIGS.filter(config => {
                         if (newGender === 'male') return config.key.startsWith('m');
                         if (newGender === 'female') return config.key.startsWith('f');
@@ -898,7 +1004,7 @@ export default function ProfileScreen() {
                           </Touchable>
                         );
                       })}
-                    </View>
+                    </ScrollView>
                   </View>
 
                   {/* Avatar Border Color */}
@@ -913,9 +1019,9 @@ export default function ProfileScreen() {
                         flexDirection: 'row',
                         alignItems: 'center',
                         gap: S.sm,
-                        paddingRight: S.lg,
+                        paddingHorizontal: S.lg,
                       }}
-                      style={{ marginTop: S.xs }}
+                      style={{ marginTop: S.xs, marginHorizontal: -S.lg }}
                     >
                       {([
                         { key: 'transparent', color: 'transparent', labelTr: 'Yok', labelEn: 'None' },

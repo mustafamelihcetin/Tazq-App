@@ -42,7 +42,18 @@ namespace Tazq_App.Models
 		// JSON string olarak tutulur; şema frontend usePrefsStore tarafından yönetilir.
 		public string? Preferences { get; set; }
 
-		public bool IsBanned { get; set; } = false; // Admin tarafından askıya alındı mı
+		public bool IsBanned { get; set; } = false; // Kalıcı ban (admin). Süreli ban için BannedUntil kullanılır.
+
+		// Süreli ban bitiş zamanı (UTC). null = süreli ban yok. Süre dolunca kullanıcı tekrar giriş yapabilir.
+		public DateTime? BannedUntil { get; set; }
+
+		// Aktif banın sebebi (hızlı gösterim için). Ban kaldırılınca temizlenir. Tam geçmiş BanHistory'de.
+		[MaxLength(200)]
+		public string? BanReason { get; set; }
+
+		// O an banlı mı? Kalıcı ban VEYA süresi henüz dolmamış geçici ban. (Sorguya çevrilmez, bellekte kullanılır.)
+		[NotMapped]
+		public bool IsCurrentlyBanned => IsBanned || (BannedUntil.HasValue && BannedUntil.Value > DateTime.UtcNow);
 
 		[JsonIgnore]
 		public List<TaskItem> Tasks { get; set; } = new List<TaskItem>();

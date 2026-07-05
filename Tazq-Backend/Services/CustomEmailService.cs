@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Tazq_App.Data;
@@ -55,11 +56,15 @@ namespace Tazq_App.Services
 				{
 					From = fromAddress,
 					Subject = subject,
-					Body = body,
-					IsBodyHtml = true,
 					SubjectEncoding = Encoding.UTF8,
 					BodyEncoding = Encoding.UTF8
 				};
+
+				// multipart/alternative: düz-metin + HTML birlikte gönderilir.
+				// Plaintext alternatifi olmayan e-postalar spam skorunu yükseltir.
+				var plainText = StripHtml(body);
+				mailMessage.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(plainText, Encoding.UTF8, "text/plain"));
+				mailMessage.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(body, Encoding.UTF8, "text/html"));
 
 				mailMessage.To.Add(toEmail);
 				await client.SendMailAsync(mailMessage);
@@ -87,9 +92,38 @@ namespace Tazq_App.Services
 					<a href=""#"" class=""btn"">Hemen Giriş Yap</a>
 				</div>
 				<p>Herhangi bir sorun veya önerin olursa, uygulama içinden bize istediğin zaman destek talebi gönderebilirsin. Her zaman yanındayız.</p>
-				<p>Keyifli ve odaklı günler dileriz,<br><b>TAZQ Ekibi</b></p>";
+				<p>Keyifli ve odaklı günler dileriz,<br><b>TAZQ</b></p>";
 
 			string body = GetHtmlBaseLayout("Hoş Geldin!", content);
+			await SendEmailAsync(toEmail, subject, body);
+		}
+
+		public async Task SendVerificationEmailAsync(string toEmail, string userName, string code)
+		{
+			string subject = "TAZQ doğrulama kodun: " + code;
+
+			// Zarif tekil rakam hücreleri (e-posta uyumlu, tablo tabanlı)
+			var cells = new StringBuilder();
+			foreach (char d in code)
+			{
+				cells.Append($@"<td style=""padding:0 5px;"">
+					<div style=""width:46px; height:58px; line-height:58px; text-align:center; background-color:#f0fdf4; border:1.5px solid #a7f3d0; border-radius:12px; font-size:28px; font-weight:800; color:#059669; font-family:'Plus Jakarta Sans',-apple-system,'Segoe UI',Arial,sans-serif;"">{d}</div>
+				</td>");
+			}
+
+			string content = $@"
+				<p>Merhaba <b>{userName}</b>,</p>
+				<p>TAZQ'a hoş geldin! Hesabını güvenle kullanmaya başlamak için son bir adım kaldı. Aşağıdaki 6 haneli kodu uygulamadaki doğrulama ekranına gir:</p>
+				<table role=""presentation"" cellpadding=""0"" cellspacing=""0"" align=""center"" style=""margin: 30px auto 18px auto;"">
+					<tr>{cells}</tr>
+				</table>
+				<div style=""text-align:center; margin-bottom: 8px;"">
+					<span style=""display:inline-block; background-color:#f0fdf4; color:#059669; font-size:12.5px; font-weight:700; padding:6px 14px; border-radius:9999px; border:1px solid #d1fae5;"">Bu kod 10 dakika boyunca geçerlidir</span>
+				</div>
+				<p style=""font-size: 13px; color: #64748b; margin-top: 22px; text-align:center;"">Bu talebi sen yapmadıysan bu e-postayı yok sayabilirsin — hesabın oluşturulmaz.</p>
+				<p style=""margin-bottom:0;"">Odaklı günler dileriz,<br><b>TAZQ</b></p>";
+
+			string body = GetHtmlBaseLayout("E-postanı Doğrula", content);
 			await SendEmailAsync(toEmail, subject, body);
 		}
 
@@ -105,7 +139,7 @@ namespace Tazq_App.Services
 				</div>
 				<p>Bu bağlantı <b>1 saat</b> boyunca geçerlidir. Süre dolduğunda yeni bir şifre sıfırlama talebi oluşturman gerekecektir.</p>
 				<p style=""font-size: 13px; color: #ef4444; font-weight: 500; margin-top: 25px;"">⚠️ Eğer bu talebi siz yapmadıysanız, lütfen bu e-postayı dikkate almayın. Hesabınız tamamen güvendedir.</p>
-				<p>Sevgilerle,<br><b>TAZQ Güvenlik Ekibi</b></p>";
+				<p>Sevgilerle,<br><b>TAZQ</b></p>";
 
 			string body = GetHtmlBaseLayout("Şifre Sıfırlama", content);
 			await SendEmailAsync(toEmail, subject, body);
@@ -116,13 +150,13 @@ namespace Tazq_App.Services
 			string subject = "Destek Talebiniz Alındı";
 			string content = $@"
 				<p>Merhaba <b>{userName}</b>,</p>
-				<p>Destek ekibimize gönderdiğin mesaj başarıyla bize ulaştı. Talebini incelemeye aldık ve en kısa sürede (genellikle 24 saat içinde) sana yanıt vereceğiz.</p>
+				<p>Gönderdiğin mesaj başarıyla bize ulaştı. Talebini incelemeye aldık ve en kısa sürede (genellikle 24 saat içinde) sana yanıt vereceğiz.</p>
 				<p>Gönderdiğin mesajın bir kopyası aşağıdadır:</p>
 				<div class=""quote-box"">
 					""{userMessage}""
 				</div>
 				<p>Yanıt geldiğinde sana yine bir bilgilendirme e-postası göndereceğiz. Ayrıca yanıtları uygulama içindeki Destek ekranından da her zaman takip edebilirsin.</p>
-				<p>Sabrın için teşekkür eder, iyi günler dileriz,<br><b>TAZQ Destek Ekibi</b></p>";
+				<p>Sabrın için teşekkür eder, iyi günler dileriz,<br><b>TAZQ</b></p>";
 
 			string body = GetHtmlBaseLayout("Destek Talebiniz Alındı", content);
 			await SendEmailAsync(toEmail, subject, body);
@@ -133,7 +167,7 @@ namespace Tazq_App.Services
 			string subject = "Destek Talebiniz Yanıtlandı";
 			string content = $@"
 				<p>Merhaba <b>{userName}</b>,</p>
-				<p>Destek ekibimize ilettiğin talebin yanıtlandı! Yanıt ayrıntıları aşağıda yer almaktadır:</p>
+				<p>İlettiğin talebin yanıtlandı! Yanıt ayrıntıları aşağıda yer almaktadır:</p>
 				
 				<div style=""margin: 20px 0; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;"">
 					<div style=""background-color: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #e2e8f0;"">
@@ -147,10 +181,23 @@ namespace Tazq_App.Services
 				</div>
 
 				<p>Detayları görmek veya ek bir soru sormak istersen, uygulama içindeki Destek ekranından bizimle yazışmaya devam edebilirsin.</p>
-				<p style=""margin-bottom: 0;"">Sağlıklı günler dileriz,<br><b>TAZQ Destek Ekibi</b></p>";
+				<p style=""margin-bottom: 0;"">Sağlıklı günler dileriz,<br><b>TAZQ</b></p>";
 
 			string body = GetHtmlBaseLayout("Talebiniz Yanıtlandı", content);
 			await SendEmailAsync(toEmail, subject, body);
+		}
+
+		// HTML gövdeden okunabilir düz-metin üretir (multipart/alternative için)
+		private static string StripHtml(string html)
+		{
+			if (string.IsNullOrEmpty(html)) return string.Empty;
+			var noStyle = Regex.Replace(html, "(?is)<(style|script|head).*?</\\1>", " ");
+			var withBreaks = Regex.Replace(noStyle, "(?i)<(br|/p|/div|/tr|/h1|/h2|/li)[^>]*>", "\n");
+			var noTags = Regex.Replace(withBreaks, "(?s)<[^>]+>", " ");
+			var decoded = WebUtility.HtmlDecode(noTags);
+			decoded = Regex.Replace(decoded, "[ \\t]+", " ");
+			decoded = Regex.Replace(decoded, "\\n{3,}", "\n\n");
+			return decoded.Trim();
 		}
 
 		private static string GetHtmlBaseLayout(string title, string bodyContent)
@@ -283,7 +330,7 @@ namespace Tazq_App.Services
             <div class=""footer"">
                 <p>© {DateTime.UtcNow.Year} TAZQ. Tüm Hakları Saklıdır.</p>
                 <p>Bu e-posta otomatik olarak gönderilmiştir. Lütfen doğrudan yanıtlamayın.</p>
-                <p><a href=""https://malthen.io"">malthen.io</a></p>
+                <p><a href=""https://tazqapp.com"">tazqapp.com</a> · destek@tazqapp.com</p>
             </div>
         </div>
     </div>

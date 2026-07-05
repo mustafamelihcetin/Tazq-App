@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Tazq_App.Data;
@@ -11,9 +12,11 @@ using Tazq_App.Data;
 namespace Tazq_Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260705093532_AddBanHistoryAndReason")]
+    partial class AddBanHistoryAndReason
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,44 +24,6 @@ namespace Tazq_Backend.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Tazq_App.Models.AdminAuditLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int?>("AdminId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("AdminName")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Details")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TargetName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TargetType")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("TargetUserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AdminAuditLogs");
-                });
 
             modelBuilder.Entity("Tazq_App.Models.BanHistory", b =>
                 {

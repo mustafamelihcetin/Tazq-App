@@ -7,6 +7,7 @@ namespace Tazq_App.Services
 		Task SendWeeklySummaryEmailAsync(int userId);
 		Task SendExportEmailAsync(int userId);
 		Task SendWelcomeEmailAsync(string toEmail, string userName);
+		Task SendVerificationEmailAsync(string toEmail, string userName, string code);
 		Task SendForgotPasswordEmailAsync(string toEmail, string userName, string resetCode);
 		Task SendSupportConfirmationEmailAsync(string toEmail, string userName, string userMessage);
 		Task SendSupportReplyEmailAsync(string toEmail, string userName, string originalMessage, string adminReply);

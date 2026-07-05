@@ -12,10 +12,12 @@ export function isValidEmail(email: string): boolean {
   return EMAIL_REGEX.test(e);
 }
 
-export const PASSWORD_MIN_LENGTH = 6;
+export const PASSWORD_MIN_LENGTH = 8;
 
+// Politika: en az 8 karakter + en az bir harf + bir rakam. (Backend ile aynı kural.)
 export function isValidPassword(password: string): boolean {
-  return (password ?? '').length >= PASSWORD_MIN_LENGTH;
+  const p = password ?? '';
+  return p.length >= PASSWORD_MIN_LENGTH && /[A-Za-zÇĞİÖŞÜçğıöşü]/.test(p) && /[0-9]/.test(p);
 }
 
 export type LoginErrorKey = 'empty' | 'invalidEmail' | null;

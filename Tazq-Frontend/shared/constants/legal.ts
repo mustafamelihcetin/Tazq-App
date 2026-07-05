@@ -104,7 +104,7 @@ Kişisel verilerinizin işlenmesine ilişkin detaylı bilgi için Gizlilik Polit
 
 8.1 TAZQ, bu Sözleşme'yi ihlal eden Kullanıcı'nın hesabını bildirimde bulunmaksızın askıya alma veya kalıcı olarak kapatma hakkını saklı tutar.
 
-8.2 Kullanıcı, hesabını istediği zaman uygulama içi ayarlar menüsünden veya contact@malthen.io adresine talep göndererek kapatabilir. Hesap kapatma talebi işleme alındıktan sonra veriler 30 (otuz) gün içinde kalıcı olarak silinir.
+8.2 Kullanıcı, hesabını istediği zaman uygulama içi ayarlar menüsünden veya destek@tazqapp.com adresine talep göndererek kapatabilir. Hesap kapatma talebi işleme alındıktan sonra veriler 30 (otuz) gün içinde kalıcı olarak silinir.
 
 8.3 TAZQ, hizmetin tamamını veya belirli özelliklerini 30 (otuz) günlük önceden bildirimde bulunarak sonlandırabilir.
 
@@ -130,7 +130,7 @@ Kişisel verilerinizin işlenmesine ilişkin detaylı bilgi için Gizlilik Polit
 Sözleşme'ye ilişkin sorularınız için:
 
 Malthen
-E-posta: contact@malthen.io
+E-posta: destek@tazqapp.com
 `,
 
   bodyEn: `TERMS OF SERVICE
@@ -222,7 +222,7 @@ We strongly encourage you to review our Privacy Policy and Data Protection Notic
 
 8.1 TAZQ reserves the right to suspend or permanently close a User's account that violates this Agreement without prior notice.
 
-8.2 Users may close their account at any time through the in-app settings or by submitting a request to contact@malthen.io. Data will be permanently deleted within 30 (thirty) days of account closure.
+8.2 Users may close their account at any time through the in-app settings or by submitting a request to destek@tazqapp.com. Data will be permanently deleted within 30 (thirty) days of account closure.
 
 8.3 TAZQ may discontinue all or specific features of the service with 30 (thirty) days' prior notice.
 
@@ -248,7 +248,7 @@ We strongly encourage you to review our Privacy Policy and Data Protection Notic
 For questions regarding this Agreement:
 
 Malthen
-Email: contact@malthen.io
+Email: destek@tazqapp.com
 `,
 };
 
@@ -270,7 +270,7 @@ Politika, 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK), Avrupa Gene
 1. VERİ SORUMLUSU
 
 Malthen
-E-posta: contact@malthen.io
+E-posta: destek@tazqapp.com
 
 
 2. TOPLANAN VERİLER
@@ -375,7 +375,7 @@ Verilerinizin güvenliği için uygulanan teknik ve idari tedbirler:
 
 8. ÇOCUKLARIN GİZLİLİĞİ
 
-Uygulama, 13 yaşın altındaki çocuklara yönelik değildir ve onlardan bilerek kişisel veri toplanmaz. 13 yaşından küçük bir çocuğun hesap oluşturduğunu fark etmeniz durumunda lütfen contact@malthen.io adresine bildirin.
+Uygulama, 13 yaşın altındaki çocuklara yönelik değildir ve onlardan bilerek kişisel veri toplanmaz. 13 yaşından küçük bir çocuğun hesap oluşturduğunu fark etmeniz durumunda lütfen destek@tazqapp.com adresine bildirin.
 
 
 9. ULUSLARARASI VERİ AKTARIMI
@@ -396,7 +396,7 @@ KVKK ve GDPR kapsamında aşağıdaki haklara sahipsiniz:
    g) İtiraz Hakkı: Meşru menfaat dayanağıyla yapılan işlemlere itiraz
    h) Otomatik Karar Almaya İtiraz: Tamamen otomatik kararlara itiraz
 
-Haklarınızı kullanmak için contact@malthen.io adresine yazılı başvuru yapabilirsiniz. Talepler 30 gün içinde yanıtlanır. Yanıtımızı yetersiz bulursanız Kişisel Verileri Koruma Kurumu'na (KVKK) şikâyette bulunma hakkınız saklıdır.
+Haklarınızı kullanmak için destek@tazqapp.com adresine yazılı başvuru yapabilirsiniz. Talepler 30 gün içinde yanıtlanır. Yanıtımızı yetersiz bulursanız Kişisel Verileri Koruma Kurumu'na (KVKK) şikâyette bulunma hakkınız saklıdır.
 
 
 11. ÇEREZLER VE İZLEME TEKNOLOJİLERİ
@@ -412,8 +412,8 @@ Bu Politika'da yapılacak önemli değişiklikler uygulama içi bildirim veya e-
 13. İLETİŞİM
 
 Gizlilik konusundaki soru ve talepleriniz için:
-Malthen – Veri Koruma Birimi
-E-posta: contact@malthen.io
+Malthen
+E-posta: destek@tazqapp.com
 `,
 
   bodyEn: `PRIVACY POLICY
@@ -428,7 +428,7 @@ This Policy has been prepared in accordance with Turkish Law No. 6698 on the Pro
 1. DATA CONTROLLER
 
 Malthen
-Email: contact@malthen.io
+Email: destek@tazqapp.com
 
 
 2. DATA COLLECTED
@@ -533,7 +533,7 @@ Technical and administrative measures applied to protect your data:
 
 8. CHILDREN'S PRIVACY
 
-The Application is not directed at children under 13 and we do not knowingly collect personal data from them. If you become aware that a child under 13 has created an account, please notify us at contact@malthen.io.
+The Application is not directed at children under 13 and we do not knowingly collect personal data from them. If you become aware that a child under 13 has created an account, please notify us at destek@tazqapp.com.
 
 
 9. INTERNATIONAL DATA TRANSFERS
@@ -553,7 +553,7 @@ Under KVKK and GDPR, you have the following rights:
    g) Right to Object: Object to processing based on legitimate interest
    h) Right Against Automated Decision-Making: Object to fully automated decisions
 
-To exercise your rights, submit a written request to contact@malthen.io. Requests are answered within 30 days. If you find our response inadequate, you retain the right to file a complaint with the Personal Data Protection Authority (KVKK Board).
+To exercise your rights, submit a written request to destek@tazqapp.com. Requests are answered within 30 days. If you find our response inadequate, you retain the right to file a complaint with the Personal Data Protection Authority (KVKK Board).
 
 
 11. COOKIES AND TRACKING TECHNOLOGIES
@@ -569,8 +569,8 @@ Material changes to this Policy will be announced via in-app notification or ema
 13. CONTACT
 
 For privacy-related questions and requests:
-Malthen – Data Protection Unit
-Email: contact@malthen.io
+Malthen
+Email: destek@tazqapp.com
 `,
 };
 
@@ -589,7 +589,7 @@ AYDINLATMA METNİ
 VERİ SORUMLUSU
 
 Geliştirici / Marka : Malthen
-E-posta             : contact@malthen.io
+E-posta             : destek@tazqapp.com
 
 
 İŞLENEN KİŞİSEL VERİLER VE İŞLEME AMAÇLARI
@@ -667,7 +667,7 @@ BAŞVURU YOLU
 
 Yukarıda belirtilen haklarınızı kullanmak için:
 
-   • E-posta: contact@malthen.io
+   • E-posta: destek@tazqapp.com
    • Konu: "KVKK Veri Sahibi Başvurusu"
    • Kişilik teyidi için kimlik bilgilerinizi içeren başvuru
 
@@ -684,7 +684,7 @@ As data controller, we wish to inform you of the following.
 DATA CONTROLLER
 
 Developer / Brand : Malthen
-Email             : contact@malthen.io
+Email             : destek@tazqapp.com
 
 
 PERSONAL DATA PROCESSED AND PURPOSES
@@ -761,7 +761,7 @@ i) Requesting compensation for damages arising from unlawful processing.
 HOW TO APPLY
 
 To exercise your rights:
-   • Email: contact@malthen.io
+   • Email: destek@tazqapp.com
    • Subject: "KVKK Data Subject Request"
    • Include identity information for verification
 
@@ -809,7 +809,7 @@ GENEL HUSUSLAR
 
 • Bu rızayı vermek, Uygulamayı kullanabilmem için zorunlu değildir; ancak rıza gerektiren belirli özellikler (örneğin pazarlama bildirimleri) bu rıza olmaksızın kullanılamaz.
 
-• Açık rızamı herhangi bir zamanda, herhangi bir gerekçe göstermeksizin geri çekme hakkına sahip olduğumu biliyor ve kabul ediyorum. Rıza geri çekme taleplerim için contact@malthen.io adresine başvurabilirim.
+• Açık rızamı herhangi bir zamanda, herhangi bir gerekçe göstermeksizin geri çekme hakkına sahip olduğumu biliyor ve kabul ediyorum. Rıza geri çekme taleplerim için destek@tazqapp.com adresine başvurabilirim.
 
 • Rızamın geri çekilmesi, geri çekme tarihinden önceki işlemlerin hukuka aykırı hale gelmesi sonucunu doğurmayacaktır.
 
@@ -852,7 +852,7 @@ GENERAL PROVISIONS
 
 • Providing this consent is not a prerequisite for using the Application; however, certain features requiring consent (e.g., marketing notifications) may not be available without it.
 
-• I acknowledge that I have the right to withdraw my explicit consent at any time without giving any reason. I may submit withdrawal requests to contact@malthen.io.
+• I acknowledge that I have the right to withdraw my explicit consent at any time without giving any reason. I may submit withdrawal requests to destek@tazqapp.com.
 
 • Withdrawal of consent shall not render lawful processing carried out prior to the withdrawal unlawful.
 

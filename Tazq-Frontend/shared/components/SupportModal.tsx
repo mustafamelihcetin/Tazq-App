@@ -68,7 +68,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
       loadMyMessages();
       Alert.alert(
         tr ? 'Başarılı' : 'Success',
-        t.support?.success || (tr ? 'Mesajın destek ekibine iletildi.' : 'Your message has been sent to support.')
+        t.support?.success || (tr ? 'Mesajın bize ulaştı.' : 'Your message has been sent to support.')
       );
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -136,7 +136,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
           </Text>
           <View style={{ paddingHorizontal: S.lg, gap: S.md }}>
             <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center' }}>
-              {t.support?.sub || (language === 'tr' ? 'Soru, öneri ve destek taleplerini doğrudan ekibimize ilet.' : 'Send us your questions, feedback, or support requests.')}
+              {t.support?.sub || (language === 'tr' ? 'Soru, öneri ve destek taleplerini doğrudan bize ilet.' : 'Send us your questions, feedback, or support requests.')}
             </Text>
             <View
               style={[

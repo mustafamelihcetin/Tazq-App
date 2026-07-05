@@ -29,7 +29,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { Easing as RNEasing } from 'react-native';
-import ReAnimated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as ReEasing } from 'react-native-reanimated';
+import ReAnimated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withDelay, Easing as ReEasing } from 'react-native-reanimated';
 
 interface StarGroupProps {
   timerSize: number;
@@ -229,7 +229,7 @@ export default function FocusScreen() {
   const { t, language } = useLanguageStore();
 
   const {
-    isActive, seconds, totalSeconds,
+    isActive, seconds, totalSeconds, currentTask,
     setIsActive, tick, reset, setDuration,
     rehydrateTimer, addFocusMinutes,
     pomodoroMode, pomodoroRound, pomodoroPhase,
@@ -259,6 +259,8 @@ export default function FocusScreen() {
   const [breathMode, setBreathMode] = useState<'classic' | 'box' | 'calm' | 'off'>('classic');
   const [breathPickerVisible, setBreathPickerVisible] = useState(false);
   const [zenMode, setZenMode] = useState(false);
+
+  // (Aurora reanimated animasyonları timerSize tanımından sonra kuruldu — aşağıya bakınız.)
 
   // Named preset selection
   const [selectedPreset, setSelectedPreset] = useState<PresetKey>('classic');
@@ -313,6 +315,54 @@ export default function FocusScreen() {
   const WHEEL_MINS = Array.from({ length: 180 }, (_, i) => i + 1);
 
   const timerSize = Math.min(width * 0.72, height * 0.35);
+
+  // Sürekli odak animasyonları — reanimated (UI thread). timerSize'dan SONRA kurulmalı (worklet'ler ona bağlı).
+  const auroraRot = useSharedValue(0);
+  const b1 = useSharedValue(0);
+  const b2 = useSharedValue(0);
+  const b3 = useSharedValue(0);
+  const rp0 = useSharedValue(0);
+  const rp1 = useSharedValue(0);
+  const rp2 = useSharedValue(0);
+  useEffect(() => {
+    const ease = ReEasing.inOut(ReEasing.ease);
+    const easeOut = ReEasing.out(ReEasing.ease);
+    auroraRot.value = withRepeat(withTiming(360, { duration: 90000, easing: ReEasing.linear }), -1, false);
+    b1.value = withRepeat(withTiming(1, { duration: 13000, easing: ease }), -1, true);
+    b2.value = withRepeat(withTiming(1, { duration: 16000, easing: ease }), -1, true);
+    b3.value = withRepeat(withTiming(1, { duration: 10500, easing: ease }), -1, true);
+    rp0.value = withRepeat(withTiming(1, { duration: 8400, easing: easeOut }), -1, false);
+    rp1.value = withDelay(2800, withRepeat(withTiming(1, { duration: 8400, easing: easeOut }), -1, false));
+    rp2.value = withDelay(5600, withRepeat(withTiming(1, { duration: 8400, easing: easeOut }), -1, false));
+  }, []);
+  const auroraRotStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${auroraRot.value}deg` }] }));
+  const b1Style = useAnimatedStyle(() => ({
+    opacity: 0.3 + b1.value * 0.18,
+    transform: [
+      { translateX: -timerSize * 0.2 + b1.value * (timerSize * 0.4) },
+      { translateY: -timerSize * 0.14 + b1.value * (timerSize * 0.32) },
+      { scale: 0.82 + b1.value * 0.5 },
+    ],
+  }));
+  const b2Style = useAnimatedStyle(() => ({
+    opacity: 0.2 + b2.value * 0.2,
+    transform: [
+      { translateX: timerSize * 0.18 - b2.value * (timerSize * 0.36) },
+      { translateY: timerSize * 0.16 - b2.value * (timerSize * 0.34) },
+      { scale: 1.28 - b2.value * 0.42 },
+    ],
+  }));
+  const b3Style = useAnimatedStyle(() => ({
+    opacity: 0.16 + b3.value * 0.2,
+    transform: [
+      { translateX: -timerSize * 0.1 + b3.value * (timerSize * 0.22) },
+      { translateY: timerSize * 0.12 - b3.value * (timerSize * 0.24) },
+      { scale: 0.88 + b3.value * 0.4 },
+    ],
+  }));
+  const rp0Style = useAnimatedStyle(() => ({ opacity: 0.28 * (1 - rp0.value), transform: [{ scale: 1 + rp0.value * 0.18 }] }));
+  const rp1Style = useAnimatedStyle(() => ({ opacity: 0.28 * (1 - rp1.value), transform: [{ scale: 1 + rp1.value * 0.18 }] }));
+  const rp2Style = useAnimatedStyle(() => ({ opacity: 0.28 * (1 - rp2.value), transform: [{ scale: 1 + rp2.value * 0.18 }] }));
   const elapsed = totalSeconds - seconds;
   const progress = totalSeconds > 0 ? elapsed / totalSeconds : 0;
   const sessionStarted = isActive || elapsed > 0;
@@ -604,17 +654,21 @@ export default function FocusScreen() {
   }, [router]));
 
 
-  const strictPenaltyTriggeredRef = useRef(false);
+  const bgAtRef = useRef<number | null>(null);
   const backgroundSavedRef = useRef(false);
+  const STRICT_GRACE_MS = 2000; // <2sn (bildirim çekme / kontrol merkezi blip'i) ceza vermez
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'active') {
         backgroundSavedRef.current = false;
-        if (strictPenaltyTriggeredRef.current) {
-          strictPenaltyTriggeredRef.current = false;
+        const awayMs = bgAtRef.current ? Date.now() - bgAtRef.current : 0;
+        bgAtRef.current = null;
+        const { isActive: active, strictMode: isStrict, totalSeconds: total, focusPoints: pts } = useFocusStore.getState();
+
+        // Katı mod: yalnız GERÇEKTEN ayrıldıysa (kısa blip değil) seansı iptal et ve ceza uygula
+        if (active && isStrict && awayMs > STRICT_GRACE_MS) {
+          useFocusStore.setState({ isActive: false, seconds: total, expectedFinishAt: null, lastActiveAt: null, focusPoints: Math.max(0, pts - 10) });
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          
-          // Play warning sound
           try {
             const { soundEffects } = usePrefsStore.getState();
             if (soundEffects) {
@@ -624,7 +678,6 @@ export default function FocusScreen() {
               setTimeout(() => { try { p.release(); } catch {} }, 3000);
             }
           } catch {}
-
           useToastStore.getState().show(
             language === 'tr'
               ? 'Odaklanmayı böldünüz! Katı mod aktif olduğu için seans iptal edildi ve 10 Focus puanı kesildi.'
@@ -635,13 +688,10 @@ export default function FocusScreen() {
           rehydrateTimer();
         }
       } else if (next === 'background') {
-        const { isActive: active, strictMode: isStrict, seconds: secs, totalSeconds: total, focusPoints: pts } = useFocusStore.getState();
-        if (active && isStrict) {
-          useFocusStore.setState({ isActive: false, seconds: total, expectedFinishAt: null, lastActiveAt: null });
-          useFocusStore.setState({ focusPoints: Math.max(0, pts - 10) });
-          strictPenaltyTriggeredRef.current = true;
-          return;
-        }
+        bgAtRef.current = Date.now();
+        const { isActive: active, strictMode: isStrict, seconds: secs, totalSeconds: total } = useFocusStore.getState();
+        // Katı mod: kararı 'active'e ertele (kısa kesintiyi cezalandırma). Kısmi kayıt da yapma.
+        if (active && isStrict) return;
         if (backgroundSavedRef.current) return;
         if (active && total > 0) {
           backgroundSavedRef.current = true;
@@ -1213,6 +1263,19 @@ export default function FocusScreen() {
               )}
             </AnimatePresence>
 
+            {/* Hipnotik nabız — reanimated (UI thread). Kenardan dışa yayılıp sönen soft halkalar, yalnız aktifken */}
+            {isActive && (() => {
+              const ringColor = (pomodoroMode && pomodoroPhase === 'break') ? theme.tertiary : theme.primary;
+              const ringBase = { position: 'absolute' as const, top: 0, left: 0, width: '100%' as const, height: '100%' as const, borderRadius: timerSize / 2, borderWidth: 1.5, borderColor: ringColor };
+              return (
+                <>
+                  <ReAnimated.View pointerEvents="none" style={[ringBase, rp0Style]} />
+                  <ReAnimated.View pointerEvents="none" style={[ringBase, rp1Style]} />
+                  <ReAnimated.View pointerEvents="none" style={[ringBase, rp2Style]} />
+                </>
+              );
+            })()}
+
             <Animated.View
               pointerEvents={zenMode && isActive ? "box-none" : "auto"}
               style={[styles.timerCircle, {
@@ -1247,24 +1310,18 @@ export default function FocusScreen() {
                     style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: timerSize / 2 }]}
                   >
                     <LinearGradient colors={['#101a34', '#0d1428', '#0a0f22']} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
-                    <MotiView
-                      from={{ translateX: -timerSize * 0.12, translateY: -timerSize * 0.06, scale: 0.9 }}
-                      animate={{ translateX: timerSize * 0.12, translateY: timerSize * 0.1, scale: 1.15 }}
-                      transition={{ loop: true, repeatReverse: true, type: 'timing', duration: 7000 }}
-                      style={{ position: 'absolute', top: '6%', left: '10%', width: timerSize * 0.6, height: timerSize * 0.6, borderRadius: timerSize, backgroundColor: theme.primary, opacity: 0.3 }}
-                    />
-                    <MotiView
-                      from={{ translateX: timerSize * 0.1, translateY: timerSize * 0.08, scale: 1.1 }}
-                      animate={{ translateX: -timerSize * 0.1, translateY: -timerSize * 0.1, scale: 0.95 }}
-                      transition={{ loop: true, repeatReverse: true, type: 'timing', duration: 9000 }}
-                      style={{ position: 'absolute', bottom: '4%', right: '8%', width: timerSize * 0.52, height: timerSize * 0.52, borderRadius: timerSize, backgroundColor: theme.tertiary, opacity: 0.22 }}
-                    />
-                    <MotiView
-                      from={{ translateY: timerSize * 0.05, opacity: 0.14 }}
-                      animate={{ translateY: -timerSize * 0.05, opacity: 0.26 }}
-                      transition={{ loop: true, repeatReverse: true, type: 'timing', duration: 5500 }}
-                      style={{ position: 'absolute', top: '32%', left: '34%', width: timerSize * 0.42, height: timerSize * 0.42, borderRadius: timerSize, backgroundColor: theme.secondary }}
-                    />
+                    {/* Yavaşça dönen nebula — reanimated (UI thread, zen'de durmaz, atlamaz) */}
+                    <ReAnimated.View style={[StyleSheet.absoluteFill, auroraRotStyle]}>
+                      <ReAnimated.View
+                        style={[{ position: 'absolute', top: '6%', left: '10%', width: timerSize * 0.6, height: timerSize * 0.6, borderRadius: timerSize, backgroundColor: theme.primary }, b1Style]}
+                      />
+                      <ReAnimated.View
+                        style={[{ position: 'absolute', bottom: '4%', right: '8%', width: timerSize * 0.52, height: timerSize * 0.52, borderRadius: timerSize, backgroundColor: theme.tertiary }, b2Style]}
+                      />
+                      <ReAnimated.View
+                        style={[{ position: 'absolute', top: '32%', left: '34%', width: timerSize * 0.42, height: timerSize * 0.42, borderRadius: timerSize, backgroundColor: theme.secondary }, b3Style]}
+                      />
+                    </ReAnimated.View>
                   </MotiView>
 
                   {/* Standard Timer View (Fades out when Zen Mode is active) */}
@@ -1288,27 +1345,33 @@ export default function FocusScreen() {
                       </Text>
                     </View>
 
-                    {/* Durum — zarif, kalkansız (Katı Mod zaten üst barda yazıyla) */}
-                    <View style={[styles.statusBadge, { backgroundColor: isActive ? 'rgba(255,255,255,0.08)' : 'transparent', marginTop: 14 }]}>
-                      <View style={[styles.statusDot, { backgroundColor: isActive ? (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary) : 'rgba(255,255,255,0.5)' }]} />
-                      <Text style={[styles.statusText, { color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.65)', fontSize: F.caption }]}>
-                        {isActive ? t.focusRunning : seconds === totalSeconds ? t.focusReady : t.focusPaused}
-                      </Text>
-                    </View>
+                    {/* Odak bağlamı — yalnız görev varsa niyetini göster; yoksa temiz bırak */}
+                    {currentTask ? (
+                      <MotiView
+                        from={{ opacity: 0, translateY: 4 }}
+                        animate={{ opacity: 0.82, translateY: 0 }}
+                        transition={{ type: 'timing', duration: 450 }}
+                        style={{ maxWidth: timerSize * 0.72, marginTop: 14 }}
+                      >
+                        <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600', letterSpacing: 0.3, textAlign: 'center' }}>
+                          {currentTask}
+                        </Text>
+                      </MotiView>
+                    ) : null}
 
                     {/* Breath cue — fades between phases in sync with glow animation */}
-                    <View style={{ height: 16, marginTop: 7, justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+                    <View style={{ height: 28, marginTop: 9, justifyContent: 'center', alignItems: 'center', width: '100%' }}>
                       <AnimatePresence>
                         {isActive && breathMode !== 'off' && (
                           <MotiView
                             key={`normal-breath-${breathPhase}`}
-                            from={{ opacity: 0 }}
-                            animate={{ opacity: 0.4 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ type: 'timing', duration: 400 }}
+                            from={{ opacity: 0, scale: 0.92, translateY: 9 }}
+                            animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                            exit={{ opacity: 0, scale: 0.96, translateY: -9 }}
+                            transition={{ type: 'timing', duration: 900 }}
                             style={{ position: 'absolute', alignItems: 'center', width: '100%' }}
                           >
-                            <Text style={{ fontSize: 9, letterSpacing: 2.5, fontWeight: '700', textAlign: 'center', color: pomodoroPhase === 'break' && pomodoroMode ? theme.tertiary : theme.primary }}>
+                            <Text style={[styles.timerText, styles.timerGlow, { fontSize: 15, letterSpacing: 3, fontWeight: '300', textAlign: 'center', color: '#FFFFFF' }]}>
                               {getBreathText()}
                             </Text>
                           </MotiView>

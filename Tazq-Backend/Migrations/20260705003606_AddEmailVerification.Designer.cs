@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Tazq_App.Data;
@@ -11,9 +12,11 @@ using Tazq_App.Data;
 namespace Tazq_Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260705003606_AddEmailVerification")]
+    partial class AddEmailVerification
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,82 +24,6 @@ namespace Tazq_Backend.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Tazq_App.Models.AdminAuditLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int?>("AdminId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("AdminName")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Details")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TargetName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TargetType")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("TargetUserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AdminAuditLogs");
-                });
-
-            modelBuilder.Entity("Tazq_App.Models.BanHistory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int?>("AdminId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("AdminName")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("BannedUntil")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("DurationDays")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Reason")
-                        .HasColumnType("text");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("BanHistories");
-                });
 
             modelBuilder.Entity("Tazq_App.Models.ClientCrash", b =>
                 {
@@ -392,13 +319,6 @@ namespace Tazq_Backend.Migrations
                     b.Property<string>("AvatarBorderColor")
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
-
-                    b.Property<string>("BanReason")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime?>("BannedUntil")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
