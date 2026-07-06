@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Modal, ScrollView, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, StyleSheet } from 'react-native';
+import { View, Text, Modal, ScrollView, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -121,6 +121,9 @@ export const SupportModal: React.FC<SupportModalProps> = ({
             },
           ]}
         >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
           <View
             style={[
               styles.modalHandle,

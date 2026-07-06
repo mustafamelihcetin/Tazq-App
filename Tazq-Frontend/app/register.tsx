@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
   inputGroup: { gap: S.sm + 4 },
   label: { fontSize: F.caption, fontWeight: '800', letterSpacing: 1 },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, height: Platform.OS === 'android' ? verticalScale(50) : verticalScale(56), borderRadius: R.md, borderWidth: B.thin, gap: S.sm + 4 },
-  input: { flex: 1, fontSize: F.body + 1, fontWeight: '600', paddingVertical: 0 },
+  input: { flex: 1, fontSize: F.body + 1, fontWeight: '600', height: '100%', textAlignVertical: 'center' },
   consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm + 2, paddingHorizontal: 4, marginTop: verticalScale(2), marginBottom: verticalScale(2) },
   consentText: { flex: 1, fontSize: F.caption, fontFamily: 'Jakarta-SemiBold', lineHeight: verticalScale(16) },
   registerButton: { height: Platform.OS === 'android' ? verticalScale(50) : verticalScale(56), borderRadius: R.md, overflow: 'hidden', marginTop: verticalScale(4) },

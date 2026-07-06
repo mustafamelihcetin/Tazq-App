@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, TextInput, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Image, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, TextInput, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Image, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Touchable } from '@/shared/components/Touchable';
 import { S, R, F, B, MAX_W } from '@/shared/constants/tokens';
@@ -118,6 +118,9 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
         <BlurView intensity={20} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
         
         <View style={[styles.card, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: theme.outlineVariant + '40', borderWidth: B.thin }]}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
           <View style={{ alignItems: 'center', marginBottom: S.xs }}>
             {!isNamePlaceholder && (
               <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: theme.primaryContainer, alignItems: 'center', justifyContent: 'center', marginBottom: S.xs, marginTop: S.xs }}>
@@ -148,7 +151,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                     onChangeText={setName}
                     placeholder={language === 'tr' ? 'Lütfen adınızı girin' : 'Please enter your name'}
                     placeholderTextColor={theme.onSurfaceVariant + '80'}
-                    style={[styles.input, { color: theme.onSurface }]}
+                    style={[styles.input, { color: theme.onSurface, flex: 1, height: '100%', textAlignVertical: 'center' }]}
                     maxLength={30}
                     underlineColorAndroid="transparent"
                   />

@@ -152,15 +152,35 @@ export function parseTaskHint(text: string, preferredLang?: 'tr' | 'en'): Parsed
       keywords: ['randevu', 'doktor', 'hastane', 'appointment', 'doctor', 'hospital'],
       tr: 'randevu', en: 'appointment',
     },
+    {
+      keywords: ['okuma', 'kitap', 'dergi', 'read', 'book'],
+      tr: 'okuma', en: 'reading',
+    },
+    {
+      keywords: ['fatura', 'ödeme', 'taksit', 'kredi', 'vergi', 'bill', 'pay', 'tax', 'loan'],
+      tr: 'finans', en: 'finance',
+    },
+    {
+      keywords: ['su', 'su iç', 'su siparişi', 'water'],
+      tr: 'sağlık', en: 'health', // or "su" specifically
+    },
+    {
+      keywords: ['temizlik', 'tadilat', 'ev', 'clean', 'home'],
+      tr: 'ev', en: 'home',
+    },
+    {
+      keywords: ['kuaför', 'berber', 'bakım', 'haircut', 'barber', 'salon'],
+      tr: 'kişisel', en: 'personal',
+    }
   ];
   KEYWORD_TAGS.forEach(({ keywords, tr, en }) => {
     if (keywords.some(kw => lower.includes(kw))) {
       // Remove the generic cluster tag if a more specific one is added
       if (isTR) {
-        tagsSet.delete('eğitim'); tagsSet.delete('sağlık'); tagsSet.delete('alışveriş');
+        tagsSet.delete('eğitim'); tagsSet.delete('sağlık'); tagsSet.delete('alışveriş'); tagsSet.delete('finans');
         tagsSet.add(tr);
       } else {
-        tagsSet.delete('education'); tagsSet.delete('health'); tagsSet.delete('shopping');
+        tagsSet.delete('education'); tagsSet.delete('health'); tagsSet.delete('shopping'); tagsSet.delete('finance');
         tagsSet.add(en);
       }
     }

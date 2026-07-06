@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, Switch, TouchableWithoutFeedback } from 'react-native';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { track } from '@/shared/utils/analytics';
@@ -887,8 +887,12 @@ export default function ProfileScreen() {
                 <ScrollView
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
                   contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: S.md }}
                 >
+                  <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                    <View style={StyleSheet.absoluteFill} />
+                  </TouchableWithoutFeedback>
                   {/* Name input */}
                   <View style={{ width: '100%', marginBottom: S.md }}>
                     <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
@@ -900,7 +904,7 @@ export default function ProfileScreen() {
                         onChangeText={setNewName}
                         placeholder={t.namePlaceholder || 'Your name'}
                         placeholderTextColor={theme.onSurfaceVariant + '99'}
-                        style={[styles.nameInput, { color: theme.onSurface }]}
+                        style={[styles.nameInput, { color: theme.onSurface, flex: 1, height: '100%', textAlignVertical: 'center' }]}
                         maxLength={50}
                         underlineColorAndroid="transparent"
                       />

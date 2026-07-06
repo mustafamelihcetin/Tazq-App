@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Calendar, Target, Bell, X, Sparkles, Mic, Timer, Repeat, Trash2, Plus, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -460,8 +460,12 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: S.lg }}
               keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
             >
+              <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                <View style={StyleSheet.absoluteFill} />
+              </TouchableWithoutFeedback>
               {/* Title Section */}
               <View style={styles.section}>
                 <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 60 }]}>
@@ -617,7 +621,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     )}
                     <View style={styles.pickerActions}>
                       <Touchable onPress={() => setShowDatePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></Touchable>
-                      <Touchable onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '600' }]}>{t.save}</Text></Touchable>
+                      <Touchable onPress={confirmDate} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: theme.onPrimary, fontWeight: '600' }]}>{t.save}</Text></Touchable>
                     </View>
                   </View>
                 )}
@@ -643,7 +647,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     </View>
                     <View style={styles.pickerActions}>
                       <Touchable onPress={() => setShowTimePicker(false)} style={[styles.pickerCancelBtn, { borderColor: theme.outline }]}><Text style={[styles.pickerBtnText, { color: theme.onSurfaceVariant }]}>{t.cancel}</Text></Touchable>
-                      <Touchable onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: '#000', fontWeight: '600' }]}>{t.save}</Text></Touchable>
+                      <Touchable onPress={confirmTime} style={[styles.pickerConfirmBtn, { backgroundColor: theme.primary }]}><Text style={[styles.pickerBtnText, { color: theme.onPrimary, fontWeight: '600' }]}>{t.save}</Text></Touchable>
                     </View>
                   </View>
                 )}
@@ -874,7 +878,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     }}
                     style={{ width: 44, height: 44, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <Plus size={20} color="#000" />
+                    <Plus size={20} color={theme.onPrimary} />
                   </Touchable>
                 </View>
               </View>
@@ -909,7 +913,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         }}
                         style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: R.md, backgroundColor: hasTag ? theme.primary : (isDark ? '#2C2C2E' : '#E5E5EA'), borderWidth: 0.5, borderColor: theme.outlineVariant + '40' }}
                       >
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: hasTag ? '#000' : theme.onSurfaceVariant }}>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: hasTag ? theme.onPrimary : theme.onSurfaceVariant }}>
                           {translateTag(tagOption, language as 'tr' | 'en')}
                         </Text>
                       </Touchable>
@@ -925,7 +929,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     <ActivityIndicator color="black" />
                   ) : (
                     <>
-                      <Text style={[styles.modalSaveText, { color: '#000' }]}>{t.save}</Text>
+                      <Text style={[styles.modalSaveText, { color: theme.onPrimary }]}>{t.save}</Text>
                     </>
                   )}
                 </View>
@@ -1021,6 +1025,8 @@ const styles = StyleSheet.create({
   modalInput: {
     flex: 1,
     fontWeight: '600',
+    height: '100%',
+    textAlignVertical: 'center',
   },
   modalTextArea: {
     alignItems: 'flex-start',

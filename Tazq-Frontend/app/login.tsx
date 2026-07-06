@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
   label: { fontSize: F.caption, fontWeight: '800', letterSpacing: 1 },
   forgotText: { fontSize: F.caption + 1, fontWeight: '700' },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, height: Platform.OS === 'android' ? verticalScale(52) : verticalScale(56), borderRadius: R.md, borderWidth: B.thin, gap: S.sm + 4 },
-  input: { flex: 1, fontSize: F.body + 2, fontWeight: '600', paddingVertical: 0 },
+  input: { flex: 1, fontSize: F.body + 2, fontWeight: '600', height: '100%', textAlignVertical: 'center' },
   loginButton: { height: Platform.OS === 'android' ? verticalScale(52) : verticalScale(56), borderRadius: R.md, overflow: 'hidden' },
   buttonInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10) },
   buttonText: { fontSize: F.subhead + 1, fontWeight: '800' },

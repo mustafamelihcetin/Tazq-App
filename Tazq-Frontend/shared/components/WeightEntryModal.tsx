@@ -8,7 +8,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Modal, View, Text, TextInput, TouchableOpacity,
+  Modal, View, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, Keyboard,
   KeyboardAvoidingView, Platform, Animated, StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -114,6 +114,9 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             transform: [{ translateY: slideAnim }],
           }}
         >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
           {/* Handle */}
           <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginBottom: S.lg }} />
 
@@ -154,7 +157,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
               placeholderTextColor={theme.onSurfaceVariant + '60'}
               keyboardType="decimal-pad"
               autoFocus
-              style={{ flex: 1, fontSize: 28, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}
+              style={{ flex: 1, fontSize: 28, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, height: '100%', textAlignVertical: 'center' }}
             />
             <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontWeight: '700' }}>kg</Text>
           </View>

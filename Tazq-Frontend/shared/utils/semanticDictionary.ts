@@ -47,6 +47,15 @@ export const SEMANTIC_DICTIONARY: Record<string, any> = {
   "hastalık": { health: 6 },
   "sancı": { health: 7, urgent: 5 },
   "ağrı": { health: 5 },
+  "su": { health: 4 },
+  "diyet": { health: 6 },
+  "vitamin": { health: 5 },
+  "checkup": { health: 7 },
+  "kan": { health: 6, urgent: 2 },
+  "tahlili": { health: 7 },
+  "gözlük": { health: 4 },
+  "lens": { health: 4 },
+  "su iç": { health: 7 },
 
   // --- JOYFUL & CELEBRATIONS (Neşe ve Kutlama) ---
   "kutlama": { joyful: 9, social: 5 },
@@ -105,6 +114,15 @@ export const SEMANTIC_DICTIONARY: Record<string, any> = {
   "evrak": { work: 5 },
   "imza": { work: 6, urgent: 4 },
   "sözleşme": { work: 8, urgent: 5 },
+  "projesi": { work: 7 },
+  "kod": { work: 8, education: 3 },
+  "kodlama": { work: 8, education: 3 },
+  "yazılım": { work: 8, education: 3 },
+  "müşteri": { work: 8 },
+  "client": { work: 7 },
+  "bug": { work: 7 },
+  "fix": { work: 6, urgent: 3 },
+  "düzeltme": { work: 5 },
 
   // --- EDUCATION & ACADEMIC (Eğitim ve Akademik) ---
   "sınav": { education: 10, stressful: 9, urgent: 7 },
@@ -126,6 +144,11 @@ export const SEMANTIC_DICTIONARY: Record<string, any> = {
   "etüt": { education: 6 },
   "not": { education: 3 },
   "karne": { education: 8, joyful: 4 },
+  "okuma": { education: 7, personal: 5 },
+  "kitap": { education: 6, personal: 6 },
+  "öğren": { education: 8 },
+  "çeviri": { education: 5, work: 3 },
+  "sunumu": { education: 6, work: 8 },
 
   // --- FINANCE (Finans ve Para) ---
   "fatura": { finance: 8, urgent: 6 },
@@ -146,6 +169,12 @@ export const SEMANTIC_DICTIONARY: Record<string, any> = {
   "taksit": { finance: 7 },
   "vergi": { finance: 9, urgent: 6 },
   "sigorta": { finance: 7 },
+  "faturası": { finance: 9, urgent: 5 },
+  "kredisi": { finance: 8, stressful: 3 },
+  "iban": { finance: 8 },
+  "havale": { finance: 8 },
+  "eft": { finance: 8 },
+  "fiyat": { finance: 4, shopping: 4 },
 
   // --- URGENT & PRIORITY (Aciliyet ve Öncelik) ---
   "acil": { urgent: 10 },
@@ -187,4 +216,12 @@ export const SEMANTIC_DICTIONARY: Record<string, any> = {
   "tamir": { work: 6, urgent: 4 },
   "boya": { work: 5 },
   "tadilat": { work: 8, stressful: 5 },
+  "kuaför": { personal: 7 },
+  "berber": { personal: 7 },
+  "bakım": { personal: 6, home: 4 },
+  "araba": { home: 3 },
+  "yakıt": { finance: 4, home: 3 },
+  "benzin": { finance: 4, home: 3 },
+  "fırın": { shopping: 6 },
+  "su siparişi": { shopping: 8, home: 5 },
 };
