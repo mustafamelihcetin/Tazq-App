@@ -7,7 +7,7 @@ import {
   ChevronLeft, Users, CheckSquare, Clock, Trash2, Shield, ShieldOff,
   Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Mail, Send, CornerDownRight,
   Server, RefreshCw, Power, Database, AlertTriangle, FileText, ExternalLink, BarChart3, AlertCircle,
-  Download, ScrollText, Smartphone, History
+  Download, ScrollText, Smartphone, History, Megaphone
 } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -419,6 +419,15 @@ export default function AdminScreen() {
         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ flex: 1, fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>
           {tr ? 'Admin Paneli' : 'Admin Panel'}
         </Text>
+        <Touchable
+          onPress={() => { Haptics.selectionAsync(); router.push('/promo'); }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#10B98115', borderWidth: B.thin, borderColor: '#10B98140', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={tr ? 'Tanıtım görselleri' : 'Promo images'}
+        >
+          <Megaphone size={13} color="#10B981" />
+          <Text style={{ fontSize: F.caption, fontWeight: '800', color: '#10B981' }}>{tr ? 'Tanıtım' : 'Promo'}</Text>
+        </Touchable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: '#6366F115', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 4 }}>
           <Shield size={12} color="#6366F1" />
           <Text style={{ fontSize: F.caption, fontWeight: '800', color: '#6366F1' }}>ADMIN</Text>

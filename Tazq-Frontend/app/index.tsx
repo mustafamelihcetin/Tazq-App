@@ -137,7 +137,9 @@ export default function HomeScreen() {
       useSporStore.getState().setGender(gender);
       setOnboardingCompleted(true);
       await usePrefsStore.getState().syncToCloud();
-      setIsFirstLogin(false);
+      // isFirstLogin BİLEREK temizlenmiyor: yardım turu bu ilk-giriş oturumu boyunca
+      // (profil setup kapandıktan sonra) sayfa sayfa gösterilebilsin. Bayrak persist edilmez
+      // (rehydrate'te sıfırlanır) → sonraki açılışlarda ve mevcut kullanıcılarda tur çıkmaz.
       if (token) {
         const updatedUser = await AuthService.getCurrentUser(token);
         setUser(updatedUser);
@@ -2321,10 +2323,10 @@ export default function HomeScreen() {
         onClose={() => setWeightModalTaskId(null)}
       />
 
-      {(!isFirstLogin && !profileSetupVisible) && (
-        <HelpTourModal 
-          pageId="dashboard" 
-          onStepChange={handleStepChange} 
+      {(isFirstLogin && !profileSetupVisible) && (
+        <HelpTourModal
+          pageId="dashboard"
+          onStepChange={handleStepChange}
         />
       )}
     </View>

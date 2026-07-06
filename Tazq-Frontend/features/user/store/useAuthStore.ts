@@ -186,6 +186,9 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => secureStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
+        // isFirstLogin yalnız o oturuma özel: her açılışta sıfırlanır. Böylece yardım turu
+        // sadece kayıt sonrası ilk oturumda gösterilir; sonraki açılışlarda/mevcut kullanıcılarda çıkmaz.
+        if (state) state.isFirstLogin = false;
       },
     }
   )

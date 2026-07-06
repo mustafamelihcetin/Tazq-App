@@ -554,6 +554,7 @@ export default function RootLayout() {
             <Stack.Screen name="cockpit" options={{ gestureEnabled: false, animation: 'none' }} />
             <Stack.Screen name="modlar" options={{ gestureEnabled: false, animation: 'none' }} />
             <Stack.Screen name="legal" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="promo" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="report" options={{ animation: 'slide_from_right' }} />
           </Stack>
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: uiDepth.interpolate({ inputRange: [0, 1], outputRange: [0, 0.18] }) }]} />

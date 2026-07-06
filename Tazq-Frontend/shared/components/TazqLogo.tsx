@@ -12,6 +12,8 @@ interface TazqLogoProps {
   style?: any;
   color?: string;
   showIcon?: boolean;
+  // 'auto' = temaya göre; 'white'/'dark' = zorla (ör. koyu tanıtım zemininde her zaman beyaz).
+  variant?: 'auto' | 'white' | 'dark';
 }
 
 export const TazqLogo: React.FC<TazqLogoProps> = ({
@@ -19,9 +21,11 @@ export const TazqLogo: React.FC<TazqLogoProps> = ({
   height = 24,
   width,
   style,
+  variant = 'auto',
 }) => {
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
+  const useWhite = variant === 'white' ? true : variant === 'dark' ? false : isDark;
 
   const effectiveHeight = size || height;
   const effectiveWidth = width || effectiveHeight * 3.2;
@@ -29,7 +33,7 @@ export const TazqLogo: React.FC<TazqLogoProps> = ({
   return (
     <View style={[styles.container, style]}>
       <Image
-        source={isDark ? LOGO_WHITE : LOGO_DARK}
+        source={useWhite ? LOGO_WHITE : LOGO_DARK}
         style={{ width: effectiveWidth, height: effectiveHeight }}
         resizeMode="contain"
       />

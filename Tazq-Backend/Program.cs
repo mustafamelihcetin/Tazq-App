@@ -254,6 +254,13 @@ forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetw
     System.Net.IPAddress.Parse("172.0.0.0"), 8));
 app.UseForwardedHeaders(forwardedOptions);
 
+// ── Public web pages: landing + legal (privacy, terms, KVKK, consent) ────────
+// Served from wwwroot BEFORE the X-App-Signature gate below, so ordinary
+// browsers — App Store review, end users, search engines — can open them
+// without the app signature header. API routes still pass through the gate.
+app.UseDefaultFiles();   // "/" -> wwwroot/index.html
+app.UseStaticFiles();
+
 if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
 
@@ -358,9 +365,14 @@ app.Use(async (context, next) =>
     }
 
     // Bypass signature check for the web-based password reset endpoints
-    if (context.Request.Path.Value != null && (
-        (context.Request.Method == "GET" && context.Request.Path.Value.Equals("/api/users/reset-password-form", StringComparison.OrdinalIgnoreCase)) ||
-        (context.Request.Method == "POST" && context.Request.Path.Value.Equals("/api/users/reset-password", StringComparison.OrdinalIgnoreCase))
+    // and the public legal-page redirects (served to plain browsers).
+    var path = context.Request.Path.Value;
+    var isGet = context.Request.Method == "GET";
+    string[] publicGetPaths = { "/privacy", "/terms", "/gizlilik", "/kvkk" };
+    if (path != null && (
+        (isGet && path.Equals("/api/users/reset-password-form", StringComparison.OrdinalIgnoreCase)) ||
+        (context.Request.Method == "POST" && path.Equals("/api/users/reset-password", StringComparison.OrdinalIgnoreCase)) ||
+        (isGet && publicGetPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
     ))
     {
         await next();
@@ -385,7 +397,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-app.MapGet("/privacy", () => Results.Content("<h1>Privacy Policy</h1><p>Tazq-App, verilerinizi sadece cihazınızda ve güvenli sunucularımızda saklar. Verileriniz üçüncü şahıslarla paylaşılmaz.</p>", "text/html"));
-app.MapGet("/terms", () => Results.Content("<h1>Terms of Service</h1><p>Tazq-App'i kullanarak şartlarımızı kabul etmiş sayılırsınız.</p>", "text/html"));
+// Legal pages are served as static files from wwwroot: /gizlilik.html
+// (Gizlilik, Kullanıcı Sözleşmesi, KVKK, Açık Rıza — TR/EN, tabbed single page.)
+// These short redirects are added to the signature-gate bypass above so shared
+// links keep working from a browser.
+app.MapGet("/privacy", () => Results.Redirect("/gizlilik.html#privacy"));
+app.MapGet("/terms", () => Results.Redirect("/gizlilik.html#terms"));
+app.MapGet("/gizlilik", () => Results.Redirect("/gizlilik.html#privacy"));
+app.MapGet("/kvkk", () => Results.Redirect("/gizlilik.html#kvkk"));
 
 app.Run();

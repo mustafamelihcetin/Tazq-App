@@ -7,8 +7,13 @@
 # All Malthen products share this Caddy instance
 # ─────────────────────────────────────────────
 
-# Tazq — AI-Powered Productivity App
+# TAZQ — API
 api.tazqapp.com {
+    reverse_proxy tazq-backend:80
+}
+
+# TAZQ — Landing + legal pages (served from backend wwwroot)
+tazqapp.com, www.tazqapp.com {
     reverse_proxy tazq-backend:80
 }
 
