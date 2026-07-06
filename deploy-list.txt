@@ -1,0 +1,5 @@
+wwwroot/gizlilik.html
+wwwroot/index.html
+wwwroot/images/avatar.png
+wwwroot/images/wordmark_white.png
+Program.cs

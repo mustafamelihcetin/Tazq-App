@@ -3,39 +3,36 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="theme-color" content="#f5f7fd" />
+<meta name="theme-color" content="#F4F4F5" />
 
-<!-- ── SEO ─────────────────────────────────────────────────────────────── -->
 <title>TAZQ — Odak, Pomodoro ve Günlük Görev Planlayıcı</title>
 <meta name="description" content="TAZQ; Pomodoro odak zamanlayıcısı, dönemine özel günlük planlar (sınav, spor, kariyer), alışkanlık takibi ve görev yönetimini birleştiren ücretsiz üretkenlik uygulaması. Odaklan, ilerle, dengede kal." />
 <meta name="keywords" content="tazq, pomodoro, odak uygulaması, görev yönetimi, yapılacaklar listesi, todo list app, üretkenlik uygulaması, alışkanlık takibi, sınav planı, zaman yönetimi" />
 <link rel="canonical" href="https://tazqapp.com/" />
 <meta name="robots" content="index,follow" />
-
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="TAZQ" />
 <meta property="og:locale" content="tr_TR" />
+<meta property="og:locale:alternate" content="en_US" />
 <meta property="og:title" content="TAZQ — Odak, Pomodoro ve Günlük Görev Planlayıcı" />
 <meta property="og:description" content="Pomodoro odak, dönemsel günlük planlar ve alışkanlık takibi tek uygulamada. Odaklan. İlerle. Dengede kal." />
 <meta property="og:url" content="https://tazqapp.com/" />
 <meta property="og:image" content="https://tazqapp.com/images/icon.png" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="TAZQ — Odak & Pomodoro Görev Planlayıcı" />
-<meta name="twitter:description" content="Pomodoro odak, dönemsel günlük planlar ve alışkanlık takibi tek uygulamada." />
 <meta name="twitter:image" content="https://tazqapp.com/images/icon.png" />
 <link rel="icon" href="/images/icon.png" />
 <link rel="apple-touch-icon" href="/images/icon.png" />
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
 <script type="application/ld+json">
 {
-  "@context": "https://schema.org",
-  "@type": "MobileApplication",
-  "name": "TAZQ",
-  "operatingSystem": "iOS",
-  "applicationCategory": "ProductivityApplication",
+  "@context": "https://schema.org", "@type": "MobileApplication", "name": "TAZQ",
+  "operatingSystem": "iOS", "applicationCategory": "ProductivityApplication",
   "description": "Pomodoro odak zamanlayıcısı, dönemine özel günlük planlar, alışkanlık takibi ve görev yönetimini birleştiren üretkenlik uygulaması.",
-  "url": "https://tazqapp.com/",
-  "inLanguage": ["tr", "en"],
+  "url": "https://tazqapp.com/", "inLanguage": ["tr","en"],
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "TRY" },
   "publisher": { "@type": "Organization", "name": "Malthen", "email": "destek@tazqapp.com" }
 }
@@ -43,411 +40,521 @@
 
 <style>
   :root{
-    --bg:#F4F4F5; --ink:#18181B; --muted:#52525B; --line:rgba(0,0,0,0.08); --card:rgba(255,255,255,0.7);
-    --primary:#2563EB; --indigo:#7C3AED; --teal:#059669; --rose:#EC4899; --amber:#FF9500;
-    /* app (dark phone) accents */
-    --p-indigo:#818CF8; --p-violet:#A78BFA; --p-teal:#34D399; --p-green:#34D399; --p-amber:#FFB340;
+    --bg:#F4F4F5; --card:#FFFFFF; --line:rgba(0,0,0,.08); --line-2:rgba(0,0,0,.045);
+    --ink:#18181B; --muted:#52525B; --faint:#A1A1AA;
+    --primary:#2563EB; --primary-dim:#1D4ED8; --primary-100:#DBEAFE;
+    --violet:#7C3AED; --violet-100:#EDE9FE; --emerald:#059669; --emerald-100:#D1FAE5;
+    --warning:#FF9500; --high:#FF3B30; --rose:#EC4899; --streak:#FF6B35;
+    --s1:10px; --s2:16px; --s3:26px; --s4:42px; --s5:64px;
   }
   *{box-sizing:border-box; margin:0; padding:0}
   html{scroll-behavior:smooth}
-  body{background:transparent; color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  body{background:var(--bg); color:var(--ink);
+    font-family:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     -webkit-font-smoothing:antialiased; overflow-x:hidden; line-height:1.6;}
   a{color:inherit; text-decoration:none}
-  .wrap{max-width:1120px; margin:0 auto; padding:0 24px}
-  .eyebrow{color:var(--primary); font-weight:800; letter-spacing:2.4px; font-size:12px; text-transform:uppercase}
-  h2.sec-title{font-size:clamp(26px,3.6vw,38px); font-weight:900; letter-spacing:-.8px; margin:10px 0 0; text-wrap:balance}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+  .eyebrow{color:var(--primary); font-weight:800; letter-spacing:2.2px; font-size:12px; text-transform:uppercase; margin:0}
+  h2.sec-title{font-size:clamp(27px,3.4vw,37px); font-weight:800; letter-spacing:-1px; margin:9px auto 0; text-wrap:balance; max-width:22ch}
+  .sec-head{text-align:center; margin-bottom:var(--s4)}
   .center{text-align:center}
-  .center .sec-title{margin-left:auto; margin-right:auto; max-width:22ch}
 
-  /* ── ANIMATED BACKGROUND (GOLDEN RATIO) ── */
-  .animated-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: var(--bg); display: flex; align-items: center; justify-content: center; }
-  .blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.15; will-change: transform; }
-  .blob-1 { width: 61.8vmin; height: 61.8vmin; background: var(--primary); animation: orbit1 25s infinite linear; }
-  .blob-2 { width: 38.2vmin; height: 38.2vmin; background: var(--indigo); animation: orbit2 20s infinite linear reverse; }
-  .blob-3 { width: 23.6vmin; height: 23.6vmin; background: var(--teal); animation: orbit3 15s infinite linear; }
-
-  @keyframes orbit1 {
-    0% { transform: rotate(0deg) translateX(14.6vmin) rotate(0deg); }
-    100% { transform: rotate(360deg) translateX(14.6vmin) rotate(-360deg); }
-  }
-  @keyframes orbit2 {
-    0% { transform: rotate(120deg) translateX(23.6vmin) rotate(-120deg); }
-    100% { transform: rotate(480deg) translateX(23.6vmin) rotate(-480deg); }
-  }
-  @keyframes orbit3 {
-    0% { transform: rotate(240deg) translateX(38.2vmin) rotate(-240deg); }
-    100% { transform: rotate(600deg) translateX(38.2vmin) rotate(-600deg); }
-  }
-
-  /* Official store badges */
+  .badges{display:inline-flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:center}
   .badge{display:inline-flex; align-items:center; gap:11px; background:#000; color:#fff;
-    height:54px; padding:0 18px; border-radius:12px; border:1px solid rgba(255,255,255,.16);
-    box-shadow:0 10px 26px rgba(0,0,0,.22); transition:transform .15s, box-shadow .15s}
-  a.badge:hover{transform:translateY(-2px); box-shadow:0 16px 36px rgba(0,0,0,.3)}
+    height:52px; padding:0 17px; border-radius:12px; box-shadow:0 8px 22px rgba(0,0,0,.16); transition:transform .15s, box-shadow .15s}
+  a.badge:hover{transform:translateY(-2px); box-shadow:0 14px 30px rgba(0,0,0,.24)}
   .badge svg{flex:none}
   .badge .txt{display:flex; flex-direction:column; justify-content:center; line-height:1; text-align:left}
-  .badge .sub{font-size:10px; opacity:.9; letter-spacing:.3px}
-  .badge .main{font-size:19px; font-weight:600; letter-spacing:.2px; margin-top:2px}
-  .badge.soon{position:relative; opacity:.92}
-  .badge.soon .ribbon{position:absolute; top:-9px; right:-8px; background:var(--teal); color:#fff;
-    font-size:9px; font-weight:800; letter-spacing:.4px; padding:3px 8px; border-radius:999px; box-shadow:0 4px 12px rgba(18,181,160,.45)}
+  .badge .sub{font-size:9.5px; opacity:.9; letter-spacing:.3px}
+  .badge .main{font-size:18px; font-weight:700; letter-spacing:.2px; margin-top:2px}
+  .badge.soon{position:relative; opacity:.94}
+  .badge.soon .ribbon{position:absolute; top:-9px; right:-8px; background:var(--emerald); color:#fff;
+    font-size:9px; font-weight:800; letter-spacing:.4px; padding:3px 8px; border-radius:999px}
+
+  /* ── NAV ── */
+  nav{position:sticky; top:0; z-index:50; background:rgba(244,244,245,.8); backdrop-filter:saturate(160%) blur(16px); border-bottom:1px solid var(--line-2)}
+  .nav-in{max-width:1080px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; justify-content:space-between}
+  .nav-brand{display:flex; align-items:center; gap:12px}
+  .nav-brand img.ic{width:40px; height:40px; border-radius:11px}
+  .nav-brand img.wm{height:23px; width:auto}
+  .nav-right{display:flex; align-items:center; gap:26px}
+  .nav-links{display:flex; align-items:center; gap:28px}
+  .nav-links a{color:var(--muted); font-weight:600; font-size:14px; transition:color .15s}
+  .nav-links a:hover{color:var(--ink)}
+  .lang{display:flex; background:rgba(0,0,0,.05); border-radius:999px; padding:3px}
+  .lang button{border:0; background:transparent; color:var(--muted); font-weight:800; font-size:12px; padding:5px 11px; border-radius:999px; cursor:pointer; font-family:inherit}
+  .lang button.on{background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  @media(max-width:640px){ .nav-links{display:none} }
 
   /* ── HERO ── */
-  .hero{position:relative; padding:60px 24px 78px;}
-  .hero-grid{position:relative; z-index:1; max-width:1120px; margin:0 auto;
-    display:grid; grid-template-columns:1.04fr .96fr; gap:44px; align-items:center}
-  .appicon{width:80px; height:80px; border-radius:20px; display:block; box-shadow:0 16px 40px rgba(59,111,224,.28)}
-  .wordmark{display:inline-block; height:30px; width:auto; margin:16px 0 0}
-  h1{font-size:clamp(32px,4.6vw,52px); font-weight:900; letter-spacing:-1.3px; line-height:1.06; margin:12px 0 0; max-width:14ch}
-  h1 .g{background:linear-gradient(90deg,var(--primary),var(--indigo)); -webkit-background-clip:text; background-clip:text; color:transparent}
-  .lead{color:var(--muted); font-size:clamp(15px,1.6vw,18px); margin:18px 0 0; max-width:44ch}
-  .cta{display:flex; gap:13px; flex-wrap:wrap; margin-top:28px}
-  .ministat{display:flex; gap:26px; margin-top:26px; flex-wrap:wrap}
-  .ministat div{display:flex; flex-direction:column}
-  .ministat b{font-size:20px; font-weight:900; letter-spacing:-.5px; color:var(--ink)}
-  .ministat span{font-size:12px; color:var(--muted); font-weight:600}
+  .hero{position:relative; padding:56px 24px 40px; text-align:center; overflow:hidden}
+  .hero::before{content:""; position:absolute; inset:0; z-index:-1;
+    background:radial-gradient(58% 40% at 50% -2%, rgba(37,99,235,.10), transparent 72%);}
+  .hero h1{font-size:clamp(34px,5.4vw,58px); font-weight:800; letter-spacing:-1.8px; line-height:1.04; margin:14px auto 0; max-width:15ch}
+  .hero h1 .g{background:linear-gradient(90deg,var(--primary),var(--violet)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .hero .lead{color:var(--muted); font-size:clamp(16px,1.7vw,19px); margin:20px auto 0; max-width:50ch}
+  .hero .badges{margin-top:28px}
+  .trust{display:flex; gap:20px; justify-content:center; flex-wrap:wrap; margin-top:22px; color:var(--muted); font-size:13px; font-weight:600}
+  .trust b{color:var(--ink)}
+  .trust .sep{width:5px; height:5px; border-radius:50%; background:var(--faint); align-self:center}
 
   /* ── PHONE ── */
-  .phone-col{display:flex; flex-direction:column; align-items:center; gap:15px}
-  .phone{width:280px; aspect-ratio:280/580; border-radius:48px; background:#0a0d18; padding:11px; position:relative;
-    border:2px solid #1c2236; box-shadow:0 50px 110px rgba(24,34,72,.32), 0 0 0 8px rgba(255,255,255,.6);}
-  .phone .notch{position:absolute; top:22px; left:50%; transform:translateX(-50%); width:82px; height:7px; border-radius:6px; background:#000; z-index:6}
-  .stack{width:100%; height:100%; border-radius:37px; overflow:hidden; position:relative; background:#080b16}
-  .screen{position:absolute; inset:0; opacity:0; transform:translateY(14px) scale(.99); transition:opacity .55s ease, transform .55s ease;
-    display:flex; flex-direction:column; padding:36px 18px 20px; color:#fff; pointer-events:none}
+  .phone-wrap{display:flex; flex-direction:column; align-items:center; gap:16px; margin-top:var(--s4)}
+  .phone{width:300px; aspect-ratio:300/620; border-radius:52px; background:#0b0b0f; padding:12px; position:relative;
+    box-shadow:0 60px 120px -30px rgba(24,24,27,.42), 0 0 0 1px rgba(0,0,0,.06);}
+  .phone .dyn{position:absolute; top:20px; left:50%; transform:translateX(-50%); width:96px; height:26px; border-radius:16px; background:#000; z-index:9}
+  .stack{width:100%; height:100%; border-radius:41px; overflow:hidden; position:relative; background:var(--bg)}
+  .screen{position:absolute; inset:0; opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .5s ease;
+    display:flex; flex-direction:column; padding:52px 15px 16px; pointer-events:none; gap:11px}
   .screen.active{opacity:1; transform:none}
-  .s-title{font-size:19px; font-weight:900; letter-spacing:-.3px}
-  .s-lab{color:rgba(255,255,255,.45); font-weight:800; letter-spacing:1.1px; font-size:9px; text-transform:uppercase}
-  .s-sub{color:rgba(255,255,255,.5); font-size:11px; margin-top:2px}
-  .s-card{background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09); border-radius:15px}
-
-  .sc-focus{background:radial-gradient(120% 80% at 50% 20%, #131a38, #0a0e1e 70%); align-items:center}
-  .ring{width:170px; height:170px; border-radius:50%; margin:22px 0 22px; position:relative; overflow:hidden;
-    border:5px solid rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center}
-  .ring .b{position:absolute; border-radius:50%; filter:blur(4px); animation:drift 6s ease-in-out infinite alternate}
-  .ring .b1{width:100px; height:100px; top:8px; left:14px; background:var(--p-indigo); opacity:.55}
-  .ring .b2{width:86px; height:86px; bottom:8px; right:10px; background:var(--p-teal); opacity:.36; animation-delay:-2s}
-  .ring .b3{width:72px; height:72px; top:44px; left:52px; background:var(--p-violet); opacity:.3; animation-delay:-4s}
-  @keyframes drift{from{transform:translate(0,0)}to{transform:translate(10px,-8px)}}
-  .ring .t{position:relative; z-index:2; font-size:38px; font-weight:300; letter-spacing:-1px; font-variant-numeric:tabular-nums; text-shadow:0 0 16px rgba(150,180,255,.5)}
-  .chips{display:flex; gap:15px; margin-top:2px}
-  .chip{display:flex; flex-direction:column; align-items:center; gap:6px}
-  .chip .sq{width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; border:1px solid; transition:transform .3s}
-  .chip.pulse .sq{transform:translateY(-4px) scale(1.08)}
-  .chip span{font-size:9.5px; color:rgba(255,255,255,.8); font-weight:700}
-  .play{margin-top:auto; width:56px; height:56px; border-radius:50%; background:var(--p-indigo);
-    display:flex; align-items:center; justify-content:center; box-shadow:0 10px 24px rgba(139,124,246,.5); animation:beat 2.4s ease-in-out infinite}
-  @keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
-
-  .sc-tasks{background:linear-gradient(#120c22,#0c0818); gap:11px}
-  .task{display:flex; align-items:center; gap:11px; padding:11px 13px; border-top:1px solid rgba(255,255,255,.06)}
-  .task:first-child{border-top:0}
-  .task .box{width:19px; height:19px; flex:none; position:relative}
-  .task .box .circle,.task .box .check{position:absolute; inset:0; transition:opacity .3s, transform .3s}
-  .task .box .check{opacity:0; transform:scale(.5)}
-  .task .tx{flex:1; font-size:12px; font-weight:600; transition:color .3s}
-  .task.done .box .circle{opacity:0}
-  .task.done .box .check{opacity:1; transform:scale(1)}
-  .task.done .tx{color:rgba(255,255,255,.42); text-decoration:line-through}
-  .task.pop{animation:pop .45s ease}
+  .lbl{font-size:9.5px; font-weight:800; letter-spacing:1.2px; color:var(--faint); text-transform:uppercase}
+  .p-card{background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 3px 10px rgba(24,24,27,.04)}
+  .p-top{display:flex; align-items:center; justify-content:space-between}
+  .greet{font-size:11px; color:var(--muted); font-weight:600}
+  .uname{font-size:19px; font-weight:800; letter-spacing:-.5px}
+  .avatar{width:42px; height:42px; border-radius:50%; flex:none; background:#DBEAFE url('/images/avatar.png') no-repeat 50% 8%; background-size:220%;
+    box-shadow:0 0 0 2px #fff, 0 0 0 4px rgba(37,99,235,.28)}
+  .stat-row{display:flex; gap:9px}
+  .stat{flex:1; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:11px 8px; text-align:center}
+  .stat .sic{width:26px; height:26px; border-radius:8px; margin:0 auto 6px; display:flex; align-items:center; justify-content:center}
+  .stat .sv{font-size:15px; font-weight:800; letter-spacing:-.3px}
+  .stat .sl{font-size:9px; color:var(--muted); font-weight:600; margin-top:1px}
+  .tasks{padding:4px 12px}
+  .trow{display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line-2)}
+  .trow:first-child{border-top:0}
+  .chk{width:19px; height:19px; border-radius:6px; border:2px solid #D4D4D8; flex:none; position:relative; transition:.3s}
+  .chk svg{position:absolute; inset:0; margin:auto; opacity:0; transform:scale(.5); transition:.3s}
+  .trow.done .chk{background:var(--emerald); border-color:var(--emerald)}
+  .trow.done .chk svg{opacity:1; transform:scale(1)}
+  .tt{flex:1; font-size:12.5px; font-weight:600; transition:.3s}
+  .trow.done .tt{color:var(--faint); text-decoration:line-through}
+  .pri{width:8px; height:8px; border-radius:3px; flex:none}
+  .pri.high{background:var(--high)} .pri.med{background:var(--warning)}
+  .trow.pop{animation:pop .5s ease}
   @keyframes pop{40%{transform:scale(1.03)}}
-  .rituals{display:flex; gap:10px}
-  .rit{flex:1; padding:12px; display:flex; flex-direction:column; gap:6px}
-  .rit .n{font-size:12px; font-weight:700}
-  .rit .s{display:flex; align-items:center; gap:5px; color:var(--p-amber); font-weight:900; font-size:12px}
-
-  .sc-mom{background:linear-gradient(#08171c,#060f14); gap:12px}
-  .mom-hero{padding:15px; display:flex; align-items:center; gap:14px}
-  .mom-circle{width:70px; height:70px; border-radius:50%; border:5px solid var(--p-teal); display:flex; align-items:center; justify-content:center; font-size:25px; font-weight:900; font-variant-numeric:tabular-nums}
-  .bars{display:flex; align-items:flex-end; gap:6px; height:58px; margin-top:10px}
-  .bars .bar{flex:1; height:0; border-radius:4px 4px 0 0; background:rgba(45,212,191,.35); transition:height .7s cubic-bezier(.2,.7,.2,1)}
-  .bars .bar.hi{background:var(--p-teal)}
-
+  .habits{display:flex; gap:9px}
+  .hb{flex:1; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:11px 6px; text-align:center}
+  .hb .he{font-size:20px}
+  .hb .hn{font-size:9.5px; font-weight:700; margin-top:5px}
+  .hb .hs{font-size:9px; color:var(--streak); font-weight:800; margin-top:3px}
+  .hb.done{background:var(--emerald-100); border-color:rgba(5,150,105,.25)}
+  .hb.done .hn{color:var(--emerald)}
+  .scr-focus{align-items:center; padding-top:52px}
+  .f-lbl{font-size:10px; font-weight:800; letter-spacing:1.6px; color:var(--muted); text-transform:uppercase}
+  .f-ring{position:relative; width:186px; height:186px; margin:24px 0 20px}
+  .f-ring svg{transform:rotate(-90deg)}
+  .f-time{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:42px; font-weight:800; letter-spacing:-1.5px; font-variant-numeric:tabular-nums}
+  .f-task{font-size:13px; font-weight:700}
+  .f-sub{font-size:11px; color:var(--muted); margin-top:3px}
+  .f-chips{display:flex; gap:9px; margin-top:20px}
+  .f-chip{padding:8px 14px; border-radius:999px; font-size:11px; font-weight:700; background:var(--card); border:1px solid var(--line); color:var(--muted)}
+  .f-chip.on{background:var(--primary); color:#fff; border-color:var(--primary)}
+  .f-play{margin-top:auto; width:60px; height:60px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; box-shadow:0 12px 26px rgba(37,99,235,.4)}
+  .scr-modes .mode{padding:13px 14px}
+  .mode-head{display:flex; align-items:center; gap:11px}
+  .mode-ic{width:38px; height:38px; border-radius:11px; flex:none; display:flex; align-items:center; justify-content:center}
+  .mode-name{flex:1; font-size:13px; font-weight:800; letter-spacing:-.3px}
+  .mode-name small{display:block; font-size:10px; font-weight:600; color:var(--muted); margin-top:1px}
+  .mode-pct{font-size:14px; font-weight:800}
+  .mode-bar{height:6px; border-radius:3px; background:#E4E4E7; margin-top:11px; overflow:hidden}
+  .mode-bar span{display:block; height:100%; border-radius:3px; width:0; transition:width .9s cubic-bezier(.2,.7,.2,1)}
+  .mom-hero{padding:16px; display:flex; align-items:center; gap:15px}
+  .mom-ring{width:74px; height:74px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:26px; font-weight:800; color:var(--emerald); background:conic-gradient(var(--emerald) var(--pct,0%), #E4E4E7 0);}
+  .mom-ring i{width:58px; height:58px; border-radius:50%; background:var(--card); display:flex; align-items:center; justify-content:center; font-style:normal; font-variant-numeric:tabular-nums}
+  .mom-t{font-size:14px; font-weight:800; display:flex; align-items:center; gap:6px}
+  .mom-s{font-size:11px; color:var(--muted); margin-top:3px}
+  .bars{display:flex; align-items:flex-end; gap:7px; height:66px; margin-top:12px; padding:0 2px}
+  .bar{flex:1; height:0; border-radius:5px 5px 0 0; background:var(--primary-100); transition:height .8s cubic-bezier(.2,.7,.2,1)}
+  .bar.hi{background:var(--primary)}
+  .barday{display:flex; gap:7px; margin-top:6px; padding:0 2px}
+  .barday span{flex:1; text-align:center; font-size:8px; color:var(--faint); font-weight:700}
   .dots{display:flex; gap:7px}
-  .dot{width:7px; height:7px; border-radius:50%; background:#c3ccdf; transition:.3s}
+  .dot{width:7px; height:7px; border-radius:50%; background:#d4d4d8; transition:.3s}
   .dot.on{width:22px; border-radius:4px; background:var(--primary)}
 
-  /* ── VALUE STRIP ── */
-  .values{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:6px}
-  .vitem{background:var(--card); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid var(--line); border-radius:16px; padding:18px 16px; display:flex; align-items:center; gap:11px;
-    box-shadow:0 6px 20px rgba(30,42,102,.05)}
-  .vitem svg{flex:none}
-  .vitem b{font-size:14px; font-weight:800}
-  .vitem span{display:block; font-size:11.5px; color:var(--muted); font-weight:600}
-
   /* ── SECTIONS ── */
-  section{padding:82px 0}
-  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:46px}
-  .step{background:var(--card); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid var(--line); border-radius:20px; padding:28px 26px; box-shadow:0 10px 30px rgba(30,42,102,.06)}
-  .step .num{width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-weight:900; color:#fff;
-    background:linear-gradient(135deg,var(--primary),var(--indigo)); margin-bottom:16px}
-  .step h3{font-size:17px; font-weight:800}
-  .step p{color:var(--muted); font-size:14px; margin-top:7px}
-
-  .grid{display:grid; grid-template-columns:repeat(2,1fr); gap:18px; margin-top:46px}
-  .fcard{background:var(--card); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid var(--line); border-radius:20px; padding:28px 26px; box-shadow:0 10px 30px rgba(30,42,102,.06);
-    transition:transform .2s, box-shadow .2s}
-  .fcard:hover{transform:translateY(-4px); box-shadow:0 20px 44px rgba(30,42,102,.12)}
-  .ic{width:50px; height:50px; border-radius:14px; display:flex; align-items:center; justify-content:center; margin-bottom:18px}
-  .ic svg{width:25px; height:25px}
-  .fcard h3{font-size:18px; font-weight:800; letter-spacing:-.2px}
-  .fcard p{color:var(--muted); font-size:14.5px; margin-top:8px}
-
-  /* FAQ */
-  .faq{max-width:760px; margin:44px auto 0; display:flex; flex-direction:column; gap:12px}
-  details{background:var(--card); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid var(--line); border-radius:16px; padding:18px 22px; box-shadow:0 6px 18px rgba(30,42,102,.05)}
-  details summary{font-weight:800; font-size:15.5px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; gap:12px}
-  details summary::-webkit-details-marker{display:none}
-  details summary::after{content:"+"; color:var(--primary); font-size:22px; font-weight:400; transition:transform .2s}
+  section.wrap{padding:96px 24px 0}
+  .strip{display:grid; grid-template-columns:repeat(4,1fr); gap:16px}
+  .sc{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:0 6px 18px rgba(24,24,27,.04)}
+  .sc .ic{width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-bottom:14px}
+  .sc h3{font-size:15.5px; font-weight:800; letter-spacing:-.3px}
+  .sc p{color:var(--muted); font-size:13px; margin-top:5px}
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:20px; text-align:left}
+  .step{background:var(--card); border:1px solid var(--line); border-radius:22px; padding:30px 26px; box-shadow:0 10px 30px rgba(24,24,27,.05)}
+  .step .num{width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; background:linear-gradient(135deg,var(--primary),var(--violet)); margin-bottom:16px; font-size:17px}
+  .step h3{font-size:18px; font-weight:800; letter-spacing:-.4px}
+  .step p{color:var(--muted); font-size:14px; margin-top:8px}
+  .grid{display:grid; grid-template-columns:repeat(2,1fr); gap:18px; text-align:left}
+  .fcard{background:var(--card); border:1px solid var(--line); border-radius:22px; padding:30px; box-shadow:0 10px 30px rgba(24,24,27,.05); transition:transform .2s, box-shadow .2s}
+  .fcard:hover{transform:translateY(-4px); box-shadow:0 22px 46px rgba(24,24,27,.1)}
+  .fcard .ic{width:52px; height:52px; border-radius:15px; display:flex; align-items:center; justify-content:center; margin-bottom:18px}
+  .fcard h3{font-size:19px; font-weight:800; letter-spacing:-.4px}
+  .fcard p{color:var(--muted); font-size:14.5px; margin-top:9px}
+  .faq{max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:12px; text-align:left}
+  details{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 22px; box-shadow:0 4px 14px rgba(24,24,27,.04)}
+  summary{font-weight:700; font-size:15.5px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; gap:12px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+"; color:var(--primary); font-size:22px; font-weight:400; transition:transform .2s}
   details[open] summary::after{transform:rotate(45deg)}
   details p{color:var(--muted); font-size:14px; margin-top:12px}
-
-  /* CLOSING */
-  .close-cta{margin:0 24px; border-radius:30px; text-align:center; padding:64px 24px; color:#fff;
-    background:radial-gradient(120% 130% at 50% 0%, #4b73e6 0%, #3b5fd0 40%, #2b3fb0 100%); box-shadow:0 30px 70px rgba(43,63,176,.3)}
-  .close-cta h2{font-size:clamp(26px,4vw,40px); font-weight:900; letter-spacing:-.6px}
-  .close-cta p{opacity:.9; margin:14px auto 26px; max-width:44ch; font-size:16px}
-  .close-cta .btn-store{background:#fff; color:#101425}
-  .close-inner{max-width:1120px; margin:0 auto}
-
-  /* FOOTER */
-  footer{padding:54px 24px 46px; text-align:center; color:var(--muted); font-size:13.5px}
-  .fbrand{display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:14px}
-  .fbrand img{width:30px; height:30px; border-radius:8px}
-  .fbrand span{font-weight:900; letter-spacing:3px; color:var(--ink); font-size:17px}
-  .flinks{display:flex; gap:22px; justify-content:center; flex-wrap:wrap; margin-bottom:16px}
-  .flinks a{color:#41496c; font-weight:600; transition:color .15s}
-  .flinks a:hover{color:var(--primary)}
-
-  @media(max-width:860px){
-    .hero-grid{grid-template-columns:1fr; text-align:center; gap:44px}
-    h1,.lead{max-width:none; margin-left:auto; margin-right:auto}
-    .cta,.ministat{justify-content:center}
-    .appicon{margin:0 auto}
-    .values{grid-template-columns:repeat(2,1fr)}
-    .steps{grid-template-columns:1fr}
-    .grid{grid-template-columns:1fr}
-    section{padding:60px 0}
+  .cta-band{margin:var(--s5) 24px 0; border-radius:30px; text-align:center; padding:60px 24px 64px; color:#fff; position:relative; overflow:hidden;
+    background:linear-gradient(135deg,#2563EB 0%,#3B4FE0 48%,#4338CA 100%);}
+  .cta-band::before{content:""; position:absolute; top:-40%; left:50%; transform:translateX(-50%); width:120%; height:120%;
+    background:radial-gradient(closest-side, rgba(255,255,255,.16), transparent 70%); pointer-events:none}
+  .cta-inner{position:relative; z-index:1; max-width:640px; margin:0 auto}
+  .cta-icon{width:60px; height:60px; border-radius:16px; margin:0 auto 20px; display:block; box-shadow:0 12px 30px rgba(0,0,0,.28)}
+  .cta-band h2{font-size:clamp(28px,4vw,40px); font-weight:800; letter-spacing:-1px}
+  .cta-band p{opacity:.9; margin:14px auto 26px; max-width:44ch; font-size:16.5px}
+  .cta-band .badge{background:#fff; color:#000; box-shadow:0 12px 30px rgba(0,0,0,.22)}
+  footer{padding:var(--s5) 24px 36px}
+  .foot-in{max-width:1080px; margin:0 auto; display:grid; grid-template-columns:1.6fr 1fr 1fr 1.1fr; gap:40px; align-items:start}
+  .foot-brand img.ic{width:40px; height:40px; border-radius:11px; display:block}
+  .foot-brand img.wm{height:20px; width:auto; margin:14px 0 0; display:block}
+  .foot-brand p{color:var(--muted); font-size:13.5px; margin-top:12px; max-width:30ch}
+  .foot-col h4{font-size:12px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; color:var(--faint); margin-bottom:14px}
+  .foot-col a{display:block; color:var(--muted); font-weight:600; font-size:14px; padding:5px 0; transition:color .15s}
+  .foot-col a:hover{color:var(--primary)}
+  .foot-bottom{max-width:1080px; margin:var(--s4) auto 0; padding-top:22px; border-top:1px solid var(--line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; color:var(--faint); font-size:13px}
+  @media(max-width:820px){
+    .strip{grid-template-columns:repeat(2,1fr)} .steps{grid-template-columns:1fr} .grid{grid-template-columns:1fr}
+    .foot-in{grid-template-columns:1fr 1fr; gap:28px} .foot-brand{grid-column:1/-1} section.wrap{padding:64px 24px 0}
   }
 </style>
 </head>
 <body>
 
-  <div class="animated-bg">
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
-  </div>
-
-  <header class="hero">
-    <div class="hero-grid">
-      <div class="hero-text">
-        <img class="appicon" src="/images/icon.png" alt="TAZQ uygulama ikonu" width="80" height="80" />
-        <img class="wordmark" src="/images/wordmark.png" alt="TAZQ" height="30" />
-        <h1>Odağını topla,<br><span class="g">hayatını dengele</span></h1>
-        <p class="lead">Pomodoro odak zamanlayıcısı, dönemine özel günlük planlar ve alışkanlık takibi — hepsi tek, sade bir uygulamada.</p>
-        <div class="cta">
-          <!-- TODO: id0000000000 -> uygulama yayına girince gerçek App Store ID -->
-          <a class="badge" href="https://apps.apple.com/app/id0000000000" aria-label="Download on the App Store">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M16.365 1.43c0 1.14-.417 2.2-1.11 2.98-.79.9-2.08 1.6-3.14 1.52-.13-1.1.43-2.26 1.09-3 .74-.83 2.05-1.48 3.16-1.5zM20.5 17.2c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.02-1.94-1-4.03-.99-2.09 0-2.53 1.01-4.07.99-1.73-.02-3.05-1.78-4.04-3.35C-.02 16.3-.3 11.06 1.4 8.35c1.13-1.83 2.92-2.9 4.6-2.9 1.71 0 2.79 1 4.2 1 1.37 0 2.2-1 4.2-1 1.5 0 3.1.82 4.23 2.24-3.72 2.04-3.12 7.35 1.57 8.51z"/></svg>
-            <span class="txt"><span class="sub">Download on the</span><span class="main">App Store</span></span>
-          </a>
-          <span class="badge soon" aria-label="Google Play — yakında">
-            <span class="ribbon">YAKINDA</span>
-            <svg width="24" height="24" viewBox="0 0 512 512" aria-hidden="true">
-              <path fill="#00C3FF" d="M104.5 13c-2.9 1.7-4.5 4.9-4.5 9.4v467.2c0 4.5 1.6 7.7 4.5 9.4l220.8-243L104.5 13z"/>
-              <path fill="#00E676" d="M325.3 234.3 104.5 13l280.8 161.2-60 60z"/>
-              <path fill="#FF3B30" d="M104.5 499 325.3 277.7l60 60L104.5 499z"/>
-              <path fill="#FFCE00" d="M385.3 337.7l60-34.6c19.6-11.3 19.6-40.9 0-52.2l-60-34.6-64.6 60.7 64.6 60.7z"/>
-            </svg>
-            <span class="txt"><span class="sub">GET IT ON</span><span class="main">Google Play</span></span>
-          </span>
+  <nav>
+    <div class="nav-in">
+      <a class="nav-brand" href="/">
+        <img class="ic" src="/images/icon.png" alt="TAZQ" width="40" height="40" />
+        <img class="wm" src="/images/wordmark.png" alt="TAZQ" height="23" />
+      </a>
+      <div class="nav-right">
+        <div class="nav-links">
+          <a href="#ozellikler" data-i18n="nav.features">Özellikler</a>
+          <a href="#nasil" data-i18n="nav.how">Nasıl çalışır</a>
+          <a href="#sss" data-i18n="nav.faq">SSS</a>
         </div>
-        <div class="ministat">
-          <div><b>Ücretsiz</b><span>Reklamsız</span></div>
-          <div><b>TR · EN</b><span>Tam dil desteği</span></div>
-          <div><b>Çevrimdışı</b><span>İnternetsiz çalışır</span></div>
+        <div class="lang" id="lang">
+          <button data-lang="tr" class="on">TR</button>
+          <button data-lang="en">EN</button>
         </div>
       </div>
+    </div>
+  </nav>
 
-      <div class="phone-col">
-        <div class="phone">
-          <div class="notch"></div>
-          <div class="stack">
-            <!-- Odak -->
-            <div class="screen sc-focus active" data-scene="focus">
-              <div class="s-lab" style="align-self:center; color:rgba(255,255,255,.55)">Derin Odak</div>
-              <div class="ring">
-                <span class="b b1"></span><span class="b b2"></span><span class="b b3"></span>
-                <span class="t" id="timer">24:18</span>
-              </div>
-              <div class="chips">
-                <div class="chip" data-chip><div class="sq" style="background:rgba(139,124,246,.15); border-color:rgba(139,124,246,.4)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#8B7CF6" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div><span>Pomodoro</span></div>
-                <div class="chip" data-chip><div class="sq" style="background:rgba(45,212,191,.15); border-color:rgba(45,212,191,.4)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#2DD4BF" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><span>Ambiyans</span></div>
-                <div class="chip" data-chip><div class="sq" style="background:rgba(167,139,250,.15); border-color:rgba(167,139,250,.4)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#A78BFA" stroke-width="2" stroke-linecap="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg></div><span>Zen</span></div>
-              </div>
-              <div class="play"><svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>
+  <header class="hero">
+    <p class="eyebrow" data-i18n="hero.eyebrow">Üretkenlik &amp; huzur</p>
+    <h1 data-i18n-html="hero.title">Odağını topla,<br><span class="g">hayatını dengele</span></h1>
+    <p class="lead" data-i18n="hero.lead">Pomodoro odak zamanlayıcısı, dönemine özel günlük planlar ve alışkanlık takibi — hepsi tek, sade bir uygulamada.</p>
+    <div class="badges">
+      <!-- TODO: id0000000000 -> gerçek App Store ID -->
+      <a class="badge" href="https://apps.apple.com/app/id0000000000" aria-label="Download on the App Store">
+        <svg width="25" height="25" viewBox="0 0 24 24" fill="#fff"><path d="M16.365 1.43c0 1.14-.417 2.2-1.11 2.98-.79.9-2.08 1.6-3.14 1.52-.13-1.1.43-2.26 1.09-3 .74-.83 2.05-1.48 3.16-1.5zM20.5 17.2c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.02-1.94-1-4.03-.99-2.09 0-2.53 1.01-4.07.99-1.73-.02-3.05-1.78-4.04-3.35C-.02 16.3-.3 11.06 1.4 8.35c1.13-1.83 2.92-2.9 4.6-2.9 1.71 0 2.79 1 4.2 1 1.37 0 2.2-1 4.2-1 1.5 0 3.1.82 4.23 2.24-3.72 2.04-3.12 7.35 1.57 8.51z"/></svg>
+        <span class="txt"><span class="sub">Download on the</span><span class="main">App Store</span></span>
+      </a>
+      <span class="badge soon" aria-label="Google Play — soon">
+        <span class="ribbon" data-i18n="soon">YAKINDA</span>
+        <svg width="23" height="23" viewBox="0 0 512 512"><path fill="#00C3FF" d="M104.5 13c-2.9 1.7-4.5 4.9-4.5 9.4v467.2c0 4.5 1.6 7.7 4.5 9.4l220.8-243L104.5 13z"/><path fill="#00E676" d="M325.3 234.3 104.5 13l280.8 161.2-60 60z"/><path fill="#FF3B30" d="M104.5 499 325.3 277.7l60 60L104.5 499z"/><path fill="#FFCE00" d="M385.3 337.7l60-34.6c19.6-11.3 19.6-40.9 0-52.2l-60-34.6-64.6 60.7 64.6 60.7z"/></svg>
+        <span class="txt"><span class="sub">GET IT ON</span><span class="main">Google Play</span></span>
+      </span>
+    </div>
+    <div class="trust">
+      <span data-i18n-html="trust.1"><b>Ücretsiz</b> · Reklamsız</span><span class="sep"></span>
+      <span data-i18n-html="trust.2"><b>TR · EN</b> dil desteği</span><span class="sep"></span>
+      <span data-i18n-html="trust.3"><b>Çevrimdışı</b> çalışır</span>
+    </div>
+
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="dyn"></div>
+        <div class="stack">
+          <div class="screen scr-home active" data-scene="home">
+            <div class="p-top">
+              <div><div class="greet" data-i18n="ph.greet">İyi akşamlar,</div><div class="uname">Deniz 👋</div></div>
+              <div class="avatar"></div>
             </div>
+            <div class="stat-row">
+              <div class="stat"><div class="sic" style="background:var(--primary-100)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div><div class="sv">1.5s</div><div class="sl" data-i18n="ph.focus">Odak</div></div>
+              <div class="stat"><div class="sic" style="background:var(--violet-100)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><div class="sv">2/3</div><div class="sl" data-i18n="ph.tasks">Görev</div></div>
+              <div class="stat"><div class="sic" style="background:rgba(255,107,53,.14)"><svg width="15" height="15" viewBox="0 0 24 24" fill="#FF6B35"><path d="M12 2s6 7 6 12a6 6 0 1 1-12 0c0-5 6-12 6-12z"/></svg></div><div class="sv">12</div><div class="sl" data-i18n="ph.streak">Seri</div></div>
+            </div>
+            <div class="lbl" data-i18n="ph.today">Bugün</div>
+            <div class="p-card tasks">
+              <div class="trow"><span class="chk"></span><span class="tt" data-i18n="ph.t1">Haftalık Raporu Hazırla</span><span class="pri high"></span></div>
+              <div class="trow" id="homeTask"><span class="chk"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span><span class="tt" data-i18n="ph.t2">Kitap Oku (20 sayfa)</span><span class="pri med"></span></div>
+              <div class="trow done"><span class="chk"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span><span class="tt" data-i18n="ph.t3">Spor Salonuna Git</span></div>
+            </div>
+            <div class="lbl" data-i18n="ph.habits">Alışkanlıklar</div>
+            <div class="habits">
+              <div class="hb"><div class="he">📚</div><div class="hn" data-i18n="ph.h1">Kitap</div><div class="hs">🔥 3</div></div>
+              <div class="hb done"><div class="he">🥛</div><div class="hn" data-i18n="ph.h2">Su İç</div><div class="hs">🔥 5</div></div>
+              <div class="hb"><div class="he">👟</div><div class="hn" data-i18n="ph.h3">Yürüyüş</div><div class="hs">—</div></div>
+            </div>
+          </div>
 
-            <!-- Görevler -->
-            <div class="screen sc-tasks" data-scene="tasks">
-              <div class="s-lab">Bugün · 6 Temmuz</div>
-              <div class="s-title" style="margin-top:3px">Günün Planı</div>
-              <div class="s-card" style="margin-top:12px; padding:2px 0">
-                <div class="task done"><span class="box"><svg class="circle" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.32)" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><svg class="check" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg></span><span class="tx">Sabah 25 dk derin odak</span></div>
-                <div class="task" id="autoTask"><span class="box"><svg class="circle" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.32)" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><svg class="check" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg></span><span class="tx">Proje sunumunu hazırla</span></div>
-                <div class="task"><span class="box"><svg class="circle" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.32)" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><svg class="check" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg></span><span class="tx">Spor: 30 dk koşu</span></div>
-                <div class="task"><span class="box"><svg class="circle" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.32)" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><svg class="check" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg></span><span class="tx">Akşam okuma ritüeli</span></div>
-              </div>
-              <div class="s-lab" style="margin-top:14px">Ritüeller</div>
-              <div class="rituals" style="margin-top:9px">
-                <div class="s-card rit"><div class="n">Su iç</div><div class="s"><svg viewBox="0 0 24 24" width="13" height="13" fill="#F59E0B"><path d="M12 2s6 7 6 12a6 6 0 1 1-12 0c0-5 6-12 6-12z"/></svg>12 gün</div></div>
-                <div class="s-card rit"><div class="n">Meditasyon</div><div class="s"><svg viewBox="0 0 24 24" width="13" height="13" fill="#F59E0B"><path d="M12 2s6 7 6 12a6 6 0 1 1-12 0c0-5 6-12 6-12z"/></svg>7 gün</div></div>
+          <div class="screen scr-focus" data-scene="focus">
+            <div class="f-lbl" data-i18n="ph.deepfocus">Derin Odak</div>
+            <div class="f-ring">
+              <svg width="186" height="186" viewBox="0 0 186 186"><circle cx="93" cy="93" r="84" fill="none" stroke="#E4E4E7" stroke-width="10"/><circle id="fprog" cx="93" cy="93" r="84" fill="none" stroke="#2563EB" stroke-width="10" stroke-linecap="round" stroke-dasharray="528" stroke-dashoffset="132"/></svg>
+              <div class="f-time" id="timer">24:18</div>
+            </div>
+            <div class="f-task" data-i18n="ph.t1">Haftalık Raporu Hazırla</div>
+            <div class="f-sub" data-i18n="ph.session">Pomodoro · 1 / 4 seans</div>
+            <div class="f-chips"><span class="f-chip on">Pomodoro</span><span class="f-chip" data-i18n="ph.ambient">Ambiyans</span><span class="f-chip">Zen</span></div>
+            <div class="f-play"><svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>
+          </div>
+
+          <div class="screen scr-modes" data-scene="modes">
+            <div style="margin-bottom:3px"><div class="uname" style="font-size:18px" data-i18n="ph.modes">Dönemsel Modlar</div><div class="greet" data-i18n="ph.modesSub">Dönemine özel günlük planın</div></div>
+            <div class="p-card mode">
+              <div class="mode-head"><div class="mode-ic" style="background:rgba(255,149,0,.14)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div>
+                <div class="mode-name" data-i18n-html="ph.modeExam">Sınav Modu<small>Günlük çalışma bloğu</small></div><div class="mode-pct" style="color:#FF9500">68%</div></div>
+              <div class="mode-bar"><span data-w="68%" style="background:#FF9500"></span></div>
+            </div>
+            <div class="p-card mode">
+              <div class="mode-head"><div class="mode-ic" style="background:rgba(236,72,153,.12)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#EC4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5 17.5 17.5M4 12l-2 2 2 2M20 12l2-2-2-2M7 4 5 6M17 20l2-2"/><rect x="8" y="8" width="8" height="8" rx="2"/></svg></div>
+                <div class="mode-name" data-i18n-html="ph.modeFit">Spor Modu<small>Antrenman &amp; alışkanlık</small></div><div class="mode-pct" style="color:#EC4899">41%</div></div>
+              <div class="mode-bar"><span data-w="41%" style="background:#EC4899"></span></div>
+            </div>
+            <div class="p-card mode">
+              <div class="mode-head"><div class="mode-ic" style="background:var(--primary-100)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
+                <div class="mode-name" data-i18n-html="ph.modeCareer">Kariyer Modu<small>Hedef odaklı görevler</small></div><div class="mode-pct" style="color:#2563EB">25%</div></div>
+              <div class="mode-bar"><span data-w="25%" style="background:#2563EB"></span></div>
+            </div>
+          </div>
+
+          <div class="screen scr-mom" data-scene="mom">
+            <div class="lbl">Momentum</div>
+            <div class="p-card mom-hero">
+              <div class="mom-ring" id="momring"><i id="score">0</i></div>
+              <div>
+                <div class="mom-t"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.4"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg><span data-i18n="ph.momScore">Momentum skoru</span></div>
+                <div class="mom-s" data-i18n="ph.momSub">Bu hafta 6.5 sa odak · 🔥 12 gün seri</div>
               </div>
             </div>
-
-            <!-- Momentum -->
-            <div class="screen sc-mom" data-scene="mom">
-              <div class="s-title">Momentum</div>
-              <div class="s-card mom-hero" style="margin-top:12px">
-                <div class="mom-circle" id="score">0</div>
-                <div>
-                  <div style="display:flex; align-items:center; gap:5px; font-weight:800; font-size:13px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#4ADE80" stroke-width="2.4"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>Momentum skoru</div>
-                  <div class="s-sub" style="margin-top:4px">Bu hafta 6.5 sa odak</div>
-                </div>
-              </div>
-              <div class="s-card" style="margin-top:12px; padding:14px">
-                <div class="s-lab">Haftalık Odak</div>
-                <div class="bars" id="bars">
-                  <div class="bar" data-h="40%"></div><div class="bar" data-h="65%"></div><div class="bar" data-h="50%"></div>
-                  <div class="bar" data-h="85%"></div><div class="bar" data-h="70%"></div><div class="bar hi" data-h="96%"></div><div class="bar" data-h="60%"></div>
-                </div>
-              </div>
+            <div class="lbl" style="margin-top:4px" data-i18n="ph.weekly">Haftalık Odak</div>
+            <div class="p-card" style="padding:14px">
+              <div class="bars" id="bars"><div class="bar" data-h="42%"></div><div class="bar" data-h="60%"></div><div class="bar" data-h="48%"></div><div class="bar" data-h="82%"></div><div class="bar" data-h="66%"></div><div class="bar hi" data-h="95%"></div><div class="bar" data-h="58%"></div></div>
+              <div class="barday" id="barday"><span>Pzt</span><span>Sal</span><span>Çar</span><span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span></div>
             </div>
           </div>
         </div>
-        <div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span></div>
       </div>
+      <div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
     </div>
   </header>
 
-  <!-- VALUE STRIP -->
-  <div class="wrap" style="margin-top:-30px; position:relative; z-index:2">
-    <div class="values">
-      <div class="vitem"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B6FE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg><div><b>Pomodoro</b><span>Derin odak sayacı</span></div></div>
-      <div class="vitem"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg><div><b>Günlük Plan</b><span>Otomatik hazırlanır</span></div></div>
-      <div class="vitem"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EC4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><div><b>Alışkanlık</b><span>Seri takibi</span></div></div>
-      <div class="vitem"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#12B5A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg><div><b>İstatistik</b><span>Momentum skoru</span></div></div>
-    </div>
-  </div>
+  <div class="wrap"><div class="strip">
+    <div class="sc"><div class="ic" style="background:var(--primary-100)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div><h3 data-i18n="v1.t">Pomodoro Odak</h3><p data-i18n="v1.d">Derin odak sayacı, ambiyans ve zen modu.</p></div>
+    <div class="sc"><div class="ic" style="background:var(--violet-100)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div><h3 data-i18n="v2.t">Dönemsel Plan</h3><p data-i18n="v2.d">Sınav, spor, kariyer — her gün otomatik.</p></div>
+    <div class="sc"><div class="ic" style="background:rgba(236,72,153,.12)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EC4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><h3 data-i18n="v3.t">Alışkanlık</h3><p data-i18n="v3.d">Ritüeller ve seri takibi tek dokunuşla.</p></div>
+    <div class="sc"><div class="ic" style="background:var(--emerald-100)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div><h3 data-i18n="v4.t">Momentum</h3><p data-i18n="v4.d">Haftalık istatistik ve momentum skoru.</p></div>
+  </div></div>
 
-  <!-- HOW IT WORKS -->
-  <section class="wrap center">
-    <div class="eyebrow">Nasıl çalışır?</div>
-    <h2 class="sec-title">Üç adımda dengeli bir gün</h2>
-    <div class="steps" style="text-align:left">
-      <div class="step"><div class="num">1</div><h3>Modunu seç</h3><p>Sınav, spor veya kariyer — dönemine uygun modu seç, TAZQ günlük planını otomatik oluştursun.</p></div>
-      <div class="step"><div class="num">2</div><h3>Odaklan</h3><p>Pomodoro, ambiyans sesleri ve zen moduyla görevlerini kesintisiz, derin bir odakla tamamla.</p></div>
-      <div class="step"><div class="num">3</div><h3>İlerlemeni gör</h3><p>Serilerini, haftalık odak sürelerini ve momentum skorunu takip et; motivasyonunu koru.</p></div>
+  <section id="nasil" class="wrap">
+    <div class="sec-head"><p class="eyebrow" data-i18n="how.eyebrow">Nasıl çalışır?</p><h2 class="sec-title" data-i18n="how.title">Üç adımda dengeli bir gün</h2></div>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><h3 data-i18n="s1.t">Modunu seç</h3><p data-i18n="s1.d">Sınav, spor veya kariyer — dönemine uygun modu seç, TAZQ günlük planını otomatik oluştursun.</p></div>
+      <div class="step"><div class="num">2</div><h3 data-i18n="s2.t">Odaklan</h3><p data-i18n="s2.d">Pomodoro, ambiyans sesleri ve zen moduyla görevlerini kesintisiz, derin bir odakla tamamla.</p></div>
+      <div class="step"><div class="num">3</div><h3 data-i18n="s3.t">İlerlemeni gör</h3><p data-i18n="s3.d">Serilerini, haftalık odak sürelerini ve momentum skorunu takip et; motivasyonunu koru.</p></div>
     </div>
   </section>
 
-  <!-- FEATURES -->
-  <section class="wrap center">
-    <div class="eyebrow">Neler sunar?</div>
-    <h2 class="sec-title">Üretkenlik ve huzur, bir arada</h2>
-    <div class="grid" style="text-align:left">
-      <article class="fcard"><div class="ic" style="background:rgba(59,111,224,.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#3B6FE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div><h3>Derin Odak</h3><p>Pomodoro zamanlayıcısı, ambiyans sesleri ve zen moduyla dikkat dağınıklığından uzaklaş, gerçekten odaklan.</p></article>
-      <article class="fcard"><div class="ic" style="background:rgba(108,92,231,.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#6C5CE7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div><h3>Dönemsel Modlar</h3><p>Sınav, spor veya kariyer modunu seç; dönemine özel günlük planın her gün otomatik olarak hazır olsun.</p></article>
-      <article class="fcard"><div class="ic" style="background:rgba(236,72,153,.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#EC4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><h3>Görevler & Ritüeller</h3><p>Günün planını tek bakışta gör; görevlerini, alışkanlıklarını ve serilerini kolayca takip et.</p></article>
-      <article class="fcard"><div class="ic" style="background:rgba(18,181,160,.12)"><svg viewBox="0 0 24 24" fill="none" stroke="#12B5A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div><h3>Momentum</h3><p>Haftalık odak istatistikleri ve momentum skorunla ilerlemeni gör, motivasyonunu koru.</p></article>
+  <section id="ozellikler" class="wrap">
+    <div class="sec-head"><p class="eyebrow" data-i18n="feat.eyebrow">Neler sunar?</p><h2 class="sec-title" data-i18n="feat.title">Üretkenlik ve huzur, bir arada</h2></div>
+    <div class="grid">
+      <article class="fcard"><div class="ic" style="background:var(--primary-100)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div><h3 data-i18n="f1.t">Derin Odak</h3><p data-i18n="f1.d">Pomodoro zamanlayıcısı, ambiyans sesleri ve zen moduyla dikkat dağınıklığından uzaklaş, gerçekten odaklan.</p></article>
+      <article class="fcard"><div class="ic" style="background:var(--violet-100)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div><h3 data-i18n="f2.t">Dönemsel Modlar</h3><p data-i18n="f2.d">Sınav, spor veya kariyer modunu seç; dönemine özel günlük planın her gün otomatik olarak hazır olsun.</p></article>
+      <article class="fcard"><div class="ic" style="background:rgba(236,72,153,.12)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#EC4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><h3 data-i18n="f3.t">Görevler &amp; Ritüeller</h3><p data-i18n="f3.d">Günün planını tek bakışta gör; görevlerini, alışkanlıklarını ve serilerini kolayca takip et.</p></article>
+      <article class="fcard"><div class="ic" style="background:var(--emerald-100)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div><h3 data-i18n="f4.t">Momentum</h3><p data-i18n="f4.d">Haftalık odak istatistikleri ve momentum skorunla ilerlemeni gör, motivasyonunu koru.</p></article>
     </div>
   </section>
 
-  <!-- FAQ -->
-  <section class="wrap center">
-    <div class="eyebrow">Sık sorulanlar</div>
-    <h2 class="sec-title">Merak edilenler</h2>
-    <div class="faq" style="text-align:left">
-      <details open><summary>TAZQ ücretsiz mi?</summary><p>Evet. TAZQ mevcut sürümüyle tüm özellikleriyle ücretsiz ve reklamsızdır.</p></details>
-      <details><summary>Hangi platformlarda var?</summary><p>Şu an iOS (App Store) için hazır; Android sürümü çok yakında geliyor.</p></details>
-      <details><summary>İnternet olmadan çalışır mı?</summary><p>Evet. TAZQ çevrimdışı-öncelikli çalışır; verilerin cihazında saklanır ve internet olduğunda güvenle senkronize edilir.</p></details>
-      <details><summary>Dönemsel modlar nedir?</summary><p>Sınav, spor, kariyer gibi dönemine uygun bir mod seçtiğinde TAZQ o döneme özel günlük planını her gün otomatik oluşturur.</p></details>
-      <details><summary>Verilerim güvende mi?</summary><p>Verilerin şifreli olarak saklanır ve üçüncü şahıslarla paylaşılmaz. Ayrıntılar için <a href="/gizlilik.html#privacy" style="color:var(--primary); font-weight:700">Gizlilik Politikası</a>.</p></details>
+  <section id="sss" class="wrap">
+    <div class="sec-head"><p class="eyebrow" data-i18n="faq.eyebrow">Sık sorulanlar</p><h2 class="sec-title" data-i18n="faq.title">Merak edilenler</h2></div>
+    <div class="faq">
+      <details open><summary data-i18n="q1.q">TAZQ ücretsiz mi?</summary><p data-i18n="q1.a">Evet. TAZQ mevcut sürümüyle tüm özellikleriyle ücretsiz ve reklamsızdır. İleride opsiyonel bir premium paket gelebilir, ancak mevcut özellikler ücretsiz kalır.</p></details>
+      <details><summary data-i18n="q2.q">Hangi platformlarda kullanabilirim?</summary><p data-i18n="q2.a">Şu an iOS (App Store) için hazır; Android sürümü çok yakında. Verilerin hesabınla senkronize olduğu için cihaz değiştirsen bile kaldığın yerden devam edersin.</p></details>
+      <details><summary data-i18n="q3.q">Derin Odak (Pomodoro) nasıl çalışır?</summary><p data-i18n="q3.a">25 dakikalık odak ve kısa mola döngüleriyle çalışırsın; ambiyans sesleri ve zen moduyla dikkatini toplarsın. Her seans momentumuna ve haftalık istatistiklerine işlenir.</p></details>
+      <details><summary data-i18n="q4.q">Dönemsel modlar nedir?</summary><p data-i18n="q4.a">Sınav, spor, kariyer, tez veya mülakat gibi bir dönem seçtiğinde TAZQ o döneme özel günlük planını her gün otomatik oluşturur — gelecek haftaları görevle doldurmak yerine sadece bugüne odaklanırsın.</p></details>
+      <details><summary data-i18n="q5.q">Alışkanlık ve seriler nasıl çalışır?</summary><p data-i18n="q5.a">Günlük alışkanlıklarını tek dokunuşla işaretlersin; kesintisiz günler serini büyütür. Bir günü kaçırırsan biriktirdiğin "seri kalkanı" serini koruyabilir.</p></details>
+      <details><summary data-i18n="q6.q">Momentum skoru nedir?</summary><p data-i18n="q6.a">Görev, odak ve alışkanlık aktiviteni tek bir 0–100 puanında birleştiren ivme göstergesidir; haftalık gidişatını bir bakışta gösterir.</p></details>
+      <details><summary data-i18n="q7.q">İnternet olmadan çalışır mı?</summary><p data-i18n="q7.a">Evet. TAZQ çevrimdışı-öncelikli çalışır; verilerin cihazında saklanır ve internet olduğunda güvenle senkronize edilir.</p></details>
+      <details><summary data-i18n="q8.q">Verilerim güvende mi?</summary><p data-i18n-html="q8.a">Verilerin şifreli olarak saklanır ve üçüncü şahıslarla paylaşılmaz. Ayrıntı için <a href="/gizlilik.html#privacy" style="color:var(--primary); font-weight:700">Gizlilik Politikası</a>.</p></details>
+      <details><summary data-i18n="q9.q">Hesabımı nasıl silerim?</summary><p data-i18n="q9.a">Uygulama içi ayarlardan ya da destek@tazqapp.com adresine yazarak hesabını kapatabilirsin; talebinin ardından verilerin 30 gün içinde kalıcı olarak silinir.</p></details>
     </div>
   </section>
 
-  <!-- CLOSING -->
-  <div class="close-cta">
-    <div class="close-inner">
-      <h2>Odaklan. İlerle. Dengede kal.</h2>
-      <p>Bugün TAZQ ile başla — üretkenliğini ve huzurunu aynı yerde topla.</p>
-      <a class="badge" href="https://apps.apple.com/app/id0000000000" aria-label="Download on the App Store">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M16.365 1.43c0 1.14-.417 2.2-1.11 2.98-.79.9-2.08 1.6-3.14 1.52-.13-1.1.43-2.26 1.09-3 .74-.83 2.05-1.48 3.16-1.5zM20.5 17.2c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.02-1.94-1-4.03-.99-2.09 0-2.53 1.01-4.07.99-1.73-.02-3.05-1.78-4.04-3.35C-.02 16.3-.3 11.06 1.4 8.35c1.13-1.83 2.92-2.9 4.6-2.9 1.71 0 2.79 1 4.2 1 1.37 0 2.2-1 4.2-1 1.5 0 3.1.82 4.23 2.24-3.72 2.04-3.12 7.35 1.57 8.51z"/></svg>
+  <div class="cta-band"><div class="cta-inner">
+    <img class="cta-icon" src="/images/icon.png" alt="TAZQ" width="60" height="60" />
+    <h2 data-i18n="cta.title">Odaklan. İlerle. Dengede kal.</h2>
+    <p data-i18n="cta.sub">Bugün TAZQ ile başla — üretkenliğini ve huzurunu aynı yerde topla.</p>
+    <div class="badges">
+      <a class="badge" href="https://apps.apple.com/app/id0000000000">
+        <svg width="25" height="25" viewBox="0 0 24 24" fill="#000"><path d="M16.365 1.43c0 1.14-.417 2.2-1.11 2.98-.79.9-2.08 1.6-3.14 1.52-.13-1.1.43-2.26 1.09-3 .74-.83 2.05-1.48 3.16-1.5zM20.5 17.2c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.02-1.94-1-4.03-.99-2.09 0-2.53 1.01-4.07.99-1.73-.02-3.05-1.78-4.04-3.35C-.02 16.3-.3 11.06 1.4 8.35c1.13-1.83 2.92-2.9 4.6-2.9 1.71 0 2.79 1 4.2 1 1.37 0 2.2-1 4.2-1 1.5 0 3.1.82 4.23 2.24-3.72 2.04-3.12 7.35 1.57 8.51z"/></svg>
         <span class="txt"><span class="sub">Download on the</span><span class="main">App Store</span></span>
       </a>
     </div>
-  </div>
+  </div></div>
 
   <footer>
-    <div class="fbrand"><img src="/images/icon.png" alt="TAZQ" width="30" height="30" /><span>TAZQ</span></div>
-    <div class="flinks">
-      <a href="/gizlilik.html#privacy">Gizlilik Politikası</a>
-      <a href="/gizlilik.html#terms">Kullanıcı Sözleşmesi</a>
-      <a href="/gizlilik.html#kvkk">KVKK</a>
-      <a href="/gizlilik.html#consent">Açık Rıza</a>
-      <a href="mailto:destek@tazqapp.com">İletişim</a>
+    <div class="foot-in">
+      <div class="foot-brand">
+        <img class="ic" src="/images/icon.png" alt="TAZQ" width="40" height="40" />
+        <img class="wm" src="/images/wordmark.png" alt="TAZQ" height="20" />
+        <p data-i18n="foot.tag">Odaklan. İlerle. Dengede kal. Üretkenlik ve huzur bir arada.</p>
+      </div>
+      <div class="foot-col">
+        <h4 data-i18n="foot.product">Ürün</h4>
+        <a href="#ozellikler" data-i18n="nav.features">Özellikler</a>
+        <a href="#nasil" data-i18n="nav.how">Nasıl çalışır</a>
+        <a href="#sss" data-i18n="nav.faq">SSS</a>
+      </div>
+      <div class="foot-col">
+        <h4 data-i18n="foot.legal">Yasal</h4>
+        <a href="/gizlilik.html#privacy" data-i18n="foot.privacy">Gizlilik Politikası</a>
+        <a href="/gizlilik.html#terms" data-i18n="foot.terms">Kullanıcı Sözleşmesi</a>
+        <a href="/gizlilik.html#kvkk" data-i18n="foot.kvkk">KVKK Aydınlatma</a>
+        <a href="/gizlilik.html#consent" data-i18n="foot.consent">Açık Rıza</a>
+      </div>
+      <div class="foot-col">
+        <h4 data-i18n="foot.contact">İletişim</h4>
+        <a href="mailto:destek@tazqapp.com">destek@tazqapp.com</a>
+        <a href="https://apps.apple.com/app/id0000000000">App Store</a>
+      </div>
     </div>
-    <div>© 2026 TAZQ · Malthen — destek@tazqapp.com</div>
+    <div class="foot-bottom">
+      <span>© 2026 TAZQ · Malthen</span>
+      <span data-i18n="foot.made">Türkiye'de tasarlandı ♥</span>
+    </div>
   </footer>
 
 <script>
+var I18N = {
+  tr: {
+    "nav.features":"Özellikler","nav.how":"Nasıl çalışır","nav.faq":"SSS","soon":"YAKINDA",
+    "hero.eyebrow":"Üretkenlik & huzur",
+    "hero.title":"Odağını topla,<br><span class='g'>hayatını dengele</span>",
+    "hero.lead":"Pomodoro odak zamanlayıcısı, dönemine özel günlük planlar ve alışkanlık takibi — hepsi tek, sade bir uygulamada.",
+    "trust.1":"<b>Ücretsiz</b> · Reklamsız","trust.2":"<b>TR · EN</b> dil desteği","trust.3":"<b>Çevrimdışı</b> çalışır",
+    "ph.greet":"İyi akşamlar,","ph.focus":"Odak","ph.tasks":"Görev","ph.streak":"Seri","ph.today":"Bugün",
+    "ph.t1":"Haftalık Raporu Hazırla","ph.t2":"Kitap Oku (20 sayfa)","ph.t3":"Spor Salonuna Git",
+    "ph.habits":"Alışkanlıklar","ph.h1":"Kitap","ph.h2":"Su İç","ph.h3":"Yürüyüş",
+    "ph.deepfocus":"Derin Odak","ph.session":"Pomodoro · 1 / 4 seans","ph.ambient":"Ambiyans",
+    "ph.modes":"Dönemsel Modlar","ph.modesSub":"Dönemine özel günlük planın",
+    "ph.modeExam":"Sınav Modu<small>Günlük çalışma bloğu</small>","ph.modeFit":"Spor Modu<small>Antrenman & alışkanlık</small>","ph.modeCareer":"Kariyer Modu<small>Hedef odaklı görevler</small>",
+    "ph.momScore":"Momentum skoru","ph.momSub":"Bu hafta 6.5 sa odak · 🔥 12 gün seri","ph.weekly":"Haftalık Odak",
+    "v1.t":"Pomodoro Odak","v1.d":"Derin odak sayacı, ambiyans ve zen modu.",
+    "v2.t":"Dönemsel Plan","v2.d":"Sınav, spor, kariyer — her gün otomatik.",
+    "v3.t":"Alışkanlık","v3.d":"Ritüeller ve seri takibi tek dokunuşla.",
+    "v4.t":"Momentum","v4.d":"Haftalık istatistik ve momentum skoru.",
+    "how.eyebrow":"Nasıl çalışır?","how.title":"Üç adımda dengeli bir gün",
+    "s1.t":"Modunu seç","s1.d":"Sınav, spor veya kariyer — dönemine uygun modu seç, TAZQ günlük planını otomatik oluştursun.",
+    "s2.t":"Odaklan","s2.d":"Pomodoro, ambiyans sesleri ve zen moduyla görevlerini kesintisiz, derin bir odakla tamamla.",
+    "s3.t":"İlerlemeni gör","s3.d":"Serilerini, haftalık odak sürelerini ve momentum skorunu takip et; motivasyonunu koru.",
+    "feat.eyebrow":"Neler sunar?","feat.title":"Üretkenlik ve huzur, bir arada",
+    "f1.t":"Derin Odak","f1.d":"Pomodoro zamanlayıcısı, ambiyans sesleri ve zen moduyla dikkat dağınıklığından uzaklaş, gerçekten odaklan.",
+    "f2.t":"Dönemsel Modlar","f2.d":"Sınav, spor veya kariyer modunu seç; dönemine özel günlük planın her gün otomatik olarak hazır olsun.",
+    "f3.t":"Görevler & Ritüeller","f3.d":"Günün planını tek bakışta gör; görevlerini, alışkanlıklarını ve serilerini kolayca takip et.",
+    "f4.t":"Momentum","f4.d":"Haftalık odak istatistikleri ve momentum skorunla ilerlemeni gör, motivasyonunu koru.",
+    "faq.eyebrow":"Sık sorulanlar","faq.title":"Merak edilenler",
+    "q1.q":"TAZQ ücretsiz mi?","q1.a":"Evet. TAZQ mevcut sürümüyle tüm özellikleriyle ücretsiz ve reklamsızdır. İleride opsiyonel bir premium paket gelebilir, ancak mevcut özellikler ücretsiz kalır.",
+    "q2.q":"Hangi platformlarda kullanabilirim?","q2.a":"Şu an iOS (App Store) için hazır; Android sürümü çok yakında. Verilerin hesabınla senkronize olduğu için cihaz değiştirsen bile kaldığın yerden devam edersin.",
+    "q3.q":"Derin Odak (Pomodoro) nasıl çalışır?","q3.a":"25 dakikalık odak ve kısa mola döngüleriyle çalışırsın; ambiyans sesleri ve zen moduyla dikkatini toplarsın. Her seans momentumuna ve haftalık istatistiklerine işlenir.",
+    "q4.q":"Dönemsel modlar nedir?","q4.a":"Sınav, spor, kariyer, tez veya mülakat gibi bir dönem seçtiğinde TAZQ o döneme özel günlük planını her gün otomatik oluşturur — gelecek haftaları görevle doldurmak yerine sadece bugüne odaklanırsın.",
+    "q5.q":"Alışkanlık ve seriler nasıl çalışır?","q5.a":"Günlük alışkanlıklarını tek dokunuşla işaretlersin; kesintisiz günler serini büyütür. Bir günü kaçırırsan biriktirdiğin \"seri kalkanı\" serini koruyabilir.",
+    "q6.q":"Momentum skoru nedir?","q6.a":"Görev, odak ve alışkanlık aktiviteni tek bir 0–100 puanında birleştiren ivme göstergesidir; haftalık gidişatını bir bakışta gösterir.",
+    "q7.q":"İnternet olmadan çalışır mı?","q7.a":"Evet. TAZQ çevrimdışı-öncelikli çalışır; verilerin cihazında saklanır ve internet olduğunda güvenle senkronize edilir.",
+    "q8.q":"Verilerim güvende mi?","q8.a":"Verilerin şifreli olarak saklanır ve üçüncü şahıslarla paylaşılmaz. Ayrıntı için <a href='/gizlilik.html#privacy' style='color:var(--primary); font-weight:700'>Gizlilik Politikası</a>.",
+    "q9.q":"Hesabımı nasıl silerim?","q9.a":"Uygulama içi ayarlardan ya da destek@tazqapp.com adresine yazarak hesabını kapatabilirsin; talebinin ardından verilerin 30 gün içinde kalıcı olarak silinir.",
+    "cta.title":"Odaklan. İlerle. Dengede kal.","cta.sub":"Bugün TAZQ ile başla — üretkenliğini ve huzurunu aynı yerde topla.",
+    "foot.tag":"Odaklan. İlerle. Dengede kal. Üretkenlik ve huzur bir arada.",
+    "foot.product":"Ürün","foot.legal":"Yasal","foot.contact":"İletişim",
+    "foot.privacy":"Gizlilik Politikası","foot.terms":"Kullanıcı Sözleşmesi","foot.kvkk":"KVKK Aydınlatma","foot.consent":"Açık Rıza",
+    "foot.made":"Türkiye'de tasarlandı ♥"
+  },
+  en: {
+    "nav.features":"Features","nav.how":"How it works","nav.faq":"FAQ","soon":"SOON",
+    "hero.eyebrow":"Productivity & calm",
+    "hero.title":"Focus deeply,<br><span class='g'>live in balance</span>",
+    "hero.lead":"Pomodoro focus timer, daily plans for your season, and habit tracking — all in one clean app.",
+    "trust.1":"<b>Free</b> · No ads","trust.2":"<b>TR · EN</b> language support","trust.3":"<b>Offline</b> ready",
+    "ph.greet":"Good evening,","ph.focus":"Focus","ph.tasks":"Tasks","ph.streak":"Streak","ph.today":"Today",
+    "ph.t1":"Prepare weekly report","ph.t2":"Read book (20 pages)","ph.t3":"Go to the gym",
+    "ph.habits":"Habits","ph.h1":"Read","ph.h2":"Hydrate","ph.h3":"Walk",
+    "ph.deepfocus":"Deep Focus","ph.session":"Pomodoro · 1 / 4 sessions","ph.ambient":"Ambient",
+    "ph.modes":"Life Modes","ph.modesSub":"Your daily plan for the season",
+    "ph.modeExam":"Exam Mode<small>Daily study block</small>","ph.modeFit":"Fitness Mode<small>Workout & habit</small>","ph.modeCareer":"Career Mode<small>Goal-focused tasks</small>",
+    "ph.momScore":"Momentum score","ph.momSub":"6.5 h focused this week · 🔥 12-day streak","ph.weekly":"Weekly Focus",
+    "v1.t":"Pomodoro Focus","v1.d":"Deep focus timer, ambient sounds & zen mode.",
+    "v2.t":"Life Plans","v2.d":"Exam, fitness, career — ready daily, automatically.",
+    "v3.t":"Habits","v3.d":"Rituals and streaks in a single tap.",
+    "v4.t":"Momentum","v4.d":"Weekly stats and momentum score.",
+    "how.eyebrow":"How it works?","how.title":"A balanced day in three steps",
+    "s1.t":"Choose your mode","s1.d":"Exam, fitness or career — pick the mode for your season and let TAZQ build your daily plan automatically.",
+    "s2.t":"Focus","s2.d":"Finish your tasks in deep, uninterrupted focus with Pomodoro, ambient sounds and zen mode.",
+    "s3.t":"See your progress","s3.d":"Track your streaks, weekly focus time and momentum score; keep your motivation high.",
+    "feat.eyebrow":"What you get","feat.title":"Productivity and calm, together",
+    "f1.t":"Deep Focus","f1.d":"Step away from distractions and truly focus with the Pomodoro timer, ambient sounds and zen mode.",
+    "f2.t":"Life Modes","f2.d":"Pick an exam, fitness or career mode; your season-specific daily plan is ready every day, automatically.",
+    "f3.t":"Tasks & Rituals","f3.d":"See your day's plan at a glance; easily track your tasks, habits and streaks.",
+    "f4.t":"Momentum","f4.d":"See your progress with weekly focus stats and your momentum score, and stay motivated.",
+    "faq.eyebrow":"FAQ","faq.title":"Common questions",
+    "q1.q":"Is TAZQ free?","q1.a":"Yes. In its current version TAZQ is completely free and ad-free, with all features included. An optional premium plan may arrive later, but current features stay free.",
+    "q2.q":"Which platforms can I use it on?","q2.a":"It's ready for iOS (App Store) now; the Android version is coming very soon. Your data syncs with your account, so you can switch devices and continue right where you left off.",
+    "q3.q":"How does Deep Focus (Pomodoro) work?","q3.a":"You work in 25-minute focus and short-break cycles, with ambient sounds and a zen mode to help you concentrate. Every session feeds your momentum and weekly stats.",
+    "q4.q":"What are Life Modes?","q4.a":"Pick a season — exam, fitness, career, thesis or interview — and TAZQ builds a season-specific daily plan for you every day. Instead of filling future weeks with tasks, you just focus on today.",
+    "q5.q":"How do habits and streaks work?","q5.a":"Tick your daily habits in a single tap; consecutive days grow your streak. Miss a day and a \"streak shield\" you've earned can protect it.",
+    "q6.q":"What is the momentum score?","q6.a":"A single 0–100 score that blends your task, focus and habit activity — an at-a-glance measure of how your week is going.",
+    "q7.q":"Does it work offline?","q7.a":"Yes. TAZQ is offline-first; your data is stored on your device and safely synced when you're back online.",
+    "q8.q":"Is my data safe?","q8.a":"Your data is stored encrypted and never shared with third parties. See our <a href='/gizlilik.html#privacy' style='color:var(--primary); font-weight:700'>Privacy Policy</a> for details.",
+    "q9.q":"How do I delete my account?","q9.a":"You can close your account from the in-app settings or by emailing destek@tazqapp.com; after your request, your data is permanently deleted within 30 days.",
+    "cta.title":"Focus. Progress. Stay balanced.","cta.sub":"Start with TAZQ today — bring your productivity and calm together.",
+    "foot.tag":"Focus. Progress. Stay balanced. Productivity and calm, together.",
+    "foot.product":"Product","foot.legal":"Legal","foot.contact":"Contact",
+    "foot.privacy":"Privacy Policy","foot.terms":"Terms of Service","foot.kvkk":"Data Protection (KVKK)","foot.consent":"Explicit Consent",
+    "foot.made":"Designed in Türkiye ♥"
+  }
+};
+var DAYS = { tr:["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"], en:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"] };
+
+function applyLang(lang){
+  var dict = I18N[lang] || I18N.tr;
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(function(el){ var k=el.getAttribute('data-i18n'); if(dict[k]!=null) el.textContent=dict[k]; });
+  document.querySelectorAll('[data-i18n-html]').forEach(function(el){ var k=el.getAttribute('data-i18n-html'); if(dict[k]!=null) el.innerHTML=dict[k]; });
+  var bd=document.getElementById('barday'); if(bd) bd.innerHTML = DAYS[lang].map(function(d){return '<span>'+d+'</span>';}).join('');
+  document.querySelectorAll('#lang button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-lang')===lang); });
+  try{ localStorage.setItem('tazq-lang', lang); }catch(e){}
+}
 (function(){
-  var scenes = ['focus','tasks','mom'];
-  var screens = {}, i = 0;
-  document.querySelectorAll('.stack .screen').forEach(function(s){ screens[s.dataset.scene] = s; });
-  var dots = document.querySelectorAll('.dots .dot');
+  var saved; try{ saved=localStorage.getItem('tazq-lang'); }catch(e){}
+  var urlLang = (location.search.match(/[?&]lang=(tr|en)/)||[])[1];
+  function detectLang(){
+    // TR'den gelen (Türkiye saat dilimi ya da TR tarayıcı) → TR; diğer herkes → EN
+    try{ if((Intl.DateTimeFormat().resolvedOptions().timeZone||'')==='Europe/Istanbul') return 'tr'; }catch(e){}
+    var l=((navigator.language||(navigator.languages&&navigator.languages[0])||'')+'').toLowerCase();
+    return l.indexOf('tr')===0 ? 'tr' : 'en';
+  }
+  var lang = urlLang || saved || detectLang();
+  applyLang(lang);
+  document.getElementById('lang').addEventListener('click', function(e){ var b=e.target.closest('button'); if(!b) return; applyLang(b.getAttribute('data-lang')); });
 
-  // Timer (sürekli geri sayım — kullanılıyor hissi)
-  var secs = 24*60 + 18;
-  setInterval(function(){
-    secs = secs > 0 ? secs - 1 : 24*60+18;
-    var m = Math.floor(secs/60), s = secs%60;
-    var el = document.getElementById('timer');
-    if(el) el.textContent = m + ':' + (s<10?'0':'') + s;
-  }, 1000);
-
-  var chips = document.querySelectorAll('[data-chip]'), ci = 0;
-  setInterval(function(){
-    chips.forEach(function(c){ c.classList.remove('pulse'); });
-    if(screens.focus.classList.contains('active')){ chips[ci%chips.length].classList.add('pulse'); ci++; }
-  }, 1200);
-
+  // Phone demo
+  var scenes = ['home','focus','modes','mom'];
+  var screens = {}; document.querySelectorAll('.stack .screen').forEach(function(s){ screens[s.dataset.scene]=s; });
+  var dots = document.querySelectorAll('.dots .dot'); var i=0;
+  var secs = 24*60+18, prog = document.getElementById('fprog');
+  setInterval(function(){ secs=secs>0?secs-1:24*60+18; var m=Math.floor(secs/60),s=secs%60; var el=document.getElementById('timer'); if(el) el.textContent=m+':'+(s<10?'0':'')+s; if(prog){ var f=secs/(25*60); prog.setAttribute('stroke-dashoffset',(528*(1-f)).toFixed(0)); } },1000);
   function enter(name){
-    if(name === 'tasks'){
-      var t = document.getElementById('autoTask');
-      t.classList.remove('done','pop');
-      setTimeout(function(){ t.classList.add('done','pop'); }, 1400);
-    }
-    if(name === 'mom'){
-      var bars = document.querySelectorAll('#bars .bar');
-      bars.forEach(function(b){ b.style.height = '0'; });
-      bars.forEach(function(b, k){ setTimeout(function(){ b.style.height = b.dataset.h; }, 120 + k*90); });
-      var sc = document.getElementById('score'), n = 0;
-      var iv = setInterval(function(){ n += 3; if(n >= 84){ n = 84; clearInterval(iv); } sc.textContent = n; }, 24);
-    }
+    if(name==='home'){ var t=document.getElementById('homeTask'); if(t){ t.classList.remove('done','pop'); setTimeout(function(){ t.classList.add('done','pop'); },1300); } }
+    if(name==='modes'){ document.querySelectorAll('.scr-modes .mode-bar span').forEach(function(b){b.style.width='0';}); document.querySelectorAll('.scr-modes .mode-bar span').forEach(function(b,k){ setTimeout(function(){b.style.width=b.dataset.w;},150+k*130); }); }
+    if(name==='mom'){ document.querySelectorAll('#bars .bar').forEach(function(b){b.style.height='0';}); document.querySelectorAll('#bars .bar').forEach(function(b,k){ setTimeout(function(){b.style.height=b.dataset.h;},120+k*85); }); var sc=document.getElementById('score'),ring=document.getElementById('momring'),n=0; var iv=setInterval(function(){ n+=3; if(n>=84){n=84; clearInterval(iv);} sc.textContent=n; if(ring) ring.style.setProperty('--pct',n+'%'); },22); }
   }
-
-  function show(idx){
-    scenes.forEach(function(name, k){
-      screens[name].classList.toggle('active', k === idx);
-      dots[k].classList.toggle('on', k === idx);
-    });
-    enter(scenes[idx]);
-  }
-  enter('focus');
-  setInterval(function(){ i = (i+1) % scenes.length; show(i); }, 4800);
+  function show(idx){ scenes.forEach(function(nm,k){ screens[nm].classList.toggle('active',k===idx); dots[k].classList.toggle('on',k===idx); }); enter(scenes[idx]); }
+  enter('home');
+  setInterval(function(){ i=(i+1)%scenes.length; show(i); }, 4200);
 })();
 </script>
 </body>

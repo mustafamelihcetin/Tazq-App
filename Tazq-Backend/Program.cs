@@ -259,7 +259,15 @@ app.UseForwardedHeaders(forwardedOptions);
 // browsers — App Store review, end users, search engines — can open them
 // without the app signature header. API routes still pass through the gate.
 app.UseDefaultFiles();   // "/" -> wwwroot/index.html
-app.UseStaticFiles();
+app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
+{
+    // HTML her zaman doğrulansın (deploy sonrası bayat önbellek kalmasın)
+    OnPrepareResponse = ctx =>
+    {
+        if (ctx.File.Name.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            ctx.Context.Response.Headers.CacheControl = "no-cache, must-revalidate";
+    }
+});
 
 if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
@@ -368,7 +376,7 @@ app.Use(async (context, next) =>
     // and the public legal-page redirects (served to plain browsers).
     var path = context.Request.Path.Value;
     var isGet = context.Request.Method == "GET";
-    string[] publicGetPaths = { "/privacy", "/terms", "/gizlilik", "/kvkk" };
+    string[] publicGetPaths = { "/privacy", "/terms", "/gizlilik", "/kvkk", "/sitemap.xml", "/robots.txt" };
     if (path != null && (
         (isGet && path.Equals("/api/users/reset-password-form", StringComparison.OrdinalIgnoreCase)) ||
         (context.Request.Method == "POST" && path.Equals("/api/users/reset-password", StringComparison.OrdinalIgnoreCase)) ||
@@ -405,5 +413,40 @@ app.MapGet("/privacy", () => Results.Redirect("/gizlilik.html#privacy"));
 app.MapGet("/terms", () => Results.Redirect("/gizlilik.html#terms"));
 app.MapGet("/gizlilik", () => Results.Redirect("/gizlilik.html#privacy"));
 app.MapGet("/kvkk", () => Results.Redirect("/gizlilik.html#kvkk"));
+
+// robots.txt — arama motorlarına sitemap'i işaret eder
+app.MapGet("/robots.txt", () => Results.Content(
+    "User-agent: *\nAllow: /\n\nSitemap: https://tazqapp.com/sitemap.xml\n", "text/plain"));
+
+// sitemap.xml — wwwroot'taki tüm public .html sayfalarını OTOMATİK tarayıp üretir
+// (yeni bir .html eklendiğinde sitemap kendiliğinden dolar). TR/EN hreflang dahil.
+app.MapGet("/sitemap.xml", (IWebHostEnvironment env) =>
+{
+    const string baseUrl = "https://tazqapp.com";
+    var root = env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+    var sb = new StringBuilder();
+    sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+    sb.AppendLine("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:xhtml=\"http://www.w3.org/1999/xhtml\">");
+    if (Directory.Exists(root))
+    {
+        foreach (var file in Directory.GetFiles(root, "*.html").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+        {
+            var name = Path.GetFileName(file);
+            var isHome = name.Equals("index.html", StringComparison.OrdinalIgnoreCase);
+            var loc = isHome ? baseUrl + "/" : $"{baseUrl}/{name}";
+            var lastmod = File.GetLastWriteTimeUtc(file).ToString("yyyy-MM-dd");
+            sb.AppendLine("  <url>");
+            sb.AppendLine($"    <loc>{loc}</loc>");
+            sb.AppendLine($"    <lastmod>{lastmod}</lastmod>");
+            sb.AppendLine("    <changefreq>weekly</changefreq>");
+            sb.AppendLine($"    <priority>{(isHome ? "1.0" : "0.8")}</priority>");
+            sb.AppendLine($"    <xhtml:link rel=\"alternate\" hreflang=\"tr\" href=\"{loc}\"/>");
+            sb.AppendLine($"    <xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"{loc}{(loc.Contains('?') ? "&" : "?")}lang=en\"/>");
+            sb.AppendLine("  </url>");
+        }
+    }
+    sb.AppendLine("</urlset>");
+    return Results.Content(sb.ToString(), "application/xml; charset=utf-8");
+});
 
 app.Run();

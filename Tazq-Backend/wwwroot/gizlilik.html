@@ -8,91 +8,73 @@
 <meta name="description" content="TAZQ uygulamasının Gizlilik Politikası, Kullanıcı Sözleşmesi, KVKK Aydınlatma Metni ve Açık Rıza Metni." />
 <link rel="icon" href="/images/icon.png" />
 <link rel="apple-touch-icon" href="/images/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0a0f22; --bg2:#0b1024; --card:rgba(255,255,255,0.04);
-    --border:rgba(255,255,255,0.10); --ink:#EDEFF7; --muted:#A6ACC4;
-    --indigo:#8B7CF6; --violet:#A78BFA; --teal:#2DD4BF;
+    --bg:#F4F4F5; --card:#FFFFFF; --line:rgba(0,0,0,.08); --line-2:rgba(0,0,0,.045);
+    --ink:#18181B; --muted:#52525B; --faint:#A1A1AA; --primary:#2563EB;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
+  html{scroll-behavior:smooth}
   body{
-    background:var(--bg); color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    line-height:1.6; -webkit-font-smoothing:antialiased;
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65; -webkit-font-smoothing:antialiased;
   }
-  a{color:var(--violet)}
-  .hero{
-    position:relative; overflow:hidden;
-    background:linear-gradient(135deg,#1a0b42 0%,#2f1280 55%,#140a30 100%);
-    padding:44px 20px 30px; text-align:center;
-  }
-  .hero::after{
-    content:""; position:absolute; inset:0;
-    background:radial-gradient(60% 80% at 85% 5%, rgba(139,124,246,.35), transparent 60%);
-    pointer-events:none;
-  }
-  .brand{
-    font-size:30px; font-weight:900; letter-spacing:4px; margin:0;
-    background:linear-gradient(90deg,#fff,#C9BEFF); -webkit-background-clip:text;
-    background-clip:text; color:transparent;
-  }
-  .tagline{color:#C9C4E8; margin:8px 0 0; font-size:14px; font-weight:500}
-  .wrap{max-width:820px; margin:0 auto; padding:0 18px}
-  .bar{
-    position:sticky; top:0; z-index:10; background:rgba(10,15,34,.92);
-    backdrop-filter:blur(10px); border-bottom:1px solid var(--border);
-  }
-  .bar-inner{
-    max-width:820px; margin:0 auto; padding:10px 18px;
-    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
-  }
-  .tabs{display:flex; gap:6px; flex-wrap:wrap}
-  .tab{
-    border:1px solid var(--border); background:transparent; color:var(--muted);
-    padding:8px 12px; border-radius:999px; font-size:12.5px; font-weight:700;
-    cursor:pointer; transition:.15s;
-  }
-  .tab:hover{color:var(--ink); border-color:var(--indigo)}
-  .tab.active{background:var(--indigo); color:#fff; border-color:var(--indigo)}
-  .lang{display:flex; background:rgba(255,255,255,.06); border-radius:999px; padding:3px}
-  .lang button{
-    border:0; background:transparent; color:var(--muted); font-weight:800; font-size:12px;
-    padding:6px 12px; border-radius:999px; cursor:pointer;
-  }
-  .lang button.active{background:#fff; color:#111}
-  main{padding:26px 0 60px}
-  .doc{
-    background:var(--card); border:1px solid var(--border); border-radius:16px;
-    padding:26px 24px; white-space:pre-wrap; word-wrap:break-word;
-    font-size:14.5px; color:#DDE1EE;
-  }
-  .doc-title{
-    font-size:20px; font-weight:900; margin:0 0 4px; color:#fff; letter-spacing:-.3px;
-  }
-  .updated{color:var(--muted); font-size:12.5px; margin:0 0 22px}
-  footer{
-    border-top:1px solid var(--border); padding:24px 18px; text-align:center;
-    color:var(--muted); font-size:12.5px;
-  }
+  a{color:var(--primary)}
+  nav.top{position:sticky; top:0; z-index:20; background:rgba(244,244,245,.82); backdrop-filter:saturate(160%) blur(14px); border-bottom:1px solid var(--line-2)}
+  .nav-in{max-width:860px; margin:0 auto; padding:12px 22px; display:flex; align-items:center; justify-content:space-between}
+  .nav-brand{display:flex; align-items:center; gap:11px}
+  .nav-brand img.ic{width:38px; height:38px; border-radius:10px}
+  .nav-brand img.wm{height:21px; width:auto}
+  .nav-home{color:var(--muted); font-weight:600; font-size:14px}
+  .nav-home:hover{color:var(--ink)}
+  .hero{text-align:center; padding:40px 22px 4px}
+  .hero .eyebrow{color:var(--primary); font-weight:800; letter-spacing:2px; font-size:12px; text-transform:uppercase; margin:0}
+  .hero .tagline{color:var(--muted); font-size:15px; margin:9px 0 0; font-weight:600}
+  .bar{position:sticky; top:63px; z-index:10; background:rgba(244,244,245,.9); backdrop-filter:blur(10px); border-bottom:1px solid var(--line-2); margin-top:22px}
+  .bar-inner{max-width:860px; margin:0 auto; padding:12px 22px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+  .tabs{display:flex; gap:7px; flex-wrap:wrap}
+  .tab{border:1px solid var(--line); background:var(--card); color:var(--muted); padding:8px 13px; border-radius:999px; font-size:12.5px; font-weight:700; cursor:pointer; transition:.15s; font-family:inherit}
+  .tab:hover{color:var(--ink); border-color:var(--primary)}
+  .tab.active{background:var(--primary); color:#fff; border-color:var(--primary)}
+  .lang{display:flex; background:rgba(0,0,0,.05); border-radius:999px; padding:3px}
+  .lang button{border:0; background:transparent; color:var(--muted); font-weight:800; font-size:12px; padding:6px 12px; border-radius:999px; cursor:pointer; font-family:inherit}
+  .lang button.active{background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  main{max-width:860px; margin:0 auto; padding:24px 22px 64px}
+  .doc-title{font-size:23px; font-weight:800; margin:0 0 18px; color:var(--ink); letter-spacing:-.5px}
+  .doc{background:var(--card); border:1px solid var(--line); border-radius:20px; padding:32px 30px; white-space:pre-wrap; word-wrap:break-word; font-size:14.5px; color:#3F3F46; box-shadow:0 10px 30px rgba(24,24,27,.05)}
+  footer{border-top:1px solid var(--line); padding:26px 22px; text-align:center; color:var(--faint); font-size:12.5px}
   footer a{color:var(--muted)}
-  @media (max-width:520px){ .doc{padding:20px 16px; font-size:14px} .brand{font-size:26px} }
+  @media (max-width:520px){ .doc{padding:22px 18px; font-size:14px} .bar{top:60px} }
 </style>
 </head>
 <body>
+  <nav class="top">
+    <div class="nav-in">
+      <a class="nav-brand" href="/">
+        <img class="ic" src="/images/icon.png" alt="TAZQ" width="38" height="38" />
+        <img class="wm" src="/images/wordmark.png" alt="TAZQ" height="21" />
+      </a>
+      <a class="nav-home" href="/" data-i18n="home">← Ana Sayfa</a>
+    </div>
+  </nav>
+
   <header class="hero">
-    <h1 class="brand">TAZQ</h1>
+    <p class="eyebrow" data-i18n="legalLabel">Yasal Belgeler</p>
     <p class="tagline" data-i18n="tagline">Odaklan. İlerle. Dengede kal.</p>
   </header>
 
   <div class="bar">
     <div class="bar-inner">
-      <nav class="tabs" id="tabs">
+      <div class="tabs" id="tabs">
         <button class="tab active" data-doc="privacy"></button>
         <button class="tab" data-doc="terms"></button>
         <button class="tab" data-doc="kvkk"></button>
         <button class="tab" data-doc="consent"></button>
-      </nav>
+      </div>
       <div class="lang" id="lang">
         <button data-lang="tr" class="active">TR</button>
         <button data-lang="en">EN</button>
@@ -114,7 +96,10 @@ const TABS = {
   tr:{ privacy:"Gizlilik Politikası", terms:"Kullanıcı Sözleşmesi", kvkk:"KVKK Aydınlatma", consent:"Açık Rıza" },
   en:{ privacy:"Privacy Policy", terms:"Terms of Service", kvkk:"Data Protection (KVKK)", consent:"Explicit Consent" }
 };
-const UI = { tr:{ tagline:"Odaklan. İlerle. Dengede kal." }, en:{ tagline:"Focus. Progress. Stay balanced." } };
+const UI = {
+  tr:{ tagline:"Gizlilik, sözleşme ve KVKK belgeleri", home:"← Ana Sayfa", legal:"Yasal Belgeler" },
+  en:{ tagline:"Privacy, terms and data-protection documents", home:"← Home", legal:"Legal Documents" }
+};
 
 const DOCS = {
   privacy:{ title:{tr:"Gizlilik Politikası",en:"Privacy Policy"}, body:{ tr:
@@ -933,6 +918,9 @@ function render(){
   document.querySelectorAll("#lang button").forEach(b=>
     b.classList.toggle("active", b.dataset.lang===curLang));
   document.querySelector("[data-i18n='tagline']").textContent = UI[curLang].tagline;
+  document.querySelector("[data-i18n='legalLabel']").textContent = UI[curLang].legal;
+  document.querySelector("[data-i18n='home']").textContent = UI[curLang].home;
+  try{ localStorage.setItem('tazq-lang', curLang); }catch(e){}
   document.getElementById("docTitle").textContent = DOCS[curDoc].title[curLang];
   document.getElementById("docBody").textContent = DOCS[curDoc].body[curLang];
   window.scrollTo({top:0,behavior:"instant"});
@@ -944,6 +932,12 @@ document.getElementById("tabs").addEventListener("click",e=>{
 document.getElementById("lang").addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b)return; curLang=b.dataset.lang; render();
 });
+(function(){
+  var saved; try{ saved=localStorage.getItem('tazq-lang'); }catch(e){}
+  var urlLang=(location.search.match(/[?&]lang=(tr|en)/)||[])[1];
+  function det(){ try{ if((Intl.DateTimeFormat().resolvedOptions().timeZone||'')==='Europe/Istanbul') return 'tr'; }catch(e){} var l=((navigator.language||'')+'').toLowerCase(); return l.indexOf('tr')===0?'tr':'en'; }
+  curLang = urlLang || saved || det();
+})();
 const h=(location.hash||"").replace("#",""); if(DOCS[h]) curDoc=h;
 render();
 </script>
