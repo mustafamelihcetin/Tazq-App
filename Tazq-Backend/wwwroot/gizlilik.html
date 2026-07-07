@@ -50,6 +50,28 @@
   footer a{color:var(--muted)}
   @media (max-width:520px){ .doc{padding:22px 18px; font-size:14px} .bar{top:60px} }
 </style>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128; canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const r = 29;
+      ctx.beginPath();
+      ctx.moveTo(r, 0); ctx.lineTo(128-r, 0); ctx.quadraticCurveTo(128, 0, 128, r);
+      ctx.lineTo(128, 128-r); ctx.quadraticCurveTo(128, 128, 128-r, 128);
+      ctx.lineTo(r, 128); ctx.quadraticCurveTo(0, 128, 0, 128-r);
+      ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+      ctx.clip();
+      ctx.drawImage(img, 0, 0, 128, 128);
+      document.querySelectorAll("link[rel~='icon']").forEach(l => {
+        if(l.rel === 'icon') l.href = canvas.toDataURL();
+      });
+    };
+    img.src = '/images/icon.png';
+  });
+</script>
 </head>
 <body>
   <nav class="top">

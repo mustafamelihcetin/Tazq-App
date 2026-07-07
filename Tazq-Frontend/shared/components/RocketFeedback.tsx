@@ -14,6 +14,7 @@ export const RocketFeedback: React.FC = () => {
     showRocketFeedback, 
     engineHeat, 
     isOverheated, 
+    isPerfectSync,
     dismissRocketFeedback 
   } = useMomentumStore();
 
@@ -75,6 +76,16 @@ export const RocketFeedback: React.FC = () => {
         badgeBg: isDark ? '#FF453A22' : '#FF3B3015',
       };
     }
+    if (isPerfectSync) {
+      return {
+        bg: isDark ? '#1C1C1E' : '#F4FCFF',
+        border: isDark ? '#00E5FF' : '#00B0FF',
+        text: isDark ? 'rgba(255,255,255,0.9)' : '#1C1C1E',
+        subtext: isDark ? 'rgba(255,255,255,0.6)' : '#8E8E93',
+        title: isDark ? '#00E5FF' : '#0091EA',
+        badgeBg: isDark ? '#00E5FF22' : '#00B0FF15',
+      };
+    }
     const isHighHeat = roundedHeat > 50;
     if (isHighHeat) {
       return {
@@ -99,19 +110,25 @@ export const RocketFeedback: React.FC = () => {
   // Multi-state headers
   const isHighHeat = roundedHeat > 50;
   const statusText = isOverheated 
-    ? (tr ? 'MOTOR AŞIRI ISINDI ❌' : 'ENGINE OVERHEATED ❌')
-    : (isHighHeat 
-        ? (tr ? 'MOTOR ISINIYOR 🌋' : 'ENGINE WARMING 🌋')
-        : (tr ? 'İVME ATEŞLENDİ 🚀' : 'BOOSTER FIRED 🚀'));
+    ? (tr ? 'MOTOR KİLİTLENDİ ❌' : 'ENGINE LOCKED ❌')
+    : isPerfectSync
+      ? (tr ? 'KUSURSUZ SENKRON 🌟' : 'PERFECT SYNC 🌟')
+      : (isHighHeat 
+          ? (tr ? 'MOTOR ISINIYOR 🌋' : 'ENGINE WARMING 🌋')
+          : (tr ? 'İVME ATEŞLENDİ 🚀' : 'BOOSTER FIRED 🚀'));
 
   // Clear, readable explanations of tasks completion logic
   const descText = isOverheated
     ? (tr 
-        ? 'İvme motoru kilitlendi! Çok hızlı ardışık tamamlama yapıldı.' 
-        : 'Thrusters locked! Multiple tasks checked off in rapid succession.')
-    : (tr 
-        ? `Tazq Roketi ateşlendi, ivme kazanımı aktif.` 
-        : `Tazq Rocket fired, momentum thruster is active.`);
+        ? 'İvme motoru kilitlendi! Çok hızlı ardışık tamamlama yapıldı. Birikmiş kalkan hakkı sıfırlandı.' 
+        : 'Thrusters locked! Rapid task completion detected. Unbanked shield progress reset.')
+    : isPerfectSync
+      ? (tr
+          ? 'Mükemmel zamanlama! Görevi tamamladığın an gerçek zamanlı işaretledin.'
+          : 'Perfect timing! You checked off the task exactly when done.')
+      : (tr 
+          ? `Tazq Roketi ateşlendi, ivme kazanımı aktif.` 
+          : `Tazq Rocket fired, momentum thruster is active.`);
 
   // Why wait description
   const waitExplanation = isOverheated

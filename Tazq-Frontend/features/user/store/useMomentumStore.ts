@@ -15,15 +15,17 @@ interface MomentumState {
   lastHeatUpdateTime: number;
   lastCompletedTaskTitle: string | null;
   showRocketFeedback: boolean;
+  isPerfectSync: boolean;
   recordScore: (score: number) => void;
   getLastNDays: (n: number) => DayScore[];
   toggleMomentumShield: () => void;
   addFocusMinutes: (mins: number) => void;
-  addCompletedTask: () => void;
+  addCompletedTask: () => boolean | void;
   decayEngineHeat: () => void;
   getDecayedHeat: () => { heat: number; isOverheated: boolean };
-  triggerRocketFeedback: (title: string) => void;
+  triggerRocketFeedback: (title: string, isPerfect?: boolean) => void;
   dismissRocketFeedback: () => void;
+  undoCompletedTask: () => void;
 }
 
 function getLocalDateString(d: Date = new Date()): string {
@@ -56,6 +58,7 @@ export const useMomentumStore = create<MomentumState>()(
       lastHeatUpdateTime: Date.now(),
       lastCompletedTaskTitle: null,
       showRocketFeedback: false,
+      isPerfectSync: false,
 
       recordScore: (score) => {
         const today = todayISO();
@@ -139,7 +142,7 @@ export const useMomentumStore = create<MomentumState>()(
             isOverheated: false,
             lastHeatUpdateTime: Date.now()
           });
-          return;
+          return true;
         }
 
         let { shieldCharges, tasksCompletedForNextCharge, engineHeat, isOverheated, lastHeatUpdateTime } = get();
@@ -159,18 +162,74 @@ export const useMomentumStore = create<MomentumState>()(
         // 2. Heat calculations with elapsed cooling decay
         const now = Date.now();
         const elapsedSecs = Math.max(0, (now - lastHeatUpdateTime) / 1000);
-        let currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.5);
-        currentHeat = Math.min(100, currentHeat + 35);
+        let currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.0);
 
         let nextOverheated = isOverheated;
-        if (currentHeat > 80) {
-          nextOverheated = true;
-        } else if (currentHeat < 30) {
+        if (currentHeat < 40) {
           nextOverheated = false;
+        }
+
+        let isPerfect = false;
+        let heatToAdd = 25;
+
+        if (currentHeat === 0) {
+          isPerfect = true;
+          heatToAdd = 25;
+        } else {
+          heatToAdd = 45;
+        }
+
+        currentHeat = Math.min(100, currentHeat + heatToAdd);
+
+        if (currentHeat > 85) {
+          nextOverheated = true;
+          // OVERHEAT PENALTY: Lose all unbanked shield progress
+          tasksCompletedForNextCharge = 0;
         }
 
         set({
           shieldCharges,
+          tasksCompletedForNextCharge,
+          engineHeat: currentHeat,
+          isOverheated: nextOverheated,
+          lastHeatUpdateTime: now
+        });
+
+        return isPerfect;
+      },
+
+      undoCompletedTask: () => {
+        let isLite = false;
+        try {
+          const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
+          isLite = usePrefsStore.getState().uiMode === 'lite';
+        } catch {}
+
+        if (isLite) return;
+
+        let { shieldCharges, tasksCompletedForNextCharge, engineHeat, isOverheated, lastHeatUpdateTime } = get();
+        
+        // Revert shield progress locally (simplistic)
+        if (shieldCharges < 3) {
+          tasksCompletedForNextCharge -= 1;
+          if (tasksCompletedForNextCharge < 0) {
+            tasksCompletedForNextCharge = 0;
+          }
+        }
+
+        const now = Date.now();
+        const elapsedSecs = Math.max(0, (now - lastHeatUpdateTime) / 1000);
+        let currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.0);
+        
+        // Revert a flat 35 heat for undo
+        currentHeat = Math.max(0, currentHeat - 35);
+
+        let nextOverheated = isOverheated;
+        if (currentHeat < 40) {
+          nextOverheated = false;
+        }
+
+        set({
           tasksCompletedForNextCharge,
           engineHeat: currentHeat,
           isOverheated: nextOverheated,
@@ -197,9 +256,9 @@ export const useMomentumStore = create<MomentumState>()(
         const elapsedSecs = Math.max(0, (now - lastHeatUpdateTime) / 1000);
         if (elapsedSecs < 1) return;
 
-        const currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.5);
+        const currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.0);
         let nextOverheated = isOverheated;
-        if (currentHeat < 30) {
+        if (currentHeat < 40) {
           nextOverheated = false;
         }
 
@@ -222,21 +281,21 @@ export const useMomentumStore = create<MomentumState>()(
         const { engineHeat, isOverheated, lastHeatUpdateTime } = get();
         const now = Date.now();
         const elapsedSecs = Math.max(0, (now - lastHeatUpdateTime) / 1000);
-        const currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.5);
+        const currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.0);
         let nextOverheated = isOverheated;
-        if (currentHeat < 30) {
+        if (currentHeat < 40) {
           nextOverheated = false;
         }
 
         return { heat: Math.round(currentHeat), isOverheated: nextOverheated };
       },
 
-      triggerRocketFeedback: (title) => {
-        set({ lastCompletedTaskTitle: title, showRocketFeedback: true });
+      triggerRocketFeedback: (title, isPerfect = false) => {
+        set({ lastCompletedTaskTitle: title, showRocketFeedback: true, isPerfectSync: isPerfect });
       },
 
       dismissRocketFeedback: () => {
-        set({ showRocketFeedback: false });
+        set({ showRocketFeedback: false, isPerfectSync: false });
       },
 
       getLastNDays: (n) => {

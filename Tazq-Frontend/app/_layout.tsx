@@ -202,37 +202,17 @@ export default function RootLayout() {
       return;
     }
 
-    // Show notification only when app is already in background at focus start
-    if (AppState.currentState !== 'active') {
-      const { seconds: initSecs, currentTask } = useFocusStore.getState();
-      showFocusNotification(currentTask, initSecs, language || 'en');
-    }
-
     const interval = setInterval(() => {
-      const { seconds, tick, currentTask: task, isActive } = useFocusStore.getState();
+      const { seconds, tick, isActive } = useFocusStore.getState();
       if (!isActive || seconds <= 0) return;
       tick();
-      // Update notification once per minute, only when backgrounded
-      if (seconds % 60 === 0 && AppState.currentState !== 'active') {
-        showFocusNotification(task, seconds, language || 'en');
-      }
     }, 1000);
 
-    // Show notification when app goes to background; dismiss when it returns
-    const appStateSub = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'background' || nextState === 'inactive') {
-        const { seconds, currentTask } = useFocusStore.getState();
-        if (useFocusStore.getState().isActive) {
-          showFocusNotification(currentTask, seconds, language || 'en');
-        }
-      } else if (nextState === 'active') {
-        cancelFocusNotification();
-      }
-    });
+    // Clean up any lingering focus notifications
+    cancelFocusNotification();
 
     return () => {
       clearInterval(interval);
-      appStateSub.remove();
       cancelFocusNotification();
     };
   }, [focusActive]);

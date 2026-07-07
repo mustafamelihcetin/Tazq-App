@@ -19,7 +19,8 @@ export const AnimatedSplash = ({
   isDark?: boolean;
 }) => {
   const { width } = useWindowDimensions();
-  const logoWidth = width * 0.48;
+  // Tabletlere ve büyük ekranlara özel logo büyümesini sınırla (pikselleşmeyi önler)
+  const logoWidth = Math.min(width * 0.48, 220);
   const logoHeight = logoWidth / 3.2;
 
   const bg = isDark ? DARK_BG : LIGHT_BG;

@@ -58,7 +58,7 @@ if ($filesToUpload.Count -gt 0 -or $filesToDelete.Count -gt 0) {
         foreach ($f in $filesToUpload) { Write-Host " [+] $f" -ForegroundColor Green }
         
         Push-Location $L
-        [IO.File]::WriteAllLines("deploy-list.txt", $filesToUpload)
+        [IO.File]::WriteAllLines("$L\deploy-list.txt", $filesToUpload)
         tar -cf deploy-update.tar -T deploy-list.txt
         Remove-Item "deploy-list.txt"
         Pop-Location

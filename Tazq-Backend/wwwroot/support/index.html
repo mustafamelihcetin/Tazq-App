@@ -220,6 +220,28 @@
     .foot-in{grid-template-columns:1fr 1fr; gap:28px} .foot-brand{grid-column:1/-1} section.wrap{padding:64px 24px 0}
   }
 </style>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128; canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const r = 29;
+      ctx.beginPath();
+      ctx.moveTo(r, 0); ctx.lineTo(128-r, 0); ctx.quadraticCurveTo(128, 0, 128, r);
+      ctx.lineTo(128, 128-r); ctx.quadraticCurveTo(128, 128, 128-r, 128);
+      ctx.lineTo(r, 128); ctx.quadraticCurveTo(0, 128, 0, 128-r);
+      ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+      ctx.clip();
+      ctx.drawImage(img, 0, 0, 128, 128);
+      document.querySelectorAll("link[rel~='icon']").forEach(l => {
+        if(l.rel === 'icon') l.href = canvas.toDataURL();
+      });
+    };
+    img.src = '/images/icon.png';
+  });
+</script>
 </head>
 <body>
 <nav>
@@ -284,7 +306,7 @@
       <div class="foot-col">
         <h4 data-i18n="foot.contact">İletişim</h4>
         <a href="/support" data-i18n="support.title">Destek Merkezi</a>
-        <a href="https://apps.apple.com/app/id0000000000">App Store</a>
+        <a href="https://apps.apple.com/app/tazq/id6748417336">App Store</a>
       </div>
     </div>
     <div class="foot-bottom">

@@ -2,4 +2,5 @@ wwwroot/gizlilik.html
 wwwroot/index.html
 wwwroot/images/avatar.png
 wwwroot/images/wordmark_white.png
+wwwroot/support/index.html
 Program.cs

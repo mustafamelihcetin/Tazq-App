@@ -138,9 +138,9 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
         try {
           const { useMomentumStore } = require('../../user/store/useMomentumStore');
           const momentumStore = useMomentumStore.getState();
-          momentumStore.addCompletedTask();
+          const isPerfect = momentumStore.addCompletedTask();
           isOverheated = momentumStore.isOverheated;
-          momentumStore.triggerRocketFeedback(t.title);
+          momentumStore.triggerRocketFeedback(t.title, isPerfect);
         } catch (e) {
           console.warn("Could not register task completion in Momentum Store:", e);
         }
@@ -159,6 +159,15 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
           ignoreMomentum: ignore
         };
       } else {
+        try {
+          const { useMomentumStore } = require('../../user/store/useMomentumStore');
+          const momentumStore = useMomentumStore.getState();
+          if (!t.ignoreMomentum) {
+            momentumStore.undoCompletedTask();
+          }
+        } catch (e) {
+          console.warn("Could not register task un-completion in Momentum Store:", e);
+        }
         return { ...t, isCompleted: false, completedAt: null, ignoreMomentum: false };
       }
     });
