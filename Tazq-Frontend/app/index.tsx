@@ -2323,7 +2323,7 @@ export default function HomeScreen() {
         onClose={() => setWeightModalTaskId(null)}
       />
 
-      {(isFirstLogin && !profileSetupVisible) && (
+      {(!profileSetupVisible && completedTours?.dashboard !== true) && (
         <HelpTourModal
           pageId="dashboard"
           onStepChange={handleStepChange}

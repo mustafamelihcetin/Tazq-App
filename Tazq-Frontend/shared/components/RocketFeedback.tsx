@@ -5,6 +5,7 @@ import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import * as Haptics from 'expo-haptics';
+import { Rocket, Flame, Zap, Layers, Sparkles } from 'lucide-react-native';
 
 export const RocketFeedback: React.FC = () => {
   const { theme, colorScheme } = useAppTheme();
@@ -15,6 +16,7 @@ export const RocketFeedback: React.FC = () => {
     engineHeat, 
     isOverheated, 
     isPerfectSync,
+    isBatchConfirming,
     dismissRocketFeedback 
   } = useMomentumStore();
 
@@ -76,6 +78,16 @@ export const RocketFeedback: React.FC = () => {
         badgeBg: isDark ? '#FF453A22' : '#FF3B3015',
       };
     }
+    if (isBatchConfirming) {
+      return {
+        bg: isDark ? '#251A30' : '#F9F5FF',
+        border: isDark ? '#AF52DE' : '#9F40DE',
+        text: isDark ? 'rgba(255,255,255,0.9)' : '#2B1A3C',
+        subtext: isDark ? 'rgba(255,255,255,0.6)' : '#8F7EA6',
+        title: isDark ? '#BF5AF2' : '#8A2BE2',
+        badgeBg: isDark ? '#AF52DE22' : '#AF52DE15',
+      };
+    }
     if (isPerfectSync) {
       return {
         bg: isDark ? '#1C1C1E' : '#F4FCFF',
@@ -111,33 +123,43 @@ export const RocketFeedback: React.FC = () => {
   const isHighHeat = roundedHeat > 50;
   const statusText = isOverheated 
     ? (tr ? 'MOTOR KİLİTLENDİ ❌' : 'ENGINE LOCKED ❌')
-    : isPerfectSync
-      ? (tr ? 'KUSURSUZ SENKRON 🌟' : 'PERFECT SYNC 🌟')
-      : (isHighHeat 
-          ? (tr ? 'MOTOR ISINIYOR 🌋' : 'ENGINE WARMING 🌋')
-          : (tr ? 'İVME ATEŞLENDİ 🚀' : 'BOOSTER FIRED 🚀'));
+    : isBatchConfirming
+      ? (tr ? 'TOPLU ONAYLAMA 📥' : 'BATCH COMPLETION 📥')
+      : isPerfectSync
+        ? (tr ? 'KUSURSUZ SENKRON 🌟' : 'PERFECT SYNC 🌟')
+        : (isHighHeat 
+            ? (tr ? 'MOTOR ISINIYOR 🌋' : 'ENGINE WARMING 🌋')
+            : (tr ? 'İVME ATEŞLENDİ 🚀' : 'BOOSTER FIRED 🚀'));
 
   // Clear, readable explanations of tasks completion logic
   const descText = isOverheated
     ? (tr 
         ? 'İvme motoru kilitlendi! Çok hızlı ardışık tamamlama yapıldı. Birikmiş kalkan hakkı sıfırlandı.' 
         : 'Thrusters locked! Rapid task completion detected. Unbanked shield progress reset.')
-    : isPerfectSync
+    : isBatchConfirming
       ? (tr
-          ? 'Mükemmel zamanlama! Görevi tamamladığın an gerçek zamanlı işaretledin.'
-          : 'Perfect timing! You checked off the task exactly when done.')
-      : (tr 
-          ? `Tazq Roketi ateşlendi, ivme kazanımı aktif.` 
-          : `Tazq Rocket fired, momentum thruster is active.`);
+          ? 'Unutulan görevleri toplu onayladığınızı fark ettik. Motor aşırı ısınması askıya alındı.'
+          : 'We noticed you are bulk-checking forgotten tasks. Overheating has been suspended.')
+      : isPerfectSync
+        ? (tr
+            ? 'Mükemmel zamanlama! Görevi tamamladığın an gerçek zamanlı işaretledin.'
+            : 'Perfect timing! You checked off the task exactly when done.')
+        : (tr 
+            ? `Tazq Roketi ateşlendi, ivme kazanımı aktif.` 
+            : `Tazq Rocket fired, momentum thruster is active.`);
 
   // Why wait description
   const waitExplanation = isOverheated
     ? (tr 
         ? '💡 İvme puanı doğruluğu için görevlerinizi gün içinde gerçekleştikçe gerçek zamanlı işaretleyin.' 
         : '💡 Check off tasks in real-time as you complete them to track score accurately.')
-    : (tr 
-        ? `Motor Sıcaklığı: %${roundedHeat}. İvmeniz besleniyor.` 
-        : `Thruster Temp: ${roundedHeat}%. Your momentum score is rising.`);
+    : isBatchConfirming
+      ? (tr
+          ? 'İvmeniz korunuyor. Görevleri zamanında işaretlemek en iyisidir.'
+          : 'Your momentum is preserved. It is best to check off tasks in real-time.')
+      : (tr 
+          ? `Motor Sıcaklığı: %${roundedHeat}. İvmeniz besleniyor.` 
+          : `Thruster Temp: ${roundedHeat}%. Your momentum score is rising.`);
 
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],
@@ -151,7 +173,17 @@ export const RocketFeedback: React.FC = () => {
 
   const flameColor = isOverheated 
     ? '#FF1744' 
-    : (isHighHeat ? '#FF9100' : '#00E5FF');
+    : isBatchConfirming
+      ? '#AF52DE'
+      : (isHighHeat ? '#FF9100' : '#00E5FF');
+
+  const IconComponent = (() => {
+    if (isOverheated) return Flame;
+    if (isBatchConfirming) return Layers;
+    if (isPerfectSync) return Zap;
+    if (isHighHeat) return Flame;
+    return Rocket;
+  })();
 
   return (
     <View style={styles.outerContainer} pointerEvents="none">
@@ -166,23 +198,8 @@ export const RocketFeedback: React.FC = () => {
       >
         {/* Mascot Container (Floats on the left, decoupled layout) */}
         <View style={styles.mascotContainer}>
-          <View style={[styles.viewportBackdrop, { borderColor: flameColor + '30', shadowColor: flameColor }]} />
-          
-          <View style={styles.nozzle} />
-          
-          <View
-            style={[
-              styles.flame, 
-              { 
-                backgroundColor: flameColor,
-                height: 14 + (roundedHeat / 100) * 16,
-                shadowColor: flameColor,
-                shadowOpacity: 0.6,
-                shadowRadius: 8,
-              }
-            ]}
-          />
-          <View style={styles.flameCore} />
+          <View style={[styles.viewportBackdrop, { borderColor: flameColor + '40', shadowColor: flameColor, shadowOpacity: 0.4, shadowRadius: 8 }]} />
+          <IconComponent size={24} color={flameColor} />
         </View>
 
         {/* Speech Bubble Container */}
@@ -257,36 +274,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
-  },
-  nozzle: {
-    width: 14,
-    height: 10,
-    backgroundColor: '#8E8E93',
-    borderBottomLeftRadius: 4,
-    borderBottomRightRadius: 4,
-    borderTopLeftRadius: 2,
-    borderTopRightRadius: 2,
-    zIndex: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-  },
-  flame: {
-    position: 'absolute',
-    top: 29,
-    width: 10,
-    borderRadius: 5,
-    zIndex: 1,
-  },
-  flameCore: {
-    position: 'absolute',
-    top: 30,
-    width: 4,
-    height: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 2,
-    zIndex: 3,
   },
   bubble: {
     flex: 1,

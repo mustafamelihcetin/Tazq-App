@@ -186,19 +186,33 @@ export const useFocusStore = create<FocusState>()(
         const { dailyFocusDate } = get();
         const today = getISODate();
         if (dailyFocusDate && dailyFocusDate !== today) {
-          set({
-            isActive: false,
-            seconds: 1500,
-            totalSeconds: 1500,
-            currentTask: '',
-            lastActiveAt: null,
-            expectedFinishAt: null,
-            pausedSeconds: null
-          });
-          return;
+          const isExpired = expectedFinishAt ? expectedFinishAt < Date.now() : true;
+          if (!isActive || isExpired) {
+            set({
+              isActive: false,
+              seconds: 1500,
+              totalSeconds: 1500,
+              currentTask: '',
+              lastActiveAt: null,
+              expectedFinishAt: null,
+              pausedSeconds: null,
+              dailyFocusMinutes: 0,
+              dailyFocusDate: today
+            });
+            return;
+          } else {
+            set({
+              dailyFocusMinutes: 0,
+              dailyFocusDate: today
+            });
+          }
         }
 
         if (!isActive) {
+          if (seconds === 0) {
+            // Keep it at 0 so the completion handler can run
+            return;
+          }
           if (pausedSeconds !== null && pausedSeconds !== undefined) {
             const validPaused = Math.max(0, Math.min(totalSeconds, pausedSeconds));
             set({ seconds: validPaused, totalSeconds });

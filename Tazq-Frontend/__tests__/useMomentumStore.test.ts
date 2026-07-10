@@ -7,6 +7,10 @@ describe('useMomentumStore', () => {
       history: [],
       momentumShieldActive: false,
       shieldCharges: 2,
+      consecutiveFastCompletions: 0,
+      isBatchConfirming: false,
+      engineHeat: 0,
+      isOverheated: false,
     });
   });
 
@@ -83,22 +87,59 @@ describe('useMomentumStore', () => {
     expect(useMomentumStore.getState().shieldCharges).toBe(3);
   });
 
-  it('heats and overheats momentum rocket engine on consecutive completions', () => {
+  it('heats momentum rocket engine normally when completions are spaced out', () => {
+    const now = Date.now();
     useMomentumStore.setState({
       engineHeat: 0,
       isOverheated: false,
-      lastHeatUpdateTime: Date.now(),
+      lastHeatUpdateTime: now,
+      consecutiveFastCompletions: 0,
+      isBatchConfirming: false,
     });
 
-    // Each task adds 35 heat
+    // 1st completion (Perfect Sync)
     useMomentumStore.getState().addCompletedTask();
-    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(35, 0);
+    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(25, 0);
+    expect(useMomentumStore.getState().isBatchConfirming).toBe(false);
 
-    useMomentumStore.getState().addCompletedTask();
-    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(70, 0);
+    // Mock 20 seconds passing
+    useMomentumStore.setState({
+      lastHeatUpdateTime: now - 20000,
+    });
 
+    // 2nd completion (Spaced out >= 15s)
     useMomentumStore.getState().addCompletedTask();
-    expect(useMomentumStore.getState().engineHeat).toBe(100);
-    expect(useMomentumStore.getState().isOverheated).toBe(true);
+    // Decay: 25 - 20 = 5. Heat addition: 45. Total: 50.
+    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(50, 0);
+    expect(useMomentumStore.getState().isBatchConfirming).toBe(false);
+  });
+
+  it('triggers batch confirmation and suspends heat on rapid consecutive completions', () => {
+    const now = Date.now();
+    useMomentumStore.setState({
+      engineHeat: 0,
+      isOverheated: false,
+      lastHeatUpdateTime: now,
+      consecutiveFastCompletions: 0,
+      isBatchConfirming: false,
+    });
+
+    // 1st completion
+    useMomentumStore.getState().addCompletedTask();
+    expect(useMomentumStore.getState().engineHeat).toBe(25);
+    expect(useMomentumStore.getState().consecutiveFastCompletions).toBe(1);
+    expect(useMomentumStore.getState().isBatchConfirming).toBe(false);
+
+    // 2nd completion (rapid consecutive completion, elapsedSecs is ~0 < 15)
+    useMomentumStore.getState().addCompletedTask();
+    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(25, 0); // unchanged
+    expect(useMomentumStore.getState().consecutiveFastCompletions).toBe(2);
+    expect(useMomentumStore.getState().isBatchConfirming).toBe(true);
+
+    // 3rd completion
+    useMomentumStore.getState().addCompletedTask();
+    expect(useMomentumStore.getState().engineHeat).toBeCloseTo(25, 0); // unchanged
+    expect(useMomentumStore.getState().isBatchConfirming).toBe(true);
+    expect(useMomentumStore.getState().isOverheated).toBe(false); // does not overheat
   });
 });

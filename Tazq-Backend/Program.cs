@@ -376,7 +376,7 @@ app.Use(async (context, next) =>
     // and the public legal-page redirects (served to plain browsers).
     var path = context.Request.Path.Value;
     var isGet = context.Request.Method == "GET";
-    string[] publicGetPaths = { "/privacy", "/terms", "/gizlilik", "/kvkk", "/sitemap.xml", "/robots.txt" };
+    string[] publicGetPaths = { "/privacy", "/terms", "/gizlilik", "/kvkk", "/sitemap.xml", "/robots.txt", "/favicon.ico" };
     if (path != null && (
         (isGet && path.Equals("/api/users/reset-password-form", StringComparison.OrdinalIgnoreCase)) ||
         (context.Request.Method == "POST" && path.Equals("/api/users/reset-password", StringComparison.OrdinalIgnoreCase)) ||

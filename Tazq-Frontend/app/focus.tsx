@@ -252,6 +252,7 @@ export default function FocusScreen() {
   const chimePlayerRef = useRef<AudioPlayer | null>(null);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const playRequestIdRef = useRef(0);
   const [ambientSound, setAmbientSound] = useState<AmbientSound>('off');
 
   // Breath cue phase — synced to glow animation
@@ -470,15 +471,15 @@ export default function FocusScreen() {
   };
 
   const playAmbientSound = async (type: AmbientSound, fadeIn = false) => {
+    const myId = ++playRequestIdRef.current;
     stopAmbientSound();
     if (type === 'off') return;
     try {
-      await setAudioModeAsync({
-        playsInSilentMode: true,
-        shouldPlayInBackground: true,
-        interruptionMode: 'mixWithOthers',
-      });
       const player = createAudioPlayer(getSoundSource(type));
+      if (myId !== playRequestIdRef.current) {
+        try { player.release(); } catch {}
+        return;
+      }
       player.loop = true; // Use native looping
       currentSoundTypeRef.current = type;
 
@@ -489,6 +490,11 @@ export default function FocusScreen() {
         let vol = 0;
         const stepVal = ambientVolumeRef.current / FADE_STEPS;
         fadeIntervalRef.current = setInterval(() => {
+          if (myId !== playRequestIdRef.current) {
+            clearFade();
+            try { player.release(); } catch {}
+            return;
+          }
           vol = Math.min(vol + stepVal, ambientVolumeRef.current);
           try { if (soundRef.current) soundRef.current.volume = vol; } catch {}
           if (vol >= ambientVolumeRef.current) {
@@ -520,10 +526,16 @@ export default function FocusScreen() {
       clearTimeout(previewTimerRef.current); 
       previewTimerRef.current = null; 
     }
-    if (isActive && ambientSound !== 'off') {
-      playAmbientSound(ambientSound);
+    if (isActive) {
+      if (ambientSound !== 'off') {
+        playAmbientSound(ambientSound);
+      } else {
+        stopAmbientSound();
+      }
     } else {
-      stopAmbientSound();
+      if (ambientSound === 'off') {
+        stopAmbientSound();
+      }
     }
   }, [isActive, ambientSound]);
 

@@ -31,5 +31,6 @@ export function renderAchievementIcon(id: string, size = 24, locked = false) {
   const mapping = ACHIEVEMENT_ICONS[id];
   if (!mapping) return null;
   const { Icon, color } = mapping;
+  if (!Icon) return null;
   return <Icon size={size} color={locked ? '#8E8E93' : color} />;
 }

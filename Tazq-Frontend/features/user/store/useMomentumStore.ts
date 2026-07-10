@@ -16,6 +16,8 @@ interface MomentumState {
   lastCompletedTaskTitle: string | null;
   showRocketFeedback: boolean;
   isPerfectSync: boolean;
+  consecutiveFastCompletions: number;
+  isBatchConfirming: boolean;
   recordScore: (score: number) => void;
   getLastNDays: (n: number) => DayScore[];
   toggleMomentumShield: () => void;
@@ -59,6 +61,8 @@ export const useMomentumStore = create<MomentumState>()(
       lastCompletedTaskTitle: null,
       showRocketFeedback: false,
       isPerfectSync: false,
+      consecutiveFastCompletions: 0,
+      isBatchConfirming: false,
 
       recordScore: (score) => {
         const today = todayISO();
@@ -140,12 +144,22 @@ export const useMomentumStore = create<MomentumState>()(
           set({
             engineHeat: 0,
             isOverheated: false,
-            lastHeatUpdateTime: Date.now()
+            lastHeatUpdateTime: Date.now(),
+            consecutiveFastCompletions: 0,
+            isBatchConfirming: false
           });
           return true;
         }
 
-        let { shieldCharges, tasksCompletedForNextCharge, engineHeat, isOverheated, lastHeatUpdateTime } = get();
+        let { 
+          shieldCharges, 
+          tasksCompletedForNextCharge, 
+          engineHeat, 
+          isOverheated, 
+          lastHeatUpdateTime,
+          consecutiveFastCompletions,
+          isBatchConfirming
+        } = get();
         
         // 1. Increment shield energy progress
         if (shieldCharges < 3) {
@@ -164,6 +178,10 @@ export const useMomentumStore = create<MomentumState>()(
         const elapsedSecs = Math.max(0, (now - lastHeatUpdateTime) / 1000);
         let currentHeat = Math.max(0, engineHeat - elapsedSecs * 1.0);
 
+        // Smart consecutive checkoff logic: completions within 15 seconds of each other
+        let nextConsecutiveCount = elapsedSecs < 15 ? consecutiveFastCompletions + 1 : 0;
+        let nextBatchConfirming = nextConsecutiveCount >= 2;
+
         let nextOverheated = isOverheated;
         if (currentHeat < 40) {
           nextOverheated = false;
@@ -172,16 +190,21 @@ export const useMomentumStore = create<MomentumState>()(
         let isPerfect = false;
         let heatToAdd = 25;
 
-        if (currentHeat === 0) {
-          isPerfect = true;
-          heatToAdd = 25;
+        if (nextBatchConfirming) {
+          heatToAdd = 0;
+          isPerfect = false;
         } else {
-          heatToAdd = 45;
+          if (currentHeat === 0) {
+            isPerfect = true;
+            heatToAdd = 25;
+          } else {
+            heatToAdd = 45;
+          }
         }
 
         currentHeat = Math.min(100, currentHeat + heatToAdd);
 
-        if (currentHeat > 85) {
+        if (currentHeat > 85 && !nextBatchConfirming) {
           nextOverheated = true;
           // OVERHEAT PENALTY: Lose all unbanked shield progress
           tasksCompletedForNextCharge = 0;
@@ -192,7 +215,9 @@ export const useMomentumStore = create<MomentumState>()(
           tasksCompletedForNextCharge,
           engineHeat: currentHeat,
           isOverheated: nextOverheated,
-          lastHeatUpdateTime: now
+          lastHeatUpdateTime: now,
+          consecutiveFastCompletions: nextConsecutiveCount,
+          isBatchConfirming: nextBatchConfirming
         });
 
         return isPerfect;
@@ -233,7 +258,9 @@ export const useMomentumStore = create<MomentumState>()(
           tasksCompletedForNextCharge,
           engineHeat: currentHeat,
           isOverheated: nextOverheated,
-          lastHeatUpdateTime: now
+          lastHeatUpdateTime: now,
+          consecutiveFastCompletions: 0,
+          isBatchConfirming: false
         });
       },
 
@@ -246,12 +273,12 @@ export const useMomentumStore = create<MomentumState>()(
 
         if (isLite) {
           if (get().engineHeat > 0 || get().isOverheated) {
-            set({ engineHeat: 0, isOverheated: false });
+            set({ engineHeat: 0, isOverheated: false, consecutiveFastCompletions: 0, isBatchConfirming: false });
           }
           return;
         }
 
-        const { engineHeat, isOverheated, lastHeatUpdateTime } = get();
+        const { engineHeat, isOverheated, lastHeatUpdateTime, consecutiveFastCompletions, isBatchConfirming } = get();
         const now = Date.now();
         const elapsedSecs = Math.max(0, (now - lastHeatUpdateTime) / 1000);
         if (elapsedSecs < 1) return;
@@ -262,10 +289,19 @@ export const useMomentumStore = create<MomentumState>()(
           nextOverheated = false;
         }
 
+        let nextConsecutiveCount = consecutiveFastCompletions;
+        let nextBatchConfirming = isBatchConfirming;
+        if (elapsedSecs >= 15) {
+          nextConsecutiveCount = 0;
+          nextBatchConfirming = false;
+        }
+
         set({
           engineHeat: currentHeat,
           isOverheated: nextOverheated,
-          lastHeatUpdateTime: now
+          lastHeatUpdateTime: now,
+          consecutiveFastCompletions: nextConsecutiveCount,
+          isBatchConfirming: nextBatchConfirming
         });
       },
 
