@@ -220,6 +220,19 @@ export const useMomentumStore = create<MomentumState>()(
           isBatchConfirming: nextBatchConfirming
         });
 
+        if (__DEV__) {
+          console.log('[MomentumStore] Task Completed:', {
+            shieldCharges,
+            tasksCompletedForNextCharge,
+            engineHeat: currentHeat,
+            isOverheated: nextOverheated,
+            consecutiveFastCompletions: nextConsecutiveCount,
+            isBatchConfirming: nextBatchConfirming,
+            isPerfect,
+            elapsedSecs
+          });
+        }
+
         return isPerfect;
       },
 
@@ -348,6 +361,14 @@ export const useMomentumStore = create<MomentumState>()(
     {
       name: 'tazq-momentum-history',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        history: state.history,
+        momentumShieldActive: state.momentumShieldActive,
+        shieldCharges: state.shieldCharges,
+        engineHeat: state.engineHeat,
+        isOverheated: state.isOverheated,
+        lastHeatUpdateTime: state.lastHeatUpdateTime,
+      }),
     }
   )
 );

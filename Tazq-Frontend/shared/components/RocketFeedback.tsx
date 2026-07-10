@@ -6,6 +6,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import * as Haptics from 'expo-haptics';
 import { Rocket, Flame, Zap, Layers, Sparkles } from 'lucide-react-native';
+import { usePathname } from 'expo-router';
 
 export const RocketFeedback: React.FC = () => {
   const { theme, colorScheme } = useAppTheme();
@@ -24,6 +25,7 @@ export const RocketFeedback: React.FC = () => {
   const { language } = useLanguageStore();
   const isLite = uiMode === 'lite';
   const tr = language === 'tr';
+  const pathname = usePathname();
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [visible, setVisible] = useState(false);
@@ -32,6 +34,11 @@ export const RocketFeedback: React.FC = () => {
     if (isLite) return;
 
     if (showRocketFeedback) {
+      if (pathname !== '/') {
+        dismissRocketFeedback();
+        return;
+      }
+
       setVisible(true);
       Haptics.notificationAsync(
         isOverheated 

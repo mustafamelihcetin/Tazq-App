@@ -20,7 +20,14 @@ import { useFocusStore } from '@/features/focus';
 import { usePrefsStore, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
-import * as Haptics from 'expo-haptics';
+import * as HapticsOriginal from 'expo-haptics';
+const Haptics = {
+  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
+  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
+  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
+  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
+  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
+};
 import { createAudioPlayer } from 'expo-audio';
 const activeAudioPlayers = new Set<any>();
 import { useRouter, useLocalSearchParams } from 'expo-router';

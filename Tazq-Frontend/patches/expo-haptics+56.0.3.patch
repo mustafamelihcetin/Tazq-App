@@ -1,0 +1,52 @@
+diff --git a/node_modules/expo-haptics/src/Haptics.ts b/node_modules/expo-haptics/src/Haptics.ts
+index ffa7d34..ac39c70 100644
+--- a/node_modules/expo-haptics/src/Haptics.ts
++++ b/node_modules/expo-haptics/src/Haptics.ts
+@@ -15,9 +15,13 @@ export async function notificationAsync(
+   type: NotificationFeedbackType = NotificationFeedbackType.Success
+ ): Promise<void> {
+   if (!ExpoHaptics?.notificationAsync) {
+-    throw new UnavailabilityError('Haptics', 'notificationAsync');
++    return;
++  }
++  try {
++    await ExpoHaptics.notificationAsync(type);
++  } catch (err) {
++    if (__DEV__) console.warn('[SafeHaptics] notificationAsync failed:', err);
+   }
+-  await ExpoHaptics.notificationAsync(type);
+ }
+ 
+ // @needsAudit
+@@ -34,9 +38,13 @@ export async function impactAsync(
+   style: ImpactFeedbackStyle = ImpactFeedbackStyle.Medium
+ ): Promise<void> {
+   if (!ExpoHaptics?.impactAsync) {
+-    throw new UnavailabilityError('Haptic', 'impactAsync');
++    return;
++  }
++  try {
++    await ExpoHaptics.impactAsync(style);
++  } catch (err) {
++    if (__DEV__) console.warn('[SafeHaptics] impactAsync failed:', err);
+   }
+-  await ExpoHaptics.impactAsync(style);
+ }
+ 
+ // @needsAudit
+@@ -46,9 +54,13 @@ export async function impactAsync(
+  */
+ export async function selectionAsync(): Promise<void> {
+   if (!ExpoHaptics?.selectionAsync) {
+-    throw new UnavailabilityError('Haptic', 'selectionAsync');
++    return;
++  }
++  try {
++    await ExpoHaptics.selectionAsync();
++  } catch (err) {
++    if (__DEV__) console.warn('[SafeHaptics] selectionAsync failed:', err);
+   }
+-  await ExpoHaptics.selectionAsync();
+ }
+ 
+ /**

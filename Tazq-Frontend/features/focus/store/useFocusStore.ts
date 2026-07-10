@@ -181,6 +181,17 @@ export const useFocusStore = create<FocusState>()(
       rehydrateTimer: () => {
         const { isActive, expectedFinishAt, lastActiveAt, seconds, pausedSeconds } = get();
         let totalSeconds = Math.max(60, get().totalSeconds || 1500);
+
+        if (__DEV__) {
+          console.log('[FocusStore] rehydrateTimer Started:', {
+            isActive,
+            expectedFinishAt,
+            lastActiveAt,
+            seconds,
+            pausedSeconds,
+            totalSeconds
+          });
+        }
         
         // Reset if the day changed!
         const { dailyFocusDate } = get();
@@ -188,6 +199,7 @@ export const useFocusStore = create<FocusState>()(
         if (dailyFocusDate && dailyFocusDate !== today) {
           const isExpired = expectedFinishAt ? expectedFinishAt < Date.now() : true;
           if (!isActive || isExpired) {
+            if (__DEV__) console.log('[FocusStore] rehydrateTimer: Day changed, resetting active/expired session.');
             set({
               isActive: false,
               seconds: 1500,
@@ -201,6 +213,7 @@ export const useFocusStore = create<FocusState>()(
             });
             return;
           } else {
+            if (__DEV__) console.log('[FocusStore] rehydrateTimer: Day changed but active session not expired yet. Resetting minutes count only.');
             set({
               dailyFocusMinutes: 0,
               dailyFocusDate: today
@@ -236,8 +249,10 @@ export const useFocusStore = create<FocusState>()(
         remaining = Math.min(totalSeconds, remaining);
 
         if (remaining === 0) {
+          if (__DEV__) console.log('[FocusStore] rehydrateTimer: Timer fully elapsed/completed in background.');
           set({ isActive: false, seconds: 0, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null, totalSeconds });
         } else {
+          if (__DEV__) console.log('[FocusStore] rehydrateTimer: Restored active timer with remaining seconds:', remaining);
           set({ seconds: remaining, lastActiveAt: null, totalSeconds });
         }
       },

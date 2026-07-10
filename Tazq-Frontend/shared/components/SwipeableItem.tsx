@@ -11,7 +11,14 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Trash2 } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
+import * as HapticsOriginal from 'expo-haptics';
+const Haptics = {
+  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
+  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
+  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
+  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
+  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
+};
 import { S, R } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 
