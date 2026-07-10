@@ -11,7 +11,14 @@ import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil, Timer, Chevr
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
-import * as Haptics from 'expo-haptics';
+import * as HapticsOriginal from 'expo-haptics';
+const Haptics = {
+  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
+  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
+  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
+  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
+  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
+};
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 import { FocusService } from '@/shared/services/api';

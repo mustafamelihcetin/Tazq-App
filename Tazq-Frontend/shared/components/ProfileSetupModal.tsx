@@ -53,7 +53,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
     const trimmedName = name.trim();
     if (isNamePlaceholder && trimmedName.length < 2) {
       setError(language === 'tr' ? 'Lütfen en az 2 karakterden oluşan bir isim girin.' : 'Please enter a name with at least 2 characters.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       return;
     }
     setError(null);
@@ -67,10 +67,10 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
         productivityHour,
         gender
       );
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (err) {
       setError(language === 'tr' ? 'Bir hata oluştu, lütfen tekrar deneyin.' : 'An error occurred, please try again.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } finally {
       setLoading(false);
     }

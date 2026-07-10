@@ -63,7 +63,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
     setSendingSupport(true);
     try {
       await SupportService.sendMessage(supportText.trim());
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setSupportText('');
       loadMyMessages();
       Alert.alert(
@@ -71,7 +71,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
         t.support?.success || (tr ? 'Mesajın bize ulaştı.' : 'Your message has been sent to support.')
       );
     } catch (err: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       console.warn('[Support] send failed:', err?.response?.status, err?.response?.data);
       let msg = t.support?.error || (tr ? 'Mesaj gönderilemedi.' : 'Could not send message.');
       if (!err?.response) {

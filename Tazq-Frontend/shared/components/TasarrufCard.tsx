@@ -6,7 +6,14 @@
  */
 import React, { useState } from 'react';
 import { View, Text, TextInput, Switch } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import * as HapticsOriginal from 'expo-haptics';
+const Haptics = {
+  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
+  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
+  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
+  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
+  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
+};
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';

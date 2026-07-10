@@ -37,7 +37,7 @@ export const RocketFeedback: React.FC = () => {
         isOverheated 
           ? Haptics.NotificationFeedbackType.Warning 
           : Haptics.NotificationFeedbackType.Success
-      );
+      ).catch(() => {});
 
       Animated.spring(slideAnim, {
         toValue: 1,

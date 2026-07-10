@@ -92,7 +92,7 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
         surprise?.tier === 'nudge'
           ? Haptics.NotificationFeedbackType.Warning
           : Haptics.NotificationFeedbackType.Success,
-      );
+      ).catch(() => {});
       triggerBurst();
     }
     tapTime.current = now;

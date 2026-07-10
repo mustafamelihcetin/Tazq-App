@@ -16,7 +16,14 @@ import { Plus, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp
 import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
 import { TaskService, FocusService, DailyFocusData, AuthService } from '@/shared/services/api';
-import * as Haptics from 'expo-haptics';
+import * as HapticsOriginal from 'expo-haptics';
+const Haptics = {
+  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
+  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
+  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
+  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
+  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
+};
 import { useRouter, useFocusEffect } from 'expo-router';
 const activeAudioPlayers = new Set<any>();
 import { useAppTheme } from '@/shared/hooks/useAppTheme';

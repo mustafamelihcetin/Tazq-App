@@ -29,7 +29,14 @@ import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Touchable } from '@/shared/components/Touchable';
 import { R, F } from '@/shared/constants/tokens';
-import * as Haptics from 'expo-haptics';
+import * as HapticsOriginal from 'expo-haptics';
+const Haptics = {
+  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
+  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
+  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
+  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
+  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
+};
 
 type PageId = 'dashboard' | 'focus' | 'tasks' | 'modlar' | 'cockpit';
 type IconType = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
