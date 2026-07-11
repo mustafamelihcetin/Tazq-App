@@ -351,11 +351,24 @@ app.UseExceptionHandler(errorApp =>
         {
             var ex = error.Error;
             var isDev = app.Environment.IsDevelopment();
-            
+
+            // Hata yönetimi zenginleştirmesi: her yakalanmayan hatayı, korelasyon için bir traceId
+            // ve istek bağlamıyla (method/path/user/ip) logla. Bu kayıt InMemoryLogStore'a (admin panel)
+            // ve yapılandırılmış diğer sağlayıcılara düşer. traceId cevapta döner → kullanıcı/destek
+            // bir hata bildirdiğinde sunucu logunu tek kimlikle bulabiliriz.
+            var traceId = context.TraceIdentifier;
+            var userId = context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous";
+            var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex,
+                "Unhandled exception {TraceId} on {Method} {Path} | user={UserId} ip={Ip}",
+                traceId, context.Request.Method, context.Request.Path.Value, userId, ip);
+
             var result = JsonSerializer.Serialize(new
             {
                 StatusCode = 500,
                 Message = isDev ? ex.Message : "Sunucu tarafında bir hata oluştu.",
+                TraceId = traceId,
                 StackTrace = isDev ? ex.StackTrace : null
             });
 

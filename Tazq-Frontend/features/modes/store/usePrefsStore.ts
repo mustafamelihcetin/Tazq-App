@@ -64,6 +64,13 @@ interface PrefsState {
   setEveningBrief: (value: boolean) => void;
   soundEffects: boolean;
   setSoundEffects: (value: boolean) => void;
+  // Derin odak tercihleri — cihazda kalıcı (her seansda sıfırlanmasın diye). Cihaza özel.
+  focusBreathMode: 'classic' | 'box' | 'calm' | 'off';
+  setFocusBreathMode: (v: 'classic' | 'box' | 'calm' | 'off') => void;
+  focusAmbientSound: string;
+  setFocusAmbientSound: (v: string) => void;
+  focusPreset: string;
+  setFocusPreset: (v: string) => void;
   examPlanHabitIds: string[];
   examPlanTaskIds: number[];
   exam2PlanHabitIds: string[];
@@ -230,6 +237,13 @@ export const usePrefsStore = create<PrefsState>()(
       setEveningBrief: (value) => set({ eveningBrief: value }),
       soundEffects: true,
       setSoundEffects: (value) => set({ soundEffects: value }),
+      // Derin odak: nefes varsayılanı 'off' (opt-in — odak ≠ nefes çalışması). Kullanıcı seçince kalıcı.
+      focusBreathMode: 'off',
+      setFocusBreathMode: (v) => set({ focusBreathMode: v }),
+      focusAmbientSound: 'off',
+      setFocusAmbientSound: (v) => set({ focusAmbientSound: v }),
+      focusPreset: 'classic',
+      setFocusPreset: (v) => set({ focusPreset: v }),
       examPlanHabitIds: [],
       examPlanTaskIds: [],
       exam2PlanHabitIds: [],

@@ -545,17 +545,24 @@ export default function HomeScreen() {
   // BUGÜN HARİÇ verilir: bugünü dahil edersek recordScore(momentum) bugünü geçmişe
   // yazar → habitScore'u artırır → sonsuz 27↔28 salınımı. getLastNDays(8)'in ilk 7'si
   // dünden 7 gün öncesine denk gelir (bugün indeks 7'de, atılır).
-  const completionHistory = getLastNDays(8).slice(0, 7);
+  // getLastNDays(8) tek çağrı — eskiden aynı store taraması render başına 2 kez yapılıyordu.
+  const last8Days = getLastNDays(8);
+  const completionHistory = last8Days.slice(0, 7);
   const habitActivityDays = completionHistory.filter(d => d.score >= 0).length;
-  const { momentum: rawMomentum, totalCount, completedCount, focusVolumeScore } = computeMomentum({
-    tasks,
-    weeklyFocus: mergedWeeklyFocus,
-    weeklyMinutes,
-    streak,
-    habitActivityDays,
-  });
+  // computeMomentum, girdileri (tasks, memoize mergedWeeklyFocus, primitive'ler) değişmedikçe
+  // ilgisiz re-render'larda (prefs/saat/momentum) yeniden hesaplanmasın diye memoize edildi.
+  const { momentum: rawMomentum, totalCount, completedCount, focusVolumeScore } = React.useMemo(
+    () => computeMomentum({
+      tasks,
+      weeklyFocus: mergedWeeklyFocus,
+      weeklyMinutes,
+      streak,
+      habitActivityDays,
+    }),
+    [tasks, mergedWeeklyFocus, weeklyMinutes, streak, habitActivityDays]
+  );
   // Momentum history (last 8 days for sparkline delta)
-  const momentumHistory = getLastNDays(8);
+  const momentumHistory = last8Days;
 
   const momentum = (() => {
     if (momentumShieldActive) {

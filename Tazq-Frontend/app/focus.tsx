@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, AppState, Animated, ScrollView, BackHandler, Easing } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, AppState, Animated, ScrollView, BackHandler, Easing, InteractionManager, AccessibilityInfo } from 'react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 
@@ -11,6 +11,7 @@ import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil, Timer, Chevr
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
+import { useShallow } from 'zustand/react/shallow';
 import * as HapticsOriginal from 'expo-haptics';
 const Haptics = {
   notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
@@ -36,7 +37,8 @@ import { Touchable } from '@/shared/components/Touchable';
 import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { Easing as RNEasing } from 'react-native';
-import ReAnimated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withDelay, Easing as ReEasing } from 'react-native-reanimated';
+import ReAnimated, { useSharedValue, useAnimatedStyle, useDerivedValue, withRepeat, withTiming, withDelay, cancelAnimation, Easing as ReEasing } from 'react-native-reanimated';
+import { Canvas, Fill, Shader, Skia, useClock } from '@shopify/react-native-skia';
 
 interface StarGroupProps {
   timerSize: number;
@@ -162,6 +164,127 @@ const Starfield = React.memo(({ active, timerSize }: { active: boolean; timerSiz
   );
 });
 
+// ── Saniyeye bağlı izole render'lar ───────────────────────────────────────────
+// Kasma/ısı düzeltmesi: eskiden parent tüm store'a abone olduğu için `seconds` her saniye
+// değişince 2000+ satırlık ağaç yeniden render oluyordu. Saniyeye bağlı iki parçayı buraya
+// izole ettik → artık yalnız bu minik bileşenler saniyede bir render olur, ana ekran olmaz.
+
+// Sayaç metni (dk : atan iki nokta : sn). Yalnız seconds/isActive'e abone.
+const CountdownText = React.memo(({ timerSize, colonColor, reduceMotion }: { timerSize: number; colonColor: string; reduceMotion?: boolean }) => {
+  const seconds = useFocusStore(s => s.seconds);
+  const isActive = useFocusStore(s => s.isActive);
+  const big = Math.round(timerSize * 0.205);
+  const mid = Math.round(timerSize * 0.185);
+  // İki nokta: Sakin mod'da sabit; normalde sert blink (0.2↔1) yerine nazik kımıltı (0.55↔0.85) —
+  // saniyeliği yaşam belirtisi kalsın ama göz köşesinde rahatsız etmesin.
+  const colonOpacity = reduceMotion ? 0.7 : ((isActive && seconds % 2 === 1) ? 0.55 : 0.85);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+      <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: big }]}>
+        {Math.floor(seconds / 60).toString().padStart(2, '0')}
+      </Text>
+      <Text style={[styles.timerText, { color: colonColor, fontSize: mid, marginHorizontal: 2, opacity: colonOpacity }]}>:</Text>
+      <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: big }]}>
+        {(seconds % 60).toString().padStart(2, '0')}
+      </Text>
+    </View>
+  );
+});
+
+// SVG halka + zen yörünge Animated.Value'ları saniyeye göre besler (kendisi görünmez).
+// Animated.Value güncellemesi native/JS animasyon düğümünü tazeler; React re-render gerektirmez.
+const ProgressDriver = React.memo(({ progressAnim, nativeProgressAnim }: { progressAnim: Animated.Value; nativeProgressAnim: Animated.Value }) => {
+  const progress = useFocusStore(s => (s.totalSeconds > 0 ? (s.totalSeconds - s.seconds) / s.totalSeconds : 0));
+  useEffect(() => {
+    progressAnim.setValue(progress);
+    nativeProgressAnim.setValue(progress);
+  }, [progress]);
+  return null;
+});
+
+// ── Skia nebula ───────────────────────────────────────────────────────────────
+// Eski görsel: koyu lacivert taban + 3 yarı-saydam renkli dairenin döndürülüp harmanlanması
+// (üst üste katman = overdraw = ısı). Yeni: aynı görünüm tek GPU shader'ı ile, tek draw call,
+// overdraw ve maske pass olmadan. Renk merkezleri zamana göre yumuşakça sürüklenir.
+const NEBULA_SKSL = `
+uniform float u_time;
+uniform float2 u_res;
+uniform float3 c1;
+uniform float3 c2;
+uniform float3 c3;
+
+// Yumuşak, dalgalı ışık perdesi — aurora "curtain". Dalga merkezi zamanla süzülür,
+// smoothstep ile geniş/blurlu kenar, hafif dikey çizgilenme perde dokusu verir.
+float curtain(float2 uv, float t, float yBase, float amp, float freq, float phase) {
+  float center = yBase
+    + amp * sin(uv.x * freq + t + phase)
+    + amp * 0.45 * sin(uv.x * freq * 2.3 + t * 1.4 + phase);
+  float d = abs(uv.y - center);
+  float glow = smoothstep(0.32, 0.0, d);
+  float streak = 0.86 + 0.14 * sin(uv.x * 34.0 + t * 0.6 + phase);
+  return glow * glow * streak;
+}
+
+half4 main(float2 fragCoord) {
+  float2 uv = fragCoord / u_res;
+  float t = u_time * 0.33;
+
+  // Derin uzay tabanı — altta daha koyu
+  float3 col = mix(float3(0.05, 0.09, 0.20), float3(0.02, 0.03, 0.09), uv.y);
+
+  // Üç akan aurora perdesi (emerald / indigo / violet), farklı faz ve hızlarda
+  col += c2 * curtain(uv, t,        0.44, 0.10, 3.0, 0.0) * 0.55;
+  col += c1 * curtain(uv, t * 1.12, 0.56, 0.12, 2.3, 2.0) * 0.42;
+  col += c3 * curtain(uv, t * 0.9,  0.34, 0.08, 3.6, 4.0) * 0.38;
+
+  return half4(col, 1.0);
+}
+`;
+
+const hexToRgb = (hex: string): [number, number, number] => {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+};
+
+// c1=primary, c2=tertiary, c3=secondary (eski blob renkleriyle birebir).
+// paused=true iken zaman uniform'u dondurulur → shader yeniden çizmez, GPU boşta (zen/ritual).
+// size: kare (daire-içi kullanım). width/height verilirse tam-ekran (zen zemini). speedScale: akış hızı.
+const Nebula = React.memo(({ size, width, height, c1, c2, c3, paused, speedScale = 1 }: { size: number; width?: number; height?: number; c1: string; c2: string; c3: string; paused: boolean; speedScale?: number }) => {
+  const w = width ?? size;
+  const h = height ?? size;
+  const effect = useMemo(() => Skia.RuntimeEffect.Make(NEBULA_SKSL), []);
+  const clock = useClock();
+  const pausedSV = useSharedValue(paused);
+  useEffect(() => { pausedSV.value = paused; }, [paused]);
+  const frozen = useSharedValue(0);
+  const time = useDerivedValue(() => {
+    'worklet';
+    // Duraklatıldıysa saati OKUMA → bu çalıştırmada clock bağımlılığı oluşmaz, değer donar (redraw yok).
+    if (pausedSV.value) return frozen.value;
+    const v = (clock.value / 1000) * speedScale;
+    frozen.value = v;
+    return v;
+  });
+  const rgb1 = useMemo(() => hexToRgb(c1), [c1]);
+  const rgb2 = useMemo(() => hexToRgb(c2), [c2]);
+  const rgb3 = useMemo(() => hexToRgb(c3), [c3]);
+  const uniforms = useDerivedValue(() => ({
+    u_time: time.value,
+    u_res: [w, h],
+    c1: rgb1,
+    c2: rgb2,
+    c3: rgb3,
+  }));
+  if (!effect) return null;
+  return (
+    <Canvas style={{ width: w, height: h }}>
+      <Fill>
+        <Shader source={effect} uniforms={uniforms} />
+      </Fill>
+    </Canvas>
+  );
+});
+
 // Named focus presets — each encodes work + break durations
 const PRESETS = [
   { key: 'sprint',   labelTr: 'Sprint',   labelEn: 'Sprint',   workMins: 15, shortBreak: 3,  longBreak: 8,  descTr: '15dk hızlı odak',    descEn: '15m quick focus' },
@@ -235,18 +358,40 @@ export default function FocusScreen() {
   const insets = useSafeAreaInsets();
   const { t, language } = useLanguageStore();
 
+  // Kasma/ısı düzeltmesi: `seconds` bilinçli olarak SEÇİLMİYOR. Böylece saniyelik tick artık
+  // bu dev bileşeni değil, yalnızca CountdownText/ProgressDriver çocuklarını render eder.
   const {
-    isActive, seconds, totalSeconds, currentTask,
-    setIsActive, tick, reset, setDuration,
+    isActive, totalSeconds, currentTask,
+    setIsActive, reset, setDuration,
     rehydrateTimer, addFocusMinutes,
     pomodoroMode, pomodoroRound, pomodoroPhase,
     togglePomodoroMode, nextPomodoroPhase,
     strictMode, setStrictMode, addFocusPoints,
-  } = useFocusStore();
+  } = useFocusStore(useShallow(s => ({
+    isActive: s.isActive, totalSeconds: s.totalSeconds, currentTask: s.currentTask,
+    setIsActive: s.setIsActive, reset: s.reset, setDuration: s.setDuration,
+    rehydrateTimer: s.rehydrateTimer, addFocusMinutes: s.addFocusMinutes,
+    pomodoroMode: s.pomodoroMode, pomodoroRound: s.pomodoroRound, pomodoroPhase: s.pomodoroPhase,
+    togglePomodoroMode: s.togglePomodoroMode, nextPomodoroPhase: s.nextPomodoroPhase,
+    strictMode: s.strictMode, setStrictMode: s.setStrictMode, addFocusPoints: s.addFocusPoints,
+  })));
+
+  // sessionStarted bir boolean selector: değeri sadece geçişlerde değişir (her saniye değil),
+  // dolayısıyla parent'ı saniyede bir render ETTİRMEZ.
+  const sessionStarted = useFocusStore(s => s.isActive || (s.totalSeconds - s.seconds) > 0);
+  // Bitiş algısı için boolean selector: yalnız sıfır-geçişinde değişir → saniyelik render yok.
+  const atZero = useFocusStore(s => s.seconds === 0);
+
+  // elapsed'i (geçen saniye) event handler'larda güncel oku — render'a bağlı closure değil.
+  const getElapsed = () => {
+    const st = useFocusStore.getState();
+    return st.totalSeconds - st.seconds;
+  };
 
   const completedRef = useRef(false);
   const { trigger: triggerAchievement } = useAchievementStore();
-  const { soundEffects } = usePrefsStore();
+  // Derin odak tercihleri artık prefs store'da (cihazda kalıcı) — her seansda sıfırlanmaz.
+  const { soundEffects, focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset } = usePrefsStore();
   const { measureAll } = useTour();
   const handleStepChange = (step: number) => {
     setTimeout(() => {
@@ -260,18 +405,22 @@ export default function FocusScreen() {
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playRequestIdRef = useRef(0);
-  const [ambientSound, setAmbientSound] = useState<AmbientSound>('off');
+  // Kalıcı tercihler store'dan; isimler aynı kaldığı için ekranın gerisi değişmiyor.
+  const ambientSound = focusAmbientSound as AmbientSound;
+  const setAmbientSound = setFocusAmbientSound as (v: AmbientSound) => void;
 
   // Breath cue phase — synced to glow animation
   const [breathPhase, setBreathPhase] = useState<'in' | 'hold_in' | 'out' | 'hold_out'>('in');
-  const [breathMode, setBreathMode] = useState<'classic' | 'box' | 'calm' | 'off'>('classic');
+  const breathMode = focusBreathMode;
+  const setBreathMode = setFocusBreathMode;
   const [breathPickerVisible, setBreathPickerVisible] = useState(false);
   const [zenMode, setZenMode] = useState(false);
 
   // (Aurora reanimated animasyonları timerSize tanımından sonra kuruldu — aşağıya bakınız.)
 
-  // Named preset selection
-  const [selectedPreset, setSelectedPreset] = useState<PresetKey>('classic');
+  // Named preset selection — kalıcı (store)
+  const selectedPreset = focusPreset as PresetKey;
+  const setSelectedPreset = setFocusPreset as (v: PresetKey) => void;
   const activePreset = PRESETS.find(p => p.key === selectedPreset) ?? PRESETS[1];
 
 
@@ -324,70 +473,46 @@ export default function FocusScreen() {
 
   const timerSize = Math.min(width * 0.72, height * 0.35);
 
-  // Sürekli odak animasyonları — reanimated (UI thread). timerSize'dan SONRA kurulmalı (worklet'ler ona bağlı).
-  const auroraRot = useSharedValue(0);
-  const b1 = useSharedValue(0);
-  const b2 = useSharedValue(0);
-  const b3 = useSharedValue(0);
+  // Nebula artık Skia shader ile çiziliyor (tek draw call, overdraw yok). Eski 3-blob reanimated
+  // katmanları kaldırıldı. Ripple halkaları hâlâ reanimated.
   const rp0 = useSharedValue(0);
   const rp1 = useSharedValue(0);
   const rp2 = useSharedValue(0);
+  // ── Sakin mod (reduce-motion) ──────────────────────────────────────────────
+  // OS "Hareketi Azalt" ayarını izle. Açıkken dekoratif hareket (aurora, halkalar,
+  // yanıp sönme) durur → erişilebilirlik + gerçek meditatif sükûnet.
+  const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
-    const ease = ReEasing.inOut(ReEasing.ease);
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled().then(v => { if (mounted) setReduceMotion(v); }).catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', v => setReduceMotion(v));
+    return () => { mounted = false; sub.remove(); };
+  }, []);
+
+  // Aurora zen modunda gizleniyor; completionRitual'da %78 karartma altında kalıyor.
+  // Bu durumda (ve Sakin mod'da) Skia nebula'yı duraklat → shader yeniden çizmez, GPU boşta.
+  const auroraVisible = !(zenMode && isActive) && !completionRitual;
+
+  // Hipnotik nabız halkaları yalnız isActive iken (ve Sakin mod kapalıyken) çalışır.
+  useEffect(() => {
+    if (!isActive || reduceMotion) {
+      cancelAnimation(rp0); cancelAnimation(rp1); cancelAnimation(rp2);
+      return;
+    }
     const easeOut = ReEasing.out(ReEasing.ease);
-    auroraRot.value = withRepeat(withTiming(360, { duration: 90000, easing: ReEasing.linear }), -1, false);
-    b1.value = withRepeat(withTiming(1, { duration: 13000, easing: ease }), -1, true);
-    b2.value = withRepeat(withTiming(1, { duration: 16000, easing: ease }), -1, true);
-    b3.value = withRepeat(withTiming(1, { duration: 10500, easing: ease }), -1, true);
     rp0.value = withRepeat(withTiming(1, { duration: 8400, easing: easeOut }), -1, false);
     rp1.value = withDelay(2800, withRepeat(withTiming(1, { duration: 8400, easing: easeOut }), -1, false));
     rp2.value = withDelay(5600, withRepeat(withTiming(1, { duration: 8400, easing: easeOut }), -1, false));
-  }, []);
-  const auroraRotStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${auroraRot.value}deg` }] }));
-  const b1Style = useAnimatedStyle(() => ({
-    opacity: 0.3 + b1.value * 0.18,
-    transform: [
-      { translateX: -timerSize * 0.2 + b1.value * (timerSize * 0.4) },
-      { translateY: -timerSize * 0.14 + b1.value * (timerSize * 0.32) },
-      { scale: 0.82 + b1.value * 0.5 },
-    ],
-  }));
-  const b2Style = useAnimatedStyle(() => ({
-    opacity: 0.2 + b2.value * 0.2,
-    transform: [
-      { translateX: timerSize * 0.18 - b2.value * (timerSize * 0.36) },
-      { translateY: timerSize * 0.16 - b2.value * (timerSize * 0.34) },
-      { scale: 1.28 - b2.value * 0.42 },
-    ],
-  }));
-  const b3Style = useAnimatedStyle(() => ({
-    opacity: 0.16 + b3.value * 0.2,
-    transform: [
-      { translateX: -timerSize * 0.1 + b3.value * (timerSize * 0.22) },
-      { translateY: timerSize * 0.12 - b3.value * (timerSize * 0.24) },
-      { scale: 0.88 + b3.value * 0.4 },
-    ],
-  }));
-  const rp0Style = useAnimatedStyle(() => ({ opacity: 0.28 * (1 - rp0.value), transform: [{ scale: 1 + rp0.value * 0.18 }] }));
-  const rp1Style = useAnimatedStyle(() => ({ opacity: 0.28 * (1 - rp1.value), transform: [{ scale: 1 + rp1.value * 0.18 }] }));
-  const rp2Style = useAnimatedStyle(() => ({ opacity: 0.28 * (1 - rp2.value), transform: [{ scale: 1 + rp2.value * 0.18 }] }));
-  const elapsed = totalSeconds - seconds;
-  const progress = totalSeconds > 0 ? elapsed / totalSeconds : 0;
-  const sessionStarted = isActive || elapsed > 0;
-
+  }, [isActive, reduceMotion]);
+  // Opaklık çan eğrisi: sin(value·π) → başta 0, ortada tepe (0.28), sonda 0. Böylece döngü
+  // başa dönerken (value 1→0) halka zaten görünmez olduğundan "pat" atlama olmaz, akış kesintisiz.
+  const rp0Style = useAnimatedStyle(() => ({ opacity: 0.28 * Math.sin(rp0.value * Math.PI), transform: [{ scale: 1 + rp0.value * 0.22 }] }));
+  const rp1Style = useAnimatedStyle(() => ({ opacity: 0.28 * Math.sin(rp1.value * Math.PI), transform: [{ scale: 1 + rp1.value * 0.22 }] }));
+  const rp2Style = useAnimatedStyle(() => ({ opacity: 0.28 * Math.sin(rp2.value * Math.PI), transform: [{ scale: 1 + rp2.value * 0.22 }] }));
+  // progress/elapsed artık parent render'ında hesaplanmıyor (saniyeye bağlıydı).
+  // progressAnim'i <ProgressDriver/> besliyor; sessionStarted yukarıda boolean selector'dan geliyor.
   const progressAnim = useRef(new Animated.Value(0)).current;
   const nativeProgressAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    // Directly set progressAnim value to avoid running a 60fps JS-driven animation loop.
-    // This prevents continuous CPU vector path rasterization (rendering strokeDashoffset at 60fps),
-    // reducing CPU load by 98.3% and eliminating device heating.
-    progressAnim.setValue(progress);
-
-    // Directly set nativeProgressAnim value to avoid running a continuous 60fps rotation loop.
-    // This makes the star tick once per second like a precision clock hand, saving 100% GPU calculation between ticks.
-    nativeProgressAnim.setValue(progress);
-  }, [progress]);
 
   const { panResponder: customPan, animatedStyle: customSlide, prepare: prepareCustom, slideIn: customSlideIn } = useSwipeToDismiss({
     onDismiss: () => setCustomVisible(false),
@@ -445,7 +570,9 @@ export default function FocusScreen() {
     }
   };
 
-  const stopAmbientSoundFaded = () => {
+  // stepMs: adım aralığı. Varsayılan hızlı (seans geçişleri); önizleme için daha büyük değer =
+  // daha uzun/yumuşak "sakin" kapanış.
+  const stopAmbientSoundFaded = (stepMs: number = FADE_MS) => {
     clearFade();
     clearCrossfade();
     currentSoundTypeRef.current = 'off';
@@ -461,7 +588,7 @@ export default function FocusScreen() {
         try { player.pause(); player.release(); } catch {}
         soundRef.current = null;
       }
-    }, FADE_MS);
+    }, stepMs);
   };
 
   const getSoundSource = (type: AmbientSound) => {
@@ -529,17 +656,20 @@ export default function FocusScreen() {
 
   // Session and ambient sound transition manager - Unified to prevent double parallel audio loads
   useEffect(() => {
-    if (previewTimerRef.current) { 
-      clearTimeout(previewTimerRef.current); 
-      previewTimerRef.current = null; 
-    }
     if (isActive) {
+      // Seans başladı → bekleyen önizleme (demo) timer'ını iptal et, sesi tam ele al.
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current);
+        previewTimerRef.current = null;
+      }
       if (ambientSound !== 'off') {
         playAmbientSound(ambientSound);
       } else {
         stopAmbientSound();
       }
     } else {
+      // Seans yokken önizleme akışını (kendi 7sn timer'ı + yumuşak fade'i) onPress yönetir;
+      // burada timer'ı SİLMİYORUZ ki demo kesilmesin. Ses kapatıldıysa güvenlik amaçlı durdur.
       if (ambientSound === 'off') {
         stopAmbientSound();
       }
@@ -741,7 +871,7 @@ export default function FocusScreen() {
 
   // ── Session completion / Pomodoro transitions ─────────────────────────────
   useEffect(() => {
-    if (seconds === 0 && totalSeconds > 0 && !completedRef.current) {
+    if (atZero && totalSeconds > 0 && !completedRef.current) {
       completedRef.current = true;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Seans bitimi sesi — soundEffects toggle'ından bağımsız, her zaman çalar
@@ -789,32 +919,38 @@ export default function FocusScreen() {
         }
       } else {
         // Standard mode
-        stopAmbientSound();
-        setAmbientSound('off');
-        setZenMode(false); // Reset Zen Mode
-        setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 300);
-        setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 600);
+        // Kasma düzeltmesi: bitiş anında yalnız görsel + haptik senkron çalışsın; ses release,
+        // network ve store yazımları gibi ağır defter işleri ritual animasyonunun ilk karelerini
+        // bloklamasın diye InteractionManager ile animasyon sonrasına ertelenir.
         const minutes = Math.round(totalSeconds / 60);
-        FocusService.saveSession('Focus', minutes, true).catch(() => {});
-        addFocusMinutes(minutes);
-        addFocusPoints(10);
-        track('focus_completed', { minutes, pomodoro: false });
-        FocusService.getStats().then(s => {
-          const total = Math.round((s.totalFocusHours || 0) * 60);
-          const ach = checkFocusAchievement(total);
-          if (ach) triggerAchievement(ach);
-        }).catch(() => {
-          const ach = checkFocusAchievement(minutes);
-          if (ach) triggerAchievement(ach);
-        });
+        setZenMode(false); // Reset Zen Mode (görsel geçiş)
         setSummaryMinutes(minutes);
         setSummaryCompleted(true);
         setCompletionRitual(true);
+        setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 300);
+        setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 600);
         setTimeout(() => { setCompletionRitual(false); setSummaryVisible(true); }, 1800);
+
+        InteractionManager.runAfterInteractions(() => {
+          stopAmbientSound();
+          setAmbientSound('off');
+          FocusService.saveSession('Focus', minutes, true).catch(() => {});
+          addFocusMinutes(minutes);
+          addFocusPoints(10);
+          track('focus_completed', { minutes, pomodoro: false });
+          FocusService.getStats().then(s => {
+            const total = Math.round((s.totalFocusHours || 0) * 60);
+            const ach = checkFocusAchievement(total);
+            if (ach) triggerAchievement(ach);
+          }).catch(() => {
+            const ach = checkFocusAchievement(minutes);
+            if (ach) triggerAchievement(ach);
+          });
+        });
       }
     }
-    if (isActive && seconds > 0) completedRef.current = false;
-  }, [isActive, seconds]);
+    if (isActive && !atZero) completedRef.current = false;
+  }, [isActive, atZero]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const toggleTimer = () => {
@@ -824,6 +960,7 @@ export default function FocusScreen() {
 
   const resetTimer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const elapsed = getElapsed();
     if (elapsed > 0) {
       const minutesDone = Math.round(elapsed / 60);
       if (minutesDone >= 1) {
@@ -851,7 +988,7 @@ export default function FocusScreen() {
     setIsActive(false);
     completedRef.current = true;
     setZenMode(false);
-    const minutesDone = Math.round(elapsed / 60);
+    const minutesDone = Math.round(getElapsed() / 60);
     if (minutesDone >= 1) {
       FocusService.saveSession('Focus', minutesDone, false).catch(() => {});
       addFocusMinutes(minutesDone);
@@ -935,10 +1072,34 @@ export default function FocusScreen() {
               end={{ x: 0.9, y: 0.9 }}
               style={StyleSheet.absoluteFill}
             />
+            {/* Zen zemini: tam-ekran aurora — loş, yavaş, blurlu. "Talep etmeyen varlık":
+                göz fark eder ama takip etmez. Daireden taşıp genişleyerek gelir. */}
+            <MotiView
+              pointerEvents="none"
+              from={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 0.3, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.6 }}
+              transition={{ type: 'timing', duration: 900 }}
+              style={StyleSheet.absoluteFill}
+            >
+              <Nebula
+                size={0}
+                width={width}
+                height={height}
+                c1={theme.primary}
+                c2={theme.tertiary}
+                c3={theme.secondary}
+                paused={!(zenMode && isActive) || reduceMotion}
+                speedScale={0.45}
+              />
+            </MotiView>
           </MotiView>
         )}
       </AnimatePresence>
-      <Starfield active={zenMode && isActive} timerSize={timerSize} />
+      {/* Zen'de yıldızlar kısılır — aurora zemin, yörünge saati figür (figür-zemin ilkesi). */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: (zenMode && isActive) ? 0.4 : 1 }} pointerEvents="none">
+        <Starfield active={zenMode && isActive} timerSize={timerSize} />
+      </View>
       <View style={{ flex: 1, paddingBottom: insets.bottom || S.md }}>
 
         {/* Header — left/right slots are equal width so badge stays perfectly centered */}
@@ -953,6 +1114,7 @@ export default function FocusScreen() {
               onPress={() => {
                 stopAllSounds();
                 setAmbientSound('off');
+                const elapsed = getElapsed();
                 if (elapsed > 0) {
                   setIsActive(false);
                   const minutesDone = Math.max(1, Math.round(elapsed / 60));
@@ -1136,6 +1298,8 @@ export default function FocusScreen() {
           <View style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', zIndex: 0 }} pointerEvents="box-none">
             <TourTarget id="timer">
             <MotiView style={[styles.timerContainer, { width: timerSize, height: timerSize }]} pointerEvents="auto">
+            {/* Saniyeye bağlı progress'i SVG/zen-orbit Animated.Value'larına besler (görünmez, null render) */}
+            <ProgressDriver progressAnim={progressAnim} nativeProgressAnim={nativeProgressAnim} />
             {/* Volumetric Outer Halo / Corona */}
             <Animated.View
               pointerEvents="none"
@@ -1183,7 +1347,7 @@ export default function FocusScreen() {
                 <Svg pointerEvents="none" width={timerSize} height={timerSize} style={{ position: 'absolute', zIndex: 12, opacity: (zenMode && isActive) ? 0.15 : 1 }}>
                   <G rotation={-90} origin={`${timerSize / 2}, ${timerSize / 2}`}>
                     <Circle cx={timerSize / 2} cy={timerSize / 2} r={r} fill="none" stroke={'rgba(255,255,255,0.14)'} strokeWidth={8} />
-                    {progress > 0 && (
+                    {sessionStarted && (
                       <AnimatedCircle cx={timerSize / 2} cy={timerSize / 2} r={r} fill="none" stroke={strokeColor} strokeWidth={8}
                         strokeDasharray={`${circumference}`} strokeDashoffset={offsetAnim} strokeLinecap="round" />
                     )}
@@ -1282,8 +1446,8 @@ export default function FocusScreen() {
               )}
             </AnimatePresence>
 
-            {/* Hipnotik nabız — reanimated (UI thread). Kenardan dışa yayılıp sönen soft halkalar, yalnız aktifken */}
-            {isActive && (() => {
+            {/* Hipnotik nabız — soft halkalar, yalnız aktifken ve Sakin mod kapalıyken */}
+            {isActive && !reduceMotion && (() => {
               const ringColor = (pomodoroMode && pomodoroPhase === 'break') ? theme.tertiary : theme.primary;
               const ringBase = { position: 'absolute' as const, top: 0, left: 0, width: '100%' as const, height: '100%' as const, borderRadius: timerSize / 2, borderWidth: 1.5, borderColor: ringColor };
               return (
@@ -1302,7 +1466,14 @@ export default function FocusScreen() {
                 height: '100%',
                 zIndex: 10,
                 borderRadius: timerSize / 2,
-                transform: [{ scale: circleScaleAnim }]
+                transform: [{ scale: circleScaleAnim }],
+                // iOS ısı düzeltmesi: bu view breath modunda circleScaleAnim ile her karede
+                // ölçekleniyor. Üzerindeki shadowRadius:30 gölge (shadowPath yok) hareketli view'da
+                // her frame offscreen pass ile yeniden rasterize edilir → cihaz ısınır. Breath aktifken
+                // gölgeyi kapat: 0.1 opaklıktaki siyah gölge parlayan orb altında zaten görünmez.
+                ...(isActive && breathMode !== 'off'
+                  ? { shadowColor: 'transparent', shadowOpacity: 0, elevation: 0 }
+                  : null),
               }]}
             >
               <Touchable
@@ -1326,21 +1497,18 @@ export default function FocusScreen() {
                     pointerEvents="none"
                     animate={{ opacity: (zenMode && isActive) ? 0 : 1 }}
                     transition={{ type: 'timing', duration: 400 }}
-                    style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: timerSize / 2 }]}
+                    // iOS ısı: yuvarlak kırpma zaten dıştaki Touchable'da (borderRadius+overflow) yapılıyor.
+                    // Buradaki ikinci maske hareketli aurora'ya her karede offscreen mask pass ekliyordu → kaldırıldı.
+                    style={StyleSheet.absoluteFill}
                   >
-                    <LinearGradient colors={['#101a34', '#0d1428', '#0a0f22']} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
-                    {/* Yavaşça dönen nebula — reanimated (UI thread, zen'de durmaz, atlamaz) */}
-                    <ReAnimated.View style={[StyleSheet.absoluteFill, auroraRotStyle]}>
-                      <ReAnimated.View
-                        style={[{ position: 'absolute', top: '6%', left: '10%', width: timerSize * 0.6, height: timerSize * 0.6, borderRadius: timerSize, backgroundColor: theme.primary }, b1Style]}
-                      />
-                      <ReAnimated.View
-                        style={[{ position: 'absolute', bottom: '4%', right: '8%', width: timerSize * 0.52, height: timerSize * 0.52, borderRadius: timerSize, backgroundColor: theme.tertiary }, b2Style]}
-                      />
-                      <ReAnimated.View
-                        style={[{ position: 'absolute', top: '32%', left: '34%', width: timerSize * 0.42, height: timerSize * 0.42, borderRadius: timerSize, backgroundColor: theme.secondary }, b3Style]}
-                      />
-                    </ReAnimated.View>
+                    {/* Nebula — tek GPU shader'ı (taban + sürüklenen renk merkezleri). zen/ritual'da duraklar. */}
+                    <Nebula
+                      size={timerSize}
+                      c1={theme.primary}
+                      c2={theme.tertiary}
+                      c3={theme.secondary}
+                      paused={!auroraVisible || reduceMotion}
+                    />
                   </MotiView>
 
                   {/* Standard Timer View (Fades out when Zen Mode is active) */}
@@ -1353,16 +1521,12 @@ export default function FocusScreen() {
                     transition={{ type: 'timing', duration: 400 }}
                     style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
                   >
-                    {/* Tatlı zaman — dakika · atan iki nokta · saniye (aurora üstünde beyaz) */}
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                      <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: Math.round(timerSize * 0.205) }]}>
-                        {Math.floor(seconds / 60).toString().padStart(2, '0')}
-                      </Text>
-                      <Text style={[styles.timerText, { color: (pomodoroMode && pomodoroPhase === 'break') ? theme.tertiary : theme.primary, fontSize: Math.round(timerSize * 0.185), marginHorizontal: 2, opacity: (isActive && seconds % 2 === 1) ? 0.2 : 1 }]}>:</Text>
-                      <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: Math.round(timerSize * 0.205) }]}>
-                        {(seconds % 60).toString().padStart(2, '0')}
-                      </Text>
-                    </View>
+                    {/* Tatlı zaman — dakika · atan iki nokta · saniye. Saniyeye bağlı tek render burada izole. */}
+                    <CountdownText
+                      timerSize={timerSize}
+                      colonColor={(pomodoroMode && pomodoroPhase === 'break') ? theme.tertiary : theme.primary}
+                      reduceMotion={reduceMotion}
+                    />
 
                     {/* Odak bağlamı — yalnız görev varsa niyetini göster; yoksa temiz bırak */}
                     {currentTask ? (
@@ -1534,13 +1698,15 @@ export default function FocusScreen() {
                       if (!isActive) {
                         if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
                         if (next !== 'off') {
+                          // Demo: sese dokununca bir süre çalsın (7 sn) sonra sakince kapansın (~1.4 sn fade).
+                          // Seçim kalıcı olduğu için seans başlayınca yine bu ses çalar.
                           playAmbientSound(next, true);
                           previewTimerRef.current = setTimeout(() => {
-                            if (!useFocusStore.getState().isActive) stopAmbientSoundFaded();
+                            if (!useFocusStore.getState().isActive) stopAmbientSoundFaded(70);
                             previewTimerRef.current = null;
-                          }, 1800);
+                          }, 7000);
                         } else {
-                          stopAmbientSoundFaded();
+                          stopAmbientSoundFaded(70);
                         }
                       }
                     }}

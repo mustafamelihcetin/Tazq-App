@@ -30,6 +30,7 @@
     "@react-native/babel-preset": "^0.85.3",
     "@react-native/codegen": "^0.85.3",
     "@sentry/react-native": "^8.15.1",
+    "@shopify/react-native-skia": "2.6.2",
     "@types/i18n-js": "^3.0.3",
     "@types/lodash": "^4.17.24",
     "axios": "^1.6.8",

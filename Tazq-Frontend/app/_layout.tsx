@@ -19,7 +19,7 @@ try {
 }
 
 // Initialize crash reporting as early as possible — before any other imports
-import { initSentry } from '@/shared/utils/sentry';
+import { initSentry, setSentryUser } from '@/shared/utils/sentry';
 initSentry();
 
 import '../global.css';
@@ -147,6 +147,13 @@ export default function RootLayout() {
 
   const { theme, colorScheme, isDark } = useAppTheme();
   const { isLoggedIn, token, setUser, logout, _hasHydrated } = useAuthStore();
+  const currentUser = useAuthStore((s) => s.user);
+
+  // Sentry kullanıcı bağlamı: giriş/çıkış ve açılışta oturum geri yüklemesinin hepsi `user`'a
+  // yansıdığından, tek effect tüm durumları kapsar. Yalnız id + role (PII yok) → hatalar kime ait belli olur.
+  useEffect(() => {
+    setSentryUser(currentUser ? { id: currentUser.id, role: (currentUser as any).role } : null);
+  }, [currentUser?.id]);
   const segments = useSegments();
   const router = useRouter();
   const [isInitialized, setIsInitialized] = useState(false);

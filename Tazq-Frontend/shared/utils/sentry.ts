@@ -69,4 +69,51 @@ export function addBreadcrumb(
   Sentry.addBreadcrumb({ message, category, level: 'info', data });
 }
 
+/**
+ * Attach the signed-in user to every subsequent event (id + role only — no PII).
+ * Call on login / session hydration so errors become attributable during triage.
+ */
+export function setSentryUser(user: { id?: number | string; role?: string } | null): void {
+  if (!DSN) return;
+  if (!user || user.id == null) {
+    Sentry.setUser(null);
+    return;
+  }
+  Sentry.setUser({ id: String(user.id), ...(user.role ? { role: user.role } : {}) });
+}
+
+/** Clear user context on logout. */
+export function clearSentryUser(): void {
+  if (!DSN) return;
+  Sentry.setUser(null);
+}
+
+/**
+ * Report a failed API call. Breadcrumb for every failure (trail), and a captured
+ * exception for real server faults (5xx) so they surface as issues with endpoint,
+ * method, status and the server-side traceId for cross-correlation.
+ */
+export function reportApiError(info: {
+  method?: string;
+  url?: string;
+  status?: number;
+  traceId?: string;
+  message?: string;
+}): void {
+  if (!DSN) return;
+  const { method = 'GET', url = '', status, traceId, message } = info;
+  addBreadcrumb(`${method.toUpperCase()} ${url} → ${status ?? 'network'}`, 'api', { status, traceId });
+  // Only escalate unexpected server-side faults to issues; expected 4xx stay as breadcrumbs.
+  if (status != null && status >= 500) {
+    Sentry.withScope((scope) => {
+      scope.setTag('api.endpoint', url);
+      scope.setTag('api.method', method.toUpperCase());
+      scope.setTag('api.status', String(status));
+      if (traceId) scope.setTag('server.traceId', traceId);
+      scope.setLevel('error');
+      Sentry.captureException(new Error(`API ${status} ${method.toUpperCase()} ${url}${message ? ` — ${message}` : ''}`));
+    });
+  }
+}
+
 export { Sentry };

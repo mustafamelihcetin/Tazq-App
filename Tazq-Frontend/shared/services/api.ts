@@ -2,6 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '@/features/user/store/useAuthStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { Platform } from 'react-native';
+import { reportApiError } from '@/shared/utils/sentry';
 
 const BASE_URL = 'https://api.tazqapp.com';
 
@@ -130,6 +131,18 @@ api.interceptors.response.use(
         return api(config);
       }
     }
+
+    // Retry'lar tükendikten sonraki NIHAI hata → Sentry'ye bildir. Her hata için breadcrumb,
+    // 5xx sunucu hataları için issue (endpoint + method + status + backend traceId ile).
+    // 401 yukarıda ele alındığı için buraya düşmez (beklenen akış, gürültü yapmaz).
+    const respData: any = error.response?.data;
+    reportApiError({
+      method: config?.method,
+      url: config?.url,
+      status: error.response?.status,
+      traceId: respData?.traceId ?? respData?.TraceId,
+      message: error.message,
+    });
 
     return Promise.reject(error);
   }
