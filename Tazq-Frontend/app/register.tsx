@@ -215,7 +215,13 @@ export default function RegisterScreen() {
           (body && typeof body === 'object' && body.error === 'email_taken') ||
           (typeof body === 'string' && body.includes('zaten'));
         if (isEmailTaken) { setError(t.login.registerEmailTaken); return; }
-        if (status >= 500) { setError(tr ? 'Sunucu hatası. Lütfen sonra tekrar dene.' : 'Server error. Please try again later.'); return; }
+        if (status >= 500) {
+          // Destek eşleşmesi için backend traceId'sinin son 8 hanesini "kod" olarak göster.
+          const tid = (body && typeof body === 'object' ? ((body as any).traceId || (body as any).TraceId) : '') || '';
+          const code = tid ? ` (${tr ? 'kod' : 'code'}: ${String(tid).slice(-8)})` : '';
+          setError((tr ? 'Sunucu hatası. Lütfen sonra tekrar dene.' : 'Server error. Please try again later.') + code);
+          return;
+        }
         // Sunucudan açıklayıcı bir mesaj geldiyse onu göster; yoksa genel.
         const serverMsg = typeof body === 'string' ? body : (body?.message || '');
         setError(serverMsg || t.login.registerError);

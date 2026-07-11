@@ -167,27 +167,60 @@ function inferBudgetType(name?: string | null): BudgetType {
   return 'birikim'; // fallback
 }
 
+/**
+ * Bir modun habitlerini onar. İki durum:
+ *  A) Kayıtlı ID'ler VAR → yalnız eksik olanları eski ID'leriyle geri ekle (mevcut davranış).
+ *  B) Kayıtlı ID'ler BOŞ (eski kırılganlıkla kaybolmuş) VE o moda ait yerelde HİÇ habit yok
+ *     → şablondan YENİDEN üret + ID'leri buluta geri yaz (bir daha kaybolmasın).
+ * (B) yalnız tam-kayıp durumunda çalışır → kullanıcının bilerek sildiği habitleri geri getirmez.
+ * storedTaskIds korunur (görevleri ezmemek için).
+ */
+function healModeHabits(
+  planMode: string,
+  templateHabits: any[],
+  storedHabitIds: string[],
+  storedTaskIds: number[],
+  addOne: (h: any, id: string) => void,
+): void {
+  if (!Array.isArray(templateHabits) || templateHabits.length === 0) return;
+  const localHabits = useHabitStore.getState().habits;
+  const hasHabit = (id: string) => localHabits.some(h => h.id === id);
+
+  if (storedHabitIds.length > 0) {
+    if (!storedHabitIds.some(id => !hasHabit(id))) return; // hepsi mevcut
+    templateHabits.forEach((h, i) => {
+      const id = storedHabitIds[i];
+      if (id && !hasHabit(id)) addOne(h, id);
+    });
+    return;
+  }
+
+  // (B) Boş ID: yalnız o moda ait yerel habit HİÇ yoksa yeniden üret.
+  if (localHabits.some(h => h.planMode === planMode)) return;
+  const ids: string[] = [];
+  templateHabits.forEach((h, i) => {
+    const id = `habit_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`;
+    ids.push(id);
+    addOne(h, id);
+  });
+  if (ids.length > 0) usePrefsStore.getState().setPlanIds(planMode as any, ids, storedTaskIds);
+}
+
 function selfHealActiveModes(tr: boolean) {
   const freshPrefs = usePrefsStore.getState();
   const freshSeasonal = freshPrefs.seasonal;
   const currentHabits = useHabitStore.getState().habits;
   const hasHabit = (id: string) => currentHabits.some(h => h.id === id);
   const addHabitFn = useHabitStore.getState().addHabit;
+  const taskIdsFor = (mode: string): number[] => ((freshPrefs as any)[`${mode}PlanTaskIds`] ?? []) as number[];
 
   // 1. RAMAZAN
-  if (freshSeasonal.ramazan && freshPrefs.ramazanPlanHabitIds.length > 0) {
-    const missing = freshPrefs.ramazanPlanHabitIds.some(id => !hasHabit(id));
-    if (missing) {
-      const tId = freshPrefs.planSpecs.ramazan?.templateId;
-      const modePreview = getModePreview('ramazan');
-      const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
-      template.habits.forEach((h, i) => {
-        const storedId = freshPrefs.ramazanPlanHabitIds[i];
-        if (storedId && !hasHabit(storedId)) {
-          addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, storedId, 'ramazan', h.nameTr, h.name);
-        }
-      });
-    }
+  if (freshSeasonal.ramazan) {
+    const tId = freshPrefs.planSpecs.ramazan?.templateId;
+    const modePreview = getModePreview('ramazan');
+    const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
+    healModeHabits('ramazan', template.habits, freshPrefs.ramazanPlanHabitIds, taskIdsFor('ramazan'),
+      (h, id) => addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, id, 'ramazan', h.nameTr, h.name));
   }
 
   // 2. EXAMS
@@ -197,34 +230,22 @@ function selfHealActiveModes(tr: boolean) {
     { active: !!freshSeasonal.exam3Name && !!freshSeasonal.exam3Date, name: freshSeasonal.exam3Name, date: freshSeasonal.exam3Date, habitIds: freshPrefs.exam3PlanHabitIds, slot: 'exam3' as const },
   ];
   for (const slot of examSlotsToHeal) {
-    if (slot.active && slot.name && slot.date && slot.habitIds.length > 0) {
-      if (slot.habitIds.some(id => !hasHabit(id))) {
-        const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
-        const modePreview = getModePreview('exam', { examName: slot.name, examDate: slot.date });
-        const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
-        template.habits.forEach((h, i) => {
-          const storedId = slot.habitIds[i];
-          if (storedId && !hasHabit(storedId)) {
-            addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, storedId, slot.slot, h.nameTr, h.name);
-          }
-        });
-      }
+    if (slot.active && slot.name && slot.date) {
+      const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
+      const modePreview = getModePreview('exam', { examName: slot.name, examDate: slot.date });
+      const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
+      healModeHabits(slot.slot, template.habits, slot.habitIds, taskIdsFor(slot.slot),
+        (h, id) => addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, id, slot.slot, h.nameTr, h.name));
     }
   }
 
   // 3. TEZ
-  if (freshSeasonal.tezMode && freshSeasonal.tezName && freshSeasonal.tezDate && freshPrefs.tezPlanHabitIds.length > 0) {
-    if (freshPrefs.tezPlanHabitIds.some(id => !hasHabit(id))) {
-      const tId = freshPrefs.planSpecs.tez?.templateId;
-      const modePreview = getModePreview('tez', { tezName: freshSeasonal.tezName, tezDate: freshSeasonal.tezDate });
-      const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
-      template.habits.forEach((h, i) => {
-        const storedId = freshPrefs.tezPlanHabitIds[i];
-        if (storedId && !hasHabit(storedId)) {
-          addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, storedId, 'tez', h.nameTr, h.name);
-        }
-      });
-    }
+  if (freshSeasonal.tezMode && freshSeasonal.tezName && freshSeasonal.tezDate) {
+    const tId = freshPrefs.planSpecs.tez?.templateId;
+    const modePreview = getModePreview('tez', { tezName: freshSeasonal.tezName, tezDate: freshSeasonal.tezDate });
+    const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
+    healModeHabits('tez', template.habits, freshPrefs.tezPlanHabitIds, taskIdsFor('tez'),
+      (h, id) => addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, id, 'tez', h.nameTr, h.name));
   }
 
   // 4. MULAKATS
@@ -234,18 +255,12 @@ function selfHealActiveModes(tr: boolean) {
     { active: !!freshSeasonal.mulakat3Name && !!freshSeasonal.mulakat3Date, name: freshSeasonal.mulakat3Name, date: freshSeasonal.mulakat3Date, habitIds: freshPrefs.mulakat3PlanHabitIds, slot: 'mulakat3' as const },
   ];
   for (const slot of mulakatSlotsToHeal) {
-    if (slot.active && slot.name && slot.date && slot.habitIds.length > 0) {
-      if (slot.habitIds.some(id => !hasHabit(id))) {
-        const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
-        const modePreview = getModePreview('mulakat', { mulakatName: slot.name, mulakatDate: slot.date });
-        const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
-        template.habits.forEach((h, i) => {
-          const storedId = slot.habitIds[i];
-          if (storedId && !hasHabit(storedId)) {
-            addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, storedId, slot.slot, h.nameTr, h.name);
-          }
-        });
-      }
+    if (slot.active && slot.name && slot.date) {
+      const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
+      const modePreview = getModePreview('mulakat', { mulakatName: slot.name, mulakatDate: slot.date });
+      const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
+      healModeHabits(slot.slot, template.habits, slot.habitIds, taskIdsFor(slot.slot),
+        (h, id) => addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, id, slot.slot, h.nameTr, h.name));
     }
   }
 
@@ -256,32 +271,26 @@ function selfHealActiveModes(tr: boolean) {
     { goal: freshSeasonal.spor3Goal, date: freshSeasonal.spor3Date, habitIds: freshPrefs.spor3PlanHabitIds, slot: 'spor3' as const },
   ];
   for (const slot of sporSlotsToHeal) {
-    if (slot.goal && slot.date && slot.habitIds.length > 0) {
-      if (slot.habitIds.some(id => !hasHabit(id))) {
-        const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
-        const sporState = useSporStore.getState();
-        const inputs = {
-          currentWeight: parseFloat(sporState.currentWeight) || undefined,
-          targetWeight: parseFloat(sporState.targetWeight) || undefined,
-          weeklyKm: parseFloat(sporState.weeklyKm) || undefined,
-          targetEvent: sporState.targetEvent || undefined,
-          trainingDays: sporState.trainingDays || undefined,
-          gender: sporState.gender || undefined,
-        };
-        const modePreview = getModePreview('spor', { sporGoal: slot.goal, sporDate: slot.date, sporInputs: inputs });
-        const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
-        template.habits.forEach((h, i) => {
-          const storedId = slot.habitIds[i];
-          if (storedId && !hasHabit(storedId)) {
-            addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, storedId, slot.slot, h.nameTr, h.name);
-          }
-        });
-      }
+    if (slot.goal && slot.date) {
+      const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
+      const sporState = useSporStore.getState();
+      const inputs = {
+        currentWeight: parseFloat(sporState.currentWeight) || undefined,
+        targetWeight: parseFloat(sporState.targetWeight) || undefined,
+        weeklyKm: parseFloat(sporState.weeklyKm) || undefined,
+        targetEvent: sporState.targetEvent || undefined,
+        trainingDays: sporState.trainingDays || undefined,
+        gender: sporState.gender || undefined,
+      };
+      const modePreview = getModePreview('spor', { sporGoal: slot.goal, sporDate: slot.date, sporInputs: inputs });
+      const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
+      healModeHabits(slot.slot, template.habits, slot.habitIds, taskIdsFor(slot.slot),
+        (h, id) => addHabitFn(tr ? h.nameTr : h.name, h.emoji, h.color, id, slot.slot, h.nameTr, h.name));
     }
   }
 
   // 6. TASARRUF
-  if (freshSeasonal.tasarrufMode && freshSeasonal.tasarrufName && freshPrefs.tasarrufPlanHabitIds.length > 0) {
+  if (freshSeasonal.tasarrufMode && freshSeasonal.tasarrufName) {
     const bStore = useBudgetStore.getState();
     const inferred = inferBudgetType(freshSeasonal.tasarrufName);
     if (bStore.budgetType === '' && inferred) {
@@ -289,20 +298,14 @@ function selfHealActiveModes(tr: boolean) {
       bStore.setStartAmount('0');
       bStore.setTargetAmount('1000');
     }
-    if (freshPrefs.tasarrufPlanHabitIds.some(id => !hasHabit(id))) {
-      const typeToUse = bStore.budgetType || inferred || 'birikim';
-      const plan = buildTasarrufPlan(typeToUse);
-      plan.habits.forEach((h, i) => {
-        const storedId = freshPrefs.tasarrufPlanHabitIds[i];
-        if (storedId && !hasHabit(storedId)) {
-          addHabitFn(h.name, h.emoji, h.color, storedId, 'tasarruf', h.name, h.nameEn);
-        }
-      });
-    }
+    const typeToUse = bStore.budgetType || inferred || 'birikim';
+    const plan = buildTasarrufPlan(typeToUse);
+    healModeHabits('tasarruf', plan.habits, freshPrefs.tasarrufPlanHabitIds, taskIdsFor('tasarruf'),
+      (h, id) => addHabitFn(h.name, h.emoji, h.color, id, 'tasarruf', h.name, h.nameEn));
   }
 
   // 7. BIRAKMA
-  if (freshSeasonal.birakmaMode && freshSeasonal.birakmaName && freshPrefs.birakmaPlanHabitIds.length > 0) {
+  if (freshSeasonal.birakmaMode && freshSeasonal.birakmaName) {
     const qStore = useQuitStore.getState();
     if (qStore.items.length === 0) {
       const nameStr = freshSeasonal.birakmaName;
@@ -314,15 +317,9 @@ function selfHealActiveModes(tr: boolean) {
       else if (/kumar|gambling/i.test(nameStr)) inferredType = 'kumar';
       qStore.addItem(inferredType, nameStr);
     }
-    if (freshPrefs.birakmaPlanHabitIds.some(id => !hasHabit(id))) {
-      const plan = buildBirakmaPlan('' as QuitType);
-      plan.habits.forEach((h, i) => {
-        const storedId = freshPrefs.birakmaPlanHabitIds[i];
-        if (storedId && !hasHabit(storedId)) {
-          addHabitFn(h.name, h.emoji, h.color, storedId, 'birakma', h.name, h.nameEn);
-        }
-      });
-    }
+    const plan = buildBirakmaPlan('' as QuitType);
+    healModeHabits('birakma', plan.habits, freshPrefs.birakmaPlanHabitIds, taskIdsFor('birakma'),
+      (h, id) => addHabitFn(h.name, h.emoji, h.color, id, 'birakma', h.name, h.nameEn));
   }
 }
 
@@ -396,8 +393,15 @@ export function usePlanAdaptations() {
     const existingTaskIds = new Set(useTaskStore.getState().tasks.map(t => t.id));
     const prunedTaskIds = currentTaskIds.filter(id => existingTaskIds.has(id));
 
-    const existingHabitIds = new Set(useHabitStore.getState().habits.map(h => h.id));
-    const prunedHabitIds = currentHabitIds.filter(id => existingHabitIds.has(id));
+    const localHabits = useHabitStore.getState().habits;
+    const existingHabitIds = new Set(localHabits.map(h => h.id));
+    // KIRILGANLIK KORUMASI: Yerelde HİÇ habit yoksa (hidrate olmamış / yeni cihaz / logout sonrası)
+    // habit ID'lerini BUDAMA — yoksa bulut ID'leri boşa ezilir ve habitler KALICI kaybolur
+    // (görevler sunucuda ayrı tabloda tutulduğu için kurtulur, habitler cihaza-özel olduğundan kaybolurdu).
+    // Sadece yerelde gerçekten habit VARKEN buda (o zaman eksikler = kullanıcının sildikleri).
+    const prunedHabitIds = localHabits.length === 0
+      ? currentHabitIds
+      : currentHabitIds.filter(id => existingHabitIds.has(id));
 
     if (!newTasks.length) {
       if (prunedTaskIds.length !== currentTaskIds.length || prunedHabitIds.length !== currentHabitIds.length) {

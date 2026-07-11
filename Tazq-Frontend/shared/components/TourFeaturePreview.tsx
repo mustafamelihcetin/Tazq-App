@@ -277,7 +277,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
         <ScaledScreen innerW={frameW} tap={{ x: 123, y: 66, k: toggle, color: theme.primary }}>
           <View style={{ paddingHorizontal: 16 }}>
             <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.primary }}>
-              {tr ? 'BUGÜNKÜ RİTÜELLERİM' : 'MY DAILY RITUALS'}
+              {tr ? 'BUGÜNKÜ ALIŞKANLIKLARIM' : 'MY DAILY HABITS'}
             </Text>
             <Text style={{ fontSize: 8.5, color: theme.onSurfaceVariant, opacity: 0.45, marginTop: 1 }}>
               {tr ? 'Alışkanlığı tamamlamak için bas' : 'Tap habit to complete'}

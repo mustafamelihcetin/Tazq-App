@@ -3,7 +3,7 @@
     "name": "TAZQ",
     "slug": "Tazq-Frontend",
     "owner": "melihctn",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/brand/icon.png",
     "userInterfaceStyle": "automatic",
@@ -59,7 +59,9 @@
           "iosUrlScheme": "com.googleusercontent.apps.995645524095-cd867f78b9768j1j8amr5oipee2cnr55"
         }
       ],
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "@kingstinct/react-native-healthkit",
+      "react-native-health-connect"
     ],
     "splash": {
       "image": "./assets/brand/splash_logo.png",
@@ -75,6 +77,7 @@
         "NSSpeechRecognitionUsageDescription": "TAZQ needs access to speech recognition to convert your voice to text.",
         "NSPhotoLibraryUsageDescription": "TAZQ needs access to your photo library if you want to attach images to your tasks.",
         "NSCameraUsageDescription": "TAZQ needs access to your camera if you want to take photos for your tasks.",
+        "NSHealthShareUsageDescription": "TAZQ reads your sleep data from Health to help you track your sleep habit.",
         "UIBackgroundModes": ["audio"]
       }
     },
@@ -85,6 +88,7 @@
         "backgroundColor": "#0B0E1C"
       },
       "package": "com.tazqapp.tazq",
+      "permissions": ["android.permission.health.READ_SLEEP"],
       "backgroundColor": "#000000",
       "softwareKeyboardLayoutMode": "resize",
       "navigationBar": {

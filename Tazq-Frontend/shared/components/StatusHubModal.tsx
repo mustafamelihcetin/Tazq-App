@@ -238,7 +238,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                 TAZQ INSIGHTS
               </Text>
               <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.6, marginTop: 1 }}>
-                {language === 'tr' ? 'Haftalık odaklanma ve ritüel gelişimi analitiği' : 'Weekly focus and ritual growth analytics'}
+                {language === 'tr' ? 'Haftalık odaklanma ve alışkanlık gelişimi analitiği' : 'Weekly focus and habit growth analytics'}
               </Text>
             </View>
           </View>
@@ -296,8 +296,8 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                   </Text>
                   <Text style={{ fontSize: 9.5, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.5 }}>
                     {language === 'tr'
-                      ? `Odak: ${totalFocusMins}dk • Ritüel: ${completedHabitsCount} tamamlandı • Seri: ${streak}g\n(10s altında tamamlananlar odak skorunu etkilemez)`
-                      : `Focus: ${totalFocusMins}m • Rituals: ${completedHabitsCount} done • Streak: ${streak}d\n(Tasks checked in <10s do not count towards the score)`}
+                      ? `Odak: ${totalFocusMins}dk • Alışkanlık: ${completedHabitsCount} tamamlandı • Seri: ${streak}g\n(10s altında tamamlananlar odak skorunu etkilemez)`
+                      : `Focus: ${totalFocusMins}m • Habits: ${completedHabitsCount} done • Streak: ${streak}d\n(Tasks checked in <10s do not count towards the score)`}
                   </Text>
                 </View>
               </LinearGradient>
@@ -453,11 +453,11 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={{ fontSize: 9, fontWeight: '800', color: theme.primary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                    {language === 'tr' ? 'RİTÜEL & ODAK SİNERJİSİ' : 'RITUAL & FOCUS SYNERGY'}
+                    {language === 'tr' ? 'ALIŞKANLIK & ODAK SİNERJİSİ' : 'HABIT & FOCUS SYNERGY'}
                   </Text>
                   <Text style={{ fontSize: 11.5, fontWeight: '600', color: theme.onSurface, lineHeight: 16 }}>
                     {language === 'tr'
-                      ? 'Ritüellerini aksatmadığın günlerde odaklanma süren ortalama %45 daha yüksek seyrediyor. Alışkanlıkların odağını doğrudan tetikliyor!'
+                      ? 'Alışkanlıklarını aksatmadığın günlerde odaklanma süren ortalama %45 daha yüksek seyrediyor. Alışkanlıkların odağını doğrudan tetikliyor!'
                       : 'On days you complete your rituals, your focus duration is on average 45% higher. Your habits directly fuel your focus!'}
                   </Text>
                 </View>
@@ -469,7 +469,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
               <View style={{ gap: 8 }}>
                 <View>
                   <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, letterSpacing: 0.8, textTransform: 'uppercase', opacity: 0.6 }}>
-                    {language === 'tr' ? 'RİTÜEL ZİNCİRİ' : 'RITUAL CONSISTENCY'}
+                    {language === 'tr' ? 'ALIŞKANLIK ZİNCİRİ' : 'HABIT CONSISTENCY'}
                   </Text>
                   <Text style={{ fontSize: 9, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.5 }}>
                     {language === 'tr' ? 'Son 7 günlük rutinlerin tamamlanma takvimi' : 'Routine completion calendar for the last 7 days'}

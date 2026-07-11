@@ -339,9 +339,13 @@ export default function CockpitScreen() {
     [personalTasks, weekKeys]
   );
 
+  // Haftalık Merkez artık TÜM alışkanlıkları gösterir (kişisel + mod). Önceden mod alışkanlıkları
+  // (planHabitIdSet) hariç tutuluyordu → kullanıcı habitlerini burada göremeyip "boş" sanıyordu.
+  // Kullanıcı tüm alışkanlıklarının haftalık ilerlemesini tek yerde görsün. (Silme mantığı plan
+  // alışkanlıklarını zaten doğru temizliyor — setPlanIds ile.)
   const personalHabits = useMemo(
-    () => habits.filter((h) => h && h.id && !planHabitIdSet.has(h.id)),
-    [habits, planHabitIdSet]
+    () => habits.filter((h) => h && h.id),
+    [habits]
   );
 
   const habitsThisWeekPct = useMemo(() => {

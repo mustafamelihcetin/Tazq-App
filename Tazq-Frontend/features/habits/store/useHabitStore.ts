@@ -17,6 +17,12 @@ export interface Habit {
   planMode?: string;
   nameTr?: string;
   nameEn?: string;
+  /**
+   * Faz 0 sağlık entegrasyonu temeli: bu alışkanlık bir sağlık metriğine karşılık geliyorsa
+   * etiketlenir (ör. uyku habit'i → 'sleep'). Şu an sadece etiket; ileride Apple Health /
+   * Health Connect ile "onaylı asistan" akışı bu etikete bakar. Manuel/diğerlerinde undefined.
+   */
+  healthMetric?: 'sleep';
 }
 
 interface HabitState {
@@ -94,6 +100,8 @@ export const useHabitStore = create<HabitState>()(
           if (s.habits.some(h => h.name.trim().toLocaleLowerCase('tr') === key)) {
             return s;
           }
+          // Faz 0: uyku alışkanlığını tek noktada isim/emojiden türet (mod verisini tek tek etiketlemek yerine).
+          const isSleep = /uyku|sleep/i.test(`${name} ${nameTr ?? ''} ${nameEn ?? ''}`) || emoji === '😴';
           return {
             habits: [
               ...s.habits,
@@ -108,6 +116,7 @@ export const useHabitStore = create<HabitState>()(
                 ...(planMode ? { planMode } : {}),
                 ...(nameTr ? { nameTr } : {}),
                 ...(nameEn ? { nameEn } : {}),
+                ...(isSleep ? { healthMetric: 'sleep' as const } : {}),
               },
             ],
           };

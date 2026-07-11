@@ -37,7 +37,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { Easing as RNEasing } from 'react-native';
-import ReAnimated, { useSharedValue, useAnimatedStyle, useDerivedValue, withRepeat, withTiming, withDelay, cancelAnimation, Easing as ReEasing } from 'react-native-reanimated';
+import ReAnimated, { useSharedValue, useAnimatedStyle, useDerivedValue, withRepeat, withTiming, withDelay, cancelAnimation, Easing as ReEasing, type SharedValue } from 'react-native-reanimated';
 import { Canvas, Fill, Shader, Skia, useClock } from '@shopify/react-native-skia';
 
 interface StarGroupProps {
@@ -212,6 +212,7 @@ uniform float2 u_res;
 uniform float3 c1;
 uniform float3 c2;
 uniform float3 c3;
+uniform float u_hold;
 
 // Yumuşak, dalgalı ışık perdesi — aurora "curtain". Dalga merkezi zamanla süzülür,
 // smoothstep ile geniş/blurlu kenar, hafif dikey çizgilenme perde dokusu verir.
@@ -227,15 +228,22 @@ float curtain(float2 uv, float t, float yBase, float amp, float freq, float phas
 
 half4 main(float2 fragCoord) {
   float2 uv = fragCoord / u_res;
+  // Basılı tutma (nefes al): uv'yi merkeze doğru topla → aurora içe çekilir, bırakınca yayılır.
+  uv = mix(uv, float2(0.5, 0.5), u_hold * 0.14);
   float t = u_time * 0.33;
 
   // Derin uzay tabanı — altta daha koyu
   float3 col = mix(float3(0.05, 0.09, 0.20), float3(0.02, 0.03, 0.09), uv.y);
 
-  // Üç akan aurora perdesi (emerald / indigo / violet), farklı faz ve hızlarda
-  col += c2 * curtain(uv, t,        0.44, 0.10, 3.0, 0.0) * 0.55;
-  col += c1 * curtain(uv, t * 1.12, 0.56, 0.12, 2.3, 2.0) * 0.42;
-  col += c3 * curtain(uv, t * 0.9,  0.34, 0.08, 3.6, 4.0) * 0.38;
+  // Tutunca perdeler parlar (aurora "yoğunlaşır")
+  float boost = 1.0 + u_hold * 0.85;
+  col += c2 * curtain(uv, t,        0.44, 0.10, 3.0, 0.0) * 0.55 * boost;
+  col += c1 * curtain(uv, t * 1.12, 0.56, 0.12, 2.3, 2.0) * 0.42 * boost;
+  col += c3 * curtain(uv, t * 0.9,  0.34, 0.08, 3.6, 4.0) * 0.38 * boost;
+
+  // Merkezde toplanan yumuşak ışık çekirdeği — tut süresince birikir (nefesi topla)
+  float core = smoothstep(0.5, 0.0, distance(uv, float2(0.5, 0.5)));
+  col += (c1 * 0.4 + float3(0.16, 0.18, 0.26)) * core * core * u_hold * 0.6;
 
   return half4(col, 1.0);
 }
@@ -249,7 +257,7 @@ const hexToRgb = (hex: string): [number, number, number] => {
 // c1=primary, c2=tertiary, c3=secondary (eski blob renkleriyle birebir).
 // paused=true iken zaman uniform'u dondurulur → shader yeniden çizmez, GPU boşta (zen/ritual).
 // size: kare (daire-içi kullanım). width/height verilirse tam-ekran (zen zemini). speedScale: akış hızı.
-const Nebula = React.memo(({ size, width, height, c1, c2, c3, paused, speedScale = 1 }: { size: number; width?: number; height?: number; c1: string; c2: string; c3: string; paused: boolean; speedScale?: number }) => {
+const Nebula = React.memo(({ size, width, height, c1, c2, c3, paused, speedScale = 1, holdSV }: { size: number; width?: number; height?: number; c1: string; c2: string; c3: string; paused: boolean; speedScale?: number; holdSV?: SharedValue<number> }) => {
   const w = width ?? size;
   const h = height ?? size;
   const effect = useMemo(() => Skia.RuntimeEffect.Make(NEBULA_SKSL), []);
@@ -259,7 +267,7 @@ const Nebula = React.memo(({ size, width, height, c1, c2, c3, paused, speedScale
   const frozen = useSharedValue(0);
   const time = useDerivedValue(() => {
     'worklet';
-    // Duraklatıldıysa saati OKUMA → bu çalıştırmada clock bağımlılığı oluşmaz, değer donar (redraw yok).
+    // Duraklatıldıysa saati OKUMA → donar (redraw yok). hold değişince uniforms yine de yeniden hesaplanır.
     if (pausedSV.value) return frozen.value;
     const v = (clock.value / 1000) * speedScale;
     frozen.value = v;
@@ -274,6 +282,7 @@ const Nebula = React.memo(({ size, width, height, c1, c2, c3, paused, speedScale
     c1: rgb1,
     c2: rgb2,
     c3: rgb3,
+    u_hold: holdSV ? holdSV.value : 0,
   }));
   if (!effect) return null;
   return (
@@ -478,6 +487,13 @@ export default function FocusScreen() {
   const rp0 = useSharedValue(0);
   const rp1 = useSharedValue(0);
   const rp2 = useSharedValue(0);
+  // Basılı tutma "nefesi topla": tut → aurora içe toplanıp parlar (shader u_hold); bırak → dışa dalga (exhale).
+  const holdBloom = useSharedValue(0);        // 0→1 hold yoğunluğu, Nebula shader'ına u_hold olarak gider
+  const releaseRipple = useSharedValue(0);    // bırakınca tek seferlik dışa yayılan dalga
+  const pressStartRef = useRef(0);
+  const chargeHapticRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Zen'e sakin otomatik geçiş için: kullanıcı bu seansda zen'e elle dokunduysa zorlama.
+  const userToggledZenRef = useRef(false);
   // ── Sakin mod (reduce-motion) ──────────────────────────────────────────────
   // OS "Hareketi Azalt" ayarını izle. Açıkken dekoratif hareket (aurora, halkalar,
   // yanıp sönme) durur → erişilebilirlik + gerçek meditatif sükûnet.
@@ -504,11 +520,23 @@ export default function FocusScreen() {
     rp1.value = withDelay(2800, withRepeat(withTiming(1, { duration: 8400, easing: easeOut }), -1, false));
     rp2.value = withDelay(5600, withRepeat(withTiming(1, { duration: 8400, easing: easeOut }), -1, false));
   }, [isActive, reduceMotion]);
+
+  // Sakin karşılama: seans başlayınca kullanıcı sayacı görsün, sonra ekran kendini zen'e bıraksın
+  // (clock-watching'i azaltır). Kullanıcı bu seansda zen'e elle dokunduysa zorlamaz; tek dokunuşla çıkılır.
+  useEffect(() => {
+    if (!isActive) { userToggledZenRef.current = false; return; }
+    const id = setTimeout(() => {
+      if (useFocusStore.getState().isActive && !userToggledZenRef.current) setZenMode(true);
+    }, 2500);
+    return () => clearTimeout(id);
+  }, [isActive]);
   // Opaklık çan eğrisi: sin(value·π) → başta 0, ortada tepe (0.28), sonda 0. Böylece döngü
   // başa dönerken (value 1→0) halka zaten görünmez olduğundan "pat" atlama olmaz, akış kesintisiz.
   const rp0Style = useAnimatedStyle(() => ({ opacity: 0.28 * Math.sin(rp0.value * Math.PI), transform: [{ scale: 1 + rp0.value * 0.22 }] }));
   const rp1Style = useAnimatedStyle(() => ({ opacity: 0.28 * Math.sin(rp1.value * Math.PI), transform: [{ scale: 1 + rp1.value * 0.22 }] }));
   const rp2Style = useAnimatedStyle(() => ({ opacity: 0.28 * Math.sin(rp2.value * Math.PI), transform: [{ scale: 1 + rp2.value * 0.22 }] }));
+  // Bırakma dalgası: daireden dışa yayılıp sönen tek halka (nefes verme). Opaklık çan eğrisi → kesintisiz.
+  const releaseRippleStyle = useAnimatedStyle(() => ({ opacity: 0.34 * Math.sin(releaseRipple.value * Math.PI), transform: [{ scale: 1 + releaseRipple.value * 0.5 }] }));
   // progress/elapsed artık parent render'ında hesaplanmıyor (saniyeye bağlıydı).
   // progressAnim'i <ProgressDriver/> besliyor; sessionStarted yukarıda boolean selector'dan geliyor.
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -1091,6 +1119,7 @@ export default function FocusScreen() {
                 c3={theme.secondary}
                 paused={!(zenMode && isActive) || reduceMotion}
                 speedScale={0.45}
+                holdSV={holdBloom}
               />
             </MotiView>
           </MotiView>
@@ -1459,6 +1488,17 @@ export default function FocusScreen() {
               );
             })()}
 
+            {/* Nefes verme dalgası — basılı tutup BIRAKINCA daireden dışa yayılıp sönen tek halka */}
+            {isActive && !reduceMotion && (
+              <ReAnimated.View
+                pointerEvents="none"
+                style={[
+                  { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: timerSize / 2, borderWidth: 2, borderColor: (pomodoroMode && pomodoroPhase === 'break') ? theme.tertiary : theme.primary },
+                  releaseRippleStyle,
+                ]}
+              />
+            )}
+
             <Animated.View
               pointerEvents={zenMode && isActive ? "box-none" : "auto"}
               style={[styles.timerCircle, {
@@ -1477,12 +1517,39 @@ export default function FocusScreen() {
               }]}
             >
               <Touchable
-                activeOpacity={0.9}
-                onPress={() => {
-                  if (isActive) {
+                activeOpacity={1}
+                onPressIn={() => {
+                  pressStartRef.current = Date.now();
+                  if (isActive && !reduceMotion) {
+                    // Nefesi topla: aurora yavaşça (~1.8 sn) içe toplanıp parlar
+                    holdBloom.value = withTiming(1, { duration: 1800, easing: ReEasing.out(ReEasing.ease) });
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setZenMode(!zenMode);
+                    // Toplanma dolunca yumuşak "hazır" haptik (arc: dokun → topla → hazır → bırak)
+                    if (chargeHapticRef.current) clearTimeout(chargeHapticRef.current);
+                    chargeHapticRef.current = setTimeout(() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    }, 1800);
                   }
+                }}
+                onPressOut={() => {
+                  if (chargeHapticRef.current) { clearTimeout(chargeHapticRef.current); chargeHapticRef.current = null; }
+                  if (isActive && !reduceMotion) {
+                    // Nefes ver: toplanan ışık geri çekilir + daireden dışa tek dalga yayılır
+                    holdBloom.value = withTiming(0, { duration: 1400, easing: ReEasing.inOut(ReEasing.ease) });
+                    releaseRipple.value = 0;
+                    releaseRipple.value = withTiming(1, { duration: 1100, easing: ReEasing.out(ReEasing.ease) });
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  } else {
+                    holdBloom.value = 0;
+                  }
+                }}
+                onPress={() => {
+                  if (!isActive) return;
+                  // Uzun basış = topraklanma jesti → zen'i toggle ETME (sadece bloom yaşandı).
+                  if (Date.now() - pressStartRef.current > 260) return;
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  userToggledZenRef.current = true; // elle dokunuldu → otomatik-zen zorlamasın
+                  setZenMode(!zenMode);
                 }}
                 style={{
                   width: '100%',
@@ -1508,6 +1575,7 @@ export default function FocusScreen() {
                       c2={theme.tertiary}
                       c3={theme.secondary}
                       paused={!auroraVisible || reduceMotion}
+                      holdSV={holdBloom}
                     />
                   </MotiView>
 

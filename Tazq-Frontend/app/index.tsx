@@ -38,7 +38,7 @@ import { computeMomentum } from '@/shared/utils/momentum';
 import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
-import { useHabitStore, fmtDateKey } from '@/features/habits';
+import { useHabitStore, fmtDateKey, useSleepHealthSync } from '@/features/habits';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { MomentumPulse } from '@/shared/components/MomentumPulse';
 import { WeightEntryModal } from '@/shared/components/WeightEntryModal';
@@ -183,6 +183,8 @@ export default function HomeScreen() {
 
   // Alışkanlıklar (dashboard hızlı giriş şeridi) — tek dokunuşla bugünü işaretle.
   const habits = useHabitStore(s => s.habits);
+  // Uyku sağlık senkronu — onaylı asistan (iOS HealthKit; desteklenmeyen yerde sessiz no-op).
+  useSleepHealthSync();
   const toggleHabitDate = useHabitStore(s => s.toggleDate);
   const toggleHabitSkipDate = useHabitStore(s => s.toggleSkipDate);
   const getHabitStreak = useHabitStore(s => s.getStreak);
@@ -1634,7 +1636,7 @@ export default function HomeScreen() {
                   <TourTarget id="habits">
                     <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: 2 }}>
                     <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.primary }}>
-                      {tr ? 'BUGÜNKÜ RİTÜELLERİM' : 'MY DAILY RITUALS'}
+                      {tr ? 'BUGÜNKÜ ALIŞKANLIKLARIM' : 'MY DAILY HABITS'}
                     </Text>
                     <Text style={{ fontSize: 8.5, color: theme.onSurfaceVariant, opacity: 0.45, marginTop: 1 }}>
                       {tr ? 'Alışkanlığı tamamlamak için bas, mola için basılı tut' : 'Tap habit to complete, hold for break'}
@@ -1739,8 +1741,8 @@ export default function HomeScreen() {
                       }}>
                         <Text style={{ fontSize: 9.5, fontWeight: '600', color: theme.onSurfaceVariant, lineHeight: 13 }}>
                           {tr 
-                            ? 'Günlük ritüellerini belirle. Yaşam modlarını açtığında hedefler otomatik eklenir.'
-                            : 'Set daily rituals. Active life modes will automatically populate habits here.'
+                            ? 'Günlük alışkanlıklarını belirle. Yaşam modlarını açtığında hedefler otomatik eklenir.'
+                            : 'Set daily habits. Active life modes will automatically populate habits here.'
                           }
                         </Text>
                       </View>

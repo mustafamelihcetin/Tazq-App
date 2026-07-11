@@ -71,6 +71,13 @@ interface PrefsState {
   setFocusAmbientSound: (v: string) => void;
   focusPreset: string;
   setFocusPreset: (v: string) => void;
+  // Uyku sağlık entegrasyonu (Faz 1) — cihaza özel. optIn: kullanıcı Apple Sağlık bağladı mı?
+  sleepHealthOptIn: 'unset' | 'yes' | 'no';
+  setSleepHealthOptIn: (v: 'unset' | 'yes' | 'no') => void;
+  sleepLastCheckDate: string; // 'YYYY-MM-DD' — günde bir kez sor
+  setSleepLastCheckDate: (v: string) => void;
+  sleepGoalHours: number;     // hedef uyku (saat) — kutlama mesajı için
+  setSleepGoalHours: (v: number) => void;
   examPlanHabitIds: string[];
   examPlanTaskIds: number[];
   exam2PlanHabitIds: string[];
@@ -244,6 +251,12 @@ export const usePrefsStore = create<PrefsState>()(
       setFocusAmbientSound: (v) => set({ focusAmbientSound: v }),
       focusPreset: 'classic',
       setFocusPreset: (v) => set({ focusPreset: v }),
+      sleepHealthOptIn: 'unset',
+      setSleepHealthOptIn: (v) => set({ sleepHealthOptIn: v }),
+      sleepLastCheckDate: '',
+      setSleepLastCheckDate: (v) => set({ sleepLastCheckDate: v }),
+      sleepGoalHours: 7,
+      setSleepGoalHours: (v) => set({ sleepGoalHours: v }),
       examPlanHabitIds: [],
       examPlanTaskIds: [],
       exam2PlanHabitIds: [],

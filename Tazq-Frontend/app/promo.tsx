@@ -36,7 +36,7 @@ const SLIDES: SlideDef[] = [
   // 2 — Dönemsel Modlar: ayrıştırıcı özellik · teal
   { kind: 'modes', colors: ['#062430', '#0c4258', '#051826'], accent: '#2DD4BF', ebTr: 'Dönemsel Modlar', ebEn: 'Life Modes', tTr: 'Dönemine özel\ngünlük plan', tEn: 'A daily plan\nfor your season', sTr: 'Sınav, spor, kariyer — planın her gün otomatik hazır.', sEn: 'Exams, fitness, career — your plan ready daily.' },
   // 3 — Görevler & Ritüeller: günlük yürütme · magenta/rose
-  { kind: 'tasks', colors: ['#26093c', '#4a1266', '#1a0a2e'], accent: '#F472B6', ebTr: 'Görevler & Ritüeller', ebEn: 'Tasks & Rituals', tTr: 'Bugünün planı,\nalışkanlıkların', tEn: "Today's plan,\nyour habits", sTr: 'Görevlerini, ritüellerini ve serilerini takip et.', sEn: 'Track your tasks, rituals and streaks.' },
+  { kind: 'tasks', colors: ['#26093c', '#4a1266', '#1a0a2e'], accent: '#F472B6', ebTr: 'Görevler & Alışkanlıklar', ebEn: 'Tasks & Habits', tTr: 'Bugünün planı,\nalışkanlıkların', tEn: "Today's plan,\nyour habits", sTr: 'Görevlerini, alışkanlıklarını ve serilerini takip et.', sEn: 'Track your tasks, habits and streaks.' },
   // 4 — Momentum: ilerleme · emerald
   { kind: 'momentum', colors: ['#06271f', '#0d4a3c', '#051c16'], accent: '#34D399', ebTr: 'Momentum', ebEn: 'Insights', tTr: 'İlerlemeni gör,\nmomentumu koru', tEn: 'See progress,\nkeep momentum', sTr: 'Haftalık odak istatistikleri ve momentum skorun.', sEn: 'Weekly focus stats and momentum score.' },
   // 5 — Ana ekran: genel bakış · mavi
@@ -167,7 +167,7 @@ export default function PromoScreen() {
         [tr ? 'Sabah 25 dk derin odak' : 'Morning 25 min deep focus', true],
         [tr ? 'Proje sunumunu hazırla' : 'Prepare project deck', false],
         [tr ? 'Spor: 30 dk koşu' : 'Workout: 30 min run', false],
-        [tr ? 'Akşam okuma ritüeli' : 'Evening reading ritual', false],
+        [tr ? 'Akşam okuma alışkanlığı' : 'Evening reading habit', false],
       ];
       return (
         <View style={{ flex: 1, backgroundColor: '#120c22', padding: pad, gap: gap }}>
@@ -183,7 +183,7 @@ export default function PromoScreen() {
               </View>
             ))}
           </View>
-          <Text style={[LAB, { marginTop: u * 0.25 }]}>{tr ? 'RİTÜELLER' : 'RITUALS'}</Text>
+          <Text style={[LAB, { marginTop: u * 0.25 }]}>{tr ? 'ALIŞKANLIKLAR' : 'HABITS'}</Text>
           <View style={{ flexDirection: 'row', gap: u * 1.1 }}>
             {[[tr ? 'Su iç' : 'Hydrate', '12', GREEN], [tr ? 'Meditasyon' : 'Meditate', '7', TEAL]].map(([n, s, c]: any) => (
               <View key={n} style={[CARD, { flex: 1, padding: pad, gap: u * 0.75 }]}>

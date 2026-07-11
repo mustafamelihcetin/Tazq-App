@@ -9,6 +9,7 @@ import { MotiView } from 'moti';
 import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
+import { SleepHealth } from '@/shared/services/sleepHealth';
 import { SupportModal } from '@/shared/components/SupportModal';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { useAuthStore, getAvatarSource, AVATAR_CONFIGS, AVATAR_MAP, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
@@ -72,7 +73,23 @@ export default function ProfileScreen() {
   const streakShields = useFocusStore(s => s.streakShields);
   const { habits, toggleDate } = useHabitStore();
   const { tasks } = useTaskStore();
-  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender } = usePrefsStore();
+  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours } = usePrefsStore();
+  const [sleepSupported] = useState(() => SleepHealth.isSupported());
+  const handleSleepToggle = async (v: boolean) => {
+    Haptics.selectionAsync();
+    if (v) {
+      const ok = await SleepHealth.requestAuthorization();
+      setSleepHealthOptIn(ok ? 'yes' : 'no');
+      showToast(
+        ok ? (language === 'tr' ? 'Uyku takibi açık — sabahları otomatik işaretlenir' : 'Sleep tracking on — auto-marked each morning')
+           : (language === 'tr' ? 'Sağlık izni verilmedi' : 'Health permission not granted'),
+        ok ? 'success' : 'info'
+      );
+    } else {
+      setSleepHealthOptIn('no');
+    }
+  };
+  const cycleSleepGoal = () => { Haptics.selectionAsync(); setSleepGoalHours(sleepGoalHours >= 9 ? 6 : sleepGoalHours + 1); };
   const { unlocked: unlockedAchievements } = useAchievementStore();
 
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -674,6 +691,34 @@ export default function ProfileScreen() {
                     theme={theme}
                 />
             </SettingsCard>
+
+            {/* ── UYKU (Apple Sağlık) — yalnız desteklenen cihazda ── */}
+            {sleepSupported && (
+              <>
+                <SectionHeader title={language === 'tr' ? 'UYKU' : 'SLEEP'} theme={theme} style={{ marginTop: S.lg }} />
+                <SettingsCard theme={theme} isDark={isDark}>
+                    <ToggleRow
+                        icon={<Moon size={18} color="#818CF8" />}
+                        bg={'#818CF815'}
+                        title={language === 'tr' ? 'Apple Sağlık ile Uyku' : 'Sleep via Apple Health'}
+                        subtitle={language === 'tr' ? 'Uyku alışkanlığın her sabah otomatik işaretlenir' : 'Your sleep habit is auto-marked each morning'}
+                        value={sleepHealthOptIn === 'yes'}
+                        onValueChange={handleSleepToggle}
+                        theme={theme} isDark={isDark}
+                    />
+                    <RowDivider isDark={isDark} />
+                    <SettingItem
+                        icon={<Target size={18} color="#818CF8" />}
+                        label={language === 'tr' ? 'Uyku Hedefi' : 'Sleep Goal'}
+                        sub={language === 'tr' ? 'Hedefi tuttuğunda kutlanır' : 'Celebrated when you hit it'}
+                        bg={'#818CF815'}
+                        right={<Text style={{ color: '#818CF8', fontWeight: '800', fontSize: F.caption }}>{sleepGoalHours}{language === 'tr' ? ' saat' : 'h'}</Text>}
+                        onPress={cycleSleepGoal}
+                        theme={theme}
+                    />
+                </SettingsCard>
+              </>
+            )}
 
             {/* ── MERKEZ ── */}
             <SectionHeader title={language === 'tr' ? 'MERKEZ' : 'HUB'} theme={theme} style={{ marginTop: S.lg }} />

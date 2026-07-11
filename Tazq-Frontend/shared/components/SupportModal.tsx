@@ -85,7 +85,9 @@ export const SupportModal: React.FC<SupportModalProps> = ({
             ? 'Oturumun doğrulanamadı. Lütfen çıkıp tekrar giriş yap.'
             : 'Session could not be verified. Please sign out and back in.';
         } else if (status >= 500) {
-          msg = tr ? 'Sunucu hatası. Lütfen sonra tekrar dene.' : 'Server error. Please try again later.';
+          const tid = (body && typeof body === 'object' ? ((body as any).traceId || (body as any).TraceId) : '') || '';
+          const code = tid ? ` (${tr ? 'kod' : 'code'}: ${String(tid).slice(-8)})` : '';
+          msg = (tr ? 'Sunucu hatası. Lütfen sonra tekrar dene.' : 'Server error. Please try again later.') + code;
         } else if (serverMsg) {
           msg = serverMsg;
         }
