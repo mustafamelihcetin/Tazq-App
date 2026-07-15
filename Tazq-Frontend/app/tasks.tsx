@@ -1922,7 +1922,7 @@ export default function ActionCenter() {
             bottom: 44,
             right: 24,
             zIndex: 100,
-            backgroundColor: isDark ? '#F4F4F5' : '#0F0F0F',
+            backgroundColor: isDark ? theme.onSurface : theme.onBackground,
             shadowColor: '#000',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1931,7 +1931,7 @@ export default function ActionCenter() {
           borderRadius={R.lg}
           tourId="quickAdd"
         >
-          <Plus size={32} color={isDark ? '#09090B' : '#FFFFFF'} strokeWidth={3} />
+          <Plus size={32} color={isDark ? theme.background : '#FFFFFF'} strokeWidth={3} />
         </MagneticFAB>
       )}
 

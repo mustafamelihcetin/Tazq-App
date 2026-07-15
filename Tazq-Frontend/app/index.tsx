@@ -62,6 +62,7 @@ import { useDoubleTapHighlight } from '@/features/user/hooks/useDoubleTapHighlig
 import { useWeeklyStats } from '@/features/user/hooks/useWeeklyStats';
 import { ReviewPromptModal } from '@/features/user/components/ReviewPromptModal';
 import { httpStatusOf, isNetworkError } from '@/shared/utils/errors';
+import { Colors } from '@/shared/constants/Colors';
 
 
 // Hoş geldin (profil kurulumu) oturum başına yalnızca bir kez — remount'ta sıfırlanmasın diye
@@ -1054,7 +1055,12 @@ export default function HomeScreen() {
   };
 
   const getSubGreeting = (): string => {
-    const incomplete = tasks.filter(x => !x.isCompleted).length;
+    // Ekranda GÖRÜNEN görevleri say — eskiden `tasks.filter(!isCompleted)` ile TÜM
+    // tamamlanmamışlar sayılıyordu, gelecek tarihliler dahil. Ama aksiyon merkezi
+    // gelecek tarihlileri göstermez (bkz. myDayTasks). Sonuç: kullanıcı gördüğü tüm
+    // görevleri bitirse bile "5 görevin var" yazmaya devam ediyordu — göremediği
+    // görevler sayıldığı için yazı "statik/bozuk" görünüyordu.
+    const incomplete = todayTasksIncomplete.length + undatedTasksIncomplete.length;
     if (isActive) {
       return tr ? 'Harika! Odak seansın devam ediyor. 🔥' : "You're crushing it! Focus session in progress. 🔥";
     }
@@ -1236,7 +1242,7 @@ export default function HomeScreen() {
             style={{ flex: 1 }}
             contentContainerStyle={[styles.scrollContent, { paddingTop: 82 + insets.top, paddingBottom: 120, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }]}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={isDark ? '#1a1b1e' : '#ffffff'} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
+            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surfaceContainer} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
             {/* Welcome Hero */}
             <MotiView
@@ -1248,7 +1254,11 @@ export default function HomeScreen() {
                     uzun isim alt satıra geçer; kesilmez. Altında subgreeting tutarlı boşlukla. */}
                 <Text style={[styles.greeting, { color: theme.onSurface, fontSize: isSmallScreen ? 22 : 28, lineHeight: isSmallScreen ? 28 : 34 }]}>
                     {getGreeting()},{' '}
-                    <Text style={{ color: theme.primary }}>
+                    {/* İsim RENKLENDİRİLMEZ: bir isim ne eylem ne durum bildirir, yani
+                        rengin taşıyacağı bir anlam yok. Marka mavisiyle boyamak onu
+                        tıklanabilir/kritik gibi gösteriyordu. Üst Text zaten fontWeight 800
+                        veriyor — ayrı bir vurguya da gerek yok, selamlamanın parçası. */}
+                    <Text style={{ color: theme.onSurface }}>
                         {user?.name?.split(' ')[0] || (language === 'tr' ? 'sen' : 'you')}
                     </Text>
                 </Text>
@@ -1328,7 +1338,7 @@ export default function HomeScreen() {
                                 <SvgLinearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
                                     <Stop offset="0%" stopColor={todayCompleted >= dailyGoal ? theme.tertiary : theme.primary} stopOpacity="1" />
                                     <Stop offset="100%" stopColor={todayCompleted >= dailyGoal
-                                        ? (isDark ? '#FB923C' : '#059669')
+                                        ? theme.tertiary
                                         : theme.secondary} stopOpacity="1" />
                                 </SvgLinearGradient>
                             </Defs>
@@ -1378,7 +1388,9 @@ export default function HomeScreen() {
                   {/* BUGÜNKÜ RİTÜELLERİM (Daily Habits) */}
                   <TourTarget id="habits">
                     <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: 2 }}>
-                    <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.primary }}>
+                    {/* Bölüm etiketi — iOS'ta bölüm başlıkları GRİDİR (secondaryLabel), asla
+                        tint değil. Bir başlık ne eylem ne durum bildirir; mavi olması dekoratifti. */}
+                    <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.onSurfaceVariant }}>
                       {tr ? 'BUGÜNKÜ ALIŞKANLIKLARIM' : 'MY DAILY HABITS'}
                     </Text>
                     <Text style={{ fontSize: 8.5, color: theme.onSurfaceVariant, opacity: 0.45, marginTop: 1 }}>
@@ -1497,7 +1509,8 @@ export default function HomeScreen() {
                     accessibilityLabel={tr ? 'Günlük görevleri yönet' : 'Manage daily tasks'}
                   >
                     <View>
-                      <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.primary }}>
+                      {/* Bölüm etiketi — gri (bkz. yukarıdaki not). */}
+                      <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.onSurfaceVariant }}>
                         {tr ? 'GÜNLÜK GÖREVLERİM' : 'MY DAILY TASKS'}
                       </Text>
                     </View>
@@ -1605,8 +1618,8 @@ export default function HomeScreen() {
                     </Text>
                     {[
                         { icon: <Plus size={18} color={theme.primary} />, label: tr ? 'İlk görevini ekle' : 'Add your first task', sub: tr ? 'Aklındakini yaz, gerisini TAZQ halletsin' : 'Jot it down, TAZQ handles the rest', onPress: () => router.push('/tasks') },
-                        { icon: <Rocket size={18} color="#8b5cf6" />, label: tr ? 'Bir mod seç' : 'Choose a mode', sub: tr ? 'Sigara bırak, tasarruf, sınava hazırlık…' : 'Quit smoking, save, exam prep…', onPress: () => router.push('/modlar') },
-                        { icon: <Flame size={18} color="#F59E0B" />, label: tr ? 'Bir alışkanlık başlat' : 'Start a habit', sub: tr ? 'Her gün tek dokunuşla işaretle' : 'Check in daily with one tap', onPress: () => router.push('/cockpit') },
+                        { icon: <Rocket size={18} color={theme.primary} />, label: tr ? 'Bir mod seç' : 'Choose a mode', sub: tr ? 'Sigara bırak, tasarruf, sınava hazırlık…' : 'Quit smoking, save, exam prep…', onPress: () => router.push('/modlar') },
+                        { icon: <Flame size={18} color={theme.primary} />, label: tr ? 'Bir alışkanlık başlat' : 'Start a habit', sub: tr ? 'Her gün tek dokunuşla işaretle' : 'Check in daily with one tap', onPress: () => router.push('/cockpit') },
                     ].map((row, i) => (
                         <Touchable key={i} onPress={row.onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.xs + 2 }} accessibilityRole="button" accessibilityLabel={row.label}>
                             <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}>{row.icon}</View>
@@ -1632,7 +1645,7 @@ export default function HomeScreen() {
                     <BentoCard index={1} style={[styles.nextMissionCard, { minHeight: isSmallScreen ? 120 : 140, padding: isSmallScreen ? S.md : S.lg }]}>
                         <LinearGradient
                             colors={!topTask
-                                ? ['#8e8e93', 'transparent']
+                                ? [theme.onSurfaceVariant, 'transparent']
                                 : topTask.priority === 'High'
                                 ? [theme.priorityHigh, 'transparent']
                                 : topTask.priority === 'Medium'
@@ -1738,7 +1751,7 @@ export default function HomeScreen() {
             {headerHighlight && (
               <Touchable onPress={headerTap.onTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
                 <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
-                  <Text style={{ fontSize: 9, fontWeight: '600', letterSpacing: 1.8, color: theme.primary }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', letterSpacing: 1.8, color: theme.onSurfaceVariant }}>
                     {language === 'tr' ? '✦ İYİ GİDİYOR' : '✦ LOOKING GOOD'}
                   </Text>
                   <Text style={{ fontSize: 9, fontWeight: '600', color: theme.primary, opacity: 0.7 }}>
@@ -1784,8 +1797,8 @@ export default function HomeScreen() {
           isDark={isDark}
           theme={theme}
           style={{
-            backgroundColor: isDark ? '#B45309' : '#D97706',
-            shadowColor: isDark ? '#B45309' : '#D97706',
+            backgroundColor: theme.primary,
+            shadowColor: theme.primary,
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -1931,7 +1944,7 @@ export default function HomeScreen() {
                         }
                       },
                       {
-                        icon: <Rocket size={16} color="#8b5cf6" />,
+                        icon: <Rocket size={16} color={theme.primary} />,
                         label: language === 'tr' ? 'Aktif Modları Yönet' : 'Manage Active Modes',
                         desc: language === 'tr' ? 'Alışkanlık planlarını keşfet' : 'Explore habits and life modes',
                         onPress: () => {
@@ -2085,10 +2098,12 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   topBarWrapper: { paddingHorizontal: S.lg, paddingVertical: S.sm, alignItems: 'center' },
   floatingTopBar: { borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin },
-  lightTopBarShadow: { shadowColor: '#2d2f31', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 8 },
-  darkTopBarShadow: { shadowColor: '#3367ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 },
+  // StyleSheet theme hook'una erişemez → Colors'tan doğrudan okunur. Sabit hex yazmak
+  // paleti atlamak demekti: '#3367ff' marka mavisi (#2563EB) bile değildi, kaçak bir maviydi.
+  lightTopBarShadow: { shadowColor: Colors.light.onSurface, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 8 },
+  darkTopBarShadow: { shadowColor: Colors.dark.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 },
   topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
-  avatarContainer: { width: scale(34), height: scale(34), borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
+  avatarContainer: { width: scale(34), height: scale(34), borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.light.surfaceContainerLowest },
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
   // Üst ve alt boşluk EŞİT (simetrik blok). Üst boşluk paddingTop'tan değil buradan gelir.

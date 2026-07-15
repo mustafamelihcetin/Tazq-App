@@ -6,6 +6,9 @@ import { SupportService } from '@/shared/services/api';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { AlertCircle, RotateCcw } from 'lucide-react-native';
+// Hata sınırı hook kullanamaz (render dışı yakalar), ama paleti elle kopyalamamalı:
+// doğrudan Colors'tan okur ki tema değişince birlikte değişsin.
+import { Colors } from '@/shared/constants/Colors';
 
 interface Props {
   children: React.ReactNode;
@@ -93,13 +96,13 @@ const styles = StyleSheet.create({
     flex: 1, 
     alignItems: 'center', 
     justifyContent: 'center', 
-    backgroundColor: '#09090B',
+    backgroundColor: Colors.dark.background,
     padding: 24 
   },
   card: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: '#18181B',
+    backgroundColor: Colors.dark.surfaceVariant,
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
@@ -119,14 +122,14 @@ const styles = StyleSheet.create({
   title: { 
     fontSize: 20, 
     fontWeight: '900', 
-    color: '#F4F4F5',
+    color: Colors.dark.onSurface,
     textAlign: 'center',
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#A1A1AA',
+    color: Colors.dark.onSurfaceVariant,
     textAlign: 'center',
     marginTop: -8,
     marginBottom: 8,

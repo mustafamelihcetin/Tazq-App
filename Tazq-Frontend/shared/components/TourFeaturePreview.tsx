@@ -277,7 +277,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       return (
         <ScaledScreen innerW={frameW} tap={{ x: 123, y: 66, k: toggle, color: theme.primary }}>
           <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.primary }}>
+            <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.onSurfaceVariant }}>
               {tr ? 'BUGÜNKÜ ALIŞKANLIKLARIM' : 'MY DAILY HABITS'}
             </Text>
             <Text style={{ fontSize: 8.5, color: theme.onSurfaceVariant, opacity: 0.45, marginTop: 1 }}>
@@ -302,7 +302,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       return (
         <ScaledScreen innerW={frameW} tap={{ x: frameW - 30, y: 46, k: toggle, color: theme.primary }}>
           <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.primary, marginBottom: 4 }}>
+            <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.onSurfaceVariant, marginBottom: 4 }}>
               {tr ? 'GÜNLÜK GÖREVLERİM' : 'MY DAILY TASKS'}
             </Text>
             {tasks.map((t, i) => (

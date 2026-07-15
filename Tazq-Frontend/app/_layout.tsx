@@ -490,7 +490,7 @@ export default function RootLayout() {
 
   // Android Navigation Bar & System UI Sync
   useEffect(() => {
-    const backgroundColor = isDark ? '#09090B' : '#FFFFFF';
+    const backgroundColor = isDark ? Colors.dark.background : '#FFFFFF';
     const navStyle = isDark ? 'light' : 'dark';
     safeSystemUI(backgroundColor);
     safeNavigationBar(navStyle, backgroundColor);

@@ -54,6 +54,7 @@ import { SporCard } from '@/features/modes/components/modes/SporCard';
 import { TaskService } from '@/shared/services/api';
 import { usePlanAdaptations } from '@/features/modes';
 import { Touchable } from '@/shared/components/Touchable';
+import { modeAccent as resolveModeAccent } from '@/shared/constants/Colors';
 
 const MarsIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -106,7 +107,8 @@ export default function ModlarScreen() {
   const { language } = useLanguageStore();
   const ramadanStatus = useMemo(() => getCurrentRamadanStatus(), []);
   const { runAdaptations } = usePlanAdaptations();
-  const ramazanAccent = isDark ? '#A5B4FC' : '#6366F1';
+  // Mod vurgu paleti Colors.ts'te (ModeAccents) — burada elle yazmak ikinci bir kopya demekti.
+  const ramazanAccent = resolveModeAccent('ramazan', isDark);
   const { show: showToast } = useToastStore();
 
   const {

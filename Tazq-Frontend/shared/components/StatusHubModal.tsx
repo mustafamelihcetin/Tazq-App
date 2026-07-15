@@ -143,7 +143,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
     } else {
       evalTr = 'Düşük tempolu bir hafta. Önümüzdeki hafta vites artırabiliriz.';
       evalEn = 'Slow week. Let\'s step up the pace next week.';
-      color = '#FF9500'; // Amber
+      color = theme.warning;
     }
 
     return {
@@ -425,8 +425,8 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                         </>
                       ) : (
                         <>
-                          <TrendingDown size={11} color="#FF9500" />
-                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#FF9500' }}>
+                          <TrendingDown size={11} color={theme.warning} />
+                          <Text style={{ fontSize: 12, fontWeight: '800', color: theme.warning }}>
                             {weekTrend}%
                           </Text>
                         </>
@@ -571,7 +571,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                   } else if (tip.tone === 'warning') {
                     badgeBg = isDark ? 'rgba(255, 179, 64, 0.08)' : 'rgba(255, 149, 0, 0.05)';
                     badgeBorder = isDark ? 'rgba(255, 179, 64, 0.15)' : 'rgba(255, 149, 0, 0.1)';
-                    iconColor = isDark ? '#FFB340' : '#FF9500';
+                    iconColor = theme.warning;
                     IconComponent = Zap;
                   } else if (tip.tone === 'motivational') {
                     badgeBg = isDark ? 'rgba(129, 140, 248, 0.08)' : 'rgba(37, 99, 235, 0.05)';

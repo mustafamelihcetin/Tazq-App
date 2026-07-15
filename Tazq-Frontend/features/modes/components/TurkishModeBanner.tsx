@@ -24,6 +24,7 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { Touchable } from '@/shared/components/Touchable';
 import { usePrefsStore, PlanMode, PlanSpec, SeasonalPrefs } from '../store/usePrefsStore';
 import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
+import { modeAccent as resolveModeAccent } from '@/shared/constants/Colors';
 
 interface Props {
   mode: TurkishMode;
@@ -592,14 +593,9 @@ export const TurkishModeBanner: React.FC<Props> = ({
     setApplied(true);
   };
 
-  const modeAccent =
-    mode.type === 'ramazan' ? (isDark ? '#A5B4FC' : '#6366F1')
-    : mode.type === 'yks' ? (isDark ? '#93C5FD' : '#3B82F6')
-    : mode.type === 'exam' ? (isDark ? '#93C5FD' : '#3B82F6')
-    : mode.type === 'tez' ? (isDark ? '#C4B5FD' : '#8B5CF6')
-    : mode.type === 'mulakat' ? (isDark ? '#6EE7B7' : '#10B981')
-    : mode.type === 'spor' ? (isDark ? '#FCA5A1' : '#F97316')
-    : (isDark ? '#F9A8D4' : '#EC4899');
+  // Mod vurgu paleti Colors.ts'te (ModeAccents) — eskiden burada ve modlar.tsx'te
+  // ayrı ayrı elle yazılıydı, yani iki kopya vardı ve hiçbiri tanımlı değildi.
+  const modeAccent = resolveModeAccent(mode.type, isDark);
 
   const renderAlgorithmInfo = () => {
     const desc = ALGORITHM_DESCRIPTIONS[mode.type as keyof typeof ALGORITHM_DESCRIPTIONS];

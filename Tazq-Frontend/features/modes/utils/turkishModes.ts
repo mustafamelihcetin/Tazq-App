@@ -1,3 +1,4 @@
+import { CategoryColors } from '@/shared/constants/Colors';
 export type ModeType = 'ramazan' | 'yks' | 'kpss' | 'exam' | 'tez' | 'mulakat' | 'spor';
 
 export interface ModeHabit {
@@ -133,9 +134,9 @@ const TEMPLATE_ACTIVE_RECALL = (examName = 'Sınav'): StudyTemplate => ({
   emoji: '🧪',
   dailyGoalMinutes: 90,
   habits: [
-    { name: 'Günlük Soru Çözümü', nameTr: 'Günlük Soru Çözümü', emoji: '📝', color: '#3B82F6' },
-    { name: 'Hata Defteri', nameTr: 'Hata Defteri', emoji: '❌', color: '#EF4444' },
-    { name: 'Konu Mini Testi', nameTr: 'Konu Mini Testi', emoji: '🎯', color: '#10B981' },
+    { name: 'Günlük Soru Çözümü', nameTr: 'Günlük Soru Çözümü', emoji: '📝', color: CategoryColors.blue },
+    { name: 'Hata Defteri', nameTr: 'Hata Defteri', emoji: '❌', color: CategoryColors.red },
+    { name: 'Konu Mini Testi', nameTr: 'Konu Mini Testi', emoji: '🎯', color: CategoryColors.green },
   ],
   tasks: [
     { 
@@ -181,9 +182,9 @@ const TEMPLATE_SPACED_REPETITION = (examName = 'Sınav'): StudyTemplate => ({
   emoji: '🗂️',
   dailyGoalMinutes: 60,
   habits: [
-    { name: 'Kart Tekrarı', nameTr: 'Kart Tekrarı', emoji: '🔄', color: '#6366F1' },
-    { name: 'Yeni Kart Ekleme', nameTr: 'Yeni Kart Ekleme', emoji: '➕', color: '#8B5CF6' },
-    { name: 'Konu Özeti Yazma', nameTr: 'Konu Özeti Yazma', emoji: '✍️', color: '#EC4899' },
+    { name: 'Kart Tekrarı', nameTr: 'Kart Tekrarı', emoji: '🔄', color: CategoryColors.indigo },
+    { name: 'Yeni Kart Ekleme', nameTr: 'Yeni Kart Ekleme', emoji: '➕', color: CategoryColors.violet },
+    { name: 'Konu Özeti Yazma', nameTr: 'Konu Özeti Yazma', emoji: '✍️', color: CategoryColors.pink },
   ],
   tasks: [
     { 
@@ -229,9 +230,9 @@ const TEMPLATE_DEEP_WORK = (examName = 'Sınav'): StudyTemplate => ({
   emoji: '🔒',
   dailyGoalMinutes: 120,
   habits: [
-    { name: 'Sabah Odak Bloğu', nameTr: 'Sabah Odak Bloğu', emoji: '🌅', color: '#F59E0B' },
-    { name: 'Öğleden Sonra Bloğu', nameTr: 'Öğleden Sonra Bloğu', emoji: '☀️', color: '#3B82F6' },
-    { name: 'Günlük 3 Hedef', nameTr: 'Günlük 3 Hedef', emoji: '📋', color: '#10B981' },
+    { name: 'Sabah Odak Bloğu', nameTr: 'Sabah Odak Bloğu', emoji: '🌅', color: CategoryColors.amber },
+    { name: 'Öğleden Sonra Bloğu', nameTr: 'Öğleden Sonra Bloğu', emoji: '☀️', color: CategoryColors.blue },
+    { name: 'Günlük 3 Hedef', nameTr: 'Günlük 3 Hedef', emoji: '📋', color: CategoryColors.green },
   ],
   tasks: [
     { 
@@ -277,9 +278,9 @@ const TEMPLATE_SPRINT = (examName = 'Sınav'): StudyTemplate => ({
   emoji: '⚡',
   dailyGoalMinutes: 180,
   habits: [
-    { name: 'Sabah Denemesi', nameTr: 'Sabah Denemesi', emoji: '📊', color: '#EF4444' },
-    { name: 'Hata Analizi', nameTr: 'Hata Analizi', emoji: '🔍', color: '#F59E0B' },
-    { name: 'Akşam Tekrarı', nameTr: 'Akşam Tekrarı', emoji: '🌙', color: '#6366F1' },
+    { name: 'Sabah Denemesi', nameTr: 'Sabah Denemesi', emoji: '📊', color: CategoryColors.red },
+    { name: 'Hata Analizi', nameTr: 'Hata Analizi', emoji: '🔍', color: CategoryColors.amber },
+    { name: 'Akşam Tekrarı', nameTr: 'Akşam Tekrarı', emoji: '🌙', color: CategoryColors.indigo },
   ],
   tasks: [
     { 
@@ -325,9 +326,9 @@ const TEMPLATE_FOUNDATION = (examName = 'Sınav'): StudyTemplate => ({
   emoji: '🏗️',
   dailyGoalMinutes: 60,
   habits: [
-    { name: 'Konu Okuma', nameTr: 'Günlük Konu Okuma', emoji: '📖', color: '#3B82F6' },
-    { name: 'Kavram Haritası', nameTr: 'Kavram Haritası Çıkarma', emoji: '🗺️', color: '#8B5CF6' },
-    { name: 'Temel Soru Çözümü', nameTr: 'Temel Soru Çözümü', emoji: '✏️', color: '#10B981' },
+    { name: 'Konu Okuma', nameTr: 'Günlük Konu Okuma', emoji: '📖', color: CategoryColors.blue },
+    { name: 'Kavram Haritası', nameTr: 'Kavram Haritası Çıkarma', emoji: '🗺️', color: CategoryColors.violet },
+    { name: 'Temel Soru Çözümü', nameTr: 'Temel Soru Çözümü', emoji: '✏️', color: CategoryColors.green },
   ],
   tasks: [
     { 
@@ -373,10 +374,10 @@ const TEMPLATE_RAMAZAN_GECE: StudyTemplate = {
   emoji: '🌙',
   dailyGoalMinutes: 60,
   habits: [
-    { name: 'Teravih Namazı', nameTr: 'Teravih Namazı', emoji: '🤲', color: '#6366F1' },
-    { name: 'Teravih Sonrası Çalışma', nameTr: 'Teravih Sonrası Çalışma', emoji: '📚', color: '#8B5CF6' },
-    { name: 'Gece Kuran Okuma', nameTr: 'Gece Kuran Okuma', emoji: '📖', color: '#10B981' },
-    { name: 'Şükür Günlüğü', nameTr: 'Şükür Günlüğü', emoji: '🙏', color: '#EC4899' },
+    { name: 'Teravih Namazı', nameTr: 'Teravih Namazı', emoji: '🤲', color: CategoryColors.indigo },
+    { name: 'Teravih Sonrası Çalışma', nameTr: 'Teravih Sonrası Çalışma', emoji: '📚', color: CategoryColors.violet },
+    { name: 'Gece Kuran Okuma', nameTr: 'Gece Kuran Okuma', emoji: '📖', color: CategoryColors.green },
+    { name: 'Şükür Günlüğü', nameTr: 'Şükür Günlüğü', emoji: '🙏', color: CategoryColors.pink },
   ],
   tasks: [
     { 
@@ -415,10 +416,10 @@ const TEMPLATE_RAMAZAN_SABAH: StudyTemplate = {
   emoji: '🌅',
   dailyGoalMinutes: 45,
   habits: [
-    { name: 'Sahur Uyanışı', nameTr: 'Sahur Uyanışı', emoji: '⏰', color: '#F59E0B' },
-    { name: 'Sahur Sonrası Çalışma', nameTr: 'Sahur Sonrası Çalışma', emoji: '📚', color: '#3B82F6' },
-    { name: 'Dua & Zikir', nameTr: 'Dua & Zikir', emoji: '☪️', color: '#6366F1' },
-    { name: 'İftar Hazırlığı', nameTr: 'İftar Hazırlığı', emoji: '🍽️', color: '#10B981' },
+    { name: 'Sahur Uyanışı', nameTr: 'Sahur Uyanışı', emoji: '⏰', color: CategoryColors.amber },
+    { name: 'Sahur Sonrası Çalışma', nameTr: 'Sahur Sonrası Çalışma', emoji: '📚', color: CategoryColors.blue },
+    { name: 'Dua & Zikir', nameTr: 'Dua & Zikir', emoji: '☪️', color: CategoryColors.indigo },
+    { name: 'İftar Hazırlığı', nameTr: 'İftar Hazırlığı', emoji: '🍽️', color: CategoryColors.green },
   ],
   tasks: [
     { 
@@ -457,10 +458,10 @@ const TEMPLATE_RAMAZAN_OGRENCI: StudyTemplate = {
   emoji: '🎓',
   dailyGoalMinutes: 50,
   habits: [
-    { name: 'Sabah Tekrar', nameTr: 'Sabah Tekrar', emoji: '📖', color: '#3B82F6' },
-    { name: 'Öğleden Sonra Kısa Çalışma', nameTr: 'Öğleden Sonra Kısa Çalışma', emoji: '✏️', color: '#8B5CF6' },
-    { name: 'Teravih / Akşam İbadeti', nameTr: 'Teravih / Akşam İbadeti', emoji: '🤲', color: '#6366F1' },
-    { name: 'Dua & Zikir', nameTr: 'Dua & Zikir', emoji: '☪️', color: '#10B981' },
+    { name: 'Sabah Tekrar', nameTr: 'Sabah Tekrar', emoji: '📖', color: CategoryColors.blue },
+    { name: 'Öğleden Sonra Kısa Çalışma', nameTr: 'Öğleden Sonra Kısa Çalışma', emoji: '✏️', color: CategoryColors.violet },
+    { name: 'Teravih / Akşam İbadeti', nameTr: 'Teravih / Akşam İbadeti', emoji: '🤲', color: CategoryColors.indigo },
+    { name: 'Dua & Zikir', nameTr: 'Dua & Zikir', emoji: '☪️', color: CategoryColors.green },
   ],
   tasks: [
     { 
@@ -498,10 +499,10 @@ const TEMPLATE_RAMAZAN_CALISAN: StudyTemplate = {
   emoji: '💼',
   dailyGoalMinutes: 40,
   habits: [
-    { name: 'Sahur + Güne Niyet', nameTr: 'Sahur + Güne Niyet', emoji: '⏰', color: '#F59E0B' },
-    { name: 'Öğle Mini Dinlenme', nameTr: 'Öğle Mini Dinlenme', emoji: '☕', color: '#3B82F6' },
-    { name: 'İş Sonrası İbadet Bloğu', nameTr: 'İş Sonrası İbadet Bloğu', emoji: '🤲', color: '#6366F1' },
-    { name: 'Su & Beslenme Dengesi', nameTr: 'Su & Beslenme Dengesi', emoji: '💧', color: '#10B981' },
+    { name: 'Sahur + Güne Niyet', nameTr: 'Sahur + Güne Niyet', emoji: '⏰', color: CategoryColors.amber },
+    { name: 'Öğle Mini Dinlenme', nameTr: 'Öğle Mini Dinlenme', emoji: '☕', color: CategoryColors.blue },
+    { name: 'İş Sonrası İbadet Bloğu', nameTr: 'İş Sonrası İbadet Bloğu', emoji: '🤲', color: CategoryColors.indigo },
+    { name: 'Su & Beslenme Dengesi', nameTr: 'Su & Beslenme Dengesi', emoji: '💧', color: CategoryColors.green },
   ],
   tasks: [
     { 
@@ -530,10 +531,10 @@ const TEMPLATE_RAMAZAN_CALISAN: StudyTemplate = {
 
 // Default habits/tasks for modes that don't use template selection
 const RAMAZAN_DEFAULT_HABITS: ModeHabit[] = [
-  { name: 'Teravih Namazı', nameTr: 'Teravih Namazı', emoji: '🤲', color: '#6366F1' },
-  { name: 'Kuran Okuma', nameTr: 'Kuran Okuma', emoji: '📖', color: '#8B5CF6' },
-  { name: 'Sahur Uyanışı', nameTr: 'Sahur Uyanışı', emoji: '⏰', color: '#F59E0B' },
-  { name: 'Dua & Zikir', nameTr: 'Dua & Zikir', emoji: '☪️', color: '#10B981' },
+  { name: 'Teravih Namazı', nameTr: 'Teravih Namazı', emoji: '🤲', color: CategoryColors.indigo },
+  { name: 'Kuran Okuma', nameTr: 'Kuran Okuma', emoji: '📖', color: CategoryColors.violet },
+  { name: 'Sahur Uyanışı', nameTr: 'Sahur Uyanışı', emoji: '⏰', color: CategoryColors.amber },
+  { name: 'Dua & Zikir', nameTr: 'Dua & Zikir', emoji: '☪️', color: CategoryColors.green },
 ];
 
 const RAMAZAN_DEFAULT_TASKS: ModeTask[] = [
@@ -620,9 +621,9 @@ const TEMPLATE_TEZ_WRITING = (projectName = 'Tez'): StudyTemplate => ({
   emoji: '✍️',
   dailyGoalMinutes: 120,
   habits: [
-    { name: 'Günlük Yazım Oturumu', nameTr: 'Günlük Yazım Oturumu', emoji: '✍️', color: '#8B5CF6' },
-    { name: 'Kaynak & Literatür Okuma', nameTr: 'Kaynak & Literatür Okuma', emoji: '📚', color: '#6366F1' },
-    { name: 'Danışman İletişimi', nameTr: 'Danışman İletişimi', emoji: '🤝', color: '#10B981' },
+    { name: 'Günlük Yazım Oturumu', nameTr: 'Günlük Yazım Oturumu', emoji: '✍️', color: CategoryColors.violet },
+    { name: 'Kaynak & Literatür Okuma', nameTr: 'Kaynak & Literatür Okuma', emoji: '📚', color: CategoryColors.indigo },
+    { name: 'Danışman İletişimi', nameTr: 'Danışman İletişimi', emoji: '🤝', color: CategoryColors.green },
   ],
   tasks: [
     { 
@@ -667,9 +668,9 @@ const TEMPLATE_TEZ_MILESTONE = (projectName = 'Tez'): StudyTemplate => ({
   emoji: '🏁',
   dailyGoalMinutes: 90,
   habits: [
-    { name: 'Araştırma / Veri Toplama', nameTr: 'Araştırma / Veri Toplama', emoji: '🔬', color: '#3B82F6' },
-    { name: 'Yaratıcı Düşünme Bloğu', nameTr: 'Yaratıcı Düşünme Bloğu', emoji: '💡', color: '#F59E0B' },
-    { name: 'Günlük İlerleme Notu', nameTr: 'Günlük İlerleme Notu', emoji: '📔', color: '#EC4899' },
+    { name: 'Araştırma / Veri Toplama', nameTr: 'Araştırma / Veri Toplama', emoji: '🔬', color: CategoryColors.blue },
+    { name: 'Yaratıcı Düşünme Bloğu', nameTr: 'Yaratıcı Düşünme Bloğu', emoji: '💡', color: CategoryColors.amber },
+    { name: 'Günlük İlerleme Notu', nameTr: 'Günlük İlerleme Notu', emoji: '📔', color: CategoryColors.pink },
   ],
   tasks: [
     { 
@@ -714,9 +715,9 @@ const TEMPLATE_TEZ_SOFTWARE = (projectName = 'Proje'): StudyTemplate => ({
   emoji: '💻',
   dailyGoalMinutes: 120,
   habits: [
-    { name: 'Günlük Kod', nameTr: 'Günlük kod yazımı / commit', emoji: '💻', color: '#3B82F6' },
-    { name: 'Sprint Review', nameTr: 'Haftalık sprint review & planlama', emoji: '🔄', color: '#8B5CF6' },
-    { name: 'Test', nameTr: 'Test yaz / çalıştır', emoji: '🧪', color: '#10B981' },
+    { name: 'Günlük Kod', nameTr: 'Günlük kod yazımı / commit', emoji: '💻', color: CategoryColors.blue },
+    { name: 'Sprint Review', nameTr: 'Haftalık sprint review & planlama', emoji: '🔄', color: CategoryColors.violet },
+    { name: 'Test', nameTr: 'Test yaz / çalıştır', emoji: '🧪', color: CategoryColors.green },
   ],
   tasks: [
     { 
@@ -761,9 +762,9 @@ const TEMPLATE_TEZ_IS = (projectName = 'Proje'): StudyTemplate => ({
   emoji: '📊',
   dailyGoalMinutes: 90,
   habits: [
-    { name: 'Günlük İlerleme', nameTr: 'Günlük ilerleme notu ve çıktı kaydı', emoji: '📋', color: '#F59E0B' },
-    { name: 'Paydaş İletişimi', nameTr: 'Paydaş güncelleme / e-posta / toplantı', emoji: '🤝', color: '#10B981' },
-    { name: 'Risk Takibi', nameTr: 'Risk ve engel takibi', emoji: '⚠️', color: '#EF4444' },
+    { name: 'Günlük İlerleme', nameTr: 'Günlük ilerleme notu ve çıktı kaydı', emoji: '📋', color: CategoryColors.amber },
+    { name: 'Paydaş İletişimi', nameTr: 'Paydaş güncelleme / e-posta / toplantı', emoji: '🤝', color: CategoryColors.green },
+    { name: 'Risk Takibi', nameTr: 'Risk ve engel takibi', emoji: '⚠️', color: CategoryColors.red },
   ],
   tasks: [
     { 
@@ -808,9 +809,9 @@ const TEMPLATE_TEZ_SPRINT = (projectName = 'Proje'): StudyTemplate => ({
   emoji: '⚡',
   dailyGoalMinutes: 150,
   habits: [
-    { name: 'Yazım Tamamlama', nameTr: 'Günlük yazım/revizyon bloğu (3+ saat)', emoji: '✍️', color: '#EF4444' },
-    { name: 'Bölüm Revizyonu', nameTr: 'Bölüm revizyonu & danışman bildirimi', emoji: '🔍', color: '#F59E0B' },
-    { name: 'Format Kontrolü', nameTr: 'Kaynakça & format standartları kontrolü', emoji: '📋', color: '#6366F1' },
+    { name: 'Yazım Tamamlama', nameTr: 'Günlük yazım/revizyon bloğu (3+ saat)', emoji: '✍️', color: CategoryColors.red },
+    { name: 'Bölüm Revizyonu', nameTr: 'Bölüm revizyonu & danışman bildirimi', emoji: '🔍', color: CategoryColors.amber },
+    { name: 'Format Kontrolü', nameTr: 'Kaynakça & format standartları kontrolü', emoji: '📋', color: CategoryColors.indigo },
   ],
   tasks: [
     { 
@@ -866,9 +867,9 @@ const TEMPLATE_MULAKAT_TEKNIK = (company = 'Şirket'): StudyTemplate => ({
   emoji: '💻',
   dailyGoalMinutes: 90,
   habits: [
-    { name: 'Günlük LeetCode / Algoritma', nameTr: 'Günlük LeetCode / Algoritma', emoji: '💻', color: '#10B981' },
-    { name: 'Sistem Tasarımı Çalışması', nameTr: 'Sistem Tasarımı Çalışması', emoji: '🏗️', color: '#3B82F6' },
-    { name: 'Mock Mülakat', nameTr: 'Mock Mülakat', emoji: '🎙️', color: '#8B5CF6' },
+    { name: 'Günlük LeetCode / Algoritma', nameTr: 'Günlük LeetCode / Algoritma', emoji: '💻', color: CategoryColors.green },
+    { name: 'Sistem Tasarımı Çalışması', nameTr: 'Sistem Tasarımı Çalışması', emoji: '🏗️', color: CategoryColors.blue },
+    { name: 'Mock Mülakat', nameTr: 'Mock Mülakat', emoji: '🎙️', color: CategoryColors.violet },
   ],
   tasks: [
     { 
@@ -913,9 +914,9 @@ const TEMPLATE_MULAKAT_BEHAVIORAL = (company = 'Şirket'): StudyTemplate => ({
   emoji: '🎯',
   dailyGoalMinutes: 60,
   habits: [
-    { name: 'STAR Hikaye Pratiği', nameTr: 'STAR Hikaye Pratiği', emoji: '⭐', color: '#F59E0B' },
-    { name: 'Özgüven / Ses Tonu Pratiği', nameTr: 'Özgüven / Ses Tonu Pratiği', emoji: '🎙️', color: '#10B981' },
-    { name: 'Günlük Öz-Yansıma', nameTr: 'Günlük Öz-Yansıma', emoji: '🪞', color: '#EC4899' },
+    { name: 'STAR Hikaye Pratiği', nameTr: 'STAR Hikaye Pratiği', emoji: '⭐', color: CategoryColors.amber },
+    { name: 'Özgüven / Ses Tonu Pratiği', nameTr: 'Özgüven / Ses Tonu Pratiği', emoji: '🎙️', color: CategoryColors.green },
+    { name: 'Günlük Öz-Yansıma', nameTr: 'Günlük Öz-Yansıma', emoji: '🪞', color: CategoryColors.pink },
   ],
   tasks: [
     { 
@@ -960,9 +961,9 @@ const TEMPLATE_MULAKAT_CASE = (company = 'Şirket'): StudyTemplate => ({
   emoji: '🧩',
   dailyGoalMinutes: 75,
   habits: [
-    { name: 'Case Pratik', nameTr: 'Günlük case çözümü (1 case/gün)', emoji: '🧩', color: '#6366F1' },
-    { name: 'Framework', nameTr: 'Framework ezber ve uygulama (MECE, Profitability)', emoji: '📐', color: '#3B82F6' },
-    { name: 'Math Drill', nameTr: 'Mental math hız pratiği (10 dk)', emoji: '🔢', color: '#F59E0B' },
+    { name: 'Case Pratik', nameTr: 'Günlük case çözümü (1 case/gün)', emoji: '🧩', color: CategoryColors.indigo },
+    { name: 'Framework', nameTr: 'Framework ezber ve uygulama (MECE, Profitability)', emoji: '📐', color: CategoryColors.blue },
+    { name: 'Math Drill', nameTr: 'Mental math hız pratiği (10 dk)', emoji: '🔢', color: CategoryColors.amber },
   ],
   tasks: [
     { 
@@ -1007,9 +1008,9 @@ const TEMPLATE_MULAKAT_AKADEMIK = (company = 'Kurum'): StudyTemplate => ({
   emoji: '🎓',
   dailyGoalMinutes: 60,
   habits: [
-    { name: 'Araştırma Özeti', nameTr: 'Araştırma özetini sesli anlat (3 dk)', emoji: '🔬', color: '#8B5CF6' },
-    { name: 'Pedagoji', nameTr: 'Ders planı / öğretim felsefesi hazırlığı', emoji: '📚', color: '#3B82F6' },
-    { name: 'Soru Pratiği', nameTr: 'Muhtemel soruları yüksek sesle yanıtla', emoji: '🎙️', color: '#10B981' },
+    { name: 'Araştırma Özeti', nameTr: 'Araştırma özetini sesli anlat (3 dk)', emoji: '🔬', color: CategoryColors.violet },
+    { name: 'Pedagoji', nameTr: 'Ders planı / öğretim felsefesi hazırlığı', emoji: '📚', color: CategoryColors.blue },
+    { name: 'Soru Pratiği', nameTr: 'Muhtemel soruları yüksek sesle yanıtla', emoji: '🎙️', color: CategoryColors.green },
   ],
   tasks: [
     { 
@@ -1054,9 +1055,9 @@ const TEMPLATE_MULAKAT_SPRINT = (company = 'Şirket'): StudyTemplate => ({
   emoji: '⚡',
   dailyGoalMinutes: 60,
   habits: [
-    { name: 'Mock Mülakat', nameTr: 'Günlük mock mülakat (sesli/video)', emoji: '🎙️', color: '#EF4444' },
-    { name: 'STAR Tekrar', nameTr: 'STAR hikayelerini sesli tekrar et', emoji: '⭐', color: '#F59E0B' },
-    { name: 'Şirket Tarama', nameTr: 'Son dakika şirket/sektör haberleri', emoji: '🔍', color: '#10B981' },
+    { name: 'Mock Mülakat', nameTr: 'Günlük mock mülakat (sesli/video)', emoji: '🎙️', color: CategoryColors.red },
+    { name: 'STAR Tekrar', nameTr: 'STAR hikayelerini sesli tekrar et', emoji: '⭐', color: CategoryColors.amber },
+    { name: 'Şirket Tarama', nameTr: 'Son dakika şirket/sektör haberleri', emoji: '🔍', color: CategoryColors.green },
   ],
   tasks: [
     { 
@@ -1266,17 +1267,17 @@ function buildKiloTemplate(inputs: SporInputs, days: number): StudyTemplate {
   const tasks: ModeTask[] = losing ? lossSetupTasks : gainSetupTasks;
 
   const lossHabits = [
-    { name: 'Hareket', nameTr: 'Günlük hareket (yürüyüş / egzersiz)', emoji: '🚶', color: '#10B981' },
-    { name: 'Öğün', nameTr: 'Öğünleri atlamama & porsiyon kontrolü', emoji: '🥗', color: '#F59E0B' },
-    { name: 'Su', nameTr: 'Su tüketimi (günde 2–3 lt)', emoji: '💧', color: '#3B82F6' },
-    { name: 'Uyku', nameTr: 'Düzenli uyku (7–9 saat)', emoji: '😴', color: '#8B5CF6' },
+    { name: 'Hareket', nameTr: 'Günlük hareket (yürüyüş / egzersiz)', emoji: '🚶', color: CategoryColors.green },
+    { name: 'Öğün', nameTr: 'Öğünleri atlamama & porsiyon kontrolü', emoji: '🥗', color: CategoryColors.amber },
+    { name: 'Su', nameTr: 'Su tüketimi (günde 2–3 lt)', emoji: '💧', color: CategoryColors.blue },
+    { name: 'Uyku', nameTr: 'Düzenli uyku (7–9 saat)', emoji: '😴', color: CategoryColors.violet },
   ];
 
   const gainHabits = [
-    { name: 'Antrenman', nameTr: 'Direnç antrenmanı (programdaki günler)', emoji: '🏋️', color: '#F97316' },
-    { name: 'Protein', nameTr: 'Günlük protein hedefine ulaş', emoji: '🥩', color: '#EF4444' },
-    { name: 'Kalori', nameTr: 'Kalori fazlası ile beslen (TDEE + 300-500)', emoji: '🍽️', color: '#F59E0B' },
-    { name: 'Uyku', nameTr: 'Düzenli uyku (7–9 saat) — kas onarımı için kritik', emoji: '😴', color: '#8B5CF6' },
+    { name: 'Antrenman', nameTr: 'Direnç antrenmanı (programdaki günler)', emoji: '🏋️', color: CategoryColors.orange },
+    { name: 'Protein', nameTr: 'Günlük protein hedefine ulaş', emoji: '🥩', color: CategoryColors.red },
+    { name: 'Kalori', nameTr: 'Kalori fazlası ile beslen (TDEE + 300-500)', emoji: '🍽️', color: CategoryColors.amber },
+    { name: 'Uyku', nameTr: 'Düzenli uyku (7–9 saat) — kas onarımı için kritik', emoji: '😴', color: CategoryColors.violet },
   ];
 
   return {
@@ -1416,10 +1417,10 @@ function buildMaratonTemplate(inputs: SporInputs, days: number): StudyTemplate {
     emoji: '🏃',
     dailyGoalMinutes: 50,
     habits: [
-      { name: 'Koşu', nameTr: 'Planlı koşu seansı', emoji: '🏃', color: '#EF4444' },
-      { name: 'Mobilite', nameTr: 'Isınma + koşu sonrası esneme (10 dk)', emoji: '🧘', color: '#10B981' },
-      { name: 'Hidrasyon', nameTr: 'Antrenman öncesi / sonrası sıvı alımı', emoji: '💧', color: '#3B82F6' },
-      { name: 'Uyku', nameTr: 'Kaliteli uyku — kaslar geceleri onarılır', emoji: '😴', color: '#8B5CF6' },
+      { name: 'Koşu', nameTr: 'Planlı koşu seansı', emoji: '🏃', color: CategoryColors.red },
+      { name: 'Mobilite', nameTr: 'Isınma + koşu sonrası esneme (10 dk)', emoji: '🧘', color: CategoryColors.green },
+      { name: 'Hidrasyon', nameTr: 'Antrenman öncesi / sonrası sıvı alımı', emoji: '💧', color: CategoryColors.blue },
+      { name: 'Uyku', nameTr: 'Kaliteli uyku — kaslar geceleri onarılır', emoji: '😴', color: CategoryColors.violet },
     ],
     tasks,
   };
@@ -1509,17 +1510,17 @@ function buildGucTemplate(inputs: SporInputs, days: number, goalType: SporType):
   const tasks = isYaris ? yarisTasks : isGenel ? genelTasks : gucTasks;
 
   const yarisHabits = [
-    { name: 'Antrenman', nameTr: `${dayListTr} — spor pratiği`, emoji: '🏆', color: '#EF4444' },
-    { name: 'Dinlenme', nameTr: 'Toparlanma: uyku + aktif dinlenme', emoji: '😴', color: '#8B5CF6' },
-    { name: 'Beslenme', nameTr: 'Performans beslenmesi: yeterli karbonhidrat + protein', emoji: '🥗', color: '#F59E0B' },
-    { name: 'Mental', nameTr: 'Mental hazırlık: görselleştirme / nefes egzersizi', emoji: '🧠', color: '#10B981' },
+    { name: 'Antrenman', nameTr: `${dayListTr} — spor pratiği`, emoji: '🏆', color: CategoryColors.red },
+    { name: 'Dinlenme', nameTr: 'Toparlanma: uyku + aktif dinlenme', emoji: '😴', color: CategoryColors.violet },
+    { name: 'Beslenme', nameTr: 'Performans beslenmesi: yeterli karbonhidrat + protein', emoji: '🥗', color: CategoryColors.amber },
+    { name: 'Mental', nameTr: 'Mental hazırlık: görselleştirme / nefes egzersizi', emoji: '🧠', color: CategoryColors.green },
   ];
 
   const gucHabits = [
-    { name: 'Antrenman', nameTr: `${dayListTr} — planlı seans`, emoji: '🏋️', color: '#EF4444' },
-    { name: 'Protein', nameTr: 'Günlük protein alımı (her öğünde yeterli kaynak)', emoji: '🥩', color: '#F59E0B' },
-    { name: 'Uyku', nameTr: 'Uyku kalitesi — kaslar uyurken büyür', emoji: '😴', color: '#8B5CF6' },
-    { name: 'Kayıt', nameTr: 'Antrenman günlüğü: set · tekrar · ağırlık', emoji: '📊', color: '#10B981' },
+    { name: 'Antrenman', nameTr: `${dayListTr} — planlı seans`, emoji: '🏋️', color: CategoryColors.red },
+    { name: 'Protein', nameTr: 'Günlük protein alımı (her öğünde yeterli kaynak)', emoji: '🥩', color: CategoryColors.amber },
+    { name: 'Uyku', nameTr: 'Uyku kalitesi — kaslar uyurken büyür', emoji: '😴', color: CategoryColors.violet },
+    { name: 'Kayıt', nameTr: 'Antrenman günlüğü: set · tekrar · ağırlık', emoji: '📊', color: CategoryColors.green },
   ];
 
   return {
@@ -1829,21 +1830,21 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   yks: {
     emoji: '📚',
     temelHabits: [
-      { name: 'Konu Kavrama', nameTr: 'Konu kavrama okuma (TYT)', emoji: '📖', color: '#3B82F6' },
-      { name: 'Mini Soru', nameTr: 'Günlük mini soru (10–20)', emoji: '📝', color: '#10B981' },
+      { name: 'Konu Kavrama', nameTr: 'Konu kavrama okuma (TYT)', emoji: '📖', color: CategoryColors.blue },
+      { name: 'Mini Soru', nameTr: 'Günlük mini soru (10–20)', emoji: '📝', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Matematik Soru', nameTr: 'Matematik günlük soru', emoji: '📐', color: '#3B82F6' },
-      { name: 'Türkçe Paragraf', nameTr: 'Türkçe paragraf tekrarı', emoji: '📖', color: '#10B981' },
-      { name: 'AYT Konu Özeti', nameTr: 'Fen/AYT konu özeti', emoji: '🔬', color: '#8B5CF6' },
-      { name: 'Hata Defteri', nameTr: 'Hata defteri güncelle', emoji: '❌', color: '#EF4444' },
+      { name: 'Matematik Soru', nameTr: 'Matematik günlük soru', emoji: '📐', color: CategoryColors.blue },
+      { name: 'Türkçe Paragraf', nameTr: 'Türkçe paragraf tekrarı', emoji: '📖', color: CategoryColors.green },
+      { name: 'AYT Konu Özeti', nameTr: 'Fen/AYT konu özeti', emoji: '🔬', color: CategoryColors.violet },
+      { name: 'Hata Defteri', nameTr: 'Hata defteri güncelle', emoji: '❌', color: CategoryColors.red },
     ],
     ileriHabits: [
-      { name: 'Deneme Analizi', nameTr: 'Günlük deneme analizi', emoji: '📊', color: '#EF4444' },
-      { name: 'AYT Mat Yoğun', nameTr: 'AYT matematik yoğun', emoji: '📐', color: '#3B82F6' },
-      { name: 'TYT Hız', nameTr: 'TYT hız & doğruluk pratiği', emoji: '⚡', color: '#F59E0B' },
-      { name: 'Zayıf Konu', nameTr: 'Zayıf konu sprint', emoji: '🎯', color: '#8B5CF6' },
-      { name: 'Hata Defteri', nameTr: 'Hata defteri & tekrar', emoji: '❌', color: '#EF4444' },
+      { name: 'Deneme Analizi', nameTr: 'Günlük deneme analizi', emoji: '📊', color: CategoryColors.red },
+      { name: 'AYT Mat Yoğun', nameTr: 'AYT matematik yoğun', emoji: '📐', color: CategoryColors.blue },
+      { name: 'TYT Hız', nameTr: 'TYT hız & doğruluk pratiği', emoji: '⚡', color: CategoryColors.amber },
+      { name: 'Zayıf Konu', nameTr: 'Zayıf konu sprint', emoji: '🎯', color: CategoryColors.violet },
+      { name: 'Hata Defteri', nameTr: 'Hata defteri & tekrar', emoji: '❌', color: CategoryColors.red },
     ],
     setupTasks: [
       { titleTr: 'TYT ve AYT konu dağılımını ÖSYM sitesinden incele', titleEn: 'Review TYT and AYT topic breakdown on ÖSYM website', priority: 'High' },
@@ -1859,21 +1860,21 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   kpss: {
     emoji: '🏛️',
     temelHabits: [
-      { name: 'GY-GK Konu', nameTr: 'GY-GK konu okuma', emoji: '📚', color: '#3B82F6' },
-      { name: 'Mini Soru', nameTr: 'Mini soru çözümü (20)', emoji: '📝', color: '#10B981' },
+      { name: 'GY-GK Konu', nameTr: 'GY-GK konu okuma', emoji: '📚', color: CategoryColors.blue },
+      { name: 'Mini Soru', nameTr: 'Mini soru çözümü (20)', emoji: '📝', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Tarih-Coğrafya', nameTr: 'Tarih/Coğrafya/Vatandaşlık', emoji: '📚', color: '#3B82F6' },
-      { name: 'Anayasa', nameTr: 'Anayasa & Hukuk özeti', emoji: '⚖️', color: '#F59E0B' },
-      { name: 'Eğitim Bil.', nameTr: 'Eğitim Bilimleri flashcard', emoji: '🧠', color: '#8B5CF6' },
-      { name: 'GY-GK Soru', nameTr: 'GY-GK soru bankası', emoji: '📝', color: '#10B981' },
+      { name: 'Tarih-Coğrafya', nameTr: 'Tarih/Coğrafya/Vatandaşlık', emoji: '📚', color: CategoryColors.blue },
+      { name: 'Anayasa', nameTr: 'Anayasa & Hukuk özeti', emoji: '⚖️', color: CategoryColors.amber },
+      { name: 'Eğitim Bil.', nameTr: 'Eğitim Bilimleri flashcard', emoji: '🧠', color: CategoryColors.violet },
+      { name: 'GY-GK Soru', nameTr: 'GY-GK soru bankası', emoji: '📝', color: CategoryColors.green },
     ],
     ileriHabits: [
-      { name: 'Soru Bankası', nameTr: 'Günlük soru bankası (60+)', emoji: '📝', color: '#EF4444' },
-      { name: 'Eğitim Bil.', nameTr: 'Eğitim Bilimleri yoğun', emoji: '🧠', color: '#8B5CF6' },
-      { name: 'Çıkmış Sorular', nameTr: 'Çıkmış KPSS soru analizi', emoji: '📊', color: '#3B82F6' },
-      { name: 'Hata Analizi', nameTr: 'Hata analizi & tekrar', emoji: '❌', color: '#EF4444' },
-      { name: 'Konu Haritası', nameTr: 'Konu haritası çıkarma', emoji: '🗂️', color: '#10B981' },
+      { name: 'Soru Bankası', nameTr: 'Günlük soru bankası (60+)', emoji: '📝', color: CategoryColors.red },
+      { name: 'Eğitim Bil.', nameTr: 'Eğitim Bilimleri yoğun', emoji: '🧠', color: CategoryColors.violet },
+      { name: 'Çıkmış Sorular', nameTr: 'Çıkmış KPSS soru analizi', emoji: '📊', color: CategoryColors.blue },
+      { name: 'Hata Analizi', nameTr: 'Hata analizi & tekrar', emoji: '❌', color: CategoryColors.red },
+      { name: 'Konu Haritası', nameTr: 'Konu haritası çıkarma', emoji: '🗂️', color: CategoryColors.green },
     ],
     setupTasks: [
       { titleTr: 'KPSS puan türünü belirle (P1–P10, KPSS-A/B)', titleEn: 'Identify your KPSS score type (P1–P10, KPSS-A/B)', priority: 'High' },
@@ -1889,19 +1890,19 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   ales: {
     emoji: '🎓',
     temelHabits: [
-      { name: 'Sayısal Giriş', nameTr: 'Sayısal muhakeme giriş soruları', emoji: '🔢', color: '#3B82F6' },
-      { name: 'Sözel Giriş', nameTr: 'Sözel analoji çalışması', emoji: '📝', color: '#10B981' },
+      { name: 'Sayısal Giriş', nameTr: 'Sayısal muhakeme giriş soruları', emoji: '🔢', color: CategoryColors.blue },
+      { name: 'Sözel Giriş', nameTr: 'Sözel analoji çalışması', emoji: '📝', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Sayısal Muhakeme', nameTr: 'Sayısal muhakeme soruları', emoji: '🔢', color: '#3B82F6' },
-      { name: 'Sözel Paragraf', nameTr: 'Sözel paragraf & analoji', emoji: '📝', color: '#10B981' },
-      { name: 'Süreli Çözüm', nameTr: 'Süreli çözüm pratiği', emoji: '⏱️', color: '#F59E0B' },
+      { name: 'Sayısal Muhakeme', nameTr: 'Sayısal muhakeme soruları', emoji: '🔢', color: CategoryColors.blue },
+      { name: 'Sözel Paragraf', nameTr: 'Sözel paragraf & analoji', emoji: '📝', color: CategoryColors.green },
+      { name: 'Süreli Çözüm', nameTr: 'Süreli çözüm pratiği', emoji: '⏱️', color: CategoryColors.amber },
     ],
     ileriHabits: [
-      { name: 'ALES Sayısal', nameTr: 'ALES sayısal yoğun (45 dk)', emoji: '🔢', color: '#3B82F6' },
-      { name: 'Sözel Tam Set', nameTr: 'Sözel tam set çözümü', emoji: '📝', color: '#10B981' },
-      { name: 'Zaman Yönetimi', nameTr: 'Zaman yönetimi simülasyonu', emoji: '⏱️', color: '#F59E0B' },
-      { name: 'Hata Analizi', nameTr: 'Hata analizi & tekrar', emoji: '❌', color: '#EF4444' },
+      { name: 'ALES Sayısal', nameTr: 'ALES sayısal yoğun (45 dk)', emoji: '🔢', color: CategoryColors.blue },
+      { name: 'Sözel Tam Set', nameTr: 'Sözel tam set çözümü', emoji: '📝', color: CategoryColors.green },
+      { name: 'Zaman Yönetimi', nameTr: 'Zaman yönetimi simülasyonu', emoji: '⏱️', color: CategoryColors.amber },
+      { name: 'Hata Analizi', nameTr: 'Hata analizi & tekrar', emoji: '❌', color: CategoryColors.red },
     ],
     setupTasks: [
       { titleTr: 'ALES sayısal/sözel ağırlık dengesini belirle', titleEn: 'Determine your ALES quantitative/verbal balance', priority: 'High' },
@@ -1915,21 +1916,21 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   lgs: {
     emoji: '🏫',
     temelHabits: [
-      { name: 'Matematik Temel', nameTr: 'Matematik temel konu', emoji: '📐', color: '#3B82F6' },
-      { name: 'Türkçe Paragraf', nameTr: 'Türkçe paragraf okuma', emoji: '📖', color: '#10B981' },
+      { name: 'Matematik Temel', nameTr: 'Matematik temel konu', emoji: '📐', color: CategoryColors.blue },
+      { name: 'Türkçe Paragraf', nameTr: 'Türkçe paragraf okuma', emoji: '📖', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Matematik', nameTr: 'Matematik konu + soru', emoji: '📐', color: '#3B82F6' },
-      { name: 'Türkçe', nameTr: 'Türkçe dil bilgisi & paragraf', emoji: '📖', color: '#10B981' },
-      { name: 'Fen Bilimleri', nameTr: 'Fen Bilimleri konu özeti', emoji: '🔬', color: '#8B5CF6' },
-      { name: 'Sosyal', nameTr: 'Sosyal Bilgiler harita çalışması', emoji: '🌍', color: '#F59E0B' },
+      { name: 'Matematik', nameTr: 'Matematik konu + soru', emoji: '📐', color: CategoryColors.blue },
+      { name: 'Türkçe', nameTr: 'Türkçe dil bilgisi & paragraf', emoji: '📖', color: CategoryColors.green },
+      { name: 'Fen Bilimleri', nameTr: 'Fen Bilimleri konu özeti', emoji: '🔬', color: CategoryColors.violet },
+      { name: 'Sosyal', nameTr: 'Sosyal Bilgiler harita çalışması', emoji: '🌍', color: CategoryColors.amber },
     ],
     ileriHabits: [
-      { name: 'Matematik', nameTr: 'Matematik deneme soruları', emoji: '📐', color: '#3B82F6' },
-      { name: 'Türkçe Hız', nameTr: 'Türkçe hız çözüm', emoji: '📖', color: '#10B981' },
-      { name: 'Fen Tarama', nameTr: 'Fen tam konu taraması', emoji: '🔬', color: '#8B5CF6' },
-      { name: 'Sosyal+İnkılap', nameTr: 'Sosyal + İnkılap tarih özeti', emoji: '🌍', color: '#F59E0B' },
-      { name: 'İngilizce', nameTr: 'İngilizce kelime & okuma', emoji: '🇬🇧', color: '#EC4899' },
+      { name: 'Matematik', nameTr: 'Matematik deneme soruları', emoji: '📐', color: CategoryColors.blue },
+      { name: 'Türkçe Hız', nameTr: 'Türkçe hız çözüm', emoji: '📖', color: CategoryColors.green },
+      { name: 'Fen Tarama', nameTr: 'Fen tam konu taraması', emoji: '🔬', color: CategoryColors.violet },
+      { name: 'Sosyal+İnkılap', nameTr: 'Sosyal + İnkılap tarih özeti', emoji: '🌍', color: CategoryColors.amber },
+      { name: 'İngilizce', nameTr: 'İngilizce kelime & okuma', emoji: '🇬🇧', color: CategoryColors.pink },
     ],
     setupTasks: [
       { titleTr: 'LGS müfredatına göre ders ders konu tarama listesi çıkar', titleEn: 'Create a topic checklist for each LGS subject', priority: 'High' },
@@ -1943,17 +1944,17 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   dgs: {
     emoji: '🔄',
     temelHabits: [
-      { name: 'Sayısal Temel', nameTr: 'Sayısal yetenek temel soruları', emoji: '🔢', color: '#3B82F6' },
-      { name: 'Sözel Giriş', nameTr: 'Sözel yetenek giriş', emoji: '📝', color: '#10B981' },
+      { name: 'Sayısal Temel', nameTr: 'Sayısal yetenek temel soruları', emoji: '🔢', color: CategoryColors.blue },
+      { name: 'Sözel Giriş', nameTr: 'Sözel yetenek giriş', emoji: '📝', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Sayısal', nameTr: 'Sayısal yetenek soruları', emoji: '🔢', color: '#3B82F6' },
-      { name: 'Sözel Paragraf', nameTr: 'Sözel yetenek paragraf', emoji: '📝', color: '#10B981' },
+      { name: 'Sayısal', nameTr: 'Sayısal yetenek soruları', emoji: '🔢', color: CategoryColors.blue },
+      { name: 'Sözel Paragraf', nameTr: 'Sözel yetenek paragraf', emoji: '📝', color: CategoryColors.green },
     ],
     ileriHabits: [
-      { name: 'DGS Sayısal', nameTr: 'DGS sayısal yoğun', emoji: '🔢', color: '#3B82F6' },
-      { name: 'Sözel Tam Set', nameTr: 'Sözel tam set çözümü', emoji: '📝', color: '#10B981' },
-      { name: 'Süreli Deneme', nameTr: 'Süreli deneme çözümü', emoji: '⏱️', color: '#F59E0B' },
+      { name: 'DGS Sayısal', nameTr: 'DGS sayısal yoğun', emoji: '🔢', color: CategoryColors.blue },
+      { name: 'Sözel Tam Set', nameTr: 'Sözel tam set çözümü', emoji: '📝', color: CategoryColors.green },
+      { name: 'Süreli Deneme', nameTr: 'Süreli deneme çözümü', emoji: '⏱️', color: CategoryColors.amber },
     ],
     setupTasks: [
       { titleTr: 'Önlisans programına göre DGS bölüm seçimini araştır', titleEn: 'Research DGS program options for your associate degree', priority: 'High' },
@@ -1967,21 +1968,21 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   yds: {
     emoji: '🌐',
     temelHabits: [
-      { name: 'Metin Okuma', nameTr: 'Günlük akademik İngilizce metin', emoji: '📖', color: '#3B82F6' },
-      { name: 'Kelime', nameTr: 'Kelime listesi (5–10/gün)', emoji: '🗃️', color: '#8B5CF6' },
+      { name: 'Metin Okuma', nameTr: 'Günlük akademik İngilizce metin', emoji: '📖', color: CategoryColors.blue },
+      { name: 'Kelime', nameTr: 'Kelime listesi (5–10/gün)', emoji: '🗃️', color: CategoryColors.violet },
     ],
     ortaHabits: [
-      { name: 'Akademik Okuma', nameTr: 'Akademik metin okuma & anlama', emoji: '📖', color: '#3B82F6' },
-      { name: 'Kelime', nameTr: 'Akademik kelime listesi (15/gün)', emoji: '🗃️', color: '#8B5CF6' },
-      { name: 'Gramer', nameTr: 'Gramer yapıları tekrarı', emoji: '✏️', color: '#EC4899' },
-      { name: 'YDS Soru', nameTr: 'YDS format soruları çözümü', emoji: '📝', color: '#10B981' },
+      { name: 'Akademik Okuma', nameTr: 'Akademik metin okuma & anlama', emoji: '📖', color: CategoryColors.blue },
+      { name: 'Kelime', nameTr: 'Akademik kelime listesi (15/gün)', emoji: '🗃️', color: CategoryColors.violet },
+      { name: 'Gramer', nameTr: 'Gramer yapıları tekrarı', emoji: '✏️', color: CategoryColors.pink },
+      { name: 'YDS Soru', nameTr: 'YDS format soruları çözümü', emoji: '📝', color: CategoryColors.green },
     ],
     ileriHabits: [
-      { name: 'Hız Okuma', nameTr: 'Hız okuma pratiği', emoji: '📖', color: '#3B82F6' },
-      { name: 'AWL Kelime', nameTr: 'COCA/AWL kelime seti (20/gün)', emoji: '🗃️', color: '#8B5CF6' },
-      { name: 'İleri Gramer', nameTr: 'İleri gramer (inversion/cleft)', emoji: '✏️', color: '#EC4899' },
-      { name: 'Çıkmış YDS', nameTr: 'Çıkmış YDS tam set çözümü', emoji: '📝', color: '#10B981' },
-      { name: 'Hata Analizi', nameTr: 'Yanlış soru analizi', emoji: '❌', color: '#EF4444' },
+      { name: 'Hız Okuma', nameTr: 'Hız okuma pratiği', emoji: '📖', color: CategoryColors.blue },
+      { name: 'AWL Kelime', nameTr: 'COCA/AWL kelime seti (20/gün)', emoji: '🗃️', color: CategoryColors.violet },
+      { name: 'İleri Gramer', nameTr: 'İleri gramer (inversion/cleft)', emoji: '✏️', color: CategoryColors.pink },
+      { name: 'Çıkmış YDS', nameTr: 'Çıkmış YDS tam set çözümü', emoji: '📝', color: CategoryColors.green },
+      { name: 'Hata Analizi', nameTr: 'Yanlış soru analizi', emoji: '❌', color: CategoryColors.red },
     ],
     setupTasks: [
       { titleTr: 'Academic Word List (AWL) kelime setini indir', titleEn: 'Download the Academic Word List (AWL)', priority: 'High' },
@@ -1995,21 +1996,21 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   ielts: {
     emoji: '🇬🇧',
     temelHabits: [
-      { name: 'Listening', nameTr: 'Listening pratik (podcast)', emoji: '👂', color: '#3B82F6' },
-      { name: 'Reading', nameTr: 'Reading passage (1 metin/gün)', emoji: '📖', color: '#10B981' },
+      { name: 'Listening', nameTr: 'Listening pratik (podcast)', emoji: '👂', color: CategoryColors.blue },
+      { name: 'Reading', nameTr: 'Reading passage (1 metin/gün)', emoji: '📖', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Listening', nameTr: 'Listening: not alma pratiği', emoji: '👂', color: '#3B82F6' },
-      { name: 'Reading', nameTr: 'Reading: skimming & scanning', emoji: '📖', color: '#10B981' },
-      { name: 'Writing', nameTr: 'Writing Task 1 taslak', emoji: '✍️', color: '#F59E0B' },
-      { name: 'Speaking', nameTr: 'Speaking monologue kaydı', emoji: '🗣️', color: '#8B5CF6' },
+      { name: 'Listening', nameTr: 'Listening: not alma pratiği', emoji: '👂', color: CategoryColors.blue },
+      { name: 'Reading', nameTr: 'Reading: skimming & scanning', emoji: '📖', color: CategoryColors.green },
+      { name: 'Writing', nameTr: 'Writing Task 1 taslak', emoji: '✍️', color: CategoryColors.amber },
+      { name: 'Speaking', nameTr: 'Speaking monologue kaydı', emoji: '🗣️', color: CategoryColors.violet },
     ],
     ileriHabits: [
-      { name: 'Listening', nameTr: 'Listening: Section 3–4 (academic)', emoji: '👂', color: '#3B82F6' },
-      { name: 'Reading', nameTr: 'Reading: T/F/NG stratejisi', emoji: '📖', color: '#10B981' },
-      { name: 'Writing', nameTr: 'Writing Task 1 & 2 tam pratik', emoji: '✍️', color: '#F59E0B' },
-      { name: 'Speaking', nameTr: 'Speaking: Part 2 cue card', emoji: '🗣️', color: '#8B5CF6' },
-      { name: 'Mock Analiz', nameTr: 'Mock test hata analizi', emoji: '📊', color: '#EF4444' },
+      { name: 'Listening', nameTr: 'Listening: Section 3–4 (academic)', emoji: '👂', color: CategoryColors.blue },
+      { name: 'Reading', nameTr: 'Reading: T/F/NG stratejisi', emoji: '📖', color: CategoryColors.green },
+      { name: 'Writing', nameTr: 'Writing Task 1 & 2 tam pratik', emoji: '✍️', color: CategoryColors.amber },
+      { name: 'Speaking', nameTr: 'Speaking: Part 2 cue card', emoji: '🗣️', color: CategoryColors.violet },
+      { name: 'Mock Analiz', nameTr: 'Mock test hata analizi', emoji: '📊', color: CategoryColors.red },
     ],
     setupTasks: [
       { titleTr: 'Cambridge IELTS kitaplarından en az 2 tane temin et', titleEn: 'Get at least 2 Cambridge IELTS practice books', priority: 'High' },
@@ -2023,21 +2024,21 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   toefl: {
     emoji: '🇺🇸',
     temelHabits: [
-      { name: 'Listening', nameTr: 'Integrated Listening (kısa lecture)', emoji: '👂', color: '#3B82F6' },
-      { name: 'Reading', nameTr: 'Reading passage çözümü', emoji: '📖', color: '#10B981' },
+      { name: 'Listening', nameTr: 'Integrated Listening (kısa lecture)', emoji: '👂', color: CategoryColors.blue },
+      { name: 'Reading', nameTr: 'Reading passage çözümü', emoji: '📖', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Listening', nameTr: 'Integrated Listening + notları', emoji: '👂', color: '#3B82F6' },
-      { name: 'Reading', nameTr: 'Academic reading passage', emoji: '📖', color: '#10B981' },
-      { name: 'Writing', nameTr: 'Independent Writing taslak', emoji: '✍️', color: '#F59E0B' },
-      { name: 'Speaking', nameTr: 'Speaking template pratiği', emoji: '🎙️', color: '#8B5CF6' },
+      { name: 'Listening', nameTr: 'Integrated Listening + notları', emoji: '👂', color: CategoryColors.blue },
+      { name: 'Reading', nameTr: 'Academic reading passage', emoji: '📖', color: CategoryColors.green },
+      { name: 'Writing', nameTr: 'Independent Writing taslak', emoji: '✍️', color: CategoryColors.amber },
+      { name: 'Speaking', nameTr: 'Speaking template pratiği', emoji: '🎙️', color: CategoryColors.violet },
     ],
     ileriHabits: [
-      { name: 'Listening', nameTr: 'Listening: pragmatic purpose soruları', emoji: '👂', color: '#3B82F6' },
-      { name: 'Reading', nameTr: 'Reading: prose summary soruları', emoji: '📖', color: '#10B981' },
-      { name: 'Writing', nameTr: 'Integrated & Independent Writing', emoji: '✍️', color: '#F59E0B' },
-      { name: 'Speaking', nameTr: 'Speaking: template + içerik', emoji: '🎙️', color: '#8B5CF6' },
-      { name: 'TPO Mock', nameTr: 'TPO mock test pratiği', emoji: '📊', color: '#EF4444' },
+      { name: 'Listening', nameTr: 'Listening: pragmatic purpose soruları', emoji: '👂', color: CategoryColors.blue },
+      { name: 'Reading', nameTr: 'Reading: prose summary soruları', emoji: '📖', color: CategoryColors.green },
+      { name: 'Writing', nameTr: 'Integrated & Independent Writing', emoji: '✍️', color: CategoryColors.amber },
+      { name: 'Speaking', nameTr: 'Speaking: template + içerik', emoji: '🎙️', color: CategoryColors.violet },
+      { name: 'TPO Mock', nameTr: 'TPO mock test pratiği', emoji: '📊', color: CategoryColors.red },
     ],
     setupTasks: [
       { titleTr: 'ETS Official TOEFL Guide temin et', titleEn: 'Get the ETS Official TOEFL Guide', priority: 'High' },
@@ -2051,21 +2052,21 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   tus: {
     emoji: '🩺',
     temelHabits: [
-      { name: 'Temel Bilim', nameTr: 'Temel bilim konu okuma', emoji: '🧬', color: '#3B82F6' },
-      { name: 'Mini Soru', nameTr: 'Günlük mini soru (20–30)', emoji: '📝', color: '#10B981' },
+      { name: 'Temel Bilim', nameTr: 'Temel bilim konu okuma', emoji: '🧬', color: CategoryColors.blue },
+      { name: 'Mini Soru', nameTr: 'Günlük mini soru (20–30)', emoji: '📝', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Temel Bilim', nameTr: 'Temel bilim konu + soru (50/gün)', emoji: '🧬', color: '#3B82F6' },
-      { name: 'Klinik Özet', nameTr: 'Klinik özet (Dahiliye/Cerrahi)', emoji: '🏥', color: '#10B981' },
-      { name: 'Yanlış Tekrar', nameTr: 'Yanlış soru tekrarı', emoji: '🔄', color: '#8B5CF6' },
-      { name: 'Kontrol Listesi', nameTr: 'Konu kontrol listesi', emoji: '📋', color: '#F59E0B' },
+      { name: 'Temel Bilim', nameTr: 'Temel bilim konu + soru (50/gün)', emoji: '🧬', color: CategoryColors.blue },
+      { name: 'Klinik Özet', nameTr: 'Klinik özet (Dahiliye/Cerrahi)', emoji: '🏥', color: CategoryColors.green },
+      { name: 'Yanlış Tekrar', nameTr: 'Yanlış soru tekrarı', emoji: '🔄', color: CategoryColors.violet },
+      { name: 'Kontrol Listesi', nameTr: 'Konu kontrol listesi', emoji: '📋', color: CategoryColors.amber },
     ],
     ileriHabits: [
-      { name: 'Temel Bilim', nameTr: 'Temel bilim yoğun (Biyokimya/Patoloji)', emoji: '🧬', color: '#3B82F6' },
-      { name: 'Klinik Vaka', nameTr: 'Klinik vaka çalışması', emoji: '🏥', color: '#10B981' },
-      { name: 'Soru Bankası', nameTr: 'Soru bankası (80+ soru/gün)', emoji: '📝', color: '#EF4444' },
-      { name: 'Sistematik Tekrar', nameTr: 'Yanlış soru sistematik tekrar', emoji: '🔄', color: '#8B5CF6' },
-      { name: 'Alan Takibi', nameTr: 'Alan bazlı performans takibi', emoji: '📊', color: '#F59E0B' },
+      { name: 'Temel Bilim', nameTr: 'Temel bilim yoğun (Biyokimya/Patoloji)', emoji: '🧬', color: CategoryColors.blue },
+      { name: 'Klinik Vaka', nameTr: 'Klinik vaka çalışması', emoji: '🏥', color: CategoryColors.green },
+      { name: 'Soru Bankası', nameTr: 'Soru bankası (80+ soru/gün)', emoji: '📝', color: CategoryColors.red },
+      { name: 'Sistematik Tekrar', nameTr: 'Yanlış soru sistematik tekrar', emoji: '🔄', color: CategoryColors.violet },
+      { name: 'Alan Takibi', nameTr: 'Alan bazlı performans takibi', emoji: '📊', color: CategoryColors.amber },
     ],
     setupTasks: [
       { titleTr: 'TUS konu dağılımını ÖSYM verilerine göre analiz et', titleEn: 'Analyze TUS topic distribution using ÖSYM data', priority: 'High' },
@@ -2081,21 +2082,21 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   usmle: {
     emoji: '🏥',
     temelHabits: [
-      { name: 'Soru Bankası', nameTr: 'UWorld/Amboss günlük soru (20–30)', emoji: '📱', color: '#3B82F6' },
-      { name: 'First Aid', nameTr: 'First Aid konu okuma', emoji: '📚', color: '#10B981' },
+      { name: 'Soru Bankası', nameTr: 'UWorld/Amboss günlük soru (20–30)', emoji: '📱', color: CategoryColors.blue },
+      { name: 'First Aid', nameTr: 'First Aid konu okuma', emoji: '📚', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Soru Bankası', nameTr: 'Soru bankası (40 soru/gün)', emoji: '📱', color: '#3B82F6' },
-      { name: 'Kaynak', nameTr: 'First Aid + Pathoma/Sketchy', emoji: '📚', color: '#10B981' },
-      { name: 'Anki', nameTr: 'Anki deck tekrarı', emoji: '🔄', color: '#8B5CF6' },
-      { name: 'Zayıf Alan', nameTr: 'Zayıf alan performans takibi', emoji: '📊', color: '#F59E0B' },
+      { name: 'Soru Bankası', nameTr: 'Soru bankası (40 soru/gün)', emoji: '📱', color: CategoryColors.blue },
+      { name: 'Kaynak', nameTr: 'First Aid + Pathoma/Sketchy', emoji: '📚', color: CategoryColors.green },
+      { name: 'Anki', nameTr: 'Anki deck tekrarı', emoji: '🔄', color: CategoryColors.violet },
+      { name: 'Zayıf Alan', nameTr: 'Zayıf alan performans takibi', emoji: '📊', color: CategoryColors.amber },
     ],
     ileriHabits: [
-      { name: 'Soru Bankası', nameTr: 'Soru bankası (60+ soru/gün)', emoji: '📱', color: '#EF4444' },
-      { name: 'Anki', nameTr: 'Anki 200+ kart/gün', emoji: '🔄', color: '#8B5CF6' },
-      { name: 'First Aid', nameTr: 'Kaynak sistematik tarama', emoji: '📚', color: '#10B981' },
-      { name: 'Klinik Vaka', nameTr: 'Clinical vignette analizi', emoji: '🏥', color: '#3B82F6' },
-      { name: 'NBME', nameTr: 'NBME/UWSim performans takibi', emoji: '📊', color: '#F59E0B' },
+      { name: 'Soru Bankası', nameTr: 'Soru bankası (60+ soru/gün)', emoji: '📱', color: CategoryColors.red },
+      { name: 'Anki', nameTr: 'Anki 200+ kart/gün', emoji: '🔄', color: CategoryColors.violet },
+      { name: 'First Aid', nameTr: 'Kaynak sistematik tarama', emoji: '📚', color: CategoryColors.green },
+      { name: 'Klinik Vaka', nameTr: 'Clinical vignette analizi', emoji: '🏥', color: CategoryColors.blue },
+      { name: 'NBME', nameTr: 'NBME/UWSim performans takibi', emoji: '📊', color: CategoryColors.amber },
     ],
     setupTasks: [
       { titleTr: 'First Aid for USMLE Step temin et', titleEn: 'Get First Aid for the USMLE Step you\'re targeting', priority: 'High' },
@@ -2110,19 +2111,19 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   gre: {
     emoji: '🎓',
     temelHabits: [
-      { name: 'Vocabulary', nameTr: 'Vocabulary: 10 kelime/gün', emoji: '📝', color: '#3B82F6' },
-      { name: 'Quant Temel', nameTr: 'Quant temel konular', emoji: '🔢', color: '#10B981' },
+      { name: 'Vocabulary', nameTr: 'Vocabulary: 10 kelime/gün', emoji: '📝', color: CategoryColors.blue },
+      { name: 'Quant Temel', nameTr: 'Quant temel konular', emoji: '🔢', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Verbal', nameTr: 'Verbal: vocabulary + RC passage', emoji: '📝', color: '#3B82F6' },
-      { name: 'Quant', nameTr: 'Quant: DS & Problem Solving', emoji: '🔢', color: '#10B981' },
-      { name: 'AWA', nameTr: 'AWA essay taslak pratiği', emoji: '✍️', color: '#F59E0B' },
+      { name: 'Verbal', nameTr: 'Verbal: vocabulary + RC passage', emoji: '📝', color: CategoryColors.blue },
+      { name: 'Quant', nameTr: 'Quant: DS & Problem Solving', emoji: '🔢', color: CategoryColors.green },
+      { name: 'AWA', nameTr: 'AWA essay taslak pratiği', emoji: '✍️', color: CategoryColors.amber },
     ],
     ileriHabits: [
-      { name: 'Verbal', nameTr: 'Verbal: Full RC + Text Completion', emoji: '📝', color: '#3B82F6' },
-      { name: 'Quant', nameTr: 'Quant: yoğun problem çözme', emoji: '🔢', color: '#10B981' },
-      { name: 'AWA', nameTr: 'AWA: Issue + Argument essay', emoji: '✍️', color: '#F59E0B' },
-      { name: 'PowerPrep', nameTr: 'ETS PowerPrep simülasyonu', emoji: '📊', color: '#8B5CF6' },
+      { name: 'Verbal', nameTr: 'Verbal: Full RC + Text Completion', emoji: '📝', color: CategoryColors.blue },
+      { name: 'Quant', nameTr: 'Quant: yoğun problem çözme', emoji: '🔢', color: CategoryColors.green },
+      { name: 'AWA', nameTr: 'AWA: Issue + Argument essay', emoji: '✍️', color: CategoryColors.amber },
+      { name: 'PowerPrep', nameTr: 'ETS PowerPrep simülasyonu', emoji: '📊', color: CategoryColors.violet },
     ],
     setupTasks: [
       { titleTr: 'ETS Official GRE Guide temin et (Big Book)', titleEn: 'Get the ETS Official GRE Guide (Big Book)', priority: 'High' },
@@ -2136,19 +2137,19 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   gmat: {
     emoji: '💼',
     temelHabits: [
-      { name: 'Quant Giriş', nameTr: 'Quant: Problem Solving giriş', emoji: '🔢', color: '#3B82F6' },
-      { name: 'Verbal Temel', nameTr: 'Verbal: SC temelleri', emoji: '📝', color: '#10B981' },
+      { name: 'Quant Giriş', nameTr: 'Quant: Problem Solving giriş', emoji: '🔢', color: CategoryColors.blue },
+      { name: 'Verbal Temel', nameTr: 'Verbal: SC temelleri', emoji: '📝', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Quant', nameTr: 'Quant: DS + PS karma çalışma', emoji: '🔢', color: '#3B82F6' },
-      { name: 'Verbal', nameTr: 'Verbal: CR + SC günlük pratik', emoji: '📝', color: '#10B981' },
-      { name: 'AWA & IR', nameTr: 'AWA & IR çalışması', emoji: '✍️', color: '#F59E0B' },
+      { name: 'Quant', nameTr: 'Quant: DS + PS karma çalışma', emoji: '🔢', color: CategoryColors.blue },
+      { name: 'Verbal', nameTr: 'Verbal: CR + SC günlük pratik', emoji: '📝', color: CategoryColors.green },
+      { name: 'AWA & IR', nameTr: 'AWA & IR çalışması', emoji: '✍️', color: CategoryColors.amber },
     ],
     ileriHabits: [
-      { name: 'Quant 700+', nameTr: 'Quant yoğun (700+ sorular)', emoji: '🔢', color: '#3B82F6' },
-      { name: 'Verbal', nameTr: 'Verbal: RC + CR + SC tam set', emoji: '📝', color: '#10B981' },
-      { name: 'CAT Deneme', nameTr: 'CAT adaptif test simülasyonu', emoji: '📊', color: '#8B5CF6' },
-      { name: 'AWA', nameTr: 'AWA essay pratiği', emoji: '✍️', color: '#F59E0B' },
+      { name: 'Quant 700+', nameTr: 'Quant yoğun (700+ sorular)', emoji: '🔢', color: CategoryColors.blue },
+      { name: 'Verbal', nameTr: 'Verbal: RC + CR + SC tam set', emoji: '📝', color: CategoryColors.green },
+      { name: 'CAT Deneme', nameTr: 'CAT adaptif test simülasyonu', emoji: '📊', color: CategoryColors.violet },
+      { name: 'AWA', nameTr: 'AWA essay pratiği', emoji: '✍️', color: CategoryColors.amber },
     ],
     setupTasks: [
       { titleTr: 'GMAT Official Guide temin et', titleEn: 'Get the GMAT Official Guide', priority: 'High' },
@@ -2162,21 +2163,21 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   msü: {
     emoji: '🎖️',
     temelHabits: [
-      { name: 'Kondisyon', nameTr: 'Temel kondisyon (koşu 20 dk)', emoji: '💪', color: '#EF4444' },
-      { name: 'Akademik', nameTr: 'TYT düzeyinde konu tekrarı', emoji: '📚', color: '#3B82F6' },
+      { name: 'Kondisyon', nameTr: 'Temel kondisyon (koşu 20 dk)', emoji: '💪', color: CategoryColors.red },
+      { name: 'Akademik', nameTr: 'TYT düzeyinde konu tekrarı', emoji: '📚', color: CategoryColors.blue },
     ],
     ortaHabits: [
-      { name: 'Koşu', nameTr: 'Koşu antrenmanı (30 dk)', emoji: '🏃', color: '#EF4444' },
-      { name: 'Kalistenik', nameTr: 'Kalistenik egzersiz (şınav/mekik)', emoji: '💪', color: '#F59E0B' },
-      { name: 'Akademik', nameTr: 'Akademik soru çalışması', emoji: '📚', color: '#3B82F6' },
-      { name: 'Süreli Test', nameTr: 'Süreli test simülasyonu', emoji: '⏱️', color: '#10B981' },
+      { name: 'Koşu', nameTr: 'Koşu antrenmanı (30 dk)', emoji: '🏃', color: CategoryColors.red },
+      { name: 'Kalistenik', nameTr: 'Kalistenik egzersiz (şınav/mekik)', emoji: '💪', color: CategoryColors.amber },
+      { name: 'Akademik', nameTr: 'Akademik soru çalışması', emoji: '📚', color: CategoryColors.blue },
+      { name: 'Süreli Test', nameTr: 'Süreli test simülasyonu', emoji: '⏱️', color: CategoryColors.green },
     ],
     ileriHabits: [
-      { name: 'Uzun Koşu', nameTr: 'Uzun koşu (45+ dk)', emoji: '🏃', color: '#EF4444' },
-      { name: 'Maksimum Kal.', nameTr: 'Maksimum kalistenik', emoji: '💪', color: '#F59E0B' },
-      { name: 'Akademik', nameTr: 'Akademik tam deneme', emoji: '📚', color: '#3B82F6' },
-      { name: 'Parkur', nameTr: 'Parkur simülasyonu', emoji: '⏱️', color: '#10B981' },
-      { name: 'Mental', nameTr: 'Fiziksel + mental hazırlık', emoji: '🧠', color: '#8B5CF6' },
+      { name: 'Uzun Koşu', nameTr: 'Uzun koşu (45+ dk)', emoji: '🏃', color: CategoryColors.red },
+      { name: 'Maksimum Kal.', nameTr: 'Maksimum kalistenik', emoji: '💪', color: CategoryColors.amber },
+      { name: 'Akademik', nameTr: 'Akademik tam deneme', emoji: '📚', color: CategoryColors.blue },
+      { name: 'Parkur', nameTr: 'Parkur simülasyonu', emoji: '⏱️', color: CategoryColors.green },
+      { name: 'Mental', nameTr: 'Fiziksel + mental hazırlık', emoji: '🧠', color: CategoryColors.violet },
     ],
     setupTasks: [
       { titleTr: 'MSÜ fiziki test standartlarını incele (şınav/mekik/koşu süreleri)', titleEn: 'Review MSÜ physical fitness standards (push-up/sit-up/run times)', priority: 'High' },
@@ -2190,21 +2191,21 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   pmyo: {
     emoji: '👮',
     temelHabits: [
-      { name: 'Koşu', nameTr: 'Koşu (2–3 km, günlük)', emoji: '🏃', color: '#EF4444' },
-      { name: 'Genel Kültür', nameTr: 'Genel kültür konu okuma', emoji: '📚', color: '#3B82F6' },
+      { name: 'Koşu', nameTr: 'Koşu (2–3 km, günlük)', emoji: '🏃', color: CategoryColors.red },
+      { name: 'Genel Kültür', nameTr: 'Genel kültür konu okuma', emoji: '📚', color: CategoryColors.blue },
     ],
     ortaHabits: [
-      { name: 'Koşu', nameTr: 'Koşu antrenmanı (3–5 km)', emoji: '🏃', color: '#EF4444' },
-      { name: 'Kalistenik', nameTr: 'Kalistenik egzersiz', emoji: '💪', color: '#F59E0B' },
-      { name: 'Genel Kültür', nameTr: 'Genel kültür & güncel olaylar', emoji: '📚', color: '#3B82F6' },
-      { name: 'PMYO Soru', nameTr: 'PMYO soru çalışması', emoji: '📝', color: '#10B981' },
+      { name: 'Koşu', nameTr: 'Koşu antrenmanı (3–5 km)', emoji: '🏃', color: CategoryColors.red },
+      { name: 'Kalistenik', nameTr: 'Kalistenik egzersiz', emoji: '💪', color: CategoryColors.amber },
+      { name: 'Genel Kültür', nameTr: 'Genel kültür & güncel olaylar', emoji: '📚', color: CategoryColors.blue },
+      { name: 'PMYO Soru', nameTr: 'PMYO soru çalışması', emoji: '📝', color: CategoryColors.green },
     ],
     ileriHabits: [
-      { name: 'Interval Koşu', nameTr: 'Uzun mesafe + interval koşu', emoji: '🏃', color: '#EF4444' },
-      { name: 'Kalistenik', nameTr: 'Kalistenik maksimum set', emoji: '💪', color: '#F59E0B' },
-      { name: 'Genel Kültür', nameTr: 'Genel kültür yoğun', emoji: '📚', color: '#3B82F6' },
-      { name: 'PMYO Deneme', nameTr: 'PMYO full deneme çözümü', emoji: '📝', color: '#10B981' },
-      { name: 'Mental', nameTr: 'Psikolojik dayanıklılık', emoji: '🧠', color: '#8B5CF6' },
+      { name: 'Interval Koşu', nameTr: 'Uzun mesafe + interval koşu', emoji: '🏃', color: CategoryColors.red },
+      { name: 'Kalistenik', nameTr: 'Kalistenik maksimum set', emoji: '💪', color: CategoryColors.amber },
+      { name: 'Genel Kültür', nameTr: 'Genel kültür yoğun', emoji: '📚', color: CategoryColors.blue },
+      { name: 'PMYO Deneme', nameTr: 'PMYO full deneme çözümü', emoji: '📝', color: CategoryColors.green },
+      { name: 'Mental', nameTr: 'Psikolojik dayanıklılık', emoji: '🧠', color: CategoryColors.violet },
     ],
     setupTasks: [
       { titleTr: 'PMYO fiziki test standartlarını incele', titleEn: 'Review PMYO physical fitness test standards', priority: 'High' },
@@ -2218,19 +2219,19 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   oabt: {
     emoji: '📐',
     temelHabits: [
-      { name: 'Alan Bilgisi', nameTr: 'Alan bilgisi konu okuma', emoji: '📚', color: '#3B82F6' },
-      { name: 'Mini Soru', nameTr: 'Mini soru çözümü', emoji: '📝', color: '#10B981' },
+      { name: 'Alan Bilgisi', nameTr: 'Alan bilgisi konu okuma', emoji: '📚', color: CategoryColors.blue },
+      { name: 'Mini Soru', nameTr: 'Mini soru çözümü', emoji: '📝', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Alan Bilgisi', nameTr: 'Alan bilgisi sistematik tarama', emoji: '📚', color: '#3B82F6' },
-      { name: 'ÖABT Soru', nameTr: 'ÖABT format soru çözümü', emoji: '📝', color: '#10B981' },
-      { name: 'Eğitim Bil.', nameTr: 'Eğitim Bilimleri tekrarı', emoji: '🧠', color: '#8B5CF6' },
+      { name: 'Alan Bilgisi', nameTr: 'Alan bilgisi sistematik tarama', emoji: '📚', color: CategoryColors.blue },
+      { name: 'ÖABT Soru', nameTr: 'ÖABT format soru çözümü', emoji: '📝', color: CategoryColors.green },
+      { name: 'Eğitim Bil.', nameTr: 'Eğitim Bilimleri tekrarı', emoji: '🧠', color: CategoryColors.violet },
     ],
     ileriHabits: [
-      { name: 'Alan Yoğun', nameTr: 'Alan bilgisi yoğun (zayıf konular)', emoji: '📚', color: '#3B82F6' },
-      { name: 'Çıkmış Soru', nameTr: 'Çıkmış ÖABT soruları', emoji: '📝', color: '#10B981' },
-      { name: 'Eğitim Bil.', nameTr: 'Eğitim Bilimleri + pedagoji', emoji: '🧠', color: '#8B5CF6' },
-      { name: 'Hata Analizi', nameTr: 'Hata analizi & tekrar', emoji: '❌', color: '#EF4444' },
+      { name: 'Alan Yoğun', nameTr: 'Alan bilgisi yoğun (zayıf konular)', emoji: '📚', color: CategoryColors.blue },
+      { name: 'Çıkmış Soru', nameTr: 'Çıkmış ÖABT soruları', emoji: '📝', color: CategoryColors.green },
+      { name: 'Eğitim Bil.', nameTr: 'Eğitim Bilimleri + pedagoji', emoji: '🧠', color: CategoryColors.violet },
+      { name: 'Hata Analizi', nameTr: 'Hata analizi & tekrar', emoji: '❌', color: CategoryColors.red },
     ],
     setupTasks: [
       { titleTr: 'Branşına özel ÖABT konu listesini ÖSYM\'den indir', titleEn: 'Download your branch-specific ÖABT topic list from ÖSYM', priority: 'High' },
@@ -2244,19 +2245,19 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   aof: {
     emoji: '💻',
     temelHabits: [
-      { name: 'Ünite Okuma', nameTr: 'Ders kitabı ünite okuma (1/gün)', emoji: '📖', color: '#3B82F6' },
-      { name: 'Özet', nameTr: 'Ünite özeti çıkarma', emoji: '📝', color: '#10B981' },
+      { name: 'Ünite Okuma', nameTr: 'Ders kitabı ünite okuma (1/gün)', emoji: '📖', color: CategoryColors.blue },
+      { name: 'Özet', nameTr: 'Ünite özeti çıkarma', emoji: '📝', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Ders Okuma', nameTr: 'Ders okuma + not alma', emoji: '📖', color: '#3B82F6' },
-      { name: 'Ünite Sonu', nameTr: 'Ünite sonu soruları çözme', emoji: '📝', color: '#10B981' },
-      { name: 'Haftalık Tekrar', nameTr: 'Haftalık tekrar oturumu', emoji: '🔄', color: '#8B5CF6' },
+      { name: 'Ders Okuma', nameTr: 'Ders okuma + not alma', emoji: '📖', color: CategoryColors.blue },
+      { name: 'Ünite Sonu', nameTr: 'Ünite sonu soruları çözme', emoji: '📝', color: CategoryColors.green },
+      { name: 'Haftalık Tekrar', nameTr: 'Haftalık tekrar oturumu', emoji: '🔄', color: CategoryColors.violet },
     ],
     ileriHabits: [
-      { name: 'Hızlı Okuma', nameTr: 'Hızlı okuma + aktif not', emoji: '📖', color: '#3B82F6' },
-      { name: 'Çıkmış Soru', nameTr: 'Çıkmış soru analizi', emoji: '📝', color: '#10B981' },
-      { name: 'Sistematik Tekrar', nameTr: 'Sistematik tekrar programı', emoji: '🔄', color: '#8B5CF6' },
-      { name: 'Hata Takibi', nameTr: 'Hata takibi & güçlendirme', emoji: '❌', color: '#EF4444' },
+      { name: 'Hızlı Okuma', nameTr: 'Hızlı okuma + aktif not', emoji: '📖', color: CategoryColors.blue },
+      { name: 'Çıkmış Soru', nameTr: 'Çıkmış soru analizi', emoji: '📝', color: CategoryColors.green },
+      { name: 'Sistematik Tekrar', nameTr: 'Sistematik tekrar programı', emoji: '🔄', color: CategoryColors.violet },
+      { name: 'Hata Takibi', nameTr: 'Hata takibi & güçlendirme', emoji: '❌', color: CategoryColors.red },
     ],
     setupTasks: [
       { titleTr: 'Açıköğretim sınav takvimini kaydet ve alarm kur', titleEn: 'Save the distance education exam schedule and set reminders', priority: 'High' },
@@ -2270,21 +2271,21 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   pte: {
     emoji: '🎙️',
     temelHabits: [
-      { name: 'Read Aloud', nameTr: 'Speaking: Read Aloud pratik', emoji: '🎙️', color: '#3B82F6' },
-      { name: 'Reorder', nameTr: 'Reading: Reorder Paragraphs', emoji: '📖', color: '#10B981' },
+      { name: 'Read Aloud', nameTr: 'Speaking: Read Aloud pratik', emoji: '🎙️', color: CategoryColors.blue },
+      { name: 'Reorder', nameTr: 'Reading: Reorder Paragraphs', emoji: '📖', color: CategoryColors.green },
     ],
     ortaHabits: [
-      { name: 'Speaking', nameTr: 'Speaking: RA + Repeat Sentence', emoji: '🎙️', color: '#3B82F6' },
-      { name: 'Reading', nameTr: 'Reading: FIB + MCQ', emoji: '📖', color: '#10B981' },
-      { name: 'Writing', nameTr: 'Writing: Summarize Written Text', emoji: '✍️', color: '#F59E0B' },
-      { name: 'Listening', nameTr: 'Listening: FIB pratik', emoji: '👂', color: '#8B5CF6' },
+      { name: 'Speaking', nameTr: 'Speaking: RA + Repeat Sentence', emoji: '🎙️', color: CategoryColors.blue },
+      { name: 'Reading', nameTr: 'Reading: FIB + MCQ', emoji: '📖', color: CategoryColors.green },
+      { name: 'Writing', nameTr: 'Writing: Summarize Written Text', emoji: '✍️', color: CategoryColors.amber },
+      { name: 'Listening', nameTr: 'Listening: FIB pratik', emoji: '👂', color: CategoryColors.violet },
     ],
     ileriHabits: [
-      { name: 'Speaking', nameTr: 'Speaking: Describe Image + Retell', emoji: '🎙️', color: '#3B82F6' },
-      { name: 'Reading', nameTr: 'Reading: tüm soru tipleri', emoji: '📖', color: '#10B981' },
-      { name: 'Writing', nameTr: 'Writing: Full AWE pratik', emoji: '✍️', color: '#F59E0B' },
-      { name: 'Listening', nameTr: 'Listening: Highlight Correct Summary', emoji: '👂', color: '#8B5CF6' },
-      { name: 'Mock Analiz', nameTr: 'Mock test analizi', emoji: '📊', color: '#EF4444' },
+      { name: 'Speaking', nameTr: 'Speaking: Describe Image + Retell', emoji: '🎙️', color: CategoryColors.blue },
+      { name: 'Reading', nameTr: 'Reading: tüm soru tipleri', emoji: '📖', color: CategoryColors.green },
+      { name: 'Writing', nameTr: 'Writing: Full AWE pratik', emoji: '✍️', color: CategoryColors.amber },
+      { name: 'Listening', nameTr: 'Listening: Highlight Correct Summary', emoji: '👂', color: CategoryColors.violet },
+      { name: 'Mock Analiz', nameTr: 'Mock test analizi', emoji: '📊', color: CategoryColors.red },
     ],
     setupTasks: [
       { titleTr: 'PTE Academic Official Guide temin et', titleEn: 'Get the PTE Academic Official Guide', priority: 'High' },
@@ -2298,19 +2299,19 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
   bilsem: {
     emoji: '🧩',
     temelHabits: [
-      { name: 'Sözel Mantık', nameTr: 'Sözel mantık bulmacaları (15 dk)', emoji: '🧩', color: '#8B5CF6' },
-      { name: 'Sayısal Örüntü', nameTr: 'Sayısal örüntü soruları', emoji: '🔢', color: '#3B82F6' },
+      { name: 'Sözel Mantık', nameTr: 'Sözel mantık bulmacaları (15 dk)', emoji: '🧩', color: CategoryColors.violet },
+      { name: 'Sayısal Örüntü', nameTr: 'Sayısal örüntü soruları', emoji: '🔢', color: CategoryColors.blue },
     ],
     ortaHabits: [
-      { name: 'Sözel Mantık', nameTr: 'Sözel & şekil mantık soruları', emoji: '🧩', color: '#8B5CF6' },
-      { name: 'Sayısal', nameTr: 'Sayısal örüntü ve dizi', emoji: '🔢', color: '#3B82F6' },
-      { name: 'Yaratıcı', nameTr: 'Yaratıcı düşünme egzersizleri', emoji: '🎨', color: '#EC4899' },
+      { name: 'Sözel Mantık', nameTr: 'Sözel & şekil mantık soruları', emoji: '🧩', color: CategoryColors.violet },
+      { name: 'Sayısal', nameTr: 'Sayısal örüntü ve dizi', emoji: '🔢', color: CategoryColors.blue },
+      { name: 'Yaratıcı', nameTr: 'Yaratıcı düşünme egzersizleri', emoji: '🎨', color: CategoryColors.pink },
     ],
     ileriHabits: [
-      { name: 'Zeka Testi', nameTr: 'Tam zeka testi seti (sözel+şekil+sayısal)', emoji: '🧩', color: '#8B5CF6' },
-      { name: 'Örüntü', nameTr: 'İleri düzey örüntü soruları', emoji: '🔢', color: '#3B82F6' },
-      { name: 'Yaratıcı', nameTr: 'Yaratıcı problem çözme pratiği', emoji: '🎨', color: '#EC4899' },
-      { name: 'Uzamsal', nameTr: 'Görsel-uzamsal akıl yürütme', emoji: '🧠', color: '#10B981' },
+      { name: 'Zeka Testi', nameTr: 'Tam zeka testi seti (sözel+şekil+sayısal)', emoji: '🧩', color: CategoryColors.violet },
+      { name: 'Örüntü', nameTr: 'İleri düzey örüntü soruları', emoji: '🔢', color: CategoryColors.blue },
+      { name: 'Yaratıcı', nameTr: 'Yaratıcı problem çözme pratiği', emoji: '🎨', color: CategoryColors.pink },
+      { name: 'Uzamsal', nameTr: 'Görsel-uzamsal akıl yürütme', emoji: '🧠', color: CategoryColors.green },
     ],
     setupTasks: [
       { titleTr: 'BİLSEM değerlendirme aşamalarını araştır (Grup Tarama → Bireysel)', titleEn: 'Research BİLSEM assessment stages (Group Screening → Individual)', priority: 'High' },
@@ -2362,9 +2363,9 @@ function buildLevelTemplates(content: ExamContent, examName: string, days: numbe
     templates.push({
       ...TEMPLATE_SPRINT(examName),
       habits: [
-        { name: 'Sabah Denemesi', nameTr: 'Sabah denemesi çöz', emoji: '📊', color: '#EF4444' },
-        { name: 'Hata Analizi', nameTr: 'Hata analizi & zayıf alan', emoji: '🔍', color: '#F59E0B' },
-        { name: 'Akşam Tekrarı', nameTr: 'Akşam hızlı tekrar', emoji: '🌙', color: '#6366F1' },
+        { name: 'Sabah Denemesi', nameTr: 'Sabah denemesi çöz', emoji: '📊', color: CategoryColors.red },
+        { name: 'Hata Analizi', nameTr: 'Hata analizi & zayıf alan', emoji: '🔍', color: CategoryColors.amber },
+        { name: 'Akşam Tekrarı', nameTr: 'Akşam hızlı tekrar', emoji: '🌙', color: CategoryColors.indigo },
       ],
       tasks: content.sprintTasks,
     });

@@ -13,13 +13,18 @@ import { FocusService, UserStatsResponse } from '@/shared/services/api';
 import { S, R, F, B, TRACKING, MAX_W } from '@/shared/constants/tokens';
 import { generateWeeklyTips, computeWeeklyMetrics, getCoachAction, ProductivityHour } from '@/shared/utils/insights';
 import { track } from '@/shared/utils/analytics';
+import type { AppTheme } from '@/shared/constants/Colors';
 
-const TONE_COLOR: Record<string, string> = {
-  positive: '#34C759',
-  warning: '#FF9500',
-  motivational: '#6366F1',
-  neutral: '#8E8E93',
-};
+// Koç/ipucu tonlarını tema token'larına bağlar.
+// Eskiden burada ayrı bir mini palet vardı (Apple HIG renkleri: #34C759, #FF9500,
+// #8E8E93) — yani tema değişince bu ekran geride kalıyordu ve WCAG denetimine de
+// girmiyordu. Artık tek kaynak: Colors.
+const toneColor = (theme: AppTheme, tone: string): string => ({
+  positive: theme.success,
+  warning: theme.warning,
+  motivational: theme.primary,
+  neutral: theme.onSurfaceVariant,
+}[tone] ?? theme.primary);
 
 export default function ReportScreen() {
   const { theme, isDark } = useAppTheme();
@@ -118,7 +123,7 @@ export default function ReportScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: 120, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
           {/* Koç kartı — "şimdi ne yapmalıyım?" (kural-tabanlı, ücretsiz) */}
           {(() => {
-            const c = TONE_COLOR[coach.tone] ?? theme.primary;
+            const c = toneColor(theme, coach.tone);
             return (
               <View style={[styles.coach, { backgroundColor: c + '14', borderColor: c + '33' }]}>
                 <Text style={{ color: c, fontSize: F.caption, fontWeight: '900', letterSpacing: 0.5, marginBottom: 4 }}>
@@ -144,7 +149,7 @@ export default function ReportScreen() {
           {/* Metric grid */}
           <View style={{ flexDirection: 'row', gap: S.sm }}>
             <StatCard icon={<Clock size={18} color="#6366F1" />} value={totalHours > 0 ? `${totalHours}s ${totalRemMin}d` : `${metrics.totalFocusMin}d`} label={tr ? 'Bu hafta odak' : 'Focus this week'} color="#6366F1" />
-            <StatCard icon={<Flame size={18} color="#FF9500" />} value={`${input.streak}`} label={tr ? 'Gün seri' : 'Day streak'} color="#FF9500" />
+            <StatCard icon={<Flame size={18} color={theme.streak} />} value={`${input.streak}`} label={tr ? 'Gün seri' : 'Day streak'} color="#FF9500" />
           </View>
           <View style={{ flexDirection: 'row', gap: S.sm }}>
             <StatCard icon={<CheckCircle2 size={18} color="#34C759" />} value={`${input.completedTasksWeek}`} label={tr ? 'Tamamlanan görev' : 'Tasks done'} color="#34C759" />
@@ -184,7 +189,7 @@ export default function ReportScreen() {
               {tr ? 'Öneriler' : 'Insights'}
             </Text>
             {tips.map((tip, i) => {
-              const c = TONE_COLOR[tip.tone] ?? theme.primary;
+              const c = toneColor(theme, tip.tone);
               return (
                 <View key={i} style={[styles.tip, { backgroundColor: c + '12', borderLeftColor: c }]}>
                   <Text style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '500', lineHeight: 21 }}>

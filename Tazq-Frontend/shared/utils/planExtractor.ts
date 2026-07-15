@@ -1,3 +1,4 @@
+import { CategoryColors } from '@/shared/constants/Colors';
 export interface DraftHabit {
   name: string;
   nameTr: string;
@@ -13,28 +14,28 @@ export interface DraftTask {
 
 // Zengin eşleşme: bilinen aktivite → hazır ad/emoji/renk.
 const HABIT_PATTERNS: Array<{ keywords: string[]; nameTr: string; nameEn: string; emoji: string; color: string }> = [
-  { keywords: ['koş', 'run', 'cardio', 'jog'], nameTr: 'Koşu', nameEn: 'Running', emoji: '🏃', color: '#10B981' },
-  { keywords: ['yürü', 'walk', 'adım'], nameTr: 'Yürüyüş', nameEn: 'Walking', emoji: '🚶', color: '#10B981' },
+  { keywords: ['koş', 'run', 'cardio', 'jog'], nameTr: 'Koşu', nameEn: 'Running', emoji: '🏃', color: CategoryColors.green },
+  { keywords: ['yürü', 'walk', 'adım'], nameTr: 'Yürüyüş', nameEn: 'Walking', emoji: '🚶', color: CategoryColors.green },
   { keywords: ['yüz', 'swim', 'havuz'], nameTr: 'Yüzme', nameEn: 'Swimming', emoji: '🏊', color: '#06B6D4' },
-  { keywords: ['spor', 'egzersiz', 'antrenman', 'gym', 'fitness', 'workout', 'training', 'ağırlık'], nameTr: 'Spor / Antrenman', nameEn: 'Workout', emoji: '💪', color: '#F97316' },
+  { keywords: ['spor', 'egzersiz', 'antrenman', 'gym', 'fitness', 'workout', 'training', 'ağırlık'], nameTr: 'Spor / Antrenman', nameEn: 'Workout', emoji: '💪', color: CategoryColors.orange },
   { keywords: ['esne', 'stretch', 'mobilite', 'mobility'], nameTr: 'Esneme', nameEn: 'Stretching', emoji: '🤸', color: '#14B8A6' },
-  { keywords: ['kitap', 'oku', 'okuma', 'read', 'reading', 'book'], nameTr: 'Okuma', nameEn: 'Reading', emoji: '📚', color: '#6366F1' },
-  { keywords: ['çalış', 'ders', 'study', 'ödev', 'homework', 'revize', 'tekrar', 'konu'], nameTr: 'Ders Çalışma', nameEn: 'Study', emoji: '📖', color: '#3B82F6' },
-  { keywords: ['soru çöz', 'test çöz', 'deneme', 'soru bankası'], nameTr: 'Soru Çözümü', nameEn: 'Practice Questions', emoji: '✏️', color: '#3B82F6' },
-  { keywords: ['yaz', 'yazım', 'yazma', 'write', 'writing', 'günlük', 'journal'], nameTr: 'Yazı Yazmak', nameEn: 'Writing', emoji: '✍️', color: '#8B5CF6' },
+  { keywords: ['kitap', 'oku', 'okuma', 'read', 'reading', 'book'], nameTr: 'Okuma', nameEn: 'Reading', emoji: '📚', color: CategoryColors.indigo },
+  { keywords: ['çalış', 'ders', 'study', 'ödev', 'homework', 'revize', 'tekrar', 'konu'], nameTr: 'Ders Çalışma', nameEn: 'Study', emoji: '📖', color: CategoryColors.blue },
+  { keywords: ['soru çöz', 'test çöz', 'deneme', 'soru bankası'], nameTr: 'Soru Çözümü', nameEn: 'Practice Questions', emoji: '✏️', color: CategoryColors.blue },
+  { keywords: ['yaz', 'yazım', 'yazma', 'write', 'writing', 'günlük', 'journal'], nameTr: 'Yazı Yazmak', nameEn: 'Writing', emoji: '✍️', color: CategoryColors.violet },
   { keywords: ['su iç', 'water', 'hidrasyon', 'hydration'], nameTr: 'Su İçmek', nameEn: 'Hydration', emoji: '💧', color: '#06B6D4' },
-  { keywords: ['protein', 'beslenme', 'kalori', 'diyet', 'diet', 'nutrition', 'sağlıklı ye', 'sebze'], nameTr: 'Beslenme Takibi', nameEn: 'Nutrition', emoji: '🥗', color: '#10B981' },
-  { keywords: ['uyku', 'sleep', 'uyu', 'erken yat'], nameTr: 'Uyku Düzeni', nameEn: 'Sleep', emoji: '😴', color: '#6366F1' },
-  { keywords: ['meditasyon', 'meditation', 'nefes', 'breath', 'mindful', 'yoga'], nameTr: 'Meditasyon', nameEn: 'Meditation', emoji: '🧘', color: '#8B5CF6' },
-  { keywords: ['dua', 'namaz', 'prayer', 'ibadet', 'kuran', 'quran', 'zikir'], nameTr: 'İbadet / Zikir', nameEn: 'Prayer', emoji: '🤲', color: '#6366F1' },
-  { keywords: ['kod', 'coding', 'programlama', 'geliştir', 'develop', 'software', 'yazılım'], nameTr: 'Kod Yazmak', nameEn: 'Coding', emoji: '💻', color: '#10B981' },
-  { keywords: ['dil', 'kelime', 'vocabulary', 'language', 'ingilizce', 'english', 'almanca', 'kelime ezber'], nameTr: 'Dil Öğrenimi', nameEn: 'Language', emoji: '🗣️', color: '#3B82F6' },
-  { keywords: ['müzik', 'music', 'gitar', 'guitar', 'piyano', 'piano', 'enstrüman'], nameTr: 'Müzik Pratiği', nameEn: 'Music', emoji: '🎵', color: '#EC4899' },
-  { keywords: ['resim', 'çizim', 'draw', 'paint', 'art', 'sketch'], nameTr: 'Çizim / Resim', nameEn: 'Drawing', emoji: '🎨', color: '#EC4899' },
-  { keywords: ['vitamin', 'ilaç', 'medication', 'supplement', 'takviye'], nameTr: 'Vitamin / İlaç', nameEn: 'Supplements', emoji: '💊', color: '#F59E0B' },
-  { keywords: ['araştır', 'research', 'makale', 'paper', 'literatür', 'literature', 'kaynak'], nameTr: 'Araştırma', nameEn: 'Research', emoji: '🔍', color: '#8B5CF6' },
+  { keywords: ['protein', 'beslenme', 'kalori', 'diyet', 'diet', 'nutrition', 'sağlıklı ye', 'sebze'], nameTr: 'Beslenme Takibi', nameEn: 'Nutrition', emoji: '🥗', color: CategoryColors.green },
+  { keywords: ['uyku', 'sleep', 'uyu', 'erken yat'], nameTr: 'Uyku Düzeni', nameEn: 'Sleep', emoji: '😴', color: CategoryColors.indigo },
+  { keywords: ['meditasyon', 'meditation', 'nefes', 'breath', 'mindful', 'yoga'], nameTr: 'Meditasyon', nameEn: 'Meditation', emoji: '🧘', color: CategoryColors.violet },
+  { keywords: ['dua', 'namaz', 'prayer', 'ibadet', 'kuran', 'quran', 'zikir'], nameTr: 'İbadet / Zikir', nameEn: 'Prayer', emoji: '🤲', color: CategoryColors.indigo },
+  { keywords: ['kod', 'coding', 'programlama', 'geliştir', 'develop', 'software', 'yazılım'], nameTr: 'Kod Yazmak', nameEn: 'Coding', emoji: '💻', color: CategoryColors.green },
+  { keywords: ['dil', 'kelime', 'vocabulary', 'language', 'ingilizce', 'english', 'almanca', 'kelime ezber'], nameTr: 'Dil Öğrenimi', nameEn: 'Language', emoji: '🗣️', color: CategoryColors.blue },
+  { keywords: ['müzik', 'music', 'gitar', 'guitar', 'piyano', 'piano', 'enstrüman'], nameTr: 'Müzik Pratiği', nameEn: 'Music', emoji: '🎵', color: CategoryColors.pink },
+  { keywords: ['resim', 'çizim', 'draw', 'paint', 'art', 'sketch'], nameTr: 'Çizim / Resim', nameEn: 'Drawing', emoji: '🎨', color: CategoryColors.pink },
+  { keywords: ['vitamin', 'ilaç', 'medication', 'supplement', 'takviye'], nameTr: 'Vitamin / İlaç', nameEn: 'Supplements', emoji: '💊', color: CategoryColors.amber },
+  { keywords: ['araştır', 'research', 'makale', 'paper', 'literatür', 'literature', 'kaynak'], nameTr: 'Araştırma', nameEn: 'Research', emoji: '🔍', color: CategoryColors.violet },
   { keywords: ['temizlik', 'düzen', 'clean', 'tidy', 'organize'], nameTr: 'Düzen / Temizlik', nameEn: 'Tidy Up', emoji: '🧹', color: '#14B8A6' },
-  { keywords: ['tasarruf', 'bütçe', 'budget', 'save money', 'para biriktir'], nameTr: 'Bütçe Takibi', nameEn: 'Budgeting', emoji: '💰', color: '#F59E0B' },
+  { keywords: ['tasarruf', 'bütçe', 'budget', 'save money', 'para biriktir'], nameTr: 'Bütçe Takibi', nameEn: 'Budgeting', emoji: '💰', color: CategoryColors.amber },
 ];
 
 // Tekrar/süreklilik sinyalleri → ALIŞKANLIK (her gün yapılan).
@@ -143,4 +144,16 @@ export function extractPlanFromText(text: string, _tr: boolean): { habits: Draft
 }
 
 export const QUICK_EMOJIS = ['🎯', '📚', '💪', '🏃', '✍️', '💧', '😴', '🧘', '💻', '📋', '🥗', '🔍', '🎵', '⚡', '🤲', '📖'];
-export const QUICK_COLORS = ['#10B981', '#3B82F6', '#6366F1', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#F97316'];
+// Kullanıcının alışkanlık için seçebileceği renkler — kategori paletinin tamamı.
+// Tip `string[]`: seçilen renk kalıcı veriye yazılır ve oradan `string` olarak geri
+// gelir, dar birleşim tipi tutmaz.
+export const QUICK_COLORS: string[] = [
+  CategoryColors.green,
+  CategoryColors.blue,
+  CategoryColors.indigo,
+  CategoryColors.violet,
+  CategoryColors.amber,
+  CategoryColors.red,
+  CategoryColors.pink,
+  CategoryColors.orange,
+];
