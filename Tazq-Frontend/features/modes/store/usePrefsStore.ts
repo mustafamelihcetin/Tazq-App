@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from '@/shared/services/api';
+import { swallow } from '@/shared/utils/swallow';
 
 export interface SeasonalPrefs {
   ramazan: boolean;
@@ -407,14 +408,15 @@ export const usePrefsStore = create<PrefsState>()(
         // Başarımları da aynı transport ile taşı (sahibi useAchievementStore).
         // Böylece "kutlandı" hafızası, kutladığı metrik (sunucudaki streak) kadar kalıcı olur.
         try {
-          const ach = require('./useAchievementStore').useAchievementStore.getState();
+          const ach = require('@/features/user/store/useAchievementStore').useAchievementStore.getState();
           snapshot.__achievements = { unlocked: ach.unlocked, baselined: ach.baselined };
-        } catch {}
+        } catch (e) { swallow('prefsStore.collectAchievementsForSnapshot', e, { capture: true }); }
         try {
           await AuthService.updateProfile({ preferences: JSON.stringify(snapshot) });
         } catch (err) {
           // Çevrimdışı/başarısız: sessizce geç, tercihler lokalde zaten kalıcı.
-          console.log('[Prefs Sync] cloud push failed (will retry on next change)', err);
+          // Bir sonraki değişiklikte tekrar denenir; yine de iz bırak.
+          swallow('prefsStore.syncToCloud', err);
         }
       },
 
@@ -454,11 +456,11 @@ export const usePrefsStore = create<PrefsState>()(
           // tekrar kutlama olmaz.
           if (parsed.__achievements && typeof parsed.__achievements === 'object') {
             try {
-              require('./useAchievementStore').useAchievementStore.getState().applyCloud(parsed.__achievements);
-            } catch {}
+              require('@/features/user/store/useAchievementStore').useAchievementStore.getState().applyCloud(parsed.__achievements);
+            } catch (e) { swallow('prefsStore.applyCloudAchievements', e, { capture: true }); }
           }
         } catch (err) {
-          console.log('[Prefs Sync] hydrate parse failed', err);
+          swallow('prefsStore.hydrateFromCloud', err, { capture: true });
         }
       },
     }),

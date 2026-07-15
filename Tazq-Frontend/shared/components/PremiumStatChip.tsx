@@ -12,6 +12,7 @@ import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import { R, S, F, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import type { AppTheme } from '@/shared/constants/Colors';
 
 export interface Surprise {
   icon: string;
@@ -26,7 +27,7 @@ interface Props {
   label: string;
   color: string;
   isDark: boolean;
-  theme: any;
+  theme: AppTheme;
   getSurprise: () => Surprise;
 }
 

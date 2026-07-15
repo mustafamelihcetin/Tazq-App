@@ -3,6 +3,7 @@ import { useAuthStore } from '@/features/user/store/useAuthStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { Platform } from 'react-native';
 import { reportApiError } from '@/shared/utils/sentry';
+import { swallow } from '@/shared/utils/swallow';
 
 const BASE_URL = 'https://api.tazqapp.com';
 
@@ -194,11 +195,11 @@ export const AuthService = {
   },
   // Refresh token'ı sunucuda iptal et (logout) — best-effort
   logout: async (refreshToken: string) => {
-    try { await axios.post(`${BASE_URL}/api/users/logout`, { refreshToken }, { headers: { 'X-App-Signature': 'tazq-expo-frontend' }, timeout: 8000 }); } catch {}
+    try { await axios.post(`${BASE_URL}/api/users/logout`, { refreshToken }, { headers: { 'X-App-Signature': 'tazq-expo-frontend' }, timeout: 8000 }); } catch (e) { swallow('api.logout', e); }
   },
   // Hesabı sil — best-effort
   deleteAccount: async () => {
-    try { await api.delete('/api/users/me'); } catch {}
+    try { await api.delete('/api/users/me'); } catch (e) { swallow('api.deleteAccount', e); }
   },
 };
 

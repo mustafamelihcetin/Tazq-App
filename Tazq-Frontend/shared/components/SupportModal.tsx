@@ -7,11 +7,14 @@ import { SupportService, MySupportMessage } from '@/shared/services/api';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { S, R, F, B } from '@/shared/constants/tokens';
+import type { AppTheme } from '@/shared/constants/Colors';
+import { httpStatusOf, isNetworkError, httpRawDataOf } from '@/shared/utils/errors';
+import { swallow } from '@/shared/utils/swallow';
 
 interface SupportModalProps {
   visible: boolean;
   onClose: () => void;
-  theme: any;
+  theme: AppTheme;
   isDark: boolean;
   language: string;
   t: any;
@@ -70,22 +73,25 @@ export const SupportModal: React.FC<SupportModalProps> = ({
         tr ? 'Başarılı' : 'Success',
         t.support?.success || (tr ? 'Mesajın bize ulaştı.' : 'Your message has been sent to support.')
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      console.warn('[Support] send failed:', err?.response?.status, err?.response?.data);
+      swallow('supportModal.sendMessage', err);
       let msg = t.support?.error || (tr ? 'Mesaj gönderilemedi.' : 'Could not send message.');
-      if (!err?.response) {
+      if (isNetworkError(err)) {
         msg = t.login?.networkError || (tr ? 'Bağlantı hatası. Ağını kontrol et.' : 'Connection failed. Check your network.');
       } else {
-        const status = err.response.status;
-        const body = err.response.data;
-        const serverMsg = typeof body === 'string' ? body : body?.message;
+        const status = httpStatusOf(err) ?? 0;
+        // Gövde JSON nesnesi de düz metin de olabilir; iki biçim de korunur.
+        const body = httpRawDataOf(err);
+        const bodyObj: { message?: string; traceId?: string; TraceId?: string } =
+          typeof body === 'object' && body !== null ? body : {};
+        const serverMsg = typeof body === 'string' ? body : bodyObj.message;
         if (status === 401) {
           msg = tr
             ? 'Oturumun doğrulanamadı. Lütfen çıkıp tekrar giriş yap.'
             : 'Session could not be verified. Please sign out and back in.';
         } else if (status >= 500) {
-          const tid = (body && typeof body === 'object' ? ((body as any).traceId || (body as any).TraceId) : '') || '';
+          const tid = bodyObj.traceId || bodyObj.TraceId || '';
           const code = tid ? ` (${tr ? 'kod' : 'code'}: ${String(tid).slice(-8)})` : '';
           msg = (tr ? 'Sunucu hatası. Lütfen sonra tekrar dene.' : 'Server error. Please try again later.') + code;
         } else if (serverMsg) {

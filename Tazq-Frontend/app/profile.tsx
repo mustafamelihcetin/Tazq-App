@@ -37,6 +37,9 @@ import { useTaskStore } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
 import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
+import { swallow } from '@/shared/utils/swallow';
+import { playSoundEffect } from '@/shared/utils/soundEffects';
+import { isNetworkError, httpDataOf } from '@/shared/utils/errors';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -204,8 +207,8 @@ export default function ProfileScreen() {
       await usePrefsStore.getState().syncToCloud();
       setEditModalVisible(false);
       showToast(t.toastProfileUpdated, 'success');
-    } catch (e: any) {
-      const msg = !e.response
+    } catch (e: unknown) {
+      const msg = isNetworkError(e)
         ? (language === 'tr' ? 'Bağlantı hatası. Tekrar dene.' : 'Connection error. Try again.')
         : (language === 'tr' ? 'Güncelleme başarısız.' : 'Update failed.');
       setProfileError(msg);
@@ -323,9 +326,9 @@ export default function ProfileScreen() {
       Keyboard.dismiss();
       setPwModalVisible(false);
       showToast(language === 'tr' ? 'Şifren güncellendi.' : 'Password updated.', 'success');
-    } catch (err: any) {
+    } catch (err: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const msg = err?.response?.data?.message;
+      const msg = httpDataOf<{ message?: string }>(err).message;
       setPwError(msg || (language === 'tr' ? 'Şifre değiştirilemedi.' : 'Could not change password.'));
     } finally {
       setChangingPw(false);
@@ -336,7 +339,7 @@ export default function ProfileScreen() {
     if (!canConfirmDelete || deleting) return;
     setDeleting(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    try { await AuthService.deleteAccount(); } catch {}
+    try { await AuthService.deleteAccount(); } catch (e) { swallow('profile.performDeleteAccount', e); }
     setDeleting(false);
     setDeleteModalVisible(false);
     logout();
@@ -376,13 +379,13 @@ export default function ProfileScreen() {
             if (!h.completedDates.includes(todayKey)) toggleDate(h.id, todayKey);
           });
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          if (soundEffects) try {
-            const { createAudioPlayer } = require('expo-audio');
-            const p = createAudioPlayer(require('../assets/sounds/freeze.mp3'));
-            p.volume = 0.75;
-            p.play();
-            setTimeout(() => { try { p.remove(); } catch {} }, 3000);
-          } catch {}
+          if (soundEffects) {
+            playSoundEffect(require('../assets/sounds/freeze.mp3'), {
+              context: 'profile.streakFreezeSound',
+              volume: 0.75,
+              releaseAfterMs: 3000,
+            });
+          }
           showToast(language === 'tr' ? 'Kalkan başarıyla kullanıldı!' : 'Shield successfully used!', 'success');
         } }
       ]
@@ -903,7 +906,7 @@ export default function ProfileScreen() {
                   style={{ flex: 1, paddingVertical: S.sm, color: theme.onSurface, fontSize: F.body }}
                 />
                 {f.eye && (
-                  <TouchableOpacity onPress={() => setShowPw((s) => !s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel={showPw ? (language === 'tr' ? 'Şifreyi gizle' : 'Hide password') : (language === 'tr' ? 'Şifreyi göster' : 'Show password')} onPress={() => setShowPw((s) => !s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     {showPw ? <EyeOff size={18} color={theme.onSurfaceVariant} /> : <Eye size={18} color={theme.onSurfaceVariant} />}
                   </TouchableOpacity>
                 )}
@@ -1104,6 +1107,10 @@ export default function ProfileScreen() {
                         return (
                           <Touchable
                             key={colorOpt.key}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: selectedBorderColor === colorOpt.key }}
+                            accessibilityLabel={language === 'tr' ? `Çerçeve rengi: ${colorOpt.key}` : `Border color: ${colorOpt.key}`}
+                            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
                             onPress={() => { Haptics.selectionAsync(); setSelectedBorderColor(colorOpt.color); }}
                             activeOpacity={0.8}
                             style={{

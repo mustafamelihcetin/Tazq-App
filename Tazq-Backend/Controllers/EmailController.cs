@@ -27,7 +27,9 @@ namespace Tazq_App.Controllers
 
 			try
 			{
-				switch (request.EmailType.ToLower())
+				// ToLowerInvariant: tr-TR kültüründe "REMINDER".ToLower() → "remınder" olur ve
+				// hiçbir case ile eşleşmez; istek sessizce "Invalid email type" ile reddedilirdi.
+				switch (request.EmailType.ToLowerInvariant())
 				{
 					case "reminder":
 						if (request.TaskIds == null || !request.TaskIds.Any())

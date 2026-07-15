@@ -2,9 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Tazq_App.Data;
 using Tazq_App.Models;
 using Tazq_App.Services;
+using Tazq_Backend.Tests.TestHelpers;
 
 namespace Tazq_Backend.Tests
 {
@@ -22,6 +24,10 @@ namespace Tazq_Backend.Tests
         {
             var options = new DbContextOptionsBuilder<AppDbContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                // InMemory sağlayıcı transaction'ları modelleyemez ve BeginTransaction çağrısında
+                // uyarıyı hataya çevirir. Uyarıyı susturmak transaction'ı no-op'a indirir;
+                // gerçek atomiklik yalnızca ilişkisel sağlayıcıda (PostgreSQL) doğrulanabilir.
+                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
             _context = new AppDbContext(options);
             _emailMock = new Mock<ICustomEmailService>();
@@ -29,7 +35,7 @@ namespace Tazq_Backend.Tests
             _loggerMock = new Mock<ILogger<UserService>>();
             _googleMock = new Mock<IGoogleTokenValidator>();
             _appleMock = new Mock<IAppleTokenValidator>();
-            _userService = new UserService(_context, _emailMock.Object, _jwtMock.Object, _loggerMock.Object, _googleMock.Object, _appleMock.Object);
+            _userService = new UserService(_context, _emailMock.Object, _jwtMock.Object, _loggerMock.Object, _googleMock.Object, _appleMock.Object, new InlineBackgroundTaskQueue(_emailMock.Object));
         }
 
         [Fact]
@@ -82,16 +88,41 @@ namespace Tazq_Backend.Tests
         }
 
         [Fact]
-        public async Task DeleteUserAsync_ShouldRemoveUser()
+        public async Task DeleteUserAsync_ShouldSoftDeleteAndRevokeSessions()
         {
             var dto = new UserRegisterDto { Email = "del@test.com", Name = "DelUser", Password = "Pass!1" };
             await _userService.RegisterAsync(dto);
             var user = await _context.Users.FirstAsync(u => u.Email == dto.Email);
+            _context.RefreshTokens.Add(new RefreshToken
+            {
+                UserId = user.Id,
+                TokenHash = "hash-of-token-to-revoke",
+                ExpiresAt = DateTime.UtcNow.AddDays(7)
+            });
+            await _context.SaveChangesAsync();
 
             var result = await _userService.DeleteUserAsync(user.Id);
 
             Assert.True(result);
-            Assert.Null(await _context.Users.FindAsync(user.Id));
+            // Soft-delete: kayıt korunur, DeletedAt işaretlenir (grace içinde giriş = reaktivasyon).
+            var stored = await _context.Users.IgnoreQueryFilters().FirstAsync(u => u.Id == user.Id);
+            Assert.NotNull(stored.DeletedAt);
+            // Global filtre silinmiş hesabı normal sorgulardan gizler.
+            Assert.False(await _context.Users.AnyAsync(u => u.Id == user.Id));
+            // Tüm oturumlar kapanmalı.
+            Assert.False(await _context.RefreshTokens.AnyAsync(t => t.UserId == user.Id));
+        }
+
+        [Fact]
+        public async Task DeleteUserAsync_ShouldReturnFalse_WhenAlreadyDeleted()
+        {
+            var dto = new UserRegisterDto { Email = "del2@test.com", Name = "DelUser2", Password = "Pass!1" };
+            await _userService.RegisterAsync(dto);
+            var user = await _context.Users.FirstAsync(u => u.Email == dto.Email);
+            await _userService.DeleteUserAsync(user.Id);
+
+            // İkinci silme çağrısı no-op olmalı (idempotent sonuç: false).
+            Assert.False(await _userService.DeleteUserAsync(user.Id));
         }
 
         [Fact]

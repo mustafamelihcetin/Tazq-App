@@ -10,6 +10,7 @@
  */
 
 import { addBreadcrumb } from './sentry';
+import { swallow } from '@/shared/utils/swallow';
 
 export type AnalyticsEvent =
   // Aktivasyon
@@ -60,7 +61,7 @@ export function track(event: AnalyticsEvent, props?: Props): void {
   const data = sanitize(props);
   try {
     addBreadcrumb(event, 'analytics', data);
-  } catch {}
+  } catch (e) { swallow('analytics.trackBreadcrumb', e); }
   if (__DEV__) {
     // eslint-disable-next-line no-console
     console.log(`[analytics] ${event}`, data ?? '');

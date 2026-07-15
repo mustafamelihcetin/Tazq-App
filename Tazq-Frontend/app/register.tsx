@@ -30,6 +30,7 @@ import { TazqLogo } from '@/shared/components/TazqLogo';
 import { S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { validateRegister } from '@/shared/utils/validation';
+import { httpStatusOf, isNetworkError, errorMessage, errorCode, httpRawDataOf } from '@/shared/utils/errors';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -103,10 +104,10 @@ export default function RegisterScreen() {
       setAuth(userData, token, refreshToken);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('[Google Sign-In Error]', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (err?.code === 'SIGN_IN_CANCELLED' || err?.message?.includes('Sign in cancelled')) {
+      if (errorCode(err) === 'SIGN_IN_CANCELLED' || errorMessage(err).includes('Sign in cancelled')) {
         return;
       }
       setError(language === 'tr' ? 'Google ile kayıt başarısız oldu.' : 'Google Sign-In failed.');
@@ -166,10 +167,10 @@ export default function RegisterScreen() {
       setAuth(userData, token, refreshToken);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('[Apple Sign-In Error]', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (err?.code === 'ERR_REQUEST_CANCELED' || err?.code === 'ERR_CANCELED') {
+      if (errorCode(err) === 'ERR_REQUEST_CANCELED' || errorCode(err) === 'ERR_CANCELED') {
         return;
       }
       setError(language === 'tr' ? 'Apple ile kayıt başarısız oldu.' : 'Apple Sign-In failed.');
@@ -205,25 +206,28 @@ export default function RegisterScreen() {
       // 1) KAYIT adımı — hatası net bir sebep gösterir ("sebebi yok" olmaz).
       try {
         await AuthService.register({ name, email, password });
-      } catch (err: any) {
+      } catch (err: unknown) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        if (!err?.response) { setError(t.login.networkError); return; }
-        const status = err.response.status;
-        const body = err.response.data ?? '';
+        if (isNetworkError(err)) { setError(t.login.networkError); return; }
+        const status = httpStatusOf(err) ?? 0;
+        // Ham gövde: bu uç JSON ya da düz metin dönebiliyor, iki dal da korunmalı.
+        const body = httpRawDataOf(err) ?? '';
+        // Gövde JSON nesnesi de düz metin de olabilir; iki biçim de ele alınır.
+        const bodyObj: { error?: string; message?: string; traceId?: string; TraceId?: string } =
+          typeof body === 'object' && body !== null ? body : {};
+        const bodyText = typeof body === 'string' ? body : '';
         // Yapısal hata kodunu tercih et; eski düz-metin yanıt için geriye dönük yedek.
-        const isEmailTaken =
-          (body && typeof body === 'object' && body.error === 'email_taken') ||
-          (typeof body === 'string' && body.includes('zaten'));
+        const isEmailTaken = bodyObj.error === 'email_taken' || bodyText.includes('zaten');
         if (isEmailTaken) { setError(t.login.registerEmailTaken); return; }
         if (status >= 500) {
           // Destek eşleşmesi için backend traceId'sinin son 8 hanesini "kod" olarak göster.
-          const tid = (body && typeof body === 'object' ? ((body as any).traceId || (body as any).TraceId) : '') || '';
+          const tid = bodyObj.traceId || bodyObj.TraceId || '' || '';
           const code = tid ? ` (${tr ? 'kod' : 'code'}: ${String(tid).slice(-8)})` : '';
           setError((tr ? 'Sunucu hatası. Lütfen sonra tekrar dene.' : 'Server error. Please try again later.') + code);
           return;
         }
         // Sunucudan açıklayıcı bir mesaj geldiyse onu göster; yoksa genel.
-        const serverMsg = typeof body === 'string' ? body : (body?.message || '');
+        const serverMsg = bodyText || bodyObj.message || '';
         setError(serverMsg || t.login.registerError);
         return;
       }

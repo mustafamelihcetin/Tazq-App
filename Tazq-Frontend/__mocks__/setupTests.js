@@ -36,12 +36,30 @@ jest.mock('expo-constants', () => ({
   },
 }));
 
-// Mock react-native-reanimated
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = jest.fn();
-  return Reanimated;
-});
+// Mock @sentry/react-native.
+// Gerçek SDK import edildiğinde bir setInterval temizlik zamanlayıcısı başlatır
+// (AsyncExpiringMap) ve unref edilmediği için Jest worker'ı test bitse de kapanmaz
+// ("worker process has failed to exit gracefully"). Testler zaten Sentry'ye ağ
+// çağrısı yapmamalı; SDK'yı hiç yüklememek hem sızıntıyı hem de yavaşlığı kaldırır.
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  captureException: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  setUser: jest.fn(),
+  withScope: jest.fn((cb) => cb({ setTag: jest.fn(), setLevel: jest.fn(), setExtra: jest.fn() })),
+  wrap: (component) => component,
+  ReactNativeTracing: jest.fn(),
+}));
+
+// Mock react-native-reanimated + moti.
+//
+// Paketin kendi 'react-native-reanimated/mock' dosyası bu sürümde gerçek modülü
+// (ve dolayısıyla react-native-worklets'i) yüklüyor; native taraf olmadığı için
+// Jest'te "Native part of Worklets doesn't seem to be initialized" ile patlıyordu.
+// Bu, moti/reanimated kullanan HER bileşenin test edilmesini engelliyordu — yani
+// ekranların tamamını. Elle yazılan mock'lar hiçbir gerçek modülü yüklemez.
+jest.mock('react-native-reanimated', () => require('./reanimatedMock'));
+jest.mock('moti', () => require('./motiMock'));
 
 // Mock react-native-gesture-handler
 jest.mock('react-native-gesture-handler', () => ({

@@ -16,9 +16,15 @@ namespace Tazq_App.Models
 		[Required]
 		public string Name { get; set; } = string.Empty; // Full name (first + last name)
 
-		public string? PasswordHash { get; set; } // Base64 encoded SHA-512 hash
+		public string? PasswordHash { get; set; } // Base64 encoded PBKDF2-SHA256 hash
 
 		public string? PasswordSalt { get; set; } // Base64 encoded Salt
+
+		// Bu hash'in üretildiği PBKDF2 iterasyon sayısı. Kayıt başına saklanır ki
+		// maliyet ileride yükseltilirken eski kullanıcılar kilitlenmesin: doğrulama
+		// kendi sayısıyla yapılır, sonra sessizce güncel maliyete taşınır (PasswordHasher).
+		// Sütun eklenmeden önceki satırlar için migration 100000 yazar.
+		public int PasswordIterations { get; set; } = PasswordHashDefaults.CurrentIterations;
 
 		[Required]
 		public string Role { get; set; } = "User"; // Default user role

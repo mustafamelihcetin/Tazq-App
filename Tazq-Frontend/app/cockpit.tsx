@@ -30,11 +30,12 @@ import { FocusService } from '@/shared/services/api';
 import { S, R, F, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
-const activeAudioPlayers = new Set<any>();
 import { SwipeableHabitItem } from '@/shared/components/SwipeableHabitItem';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
+import { swallow } from '@/shared/utils/swallow';
+import { playSoundEffect } from '@/shared/utils/soundEffects';
 
 // Alışkanlık odaklı kalmalı — mantıklı üst sınır (plan + manuel toplam).
 const MAX_HABITS = 15;
@@ -269,7 +270,7 @@ export default function CockpitScreen() {
       if (!val) {
         setShowDayHint(true);
         setTimeout(() => setShowDayHint(false), 4000);
-        AsyncStorage.setItem('tazq-day-hint-shown', 'true').catch(() => {});
+        AsyncStorage.setItem('tazq-day-hint-shown', 'true').catch((e) => swallow('cockpit.persistDayHintFlag', e));
       }
     }).catch(() => {});
   }, []);
@@ -279,7 +280,7 @@ export default function CockpitScreen() {
       if (!val) {
         const timer = setTimeout(() => {
           setShowSwipeHint(true);
-          AsyncStorage.setItem('tazq-seen-swipe-hint', 'true').catch(() => {});
+          AsyncStorage.setItem('tazq-seen-swipe-hint', 'true').catch((e) => swallow('cockpit.persistSwipeHintFlag', e));
         }, 1200);
         return () => clearTimeout(timer);
       }
@@ -398,28 +399,13 @@ export default function CockpitScreen() {
       const pendingHabits = habits.filter(h => h.id !== id && !h.completedDates?.includes(todayKey));
       const allHabitsDone = pendingHabits.length === 0;
 
-      if (soundEffects && !allHabitsDone) try {
-        const { createAudioPlayer } = require('expo-audio');
-        const soundFile = require('../assets/sounds/habit.mp3');
-        const p = createAudioPlayer(soundFile);
-        const targetVolume = 0.18;
-        p.volume = targetVolume;
-        activeAudioPlayers.add(p);
-        p.play();
-
-        setTimeout(() => {
-          try {
-            p.volume = targetVolume;
-          } catch {}
-        }, 150);
-
-        setTimeout(() => { 
-          try { 
-            p.remove(); 
-            activeAudioPlayers.delete(p);
-          } catch {} 
-        }, 4000);
-      } catch {}
+      if (soundEffects && !allHabitsDone) {
+        playSoundEffect(require('../assets/sounds/habit.mp3'), {
+          context: 'cockpit.habitDoneSound',
+          volume: 0.18,
+          reassertVolumeAfterMs: 150,
+        });
+      }
 
       if (allHabitsDone) {
         require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
@@ -907,6 +893,9 @@ export default function CockpitScreen() {
                           </Text>
                         </Touchable>
                         <Touchable
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: true }}
+                          accessibilityLabel={tr ? `${habit.name} — tamamlandı, geri al` : `${habit.name} — done, undo`}
                           onPress={() => handleToggleHabit(habit.id)}
                           style={{ padding: S.xs }}
                           activeOpacity={0.7}
@@ -1155,7 +1144,7 @@ export default function CockpitScreen() {
                 <Text style={[styles.goalText, { color: theme.primary }]} numberOfLines={2}>
                   {weeklyGoal}
                 </Text>
-                <Touchable onPress={() => { setPlanGoal(weeklyGoal); preparePlan(); setPlanVisible(true); }}>
+                <Touchable accessibilityRole="button" accessibilityLabel={tr ? 'Haftalık planı aç' : 'Open weekly plan'} onPress={() => { setPlanGoal(weeklyGoal); preparePlan(); setPlanVisible(true); }}>
                   <ChevronRight size={15} color={theme.primary} />
                 </Touchable>
               </View>
@@ -1258,6 +1247,9 @@ export default function CockpitScreen() {
                 {HABIT_EMOJIS.map((e) => (
                   <Touchable
                     key={e}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: e === newEmoji }}
+                    accessibilityLabel={tr ? `Simge ${e}` : `Icon ${e}`}
                     onPress={() => setNewEmoji(e)}
                     style={[
                       styles.emojiBtn,

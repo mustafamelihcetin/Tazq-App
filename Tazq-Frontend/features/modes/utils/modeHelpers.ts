@@ -15,6 +15,7 @@
  * için spor yeşil, mülakat mor görünüp kartlarla çelişiyordu.
  */
 import { localizeSporGoal } from './turkishModes';
+import { swallow } from '@/shared/utils/swallow';
 
 type TaskLike = { id: number; tags?: string[] | null };
 
@@ -226,7 +227,7 @@ const getModeInfoForTaskRaw = (task: TaskLike | number, prefsStoreState: any) =>
       if (item) {
         daysClean = getCleanDays(item.start);
       }
-    } catch {}
+    } catch (e) { swallow('modeHelpers.readQuitStoreItem', e); }
     return { color: '#EF4444', labelTr: p.seasonal?.birakmaName || 'Bırakma', labelEn: p.seasonal?.birakmaName || 'Quit', daysLeft: daysClean, unit: 'clean_day' };
   }
 

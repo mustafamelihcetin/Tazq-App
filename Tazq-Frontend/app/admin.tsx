@@ -18,6 +18,7 @@ import { S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import * as Haptics from 'expo-haptics';
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { swallow } from '@/shared/utils/swallow';
 
 type SortKey = 'name' | 'tasks' | 'focus' | 'recent';
 
@@ -142,7 +143,7 @@ export default function AdminScreen() {
       await SupportService.markAsRead(msg.id);
       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isRead: true } : m));
       setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch {}
+    } catch (e) { swallow('admin.handleMarkRead', e); }
   };
 
   const performDeleteMessage = async (msg: SupportMessageItem) => {
@@ -413,7 +414,7 @@ export default function AdminScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingTop: S.sm, paddingBottom: S.md, gap: S.sm }}>
-        <Touchable onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: cardBg, alignItems: 'center', justifyContent: 'center' }}>
+        <Touchable accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: cardBg, alignItems: 'center', justifyContent: 'center' }}>
           <ChevronLeft size={20} color={theme.onSurface} />
         </Touchable>
         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ flex: 1, fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>
@@ -1042,6 +1043,10 @@ export default function AdminScreen() {
                           />
                         </View>
                         <Touchable
+                          accessibilityRole="button"
+                          accessibilityLabel={tr ? 'Yanıtı gönder' : 'Send reply'}
+                          accessibilityState={{ disabled: replyingId === m.id || !(replyDrafts[m.id] || '').trim(), busy: replyingId === m.id }}
+                          hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
                           onPress={() => handleReply(m)}
                           disabled={replyingId === m.id || !(replyDrafts[m.id] || '').trim()}
                           style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: (replyDrafts[m.id] || '').trim() ? '#3B82F6' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') }}
@@ -1083,7 +1088,7 @@ export default function AdminScreen() {
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.6 }}>{tr ? 'admin aksiyonları' : 'admin actions'}</Text>
                     </View>
                   </View>
-                  <Touchable onPress={loadAudit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Touchable accessibilityRole="button" accessibilityLabel={tr ? 'Denetim kaydını yenile' : 'Refresh audit log'} accessibilityState={{ busy: auditLoading }} onPress={loadAudit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     {auditLoading ? <ActivityIndicator size="small" color={theme.primary} /> : <RefreshCw size={14} color={theme.primary} />}
                   </Touchable>
                 </View>
@@ -1296,7 +1301,7 @@ export default function AdminScreen() {
                                   await SupportService.resolveCrash(crash.id);
                                   const cr = await SupportService.getCrashes(15).catch(() => ({ crashes: [] }));
                                   setCrashes(cr.crashes || []);
-                                } catch {}
+                                } catch (e) { swallow('admin.resolveCrashAndRefresh', e, { capture: true }); }
                               }}
                               style={{ backgroundColor: theme.primary + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}
                             >

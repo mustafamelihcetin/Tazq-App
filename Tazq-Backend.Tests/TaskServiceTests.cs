@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using Tazq_App.Data;
@@ -99,5 +100,33 @@ namespace Tazq_Backend.Tests
             Assert.Equal("Task 1", items[0].Title);
             Assert.Equal("Desc", items[0].Description);
         }
+
+        [Fact]
+        public async Task GetTasksAsync_ShouldSortByPriority_RegardlessOfCaseAndCulture()
+        {
+            // Regresyon: tr-TR kültüründe "PRIORITY".ToLower() → "prıorıty" olur, hiçbir case
+            // ile eşleşmez ve sıralama sessizce SortOrder'a düşerdi — hata yok, yanlış sıra var.
+            var previous = CultureInfo.CurrentCulture;
+            try
+            {
+                CultureInfo.CurrentCulture = new CultureInfo("tr-TR");
+                var userId = 1;
+                _context.Tasks.Add(new TaskItem { UserId = userId, Title = Enc("Low"), Priority = TaskPriority.Low, SortOrder = 1 });
+                _context.Tasks.Add(new TaskItem { UserId = userId, Title = Enc("High"), Priority = TaskPriority.High, SortOrder = 2 });
+                await _context.SaveChangesAsync();
+
+                var (items, _) = await _taskService.GetTasksAsync(userId, null, null, "PRIORITY", null, null, null);
+
+                // Priority azalan sıralanmalı: High önce gelmeli.
+                Assert.Equal(TaskPriority.High, items[0].Priority);
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = previous;
+            }
+        }
+
+        private static string Enc(string value)
+            => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("enc_" + value));
     }
 }

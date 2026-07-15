@@ -3,6 +3,7 @@ import { Text, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react-native';
 import { useToastStore } from '@/shared/store/useToastStore';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
 
@@ -14,6 +15,7 @@ const COLORS = {
 
 export const Toast = () => {
   const { visible, message, type, hide, actionLabel, onAction } = useToastStore();
+  const { language } = useLanguageStore();
   const insets = useSafeAreaInsets();
   const config = COLORS[type];
   const Icon = config.icon;
@@ -40,7 +42,12 @@ export const Toast = () => {
               <Text style={styles.actionText}>{actionLabel}</Text>
             </Touchable>
           )}
-          <Touchable onPress={hide} style={styles.close}>
+          <Touchable
+            accessibilityRole="button"
+            accessibilityLabel={language === 'tr' ? 'Bildirimi kapat' : 'Dismiss notification'}
+            onPress={hide}
+            style={styles.close}
+          >
             <X size={16} color="rgba(255,255,255,0.8)" />
           </Touchable>
         </MotiView>

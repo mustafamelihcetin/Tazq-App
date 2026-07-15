@@ -11,12 +11,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
 import { TourTarget } from '@/shared/components/TourContext';
+import type { AppTheme } from '@/shared/constants/Colors';
 
 interface MagneticFABProps {
   onPress: () => void;
   storageKey: string;
   isDark: boolean;
-  theme: any;
+  theme: AppTheme;
   children: React.ReactNode;
   style?: any;
   buttonSize?: number;

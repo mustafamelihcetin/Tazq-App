@@ -30,11 +30,12 @@ import {
 import { MomentumPulse } from '@/shared/components/MomentumPulse';
 import { HabitBubble } from '@/shared/components/HabitBubble';
 import { MyDayTaskRow } from '@/shared/components/MyDayTaskRow';
+import type { AppTheme } from '@/shared/constants/Colors';
 
 interface Props {
   pageId: string;
   step: number;
-  theme: any;
+  theme: AppTheme;
   isDark: boolean;
   accent: string;
   tr: boolean;
@@ -74,7 +75,7 @@ const ScaledScreen: React.FC<{ innerW: number; children: React.ReactNode; tap?: 
 );
 
 const noop = () => {};
-const priorityColorOf = (theme: any) => (p: string) =>
+const priorityColorOf = (theme: AppTheme) => (p: string) =>
   p === 'high' ? theme.error : p === 'medium' ? theme.streak : theme.onSurfaceVariant;
 
 // ── Küçük yardımcılar ──
@@ -102,7 +103,7 @@ const useTimerSecs = () => {
 const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
 /** Premium timer çemberi — dolan ilerleme yayı + ışıldayan uç + nabız halesi + tatlı zaman */
-const TimerCircle: React.FC<{ secs: number; angle: number; accent: string; theme: any; isDark: boolean; tr: boolean }> = ({ secs, angle, accent, theme, isDark, tr }) => {
+const TimerCircle: React.FC<{ secs: number; angle: number; accent: string; theme: AppTheme; isDark: boolean; tr: boolean }> = ({ secs, angle, accent, theme, isDark, tr }) => {
   const SIZE = 144;
   const STROKE = 9;
   const R = (SIZE - STROKE) / 2;

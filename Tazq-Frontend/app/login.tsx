@@ -19,6 +19,7 @@ import { S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/consta
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { validateLogin, isValidEmail } from '@/shared/utils/validation';
+import { httpStatusOf, isNetworkError, errorMessage, errorCode, httpDataOf } from '@/shared/utils/errors';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -114,10 +115,10 @@ export default function LoginScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
       router.replace('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('[Google Sign-In Error]', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (err?.code === 'SIGN_IN_CANCELLED' || err?.message?.includes('Sign in cancelled')) {
+      if (errorCode(err) === 'SIGN_IN_CANCELLED' || errorMessage(err).includes('Sign in cancelled')) {
         return;
       }
       if (applyBannedIfAny(err)) return;
@@ -180,10 +181,10 @@ export default function LoginScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
       router.replace('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('[Apple Sign-In Error]', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (err?.code === 'ERR_REQUEST_CANCELED' || err?.code === 'ERR_CANCELED') {
+      if (errorCode(err) === 'ERR_REQUEST_CANCELED' || errorCode(err) === 'ERR_CANCELED') {
         return;
       }
       if (applyBannedIfAny(err)) return;
@@ -223,12 +224,12 @@ export default function LoginScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
       router.replace('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const data = err?.response?.data;
-      if (!err?.response) {
+      const data = httpDataOf<{ banned?: boolean; reason?: string; bannedUntil?: string }>(err);
+      if (isNetworkError(err)) {
         setError(t.login.networkError);
-      } else if (err.response.status === 403 && data?.banned) {
+      } else if (httpStatusOf(err) === 403 && data.banned) {
         // Askıya alınmış hesap → ayrı, özel bir bilgilendirme kutusunda göster
         const tr = language === 'tr';
         const reason = data.reason || (tr ? 'Belirtilmedi' : 'Not specified');
@@ -271,8 +272,8 @@ export default function LoginScreen() {
       await AuthService.forgotPassword(forgotEmail.trim());
       setForgotSuccess(true);
       setForgotResendIn(45);
-    } catch (err: any) {
-      const errMsg = err.response?.data?.message || err.response?.data || t.login.forgotError;
+    } catch (err: unknown) {
+      const errMsg = httpDataOf<{ message?: string }>(err).message || t.login.forgotError;
       setForgotMsg({ text: errMsg, success: false });
     } finally {
       setForgotLoading(false);

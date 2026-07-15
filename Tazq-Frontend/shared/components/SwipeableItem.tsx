@@ -11,6 +11,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Trash2 } from 'lucide-react-native';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import * as HapticsOriginal from 'expo-haptics';
 const Haptics = {
   notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
@@ -35,6 +36,7 @@ function triggerLightHaptic() {
 }
 
 export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Props) => {
+  const { language } = useLanguageStore();
   const translateX = useSharedValue(0);
   const deleteOpacity = useSharedValue(0);
   const contextX = useSharedValue(0);
@@ -106,7 +108,12 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
     <View style={styles.container}>
       <View style={[StyleSheet.absoluteFill, styles.deleteZone]}>
         <Animated.View style={actionStyle}>
-          <Touchable onPress={onDelete} style={styles.deleteBtn}>
+          <Touchable
+            accessibilityRole="button"
+            accessibilityLabel={language === 'tr' ? 'Sil' : 'Delete'}
+            onPress={onDelete}
+            style={styles.deleteBtn}
+          >
             <Trash2 size={22} color="white" />
           </Touchable>
         </Animated.View>

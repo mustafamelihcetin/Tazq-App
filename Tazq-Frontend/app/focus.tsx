@@ -39,6 +39,8 @@ import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { Easing as RNEasing } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, useDerivedValue, withRepeat, withTiming, withDelay, cancelAnimation, Easing as ReEasing, type SharedValue } from 'react-native-reanimated';
 import { Canvas, Fill, Shader, Skia, useClock } from '@shopify/react-native-skia';
+import { swallow } from '@/shared/utils/swallow';
+import type { AppTheme } from '@/shared/constants/Colors';
 
 interface StarGroupProps {
   timerSize: number;
@@ -319,7 +321,7 @@ const SOUND_LABELS: Record<AmbientSound, { icon: React.ComponentType<any> | null
 interface PomodoroIndicatorProps {
   pomodoroPhase: 'work' | 'break';
   pomodoroRound: number;
-  theme: any;
+  theme: AppTheme;
   language: string;
   isDark: boolean;
 }
@@ -558,7 +560,7 @@ export default function FocusScreen() {
     setAmbientVolume(vol);
     ambientVolumeRef.current = vol;
     if (soundRef.current) {
-      try { soundRef.current.volume = vol; } catch {}
+      try { soundRef.current.volume = vol; } catch (e) { swallow('focus.updateAmbientVolume', e); }
     }
   };
 
@@ -583,7 +585,7 @@ export default function FocusScreen() {
     clearCrossfade();
     currentSoundTypeRef.current = 'off';
     if (soundRef.current) {
-      try { soundRef.current.pause(); soundRef.current.release(); } catch {}
+      try { soundRef.current.pause(); soundRef.current.release(); } catch (e) { swallow('focus.stopAmbientSound', e); }
       soundRef.current = null;
     }
   };
@@ -593,7 +595,7 @@ export default function FocusScreen() {
     clearCrossfade();
     stopAmbientSound();
     if (chimePlayerRef.current) {
-      try { chimePlayerRef.current.pause(); chimePlayerRef.current.release(); } catch {}
+      try { chimePlayerRef.current.pause(); chimePlayerRef.current.release(); } catch (e) { swallow('focus.stopAllSounds', e); }
       chimePlayerRef.current = null;
     }
   };
@@ -610,10 +612,10 @@ export default function FocusScreen() {
     const stepVal = vol / FADE_STEPS;
     fadeIntervalRef.current = setInterval(() => {
       vol = Math.max(0, vol - stepVal);
-      try { player.volume = vol; } catch {}
+      try { player.volume = vol; } catch (e) { swallow('focus.ambientFadeOutVolume', e); }
       if (vol <= 0) {
         clearFade();
-        try { player.pause(); player.release(); } catch {}
+        try { player.pause(); player.release(); } catch (e) { swallow('focus.ambientStopRelease', e); }
         soundRef.current = null;
       }
     }, stepMs);
@@ -639,7 +641,7 @@ export default function FocusScreen() {
     try {
       const player = createAudioPlayer(getSoundSource(type));
       if (myId !== playRequestIdRef.current) {
-        try { player.release(); } catch {}
+        try { player.release(); } catch (e) { swallow('focus.ambientSwapRelease', e); }
         return;
       }
       player.loop = true; // Use native looping
@@ -654,11 +656,11 @@ export default function FocusScreen() {
         fadeIntervalRef.current = setInterval(() => {
           if (myId !== playRequestIdRef.current) {
             clearFade();
-            try { player.release(); } catch {}
+            try { player.release(); } catch (e) { swallow('focus.ambientFadeInRelease', e); }
             return;
           }
           vol = Math.min(vol + stepVal, ambientVolumeRef.current);
-          try { if (soundRef.current) soundRef.current.volume = vol; } catch {}
+          try { if (soundRef.current) soundRef.current.volume = vol; } catch (e) { swallow('focus.ambientFadeInVolume', e); }
           if (vol >= ambientVolumeRef.current) {
             clearFade();
           }
@@ -852,9 +854,9 @@ export default function FocusScreen() {
               const p = createAudioPlayer(require('../assets/sounds/warning.mp3'));
               p.volume = 0.85;
               p.play();
-              setTimeout(() => { try { p.release(); } catch {} }, 3000);
+              setTimeout(() => { try { p.release(); } catch (e) { swallow('focus.warningChimeRelease', e); } }, 3000);
             }
-          } catch {}
+          } catch (e) { swallow('focus.warningChimePlay', e); }
           useToastStore.getState().show(
             language === 'tr'
               ? 'Odaklanmayı böldünüz! Katı mod aktif olduğu için seans iptal edildi ve 10 Focus puanı kesildi.'
@@ -873,7 +875,7 @@ export default function FocusScreen() {
         if (active && total > 0) {
           backgroundSavedRef.current = true;
           const elapsed = Math.max(1, Math.round((total - secs) / 60));
-          FocusService.saveSession('Focus', elapsed, false).catch(() => {});
+          FocusService.saveSession('Focus', elapsed, false).catch((e) => swallow('focus.saveSessionOnAbort', e, { capture: true }));
         }
       }
     });
@@ -890,7 +892,7 @@ export default function FocusScreen() {
         try {
           p.release();
           if (chimePlayerRef.current === p) chimePlayerRef.current = null;
-        } catch {}
+        } catch (e) { swallow('focus.doneChimeRelease', e); }
       }, 8000);
     } catch (e) {
       console.warn('[Focus Chime Play Error]', e);
@@ -915,7 +917,7 @@ export default function FocusScreen() {
 
         if (phase === 'work') {
           const minutes = Math.round(totalSeconds / 60);
-          FocusService.saveSession('Focus', minutes, true).catch(() => {});
+          FocusService.saveSession('Focus', minutes, true).catch((e) => swallow('focus.saveSessionOnComplete', e, { capture: true }));
           addFocusMinutes(minutes);
           addFocusPoints(10);
           track('focus_completed', { minutes, pomodoro: true });
@@ -962,7 +964,7 @@ export default function FocusScreen() {
         InteractionManager.runAfterInteractions(() => {
           stopAmbientSound();
           setAmbientSound('off');
-          FocusService.saveSession('Focus', minutes, true).catch(() => {});
+          FocusService.saveSession('Focus', minutes, true).catch((e) => swallow('focus.saveSessionOnComplete', e, { capture: true }));
           addFocusMinutes(minutes);
           addFocusPoints(10);
           track('focus_completed', { minutes, pomodoro: false });
@@ -992,7 +994,7 @@ export default function FocusScreen() {
     if (elapsed > 0) {
       const minutesDone = Math.round(elapsed / 60);
       if (minutesDone >= 1) {
-        FocusService.saveSession('Focus', minutesDone, false).catch(() => {});
+        FocusService.saveSession('Focus', minutesDone, false).catch((e) => swallow('focus.saveSessionOnStop', e, { capture: true }));
         addFocusMinutes(minutesDone);
         addFocusPoints(Math.min(10, minutesDone * 2));
       } else {
@@ -1018,7 +1020,7 @@ export default function FocusScreen() {
     setZenMode(false);
     const minutesDone = Math.round(getElapsed() / 60);
     if (minutesDone >= 1) {
-      FocusService.saveSession('Focus', minutesDone, false).catch(() => {});
+      FocusService.saveSession('Focus', minutesDone, false).catch((e) => swallow('focus.saveSessionOnStop', e, { capture: true }));
       addFocusMinutes(minutesDone);
       addFocusPoints(Math.min(10, minutesDone * 2));
       setSummaryMinutes(minutesDone);
@@ -1147,7 +1149,7 @@ export default function FocusScreen() {
                 if (elapsed > 0) {
                   setIsActive(false);
                   const minutesDone = Math.max(1, Math.round(elapsed / 60));
-                  FocusService.saveSession('Focus', minutesDone, false).catch(() => {});
+                  FocusService.saveSession('Focus', minutesDone, false).catch((e) => swallow('focus.saveSessionOnExit', e, { capture: true }));
                   addFocusMinutes(minutesDone);
                 }
                 setIsExiting(true);
@@ -1184,12 +1186,18 @@ export default function FocusScreen() {
                   style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderRadius: 20, padding: 3 }}
                 >
                   <Touchable
+                    accessibilityRole="button"
+                    accessibilityLabel={language === 'tr' ? 'Nefes modu ayarları' : 'Breathing mode settings'}
+                    accessibilityState={{ selected: breathMode !== 'off' }}
                     onPress={() => { Haptics.selectionAsync(); setBreathPickerVisible(true); }}
                     style={{ padding: 6, borderRadius: 17, backgroundColor: breathMode !== 'off' ? theme.primary + '20' : 'transparent' }}
                   >
                     <Wind size={15} color={breathMode !== 'off' ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
                   </Touchable>
                   <Touchable
+                    accessibilityRole="switch"
+                    accessibilityLabel={language === 'tr' ? 'Pomodoro modu' : 'Pomodoro mode'}
+                    accessibilityState={{ checked: pomodoroMode }}
                     onPress={() => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); }}
                     style={{ padding: 6, borderRadius: 17, backgroundColor: pomodoroMode ? theme.primary + '20' : 'transparent' }}
                   >
@@ -1808,6 +1816,7 @@ export default function FocusScreen() {
                   {[0.2, 0.4, 0.6, 0.8, 1.0].map(v => (
                     <Touchable
                       key={v}
+                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
                       onPress={() => { updateAmbientVolume(v); Haptics.selectionAsync(); }}
                       style={{ width: 34, height: 24, justifyContent: 'center', alignItems: 'center' }}
                       accessibilityLabel={`Ses seviyesi ${v * 100}`}
@@ -2178,6 +2187,7 @@ export default function FocusScreen() {
                       return (
                         <Touchable
                           key={num}
+                          hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                             setUserRating(num);

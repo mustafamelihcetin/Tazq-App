@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { TaskService } from '@/shared/services/api';
+import { swallow } from './swallow';
 
 const MIGRATION_KEY = 'plan_migration_v2_done';
 
@@ -56,7 +57,7 @@ export async function runPlanMigrationOnce(): Promise<void> {
         if (due > cutoff.getTime()) {
           removed.push(id);
           taskStore.removeTask(id);
-          TaskService.deleteTask(id).catch(() => {});
+          TaskService.deleteTask(id).catch((e) => swallow('planMigration.deleteObsoleteTask', e, { capture: true }));
         }
       }
 

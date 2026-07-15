@@ -288,8 +288,8 @@ export function TasarrufCard() {
           {showEntry ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
               <View style={{ flex: 1 }}>{moneyInput(entryInput, setEntryInput, true)}</View>
-              <Touchable onPress={saveEntry} style={{ backgroundColor: C, borderRadius: R.full, paddingHorizontal: S.md, height: 36, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '700', fontSize: F.caption }}>{tr ? 'Kaydet' : 'Save'}</Text></Touchable>
-              <Touchable onPress={() => { setShowEntry(false); setEntryInput(''); }} style={{ padding: 4 }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'İptal' : 'Cancel'}</Text></Touchable>
+              <Touchable hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }} onPress={saveEntry} style={{ backgroundColor: C, borderRadius: R.full, paddingHorizontal: S.md, height: 36, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '700', fontSize: F.caption }}>{tr ? 'Kaydet' : 'Save'}</Text></Touchable>
+              <Touchable hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => { setShowEntry(false); setEntryInput(''); }} style={{ padding: 4 }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'İptal' : 'Cancel'}</Text></Touchable>
             </View>
           ) : (
             <Touchable disabled={!canLog} onPress={() => { if (canLog) { Haptics.selectionAsync(); setShowEntry(true); } }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: canLog ? C + '12' : 'transparent', borderWidth: canLog ? 0 : B.thin, borderColor: theme.onSurfaceVariant + '20' }}>

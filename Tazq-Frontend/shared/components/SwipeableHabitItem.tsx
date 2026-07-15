@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Trash2, Coffee } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { S, R } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 
@@ -36,6 +37,7 @@ export const SwipeableHabitItem = ({
   disabled = false,
   showPeekHint = false,
 }: Props) => {
+  const { language } = useLanguageStore();
   const translateX = useSharedValue(0);
   const actionsOpacity = useSharedValue(0);
   const contextX = useSharedValue(0);
@@ -116,10 +118,10 @@ export const SwipeableHabitItem = ({
     <View style={styles.container}>
       <View style={[StyleSheet.absoluteFill, styles.actionsZone]}>
         <Animated.View style={[actionStyle, styles.buttonsRow]}>
-          <Touchable onPress={handleSkipPress} style={[styles.actionBtn, { backgroundColor: isSkipped ? '#3b82f6' : '#d97706' }]}>
+          <Touchable accessibilityRole="button" accessibilityLabel={isSkipped ? (language === 'tr' ? 'Atlamayı geri al' : 'Undo skip') : (language === 'tr' ? 'Bugün atla' : 'Skip today')} onPress={handleSkipPress} style={[styles.actionBtn, { backgroundColor: isSkipped ? '#3b82f6' : '#d97706' }]}>
             <Coffee size={20} color="white" />
           </Touchable>
-          <Touchable onPress={handleDeletePress} style={[styles.actionBtn, styles.deleteBtn]}>
+          <Touchable accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Alışkanlığı sil' : 'Delete habit'} onPress={handleDeletePress} style={[styles.actionBtn, styles.deleteBtn]}>
             <Trash2 size={20} color="white" />
           </Touchable>
         </Animated.View>

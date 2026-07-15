@@ -5,6 +5,7 @@ import { useConfettiStore } from '@/shared/store/useConfettiStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Check } from 'lucide-react-native';
+import { swallow } from '@/shared/utils/swallow';
 
 const CONFETTI_COLORS = [
   '#6366F1', '#EC4899', '#F59E0B', '#10B981',
@@ -35,7 +36,7 @@ export const ConfettiOverlay: React.FC = () => {
       if (playerRef.current) {
         try {
           playerRef.current.remove();
-        } catch {}
+        } catch (e) { swallow('ConfettiOverlay.soundStopRelease', e); }
       }
     };
   }, []);
@@ -105,7 +106,7 @@ export const ConfettiOverlay: React.FC = () => {
     if (playerRef.current) {
       try {
         playerRef.current.remove();
-      } catch {}
+      } catch (e) { swallow('ConfettiOverlay.badgeSoundPlay', e); }
       playerRef.current = null;
     }
 
@@ -142,7 +143,7 @@ export const ConfettiOverlay: React.FC = () => {
           setTimeout(() => {
             try {
               if (playerRef.current === p) p.volume = volumeValue;
-            } catch {}
+            } catch (e) { swallow('ConfettiOverlay.soundRelease', e); }
           }, 150);
 
           // Auto-remove after 15 seconds to free up resources
@@ -152,7 +153,7 @@ export const ConfettiOverlay: React.FC = () => {
                 p.remove();
                 playerRef.current = null;
               }
-            } catch {}
+            } catch (e) { swallow('ConfettiOverlay.soundPlay', e); }
           }, 15000);
         }
       } catch (err) {

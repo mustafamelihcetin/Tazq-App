@@ -134,6 +134,8 @@ import {
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { usePrefsStore } from '@/features/modes';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
+import { swallow } from '@/shared/utils/swallow';
+import { httpStatusOf } from '@/shared/utils/errors';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -248,7 +250,7 @@ export default function RootLayout() {
       try {
         const { habits } = require('@/features/habits').useHabitStore.getState();
         streak = habits?.reduce((max: number, h: any) => Math.max(max, h.streak ?? 0), 0) ?? 0;
-      } catch (_) {}
+      } catch (e) { swallow('layout.readHabitStreakForBrief', e); }
 
       // Morning brief: today's task count + streak (respects user preference)
       if (morningBriefEnabled) {
@@ -280,10 +282,10 @@ export default function RootLayout() {
         if (action === 'task-complete' && data.taskId) {
           try {
             const { api: taskApi } = require('@/shared/services/api');
-            taskApi.patch(`/tasks/${data.taskId}`, { isCompleted: true }).catch(() => {});
+            taskApi.patch(`/tasks/${data.taskId}`, { isCompleted: true }).catch((e: unknown) => swallow('layout.notifCompleteTaskPatch', e, { capture: true }));
             // Refresh local store
             require('@/features/tasks').useTaskStore.getState().fetchTasks?.();
-          } catch (_) {}
+          } catch (e) { swallow('layout.notifActionCompleteTask', e, { capture: true }); }
           return;
         }
 
@@ -302,7 +304,7 @@ export default function RootLayout() {
               },
               trigger: snoozeTime,
             }).catch(() => {});
-          } catch (_) {}
+          } catch (e) { swallow('layout.notifActionSnoozeReschedule', e, { capture: true }); }
           return;
         }
 
@@ -360,8 +362,8 @@ export default function RootLayout() {
           router.push('/tasks');
         }
       });
-    } catch (_) {}
-    return () => { try { sub?.remove?.(); } catch (_) {} };
+    } catch (e) { swallow('layout.notificationResponseHandler', e); }
+    return () => { try { sub?.remove?.(); } catch (e) { swallow('layout.notificationSubscriptionRemove', e); } };
   }, [isLoggedIn]);
 
   // Auth Guard & Initialization
@@ -421,7 +423,7 @@ export default function RootLayout() {
         const GRACE_SECONDS = 30 * 60; // 30 dk tolerans
         if (overshoot <= GRACE_SECONDS) {
           const minutes = Math.max(1, Math.round(totalSeconds / 60));
-          FocusService.saveSession(currentTask || 'Focus', minutes, true).catch(() => {});
+          FocusService.saveSession(currentTask || 'Focus', minutes, true).catch((e) => swallow('layout.saveSessionOnBackground', e, { capture: true }));
         }
         // Her durumda timer'ı sıfırla (kredi verilmese bile takılı kalmasın)
         useFocusStore.setState({ isActive: false, seconds: 0, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null });
@@ -474,12 +476,12 @@ export default function RootLayout() {
       try {
         const userData = await AuthService.getCurrentUser();
         if (userData) setUser(userData);
-      } catch (error: any) {
-        if (error.response?.status === 401) {
+      } catch (error: unknown) {
+        if (httpStatusOf(error) === 401) {
           logout();
         } else {
           // Network/server error — don't logout, keep local session
-          console.warn('Session sync failed (keeping session):', error.message);
+          swallow('layout.sessionSync', error);
         }
       }
     };

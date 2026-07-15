@@ -8,10 +8,11 @@ import { BrainCircuit, Zap, Target, Play, TrendingUp, TrendingDown, Check, Coffe
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { Touchable } from '@/shared/components/Touchable';
 import { S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
+import type { AppTheme } from '@/shared/constants/Colors';
 interface StatusHubModalProps {
   visible: boolean;
   onClose: () => void;
-  theme: any;
+  theme: AppTheme;
   isDark: boolean;
   language: string;
   t: any;

@@ -436,6 +436,9 @@ namespace Tazq_Backend.Migrations
                     b.Property<string>("PasswordHash")
                         .HasColumnType("text");
 
+                    b.Property<int>("PasswordIterations")
+                        .HasColumnType("integer");
+
                     b.Property<string>("PasswordSalt")
                         .HasColumnType("text");
 

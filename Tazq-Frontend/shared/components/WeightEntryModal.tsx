@@ -102,7 +102,13 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1, justifyContent: 'flex-end' }}
       >
-        <Touchable style={StyleSheet.absoluteFill} onPress={onClose} activeOpacity={1} />
+        <Touchable
+          accessibilityRole="button"
+          accessibilityLabel={tr ? 'Kapat' : 'Close'}
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          activeOpacity={1}
+        />
         <Animated.View
           style={{
             backgroundColor: isDark ? '#1C1C22' : '#FFFFFF',

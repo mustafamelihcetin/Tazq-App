@@ -55,7 +55,9 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
   );
 
   if (onPress) {
-    return <Touchable onPress={onPress} activeOpacity={0.85}>{card}</Touchable>;
+    // accessibilityLabel bilerek verilmiyor: etiket cocuk <Text>lerden turetilsin.
+    // Elle etiket vermek kartin gercek icerigini ezer ve ekran okuyucuyu yanlis bilgilendirir.
+    return <Touchable accessibilityRole="button" onPress={onPress} activeOpacity={0.85}>{card}</Touchable>;
   }
   return card;
 };

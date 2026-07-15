@@ -7,6 +7,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { S, F, R } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { useMomentumStore } from '@/features/user/store/useMomentumStore';
+import { swallow } from '@/shared/utils/swallow';
 
 interface DayScore { date: string; score: number }
 
@@ -78,6 +79,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             MOMENTUM
           </Text>
           <Touchable
+            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setInfoVisible(true); }}
             style={{ width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: accentColor + '22' }}
           >
@@ -185,7 +187,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             try {
               const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
               isLite = usePrefsStore.getState().uiMode === 'lite';
-            } catch {}
+            } catch (e) { swallow('MomentumPulse.soundPlay', e); }
 
             if (isLite) return null;
 

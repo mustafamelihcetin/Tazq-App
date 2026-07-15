@@ -3,10 +3,11 @@ import { View, Text } from 'react-native';
 import { Coffee, Flame, CheckCircle2 } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '@/features/modes';
+import type { AppTheme } from '@/shared/constants/Colors';
 
 export interface HabitBubbleProps {
   item: any;
-  theme: any;
+  theme: AppTheme;
   isDark: boolean;
   tr: boolean;
   onPress: () => void;

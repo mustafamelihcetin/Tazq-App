@@ -705,6 +705,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
         <View style={styles.sheetHeader}>
           <Touchable
             onPress={() => { Haptics.selectionAsync(); setStep('template'); }}
+            accessibilityRole="button"
+            accessibilityLabel={tr ? 'Geri' : 'Back'}
             style={{ marginRight: S.sm, padding: 4 }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
@@ -753,6 +755,9 @@ export const TurkishModeBanner: React.FC<Props> = ({
             <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.xs + 1 }}>
               <Touchable
                 onPress={() => cycleEmoji(idx)}
+                accessibilityRole="button"
+                accessibilityLabel={tr ? 'Simgeyi değiştir' : 'Change icon'}
+                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
                 style={{ width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: h.color + '20', borderWidth: B.thin, borderColor: h.color + '40' }}
                 activeOpacity={0.7}
               >
@@ -767,8 +772,13 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 returnKeyType="next"
                 underlineColorAndroid="transparent"
               />
-              <Touchable onPress={() => cycleColor(idx)} style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: h.color, borderWidth: B.medium, borderColor: isDark ? 'rgba(255,255,255,0.4)' : '#fff' }} activeOpacity={0.7} />
-              <Touchable onPress={() => setCustomHabits(prev => prev.filter((_, i) => i !== idx))} style={{ padding: 4 }} activeOpacity={0.7}>
+              <Touchable
+                accessibilityRole="button"
+                accessibilityLabel={tr ? 'Rengi değiştir' : 'Change color'}
+                hitSlop={{ top: 12, bottom: 12, left: 10, right: 2 }}
+                onPress={() => cycleColor(idx)}
+                style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: h.color, borderWidth: B.medium, borderColor: isDark ? 'rgba(255,255,255,0.4)' : '#fff' }} activeOpacity={0.7} />
+              <Touchable accessibilityRole="button" accessibilityLabel={tr ? 'Alışkanlığı kaldır' : 'Remove habit'} onPress={() => setCustomHabits(prev => prev.filter((_, i) => i !== idx))} style={{ padding: 4 }} activeOpacity={0.7}>
                 <X size={14} color={theme.onSurfaceVariant} />
               </Touchable>
             </View>
@@ -800,7 +810,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   returnKeyType="next"
                   underlineColorAndroid="transparent"
                 />
-                <Touchable onPress={() => setCustomTasks(prev => prev.filter((_, i) => i !== idx))} style={{ padding: 4 }} activeOpacity={0.7}>
+                <Touchable accessibilityRole="button" accessibilityLabel={tr ? 'Görevi kaldır' : 'Remove task'} onPress={() => setCustomTasks(prev => prev.filter((_, i) => i !== idx))} style={{ padding: 4 }} activeOpacity={0.7}>
                   <X size={14} color={theme.onSurfaceVariant} />
                 </Touchable>
               </View>
@@ -967,6 +977,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <Touchable
+                    hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                     onPress={() => setEditedMinutes((prev: number) => Math.max(15, prev - 15))}
                     style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', alignItems: 'center', justifyContent: 'center' }}
                   >
@@ -976,6 +987,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     {editedMinutes} {tr ? 'dk' : 'min'}
                   </Text>
                   <Touchable
+                    hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                     onPress={() => setEditedMinutes((prev: number) => Math.min(480, prev + 15))}
                     style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', alignItems: 'center', justifyContent: 'center' }}
                   >
@@ -1075,6 +1087,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               return (
                 <Touchable
                   key={item.score}
+                  hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
                   onPress={() => saveRating(item.score)}
                   style={{
                     width: 40,
@@ -1260,7 +1273,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               </Text>
               <ChevronRight size={13} color="#fff" />
             </Touchable>
-            <Touchable onPress={onDismiss} style={styles.dismissBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Touchable accessibilityRole="button" accessibilityLabel={tr ? 'Bildirimi kapat' : 'Dismiss'} onPress={onDismiss} style={styles.dismissBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <X size={14} color={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.35)'} />
             </Touchable>
           </View>
@@ -1399,6 +1412,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 <View style={styles.sheetHeader}>
                   {hasTemplates && (
                     <Touchable
+                      accessibilityRole="button"
+                      accessibilityLabel={tr ? 'Geri' : 'Back'}
                       onPress={() => { Haptics.selectionAsync(); setStep('template'); setSelectedTemplate(null); }}
                       style={{ marginRight: S.sm, padding: 4 }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

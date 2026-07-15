@@ -1,6 +1,7 @@
 import * as Calendar from 'expo-calendar/legacy';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { swallow } from './swallow';
 
 export async function requestCalendarPermissions(): Promise<boolean> {
   const { status } = await Calendar.requestCalendarPermissionsAsync();
@@ -34,7 +35,7 @@ async function getOrCreateTazqCalendarId(): Promise<string | null> {
           accessLevel: Calendar.CalendarAccessLevel.OWNER,
         });
       } catch (err) {
-        console.log('[CalendarSync] Android create custom calendar failed, using default calendar:', err);
+        swallow('calendarSync.createAndroidCalendar', err);
         const defaultCal = await Calendar.getDefaultCalendarAsync();
         return defaultCal?.id || null;
       }
@@ -51,13 +52,13 @@ async function getOrCreateTazqCalendarId(): Promise<string | null> {
           ownerAccount: 'personal',
         });
       } catch (err) {
-        console.log('[CalendarSync] iOS create custom calendar failed, using default calendar:', err);
+        swallow('calendarSync.createIosCalendar', err);
         const defaultCal = await Calendar.getDefaultCalendarAsync();
         return defaultCal?.id || null;
       }
     }
   } catch (error) {
-    console.log('[CalendarSync] Error creating calendar, falling back to default calendar:', error);
+    swallow('calendarSync.getOrCreateCalendar', error);
     try {
       const defaultCal = await Calendar.getDefaultCalendarAsync();
       return defaultCal?.id || null;
@@ -130,7 +131,7 @@ export async function syncTaskToCalendar(task: { id: number; title: string; dueD
     const newEventId = await Calendar.createEventAsync(calendarId, eventDetails);
     await AsyncStorage.setItem(eventKey, newEventId);
   } catch (error) {
-    console.log('[CalendarSync] Sync failed:', error);
+    swallow('calendarSync.syncTaskToCalendar', error, { capture: true });
   }
 }
 
@@ -143,7 +144,7 @@ export async function deleteTaskFromCalendar(taskId: number): Promise<void> {
       await AsyncStorage.removeItem(eventKey);
     }
   } catch (error) {
-    console.log('[CalendarSync] Delete event failed:', error);
+    swallow('calendarSync.deleteTaskFromCalendar', error);
   }
 }
 
@@ -162,7 +163,7 @@ export async function bulkExportTasksToCalendar(tasks: any[]): Promise<{ success
     }
     return { success: true, fallback: !hasTazq };
   } catch (error) {
-    console.log('[CalendarSync] Bulk export failed:', error);
+    swallow('calendarSync.bulkExport', error, { capture: true });
     return { success: false, fallback: false };
   }
 }

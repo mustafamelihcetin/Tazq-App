@@ -110,3 +110,17 @@ export const Colors = {
   light: lightPalette,
   dark: darkPalette,
 };
+
+/**
+ * Bileşenlere geçirilen tema nesnesinin tipi (useAppTheme().theme).
+ *
+ * Elle yazılmıyor, lightPalette'ten türetiliyor: palet büyüdüğünde tip kendiliğinden
+ * büyür ve iki kaynak birbirinden ayrışamaz. Daha önce her bileşen `theme: any`
+ * alıyordu — yani var olmayan bir renk token'ı yazmak derlemede yakalanmıyordu.
+ */
+export type AppTheme = typeof lightPalette;
+
+// darkPalette'in light ile aynı anahtarlara sahip olduğunu derleme zamanında doğrular.
+// Biri diğerine token eklenip ötekine eklenmezse burası hata verir.
+const _darkPaletteMatchesLight: AppTheme = darkPalette;
+void _darkPaletteMatchesLight;

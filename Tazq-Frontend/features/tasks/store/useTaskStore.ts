@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SubtaskItem, RecurrenceType } from '@/shared/services/api';
+import { SubtaskItem, RecurrenceType, Priority } from '@/shared/services/api';
+import { swallow } from '@/shared/utils/swallow';
 
 export interface Task {
   id: number;
@@ -11,7 +12,10 @@ export interface Task {
   dueTime?: string | null;
   isCompleted: boolean;
   completedAt?: string | null;
-  priority: string;
+  // API'nin beklediği birleşim tipiyle aynı. Eskiden `string` idi ve bu yüzden görevi
+  // API'ye geri gönderen her çağrı `priority as any` yazmak zorunda kalıyordu —
+  // yani geçersiz bir öncelik değeri derlemede yakalanmıyordu.
+  priority: Priority;
   tags: string[];
   subtasks?: SubtaskItem[];
   recurrence?: RecurrenceType;
@@ -47,7 +51,7 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
     try {
       lang = require('@/shared/store/useLanguageStore').useLanguageStore.getState().language;
       lookupSystemString = require('@/shared/utils/systemTaskTranslator').lookupSystemString;
-    } catch {}
+    } catch (e) { swallow('taskStore.resolveLanguageForMerge', e); }
 
     const merged = tasks.map(t => {
       const local = existing.get(t.id);
@@ -62,7 +66,7 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
           if (parsed.tr && parsed.en) {
             updatedTask.title = lang === 'tr' ? parsed.tr : parsed.en;
           }
-        } catch {}
+        } catch (e) { swallow('taskStore.parseLocalizedTitleOnUpdate', e); }
       } else if (lookupSystemString) {
         const found = lookupSystemString(updatedTask.title, lang);
         if (found) {
@@ -146,9 +150,9 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
         }
 
         try {
-          const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
+          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
           isLite = usePrefsStore.getState().uiMode === 'lite';
-        } catch {}
+        } catch (e) { swallow('taskStore.readUiModePref', e); }
 
         const ignore = !isLite && isOverheated;
 
@@ -241,7 +245,7 @@ export function getLocalizedTaskTitle(task: { title: string; description?: strin
       if (parsed.tr && parsed.en) {
         return isTr ? parsed.tr : parsed.en;
       }
-    } catch {}
+    } catch (e) { swallow('taskStore.getLocalizedTaskTitle', e); }
   }
   return task.title;
 }
@@ -254,7 +258,7 @@ export function getLocalizedTaskDescription(task: { description?: string | null 
       if (isTr && parsed.descTr) return parsed.descTr;
       if (!isTr && parsed.descEn) return parsed.descEn;
       return null;
-    } catch {}
+    } catch (e) { swallow('taskStore.getLocalizedTaskDescription', e); }
   }
   return task.description;
 }

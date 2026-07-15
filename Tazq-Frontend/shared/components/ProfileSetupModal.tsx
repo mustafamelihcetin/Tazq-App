@@ -6,10 +6,11 @@ import { S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import { AVATAR_CONFIGS } from '@/features/user';
 import * as Haptics from 'expo-haptics';
 import { Sunrise, Sun, Sunset, Moon, Zap } from 'lucide-react-native';
+import type { AppTheme } from '@/shared/constants/Colors';
 
 interface ProfileSetupModalProps {
   visible: boolean;
-  theme: any;
+  theme: AppTheme;
   isDark: boolean;
   language: 'tr' | 'en';
   t: any;
@@ -211,6 +212,9 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                   return (
                     <Touchable
                       key={config.id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isSelected }}
+                      accessibilityLabel={language === 'tr' ? `Avatar ${config.key}` : `Avatar ${config.key}`}
                       onPress={() => { Haptics.selectionAsync(); setSelectedAvatar(config.key); }}
                       style={[styles.avatarWrapper, {
                         borderColor: isSelected ? theme.primary : theme.outline + '20',

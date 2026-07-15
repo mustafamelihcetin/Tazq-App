@@ -12,6 +12,7 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
+import { isNetworkError } from '@/shared/utils/errors';
 
 export default function ArchiveScreen() {
     const { theme, isDark } = useAppTheme();
@@ -34,8 +35,8 @@ export default function ArchiveScreen() {
         } else {
             try {
                 await TaskService.updateTask(task.id, payload);
-            } catch (err: any) {
-                if (!err.response) {
+            } catch (err: unknown) {
+                if (isNetworkError(err)) {
                     useOfflineQueue.getState().enqueue({ type: 'update-task', id: task.id, payload });
                 }
             }
@@ -51,8 +52,8 @@ export default function ArchiveScreen() {
         } else {
             try {
                 await TaskService.deleteTask(id);
-            } catch (err: any) {
-                if (!err.response) {
+            } catch (err: unknown) {
+                if (isNetworkError(err)) {
                     useOfflineQueue.getState().enqueue({ type: 'delete-task', id });
                 }
             }

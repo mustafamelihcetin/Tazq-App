@@ -28,6 +28,7 @@ import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { S, R, F, B } from '@/shared/constants/tokens';
 import { buildBirakmaPlan, birakmaTypeTasks, birakmaTypeLabel, BIRAKMA_COLOR } from '@/shared/utils/lifeModePlans';
 import { retirePlanTask } from '@/shared/utils/planTaskOps';
+import { swallow } from '@/shared/utils/swallow';
 
 export function BirakmaCard() {
   const { theme, isDark } = useAppTheme();
@@ -77,7 +78,7 @@ export function BirakmaCard() {
       useTaskStore.getState().addTask({ ...payload, id: tempId });
       return tempId;
     }
-    try { const t = await TaskService.createTask(payload); if (t?.id) { useTaskStore.getState().addTask(t); return t.id; } } catch {}
+    try { const t = await TaskService.createTask(payload); if (t?.id) { useTaskStore.getState().addTask(t); return t.id; } } catch (e) { swallow('BirakmaCard.createTask', e, { capture: true }); }
     return null;
   };
 

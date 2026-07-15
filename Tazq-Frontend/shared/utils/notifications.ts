@@ -1,5 +1,6 @@
 import { Platform, AppState } from 'react-native';
 import Constants from 'expo-constants';
+import { swallow } from './swallow';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 const FOCUS_NOTIF_ID = 'tazq-focus-live';
@@ -21,7 +22,7 @@ try {
       },
     });
   }
-} catch (_) {}
+} catch (e) { swallow('notifications.moduleInit', e); }
 
 export function parseTimeParts(timeStr: string): { hours: number; minutes: number } {
   if (timeStr.includes('T')) {
@@ -123,7 +124,7 @@ export async function registerNotificationCategories(): Promise<void> {
         options: { opensAppToForeground: true },
       },
     ]);
-  } catch (_) {}
+  } catch (e) { swallow('notifications.registerNotificationCategories', e); }
 }
 
 // ─── Permissions ──────────────────────────────────────────────────────────────
@@ -200,14 +201,14 @@ export async function scheduleMorningBrief(
         repeats: true,
       } as any,
     });
-  } catch (_) {}
+  } catch (e) { swallow('notifications.scheduleMorningBrief', e); }
 }
 
 export async function cancelMorningBrief(): Promise<void> {
   if (!Notifications) return;
   try {
     await Notifications.cancelScheduledNotificationAsync('morning-brief');
-  } catch (_) {}
+  } catch (e) { swallow('notifications.cancelMorningBrief', e); }
 }
 
 // ─── Evening Summary (21:00 daily) ───────────────────────────────────────────
@@ -263,7 +264,7 @@ export async function scheduleEveningBrief(
         date: trigger,
       } as any,
     });
-  } catch (_) {}
+  } catch (e) { swallow('notifications.scheduleEveningBrief', e); }
 }
 
 // Backward-compatible alias used in _layout.tsx
@@ -279,7 +280,7 @@ export async function cancelEveningBrief(): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync('evening-brief');
     await Notifications.cancelScheduledNotificationAsync('daily-shutdown'); // legacy
-  } catch (_) {}
+  } catch (e) { swallow('notifications.cancelEveningBrief', e); }
 }
 
 // ─── Task Reminder ────────────────────────────────────────────────────────────
@@ -337,7 +338,7 @@ export async function cancelTaskNotification(taskId: number): Promise<void> {
   if (!Notifications) return;
   try {
     await Notifications.cancelScheduledNotificationAsync(`task-${taskId}`);
-  } catch (_) {}
+  } catch (e) { swallow('notifications.cancelTaskNotification', e); }
 }
 
 // ─── Habit Reminder ───────────────────────────────────────────────────────────
@@ -370,14 +371,14 @@ export async function scheduleHabitReminder(
         repeats: true,
       } as any,
     });
-  } catch (_) {}
+  } catch (e) { swallow('notifications.scheduleHabitReminder', e); }
 }
 
 export async function cancelHabitReminder(habitId: string): Promise<void> {
   if (!Notifications) return;
   try {
     await Notifications.cancelScheduledNotificationAsync(`habit-reminder-${habitId}`);
-  } catch (_) {}
+  } catch (e) { swallow('notifications.cancelHabitReminder', e); }
 }
 
 // ─── Habit At-Risk (20:30) ────────────────────────────────────────────────────
@@ -415,14 +416,14 @@ export async function scheduleHabitAtRisk(
         date: trigger,
       } as any,
     });
-  } catch (_) {}
+  } catch (e) { swallow('notifications.scheduleHabitAtRisk', e); }
 }
 
 export async function cancelHabitAtRisk(): Promise<void> {
   if (!Notifications) return;
   try {
     await Notifications.cancelScheduledNotificationAsync('habit-at-risk');
-  } catch (_) {}
+  } catch (e) { swallow('notifications.cancelHabitAtRisk', e); }
 }
 
 // ─── Focus Notifications ──────────────────────────────────────────────────────
@@ -453,7 +454,7 @@ export async function showFocusNotification(
       },
       trigger: null,
     });
-  } catch (_) {}
+  } catch (e) { swallow('notifications.showFocusNotification', e); }
 }
 
 export async function cancelFocusNotification(): Promise<void> {
@@ -461,7 +462,7 @@ export async function cancelFocusNotification(): Promise<void> {
   try {
     await Notifications.dismissNotificationAsync(FOCUS_NOTIF_ID).catch(() => {});
     await Notifications.cancelScheduledNotificationAsync(FOCUS_NOTIF_ID).catch(() => {});
-  } catch (_) {}
+  } catch (e) { swallow('notifications.cancelFocusNotification', e); }
 }
 
 // ─── Weekly Review (Sunday 20:00) ────────────────────────────────────────────
@@ -494,14 +495,14 @@ export async function scheduleWeeklySummary(
       content: { title, body, sound: true, data: { type: 'weekly' }, categoryIdentifier: 'daily-summary' },
       trigger: { type: 'date', date: trigger } as any,
     });
-  } catch (_) {}
+  } catch (e) { swallow('notifications.scheduleWeeklySummary', e); }
 }
 
 export async function cancelWeeklySummary(): Promise<void> {
   if (!Notifications) return;
   try {
     await Notifications.cancelScheduledNotificationAsync('weekly-summary');
-  } catch (_) {}
+  } catch (e) { swallow('notifications.cancelWeeklySummary', e); }
 }
 
 // ─── Exam Countdown (7d / 3d / 1d before) ────────────────────────────────────
@@ -541,13 +542,13 @@ export async function scheduleExamCountdownNotifs(
         });
       }
     }
-  } catch (_) {}
+  } catch (e) { swallow('notifications.scheduleExamCountdownNotifs', e); }
 }
 
 export async function cancelExamCountdownNotifs(): Promise<void> {
   if (!Notifications) return;
   for (const d of [7, 3, 1]) {
-    try { await Notifications.cancelScheduledNotificationAsync(`exam-countdown-${d}d`); } catch (_) {}
+    try { await Notifications.cancelScheduledNotificationAsync(`exam-countdown-${d}d`); } catch (e) { swallow('notifications.cancelExamCountdownNotifs', e); }
   }
 }
 
@@ -599,7 +600,7 @@ export async function scheduleRamadanStartNotification(
         trigger: { type: 'date', date: start } as any,
       });
     }
-  } catch (_) {}
+  } catch (e) { swallow('notifications.scheduleRamadanStartNotification', e); }
 }
 
 export async function cancelRamadanStartNotification(): Promise<void> {
@@ -607,7 +608,7 @@ export async function cancelRamadanStartNotification(): Promise<void> {
   try {
     await Notifications.cancelScheduledNotificationAsync('ramazan-start').catch(() => {});
     await Notifications.cancelScheduledNotificationAsync('ramazan-eve').catch(() => {});
-  } catch (_) {}
+  } catch (e) { swallow('notifications.cancelRamadanStartNotification', e); }
 }
 
 // ─── Cancel All ───────────────────────────────────────────────────────────────
@@ -616,7 +617,7 @@ export async function cancelAllNotifications(): Promise<void> {
   if (!Notifications) return;
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
-  } catch (_) {}
+  } catch (e) { swallow('notifications.cancelAllNotifications', e); }
 }
 
 export async function sendAdminSupportNotification(userName: string, tr: boolean): Promise<void> {
@@ -630,6 +631,6 @@ export async function sendAdminSupportNotification(userName: string, tr: boolean
       },
       trigger: null, // send immediately
     });
-  } catch (_) {}
+  } catch (e) { swallow('notifications.sendAdminSupportNotification', e); }
 }
 

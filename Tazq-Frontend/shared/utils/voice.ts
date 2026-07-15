@@ -203,7 +203,7 @@ class VoiceService {
     try {
       this._isListening = true;
       await Voice.start(options.language || 'tr-TR');
-    } catch (e: any) {
+    } catch (e: unknown) {
       const opts = this._options;
       this._terminate();
       opts?.onError?.(e);

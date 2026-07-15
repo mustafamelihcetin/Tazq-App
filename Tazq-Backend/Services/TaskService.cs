@@ -68,7 +68,9 @@ namespace Tazq_App.Services
             var totalCount = await query.CountAsync();
             
             // Sort at DB level on non-encrypted fields
-            query = sortBy?.ToLower() switch
+            // ToLowerInvariant: tr-TR kültüründe "PRIORITY".ToLower() → "prıorıty" olur ve
+            // eşleşmez; sıralama sessizce varsayılana düşerdi (yanlış sıra, hata yok).
+            query = sortBy?.ToLowerInvariant() switch
             {
                 "duedate" => query.OrderBy(t => t.DueDate),
                 "priority" => query.OrderByDescending(t => t.Priority),

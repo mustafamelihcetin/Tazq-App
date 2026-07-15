@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Tazq_App.Data;
-using Tazq_App.Models;
+using Tazq_App.Services;
 
 namespace Tazq_App.Controllers
 {
@@ -16,18 +14,18 @@ namespace Tazq_App.Controllers
     [Authorize]
     public class ContentController : ControllerBase
     {
-        private readonly AppDbContext _db;
+        private readonly IContentService _content;
 
-        public ContentController(AppDbContext db)
+        public ContentController(IContentService content)
         {
-            _db = db;
+            _content = content;
         }
 
         // İstemci: belge anahtarına göre güncel içerik + sürüm.
         [HttpGet("{key}")]
         public async Task<IActionResult> Get(string key)
         {
-            var doc = await _db.ContentDocuments.AsNoTracking().FirstOrDefaultAsync(c => c.Key == key);
+            var doc = await _content.GetAsync(key);
             if (doc == null)
                 return NotFound(new { message = "Content not found." });
             return Ok(new { key = doc.Key, version = doc.Version, json = doc.Json, updatedAt = doc.UpdatedAt });
@@ -48,30 +46,13 @@ namespace Tazq_App.Controllers
             if (string.IsNullOrWhiteSpace(key) || key.Length > 64)
                 return BadRequest(new { message = "Invalid key." });
 
+            var json = dto.Json ?? "{}";
+
             // JSON doğrulaması — bozuk içerik istemcileri kırmasın.
-            try { using var _ = System.Text.Json.JsonDocument.Parse(dto.Json ?? "{}"); }
-            catch { return BadRequest(new { message = "Body is not valid JSON." }); }
+            try { using var _ = System.Text.Json.JsonDocument.Parse(json); }
+            catch (System.Text.Json.JsonException) { return BadRequest(new { message = "Body is not valid JSON." }); }
 
-            var doc = await _db.ContentDocuments.FirstOrDefaultAsync(c => c.Key == key);
-            if (doc == null)
-            {
-                doc = new ContentDocument
-                {
-                    Key = key,
-                    Json = dto.Json ?? "{}",
-                    Version = dto.Version ?? 1,
-                    UpdatedAt = DateTime.UtcNow,
-                };
-                _db.ContentDocuments.Add(doc);
-            }
-            else
-            {
-                doc.Json = dto.Json ?? "{}";
-                doc.Version = dto.Version ?? (doc.Version + 1);
-                doc.UpdatedAt = DateTime.UtcNow;
-            }
-
-            await _db.SaveChangesAsync();
+            var doc = await _content.UpsertAsync(key, json, dto.Version);
             return Ok(new { key = doc.Key, version = doc.Version, json = doc.Json, updatedAt = doc.UpdatedAt });
         }
     }

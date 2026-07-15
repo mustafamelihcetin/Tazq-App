@@ -1,81 +1,58 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
 using System.Security.Claims;
-using Tazq_App.Data;
-using Tazq_App.Models;
 using Tazq_App.Services;
 
 namespace Tazq_App.Controllers
 {
     // Admin "Sistem" konsolu — SSH ihtiyacını azaltır. Yalnız Admin.
     // Gözlem (sağlık/log/istatistik/Sentry) + denetimli bakım (migrate/restart/cache).
+    // Veri erişimi ve altyapı işleri ISystemService'te; burası ince HTTP katmanı.
     [Route("api/admin/system")]
     [ApiController]
     [Authorize(Roles = "Admin")]
     public class AdminSystemController : ControllerBase
     {
-        private readonly AppDbContext _db;
+        private readonly ISystemService _system;
         private readonly InMemoryLogStore _logStore;
-        private readonly IServiceProvider _sp;
         private readonly IConfiguration _config;
         private readonly ILogger<AdminSystemController> _logger;
         private readonly IHttpClientFactory _httpFactory;
 
-        public AdminSystemController(AppDbContext db, InMemoryLogStore logStore, IServiceProvider sp, IConfiguration config, ILogger<AdminSystemController> logger, IHttpClientFactory httpFactory)
+        public AdminSystemController(ISystemService system, InMemoryLogStore logStore, IConfiguration config, ILogger<AdminSystemController> logger, IHttpClientFactory httpFactory)
         {
-            _db = db;
+            _system = system;
             _logStore = logStore;
-            _sp = sp;
             _config = config;
             _logger = logger;
             _httpFactory = httpFactory;
         }
+
+        private AdminIdentity CurrentAdmin() => new(
+            int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0"),
+            User.FindFirst(ClaimTypes.Name)?.Value);
 
         // ── GÖZLEM ──────────────────────────────────────────────────────────────
 
         [HttpGet("health")]
         public async Task<IActionResult> Health()
         {
-            bool dbOk;
-            try { dbOk = await _db.Database.CanConnectAsync(); } catch { dbOk = false; }
-
-            bool? redisOk = null;
-            try
-            {
-                var mux = _sp.GetService(typeof(IConnectionMultiplexer)) as IConnectionMultiplexer;
-                if (mux != null)
-                {
-                    var db = mux.GetDatabase();
-                    redisOk = (await db.PingAsync()).TotalMilliseconds >= 0;
-                }
-            }
-            catch { redisOk = false; }
-
-            string? latestMigration = null;
-            int pendingCount = 0;
-            try
-            {
-                latestMigration = (await _db.Database.GetAppliedMigrationsAsync()).LastOrDefault();
-                pendingCount = (await _db.Database.GetPendingMigrationsAsync()).Count();
-            }
-            catch { }
+            var health = await _system.GetHealthAsync();
 
             var proc = Process.GetCurrentProcess();
             var uptime = DateTime.UtcNow - proc.StartTime.ToUniversalTime();
 
             return Ok(new
             {
-                status = dbOk ? "ok" : "degraded",
-                dbOk,
-                redisOk,
+                status = health.DbOk ? "ok" : "degraded",
+                dbOk = health.DbOk,
+                redisOk = health.RedisOk,
                 environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production",
                 serverTimeUtc = DateTime.UtcNow,
                 uptimeSeconds = (long)uptime.TotalSeconds,
-                latestMigration,
-                pendingMigrations = pendingCount,
+                latestMigration = health.LatestMigration,
+                pendingMigrations = health.PendingMigrations,
                 warnings = _logStore.CountByLevel("Warning"),
                 errors = _logStore.CountByLevel("Error") + _logStore.CountByLevel("Critical"),
             });
@@ -84,14 +61,15 @@ namespace Tazq_App.Controllers
         [HttpGet("stats")]
         public async Task<IActionResult> Stats()
         {
+            var s = await _system.GetStatsAsync();
             return Ok(new
             {
-                users = await _db.Users.CountAsync(),
-                tasks = await _db.Tasks.CountAsync(),
-                focusSessions = await _db.FocusSessions.CountAsync(),
-                supportMessages = await _db.SupportMessages.CountAsync(),
-                supportUnread = await _db.SupportMessages.CountAsync(m => !m.IsRead),
-                contentDocuments = await _db.ContentDocuments.CountAsync(),
+                users = s.Users,
+                tasks = s.Tasks,
+                focusSessions = s.FocusSessions,
+                supportMessages = s.SupportMessages,
+                supportUnread = s.SupportUnread,
+                contentDocuments = s.ContentDocuments,
             });
         }
 
@@ -146,52 +124,34 @@ namespace Tazq_App.Controllers
 
         // ── DENETİMLİ BAKIM ────────────────────────────────────────────────────
 
-        private async Task WriteAuditAsync(string details)
-        {
-            var requesterId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            var adminName = User.FindFirst(ClaimTypes.Name)?.Value
-                ?? await _db.Users.IgnoreQueryFilters().Where(u => u.Id == requesterId).Select(u => u.Name).FirstOrDefaultAsync();
-            _db.AdminAuditLogs.Add(new AdminAuditLog { AdminId = requesterId, AdminName = adminName, Action = "maintenance", TargetType = "system", Details = details, CreatedAt = DateTime.UtcNow });
-            await _db.SaveChangesAsync();
-        }
-
         [HttpPost("migrate")]
         public async Task<IActionResult> Migrate()
         {
-            try
-            {
-                var pending = (await _db.Database.GetPendingMigrationsAsync()).ToList();
-                if (pending.Count == 0) return Ok(new { success = true, applied = Array.Empty<string>(), message = "Bekleyen migration yok." });
-                await _db.Database.MigrateAsync();
-                _logger.LogWarning("Admin applied migrations: {Migrations}", string.Join(", ", pending));
-                await WriteAuditAsync($"Migration uygulandı: {string.Join(", ", pending)}");
-                return Ok(new { success = true, applied = pending });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Admin migrate failed: {Error}", ex.Message);
-                return StatusCode(500, new { success = false, error = ex.Message });
-            }
+            var result = await _system.ApplyPendingMigrationsAsync();
+            if (!result.Success)
+                return StatusCode(500, new { success = false, error = result.Error });
+
+            if (result.Applied.Count == 0)
+                return Ok(new { success = true, applied = Array.Empty<string>(), message = "Bekleyen migration yok." });
+
+            await _system.WriteMaintenanceAuditAsync(CurrentAdmin(), $"Migration uygulandı: {string.Join(", ", result.Applied)}");
+            return Ok(new { success = true, applied = result.Applied });
         }
 
         [HttpPost("clear-cache")]
         public async Task<IActionResult> ClearCache()
         {
-            var mux = _sp.GetService(typeof(IConnectionMultiplexer)) as IConnectionMultiplexer;
-            if (mux == null) return Ok(new { success = false, message = "Redis bağlı değil (yerel/InMemory)." });
             try
             {
-                foreach (var ep in mux.GetEndPoints())
-                {
-                    var server = mux.GetServer(ep);
-                    if (!server.IsReplica) await server.FlushDatabaseAsync();
-                }
-                _logger.LogWarning("Admin cleared Redis cache.");
-                await WriteAuditAsync("Redis cache temizlendi");
+                if (!await _system.ClearCacheAsync())
+                    return Ok(new { success = false, message = "Redis bağlı değil (yerel/InMemory)." });
+
+                await _system.WriteMaintenanceAuditAsync(CurrentAdmin(), "Redis cache temizlendi");
                 return Ok(new { success = true });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Admin clear-cache failed.");
                 return StatusCode(500, new { success = false, error = ex.Message });
             }
         }
@@ -202,7 +162,10 @@ namespace Tazq_App.Controllers
             // compose 'restart: unless-stopped' → temiz çıkış sonrası container otomatik kalkar.
             // Yanıtı döndürdükten ~1 sn sonra süreci sonlandır (kısa kesinti).
             _logger.LogWarning("Admin requested backend restart.");
-            await WriteAuditAsync("Backend yeniden başlatıldı");
+            await _system.WriteMaintenanceAuditAsync(CurrentAdmin(), "Backend yeniden başlatıldı");
+            // Kasıtlı fire-and-forget: yanıtın istemciye ulaşması için kısa bir gecikmeden
+            // sonra süreç kapanır (container/systemd yeniden başlatır). Scoped servis
+            // yakalamadığı için arka plan kuyruğuna taşınması gerekmez.
             _ = Task.Run(async () => { await Task.Delay(1000); Environment.Exit(0); });
             return Ok(new { success = true, message = "Yeniden başlatılıyor… (birkaç saniye)" });
         }

@@ -6,13 +6,14 @@ import React, { useMemo, useRef, useEffect } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { R, B } from '@/shared/constants/tokens';
+import type { AppTheme } from '@/shared/constants/Colors';
 
 interface WeightWheelPickerProps {
   value: number;
   onChange: (val: number) => void;
   min?: number;
   max?: number;
-  theme: any;
+  theme: AppTheme;
   isDark: boolean;
   sporColor: string;
 }

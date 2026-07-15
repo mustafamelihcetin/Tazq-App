@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-const activeAudioPlayers = new Set<any>();
+import { swallow } from '@/shared/utils/swallow';
+import { playSoundEffect } from '@/shared/utils/soundEffects';
 
 // Timer her saniye set() çağırdığı için persist middleware her saniye AsyncStorage'a yazar.
 // Bu, uzun seanslarda ısınma/jank yapar. Yazımları throttle'la: en fazla FLUSH_MS'de bir yaz.
@@ -15,14 +16,19 @@ const throttledAsyncStorage = (() => {
     for (const key of Object.keys(pending)) {
       const value = pending[key];
       delete pending[key];
-      AsyncStorage.setItem(key, value).catch(() => {});
+      AsyncStorage.setItem(key, value).catch((e) => swallow('focusStore.throttledFlush', e, { capture: true }));
     }
   };
   return {
     getItem: (name: string) => AsyncStorage.getItem(name),
     setItem: (name: string, value: string) => {
       pending[name] = value;
-      if (!timer) timer = setTimeout(flush, FLUSH_MS);
+      if (!timer) {
+        timer = setTimeout(flush, FLUSH_MS);
+        // Node (Jest) ortamında bekleyen zamanlayıcı süreci canlı tutar ve worker
+        // kapanmaz. React Native'de setTimeout sayı döner, unref yoktur — opsiyonel çağrı.
+        (timer as unknown as { unref?: () => void })?.unref?.();
+      }
     },
     removeItem: (name: string) => {
       delete pending[name];
@@ -339,23 +345,15 @@ export const useFocusStore = create<FocusState>()(
           
           if (nextShields > streakShields) {
             try {
-              const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
-              const { soundEffects } = usePrefsStore.getState();
-              if (soundEffects) {
-                const { createAudioPlayer } = require('expo-audio');
-                const p = createAudioPlayer(require('../../../assets/sounds/levelup.mp3'));
-                p.volume = 0.85;
-                activeAudioPlayers.add(p);
-                p.play();
-                setTimeout(() => { 
-                  try { 
-                    p.release(); 
-                    activeAudioPlayers.delete(p);
-                  } catch {} 
-                }, 3000);
+              const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
+              if (usePrefsStore.getState().soundEffects) {
+                playSoundEffect(require('../../../assets/sounds/levelup.mp3'), {
+                  context: 'focusStore.levelUpSound',
+                  releaseAfterMs: 3000,
+                });
               }
             } catch (e) {
-              // Ignore sound errors
+              swallow('focusStore.readSoundPref', e);
             }
           }
 

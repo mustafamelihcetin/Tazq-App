@@ -25,6 +25,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { track } from '@/shared/utils/analytics';
 import { usePrefsStore } from '@/features/modes';
 import { useAuthStore } from '@/features/user';
+import { swallow } from '@/shared/utils/swallow';
 
 const SLIDES = [
   {
@@ -410,7 +411,7 @@ export default function OnboardingScreen() {
             <Text style={[styles.logoTop, { color: theme.onSurface }]}>TAZQ</Text>
             <Touchable 
                 onPress={async () => {
-                    try { await AsyncStorage.setItem('tazq-onboarding-done', 'true'); } catch {}
+                    try { await AsyncStorage.setItem('tazq-onboarding-done', 'true'); } catch (e) { swallow('onboarding.persistCompletedFlag', e, { capture: true }); }
                     usePrefsStore.getState().setOnboardingCompleted(true);
                     track('onboarding_completed', { skipped: true, lastStep: currentIndex });
                     const nextPath = useAuthStore.getState().token ? '/' : '/login';

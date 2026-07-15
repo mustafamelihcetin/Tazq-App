@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { swallow } from '@/shared/utils/swallow';
 
 interface DayScore { date: string; score: number }
 
@@ -111,9 +112,9 @@ export const useMomentumStore = create<MomentumState>()(
       addFocusMinutes: (mins) => {
         let isLite = false;
         try {
-          const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
+          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
           isLite = usePrefsStore.getState().uiMode === 'lite';
-        } catch {}
+        } catch (e) { swallow('useMomentumStore.addFocusMinutes', e); }
 
         if (isLite) return;
 
@@ -136,9 +137,9 @@ export const useMomentumStore = create<MomentumState>()(
       addCompletedTask: () => {
         let isLite = false;
         try {
-          const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
+          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
           isLite = usePrefsStore.getState().uiMode === 'lite';
-        } catch {}
+        } catch (e) { swallow('useMomentumStore.addCompletedTask', e); }
 
         if (isLite) {
           set({
@@ -239,9 +240,9 @@ export const useMomentumStore = create<MomentumState>()(
       undoCompletedTask: () => {
         let isLite = false;
         try {
-          const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
+          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
           isLite = usePrefsStore.getState().uiMode === 'lite';
-        } catch {}
+        } catch (e) { swallow('useMomentumStore.undoCompletedTask', e); }
 
         if (isLite) return;
 
@@ -280,9 +281,9 @@ export const useMomentumStore = create<MomentumState>()(
       decayEngineHeat: () => {
         let isLite = false;
         try {
-          const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
+          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
           isLite = usePrefsStore.getState().uiMode === 'lite';
-        } catch {}
+        } catch (e) { swallow('useMomentumStore.decayEngineHeat', e); }
 
         if (isLite) {
           if (get().engineHeat > 0 || get().isOverheated) {
@@ -321,9 +322,9 @@ export const useMomentumStore = create<MomentumState>()(
       getDecayedHeat: () => {
         let isLite = false;
         try {
-          const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
+          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
           isLite = usePrefsStore.getState().uiMode === 'lite';
-        } catch {}
+        } catch (e) { swallow('useMomentumStore.getDecayedHeat', e); }
 
         if (isLite) return { heat: 0, isOverheated: false };
 

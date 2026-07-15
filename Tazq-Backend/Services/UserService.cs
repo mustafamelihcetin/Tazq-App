@@ -17,8 +17,9 @@ namespace Tazq_App.Services
         private readonly ILogger<UserService> _logger;
         private readonly IGoogleTokenValidator _googleTokenValidator;
         private readonly IAppleTokenValidator _appleTokenValidator;
+        private readonly IBackgroundTaskQueue _emailQueue;
 
-        public UserService(AppDbContext context, ICustomEmailService emailService, IJwtService jwtService, ILogger<UserService> logger, IGoogleTokenValidator googleTokenValidator, IAppleTokenValidator appleTokenValidator)
+        public UserService(AppDbContext context, ICustomEmailService emailService, IJwtService jwtService, ILogger<UserService> logger, IGoogleTokenValidator googleTokenValidator, IAppleTokenValidator appleTokenValidator, IBackgroundTaskQueue emailQueue)
         {
             _context = context;
             _emailService = emailService;
@@ -26,7 +27,15 @@ namespace Tazq_App.Services
             _logger = logger;
             _googleTokenValidator = googleTokenValidator;
             _appleTokenValidator = appleTokenValidator;
+            _emailQueue = emailQueue;
         }
+
+        // Hoş geldin maili üç akıştan tetiklenir (Google, Apple, e-posta doğrulama).
+        // Kuyruk her işi kendi DI scope'unda çalıştırır; e-posta/ad closure'a değer olarak
+        // kopyalanır ki iş çalışırken user entity'sinin durumuna bağımlı olmasın.
+        private void EnqueueWelcomeEmail(string email, string name)
+            => _emailQueue.Enqueue((sp, ct) =>
+                sp.GetRequiredService<ICustomEmailService>().SendWelcomeEmailAsync(email, name));
 
         public async Task<bool> RegisterAsync(UserRegisterDto userDto)
         {
@@ -38,45 +47,49 @@ namespace Tazq_App.Services
                 // Aktif ya da grace içinde silinmiş → e-posta kullanımda (grace içindeyse giriş yaparak geri getirilir)
                 if (existing.DeletedAt == null || DateTime.UtcNow - existing.DeletedAt.Value <= AccountGracePeriod)
                     return false;
-                // Grace süresi dolmuş → eski kaydı temizle, aynı e-postayla yeni kayda izin ver
-                _context.Users.Remove(existing);
-                await _context.SaveChangesAsync();
             }
 
-            var salt = RandomNumberGenerator.GetBytes(16);
-            using var pbkdf2 = new Rfc2898DeriveBytes(userDto.Password, salt, 100000, HashAlgorithmName.SHA256);
-            byte[] passwordHash = pbkdf2.GetBytes(32);
-
+            var hashed = PasswordHasher.Hash(userDto.Password);
             var code = GenerateVerificationCode();
             var user = new User
             {
                 Name = userDto.Name,
                 Email = userDto.Email,
-                PasswordHash = Convert.ToBase64String(passwordHash),
-                PasswordSalt = Convert.ToBase64String(salt),
+                PasswordHash = hashed.Hash,
+                PasswordSalt = hashed.Salt,
+                PasswordIterations = hashed.Iterations,
                 Role = "User",
                 IsEmailVerified = false,
                 EmailVerificationCode = code,
                 EmailVerificationExpiresAt = DateTime.UtcNow.Add(EmailCodeLifetime),
             };
 
+            // Eski kaydın silinmesi ile yeni kaydın eklenmesi tek atomik birim olmalı:
+            // aksi halde araya giren bir hata eski hesabı silip yenisini oluşturmadan
+            // bırakır ve kullanıcı geri dönüşü olmayan şekilde kaybolur. (Eskiden silme
+            // ayrı bir SaveChanges'teydi ve tam bu açık vardı.)
+            //
+            // Atomikliği asıl sağlayan, Remove + Add'in TEK SaveChanges'te olması —
+            // EF onu zaten örtük bir transaction'a sarar. Aşağıdaki açık transaction
+            // fazladan emniyet: ileride araya ikinci bir SaveChanges eklenirse
+            // atomiklik sessizce kaybolmasın. Bkz. UserServiceTransactionTests.
+            await using var tx = await _context.Database.BeginTransactionAsync();
+
+            if (existing != null)
+                _context.Users.Remove(existing); // Grace dolmuş → e-postayı serbest bırak
+
             _context.Users.Add(user);
             var registered = await _context.SaveChangesAsync() > 0;
+            await tx.CommitAsync();
 
             if (registered)
             {
                 // Hoş geldin maili doğrulama sonrası; kayıtta doğrulama kodu gönderilir.
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await _emailService.SendVerificationEmailAsync(user.Email, user.Name, code);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to send verification email to {Email}", user.Email);
-                    }
-                });
+                // Kuyruğa devredilir: request scope'u kapandıktan sonra scoped servislere
+                // dokunmamak için mail gönderimi kendi scope'unu açar.
+                _emailQueue.Enqueue((sp, ct) =>
+                    sp.GetRequiredService<ICustomEmailService>()
+                      .SendVerificationEmailAsync(user.Email, user.Name, code));
             }
 
             return registered;
@@ -142,11 +155,21 @@ namespace Tazq_App.Services
             if (user == null || string.IsNullOrEmpty(user.PasswordSalt))
                 return null;
 
-            using var pbkdf2 = new Rfc2898DeriveBytes(userDto.Password, Convert.FromBase64String(user.PasswordSalt), 100000, HashAlgorithmName.SHA256);
-            var computedHash = Convert.ToBase64String(pbkdf2.GetBytes(32));
-
-            if (computedHash != user.PasswordHash)
+            if (!PasswordHasher.Verify(userDto.Password, user.PasswordHash!, user.PasswordSalt, user.PasswordIterations))
                 return null;
+
+            // Parola doğru ve düz hâli elimizdeyken: hash eski/zayıf maliyetle üretildiyse
+            // güncel maliyete taşı. Kullanıcı için görünmez, tek seferlik.
+            if (PasswordHasher.NeedsRehash(user.PasswordIterations))
+            {
+                var upgraded = PasswordHasher.Hash(userDto.Password);
+                user.PasswordHash = upgraded.Hash;
+                user.PasswordSalt = upgraded.Salt;
+                user.PasswordIterations = upgraded.Iterations;
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Upgraded password hash iterations for user {UserId}.", user.Id);
+            }
 
             // Silinmişse: grace içinde reaktive et, süresi geçmişse girişi reddet
             bool wasReactivated = false;
@@ -168,11 +191,9 @@ namespace Tazq_App.Services
                 user.EmailVerificationExpiresAt = DateTime.UtcNow.Add(EmailCodeLifetime);
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
-                _ = Task.Run(async () =>
-                {
-                    try { await _emailService.SendVerificationEmailAsync(user.Email, user.Name, code); }
-                    catch (Exception ex) { _logger.LogError(ex, "Failed to resend verification email to {Email}", user.Email); }
-                });
+                _emailQueue.Enqueue((sp, ct) =>
+                    sp.GetRequiredService<ICustomEmailService>()
+                      .SendVerificationEmailAsync(user.Email, user.Name, code));
                 return new AuthTokens(string.Empty, string.Empty, false, false, true);
             }
 
@@ -231,17 +252,7 @@ namespace Tazq_App.Services
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
 
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await _emailService.SendWelcomeEmailAsync(user.Email, user.Name);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email);
-                    }
-                });
+                EnqueueWelcomeEmail(user.Email, user.Name);
             }
 
             if (user.IsCurrentlyBanned)
@@ -321,17 +332,7 @@ namespace Tazq_App.Services
                     _context.Users.Add(user);
                     await _context.SaveChangesAsync();
 
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await _emailService.SendWelcomeEmailAsync(user.Email, user.Name);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email);
-                        }
-                    });
+                    EnqueueWelcomeEmail(user.Email, user.Name);
                 }
 
                 if (user.IsCurrentlyBanned)
@@ -410,17 +411,10 @@ namespace Tazq_App.Services
             _context.PasswordResetTokens.Add(resetToken);
             await _context.SaveChangesAsync();
 
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _emailService.SendForgotPasswordEmailAsync(user.Email, user.Name, rawToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to send forgot password email to {Email}", user.Email);
-                }
-            });
+            var (resetEmail, resetName) = (user.Email, user.Name);
+            _emailQueue.Enqueue((sp, ct) =>
+                sp.GetRequiredService<ICustomEmailService>()
+                  .SendForgotPasswordEmailAsync(resetEmail, resetName, rawToken));
 
             return true;
         }
@@ -432,12 +426,10 @@ namespace Tazq_App.Services
             var tokenEntry = await _context.PasswordResetTokens.Include(t => t.User).FirstOrDefaultAsync(t => t.Token == tokenHash);
             if (tokenEntry == null || tokenEntry.Expiration < DateTime.UtcNow) return false;
 
-            var salt = RandomNumberGenerator.GetBytes(16);
-            using var pbkdf2 = new Rfc2898DeriveBytes(newPassword, salt, 100000, HashAlgorithmName.SHA256);
-            byte[] passwordHash = pbkdf2.GetBytes(32);
-
-            tokenEntry.User.PasswordHash = Convert.ToBase64String(passwordHash);
-            tokenEntry.User.PasswordSalt = Convert.ToBase64String(salt);
+            var hashed = PasswordHasher.Hash(newPassword);
+            tokenEntry.User.PasswordHash = hashed.Hash;
+            tokenEntry.User.PasswordSalt = hashed.Salt;
+            tokenEntry.User.PasswordIterations = hashed.Iterations;
 
             _context.Users.Update(tokenEntry.User);
             _context.PasswordResetTokens.Remove(tokenEntry);
@@ -544,11 +536,7 @@ namespace Tazq_App.Services
                 user.EmailVerificationExpiresAt = null;
 
                 // Doğrulama tamam → hoş geldin maili
-                _ = Task.Run(async () =>
-                {
-                    try { await _emailService.SendWelcomeEmailAsync(user.Email, user.Name); }
-                    catch (Exception ex) { _logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email); }
-                });
+                EnqueueWelcomeEmail(user.Email, user.Name);
             }
 
             if (!string.IsNullOrEmpty(ipAddress)) user.LastLoginIp = ipAddress;
@@ -584,17 +572,13 @@ namespace Tazq_App.Services
             if (string.IsNullOrEmpty(user.PasswordHash) || string.IsNullOrEmpty(user.PasswordSalt))
                 return 2; // Google/Apple hesabı — şifresi yok
 
-            using (var verify = new Rfc2898DeriveBytes(currentPassword, Convert.FromBase64String(user.PasswordSalt), 100000, HashAlgorithmName.SHA256))
-            {
-                if (Convert.ToBase64String(verify.GetBytes(32)) != user.PasswordHash) return 1;
-            }
+            if (!PasswordHasher.Verify(currentPassword, user.PasswordHash, user.PasswordSalt, user.PasswordIterations))
+                return 1;
 
-            var salt = RandomNumberGenerator.GetBytes(16);
-            using (var derive = new Rfc2898DeriveBytes(newPassword, salt, 100000, HashAlgorithmName.SHA256))
-            {
-                user.PasswordHash = Convert.ToBase64String(derive.GetBytes(32));
-                user.PasswordSalt = Convert.ToBase64String(salt);
-            }
+            var hashed = PasswordHasher.Hash(newPassword);
+            user.PasswordHash = hashed.Hash;
+            user.PasswordSalt = hashed.Salt;
+            user.PasswordIterations = hashed.Iterations;
 
             _context.Users.Update(user);
             await _context.SaveChangesAsync();

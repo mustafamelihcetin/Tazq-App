@@ -4,12 +4,13 @@ import { Zap } from 'lucide-react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { Touchable } from '@/shared/components/Touchable';
 import { S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
+import type { AppTheme } from '@/shared/constants/Colors';
 
 interface QuickDraftModalProps {
   visible: boolean;
   onClose: () => void;
   onSave: (title: string) => Promise<void>;
-  theme: any;
+  theme: AppTheme;
   isDark: boolean;
   language: string;
   t: any;

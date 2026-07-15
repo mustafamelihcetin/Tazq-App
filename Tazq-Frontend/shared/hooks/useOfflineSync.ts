@@ -6,6 +6,8 @@ import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { TaskService } from '@/shared/services/api';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
+import { swallow } from '@/shared/utils/swallow';
+import { httpStatusOf } from '@/shared/utils/errors';
 
 export function useOfflineSync() {
   const isOnline = useNetworkStore(s => s.isOnline);
@@ -18,7 +20,7 @@ export function useOfflineSync() {
       const ops = queueState.ops;
       if (ops.length === 0) return;
 
-      console.log(`[Offline Sync] Starting sync of ${ops.length} items`);
+      if (__DEV__) console.log(`[Offline Sync] Starting sync of ${ops.length} items`);
       let processed = 0;
       const idMap = new Map<number, number>(); // Map tempId -> realId
 
@@ -40,7 +42,7 @@ export function useOfflineSync() {
             useTaskStore.getState().setTasks(updatedTasks);
             // Plan görevleri: prefs'teki tempId'yi de gerçek id ile değiştir ki mod
             // kapatma/temizlik artık bırakmasın (offline-first artık-bug'ı kökten çözülür).
-            try { usePrefsStore.getState().remapPlanTaskId(tempId, created.id); } catch {}
+            try { usePrefsStore.getState().remapPlanTaskId(tempId, created.id); } catch (e) { swallow('offlineSync.remapPlanTaskId', e, { capture: true }); }
           } else if (op.type === 'update-task') {
             await TaskService.updateTask(op.id, op.payload as any);
           } else if (op.type === 'toggle-task') {
@@ -54,13 +56,13 @@ export function useOfflineSync() {
           processed++;
           // Dequeue one by one so if it crashes, remaining ops are saved
           useOfflineQueue.getState().dequeue(1);
-        } catch (err: any) {
-          const status = err?.response?.status;
+        } catch (err: unknown) {
+          const status = httpStatusOf(err);
           // 4xx (istemci) hatası → bu op mevcut durumda ASLA geçmez: silinmiş görev (404),
           // başka kullanıcıya ait kayıt (401/403), geçersiz veri (400)... Kuyruğu sonsuza
           // dek kilitlememek için zehirli op'u at ve devam et. Yalnız 5xx/ağ hatasında dur.
           if (status && status >= 400 && status < 500) {
-            console.log(`[Offline Sync] Discarding op (HTTP ${status}):`, op);
+            if (__DEV__) console.log(`[Offline Sync] Discarding op (HTTP ${status}):`, op);
             useOfflineQueue.getState().dequeue(1);
             processed++;
           } else {
@@ -71,11 +73,11 @@ export function useOfflineSync() {
       }
 
       if (processed > 0) {
-        console.log(`[Offline Sync] Successfully processed ${processed} operations. Fetching latest tasks...`);
+        if (__DEV__) console.log(`[Offline Sync] Successfully processed ${processed} operations. Fetching latest tasks...`);
         try {
           const freshTasks = await TaskService.getTasks();
           useTaskStore.getState().setTasks(freshTasks);
-        } catch {}
+        } catch (e) { swallow('offlineSync.refetchTasksAfterFlush', e, { capture: true }); }
 
         if (useOfflineQueue.getState().ops.length === 0) {
           const language = useLanguageStore.getState().language;

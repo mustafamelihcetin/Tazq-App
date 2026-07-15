@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using Tazq_App.Data;
 using Tazq_App.Models;
 using Tazq_App.Services;
 
@@ -13,15 +11,17 @@ namespace Tazq_App.Controllers
 	[Authorize]
 	public class SupportController : ControllerBase
 	{
-		private readonly AppDbContext _db;
-		private readonly ICustomEmailService _emailService;
+		private readonly ISupportService _support;
 		private readonly ILogger<SupportController> _logger;
+		private readonly IBackgroundTaskQueue _emailQueue;
 
-		public SupportController(AppDbContext db, ICustomEmailService emailService, ILogger<SupportController> logger)
+		// Veri erişimi ISupportService'te; mailler kuyruk üzerinden (kuyruk kendi
+		// scope'unu açar). Controller yalnızca HTTP ile ilgilenir.
+		public SupportController(ISupportService support, ILogger<SupportController> logger, IBackgroundTaskQueue emailQueue)
 		{
-			_db = db;
-			_emailService = emailService;
+			_support = support;
 			_logger = logger;
+			_emailQueue = emailQueue;
 		}
 
 		private int? GetUserId()
@@ -55,31 +55,17 @@ namespace Tazq_App.Controllers
 		[AllowAnonymous]
 		public async Task<IActionResult> ReportCrash([FromBody] ReportCrashDto dto)
 		{
-			var crash = new ClientCrash
+			var crash = await _support.ReportCrashAsync(new ClientCrash
 			{
 				ErrorMessage = dto.ErrorMessage ?? "Unknown Error",
 				StackTrace = dto.StackTrace ?? string.Empty,
 				DeviceName = dto.DeviceName ?? "Unknown Device",
 				Platform = dto.Platform ?? "Unknown Platform",
 				AppVersion = dto.AppVersion ?? "1.0.0",
-				CreatedAt = DateTime.UtcNow
-			};
+				CreatedAt = DateTime.UtcNow,
+			}, GetUserId());
 
-			var userId = GetUserId();
-			if (userId != null)
-			{
-				crash.UserId = userId.Value;
-				var user = await _db.Users.FindAsync(userId.Value);
-				if (user != null)
-				{
-					crash.UserEmail = user.Email;
-				}
-			}
-
-			_db.ClientCrashes.Add(crash);
-			await _db.SaveChangesAsync();
-
-			_logger.LogError("CLIENT CRASH [{Platform} - {DeviceName} - v{AppVersion}]: {ErrorMessage}\nStack: {StackTrace}", 
+			_logger.LogError("CLIENT CRASH [{Platform} - {DeviceName} - v{AppVersion}]: {ErrorMessage}\nStack: {StackTrace}",
 				crash.Platform, crash.DeviceName, crash.AppVersion, crash.ErrorMessage, crash.StackTrace);
 
 			return Ok(new { success = true, id = crash.Id });
@@ -90,12 +76,7 @@ namespace Tazq_App.Controllers
 		[Authorize(Roles = "Admin")]
 		public async Task<IActionResult> GetCrashes([FromQuery] int limit = 50)
 		{
-			var crashes = await _db.ClientCrashes
-				.OrderByDescending(c => c.CreatedAt)
-				.Take(limit)
-				.AsNoTracking()
-				.ToListAsync();
-
+			var crashes = await _support.GetCrashesAsync(limit);
 			return Ok(new { crashes });
 		}
 
@@ -104,12 +85,7 @@ namespace Tazq_App.Controllers
 		[Authorize(Roles = "Admin")]
 		public async Task<IActionResult> ResolveCrash(int id)
 		{
-			var crash = await _db.ClientCrashes.FindAsync(id);
-			if (crash == null) return NotFound();
-
-			crash.IsResolved = true;
-			await _db.SaveChangesAsync();
-
+			if (!await _support.ResolveCrashAsync(id)) return NotFound();
 			return Ok(new { success = true });
 		}
 
@@ -123,33 +99,13 @@ namespace Tazq_App.Controllers
 			var userId = GetUserId();
 			if (userId == null) return Unauthorized();
 
-			var user = await _db.Users.FindAsync(userId.Value);
-			if (user == null) return NotFound(new { message = "Kullanıcı bulunamadı." });
+			var supportMsg = await _support.CreateMessageAsync(userId.Value, dto.Message);
+			if (supportMsg == null) return NotFound(new { message = "Kullanıcı bulunamadı." });
 
-			var supportMsg = new SupportMessage
-			{
-				UserId = user.Id,
-				UserName = user.Name,
-				UserEmail = user.Email,
-				Message = dto.Message.Trim(),
-				CreatedAt = DateTime.UtcNow,
-				IsRead = false
-			};
-
-			_db.SupportMessages.Add(supportMsg);
-			await _db.SaveChangesAsync();
-
-			_ = Task.Run(async () =>
-			{
-				try
-				{
-					await _emailService.SendSupportConfirmationEmailAsync(user.Email, user.Name, supportMsg.Message);
-				}
-				catch (Exception ex)
-				{
-					_logger.LogError(ex, "Failed to send support message confirmation to {Email}", user.Email);
-				}
-			});
+			var (email, name, message) = (supportMsg.UserEmail, supportMsg.UserName, supportMsg.Message);
+			_emailQueue.Enqueue((sp, ct) =>
+				sp.GetRequiredService<ICustomEmailService>()
+				  .SendSupportConfirmationEmailAsync(email, name, message));
 
 			return Ok(new { success = true, id = supportMsg.Id });
 		}
@@ -161,19 +117,8 @@ namespace Tazq_App.Controllers
 			var userId = GetUserId();
 			if (userId == null) return Unauthorized();
 
-			var messages = await _db.SupportMessages
-				.Where(m => m.UserId == userId.Value)
-				.OrderByDescending(m => m.CreatedAt)
-				.Select(m => new
-				{
-					m.Id,
-					m.Message,
-					m.CreatedAt,
-					m.AdminReply,
-					m.RepliedAt
-				})
-				.AsNoTracking()
-				.ToListAsync();
+			var messages = (await _support.GetMessagesForUserAsync(userId.Value))
+				.Select(m => new { m.Id, m.Message, m.CreatedAt, m.AdminReply, m.RepliedAt });
 
 			return Ok(new { messages });
 		}
@@ -186,25 +131,15 @@ namespace Tazq_App.Controllers
 			if (string.IsNullOrWhiteSpace(dto.Reply))
 				return BadRequest(new { message = "Yanıt boş olamaz." });
 
-			var msg = await _db.SupportMessages.FindAsync(id);
+			var msg = await _support.ReplyAsync(id, dto.Reply);
 			if (msg == null) return NotFound();
 
-			msg.AdminReply = dto.Reply.Trim();
-			msg.RepliedAt = DateTime.UtcNow;
-			msg.IsRead = true;
-			await _db.SaveChangesAsync();
-
-			_ = Task.Run(async () =>
-			{
-				try
-				{
-					await _emailService.SendSupportReplyEmailAsync(msg.UserEmail, msg.UserName, msg.Message, msg.AdminReply);
-				}
-				catch (Exception ex)
-				{
-					_logger.LogError(ex, "Failed to send support reply notification to {Email}", msg.UserEmail);
-				}
-			});
+			// ReplyAsync AdminReply'ı her zaman doldurur; derleyici bunu servis sınırının
+			// ötesinden kanıtlayamadığı için açık coalesce.
+			var (replyEmail, replyName, replyMessage, adminReply) = (msg.UserEmail, msg.UserName, msg.Message, msg.AdminReply ?? string.Empty);
+			_emailQueue.Enqueue((sp, ct) =>
+				sp.GetRequiredService<ICustomEmailService>()
+				  .SendSupportReplyEmailAsync(replyEmail, replyName, replyMessage, adminReply));
 
 			return Ok(new { success = true, repliedAt = msg.RepliedAt });
 		}
@@ -214,13 +149,8 @@ namespace Tazq_App.Controllers
 		[Authorize(Roles = "Admin")]
 		public async Task<IActionResult> GetAllMessages()
 		{
-			var messages = await _db.SupportMessages
-				.OrderByDescending(m => m.CreatedAt)
-				.AsNoTracking()
-				.ToListAsync();
-
+			var messages = await _support.GetAllMessagesAsync();
 			var unreadCount = messages.Count(m => !m.IsRead);
-
 			return Ok(new { messages, unreadCount });
 		}
 
@@ -229,12 +159,7 @@ namespace Tazq_App.Controllers
 		[Authorize(Roles = "Admin")]
 		public async Task<IActionResult> MarkAsRead(int id)
 		{
-			var msg = await _db.SupportMessages.FindAsync(id);
-			if (msg == null) return NotFound();
-
-			msg.IsRead = true;
-			await _db.SaveChangesAsync();
-
+			if (!await _support.MarkAsReadAsync(id)) return NotFound();
 			return Ok(new { success = true });
 		}
 
@@ -243,12 +168,7 @@ namespace Tazq_App.Controllers
 		[Authorize(Roles = "Admin")]
 		public async Task<IActionResult> DeleteMessage(int id)
 		{
-			var msg = await _db.SupportMessages.FindAsync(id);
-			if (msg == null) return NotFound();
-
-			_db.SupportMessages.Remove(msg);
-			await _db.SaveChangesAsync();
-
+			if (!await _support.DeleteMessageAsync(id)) return NotFound();
 			return Ok(new { success = true });
 		}
 	}

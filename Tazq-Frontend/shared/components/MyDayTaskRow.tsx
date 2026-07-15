@@ -5,11 +5,12 @@ import { Touchable } from '@/shared/components/Touchable';
 import { S, F } from '@/shared/constants/tokens';
 import { getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { getLocalizedTaskTitle } from '@/features/tasks';
+import type { AppTheme } from '@/shared/constants/Colors';
 
 export interface MyDayTaskRowProps {
   item: any;
   isLast: boolean;
-  theme: any;
+  theme: AppTheme;
   isDark: boolean;
   tr: boolean;
   onPress: () => void;

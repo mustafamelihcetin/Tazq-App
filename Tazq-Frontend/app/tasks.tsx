@@ -28,8 +28,6 @@ const Haptics = {
   NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
   ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
 };
-import { createAudioPlayer } from 'expo-audio';
-const activeAudioPlayers = new Set<any>();
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
@@ -47,6 +45,10 @@ import VoiceService from '@/shared/utils/voice';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { Touchable } from '@/shared/components/Touchable';
+import { swallow } from '@/shared/utils/swallow';
+import { httpStatusOf, isNetworkError, errorMessage, httpDataOf } from '@/shared/utils/errors';
+import { playSoundEffect } from '@/shared/utils/soundEffects';
+import type { AppTheme } from '@/shared/constants/Colors';
 
 const SWIPE_THRESHOLD = -80;
 const TAG_COLORS_PALETTE = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4','#F97316'];
@@ -57,7 +59,7 @@ const getTagColorStatic = (tag: string): string => {
   return TAG_COLORS_PALETTE[Math.abs(hash) % TAG_COLORS_PALETTE.length];
 };
 
-const VoiceWave = ({ active, theme }: { active: boolean; theme: any }) => (
+const VoiceWave = ({ active, theme }: { active: boolean; theme: AppTheme }) => (
     <MotiView
         from={{ scale: 1, opacity: 0 }}
         animate={active ? { scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] } : { scale: 1, opacity: 0 }}
@@ -270,17 +272,23 @@ const MemoizedTaskItem = React.memo((props: any) => {
 
                             {sortBy === 'creation' && !isBulkMode && (
                                 <View style={{ flexDirection: 'column', gap: 2, marginRight: S.sm, alignItems: 'center' }}>
-                                    <Touchable 
-                                        disabled={!onMoveUp} 
+                                    <Touchable
+                                        disabled={!onMoveUp}
                                         onPress={onMoveUp}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={language === 'tr' ? 'Yukarı taşı' : 'Move up'}
+                                        accessibilityState={{ disabled: !onMoveUp }}
                                         style={{ opacity: onMoveUp ? 0.8 : 0.15, padding: 2 }}
                                         hitSlop={{ top: 8, bottom: 4, left: 8, right: 8 }}
                                     >
                                         <ChevronUp size={16} color={theme.onSurfaceVariant} />
                                     </Touchable>
-                                    <Touchable 
-                                        disabled={!onMoveDown} 
+                                    <Touchable
+                                        disabled={!onMoveDown}
                                         onPress={onMoveDown}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={language === 'tr' ? 'Aşağı taşı' : 'Move down'}
+                                        accessibilityState={{ disabled: !onMoveDown }}
                                         style={{ opacity: onMoveDown ? 0.8 : 0.15, padding: 2 }}
                                         hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}
                                     >
@@ -291,6 +299,13 @@ const MemoizedTaskItem = React.memo((props: any) => {
 
                             <Touchable
                                 onPress={() => handleToggle(task.id)}
+                                accessibilityRole="checkbox"
+                                accessibilityState={{ checked: task.isCompleted || completingIds.has(task.id) }}
+                                accessibilityLabel={
+                                    (task.isCompleted || completingIds.has(task.id))
+                                        ? (language === 'tr' ? 'Görevi tamamlanmadı olarak işaretle' : 'Mark task as not done')
+                                        : (language === 'tr' ? 'Görevi tamamla' : 'Complete task')
+                                }
                                 hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                                 style={[
                                     { width: 24, height: 24, borderRadius: 7, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginLeft: S.sm },
@@ -566,7 +581,7 @@ export default function ActionCenter() {
     AsyncStorage.getItem('tazq-swipe-peek-shown').then(val => {
       if (!val) {
         setShowSwipePeek(true);
-        AsyncStorage.setItem('tazq-swipe-peek-shown', 'true').catch(() => {});
+        AsyncStorage.setItem('tazq-swipe-peek-shown', 'true').catch((e) => swallow('tasks.persistSwipePeekFlag', e));
       }
     }).catch(() => {});
 
@@ -624,12 +639,12 @@ export default function ActionCenter() {
       if (toDelete.length > 0) {
         toDelete.forEach(task => {
           removeTask(task.id);
-          TaskService.deleteTask(task.id).catch(() => {});
+          TaskService.deleteTask(task.id).catch((e) => swallow('tasks.deleteTask', e, { capture: true }));
         });
       }
-    } catch (e: any) {
-      if (e.response?.status !== 401) {
-        console.warn('loadTasks error:', e.message);
+    } catch (e: unknown) {
+      if (httpStatusOf(e) !== 401) {
+        if (__DEV__) console.warn('loadTasks error:', errorMessage(e));
       }
     } finally {
       setLoading(false);
@@ -793,27 +808,13 @@ export default function ActionCenter() {
           }
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        if (soundEffects && !allTasksDone) try {
-          const soundFile = require('../assets/sounds/success.mp3');
-          const p = createAudioPlayer(soundFile);
-          const targetVolume = 0.15;
-          p.volume = targetVolume;
-          activeAudioPlayers.add(p);
-          p.play();
-
-          setTimeout(() => {
-            try {
-              p.volume = targetVolume;
-            } catch {}
-          }, 150);
-
-          setTimeout(() => { 
-            try { 
-              p.remove(); 
-              activeAudioPlayers.delete(p);
-            } catch {} 
-          }, 4000);
-        } catch {}
+        if (soundEffects && !allTasksDone) {
+          playSoundEffect(require('../assets/sounds/success.mp3'), {
+            context: 'tasks.taskCompleteSound',
+            volume: 0.15,
+            reassertVolumeAfterMs: 150,
+          });
+        }
         await cancelTaskNotification(id);
 
         if (hideCompleted) {
@@ -844,13 +845,13 @@ export default function ActionCenter() {
             setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
           } else {
             try {
-              await TaskService.updateTask(id, { ...task, priority: task.priority as any, isCompleted: true });
-            } catch (error: any) {
-              const isNetwork = !error.response;
+              await TaskService.updateTask(id, { ...task, priority: task.priority, isCompleted: true });
+            } catch (error: unknown) {
+              const isNetwork = isNetworkError(error);
               if (isNetwork) {
                 enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
                 showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
-              } else if (error.response?.status === 404) {
+              } else if (httpStatusOf(error) === 404) {
                 useTaskStore.getState().removeTask(id);
                 setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
                 exitAnimMap.current.delete(id);
@@ -883,15 +884,15 @@ export default function ActionCenter() {
       try {
         await TaskService.updateTask(id, {
           ...task,
-          priority: task.priority as any,
+          priority: task.priority,
           isCompleted: isCompleting
         });
-      } catch (error: any) {
-        const isNetwork = !error.response;
+      } catch (error: unknown) {
+        const isNetwork = isNetworkError(error);
         if (isNetwork) {
           enqueueOffline({ type: 'toggle-task', id, isCompleted: isCompleting, completedAt: isCompleting ? new Date().toISOString() : null });
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
-        } else if (error.response?.status === 404) {
+        } else if (httpStatusOf(error) === 404) {
           useTaskStore.getState().removeTask(id);
           showToast(language === 'tr' ? 'Bu görev gün aşımı nedeniyle kaldırıldı.' : 'This task was removed due to date rollover.', 'info');
         } else {
@@ -945,7 +946,7 @@ export default function ActionCenter() {
     if (!snapshot) return;
     removeTask(id);
     cancelTaskNotification(id);
-    deleteTaskFromCalendar(id).catch(() => {});
+    deleteTaskFromCalendar(id).catch((e) => swallow('tasks.deleteTaskFromCalendar', e));
 
     // Clean deleted task from any plan task ID arrays
     const ps = usePrefsStore.getState();
@@ -981,8 +982,8 @@ export default function ActionCenter() {
         return;
       }
       try { await TaskService.deleteTask(id); }
-      catch (err: any) {
-        if (!err.response) {
+      catch (err: unknown) {
+        if (isNetworkError(err)) {
           enqueueOffline({ type: 'delete-task', id });
         } else {
           loadTasks();
@@ -997,7 +998,7 @@ export default function ActionCenter() {
         const t = pendingDeleteRef.current.get(id);
         if (t) { clearTimeout(t); pendingDeleteRef.current.delete(id); }
         addTask(snapshot);
-        syncTaskToCalendar(snapshot).catch(() => {});
+        syncTaskToCalendar(snapshot).catch((e) => swallow('tasks.syncTaskToCalendar', e));
       },
     });
   };
@@ -1036,7 +1037,7 @@ export default function ActionCenter() {
           finalTags = [...finalTags, aiMatch.label];
         }
       } catch (e) { 
-        console.log('[AI] Enrichment skipped or timed out'); 
+        swallow('tasks.aiEnrichment', e); 
       }
 
       const isTR = language === 'tr';
@@ -1091,7 +1092,7 @@ export default function ActionCenter() {
           } else {
               cancelTaskNotification(editingId);
           }
-          syncTaskToCalendar({ id: editingId, ...payload } as any).catch(() => {});
+          syncTaskToCalendar({ id: editingId, ...payload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         } else {
           await Promise.race([
             TaskService.updateTask(editingId, payload),
@@ -1103,7 +1104,7 @@ export default function ActionCenter() {
           } else {
               cancelTaskNotification(editingId);
           }
-          syncTaskToCalendar({ id: editingId, ...payload } as any).catch(() => {});
+          syncTaskToCalendar({ id: editingId, ...payload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         }
       } else {
         if (!isOnline) {
@@ -1114,7 +1115,7 @@ export default function ActionCenter() {
           if (formPayload.reminderEnabled) {
             scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
           }
-          syncTaskToCalendar({ id: tempId, ...payload } as any).catch(() => {});
+          syncTaskToCalendar({ id: tempId, ...payload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         } else {
           const created = await Promise.race([
             TaskService.createTask(payload),
@@ -1124,12 +1125,12 @@ export default function ActionCenter() {
           if (created.id && formPayload.reminderEnabled) {
             scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
           }
-          syncTaskToCalendar({ id: created.id, ...payload } as any).catch(() => {});
+          syncTaskToCalendar({ id: created.id, ...payload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         }
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err: any) {
-      if (err.message === 'Validation failed') {
+    } catch (err: unknown) {
+      if (errorMessage(err) === 'Validation failed') {
         throw err;
       }
       const existingTask = editingId !== null ? tasks.find(t => t.id === editingId) : null;
@@ -1151,24 +1152,25 @@ export default function ActionCenter() {
         recurrence: formPayload.recurrence,
       };
 
-      if (!err.response) {
+      if (isNetworkError(err)) {
         if (editingId !== null) {
           enqueueOffline({ type: 'update-task', id: editingId, payload: safePayload });
           updateTask(editingId, { ...safePayload, id: editingId } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
-          syncTaskToCalendar({ id: editingId, ...safePayload } as any).catch(() => {});
+          syncTaskToCalendar({ id: editingId, ...safePayload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         } else {
           const tempId = -Date.now();
           enqueueOffline({ type: 'create-task', tempId, payload: safePayload });
           addTask({ ...safePayload, id: tempId, title: formPayload.title.trim() } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
-          syncTaskToCalendar({ id: tempId, ...safePayload } as any).catch(() => {});
+          syncTaskToCalendar({ id: tempId, ...safePayload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         }
-      } else if (err.response?.status === 429) {
+      } else if (httpStatusOf(err) === 429) {
         const msg = language === 'tr' ? 'Maksimum görev sayısına ulaştın (200). Eski görevleri tamamla veya sil.' : 'Task limit reached (200). Complete or delete existing tasks.';
         Alert.alert(language === 'tr' ? 'Limit Doldu' : 'Limit Reached', msg);
       } else {
-        const serverMsg = err.response?.data?.message || err.response?.data?.Message || err.message;
+        const body = httpDataOf<{ message?: string; Message?: string }>(err);
+        const serverMsg = body.message || body.Message || errorMessage(err);
         Alert.alert(t.errorTitle, `${t.saveError}: ${serverMsg}`);
       }
       throw err;
@@ -1298,8 +1300,8 @@ export default function ActionCenter() {
               enqueueOffline({ type: 'delete-task', id });
             } else {
               try { await TaskService.deleteTask(id); }
-              catch (err: any) {
-                if (!err.response) {
+              catch (err: unknown) {
+                if (isNetworkError(err)) {
                   enqueueOffline({ type: 'delete-task', id });
                 }
               }
@@ -1328,7 +1330,7 @@ export default function ActionCenter() {
       const task = tasks.find(tk => tk.id === id);
       if (!task) continue;
       try {
-        await TaskService.updateTask(id, { ...task, priority: task.priority as any, isCompleted: true });
+        await TaskService.updateTask(id, { ...task, priority: task.priority, isCompleted: true });
       } catch {
         failed.push(id);
         toggleTaskCompletion(id); // revert
@@ -1358,8 +1360,8 @@ export default function ActionCenter() {
               enqueueOffline({ type: 'delete-task', id: task.id });
             } else {
               try { await TaskService.deleteTask(task.id); }
-              catch (err: any) {
-                if (!err.response) {
+              catch (err: unknown) {
+                if (isNetworkError(err)) {
                   enqueueOffline({ type: 'delete-task', id: task.id });
                 }
               }
@@ -1713,6 +1715,8 @@ export default function ActionCenter() {
                 </Text>
                 <Touchable
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleClearCompleted(); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={language === 'tr' ? 'Tamamlanan görevleri temizle' : 'Clear completed tasks'}
                     style={{ padding: 4 }}
                 >
                     <Trash2 size={16} color={theme.onSurfaceVariant + '80'} />
@@ -1872,6 +1876,9 @@ export default function ActionCenter() {
                 setSelectedIds(new Set());
                 handleEditBtnPress(id);
               }}
+              accessibilityRole="button"
+              accessibilityLabel={language === 'tr' ? 'Seçili görevi düzenle' : 'Edit selected task'}
+              accessibilityState={{ disabled: selectedIds.size !== 1 }}
               style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: selectedIds.size === 1 && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme) ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
             >
               <Pencil size={20} color={selectedIds.size === 1 && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme) ? theme.onSurface : theme.onSurfaceVariant + '40'} />
@@ -1881,6 +1888,9 @@ export default function ActionCenter() {
             <Touchable
               onPress={handleBulkComplete}
               disabled={selectedIds.size === 0}
+              accessibilityRole="button"
+              accessibilityLabel={language === 'tr' ? `Seçili ${selectedIds.size} görevi tamamla` : `Complete ${selectedIds.size} selected tasks`}
+              accessibilityState={{ disabled: selectedIds.size === 0 }}
               style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: selectedIds.size > 0 ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
             >
               <CheckCircle2 size={22} color={selectedIds.size > 0 ? theme.success : theme.onSurfaceVariant + '40'} />
@@ -1890,6 +1900,9 @@ export default function ActionCenter() {
             <Touchable
               onPress={handleBulkDelete}
               disabled={selectedIds.size === 0}
+              accessibilityRole="button"
+              accessibilityLabel={language === 'tr' ? `Seçili ${selectedIds.size} görevi sil` : `Delete ${selectedIds.size} selected tasks`}
+              accessibilityState={{ disabled: selectedIds.size === 0 }}
               style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: selectedIds.size > 0 ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
             >
               <Trash2 size={20} color={selectedIds.size > 0 ? theme.priorityHigh : theme.onSurfaceVariant + '40'} />

@@ -309,7 +309,7 @@ export default function PromoScreen() {
         <>
           <SafeAreaView edges={['top']} style={{ position: 'absolute', top: 0, left: 0, right: 0 }} pointerEvents="box-none">
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 6 }}>
-              <Touchable onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+              <Touchable accessibilityRole="button" accessibilityLabel={lang === 'tr' ? 'Kapat' : 'Close'} hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }} onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
                 <X size={20} color="#FFFFFF" />
               </Touchable>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -321,7 +321,7 @@ export default function PromoScreen() {
                     </Touchable>
                   ))}
                 </View>
-                <Touchable onPress={() => setChrome(false)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 14, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)' }}>
+                <Touchable hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => setChrome(false)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 14, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)' }}>
                   <EyeOff size={16} color="#FFFFFF" />
                   <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>{tr ? 'Temiz' : 'Clean'}</Text>
                 </Touchable>

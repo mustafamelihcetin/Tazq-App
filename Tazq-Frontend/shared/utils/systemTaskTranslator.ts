@@ -4,6 +4,7 @@ import { getAllLifeModePairs } from './lifeModePlans';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { useHabitStore } from '@/features/habits/store/useHabitStore';
 import { translateTag } from '@/features/tasks';
+import { swallow } from '@/shared/utils/swallow';
 
 let trToEnMap: Map<string, string> | null = null;
 let enToTrMap: Map<string, string> | null = null;
@@ -93,15 +94,15 @@ function initMaps() {
   
   try {
     getAllDailyPlanPairs().forEach((p: any) => addPair(p.tr, p.en));
-  } catch (e) {}
+  } catch (e) { swallow('systemTaskTranslator.initDailyPlanPairs', e, { capture: true }); }
 
   try {
     getAllKnownModePairs().forEach((p: any) => addPair(p.tr, p.en));
-  } catch (e) {}
+  } catch (e) { swallow('systemTaskTranslator.initKnownModePairs', e, { capture: true }); }
 
   try {
     getAllLifeModePairs().forEach((p: any) => addPair(p.tr, p.en));
-  } catch (e) {}
+  } catch (e) { swallow('systemTaskTranslator.initLifeModePairs', e, { capture: true }); }
 }
 
 export function lookupSystemString(text: string, toLanguage: 'tr' | 'en'): string | null {
@@ -184,7 +185,7 @@ export function syncTasksAndHabitsLanguage(lang: 'tr' | 'en') {
               titleTr = parsed.tr;
               titleEn = parsed.en;
             }
-          } catch {}
+          } catch (e) { swallow('systemTaskTranslator.parseBilingualDescription', e); }
         }
       }
 
@@ -224,7 +225,7 @@ export function syncTasksAndHabitsLanguage(lang: 'tr' | 'en') {
     if (tasksChanged) {
       taskStore.setTasks(updatedTasks);
     }
-  } catch (e) {}
+  } catch (e) { swallow('systemTaskTranslator.syncTasksLanguage', e, { capture: true }); }
 
   try {
     const habitStore = useHabitStore.getState();
@@ -267,5 +268,5 @@ export function syncTasksAndHabitsLanguage(lang: 'tr' | 'en') {
     if (habitsChanged) {
       habitStore.setHabits(updatedHabits);
     }
-  } catch (e) {}
+  } catch (e) { swallow('systemTaskTranslator.syncHabitsLanguage', e, { capture: true }); }
 }

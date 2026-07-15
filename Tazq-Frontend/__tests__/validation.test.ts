@@ -16,9 +16,24 @@ describe('isValidEmail', () => {
 });
 
 describe('isValidPassword', () => {
-  it('requires at least 6 chars', () => {
-    expect(isValidPassword('12345')).toBe(false);
-    expect(isValidPassword('123456')).toBe(true);
+  // Politika (backend PasswordPolicy.IsStrong ile birebir): >=8 karakter + harf + rakam.
+  it('requires at least 8 chars', () => {
+    expect(isValidPassword('abc1234')).toBe(false);
+    expect(isValidPassword('abcd1234')).toBe(true);
+  });
+
+  it('requires both a letter and a digit', () => {
+    expect(isValidPassword('12345678')).toBe(false); // rakam var, harf yok
+    expect(isValidPassword('abcdefgh')).toBe(false); // harf var, rakam yok
+    expect(isValidPassword('abcdefg1')).toBe(true);
+  });
+
+  it('accepts Turkish letters as letters', () => {
+    expect(isValidPassword('şifreçğ1')).toBe(true);
+  });
+
+  it('rejects empty input', () => {
+    expect(isValidPassword('')).toBe(false);
   });
 });
 
@@ -35,7 +50,7 @@ describe('validateRegister', () => {
     expect(validateRegister('', '', '', false)).toBe('empty');
     expect(validateRegister('Mel', 'bad', 'secret', true)).toBe('invalidEmail');
     expect(validateRegister('Mel', 'ok@mail.com', '123', true)).toBe('weakPassword');
-    expect(validateRegister('Mel', 'ok@mail.com', '123456', false)).toBe('consent');
-    expect(validateRegister('Mel', 'ok@mail.com', '123456', true)).toBe(null);
+    expect(validateRegister('Mel', 'ok@mail.com', 'abcd1234', false)).toBe('consent');
+    expect(validateRegister('Mel', 'ok@mail.com', 'abcd1234', true)).toBe(null);
   });
 });

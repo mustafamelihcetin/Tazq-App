@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
@@ -15,7 +15,7 @@ import { MotiView, MotiText, AnimatePresence } from 'moti';
 import { Plus, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp, Flame, Check, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee, CheckCircle2, X } from 'lucide-react-native';
 import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
-import { TaskService, FocusService, DailyFocusData, AuthService } from '@/shared/services/api';
+import { TaskService, AuthService } from '@/shared/services/api';
 import * as HapticsOriginal from 'expo-haptics';
 const Haptics = {
   notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
@@ -25,7 +25,6 @@ const Haptics = {
   ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
 };
 import { useRouter, useFocusEffect } from 'expo-router';
-const activeAudioPlayers = new Set<any>();
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { PremiumStatChip } from '@/shared/components/PremiumStatChip';
@@ -56,6 +55,13 @@ import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
 import { MyDayTaskRow } from '@/shared/components/MyDayTaskRow';
 import { HabitBubble } from '@/shared/components/HabitBubble';
+import { swallow } from '@/shared/utils/swallow';
+import { playSoundEffect } from '@/shared/utils/soundEffects';
+import { evaluateReviewPrompt } from '@/features/user/utils/reviewPrompt';
+import { useDoubleTapHighlight } from '@/features/user/hooks/useDoubleTapHighlight';
+import { useWeeklyStats } from '@/features/user/hooks/useWeeklyStats';
+import { ReviewPromptModal } from '@/features/user/components/ReviewPromptModal';
+import { httpStatusOf, isNetworkError } from '@/shared/utils/errors';
 
 
 // Hoş geldin (profil kurulumu) oturum başına yalnızca bir kez — remount'ta sıfırlanmasın diye
@@ -198,24 +204,33 @@ export default function HomeScreen() {
   const setIsActive = useFocusStore(s => s.setIsActive);
   const dailyFocusMinutes = useFocusStore(s => s.dailyFocusMinutes);
   const dailyGoalMinutes = useFocusStore(s => s.dailyGoalMinutes);
-  const updateBestStreak = useFocusStore(s => s.updateBestStreak);
 
   // State
   const [statusHubVisible, setStatusHubVisible] = useState(false);
   const [weightModalTaskId, setWeightModalTaskId] = useState<number | null>(null);
   const [quickDraftVisible, setQuickDraftVisible] = useState(false);
   useUiDepth(quickDraftVisible);
-  const [headerHighlight, setHeaderHighlight] = useState(false);
-  const [todayHighlight, setTodayHighlight] = useState(false);
-  const [momentumHighlight, setMomentumHighlight] = useState(false);
-  const [todayBurstKey, setTodayBurstKey] = useState(0);
-  const [momentumBurstKey, setMomentumBurstKey] = useState(0);
-  const headerTapTime = useRef(0);
-  const todayTapTime = useRef(0);
-  const momentumTapTime = useRef(0);
   const headerScale = useRef(new Animated.Value(1)).current;
-  const [weeklyFocus, setWeeklyFocus] = useState<DailyFocusData[]>([]);
-  const [lastWeekMinutes, setLastWeekMinutes] = useState(0);
+
+  // Çift dokunma vurguları: durum + söndürme zamanlayıcısı useDoubleTapHighlight'ta
+  // (zamanlayıcı unmount'ta iptal edilir; eskiden edilmiyordu).
+  const headerTap = useDoubleTapHighlight(1800, useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Animated.sequence([
+      Animated.spring(headerScale, { toValue: 1.06, useNativeDriver: true, damping: 5, stiffness: 200 }),
+      Animated.spring(headerScale, { toValue: 1, useNativeDriver: true, damping: 10, stiffness: 200 }),
+    ]).start();
+  }, [headerScale]));
+
+  const todayTap = useDoubleTapHighlight(1600, useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []));
+
+  const headerHighlight = headerTap.active;
+  const todayHighlight = todayTap.active;
+  const todayBurstKey = todayTap.burstKey;
+  // Haftalık istatistik durumu + fetch useWeeklyStats'ta (streak eşitlemesi dahil).
+  const { weeklyFocus, lastWeekMinutes, loading: statsLoading, refresh: fetchStats } = useWeeklyStats();
   const [showAllIncomplete, setShowAllIncomplete] = useState(false);
   const [showCompletedSection, setShowCompletedSection] = useState(false);
   const [logoTick, setLogoTick] = useState(0);
@@ -224,16 +239,11 @@ export default function HomeScreen() {
   const portalInputRef = useRef<TextInput>(null);
   const localStreak = useFocusStore(s => s.localStreak);
   const streak = localStreak;
-  const [statsLoading, setStatsLoading] = useState(true);
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
 
   // App Review Prompt & Performance Rating state
   const [todayRating, setTodayRating] = useState<number | null>(null);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
-  const [reviewRating, setReviewRating] = useState<number | null>(null);
-  const [reviewSubmitted, setReviewSubmitted] = useState(false);
-  const [reviewFeedbackText, setReviewFeedbackText] = useState('');
-  const [reviewFeedbackSending, setReviewFeedbackSending] = useState(false);
 
   useEffect(() => {
     const todayKey = fmtDateKey();
@@ -309,20 +319,13 @@ export default function HomeScreen() {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
               // Play freeze SFX
-              const { soundEffects } = usePrefsStore.getState();
-              if (soundEffects) try {
-                const { createAudioPlayer } = require('expo-audio');
-                const p = createAudioPlayer(require('../assets/sounds/freeze.mp3'));
-                p.volume = 0.75;
-                activeAudioPlayers.add(p);
-                p.play();
-                setTimeout(() => { 
-                  try { 
-                    p.remove(); 
-                    activeAudioPlayers.delete(p);
-                  } catch {} 
-                }, 3000);
-              } catch {}
+              if (usePrefsStore.getState().soundEffects) {
+                playSoundEffect(require('../assets/sounds/freeze.mp3'), {
+                  context: 'index.streakFreezeSound',
+                  volume: 0.75,
+                  releaseAfterMs: 3000,
+                });
+              }
 
               Alert.alert(
                 language === 'tr' ? 'Seri Korundu!' : 'Streak Protected!',
@@ -395,32 +398,10 @@ export default function HomeScreen() {
     try {
       const data = await TaskService.getTasks();
       setTasks(Array.isArray(data) ? data : []);
-    } catch (e: any) {
-      if (e.response?.status !== 401) {
-        console.warn('fetchTasks error:', e.message);
-      }
+    } catch (e: unknown) {
+      if (httpStatusOf(e) !== 401) swallow('index.fetchTasks', e);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    setStatsLoading(true);
-    try {
-      const stats = await FocusService.getStats();
-      setWeeklyFocus(stats.weeklyFocus || []);
-      setLastWeekMinutes(stats.lastWeekFocusMinutes || 0);
-      const active = stats.activeStreak || 0;
-      if (localStreak === 0 && active > 0) {
-        useFocusStore.setState({ localStreak: active });
-      }
-      updateBestStreak(active);
-    } catch (e: any) {
-      if (e.response?.status !== 401) {
-        console.warn('fetchStats error:', e.message);
-      }
-    } finally {
-      setStatsLoading(false);
     }
   };
 
@@ -482,8 +463,8 @@ export default function HomeScreen() {
           }
           showToast(`"${payload.title}" ${t.toastTaskAdded}`, 'success');
         }
-    } catch (error: any) {
-        if (!error.response) {
+    } catch (error: unknown) {
+        if (isNetworkError(error)) {
           const tempId = -Date.now();
           useOfflineQueue.getState().enqueue({ type: 'create-task', tempId, payload });
           addTask({ ...payload, id: tempId } as any);
@@ -600,48 +581,36 @@ export default function HomeScreen() {
     }
   }, [statsLoading, todayCompleted]);
 
-  // Professional, scenario-based review prompt trigger
+  // Senaryo bazlı değerlendirme isteme tetikleyicisi.
+  // Karar kuralları evaluateReviewPrompt'ta (saf ve test edilir); burada yalnızca
+  // girdileri toplayıp sonucu uygularız.
   useEffect(() => {
     if (statsLoading || streak === undefined || tasks.length === 0) return;
 
     const checkReviewPrompt = async () => {
       try {
-        const completedCount = tasks.filter(t => t && t.isCompleted).length;
-        // 1. Minimum Kullanım Sınırı (En az 15 tamamlanmış görev)
-        if (completedCount < 15) return;
-
-        // 2. Oturum Kontrolü (Kullanıcı bu oturumda en az 1 görev veya alışkanlık tamamlamış olmalı)
-        if (initialCompletedCountRef.current !== null && completedCount <= initialCompletedCountRef.current) {
-          return;
-        }
-
-        // 3. Stres/Hayal Kırıklığı Kontrolleri (Kötü zamanlama engelleme)
-        if (overdueCount > 0) return; // Gecikmiş görev varsa sorma
-        if (momentum < 70) return; // Momentum düşükse sorma
-        if (todayRating === 1 || todayRating === 2) return; // Bugün kötü geçtiyse sorma
-
-        // 4. Profesyonel Cooldown (60 Günlük Mağaza Kuralı)
         const lastPromptTimeStr = await AsyncStorage.getItem('tazq_last_review_prompt_time');
-        const now = Date.now();
-        const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
-        if (lastPromptTimeStr && (now - parseInt(lastPromptTimeStr, 10)) <= sixtyDaysMs) {
-          return;
-        }
+        const parsedLastPrompt = lastPromptTimeStr ? parseInt(lastPromptTimeStr, 10) : NaN;
 
-        // 5. Başarı Senaryoları (Moments of Delight - En az birisi gerçekleşmeli)
-        // Yalnızca bu oturumda yeni ulaşılan durumları kontrol et (cold start'ta tetiklenmez)
-        const isDailyGoalMet = todayCompleted >= dailyGoal && dailyGoal > 0 &&
-          (initialTodayCompletedRef.current !== null && initialTodayCompletedRef.current < dailyGoal);
-        const isStreakMilestone = streak > 0 && streak % 3 === 0 &&
-          (initialStreakRef.current !== null && streak !== initialStreakRef.current);
-        const isHighMomentum = momentum >= 90 &&
-          (initialMomentumRef.current !== null && initialMomentumRef.current < 90);
+        const decision = evaluateReviewPrompt({
+          completedCount: tasks.filter(t => t && t.isCompleted).length,
+          initialCompletedCount: initialCompletedCountRef.current,
+          initialStreak: initialStreakRef.current,
+          initialMomentum: initialMomentumRef.current,
+          initialTodayCompleted: initialTodayCompletedRef.current,
+          overdueCount,
+          momentum,
+          todayRating,
+          streak,
+          todayCompleted,
+          dailyGoal,
+          lastPromptAt: Number.isNaN(parsedLastPrompt) ? null : parsedLastPrompt,
+          now: Date.now(),
+        });
 
-        if (isDailyGoalMet || isStreakMilestone || isHighMomentum) {
-          setReviewModalVisible(true);
-        }
+        if (decision.shouldPrompt) setReviewModalVisible(true);
       } catch (err) {
-        console.warn('Failed to check review prompt status', err);
+        swallow('index.checkReviewPrompt', err);
       }
     };
 
@@ -959,28 +928,13 @@ export default function HomeScreen() {
     });
     const allTasksDone = pendingToday.length === 0;
 
-    if (soundEffects && !allTasksDone) try {
-      const { createAudioPlayer } = require('expo-audio');
-      const soundFile = require('../assets/sounds/success.mp3');
-      const p = createAudioPlayer(soundFile);
-      const targetVolume = 0.15;
-      p.volume = targetVolume;
-      activeAudioPlayers.add(p);
-      p.play();
-
-      setTimeout(() => {
-        try {
-          p.volume = targetVolume;
-        } catch {}
-      }, 150);
-
-      setTimeout(() => { 
-        try { 
-          p.remove(); 
-          activeAudioPlayers.delete(p);
-        } catch {} 
-      }, 4000);
-    } catch {}
+    if (soundEffects && !allTasksDone) {
+      playSoundEffect(require('../assets/sounds/success.mp3'), {
+        context: 'index.taskCompleteSound',
+        volume: 0.15,
+        reassertVolumeAfterMs: 150,
+      });
+    }
 
     const prefsState = usePrefsStore.getState();
     const isFirstWin = !prefsState.firstWinAt;
@@ -1019,8 +973,8 @@ export default function HomeScreen() {
     }
     try {
       await TaskService.updateTask(taskId, { isCompleted: true });
-    } catch (e: any) {
-      if (!e?.response) {
+    } catch (e: unknown) {
+      if (isNetworkError(e)) {
         // Ağ hatası → kuyruğa al, optimistik tamamlamayı KORU
         useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt: new Date().toISOString() });
       } else {
@@ -1091,42 +1045,6 @@ export default function HomeScreen() {
     if (momentum >= 40) return language === 'tr' ? '📈 İVME KAZANIYORSUN!' : '📈 GAINING SPEED!';
     return language === 'tr' ? '💡 HER GÜN BİR ADIM!' : '💡 ONE STEP AT A TIME!';
   })();
-
-  const handleTodayDoubleTap = () => {
-    const now = Date.now();
-    if (now - todayTapTime.current < 380) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTodayBurstKey(k => k + 1);
-      setTodayHighlight(true);
-      setTimeout(() => setTodayHighlight(false), 1600);
-    }
-    todayTapTime.current = now;
-  };
-
-  const handleMomentumDoubleTap = () => {
-    const now = Date.now();
-    if (now - momentumTapTime.current < 380) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setMomentumBurstKey(k => k + 1);
-      setMomentumHighlight(true);
-      setTimeout(() => setMomentumHighlight(false), 1600);
-    }
-    momentumTapTime.current = now;
-  };
-
-  const handleHeaderDoubleTap = () => {
-    const now = Date.now();
-    if (now - headerTapTime.current < 380) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      Animated.sequence([
-        Animated.spring(headerScale, { toValue: 1.06, useNativeDriver: true, damping: 5, stiffness: 300 } as any),
-        Animated.spring(headerScale, { toValue: 1, useNativeDriver: true, damping: 10, stiffness: 200 } as any),
-      ]).start();
-      setHeaderHighlight(true);
-      setTimeout(() => setHeaderHighlight(false), 1800);
-    }
-    headerTapTime.current = now;
-  };
 
   const getGreeting = () => {
     if (currentHour >= 5 && currentHour < 13) return t.greetingMorning;
@@ -1218,6 +1136,8 @@ export default function HomeScreen() {
                   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                       <Touchable
                           activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={tr ? 'TAZQ' : 'TAZQ'}
                           onPress={handleLogoPress}
                           style={{ padding: 10, justifyContent: 'center', alignItems: 'center' }}
                       >
@@ -1303,190 +1223,13 @@ export default function HomeScreen() {
           streak={streak}
         />
 
-        {/* Periodic App Store Review & Feedback Prompt Modal */}
-        <Modal
+        {/* Değerlendirme / geri bildirim akışı — kendi bileşeninde (state'i de orada). */}
+        <ReviewPromptModal
           visible={reviewModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setReviewModalVisible(false)}
-        >
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: S.lg }}>
-            <MotiView
-              from={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', damping: 15 }}
-              style={{
-                width: '100%',
-                maxWidth: 400,
-                backgroundColor: theme.surface,
-                borderColor: theme.outlineVariant + '40',
-                borderWidth: B.thin,
-                borderRadius: 24,
-                padding: S.lg,
-                gap: S.md,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.25,
-                shadowRadius: 15,
-                elevation: 10,
-              }}
-            >
-              {/* Header */}
-              <View style={{ alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 32 }}>✨</Text>
-                <Text style={{ color: theme.onSurface, fontSize: 18, fontWeight: '800', textAlign: 'center', letterSpacing: -0.5 }}>
-                  {tr ? 'TAZQ\'ı Nasıl Buluyorsunuz?' : 'How do you rate TAZQ?'}
-                </Text>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center', opacity: 0.8 }}>
-                  {tr ? 'Görüşleriniz bizim için çok değerli.' : 'Your feedback is very valuable to us.'}
-                </Text>
-              </View>
-
-              {!reviewSubmitted ? (
-                <>
-                  {/* Rating Stars Selection */}
-                  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: S.md, marginVertical: S.sm }}>
-                    {[1, 2, 3, 4, 5].map((star) => {
-                      const active = reviewRating !== null && star <= reviewRating;
-                      return (
-                        <TouchableOpacity
-                          key={star}
-                          activeOpacity={0.7}
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                            setReviewRating(star);
-                          }}
-                          style={{ padding: 4 }}
-                        >
-                          <Zap
-                            size={32}
-                            color={active ? '#F59E0B' : theme.onSurfaceVariant + '33'}
-                            fill={active ? '#F59E0B' : 'transparent'}
-                          />
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  {/* Negative feedback textarea */}
-                  {reviewRating !== null && reviewRating <= 3 && (
-                    <MotiView
-                      from={{ height: 0, opacity: 0 }}
-                      animate={{ height: 130, opacity: 1 }}
-                      style={{ gap: S.sm, overflow: 'hidden' }}
-                    >
-                      <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700' }}>
-                        {tr ? 'Sizi ne memnun etmedi? Nasıl düzeltebiliriz?' : 'What went wrong? How can we improve?'}
-                      </Text>
-                      <TextInput
-                        value={reviewFeedbackText}
-                        onChangeText={setReviewFeedbackText}
-                        placeholder={tr ? 'Görüşlerinizi yazın…' : 'Write your feedback…'}
-                        placeholderTextColor={theme.onSurfaceVariant + '60'}
-                        multiline
-                        numberOfLines={3}
-                        underlineColorAndroid="transparent"
-                        style={{
-                          backgroundColor: theme.surfaceContainerLow,
-                          borderColor: theme.outlineVariant + '60',
-                          borderWidth: B.thin,
-                          borderRadius: R.md,
-                          color: theme.onSurface,
-                          fontSize: F.body,
-                          padding: S.md,
-                          textAlignVertical: 'top',
-                          height: 80,
-                        }}
-                      />
-                    </MotiView>
-                  )}
-
-                  {/* Action Buttons */}
-                  <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
-                    <Touchable
-                      onPress={async () => {
-                        Haptics.selectionAsync();
-                        setReviewModalVisible(false);
-                        await AsyncStorage.setItem('tazq_last_review_prompt_time', Date.now().toString());
-                      }}
-                      style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.body }}>
-                        {tr ? 'Daha Sonra' : 'Later'}
-                      </Text>
-                    </Touchable>
-
-                    {reviewRating !== null && (
-                      <Touchable
-                        disabled={reviewFeedbackSending}
-                        onPress={async () => {
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                          await AsyncStorage.setItem('tazq_last_review_prompt_time', Date.now().toString());
-                          
-                          if (reviewRating >= 4) {
-                            // Redirect to app store write review
-                            const storeUrl = Platform.OS === 'ios'
-                              ? 'https://apps.apple.com/app/tazq-app/id123456789?action=write-review'
-                              : 'market://details?id=com.tazqapp';
-                            Linking.openURL(storeUrl).catch(() => {});
-                            setReviewModalVisible(false);
-                          } else {
-                            // Negative rating -> send support message
-                            const feedback = reviewFeedbackText.trim();
-                            if (!feedback) {
-                              setReviewModalVisible(false);
-                              return;
-                            }
-                            setReviewFeedbackSending(true);
-                            try {
-                              const SupportService = require('@/shared/services/api').SupportService;
-                              await SupportService.sendMessage(`[APP REVIEW feedback - Star rating: ${reviewRating}/5]\n${feedback}`);
-                              setReviewSubmitted(true);
-                              setTimeout(() => {
-                                setReviewModalVisible(false);
-                                setReviewSubmitted(false);
-                                setReviewRating(null);
-                                setReviewFeedbackText('');
-                              }, 1800);
-                            } catch (err) {
-                              console.warn('Failed to send review feedback to support', err);
-                              setReviewModalVisible(false);
-                            } finally {
-                              setReviewFeedbackSending(false);
-                            }
-                          }
-                        }}
-                        style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        {reviewFeedbackSending ? (
-                          <ActivityIndicator size="small" color="#FFF" />
-                        ) : (
-                          <Text style={{ color: '#FFF', fontWeight: '800', fontSize: F.body }}>
-                            {reviewRating >= 4 ? (tr ? 'Yorum Yap' : 'Rate App') : (tr ? 'Gönder' : 'Submit')}
-                          </Text>
-                        )}
-                      </Touchable>
-                    )}
-                  </View>
-                </>
-              ) : (
-                <MotiView
-                  from={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  style={{ alignItems: 'center', paddingVertical: S.lg, gap: S.md }}
-                >
-                  <Text style={{ fontSize: 44 }}>❤️</Text>
-                  <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '800', textAlign: 'center' }}>
-                    {tr ? 'Geri bildiriminiz için teşekkürler!' : 'Thank you for your feedback!'}
-                  </Text>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, textAlign: 'center', opacity: 0.7 }}>
-                    {tr ? 'TAZQ\'u geliştirmek için durmaksızın çalışıyoruz.' : 'We are constantly working to improve TAZQ.'}
-                  </Text>
-                </MotiView>
-              )}
-            </MotiView>
-          </View>
-        </Modal>
+          onClose={() => setReviewModalVisible(false)}
+          theme={theme}
+          tr={tr}
+        />
 
         <ScrollView
             ref={scrollViewRef}
@@ -1525,7 +1268,7 @@ export default function HomeScreen() {
 
             {/* ── TODAY CARD ── */}
             <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
-            <Touchable onPress={handleTodayDoubleTap} activeOpacity={1}>
+            <Touchable onPress={todayTap.onTap} activeOpacity={1}>
             <BentoCard index={0} style={{ overflow: 'hidden', padding: bentoPad }}>
                 <LinearGradient
                     colors={todayHighlight
@@ -1660,26 +1403,13 @@ export default function HomeScreen() {
                             const pendingHabits = habits.filter(h => h.id !== item.id && !h.completedDates?.includes(habitTodayKey));
                             const allHabitsDone = pendingHabits.length === 0;
 
-                            if (soundEffects && !allHabitsDone) try {
-                              const { createAudioPlayer } = require('expo-audio');
-                              const soundFile = require('../assets/sounds/habit.mp3');
-                              const p = createAudioPlayer(soundFile);
-                              const targetVolume = 0.18;
-                              p.volume = targetVolume;
-                              activeAudioPlayers.add(p);
-                              p.play();
-
-                              setTimeout(() => {
-                                try { p.volume = targetVolume; } catch {}
-                              }, 150);
-
-                              setTimeout(() => { 
-                                try { 
-                                  p.release(); 
-                                  activeAudioPlayers.delete(p);
-                                } catch {} 
-                              }, 4000);
-                            } catch {}
+                            if (soundEffects && !allHabitsDone) {
+                              playSoundEffect(require('../assets/sounds/habit.mp3'), {
+                                context: 'index.habitDoneSound',
+                                volume: 0.18,
+                                reassertVolumeAfterMs: 150,
+                              });
+                            }
 
                             if (allHabitsDone) {
                               require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
@@ -2006,7 +1736,7 @@ export default function HomeScreen() {
 
             {/* ── Section Header — easter egg sadece aktifken görünür ── */}
             {headerHighlight && (
-              <Touchable onPress={handleHeaderDoubleTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
+              <Touchable onPress={headerTap.onTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
                 <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
                   <Text style={{ fontSize: 9, fontWeight: '600', letterSpacing: 1.8, color: theme.primary }}>
                     {language === 'tr' ? '✦ İYİ GİDİYOR' : '✦ LOOKING GOOD'}
@@ -2161,6 +1891,8 @@ export default function HomeScreen() {
                   </Touchable>
                 )}
                 <Touchable
+                  accessibilityRole="button"
+                  accessibilityLabel={tr ? 'Kapat' : 'Close'}
                   onPress={() => setCommandPortalVisible(false)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >

@@ -1,5 +1,6 @@
 import * as Calendar from 'expo-calendar/legacy';
 import { Platform } from 'react-native';
+import { errorMessage } from '@/shared/utils/errors';
 
 export interface CalendarTask {
   id: number;
@@ -79,8 +80,8 @@ export async function addTaskToCalendar(task: CalendarTask): Promise<CalendarSyn
     });
 
     return { success: true, eventId };
-  } catch (e: any) {
-    return { success: false, error: e?.message ?? 'unknown' };
+  } catch (e: unknown) {
+    return { success: false, error: errorMessage(e) };
   }
 }
 
@@ -137,8 +138,8 @@ export async function addFocusBlockToCalendar(
     });
 
     return { success: true, eventId };
-  } catch (e: any) {
-    return { success: false, error: e?.message ?? 'unknown' };
+  } catch (e: unknown) {
+    return { success: false, error: errorMessage(e) };
   }
 }
 

@@ -206,6 +206,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddSingleton<IJwtService, JwtService>();
 // Grace süresi dolmuş silinmiş hesapları kalıcı temizleyen arka plan servisi
 builder.Services.AddHostedService<Tazq_App.Services.AccountPurgeService>();
+// Request dışı yan işler (mail) için kuyruk + tüketici. Singleton kuyruk, her iş kendi scope'unda.
+builder.Services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+builder.Services.AddHostedService<QueuedHostedService>();
 var encryptionKey = Environment.GetEnvironmentVariable("ENCRYPTION_KEY") ?? jwtKey;
 builder.Services.AddSingleton<ICryptoService>(new CryptoService(encryptionKey));
 
@@ -233,6 +236,10 @@ builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
 builder.Services.AddSingleton<IAppleTokenValidator, AppleTokenValidator>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IContentService, ContentService>();
+builder.Services.AddScoped<ISupportService, SupportService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<ISystemService, SystemService>();
 builder.Services.AddScoped<IFocusSessionService, FocusSessionService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IGroqService, GroqService>();
@@ -304,17 +311,15 @@ using (var scope = app.Services.CreateScope())
         var existing = db.Users.FirstOrDefault(u => u.Email == adminEmail);
         if (existing == null)
         {
-            var salt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
-            using var pbkdf2 = new System.Security.Cryptography.Rfc2898DeriveBytes(
-                adminPassword, salt, 100000, System.Security.Cryptography.HashAlgorithmName.SHA256);
-            var hash = pbkdf2.GetBytes(32);
+            var hashed = Tazq_App.Services.PasswordHasher.Hash(adminPassword);
 
             db.Users.Add(new Tazq_App.Models.User
             {
                 Name = "Admin",
                 Email = adminEmail,
-                PasswordHash = Convert.ToBase64String(hash),
-                PasswordSalt = Convert.ToBase64String(salt),
+                PasswordHash = hashed.Hash,
+                PasswordSalt = hashed.Salt,
+                PasswordIterations = hashed.Iterations,
                 Role = "Admin"
             });
             db.SaveChanges();

@@ -1,8 +1,9 @@
 import { requestCalendarPermissions, syncTaskToCalendar, deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Calendar from 'expo-calendar';
+// calendarSync 'expo-calendar/legacy' kullanır; mock aynı yolu hedeflemezse hiç uygulanmaz.
+import * as Calendar from 'expo-calendar/legacy';
 
-jest.mock('expo-calendar', () => ({
+jest.mock('expo-calendar/legacy', () => ({
   requestCalendarPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
   getCalendarsAsync: jest.fn().mockResolvedValue([{ title: 'TAZQ', id: 'tazq-cal-id', source: { id: 'source-1', type: 'local' } }]),
   createCalendarAsync: jest.fn().mockResolvedValue('tazq-cal-id'),

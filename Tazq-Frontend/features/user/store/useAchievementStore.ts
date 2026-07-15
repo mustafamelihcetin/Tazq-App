@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-const activeAudioPlayers = new Set<any>();
+import { swallow } from '@/shared/utils/swallow';
+import { playSoundEffect } from '@/shared/utils/soundEffects';
 
 export interface Achievement {
   id: string;
@@ -38,8 +39,8 @@ interface AchievementState {
 // require ile lazy: import döngüsü oluşmasın.
 function pushCloud() {
   try {
-    require('./usePrefsStore').usePrefsStore.getState().syncToCloud();
-  } catch {}
+    require('@/features/modes/store/usePrefsStore').usePrefsStore.getState().syncToCloud();
+  } catch (e) { swallow('useAchievementStore.pushCloud', e); }
 }
 
 export const useAchievementStore = create<AchievementState>()(
@@ -56,7 +57,7 @@ export const useAchievementStore = create<AchievementState>()(
       trigger: (achievement) => {
         const { unlocked, pending } = get();
         if (unlocked.includes(achievement.id)) return; // idempotent — bir kez
-        try { require('@/shared/utils/analytics').track('achievement_unlocked', { id: achievement.id }); } catch {}
+        try { require('@/shared/utils/analytics').track('achievement_unlocked', { id: achievement.id }); } catch (e) { swallow('achievementStore.trackUnlockAnalytics', e); }
         const nextUnlocked = [...unlocked, achievement.id];
         if (pending) {
           // Zaten gösterimde bir kutlama var → sıraya al
@@ -68,23 +69,15 @@ export const useAchievementStore = create<AchievementState>()(
 
         // Play level up SFX
         try {
-          const { usePrefsStore } = require('../../../modes/store/usePrefsStore');
-          const { soundEffects } = usePrefsStore.getState();
-          if (soundEffects) {
-            const { createAudioPlayer } = require('expo-audio');
-            const p = createAudioPlayer(require('../../../assets/sounds/levelup.mp3'));
-            p.volume = 0.85;
-            activeAudioPlayers.add(p);
-            p.play();
-            setTimeout(() => { 
-              try { 
-                p.remove(); 
-                activeAudioPlayers.delete(p);
-              } catch {} 
-            }, 3000);
+          const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
+          if (usePrefsStore.getState().soundEffects) {
+            playSoundEffect(require('../../../assets/sounds/levelup.mp3'), {
+              context: 'achievementStore.levelUpSound',
+              releaseAfterMs: 3000,
+            });
           }
         } catch (e) {
-          // Ignore sound playback errors
+          swallow('achievementStore.readSoundPref', e);
         }
       },
 

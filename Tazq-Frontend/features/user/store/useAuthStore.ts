@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { swallow } from '@/shared/utils/swallow';
 
 const SECURE_TOKEN_KEY = 'tazq-jwt-token';
 const SECURE_REFRESH_KEY = 'tazq-refresh-token';
@@ -56,8 +57,8 @@ const secureStorage = {
   },
   removeItem: async (name: string) => {
     if (name === 'tazq-auth-storage' && SecureStore) {
-      try { await SecureStore.deleteItemAsync(SECURE_TOKEN_KEY); } catch {}
-      try { await SecureStore.deleteItemAsync(SECURE_REFRESH_KEY); } catch {}
+      try { await SecureStore.deleteItemAsync(SECURE_TOKEN_KEY); } catch (e) { swallow('authStore.secureTokenDelete', e, { capture: true }); }
+      try { await SecureStore.deleteItemAsync(SECURE_REFRESH_KEY); } catch (e) { swallow('authStore.secureRefreshTokenDelete', e, { capture: true }); }
     }
     return AsyncStorage.removeItem(name);
   },
@@ -78,7 +79,7 @@ interface User {
 }
 
 function clearLocalUserData() {
-  const safe = (fn: () => void) => { try { fn(); } catch {} };
+  const safe = (fn: () => void) => { try { fn(); } catch (e) { swallow('authStore.clearLocalUserData', e, { capture: true }); } };
   // Keep onboarding status on logout/delete so it only runs once per app download
   // safe(() => { AsyncStorage.removeItem('tazq-onboarding-done'); });
   safe(() => require('@/features/tasks/store/useTaskStore').useTaskStore.setState({ tasks: [], isLoading: false }));
@@ -121,7 +122,7 @@ function hydrateProfilePrefs(user: User | null) {
     if (typeof user.avatarBorderColor === 'string' && user.avatarBorderColor.trim()) prefs.setAvatarBorderColor(user.avatarBorderColor);
     // Mod seçimleri, planlar, üretkenlik saati vb. — DB'de doluysa yerele hidrate et.
     if (typeof user.preferences === 'string' && user.preferences.trim()) prefs.hydrateFromCloud(user.preferences);
-  } catch {}
+  } catch (e) { swallow('authStore.hydrateProfilePrefs', e, { capture: true }); }
 }
 
 interface AuthState {
@@ -173,7 +174,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const rt = useAuthStore.getState().refreshToken;
           if (rt) require('@/shared/services/api').AuthService.logout(rt);
-        } catch {}
+        } catch (e) { swallow('authStore.logoutRevokeRefreshToken', e, { capture: true }); }
         // isLoggedIn=false; lastUserId KORUNUR ki bir sonraki girişte hesap değişimi
         // tespit edilebilsin (aynı kullanıcı geri girerse veri sıfırlanmasın).
         set({ user: null, token: null, refreshToken: null, isLoggedIn: false, isFirstLogin: false });

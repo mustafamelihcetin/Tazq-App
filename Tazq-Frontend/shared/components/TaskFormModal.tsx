@@ -10,6 +10,8 @@ import { parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS 
 import { S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
+import { swallow } from '@/shared/utils/swallow';
+import type { AppTheme } from '@/shared/constants/Colors';
 
 const SWIPE_THRESHOLD = -80;
 
@@ -64,7 +66,7 @@ function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrenc
   return isTR ? `Sonraki: ${formatted}` : `Next: ${formatted}`;
 }
 
-const VoiceWave = ({ active, theme }: { active: boolean; theme: any }) => (
+const VoiceWave = ({ active, theme }: { active: boolean; theme: AppTheme }) => (
   <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
     <RNAnimated.View
       style={{
@@ -88,7 +90,7 @@ interface TaskFormModalProps {
   task: any; // Task payload to edit, or null for creation
   onSave: (payload: any) => Promise<void>;
   onDelete?: (id: number) => Promise<void>;
-  theme: any;
+  theme: AppTheme;
   isDark: boolean;
   language: string;
   t: any;
@@ -690,6 +692,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                   {RECURRENCE_OPTIONS.map((r) => (
                     <Touchable
                       key={r.key}
+                      hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }}
                       onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, recurrence: r.key })); }}
                       style={[styles.priorityTab, { backgroundColor: form.recurrence === r.key ? theme.secondary : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 42 }]}
                     >
@@ -829,6 +832,10 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 {form.subtasks.map((sub, i) => (
                   <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
                     <Touchable
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: sub.done }}
+                      accessibilityLabel={`${sub.text} — ${sub.done ? (language === 'tr' ? 'tamamlandı' : 'done') : (language === 'tr' ? 'tamamlanmadı' : 'not done')}`}
                       onPress={() => {
                         const subs = [...form.subtasks];
                         subs[i].done = !subs[i].done;
@@ -843,6 +850,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       {sub.text}
                     </Text>
                     <Touchable
+                      accessibilityRole="button"
+                      accessibilityLabel={language === 'tr' ? 'Alt görevi sil' : 'Delete subtask'}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                         setForm(f => ({ ...f, subtasks: f.subtasks.filter((_, idx) => idx !== i) }));
@@ -871,6 +880,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     />
                   </View>
                   <Touchable
+                    accessibilityRole="button"
+                    accessibilityLabel={language === 'tr' ? 'Alt görev ekle' : 'Add subtask'}
                     onPress={() => {
                       if (!newSubtaskText.trim()) return;
                       setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));
@@ -892,7 +903,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>
                         {translateTag(tag, language as 'tr' | 'en')}
                       </Text>
-                      <Touchable onPress={() => setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tag) }))} style={{ padding: 2 }}>
+                      <Touchable accessibilityRole="button" accessibilityLabel={language === 'tr' ? `${tag} etiketini kaldır` : `Remove tag ${tag}`} onPress={() => setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tag) }))} style={{ padding: 2 }}>
                         <X size={12} color={theme.primary} />
                       </Touchable>
                     </View>
@@ -944,7 +955,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     try {
                       await onDelete(task.id);
                       onClose();
-                    } catch {}
+                    } catch (e) { swallow('TaskFormModal.toggleTag', e); }
                     finally { setSaving(false); }
                   }}
                   style={{ alignSelf: 'center', marginTop: S.sm, padding: S.sm }}

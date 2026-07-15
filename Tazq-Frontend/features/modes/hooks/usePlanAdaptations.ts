@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect } from 'react';
+import { swallow } from '@/shared/utils/swallow';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePrefsStore } from '../store/usePrefsStore';
@@ -672,7 +673,7 @@ export function usePlanAdaptations() {
     // Sync to cloud if any preferences were changed
     const finalPrefs = usePrefsStore.getState();
     if (JSON.stringify(freshSeasonal) !== JSON.stringify(finalPrefs.seasonal)) {
-      finalPrefs.syncToCloud().catch(() => {});
+      finalPrefs.syncToCloud().catch((e) => swallow('planAdaptations.syncPrefsToCloud', e, { capture: true }));
     }
 
     // NOT: shouldRunToday kapısı buradan KALDIRILDI. Aşağıdaki duplicate-dedupe
