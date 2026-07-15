@@ -130,5 +130,91 @@ namespace Tazq_Backend.Tests
             // Assert
             Assert.NotEqual(hash1, hash2); // Cross-user security boundary
         }
+
+        // ── Anahtar rotasyonu ────────────────────────────────────────────────
+        //
+        // GERÇEK HATA: ENCRYPTION_KEY tanımlı olmadığı için şifreleme sessizce JWT
+        // anahtarına düşüyordu. JWT (doğru olarak) döndürülebilen bir sırdır — yani
+        // rotasyon = veri ölümü. Kullanıcı bunu "⚠️ (çözülemeyen başlık)" olarak gördü.
+
+        private const string OldSecret = "eski-sir-1234567890123456789012";
+        private const string NewSecret = "yeni-sir-1234567890123456789012";
+
+        [Fact]
+        public void Anahtar_degisince_eski_veri_okunamaz_hale_gelir()
+        {
+            // Hatanın KENDİSİNİ belgeleyen test: rotasyon desteği olmasaydı olan buydu.
+            var eski = new CryptoService(OldSecret);
+            var sifreli = eski.Encrypt("Sunumu bitir", eski.GetKeyForUser(7));
+
+            var yeni = new CryptoService(NewSecret);
+            Assert.ThrowsAny<Exception>(() => yeni.Decrypt(sifreli, yeni.GetKeyForUser(7)));
+        }
+
+        [Fact]
+        public void Eski_sir_tanimliysa_veri_KURTARILIR()
+        {
+            var eski = new CryptoService(OldSecret);
+            var sifreli = eski.Encrypt("Sunumu bitir", eski.GetKeyForUser(7));
+
+            // Yeni sırla çalışan servis, eski sırrı da tanıyor.
+            var yeni = new CryptoService(NewSecret, new[] { OldSecret });
+            var legacy = yeni.GetLegacyKeysForUser(7);
+
+            Assert.Single(legacy);
+            Assert.Equal("Sunumu bitir", yeni.Decrypt(sifreli, legacy[0]));
+        }
+
+        [Fact]
+        public void Eski_anahtar_sifreleme_icin_KULLANILMAZ()
+        {
+            // Yeni veri HER ZAMAN geçerli anahtarla yazılmalı; yoksa borç büyür.
+            var svc = new CryptoService(NewSecret, new[] { OldSecret });
+            var sifreli = svc.Encrypt("yeni görev", svc.GetKeyForUser(7));
+
+            // Geçerli anahtarla okunabiliyor…
+            Assert.Equal("yeni görev", svc.Decrypt(sifreli, svc.GetKeyForUser(7)));
+            // …eski anahtarla OKUNAMIYOR, yani eskiyle yazılmamış.
+            Assert.ThrowsAny<Exception>(() => svc.Decrypt(sifreli, svc.GetLegacyKeysForUser(7)[0]));
+        }
+
+        [Fact]
+        public void Yanlis_anahtar_SESSIZCE_yanlis_metin_dondurmez()
+        {
+            // "Anahtarları sırayla dene" yaklaşımının güvenli olmasının SEBEBİ bu:
+            // AES-GCM'in doğrulama etiketi yanlış anahtarı yakalar ve exception atar.
+            // Etiketsiz bir şifrede (ör. AES-CBC) deneme yapmak çöp düz metin üretirdi.
+            var a = new CryptoService(OldSecret);
+            var b = new CryptoService(NewSecret);
+            var sifreli = a.Encrypt("gizli", a.GetKeyForUser(1));
+
+            Assert.ThrowsAny<Exception>(() => b.Decrypt(sifreli, b.GetKeyForUser(1)));
+        }
+
+        [Fact]
+        public void Bos_eski_sirlar_elenir()
+        {
+            // Yapılandırmada "A,,B" ya da "A, B" yazmak sık bir kaza; boş sırdan türetilen
+            // anahtar sessizce çöp üretir ve her çözme denemesini yavaşlatır.
+            var svc = new CryptoService(NewSecret, new[] { OldSecret, "", "   ", OldSecret });
+            Assert.Single(svc.GetLegacyKeysForUser(1));
+        }
+
+        [Fact]
+        public void Eski_sir_yoksa_liste_bostur()
+        {
+            Assert.Empty(new CryptoService(NewSecret).GetLegacyKeysForUser(1));
+        }
+
+        [Fact]
+        public void Anahtar_kullaniciya_ozel_kalir()
+        {
+            // Rotasyon eklerken bu bozulmamalı: bir kullanıcının anahtarı diğerininkini açmamalı.
+            var svc = new CryptoService(NewSecret, new[] { OldSecret });
+            var sifreli = svc.Encrypt("özel", svc.GetKeyForUser(1));
+
+            Assert.ThrowsAny<Exception>(() => svc.Decrypt(sifreli, svc.GetKeyForUser(2)));
+            Assert.ThrowsAny<Exception>(() => svc.Decrypt(sifreli, svc.GetLegacyKeysForUser(2)[0]));
+        }
     }
 }

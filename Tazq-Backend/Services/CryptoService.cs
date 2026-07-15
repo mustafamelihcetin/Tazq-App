@@ -3,9 +3,22 @@ using System.Text;
 
 namespace Tazq_App.Services
 {
-    public class CryptoService(string secretKey) : ICryptoService
+    /// <param name="secretKey">Geçerli ana sır — yeni veri bununla şifrelenir.</param>
+    /// <param name="legacySecrets">
+    /// Eski ana sırlar, YALNIZCA çözme için. Şifreleme anahtarı değiştiğinde eski veriyi
+    /// kurtaran tek şey budur; yoksa veri sessizce ölür (bkz. ICryptoService).
+    /// </param>
+    public class CryptoService(string secretKey, IEnumerable<string>? legacySecrets = null) : ICryptoService
     {
-        private readonly string _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey), "EncryptionKey is required");
+        private readonly string _secretKey = secretKey ?? throw new ArgumentNullException(nameof(secretKey), "Encryption key missing");
+
+        // Boş/whitespace girdiler elenir: yapılandırmada "A,,B" ya da "A, B" yazılması
+        // sık bir kaza ve boş bir sırdan türetilen anahtar sessizce çöp üretir.
+        private readonly string[] _legacySecrets = (legacySecrets ?? Array.Empty<string>())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.Trim())
+            .Distinct()
+            .ToArray();
 
         // Encrypts plain text using AES-GCM
         public string Encrypt(string plainText, byte[] key)
@@ -54,9 +67,17 @@ namespace Tazq_App.Services
         }
 
         // Generates a user-specific AES key using HMAC-SHA256 and a master secret
-        public byte[] GetKeyForUser(int userId)
+        public byte[] GetKeyForUser(int userId) => DeriveKey(_secretKey, userId);
+
+        /// <inheritdoc />
+        public IReadOnlyList<byte[]> GetLegacyKeysForUser(int userId) =>
+            _legacySecrets.Select(s => DeriveKey(s, userId)).ToList();
+
+        // Anahtar türetimi TEK yerde: sır + kullanıcı. İki kez yazılsaydı biri değişip
+        // diğeri kalabilir ve o an tüm veri okunamaz hale gelirdi.
+        private static byte[] DeriveKey(string secret, int userId)
         {
-            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_secretKey));
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
             return hmac.ComputeHash(Encoding.UTF8.GetBytes($"user:{userId}"));
         }
 

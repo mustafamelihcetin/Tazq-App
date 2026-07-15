@@ -301,11 +301,23 @@ namespace Tazq_App.Services
         // o alanı atlar, anlamlı bir uyarı loglar (task id + alan + sebep) ve null döner.
         // Böylece tek bir bozuk satır (ör. eski/hasarlı şifreli veri) bütün görev
         // listesini 500'e düşürmez — kalan görevler normal yüklenir.
-        private string? SafeDecrypt(string? cipher, byte[] key, int taskId, string field)
+        /// <summary>
+        /// Şifreli alanı çözer. Geçerli anahtar tutmazsa ESKİ anahtarları dener.
+        ///
+        /// Neden eski anahtarlar: şifreleme anahtarı değişince eski veri okunamaz hale
+        /// gelir. Uygulamada bu yaşandı — ENCRYPTION_KEY tanımlı olmadığı için şifreleme
+        /// sessizce JWT anahtarına düşüyordu ve JWT (doğru olarak) döndürülebilen bir sır.
+        /// Kullanıcı sonucu "⚠️ (çözülemeyen başlık)" olarak gördü.
+        ///
+        /// AES-GCM'in doğrulama etiketi (tag) burada işimize yarıyor: yanlış anahtarla
+        /// çözme sessizce çöp üretmez, EXCEPTION atar. Yani "denemek" güvenli —
+        /// yanlış anahtarla yanlış düz metin döndürme riski yok.
+        /// </summary>
+        private string? SafeDecrypt(string? cipher, byte[] key, IReadOnlyList<byte[]> legacyKeys, int taskId, string field)
         {
             if (string.IsNullOrEmpty(cipher)) return string.Empty;
 
-            // Geriye dönük uyumluluk: Eğer veri zaten şifrelenmemiş düz metin/JSON ise (örn: '[]' veya düz metin),
+            // Geriye dönük uyumluluk: Eğer veri zaten şifrelenmemiş düz metin/JSON ise (örn: '[]' veya
             // şifre çözmeyi atlayıp doğrudan verinin kendisini dönelim.
             if ((cipher.StartsWith('[') && cipher.EndsWith(']')) || !IsBase64String(cipher))
             {
@@ -316,11 +328,31 @@ namespace Tazq_App.Services
             {
                 return _cryptoService.Decrypt(cipher, key);
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.LogWarning("Decrypt failed for Task {TaskId} field {Field}: {Error}", taskId, field, ex.Message);
-                return null;
+                // Geçerli anahtar tutmadı — eski sırları dene.
             }
+
+            for (int i = 0; i < legacyKeys.Count; i++)
+            {
+                try
+                {
+                    var plain = _cryptoService.Decrypt(cipher, legacyKeys[i]);
+                    // SESSİZ GEÇMİYORUZ: bu kayıt eski bir anahtarla yazılmış ve hâlâ öyle
+                    // duruyor. Okunuyor ama borç: eski sır yapılandırmadan çıkarıldığı gün
+                    // ölür. Log, yeniden şifreleme ihtiyacının tek görünür izi.
+                    _logger.LogWarning(
+                        "Task {TaskId} field {Field} ESKİ anahtarla çözüldü (#{Index}). Yeniden şifrelenmeli.",
+                        taskId, field, i);
+                    return plain;
+                }
+                catch { /* sıradaki eski anahtarı dene */ }
+            }
+
+            _logger.LogWarning(
+                "Decrypt failed for Task {TaskId} field {Field}: geçerli ve {Count} eski anahtarın hiçbiri tutmadı.",
+                taskId, field, legacyKeys.Count);
+            return null;
         }
 
         private bool IsBase64String(string s)
@@ -340,14 +372,21 @@ namespace Tazq_App.Services
 
         private void DecryptTask(TaskItem task, byte[] key)
         {
-            // Title çözülemezse görev yine listede görünsün (silinmesin) — yer-tutucu başlık.
-            task.Title = SafeDecrypt(task.Title, key, task.Id, "Title") ?? "⚠️ (çözülemeyen başlık)";
-            task.Description = SafeDecrypt(task.Description, key, task.Id, "Description") ?? string.Empty;
+            // Eski sırlar tanımlıysa onlarla da denenir — anahtar döndürüldüğünde veri ölmesin.
+            var legacy = _cryptoService.GetLegacyKeysForUser(task.UserId);
 
-            var decryptedTags = SafeDecrypt(task.TagsJson, key, task.Id, "Tags");
+            // Title çözülemezse görev yine listede görünsün (silinmesin) — yer-tutucu başlık.
+            // Metin KULLANICI diliyle: "(çözülemeyen başlık)" bir geliştirici cümlesiydi ve
+            // kullanıcıya iç hatayı sızdırıyordu. Kullanıcının yapabileceği tek şey silmek;
+            // o yüzden cümle onu söylüyor.
+            task.Title = SafeDecrypt(task.Title, key, legacy, task.Id, "Title")
+                ?? "⚠️ Bu görev okunamıyor — silebilirsin";
+            task.Description = SafeDecrypt(task.Description, key, legacy, task.Id, "Description") ?? string.Empty;
+
+            var decryptedTags = SafeDecrypt(task.TagsJson, key, legacy, task.Id, "Tags");
             task.Tags = TryDeserialize<List<string>>(decryptedTags) ?? new List<string>();
 
-            var decryptedSubs = SafeDecrypt(task.SubtasksJson, key, task.Id, "Subtasks");
+            var decryptedSubs = SafeDecrypt(task.SubtasksJson, key, legacy, task.Id, "Subtasks");
             task.Subtasks = TryDeserialize<List<SubtaskItem>>(decryptedSubs) ?? new List<SubtaskItem>();
         }
 

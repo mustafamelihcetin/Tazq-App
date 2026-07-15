@@ -726,18 +726,32 @@ export default function ProfileScreen() {
               </>
             )}
 
-            {/* ── MERKEZ ── */}
-            <SectionHeader title={language === 'tr' ? 'MERKEZ' : 'HUB'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
-            <SettingsCard theme={theme} isDark={isDark}>
-                <SettingItem
-                    icon={<CalendarDays size={ICON.md} color={theme.primary} />}
-                    label={language === 'tr' ? 'Haftalık Merkez' : 'Weekly Hub'}
-                    sub={language === 'tr' ? 'Momentum, seri ve haftalık bakış' : 'Momentum, streak & weekly view'}
-                    bg={theme.primary + '15'}
-                    onPress={() => router.push('/cockpit')}
-                    theme={theme}
-                />
-            </SettingsCard>
+            {/*
+              MERKEZ — YALNIZCA Sade modda.
+
+              /cockpit zaten alt navigasyonda bir sekme, yani Pro modda bu satır bir
+              dokunuş uzaktaki şeyi ikinci kez sunuyordu: koca bir bölüm başlığı + satır,
+              sıfır yeni yetenek. Ayarlar sayfasının "kalabalık" hissinin bir parçası buydu.
+
+              Ama körlemesine silinemez: Sade mod sekmeleri home/tasks/focus ile sınırlıyor
+              (bkz. BottomNavBar.LITE_TAB_IDS), yani orada bu satır cockpit'e TEK erişim yolu.
+              Koşullu olunca ikisi de doğru: Pro'da yok, Sade'de var.
+            */}
+            {uiMode === 'lite' && (
+              <>
+              <SectionHeader title={language === 'tr' ? 'MERKEZ' : 'HUB'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+              <SettingsCard theme={theme} isDark={isDark}>
+                  <SettingItem
+                      icon={<CalendarDays size={ICON.md} color={theme.primary} />}
+                      label={language === 'tr' ? 'Haftalık Merkez' : 'Weekly Hub'}
+                      sub={language === 'tr' ? 'Momentum, seri ve haftalık bakış' : 'Momentum, streak & weekly view'}
+                      bg={theme.primary + '15'}
+                      onPress={() => router.push('/cockpit')}
+                      theme={theme}
+                  />
+              </SettingsCard>
+              </>
+            )}
 
             {/* ── YASAL & GİZLİLİK ── */}
             <SectionHeader title={t.legalAndPrivacy || (language === 'tr' ? 'YASAL & GİZLİLİK' : 'LEGAL & PRIVACY')} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />

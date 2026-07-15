@@ -209,8 +209,41 @@ builder.Services.AddHostedService<Tazq_App.Services.AccountPurgeService>();
 // Request dışı yan işler (mail) için kuyruk + tüketici. Singleton kuyruk, her iş kendi scope'unda.
 builder.Services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
 builder.Services.AddHostedService<QueuedHostedService>();
-var encryptionKey = Environment.GetEnvironmentVariable("ENCRYPTION_KEY") ?? jwtKey;
-builder.Services.AddSingleton<ICryptoService>(new CryptoService(encryptionKey));
+// ── Şifreleme anahtarı ────────────────────────────────────────────────────
+//
+// TEHLİKELİ VARSAYILAN: ENCRYPTION_KEY yoksa jwtKey'e düşüyor. Bu iki anahtarın ömrü
+// TABAN TABANA ZIT:
+//
+//   JWT anahtarı  → düzenli DÖNDÜRÜLMELİ (güvenlik iyi pratiği; sızarsa değiştirilir)
+//   Şifreleme a.  → ASLA değişmemeli (veri yeniden şifrelenmeden değişirse VERİ KAYBOLUR)
+//
+// İkisini bağlamak şu demek: JWT sırrını döndürdüğün gün tüm kullanıcı görevlerinin
+// başlıkları okunamaz hale gelir. Kullanıcı bunu "başlığı çözülemeyen görev" olarak
+// bildirdi — SafeDecrypt null dönüyor, satır boş çiziliyor (bkz. TaskService.SafeDecrypt).
+//
+// GEÇİŞ (sıfır riskli): ENCRYPTION_KEY'i ŞU ANKİ jwtKey değerine eşitle. Mevcut veri
+// okunmaya devam eder ve JWT bundan sonra güvenle döndürülebilir. Önce yeni/rastgele bir
+// anahtar üretip koymak, o anahtarla şifrelenmemiş TÜM mevcut veriyi anında kaybettirir.
+//
+// ENCRYPTION_KEY_LEGACY: virgülle ayrılmış ESKİ sırlar — yalnızca ÇÖZME için denenir.
+// Anahtar zaten döndürüldüyse ve eski değer elinizdeyse, buraya koymak okunamayan
+// kayıtları GERİ GETİRİR (bkz. TaskService.SafeDecrypt). Standart key-rotation deseni:
+// yeniyle yaz, eskilerle de oku.
+var encryptionKey = Environment.GetEnvironmentVariable("ENCRYPTION_KEY");
+if (string.IsNullOrEmpty(encryptionKey))
+{
+    encryptionKey = jwtKey;
+    // Sessiz kalmıyoruz: bu yapılandırma çalışır ama bir saatli bombadır. Log'da
+    // görünmesi, birinin JWT'yi döndürmeden ÖNCE fark etmesi için tek şans.
+    Console.Error.WriteLine(
+        "[KRİTİK YAPILANDIRMA] ENCRYPTION_KEY tanımlı değil; şifreleme JWT anahtarına " +
+        "düşüyor. JWT anahtarı döndürülürse ŞİFRELİ KULLANICI VERİSİ OKUNAMAZ HALE GELİR. " +
+        "Çözüm: ENCRYPTION_KEY'i şu anki JWT anahtarının değerine eşitle (mevcut veri korunur), " +
+        "sonra JWT'yi bağımsız olarak döndür.");
+}
+var legacyEncryptionKeys = (Environment.GetEnvironmentVariable("ENCRYPTION_KEY_LEGACY") ?? "")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+builder.Services.AddSingleton<ICryptoService>(new CryptoService(encryptionKey, legacyEncryptionKeys));
 
 builder.Services.Configure<SmtpSettings>(opt =>
 {
