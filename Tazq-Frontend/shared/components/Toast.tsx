@@ -6,6 +6,7 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
+import { S, ICON, R } from '@/shared/constants/tokens';
 
 const COLORS = {
   error: { bg: '#ff3b30', icon: AlertCircle },
@@ -48,7 +49,7 @@ export const Toast = () => {
             onPress={hide}
             style={styles.close}
           >
-            <X size={16} color="rgba(255,255,255,0.8)" />
+            <X size={ICON.sm} color="rgba(255,255,255,0.8)" />
           </Touchable>
         </MotiView>
       )}
@@ -63,10 +64,10 @@ const styles = StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    gap: S.smd,
+    borderRadius: R.lg,
+    paddingVertical: S.md,
+    paddingHorizontal: S.md,
     zIndex: 9997,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -81,17 +82,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: S.smd,
+    paddingVertical: S.xs,
+    borderRadius: R.sm,
     backgroundColor: 'rgba(255,255,255,0.25)',
   },
   actionText: {
     color: '#fff',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   close: {
-    padding: 4,
+    padding: S.xs,
   },
 });

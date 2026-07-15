@@ -10,7 +10,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes';
 import { useHabitStore } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
-import { S, R, F, B, TRACKING, SPRING, MAX_W } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W } from '@/shared/constants/tokens';
 import { track } from '@/shared/utils/analytics';
 import { renderModeEmojiIcon } from '@/features/modes';
 import { localizeSporGoal } from '@/features/modes';
@@ -142,9 +142,9 @@ export default function ModOzetScreen() {
 
   const Stat = ({ icon, value, label, color }: { icon: React.ReactNode; value: string; label: string; color: string }) => (
     <View style={[styles.statCard, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
-      <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: color + '18', alignItems: 'center', justifyContent: 'center', marginBottom: S.xs }}>{icon}</View>
-      <Text style={{ color: theme.onSurface, fontSize: F.title, fontWeight: '900', letterSpacing: -0.5 }}>{value}</Text>
-      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', opacity: 0.7 }}>{label}</Text>
+      <View style={{ width: 32, height: 32, borderRadius: R.sm, backgroundColor: color + '18', alignItems: 'center', justifyContent: 'center', marginBottom: S.xs }}>{icon}</View>
+      <Text style={{ color: theme.onSurface, fontSize: F.title, fontWeight: '700', letterSpacing: -0.5 }}>{value}</Text>
+      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{label}</Text>
     </View>
   );
 
@@ -159,11 +159,11 @@ export default function ModOzetScreen() {
           <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
         </Animated.View>
         <View style={[styles.headerRow, { paddingTop: insets.top }]}>
-          <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'}>
+          <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'}>
             <View style={styles.iconBtn}>
-              <ArrowLeft size={24} color={theme.onSurface} />
+              <ArrowLeft size={ICON.lg} color={theme.onSurface} />
             </View>
-            <Text numberOfLines={1} style={{ fontSize: 20, fontWeight: '800', color: theme.onSurface, letterSpacing: -0.5 }}>{navTitle}</Text>
+            <Text numberOfLines={1} style={{ fontSize: 20, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{navTitle}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -171,15 +171,15 @@ export default function ModOzetScreen() {
       {activeCount === 0 ? (
         <View style={[styles.center, { paddingTop: HEADER_H + insets.top }]}>
           <Text style={{ fontSize: 40, marginBottom: S.md }}>🧭</Text>
-          <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', textAlign: 'center', marginBottom: 6 }}>{tr ? 'Henüz aktif mod yok' : 'No active modes yet'}</Text>
+          <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>{tr ? 'Henüz aktif mod yok' : 'No active modes yet'}</Text>
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center', lineHeight: 20, marginBottom: S.lg }}>{tr ? 'Bir hedef aç — buradan tüm modlarının gidişatını tek bakışta görürsün.' : 'Turn on a goal — track all your modes at a glance here.'}</Text>
           <TouchableOpacity onPress={() => router.back()} style={{ paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: theme.primary }} accessibilityRole="button">
-            <Text style={{ color: '#fff', fontWeight: '800' }}>{tr ? 'Mod Seç' : 'Pick a Mode'}</Text>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{tr ? 'Mod Seç' : 'Pick a Mode'}</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <Animated.ScrollView
-          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: HEADER_H + insets.top + S.xs, paddingBottom: 120, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: HEADER_H + insets.top + S.xs, paddingBottom: S.xxl, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
           onScroll={onScroll}
@@ -189,34 +189,34 @@ export default function ModOzetScreen() {
           {/* İçgörü satırı */}
           {coachLine ? (
             <View style={[styles.coach, { backgroundColor: (nearest?.color ?? theme.primary) + '14', borderColor: (nearest?.color ?? theme.primary) + '33' }]}>
-              <Text style={{ color: nearest?.color ?? theme.primary, fontSize: F.caption, fontWeight: '900', letterSpacing: 0.5, marginBottom: 4 }}>{tr ? '🧭 GENEL DURUM' : '🧭 OVERVIEW'}</Text>
+              <Text style={{ color: nearest?.color ?? theme.primary, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5, marginBottom: S.xs }}>{tr ? '🧭 GENEL DURUM' : '🧭 OVERVIEW'}</Text>
               <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', lineHeight: 22 }}>{coachLine}</Text>
             </View>
           ) : null}
 
           {/* Özet ölçütleri */}
           <View style={{ flexDirection: 'row', gap: S.sm }}>
-            <Stat icon={<Layers size={17} color="#6366F1" />} value={`${activeCount}`} label={tr ? 'Aktif mod' : 'Active modes'} color="#6366F1" />
-            <Stat icon={<CalendarClock size={17} color="#FF9500" />} value={nearest ? `${nearest.days}${tr ? 'g' : 'd'}` : '∞'} label={tr ? 'En yakın hedef' : 'Nearest goal'} color="#FF9500" />
-            <Stat icon={<Flame size={17} color="#34C759" />} value={totalHabits > 0 ? `%${overallPct}` : '—'} label={tr ? 'Hafta istikrar' : 'Week consistency'} color="#34C759" />
+            <Stat icon={<Layers size={ICON.sm} color="#6366F1" />} value={`${activeCount}`} label={tr ? 'Aktif mod' : 'Active modes'} color="#6366F1" />
+            <Stat icon={<CalendarClock size={ICON.sm} color="#FF9500" />} value={nearest ? `${nearest.days}${tr ? 'g' : 'd'}` : '∞'} label={tr ? 'En yakın hedef' : 'Nearest goal'} color="#FF9500" />
+            <Stat icon={<Flame size={ICON.sm} color="#34C759" />} value={totalHabits > 0 ? `%${overallPct}` : '—'} label={tr ? 'Hafta istikrar' : 'Week consistency'} color="#34C759" />
           </View>
 
           {/* Bugünkü plan genel */}
           {todayTotalAll > 0 && (
             <View style={[styles.section, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.sm }}>
-                <Text style={{ color: theme.onSurface, fontWeight: '800', fontSize: F.body }}>{tr ? 'Bugünkü plan' : "Today's plan"}</Text>
+                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Bugünkü plan' : "Today's plan"}</Text>
                 <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{todayDoneAll}/{todayTotalAll}</Text>
               </View>
-              <View style={{ height: 8, borderRadius: 4, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
-                <View style={{ height: 8, borderRadius: 4, width: `${Math.round((todayDoneAll / todayTotalAll) * 100)}%`, backgroundColor: '#34C759' }} />
+              <View style={{ height: 8, borderRadius: R.xs, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
+                <View style={{ height: 8, borderRadius: R.xs, width: `${Math.round((todayDoneAll / todayTotalAll) * 100)}%`, backgroundColor: '#34C759' }} />
               </View>
             </View>
           )}
 
           {/* Mod kartları */}
           <View style={{ gap: S.sm }}>
-            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' }}>{tr ? 'Modlar' : 'Modes'}</Text>
+            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' }}>{tr ? 'Modlar' : 'Modes'}</Text>
             {computed.map((c, i) => (
               <MotiView
                 key={c.key}
@@ -226,12 +226,12 @@ export default function ModOzetScreen() {
                 style={[styles.modeRow, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: c.color + (isDark ? '33' : '22') }]}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                  <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: c.color + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 40, height: 40, borderRadius: R.md, backgroundColor: c.color + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
                     {renderModeEmojiIcon(c.emoji, 20, c.color)}
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{stripEmoji(c.label) || c.label}</Text>
-                    <Text style={{ color: c.days === -1 ? theme.error : c.color, fontSize: F.caption, fontWeight: '600', marginTop: 1 }}>
+                    <Text style={{ color: c.days === -1 ? theme.error : c.color, fontSize: F.caption, fontWeight: '600', marginTop: S.xxs }}>
                       {c.days === null ? (tr ? 'Süresiz' : 'Open-ended') : c.days === -1 ? (tr ? 'Tarih geçti' : 'Date passed') : c.days === 0 ? (tr ? 'Bugün!' : 'Today!') : (tr ? `${c.days} gün kaldı` : `${c.days} days left`)}
                     </Text>
                   </View>
@@ -245,12 +245,12 @@ export default function ModOzetScreen() {
                 {/* haftalık alışkanlık istikrarı */}
                 {c.habitCount > 0 && (
                   <View style={{ marginTop: S.sm }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: S.xs }}>
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{tr ? 'Bu hafta alışkanlık' : 'Habits this week'}</Text>
                       <Text style={{ color: c.color, fontSize: 11, fontWeight: '700' }}>{c.weekActive}/{c.habitCount} · %{c.pct}</Text>
                     </View>
-                    <View style={{ height: 5, borderRadius: 3, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
-                      <View style={{ height: 5, borderRadius: 3, width: `${c.pct}%`, backgroundColor: c.color }} />
+                    <View style={{ height: 5, borderRadius: R.xs, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
+                      <View style={{ height: 5, borderRadius: R.xs, width: `${c.pct}%`, backgroundColor: c.color }} />
                     </View>
                   </View>
                 )}
@@ -268,11 +268,11 @@ const styles = StyleSheet.create({
   headerAbs: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   headerRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md },
   compactTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', letterSpacing: TRACKING.subhead },
-  largeTitle: { fontSize: 30, fontWeight: '800', letterSpacing: TRACKING.hero, includeFontPadding: false },
+  largeTitle: { fontSize: 30, fontWeight: '700', letterSpacing: TRACKING.hero, includeFontPadding: false },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '800', letterSpacing: TRACKING.title },
+  title: { fontSize: 20, fontWeight: '700', letterSpacing: TRACKING.title },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl },
-  statCard: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: 2 },
+  statCard: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: S.xxs },
   section: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md },
   coach: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg },
   modeRow: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md },

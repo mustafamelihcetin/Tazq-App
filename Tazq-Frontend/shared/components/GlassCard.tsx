@@ -1,5 +1,5 @@
 import React from 'react';
-import { B } from '@/shared/constants/tokens';
+import { S, R, B } from '@/shared/constants/tokens';
 import { View, StyleSheet, ViewStyle, Platform } from 'react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 
@@ -31,12 +31,12 @@ export const GlassCard = ({ children, style }: GlassCardProps) => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
+    borderRadius: R.xl,
     borderWidth: B.thin,
     overflow: 'hidden',
     ...(Platform.OS === 'android' ? { elevation: 2 } : {}),
   },
   inner: {
-    padding: 16,
+    padding: S.md,
   },
 });

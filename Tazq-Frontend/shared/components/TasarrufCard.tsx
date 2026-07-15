@@ -122,7 +122,7 @@ export function TasarrufCard() {
   };
   const moneyInput = (value: string, onChange: (v: string) => void, autoFocus = false) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingHorizontal: S.md }}>
-      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontWeight: '700', marginRight: 6, opacity: 0.7 }}>₺</Text>
+      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.body, fontWeight: '700', marginRight: S.sm }}>₺</Text>
       <TextInput
         value={formatThousands(value)}
         onChangeText={(t) => onChange(sanitizeMoney(t))}
@@ -227,15 +227,15 @@ export function TasarrufCard() {
       {/* Başlık + toggle */}
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: applied || expanded ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: C + (seasonal.tasarrufMode ? '22' : '15'), alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: C + (seasonal.tasarrufMode ? '22' : '15'), alignItems: 'center', justifyContent: 'center' }}>
             {renderModeEmojiIcon('💰', 18, seasonal.tasarrufMode ? C : C + 'aa')}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Tasarruf / Bütçe' : 'Savings / Budget'}</Text>
             {applied && !datePast ? (
-              <Text style={{ color: C, fontSize: F.caption, fontWeight: '500', marginTop: 1 }}>{daysLeft} {tr ? 'gün kaldı' : 'days left'}</Text>
+              <Text style={{ color: C, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{daysLeft} {tr ? 'gün kaldı' : 'days left'}</Text>
             ) : (
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>{tr ? 'Para hedefine ulaşma planı' : 'Plan to reach a money goal'}</Text>
+              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{tr ? 'Para hedefine ulaşma planı' : 'Plan to reach a money goal'}</Text>
             )}
           </View>
           <Switch
@@ -264,7 +264,7 @@ export function TasarrufCard() {
       {/* APPLIED: ilerleme + bakiye girişi */}
       {seasonal.tasarrufMode && applied && (
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
-          <View style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: C + '22', padding: S.md, gap: 8 }}>
+          <View style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: C + '22', padding: S.md, gap: S.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{seasonal.tasarrufName}</Text>
               <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(tr ? 'Hedefi Sil' : 'Delete Goal', tr ? 'Plan ve tüm bütçe kayıtların silinecek. Bu işlem geri alınamaz.' : 'Your plan and all budget entries will be deleted. This cannot be undone.', [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: closePlan }]); }}>
@@ -275,8 +275,8 @@ export function TasarrufCard() {
               <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{tr ? 'Hedefe ilerleme' : 'Goal progress'}</Text>
               <Text style={{ color: C, fontSize: 11, fontWeight: '700' }}>₺{fmtMoney(doneAmt)}/₺{fmtMoney(goalAmt)} · {pct}%</Text>
             </View>
-            <View style={{ height: 6, borderRadius: 3, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
-              <View style={{ height: 6, borderRadius: 3, width: `${pct}%`, backgroundColor: C }} />
+            <View style={{ height: 6, borderRadius: R.xs, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
+              <View style={{ height: 6, borderRadius: R.xs, width: `${pct}%`, backgroundColor: C }} />
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ color: theme.onSurfaceVariant, fontSize: 11 }}>{tr ? 'Başlangıç' : 'Start'}: ₺{fmtMoney(start)}</Text>
@@ -289,7 +289,7 @@ export function TasarrufCard() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
               <View style={{ flex: 1 }}>{moneyInput(entryInput, setEntryInput, true)}</View>
               <Touchable hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }} onPress={saveEntry} style={{ backgroundColor: C, borderRadius: R.full, paddingHorizontal: S.md, height: 36, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '700', fontSize: F.caption }}>{tr ? 'Kaydet' : 'Save'}</Text></Touchable>
-              <Touchable hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => { setShowEntry(false); setEntryInput(''); }} style={{ padding: 4 }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'İptal' : 'Cancel'}</Text></Touchable>
+              <Touchable hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => { setShowEntry(false); setEntryInput(''); }} style={{ padding: S.xs }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'İptal' : 'Cancel'}</Text></Touchable>
             </View>
           ) : (
             <Touchable disabled={!canLog} onPress={() => { if (canLog) { Haptics.selectionAsync(); setShowEntry(true); } }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: canLog ? C + '12' : 'transparent', borderWidth: canLog ? 0 : B.thin, borderColor: theme.onSurfaceVariant + '20' }}>
@@ -303,12 +303,12 @@ export function TasarrufCard() {
       {/* CONFIG: tür + tutarlar + süre + uygula */}
       {seasonal.tasarrufMode && !applied && expanded && (
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
-          <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.8 }}>{tr ? 'Hedef türünü seç' : 'Select goal type'}</Text>
+          <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'Hedef türünü seç' : 'Select goal type'}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
             {TYPES.map(t => {
               const active = budgetType === t.key;
               return (
-                <Touchable key={t.key} onPress={() => { Haptics.selectionAsync(); setBudgetType(active ? '' : t.key); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: S.sm + 2, paddingVertical: 8, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                <Touchable key={t.key} onPress={() => { Haptics.selectionAsync(); setBudgetType(active ? '' : t.key); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                   {renderModeEmojiIcon(t.emoji, 14, active ? C : theme.onSurfaceVariant)}
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? C : theme.onSurfaceVariant }}>{tr ? t.tr : t.en}</Text>
                 </Touchable>
@@ -318,31 +318,31 @@ export function TasarrufCard() {
           {budgetType === 'birikim' && (
             <View style={{ flexDirection: 'row', gap: S.sm }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: 4 }}>{tr ? 'Şu anki birikim ₺' : 'Current savings ₺'}</Text>
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: S.xs }}>{tr ? 'Şu anki birikim ₺' : 'Current savings ₺'}</Text>
                 {moneyInput(startAmount, setStartAmount)}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: 4 }}>{tr ? 'Hedef tutar ₺' : 'Target amount ₺'}</Text>
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: S.xs }}>{tr ? 'Hedef tutar ₺' : 'Target amount ₺'}</Text>
                 {moneyInput(targetAmount, setTargetAmount)}
               </View>
             </View>
           )}
           {budgetType === 'borc' && (
             <View>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: 4 }}>{tr ? 'Toplam borcun ₺' : 'Total debt ₺'}</Text>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: S.xs }}>{tr ? 'Toplam borcun ₺' : 'Total debt ₺'}</Text>
               {moneyInput(startAmount, setStartAmount)}
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginTop: 4, opacity: 0.7 }}>{tr ? '🎯 Hedef: borcu sıfırlamak (₺0)' : '🎯 Goal: clear the debt (₺0)'}</Text>
+              <Text style={{ color: theme.onSurfaceMuted, fontSize: 11, marginTop: S.xs }}>{tr ? '🎯 Hedef: borcu sıfırlamak (₺0)' : '🎯 Goal: clear the debt (₺0)'}</Text>
             </View>
           )}
           {budgetType === 'acilfon' && (
             <View style={{ gap: S.sm }}>
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: 4 }}>{tr ? 'Aylık giderin ₺' : 'Monthly expenses ₺'}</Text>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: S.xs }}>{tr ? 'Aylık giderin ₺' : 'Monthly expenses ₺'}</Text>
                   {moneyInput(monthlyExpense, setMonthlyExpense)}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: 4 }}>{tr ? 'Şu anki birikim ₺' : 'Current savings ₺'}</Text>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: S.xs }}>{tr ? 'Şu anki birikim ₺' : 'Current savings ₺'}</Text>
                   {moneyInput(startAmount, setStartAmount)}
                 </View>
               </View>
@@ -351,7 +351,7 @@ export function TasarrufCard() {
                 {[3, 6, 9, 12].map(m => {
                   const active = coverMonths === m;
                   return (
-                    <Touchable key={m} onPress={() => { Haptics.selectionAsync(); setCoverMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                    <Touchable key={m} onPress={() => { Haptics.selectionAsync(); setCoverMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                       <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? C : theme.onSurfaceVariant }}>{m} {tr ? 'ay' : 'mo'}</Text>
                     </Touchable>
                   );
@@ -367,19 +367,19 @@ export function TasarrufCard() {
             {DURATIONS.map(m => {
               const active = durationMonths === m;
               return (
-                <Touchable key={m} onPress={() => { Haptics.selectionAsync(); setDurationMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                <Touchable key={m} onPress={() => { Haptics.selectionAsync(); setDurationMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? C : theme.onSurfaceVariant }}>{m} {tr ? 'ay' : 'mo'}</Text>
                 </Touchable>
               );
             })}
           </View>
           {!!disabledHint && (
-            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, textAlign: 'center', marginTop: 4, opacity: 0.8 }}>
+            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, textAlign: 'center', marginTop: S.xs }}>
               {disabledHint}
             </Text>
           )}
-          <Touchable disabled={!configValid} onPress={apply} style={{ marginTop: 4, backgroundColor: configValid ? C : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2, alignItems: 'center' }}>
-            <Text style={{ color: configValid ? '#fff' : theme.onSurfaceVariant, fontWeight: '800', fontSize: F.body }}>{tr ? 'Planı Uygula' : 'Apply Plan'}</Text>
+          <Touchable disabled={!configValid} onPress={apply} style={{ marginTop: S.xs, backgroundColor: configValid ? C : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2, alignItems: 'center' }}>
+            <Text style={{ color: configValid ? '#fff' : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.body }}>{tr ? 'Planı Uygula' : 'Apply Plan'}</Text>
           </Touchable>
         </View>
       )}

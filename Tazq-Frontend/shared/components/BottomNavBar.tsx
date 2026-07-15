@@ -6,7 +6,8 @@ import { BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { R, B, MAX_W } from '@/shared/constants/tokens';
+import { Colors } from '@/shared/constants/Colors';
+import { R, B, MAX_W, NAV_BAR_HEIGHT, NAV_BAR_LIFT, NAV_BAR_MIN_INSET, ICON } from '@/shared/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -97,25 +98,29 @@ export const BottomNavBar = () => {
   }
 
   return (
-    <View style={[styles.container, { bottom: Math.max(insets.bottom, 16) + 4 }]}>
+    <View style={[styles.container, { bottom: Math.max(insets.bottom, NAV_BAR_MIN_INSET) + NAV_BAR_LIFT }]}>
       <View
         style={[
           styles.bar,
           {
             width: barWidth,
-            backgroundColor: isDark ? 'rgba(15,15,18,0.95)' : 'rgba(255,255,255,0.95)',
-            borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
-            ...(Platform.OS === 'ios' ? {
-              shadowColor: '#000',
-              shadowOpacity: isDark ? 0.4 : 0.1,
-            } : {}),
+            // Palete bağlı. Eskiden elle yazılıyordu ve başlık kabuğuyla ayrışıyordu —
+            // aynı işi yapan iki yüzen kabuk, iki ayrı renk tanımı.
+            backgroundColor: theme.surfaceFloating,
+            borderColor: theme.outline,
+            // Android'de shadow* prop'ları ETKİSİZDİR; gölge yalnızca elevation ile
+            // çizilir. `elevation: 0` yazılıydı, yani bar iOS'ta yüzüyor, Android'de
+            // düz yapıştırılmış duruyordu. Aynı bileşen iki platformda iki farklı şey.
+            ...(Platform.OS === 'ios'
+              ? { shadowColor: Colors.light.onSurface, shadowOpacity: isDark ? 0.4 : 0.1 }
+              : { elevation: 8 }),
           }
         ]}
       >
         {Platform.OS === 'ios' && (
           <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
         )}
-        <View style={styles.tabsContainer}>
+        <View style={styles.tabsContainer} accessibilityRole="tablist">
           {/* Sliding active indicator */}
           {activeIndex >= 0 && (
             <Animated.View
@@ -138,20 +143,16 @@ export const BottomNavBar = () => {
             const Icon = tab.icon;
             
             const content = (
-              <>
-                <Icon
-                  size={22}
-                  color={isActive ? theme.primary : theme.onSurfaceVariant}
-                  strokeWidth={isActive ? 2.5 : 1.8}
-                />
-                {isActive && (
-                  <MotiView
-                    from={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    style={[styles.dot, { backgroundColor: theme.primary }]}
-                  />
-                )}
-              </>
+              // Aktif durum İKİ sinyalle bildiriliyor: renk + arkada kayan hap.
+              // Eskiden ÜÇ vardı — bir de ikonun altında 4pt'lik nokta. Apple bunu TEK
+              // sinyalle yapar (tint rengi). Aynı şeyi üç kez söylemek "premium" değil,
+              // güvensizliktir; üstelik 4pt nokta zaten görünmüyordu.
+              // Kayan hap kalıyor: o bir süs değil, sekmeler arası GEÇİŞİ anlatıyor.
+              <Icon
+                size={ICON.lg}
+                color={isActive ? theme.primary : theme.onSurfaceVariant}
+                strokeWidth={isActive ? 2.5 : 1.8}
+              />
             );
 
             return (
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   bar: {
-    height: 68,
+    height: NAV_BAR_HEIGHT,
     borderRadius: R.full,
     borderWidth: B.thin,
     overflow: 'hidden',
@@ -204,7 +205,9 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    height: 48,
+    // Hedef barın TAM boyu (68). Eskiden 48'di: 44pt sınırını geçiyordu ama barın
+    // üst/alt 10'ar pt'si ölü alandı — bara basıp hiçbir şey olmuyordu.
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -212,12 +215,5 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: R.full,
-  },
-  dot: {
-    position: 'absolute',
-    bottom: 2,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
   },
 });

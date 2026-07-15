@@ -6,7 +6,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { LEGAL_DOCS, type LegalDocKey } from '@/shared/constants/legal';
-import { S, F } from '@/shared/constants/tokens';
+import { ICON, S, F, HAIRLINE } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 
 export default function LegalScreen() {
@@ -26,9 +26,9 @@ export default function LegalScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top', 'bottom']}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.outlineVariant + '30' }]}>
+      <View style={[styles.header, { borderBottomColor: theme.outlineVariant }]}>
         <Touchable onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'}>
-          <ArrowLeft size={22} color={theme.onSurface} />
+          <ArrowLeft size={ICON.lg} color={theme.onSurface} />
         </Touchable>
         <Text style={[styles.headerTitle, { color: theme.onSurface }]} numberOfLines={1}>
           {title}
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: S.lg,
     paddingVertical: S.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: HAIRLINE,
   },
   headerTitle: {
     flex: 1,
@@ -72,6 +72,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 22,
     fontFamily: 'Jakarta-SemiBold',
-    opacity: 0.85,
   },
 });

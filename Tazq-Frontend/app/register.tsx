@@ -27,7 +27,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { GlassCard } from '@/shared/components/GlassCard';
 import { AnimatedBackground } from '@/shared/components/AnimatedBackground';
 import { TazqLogo } from '@/shared/components/TazqLogo';
-import { S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { validateRegister } from '@/shared/utils/validation';
 import { httpStatusOf, isNetworkError, errorMessage, errorCode, httpRawDataOf } from '@/shared/utils/errors';
@@ -253,7 +253,7 @@ export default function RegisterScreen() {
             accessibilityRole="button"
             accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'}
           >
-            <ArrowLeft size={22} color={theme.onSurface} />
+            <ArrowLeft size={ICON.lg} color={theme.onSurface} />
           </Touchable>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
@@ -280,7 +280,7 @@ export default function RegisterScreen() {
                 >
                   {t.login.signUp}
                 </MotiText>
-                <Text style={[styles.subtitle, { color: theme.onSurfaceVariant, fontSize: isSmallScreen ? 11 : 13, marginTop: isSmallScreen ? 2 : 4 }]}>
+                <Text style={[styles.subtitle, { color: theme.onSurfaceMuted, fontSize: isSmallScreen ? 11 : 13, marginTop: isSmallScreen ? 2 : 4 }]}>
                   {t.onboardingBody2}
                 </Text>
               </MotiView>
@@ -298,7 +298,7 @@ export default function RegisterScreen() {
                       animate={{ opacity: 1, height: 'auto' }}
                       style={[styles.errorContainer, { backgroundColor: theme.error + '15' }]}
                     >
-                      <AlertCircle size={16} color={theme.error} />
+                      <AlertCircle size={ICON.sm} color={theme.error} />
                       <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
                     </MotiView>
                   )}
@@ -306,7 +306,7 @@ export default function RegisterScreen() {
                   <View style={[styles.form, { gap: isSmallScreen ? 6 : 12 }]}>
                     <View style={[styles.inputGroup, { gap: isSmallScreen ? 2 : 6 }]}>
                       <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, height: isSmallScreen ? 38 : 48 }]}>
-                        <User size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
+                        <User size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
                           placeholder={t.login.name}
                           placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
@@ -321,7 +321,7 @@ export default function RegisterScreen() {
 
                     <View style={[styles.inputGroup, { gap: isSmallScreen ? 2 : 6 }]}>
                       <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, height: isSmallScreen ? 38 : 48 }]}>
-                        <Mail size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
+                        <Mail size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
                           placeholder={t.login.email}
                           placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
@@ -341,7 +341,7 @@ export default function RegisterScreen() {
 
                     <View style={[styles.inputGroup, { gap: isSmallScreen ? 2 : 6 }]}>
                       <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, height: isSmallScreen ? 38 : 48 }]}>
-                        <Lock size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
+                        <Lock size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
                           placeholder="••••••••"
                           placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
@@ -352,7 +352,7 @@ export default function RegisterScreen() {
                           underlineColorAndroid="transparent"
                         />
                         <Touchable onPress={() => setShowPassword(!showPassword)} accessibilityRole="button" accessibilityLabel={showPassword ? (language === 'tr' ? 'Şifreyi gizle' : 'Hide password') : (language === 'tr' ? 'Şifreyi göster' : 'Show password')}>
-                          {showPassword ? <EyeOff size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} /> : <Eye size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
+                          {showPassword ? <EyeOff size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} /> : <Eye size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
                         </Touchable>
                       </View>
                     </View>
@@ -365,8 +365,8 @@ export default function RegisterScreen() {
                     >
                       <View style={{ marginTop: Platform.OS === 'ios' ? 1 : 2 }}>
                         {consentChecked
-                          ? <CheckSquare size={18} color={theme.primary} />
-                          : <Square size={18} color={theme.outlineVariant} />
+                          ? <CheckSquare size={ICON.md} color={theme.primary} />
+                          : <Square size={ICON.md} color={theme.outlineVariant} />
                         }
                       </View>
                       <Text style={[styles.consentText, { color: theme.onSurfaceVariant }]}>
@@ -411,16 +411,16 @@ export default function RegisterScreen() {
                         ) : (
                           <>
                             <Text style={[styles.buttonText, { color: theme.onSecondary }]}>{t.login.signUp}</Text>
-                            <ArrowRight size={20} color={theme.onSecondary} />
+                            <ArrowRight size={ICON.md} color={theme.onSecondary} />
                           </>
                         )}
                       </MotiView>
                     </Touchable>
 
                     <View style={[styles.dividerRow, { marginVertical: isSmallScreen ? 2 : 8 }]}>
-                      <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '40' }]} />
-                      <Text style={[styles.dividerText, { color: theme.onSurfaceVariant }]}>{t.login.orDivider}</Text>
-                      <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '40' }]} />
+                      <View style={[styles.divider, { backgroundColor: theme.outlineVariant }]} />
+                      <Text style={[styles.dividerText, { color: theme.onSurfaceMuted }]}>{t.login.orDivider}</Text>
+                      <View style={[styles.divider, { backgroundColor: theme.outlineVariant }]} />
                     </View>
 
                     <View style={styles.socialRow}>
@@ -446,24 +446,24 @@ export default function RegisterScreen() {
                       )}
                     </View>
 
-                    <Text style={[styles.disclaimerText, { color: theme.onSurfaceVariant, marginTop: isSmallScreen ? 4 : 8 }]}>
+                    <Text style={[styles.disclaimerText, { color: theme.onSurfaceMuted, marginTop: isSmallScreen ? 4 : 8 }]}>
                       {language === 'tr' ? 'Google veya Apple ile devam ederek, ' : 'By continuing with Google or Apple, you agree to our '}
                       <Text
-                        style={{ color: theme.primary, fontWeight: '800' }}
+                        style={{ color: theme.primary, fontWeight: '700' }}
                         onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
                       >
                         {language === 'tr' ? 'Kullanıcı Sözleşmesi' : 'Terms of Service'}
                       </Text>
                       {language === 'tr' ? "'ni, " : ', '}
                       <Text
-                        style={{ color: theme.primary, fontWeight: '800' }}
+                        style={{ color: theme.primary, fontWeight: '700' }}
                         onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
                       >
                         {language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}
                       </Text>
                       {language === 'tr' ? ' ve ' : ' and '}
                       <Text
-                        style={{ color: theme.primary, fontWeight: '800' }}
+                        style={{ color: theme.primary, fontWeight: '700' }}
                         onPress={() => router.push({ pathname: '/legal', params: { doc: 'kvkk' } })}
                       >
                         {language === 'tr' ? 'KVKK Metni' : 'Data Notice'}
@@ -493,14 +493,14 @@ export default function RegisterScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/onboarding')}
                   activeOpacity={0.7}
-                  style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: 8 }}
+                  style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: S.sm }}
                   accessibilityRole="button"
                 >
-                  <Sparkles size={14} color={theme.secondary} strokeWidth={2.2} />
+                  <Sparkles size={ICON.sm} color={theme.secondary} strokeWidth={2.2} />
                   <Text style={{ fontSize: 13.5, fontWeight: '700', color: theme.secondary, letterSpacing: 0.2 }}>
                     {language === 'tr' ? 'Uygulamayı keşfet' : 'Explore the app'}
                   </Text>
-                  <ArrowRight size={15} color={theme.secondary} strokeWidth={2.4} />
+                  <ArrowRight size={ICON.sm} color={theme.secondary} strokeWidth={2.4} />
                 </TouchableOpacity>
               </MotiView>
           </ScrollView>
@@ -519,31 +519,31 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, paddingHorizontal: scale(24), width: '100%', maxWidth: 480, alignSelf: 'center' },
   header: { alignItems: 'center' },
   title: { fontSize: F.title + 6, fontFamily: 'Jakarta-ExtraBold', marginTop: verticalScale(10), letterSpacing: -0.5 },
-  subtitle: { fontSize: F.body, fontWeight: '500', marginTop: verticalScale(4), opacity: 0.7, textAlign: 'center' },
+  subtitle: { fontSize: F.body, fontWeight: '500', marginTop: verticalScale(4), textAlign: 'center' },
   cardContainer: { width: '100%' },
   glassCard: { width: '100%' },
   errorContainer: { flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.sm + 4, borderRadius: R.sm + 4, marginBottom: S.md },
   errorText: { fontSize: F.caption + 2, fontWeight: '600' },
   form: { gap: Platform.OS === 'android' ? moderateScale(12) : moderateScale(16) },
   inputGroup: { gap: S.sm + 4 },
-  label: { fontSize: F.caption, fontWeight: '800', letterSpacing: 1 },
+  label: { fontSize: F.caption, fontWeight: '700', letterSpacing: 1 },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, height: Platform.OS === 'android' ? verticalScale(50) : verticalScale(56), borderRadius: R.md, borderWidth: B.thin, gap: S.sm + 4 },
   input: { flex: 1, fontSize: F.body + 1, fontWeight: '600', height: '100%', textAlignVertical: 'center' },
-  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm + 2, paddingHorizontal: 4, marginTop: verticalScale(2), marginBottom: verticalScale(2) },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm + 2, paddingHorizontal: S.xs, marginTop: verticalScale(2), marginBottom: verticalScale(2) },
   consentText: { flex: 1, fontSize: F.caption, fontFamily: 'Jakarta-SemiBold', lineHeight: verticalScale(16) },
   registerButton: { height: Platform.OS === 'android' ? verticalScale(50) : verticalScale(56), borderRadius: R.md, overflow: 'hidden', marginTop: verticalScale(4) },
   buttonInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10) },
-  buttonText: { fontSize: F.subhead + 1, fontWeight: '800' },
+  buttonText: { fontSize: F.subhead + 1, fontWeight: '700' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginVertical: S.xs },
   divider: { flex: 1, height: 1 },
-  dividerText: { fontSize: F.caption + 1, fontWeight: '700', opacity: 0.5 },
+  dividerText: { fontSize: F.caption + 1, fontWeight: '700' },
   socialRow: { flexDirection: 'row', gap: S.md },
   socialButton: { flex: 1, height: Platform.OS === 'android' ? verticalScale(46) : verticalScale(56), borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10), borderWidth: B.thin },
   socialText: { fontSize: moderateScale(15), fontWeight: '700' },
-  disclaimerText: { fontSize: moderateScale(11), lineHeight: verticalScale(16), textAlign: 'center', marginTop: S.sm + 2, paddingHorizontal: S.xs, opacity: 0.75 },
+  disclaimerText: { fontSize: moderateScale(11), lineHeight: verticalScale(16), textAlign: 'center', marginTop: S.sm + 2, paddingHorizontal: S.xs },
   footer: { alignItems: 'center', marginTop: Platform.OS === 'android' ? verticalScale(12) : verticalScale(24) },
   footerRow: { flexDirection: 'row', alignItems: 'center' },
   footerText: { fontSize: moderateScale(15), fontWeight: '500' },
-  link: { fontSize: moderateScale(15), fontWeight: '800' },
+  link: { fontSize: moderateScale(15), fontWeight: '700' },
 });
 

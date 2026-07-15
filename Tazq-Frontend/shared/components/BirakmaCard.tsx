@@ -181,15 +181,15 @@ export function BirakmaCard() {
     <View style={{ backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: cardBorder, borderWidth: B.thin, borderRadius: R.lg, overflow: 'hidden' }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: applied || expanded ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: C + (seasonal.birakmaMode ? '22' : '15'), alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: C + (seasonal.birakmaMode ? '22' : '15'), alignItems: 'center', justifyContent: 'center' }}>
             {renderModeEmojiIcon('🚭', 18, seasonal.birakmaMode ? C : C + 'aa')}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Bırakma' : 'Quit'}</Text>
             {applied ? (
-              <Text style={{ color: C, fontSize: F.caption, fontWeight: '500', marginTop: 1 }}>{items.length} {tr ? 'aktif takip' : 'active'}</Text>
+              <Text style={{ color: C, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{items.length} {tr ? 'aktif takip' : 'active'}</Text>
             ) : (
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>{tr ? 'Bir veya daha fazla şeyi bırak' : 'Quit one or more things'}</Text>
+              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{tr ? 'Bir veya daha fazla şeyi bırak' : 'Quit one or more things'}</Text>
             )}
           </View>
           <Switch
@@ -213,22 +213,22 @@ export function BirakmaCard() {
             const next = QUIT_MILESTONES.find(m => m > days - 1) ?? null;
             return (
               <View key={it.id} style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: C + '22', padding: S.md, flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-                <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: C + (isDark ? '22' : '15'), alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 38, height: 38, borderRadius: R.md, backgroundColor: C + (isDark ? '22' : '15'), alignItems: 'center', justifyContent: 'center' }}>
                   {renderModeEmojiIcon(emojiOf(it.type), 19, C)}
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text numberOfLines={1} style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{it.name}</Text>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600', marginTop: 1 }}>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600', marginTop: S.xxs }}>
                     {tr ? 'En uzun' : 'Best'}: {Math.max(it.bestStreak, days)}{tr ? 'g' : 'd'}{next ? ` · ${tr ? 'sonraki' : 'next'} ${next}${tr ? 'g' : 'd'}` : ''}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'center', minWidth: 44 }}>
-                  <Text style={{ color: C, fontWeight: '800', fontSize: 26, lineHeight: 28, letterSpacing: -0.5 }}>{days}</Text>
+                  <Text style={{ color: C, fontWeight: '700', fontSize: 26, lineHeight: 28, letterSpacing: -0.5 }}>{days}</Text>
                   <Text style={{ color: C, fontSize: 9, fontWeight: '700', opacity: 0.8, letterSpacing: 0.5 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
                 </View>
-                <View style={{ gap: 8, marginLeft: 4 }}>
+                <View style={{ gap: S.sm, marginLeft: S.xs }}>
                   <Touchable onPress={() => onRelapse(it.id, it.name)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={{ color: theme.onSurfaceVariant, fontSize: 16 }}>↺</Text></Touchable>
-                  <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeOne(it.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={{ color: theme.onSurfaceVariant, fontSize: 16, opacity: 0.6 }}>✕</Text></Touchable>
+                  <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeOne(it.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={{ color: theme.onSurfaceMuted, fontSize: 16 }}>✕</Text></Touchable>
                 </View>
               </View>
             );
@@ -252,13 +252,13 @@ export function BirakmaCard() {
       {/* CONFIG: çoklu seçim */}
       {seasonal.birakmaMode && expanded && (
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
-          <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.8 }}>{tr ? 'Neyi bırakıyorsun? (çoklu seçilebilir)' : 'What are you quitting? (multi-select)'}</Text>
+          <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'Neyi bırakıyorsun? (çoklu seçilebilir)' : 'What are you quitting? (multi-select)'}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.xs }}>
             {TYPES.map(t => {
               const active = !!sel[t.key];
               const already = items.some(i => i.type === t.key) && t.key !== 'ozel';
               return (
-                <Touchable key={t.key} disabled={already} onPress={() => { Haptics.selectionAsync(); setSel(s => ({ ...s, [t.key]: !s[t.key] })); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: S.sm + 2, paddingVertical: 8, borderRadius: R.full, borderWidth: B.medium, opacity: already ? 0.4 : 1, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                <Touchable key={t.key} disabled={already} onPress={() => { Haptics.selectionAsync(); setSel(s => ({ ...s, [t.key]: !s[t.key] })); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, opacity: already ? 0.4 : 1, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                   {renderModeEmojiIcon(t.emoji, 14, active ? C : theme.onSurfaceVariant)}
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? C : theme.onSurfaceVariant }}>{tr ? t.tr : t.en}{already ? ' ✓' : ''}</Text>
                 </Touchable>
@@ -268,8 +268,8 @@ export function BirakmaCard() {
           {sel['ozel'] && (
             <TextInput value={customName} onChangeText={setCustomName} placeholder={tr ? 'Ne? (ör. Kahve)' : 'What? (e.g. Coffee)'} placeholderTextColor={theme.onSurfaceVariant + '70'} underlineColorAndroid="transparent" maxLength={24} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600', height: 44, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingHorizontal: S.md }} />
           )}
-          <Touchable disabled={!addValid} onPress={addSelected} style={{ marginTop: 4, backgroundColor: addValid ? C : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2, alignItems: 'center' }}>
-            <Text style={{ color: addValid ? '#fff' : theme.onSurfaceVariant, fontWeight: '800', fontSize: F.body }}>{applied ? (tr ? 'Ekle' : 'Add') : (tr ? 'Bugünden Başla' : 'Start Today')}</Text>
+          <Touchable disabled={!addValid} onPress={addSelected} style={{ marginTop: S.xs, backgroundColor: addValid ? C : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), borderRadius: R.full, paddingVertical: S.sm + 2, alignItems: 'center' }}>
+            <Text style={{ color: addValid ? '#fff' : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.body }}>{applied ? (tr ? 'Ekle' : 'Add') : (tr ? 'Bugünden Başla' : 'Start Today')}</Text>
           </Touchable>
         </View>
       )}

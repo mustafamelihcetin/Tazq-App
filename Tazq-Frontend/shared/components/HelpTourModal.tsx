@@ -28,7 +28,7 @@ import {
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Touchable } from '@/shared/components/Touchable';
-import { R, F } from '@/shared/constants/tokens';
+import { S, R, F } from '@/shared/constants/tokens';
 import * as HapticsOriginal from 'expo-haptics';
 const Haptics = {
   notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
@@ -413,11 +413,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 28,
+    paddingHorizontal: S.slg,
+    gap: S.slg,
   },
   screen: {
-    borderRadius: 24,
+    borderRadius: R.xl,
     borderWidth: 1,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -434,21 +434,21 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    marginBottom: 10,
+    gap: S.sm,
+    marginBottom: S.smd,
   },
   counter: {
     fontSize: F.caption,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 3,
     opacity: 0.9,
   },
   title: {
     fontSize: F.title,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -0.4,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: S.smd,
     textShadowColor: 'rgba(0,0,0,0.35)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
     fontSize: F.subhead,
     lineHeight: 25,
     textAlign: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: S.xs,
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 5,
@@ -467,18 +467,18 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 28,
+    paddingHorizontal: S.slg,
     alignItems: 'center',
   },
   dotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 24,
+    gap: S.sm,
+    marginBottom: S.lg,
   },
   dot: {
     height: 6,
-    borderRadius: 3,
+    borderRadius: R.xs,
   },
   controls: {
     flexDirection: 'row',
@@ -487,16 +487,16 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   textBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: S.smd,
+    paddingHorizontal: S.smd,
   },
   textBtnLabel: {
     fontSize: F.body,
     fontWeight: '600',
   },
   nextBtn: {
-    paddingVertical: 14,
-    paddingHorizontal: 32,
+    paddingVertical: S.md,
+    paddingHorizontal: S.slg,
     borderRadius: R.full,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

@@ -4,6 +4,7 @@ import { Coffee, Flame, CheckCircle2 } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '@/features/modes';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { S, ICON, R } from '@/shared/constants/tokens';
 
 export interface HabitBubbleProps {
   item: any;
@@ -48,7 +49,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
       onPress={onPress}
       onLongPress={onLongPress}
       activeOpacity={0.7}
-      style={{ alignItems: 'center', width: 62, gap: 6 }}
+      style={{ alignItems: 'center', width: 62, gap: S.sm }}
     >
       <View style={{
         width: size,
@@ -61,7 +62,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
         justifyContent: 'center',
       }}>
         {isSkipped ? (
-          <Coffee size={18} color="#d97706" />
+          <Coffee size={ICON.md} color="#d97706" />
         ) : (
           renderModeEmojiIcon(item.emoji ?? '📌', 20, iconColor)
         )}
@@ -72,16 +73,16 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
             bottom: -3,
             right: -3,
             backgroundColor: item.color, // flame badge colored matching the mode's color!
-            borderRadius: 7,
-            paddingHorizontal: 4,
-            paddingVertical: 1,
+            borderRadius: R.sm,
+            paddingHorizontal: S.xs,
+            paddingVertical: S.xxs,
             flexDirection: 'row',
             alignItems: 'center',
             borderWidth: 1.5,
             borderColor: isDark ? '#1C1C1E' : '#FFFFFF',
           }}>
-            <Flame size={8} color="#FFFFFF" fill="#FFFFFF" />
-            <Text style={{ fontSize: 7.5, fontWeight: '800', color: '#FFFFFF', marginLeft: 1 }}>{streakVal}</Text>
+            <Flame size={ICON.xs} color="#FFFFFF" fill="#FFFFFF" />
+            <Text style={{ fontSize: 7.5, fontWeight: '700', color: '#FFFFFF', marginLeft: S.xxs }}>{streakVal}</Text>
           </View>
         )}
 
@@ -91,7 +92,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
             top: -2,
             right: -2,
             backgroundColor: item.color, // checkmark badge colored matching the mode's color!
-            borderRadius: 6.5,
+            borderRadius: R.full,
             width: 13,
             height: 13,
             alignItems: 'center',
@@ -99,7 +100,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
             borderWidth: 1,
             borderColor: isDark ? '#1C1C1E' : '#FFFFFF',
           }}>
-            <CheckCircle2 size={9} color="#FFFFFF" />
+            <CheckCircle2 size={ICON.xs} color="#FFFFFF" />
           </View>
         )}
       </View>

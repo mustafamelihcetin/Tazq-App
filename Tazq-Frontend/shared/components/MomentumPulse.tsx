@@ -4,10 +4,11 @@ import { MotiView } from 'moti';
 import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame, Shield } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { S, F, R } from '@/shared/constants/tokens';
+import { ICON, S, F, R } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { useMomentumStore } from '@/features/user/store/useMomentumStore';
 import { swallow } from '@/shared/utils/swallow';
+import { Separator } from '@/shared/components/Separator';
 
 interface DayScore { date: string; score: number }
 
@@ -54,7 +55,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
   if (loading) {
     return (
-      <View style={{ height: 64, marginHorizontal: 16, marginBottom: 16 }} />
+      <View style={{ height: 64, marginHorizontal: S.md, marginBottom: S.md }} />
     );
   }
 
@@ -71,19 +72,19 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'spring', damping: 18 }}
       >
-        <Text style={{ fontSize: 48, fontWeight: '900', letterSpacing: -3, color: accentColor, lineHeight: 52 }}>
+        <Text style={{ fontSize: 48, fontWeight: '700', letterSpacing: -3, color: accentColor, lineHeight: 52 }}>
           {score}
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: -2 }}>
-          <Text style={{ fontSize: 9, fontWeight: '900', letterSpacing: 1.5, color: accentColor, opacity: 0.5 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: -2 }}>
+          <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: accentColor, opacity: 0.5 }}>
             MOMENTUM
           </Text>
           <Touchable
             hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setInfoVisible(true); }}
-            style={{ width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: accentColor + '22' }}
+            style={{ width: 16, height: 16, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', backgroundColor: accentColor + '22' }}
           >
-            <Text style={{ fontSize: 9, fontWeight: '900', color: accentColor }}>ⓘ</Text>
+            <Text style={{ fontSize: 9, fontWeight: '700', color: accentColor }}>ⓘ</Text>
           </Touchable>
         </View>
       </MotiView>
@@ -93,8 +94,8 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
       <View style={{ width: 1, height: 36, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)' }} />
 
       {/* Sparkline */}
-      <View style={{ flex: 1, gap: 5 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 24 }}>
+      <View style={{ flex: 1, gap: S.xs }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: S.xs, height: 24 }}>
           {displayHistory.map((day, i) => {
             const has = day.score >= 0;
             const isToday = i === 6;
@@ -112,7 +113,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
                 transition={{ type: 'spring', damping: 16, delay: i * 35 }}
                 style={{
                   flex: 1,
-                  borderRadius: 3,
+                  borderRadius: R.xs,
                   backgroundColor: barColor,
                   opacity: isToday ? 1 : 0.45,
                 }}
@@ -120,7 +121,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             );
           })}
         </View>
-        <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.4, letterSpacing: 0.3 }}>
+        <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3 }}>
           {tr ? 'son 7 gün' : 'last 7 days'}
         </Text>
       </View>
@@ -131,16 +132,16 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           from={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 300 }}
-          style={{ alignItems: 'center', gap: 3 }}
+          style={{ alignItems: 'center', gap: S.xs }}
         >
           {delta > 0
-            ? <TrendingUp size={14} color={theme.tertiary} strokeWidth={2.5} />
+            ? <TrendingUp size={ICON.sm} color={theme.tertiary} strokeWidth={2.5} />
             : delta < 0
-            ? <TrendingDown size={14} color={theme.error} strokeWidth={2.5} />
-            : <Minus size={14} color={theme.onSurfaceVariant} strokeWidth={2.5} />}
+            ? <TrendingDown size={ICON.sm} color={theme.error} strokeWidth={2.5} />
+            : <Minus size={ICON.sm} color={theme.onSurfaceVariant} strokeWidth={2.5} />}
           <Text style={{
             fontSize: 11,
-            fontWeight: '800',
+            fontWeight: '700',
             color: delta > 0 ? theme.tertiary : delta < 0 ? theme.error : theme.onSurfaceVariant,
             opacity: delta === 0 ? 0.4 : 1,
           }}>
@@ -152,14 +153,14 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
     {/* Momentum formula info modal */}
     <Modal visible={infoVisible} transparent animationType="fade" onRequestClose={() => setInfoVisible(false)}>
-      <Touchable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 }} activeOpacity={1} onPress={() => setInfoVisible(false)}>
+      <Touchable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: S.slg }} activeOpacity={1} onPress={() => setInfoVisible(false)}>
         <MotiView
           from={{ scale: 0.92, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', damping: 18 }}
-          style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderRadius: 24, padding: 24, width: '100%', gap: 14 }}
+          style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderRadius: R.xl, padding: S.lg, width: '100%', gap: S.md }}
         >
-          <Text style={{ fontSize: 16, fontWeight: '900', color: accentColor, letterSpacing: -0.5 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: accentColor, letterSpacing: -0.5 }}>
             {tr ? 'Momentum Nasıl Hesaplanır?' : 'How is Momentum Calculated?'}
           </Text>
           <Text style={{ fontSize: 13, fontWeight: '500', color: isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)', lineHeight: 20 }}>
@@ -168,16 +169,16 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
               : 'Momentum is the one score to watch. Your tasks, focus, and streak come together to feed it:'}
           </Text>
           {[
-            { icon: <CheckCircle2 size={16} color={theme.success} />, label: tr ? 'Görev Tamamlama' : 'Task Completion', pct: '40%', color: theme.success },
-            { icon: <Zap size={16} color={accentColor} />, label: tr ? 'Odak Süresi' : 'Focus Time', pct: '35%', color: accentColor },
-            { icon: <Flame size={16} color={theme.streak} />, label: tr ? 'Günlük Seri' : 'Daily Streak', pct: '25%', color: theme.streak },
+            { icon: <CheckCircle2 size={ICON.sm} color={theme.success} />, label: tr ? 'Görev Tamamlama' : 'Task Completion', pct: '40%', color: theme.success },
+            { icon: <Zap size={ICON.sm} color={accentColor} />, label: tr ? 'Odak Süresi' : 'Focus Time', pct: '35%', color: accentColor },
+            { icon: <Flame size={ICON.sm} color={theme.streak} />, label: tr ? 'Günlük Seri' : 'Daily Streak', pct: '25%', color: theme.streak },
           ].map((row) => (
-            <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.smd }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                 {row.icon}
                 <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)' }}>{row.label}</Text>
               </View>
-              <Text style={{ fontSize: 14, fontWeight: '900', color: row.color }}>{row.pct}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: row.color }}>{row.pct}</Text>
             </View>
           ))}
 
@@ -196,22 +197,22 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             return (
               <View style={{
                 backgroundColor: isOverheated ? theme.error + '10' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
-                borderRadius: 16,
-                padding: 14,
+                borderRadius: R.lg,
+                padding: S.md,
                 borderWidth: 1.5,
                 borderColor: isOverheated ? theme.error : 'transparent',
-                gap: 8
+                gap: S.sm
               }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Zap size={16} color={isOverheated ? theme.error : theme.tertiary} />
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                    <Zap size={ICON.sm} color={isOverheated ? theme.error : theme.tertiary} />
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)' }}>
                       {tr ? 'İvme Roket Motoru' : 'Propulsion Thruster'}
                     </Text>
                   </View>
                   <Text style={{
                     fontSize: 11,
-                    fontWeight: '900',
+                    fontWeight: '700',
                     color: isOverheated ? theme.error : (roundedHeat > 50 ? theme.streak : theme.success)
                   }}>
                     {isOverheated ? (tr ? 'AŞIRI ISINDI 🌋' : 'OVERHEATED 🌋') : (tr ? 'NOMİNAL 🔥' : 'NOMINAL 🔥')}
@@ -219,20 +220,20 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
                 </View>
 
                 {/* Progress bar representing heat */}
-                <View style={{ height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', borderRadius: 3, overflow: 'hidden' }}>
+                <View style={{ height: 6, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', borderRadius: R.xs, overflow: 'hidden' }}>
                   <View style={{
                     height: '100%',
                     width: `${roundedHeat}%`,
                     backgroundColor: isOverheated ? theme.error : (roundedHeat > 50 ? theme.streak : theme.tertiary),
-                    borderRadius: 3
+                    borderRadius: R.xs
                   }} />
                 </View>
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.7 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceMuted }}>
                     {tr ? `Motor Sıcaklığı: %${roundedHeat}` : `Thruster Temperature: ${roundedHeat}%`}
                   </Text>
-                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceMuted }}>
                     {isOverheated 
                       ? (tr ? 'Soğuyor... (ivme devredışı)' : 'Cooling... (propulsion disabled)') 
                       : (tr ? 'Güvenli limit altında' : 'Safe limits')}
@@ -245,24 +246,24 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           {/* Momentum Shield (İvme Kalkanı) Toggle Card */}
           <View style={{
             backgroundColor: momentumShieldActive ? theme.streak + '15' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
-            borderRadius: 16,
-            padding: 14,
+            borderRadius: R.lg,
+            padding: S.md,
             borderWidth: 1.5,
             borderColor: momentumShieldActive ? theme.streak : 'transparent',
-            gap: 12
+            gap: S.smd
           }}>
             <View style={{
               flexDirection: 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
             }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
-                <Shield size={18} color={momentumShieldActive ? theme.streak : theme.onSurfaceVariant} strokeWidth={2.2} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd, flex: 1, marginRight: S.sm }}>
+                <Shield size={ICON.md} color={momentumShieldActive ? theme.streak : theme.onSurfaceVariant} strokeWidth={2.2} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)' }}>
                     {tr ? 'İvme Kalkanı' : 'Momentum Shield'}
                   </Text>
-                  <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.7, marginTop: 2, lineHeight: 13 }}>
+                  <Text style={{ fontSize: 10, color: theme.onSurfaceMuted, marginTop: S.xxs, lineHeight: 13 }}>
                     {tr ? 'Hastalık / tatil günlerinde ivmeyi korur' : 'Freezes momentum on sick / vacation days'}
                   </Text>
                 </View>
@@ -277,15 +278,15 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
                   backgroundColor: momentumShieldActive 
                     ? theme.streak 
                     : (shieldCharges <= 0 ? 'rgba(0,0,0,0.05)' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)')),
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                  borderRadius: 8,
+                  paddingHorizontal: S.smd,
+                  paddingVertical: S.sm,
+                  borderRadius: R.sm,
                   borderWidth: 1,
                   borderColor: momentumShieldActive ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'),
                   opacity: (!momentumShieldActive && shieldCharges <= 0) ? 0.4 : 1
                 }}
               >
-                <Text style={{ fontSize: 10, fontWeight: '800', color: momentumShieldActive ? '#fff' : theme.onSurfaceVariant }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: momentumShieldActive ? '#fff' : theme.onSurfaceVariant }}>
                   {momentumShieldActive 
                     ? (tr ? 'AKTİF' : 'ACTIVE') 
                     : (shieldCharges <= 0 ? (tr ? 'ŞARJ YOK' : 'NO CHARGE') : (tr ? 'ETKİNLEŞTİR' : 'ACTIVATE'))}
@@ -294,13 +295,12 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             </View>
 
             {/* Divider */}
-            <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }} />
-
+            <Separator theme={theme} />
             {/* Charges and progress details */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               {/* Charge Pills */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, marginRight: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceVariant, marginRight: S.xxs }}>
                   {tr ? 'Şarj:' : 'Charges:'}
                 </Text>
                 {Array.from({ length: 3 }).map((_, idx) => {
@@ -311,7 +311,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
                       style={{
                         width: 14,
                         height: 7,
-                        borderRadius: 3,
+                        borderRadius: R.xs,
                         backgroundColor: filled 
                           ? (momentumShieldActive ? theme.streak : theme.tertiary) 
                           : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
@@ -323,22 +323,22 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
               {/* Progress to next charge */}
               {shieldCharges < 3 ? (
-                <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.65 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceMuted }}>
                   {tr 
                     ? `Yeni şarj için: ${60 - focusMinutesForNextCharge}dk odak / ${5 - tasksCompletedForNextCharge} görev`
                     : `${60 - focusMinutesForNextCharge}m focus / ${5 - tasksCompletedForNextCharge} tasks next`
                   }
                 </Text>
               ) : (
-                <Text style={{ fontSize: 9, fontWeight: '800', color: theme.tertiary }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: theme.tertiary }}>
                   {tr ? 'Maksimum Şarj' : 'Maximum Charged'}
                 </Text>
               )}
             </View>
           </View>
 
-          <Touchable onPress={() => setInfoVisible(false)} style={{ backgroundColor: accentColor, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 4 }}>
-            <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>{tr ? 'Anladım' : 'Got it'}</Text>
+          <Touchable onPress={() => setInfoVisible(false)} style={{ backgroundColor: accentColor, borderRadius: R.md, paddingVertical: S.smd, alignItems: 'center', marginTop: S.xs }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>{tr ? 'Anladım' : 'Got it'}</Text>
           </Touchable>
         </MotiView>
       </Touchable>

@@ -7,6 +7,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import * as Haptics from 'expo-haptics';
 import { Rocket, Flame, Zap, Layers, Sparkles } from 'lucide-react-native';
 import { usePathname } from 'expo-router';
+import { S, R } from '@/shared/constants/tokens';
 
 export const RocketFeedback: React.FC = () => {
   const { theme, colorScheme } = useAppTheme();
@@ -275,7 +276,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    borderRadius: 27,
+    borderRadius: R.xl,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderWidth: 1,
     shadowOffset: { width: 0, height: 0 },
@@ -284,10 +285,10 @@ const styles = StyleSheet.create({
   },
   bubble: {
     flex: 1,
-    marginLeft: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
+    marginLeft: S.smd,
+    paddingHorizontal: S.md,
+    paddingVertical: S.smd,
+    borderRadius: R.xl,
     borderWidth: 1.2,
     position: 'relative',
     elevation: 6,
@@ -306,28 +307,28 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     flex: 1,
-    gap: 3,
+    gap: S.xs,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 1,
+    marginBottom: S.xxs,
   },
   title: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: 1.2,
   },
   badge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: S.sm,
+    paddingVertical: S.xxs,
+    borderRadius: R.sm,
     borderWidth: 0.5,
   },
   badgeText: {
     fontSize: 8,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   body: {
     fontSize: 12,
@@ -338,6 +339,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     lineHeight: 14,
-    marginTop: 2,
+    marginTop: S.xxs,
   }
 });

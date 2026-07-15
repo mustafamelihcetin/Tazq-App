@@ -36,14 +36,14 @@ export function PeekMenu({ visible, onClose, items, title }: { visible: boolean;
           style={[styles.menu, { backgroundColor: isDark ? 'rgba(40,40,46,0.96)' : 'rgba(255,255,255,0.98)', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]}
         >
           {title ? (
-            <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', paddingHorizontal: S.md, paddingTop: S.sm + 2, paddingBottom: 2 }}>{title}</Text>
+            <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', paddingHorizontal: S.md, paddingTop: S.sm + 2, paddingBottom: S.xxs }}>{title}</Text>
           ) : null}
           {items.map((it, i) => (
             <View key={i}>
               {(i > 0 || title) ? <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)' }} /> : null}
               <Touchable
                 onPress={() => { onClose(); setTimeout(it.onPress, 60); }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: 13 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.smd }}
                 accessibilityRole="button"
                 accessibilityLabel={it.label}
               >

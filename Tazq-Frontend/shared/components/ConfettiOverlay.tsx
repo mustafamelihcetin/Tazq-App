@@ -6,6 +6,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Check } from 'lucide-react-native';
 import { swallow } from '@/shared/utils/swallow';
+import { S, ICON, R } from '@/shared/constants/tokens';
 
 const CONFETTI_COLORS = [
   '#6366F1', '#EC4899', '#F59E0B', '#10B981',
@@ -266,14 +267,14 @@ export const ConfettiOverlay: React.FC = () => {
       {/* Success Badge Layer (Centered naturally via flex) */}
       <Animated.View style={[styles.badge, {
         backgroundColor: isDark ? 'rgba(28, 28, 34, 0.92)' : 'rgba(255, 255, 255, 0.92)',
-        borderColor: theme.outlineVariant + '40',
+        borderColor: theme.outlineVariant,
         opacity: badgeOpacity,
         transform: [{ scale: badgeScale }]
       }]}>
         <View style={[styles.iconWrapper, { backgroundColor: theme.primary }]}>
-          <Check size={18} color={theme.onPrimary} strokeWidth={3.5} />
+          <Check size={ICON.md} color={theme.onPrimary} strokeWidth={3.5} />
         </View>
-        <View style={{ gap: 2 }}>
+        <View style={{ gap: S.xxs }}>
           <Text style={[styles.badgeTitle, { color: theme.onSurface }]}>
             {title || (language === 'tr' ? 'Görev Tamamlandı!' : 'Task Completed!')}
           </Text>
@@ -290,10 +291,10 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderRadius: 22,
+    gap: S.smd,
+    paddingHorizontal: S.lmd,
+    paddingVertical: S.md,
+    borderRadius: R.xl,
     borderWidth: 1.5,
     maxWidth: '90%',
     shadowColor: '#000',
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
   iconWrapper: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: R.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -316,6 +317,5 @@ const styles = StyleSheet.create({
   badgeSubtitle: {
     fontSize: 10.5,
     fontFamily: 'Jakarta-SemiBold',
-    opacity: 0.8,
   },
 });

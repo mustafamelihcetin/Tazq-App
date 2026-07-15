@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import type { AppTheme } from '@/shared/constants/Colors';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, Switch, TouchableWithoutFeedback } from 'react-native';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
@@ -27,7 +28,7 @@ import { useRouter } from 'expo-router';
 import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { S, R, F, B, MAX_W } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MAX_W, navBarSpace } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
@@ -40,6 +41,8 @@ import { DottedBackground } from '@/shared/components/DottedBackground';
 import { swallow } from '@/shared/utils/swallow';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
 import { isNetworkError, httpDataOf } from '@/shared/utils/errors';
+import { Separator } from '@/shared/components/Separator';
+import { SectionHeader } from '@/shared/components/SectionHeader';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -402,22 +405,22 @@ export default function ProfileScreen() {
         <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 190, paddingHorizontal: S.lg, paddingTop: S.xl + insets.top, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingBottom: navBarSpace(insets.bottom) + S.md, paddingHorizontal: S.lg, paddingTop: S.xl + insets.top, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           <View style={[styles.header, { marginTop: S.md }]}>
-            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { backgroundColor: '#ffffff', borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)') : avatarBorderColor, width: 110, height: 110, borderRadius: 55, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { backgroundColor: '#ffffff', borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)') : avatarBorderColor, width: 110, height: 110, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
                 <Image source={getAvatarSource(user?.avatar || null)} style={{ width: 110, height: 110 }} resizeMode="cover" />
             </MotiView>
             <View style={{ alignItems: 'center', marginTop: S.md }}>
                 <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{user?.name || 'Alex'}</Text>
                 <Text style={[styles.email, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{user?.email || 'user@tazq.com'}</Text>
                 {!!motto && (
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontStyle: 'italic', marginTop: 4, textAlign: 'center', paddingHorizontal: S.lg }}>"{motto}"</Text>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontStyle: 'italic', marginTop: S.xs, textAlign: 'center', paddingHorizontal: S.lg }}>"{motto}"</Text>
                 )}
                 <Touchable onPress={openEditModal} style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: S.sm }]}>
-                    <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '900', fontSize: F.caption }]}>{t.editProfile || 'Edit Profile'}</Text>
+                    <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '700', fontSize: F.caption }]}>{t.editProfile || 'Edit Profile'}</Text>
                 </Touchable>
             </View>
           </View>
@@ -437,15 +440,15 @@ export default function ProfileScreen() {
           ) : (
             <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.lg }}>
               {[
-                { icon: <Zap size={15} color={theme.primary} />, value: stats.totalFocusHours, label: language === 'tr' ? 'saat odak' : 'focus hrs' },
-                { icon: <Target size={15} color={theme.secondary} />, value: stats.completedTasksCount, label: language === 'tr' ? 'görev tamam' : 'tasks done' },
-                { icon: <Trophy size={15} color="#ff9f0a" />, value: displayBestStreak, label: language === 'tr' ? 'en uzun seri' : 'best streak' },
+                { icon: <Zap size={ICON.sm} color={theme.primary} />, value: stats.totalFocusHours, label: language === 'tr' ? 'saat odak' : 'focus hrs' },
+                { icon: <Target size={ICON.sm} color={theme.secondary} />, value: stats.completedTasksCount, label: language === 'tr' ? 'görev tamam' : 'tasks done' },
+                { icon: <Trophy size={ICON.sm} color="#ff9f0a" />, value: displayBestStreak, label: language === 'tr' ? 'en uzun seri' : 'best streak' },
               ].map((s, i) => (
                 <View key={i} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.xs + 2, paddingVertical: S.sm + 2, paddingHorizontal: S.sm + 2, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderRadius: R.md, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }}>
                   {s.icon}
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: F.subhead, fontWeight: '800', color: theme.onSurface, lineHeight: 20 }}>{s.value}</Text>
-                    <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.6, lineHeight: 13 }} numberOfLines={1}>{s.label}</Text>
+                    <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, lineHeight: 20 }}>{s.value}</Text>
+                    <Text style={{ fontSize: 10, color: theme.onSurfaceMuted, lineHeight: 13 }} numberOfLines={1}>{s.label}</Text>
                   </View>
                 </View>
               ))}
@@ -472,18 +475,18 @@ export default function ProfileScreen() {
               <View style={{ marginTop: S.md }}>
                 <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', marginBottom: S.md }} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: S.sm }}>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.5 }}>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1.5 }}>
                     {tr ? 'BAŞARILAR' : 'ACHIEVEMENTS'}
                   </Text>
-                  <View style={{ marginLeft: S.sm, backgroundColor: unlockedList.length > 0 ? theme.tertiary + '22' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.full, paddingHorizontal: 7, paddingVertical: 2 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: unlockedList.length > 0 ? theme.tertiary : theme.onSurfaceVariant, opacity: unlockedList.length > 0 ? 1 : 0.5 }}>
+                  <View style={{ marginLeft: S.sm, backgroundColor: unlockedList.length > 0 ? theme.tertiary + '22' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xxs }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: unlockedList.length > 0 ? theme.tertiary : theme.onSurfaceVariant, opacity: unlockedList.length > 0 ? 1 : 0.5 }}>
                       {unlockedList.length}/{all.length}
                     </Text>
                   </View>
                 </View>
 
                 {chips.length === 0 ? (
-                  <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                  <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>
                     {tr ? '3 günlük seri yap ya da odak seansı başlat.' : 'Build a 3-day streak or start a focus session.'}
                   </Text>
                 ) : (
@@ -506,7 +509,7 @@ export default function ProfileScreen() {
                             style={{
                               flex: 1,
                               alignItems: 'center',
-                              gap: 4,
+                              gap: S.xs,
                               paddingVertical: S.sm,
                               paddingHorizontal: S.xs,
                               borderRadius: R.md,
@@ -523,13 +526,13 @@ export default function ProfileScreen() {
                             <View style={{
                               width: 48,
                               height: 48,
-                              borderRadius: 24,
+                              borderRadius: R.full,
                               backgroundColor: ach.locked
                                 ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.015)')
                                 : ((ACHIEVEMENT_ICONS[ach.id]?.color || theme.primary) + '12'), // 7% opacity colored backdrop
                               alignItems: 'center',
                               justifyContent: 'center',
-                              marginBottom: 6,
+                              marginBottom: S.sm,
                               borderWidth: ach.locked ? 0 : 1,
                               borderColor: (ACHIEVEMENT_ICONS[ach.id]?.color || theme.primary) + '22', // 13% opacity colored border
                             }}>
@@ -562,13 +565,13 @@ export default function ProfileScreen() {
 
           <View style={[styles.settingsSection, { marginTop: S.lg }]}>
             <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', marginBottom: S.lg }} />
-            <Text style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, fontWeight: '900', letterSpacing: -0.5, marginBottom: S.lg, marginLeft: S.xs }]}>{t.settings}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', letterSpacing: -0.5, marginBottom: S.lg, marginLeft: S.xs }]}>{t.settings}</Text>
 
             {/* ── BİLDİRİMLER ── */}
-            <SectionHeader title={language === 'tr' ? 'BİLDİRİMLER' : 'NOTIFICATIONS'} theme={theme} />
+            <SectionHeader title={language === 'tr' ? 'BİLDİRİMLER' : 'NOTIFICATIONS'} theme={theme} tr={language === 'tr'} />
             <SettingsCard theme={theme} isDark={isDark}>
                 <SettingItem
-                    icon={<Bell size={18} color="#F59E0B" />}
+                    icon={<Bell size={ICON.md} color="#F59E0B" />}
                     label={t.notifications}
                     sub={language === 'tr' ? 'Sistem izinleri' : 'System permission'}
                     bg={isDark ? "rgba(245, 158, 11, 0.1)" : "#F59E0B15"}
@@ -576,9 +579,9 @@ export default function ProfileScreen() {
                     onPress={toggleNotifications}
                     theme={theme}
                 />
-                <RowDivider isDark={isDark} />
+                <RowDivider theme={theme} />
                 <ToggleRow
-                    icon={<Sunrise size={18} color={theme.primary} />}
+                    icon={<Sunrise size={ICON.md} color={theme.primary} />}
                     bg={theme.primary + '15'}
                     title={language === 'tr' ? 'Sabah Özeti' : 'Morning Brief'}
                     subtitle={language === 'tr' ? 'Her sabah 08:00 — bugünkü görevler' : 'Daily at 08:00 — today\'s tasks'}
@@ -586,9 +589,9 @@ export default function ProfileScreen() {
                     onValueChange={(v: boolean) => { Haptics.selectionAsync(); setMorningBrief(v); if (!v) cancelMorningBrief(); }}
                     theme={theme} isDark={isDark}
                 />
-                <RowDivider isDark={isDark} />
+                <RowDivider theme={theme} />
                 <ToggleRow
-                    icon={<Sunset size={18} color={theme.primary} />}
+                    icon={<Sunset size={ICON.md} color={theme.primary} />}
                     bg={theme.primary + '15'}
                     title={language === 'tr' ? 'Akşam Özeti' : 'Evening Brief'}
                     subtitle={language === 'tr' ? 'Her gün 21:00 — günlük tamamlanma' : 'Daily at 21:00 — day completion'}
@@ -596,9 +599,9 @@ export default function ProfileScreen() {
                     onValueChange={(v: boolean) => { Haptics.selectionAsync(); setEveningBrief(v); if (!v) cancelEveningBrief(); }}
                     theme={theme} isDark={isDark}
                 />
-                <RowDivider isDark={isDark} />
+                <RowDivider theme={theme} />
                 <ToggleRow
-                    icon={<CalendarDays size={18} color={theme.primary} />}
+                    icon={<CalendarDays size={ICON.md} color={theme.primary} />}
                     bg={theme.primary + '15'}
                     title={language === 'tr' ? 'Haftalık Özet' : 'Weekly Summary'}
                     subtitle={language === 'tr' ? 'Her Pazar akşamı momentum özeti' : 'Momentum recap every Sunday'}
@@ -606,9 +609,9 @@ export default function ProfileScreen() {
                     onValueChange={(v: boolean) => { Haptics.selectionAsync(); setWeeklyNotification(v); if (!v) cancelWeeklySummary(); }}
                     theme={theme} isDark={isDark}
                 />
-                <RowDivider isDark={isDark} />
+                <RowDivider theme={theme} />
                 <ToggleRow
-                    icon={<CalendarDays size={18} color={theme.primary} />}
+                    icon={<CalendarDays size={ICON.md} color={theme.primary} />}
                     bg={theme.primary + '15'}
                     title={language === 'tr' ? 'Takvim Senkronizasyonu' : 'Calendar Sync'}
                     subtitle={language === 'tr' ? 'Görevleri sistem takvimine kaydeder' : 'Syncs tasks to system calendar'}
@@ -619,28 +622,28 @@ export default function ProfileScreen() {
             </SettingsCard>
 
             {/* ── GÖRÜNÜM & DİL ── */}
-            <SectionHeader title={language === 'tr' ? 'GÖRÜNÜM & DİL' : 'APPEARANCE & LANGUAGE'} theme={theme} style={{ marginTop: S.lg }} />
+            <SectionHeader title={language === 'tr' ? 'GÖRÜNÜM & DİL' : 'APPEARANCE & LANGUAGE'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
             <SettingsCard theme={theme} isDark={isDark}>
                 <SettingItem
-                    icon={<Moon size={18} color="#818CF8" />}
+                    icon={<Moon size={ICON.md} color="#818CF8" />}
                     label={t.appearance}
                     bg={isDark ? "rgba(129, 140, 248, 0.1)" : "#818CF815"}
-                    right={<Text style={{ color: theme.primary, fontWeight: '800', fontSize: F.caption }}>{((t as any)[`theme${currentSetting.charAt(0).toUpperCase() + currentSetting.slice(1)}`] || currentSetting).toUpperCase()}</Text>}
+                    right={<Text style={{ color: theme.primary, fontWeight: '700', fontSize: F.caption }}>{((t as any)[`theme${currentSetting.charAt(0).toUpperCase() + currentSetting.slice(1)}`] || currentSetting).toUpperCase()}</Text>}
                     onPress={toggleTheme}
                     theme={theme}
                 />
-                <RowDivider isDark={isDark} />
+                <RowDivider theme={theme} />
                 <SettingItem
-                    icon={<Languages size={18} color="#10B981" />}
+                    icon={<Languages size={ICON.md} color="#10B981" />}
                     label={t.language}
                     bg={isDark ? "rgba(16, 185, 129, 0.1)" : "#10B98115"}
-                    right={<Text style={{ color: theme.onSurface, fontWeight: '800', fontSize: F.caption }}>{language.toUpperCase()}</Text>}
+                    right={<Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{language.toUpperCase()}</Text>}
                     onPress={toggleLanguage}
                     theme={theme}
                 />
-                <RowDivider isDark={isDark} />
+                <RowDivider theme={theme} />
                 <ToggleRow
-                    icon={<Zap size={18} color={theme.primary} />}
+                    icon={<Zap size={ICON.md} color={theme.primary} />}
                     bg={theme.primary + '15'}
                     title={language === 'tr' ? 'Sade Mod' : 'Lite Mode'}
                     subtitle={language === 'tr' ? 'Oyunlaştırma ve modları gizler — sadece görevler' : 'Hides gamification & modes — tasks only'}
@@ -651,10 +654,10 @@ export default function ProfileScreen() {
             </SettingsCard>
 
             {/* ── DENEYİM ── */}
-            <SectionHeader title={language === 'tr' ? 'DENEYİM' : 'EXPERIENCE'} theme={theme} style={{ marginTop: S.lg }} />
+            <SectionHeader title={language === 'tr' ? 'DENEYİM' : 'EXPERIENCE'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
             <SettingsCard theme={theme} isDark={isDark}>
                 <ToggleRow
-                    icon={<Volume2 size={18} color={theme.primary} />}
+                    icon={<Volume2 size={ICON.md} color={theme.primary} />}
                     bg={theme.primary + '15'}
                     title={language === 'tr' ? 'Ses Efektleri' : 'Sound Effects'}
                     subtitle={language === 'tr' ? 'Görev & timer tamamlama sesleri' : 'Task & timer completion sounds'}
@@ -662,23 +665,23 @@ export default function ProfileScreen() {
                     onValueChange={(v: boolean) => { Haptics.selectionAsync(); setSoundEffects(v); }}
                     theme={theme} isDark={isDark}
                 />
-                <RowDivider isDark={isDark} />
+                <RowDivider theme={theme} />
                 <SettingItem
-                    icon={<Zap size={18} color={theme.primary} />}
+                    icon={<Zap size={ICON.md} color={theme.primary} />}
                     label={language === 'tr' ? 'Focus Puanları' : 'Focus Points'}
                     sub={language === 'tr' ? `${focusPoints} XP · Her 100 puanda 1 kalkan kazanırsın` : `${focusPoints} XP · Gain 1 shield every 100 points`}
                     bg={theme.primary + '15'}
-                    right={<Text style={{ color: theme.primary, fontWeight: '800', fontSize: F.caption }}>{focusPoints}/100</Text>}
+                    right={<Text style={{ color: theme.primary, fontWeight: '700', fontSize: F.caption }}>{focusPoints}/100</Text>}
                     theme={theme}
                 />
-                <RowDivider isDark={isDark} />
+                <RowDivider theme={theme} />
                 <SettingItem
-                    icon={<Shield size={18} color={isDark ? "#2DD4BF" : "#0D9488"} />}
+                    icon={<Shield size={ICON.md} color={isDark ? "#2DD4BF" : "#0D9488"} />}
                     label={t.streakFreeze}
                     sub={language === 'tr' ? `${streakShields}/3 kalkan hazır — seriyi korur` : `${streakShields}/3 shields ready — protects streak`}
                     bg={isDark ? "rgba(45, 212, 191, 0.12)" : "rgba(13, 148, 136, 0.12)"}
                     right={
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                         {[1, 2, 3].map((num) => (
                           <Shield
                             key={num}
@@ -698,10 +701,10 @@ export default function ProfileScreen() {
             {/* ── UYKU (Apple Sağlık) — yalnız desteklenen cihazda ── */}
             {sleepSupported && (
               <>
-                <SectionHeader title={language === 'tr' ? 'UYKU' : 'SLEEP'} theme={theme} style={{ marginTop: S.lg }} />
+                <SectionHeader title={language === 'tr' ? 'UYKU' : 'SLEEP'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
                 <SettingsCard theme={theme} isDark={isDark}>
                     <ToggleRow
-                        icon={<Moon size={18} color="#818CF8" />}
+                        icon={<Moon size={ICON.md} color="#818CF8" />}
                         bg={'#818CF815'}
                         title={language === 'tr' ? 'Apple Sağlık ile Uyku' : 'Sleep via Apple Health'}
                         subtitle={language === 'tr' ? 'Uyku alışkanlığın her sabah otomatik işaretlenir' : 'Your sleep habit is auto-marked each morning'}
@@ -709,13 +712,13 @@ export default function ProfileScreen() {
                         onValueChange={handleSleepToggle}
                         theme={theme} isDark={isDark}
                     />
-                    <RowDivider isDark={isDark} />
+                    <RowDivider theme={theme} />
                     <SettingItem
-                        icon={<Target size={18} color="#818CF8" />}
+                        icon={<Target size={ICON.md} color="#818CF8" />}
                         label={language === 'tr' ? 'Uyku Hedefi' : 'Sleep Goal'}
                         sub={language === 'tr' ? 'Hedefi tuttuğunda kutlanır' : 'Celebrated when you hit it'}
                         bg={'#818CF815'}
-                        right={<Text style={{ color: '#818CF8', fontWeight: '800', fontSize: F.caption }}>{sleepGoalHours}{language === 'tr' ? ' saat' : 'h'}</Text>}
+                        right={<Text style={{ color: '#818CF8', fontWeight: '700', fontSize: F.caption }}>{sleepGoalHours}{language === 'tr' ? ' saat' : 'h'}</Text>}
                         onPress={cycleSleepGoal}
                         theme={theme}
                     />
@@ -724,10 +727,10 @@ export default function ProfileScreen() {
             )}
 
             {/* ── MERKEZ ── */}
-            <SectionHeader title={language === 'tr' ? 'MERKEZ' : 'HUB'} theme={theme} style={{ marginTop: S.lg }} />
+            <SectionHeader title={language === 'tr' ? 'MERKEZ' : 'HUB'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
             <SettingsCard theme={theme} isDark={isDark}>
                 <SettingItem
-                    icon={<CalendarDays size={18} color={theme.primary} />}
+                    icon={<CalendarDays size={ICON.md} color={theme.primary} />}
                     label={language === 'tr' ? 'Haftalık Merkez' : 'Weekly Hub'}
                     sub={language === 'tr' ? 'Momentum, seri ve haftalık bakış' : 'Momentum, streak & weekly view'}
                     bg={theme.primary + '15'}
@@ -737,10 +740,10 @@ export default function ProfileScreen() {
             </SettingsCard>
 
             {/* ── YASAL & GİZLİLİK ── */}
-            <SectionHeader title={t.legalAndPrivacy || (language === 'tr' ? 'YASAL & GİZLİLİK' : 'LEGAL & PRIVACY')} theme={theme} style={{ marginTop: S.lg }} />
+            <SectionHeader title={t.legalAndPrivacy || (language === 'tr' ? 'YASAL & GİZLİLİK' : 'LEGAL & PRIVACY')} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
             <SettingsCard theme={theme} isDark={isDark}>
                 <SettingItem
-                    icon={<FileText size={18} color="#8B5CF6" />}
+                    icon={<FileText size={ICON.md} color="#8B5CF6" />}
                     label={t.termsOfService || (language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service')}
                     bg="#8B5CF615"
                     onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
@@ -748,7 +751,7 @@ export default function ProfileScreen() {
                 />
                 <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
                 <SettingItem
-                    icon={<Shield size={18} color="#10B981" />}
+                    icon={<Shield size={ICON.md} color="#10B981" />}
                     label={t.privacyPolicy || (language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy')}
                     bg="#10B98115"
                     onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
@@ -756,7 +759,7 @@ export default function ProfileScreen() {
                 />
                 <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
                 <SettingItem
-                    icon={<MessageSquare size={18} color="#3B82F6" />}
+                    icon={<MessageSquare size={ICON.md} color="#3B82F6" />}
                     label={(t as any).support?.title || (language === 'tr' ? 'Destek & İletişim' : 'Support & Contact')}
                     sub={(t as any).support?.sub || (language === 'tr' ? 'Soru ve önerilerini ilet' : 'Send questions & feedback')}
                     bg="#3B82F615"
@@ -770,11 +773,11 @@ export default function ProfileScreen() {
                 onPress={() => router.push('/admin')}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.08)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl, borderWidth: B.thin, borderColor: isDark ? 'rgba(99,102,241,0.25)' : 'rgba(99,102,241,0.15)' }}
               >
-                <Shield size={18} color="#6366F1" />
-                <Text style={{ color: '#6366F1', fontWeight: '800', fontSize: F.body, flex: 1 }}>
+                <Shield size={ICON.md} color="#6366F1" />
+                <Text style={{ color: '#6366F1', fontWeight: '700', fontSize: F.body, flex: 1 }}>
                   {language === 'tr' ? 'Admin Paneli' : 'Admin Panel'}
                 </Text>
-                <ChevronRight size={16} color="#6366F1" />
+                <ChevronRight size={ICON.sm} color="#6366F1" />
               </Touchable>
             )}
 
@@ -783,20 +786,20 @@ export default function ProfileScreen() {
                 onPress={openChangePassword}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl }}
               >
-                <Lock size={18} color={theme.onSurfaceVariant} />
+                <Lock size={ICON.md} color={theme.onSurfaceVariant} />
                 <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body, flex: 1 }}>{language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}</Text>
-                <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.5} />
+                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
               </Touchable>
             )}
 
             <Touchable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: (user as any)?.hasPassword ? S.md : S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
-                <LogOut size={18} color={theme.error} />
+                <LogOut size={ICON.md} color={theme.error} />
                 <Text style={[styles.logoutText, { color: theme.error, fontSize: F.body }]}>{t.logout}</Text>
             </Touchable>
 
             <Touchable onPress={openDeleteAccount} style={[styles.logoutBtn, { backgroundColor: 'transparent', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md }]}>
-                <Trash2 size={16} color={theme.onSurfaceVariant} opacity={0.6} />
-                <Text style={[styles.logoutText, { color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6 }]}>{t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account')}</Text>
+                <Trash2 size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.6} />
+                <Text style={[styles.logoutText, { color: theme.onSurfaceMuted, fontSize: F.caption }]}>{t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account')}</Text>
             </Touchable>
           </View>
         </ScrollView>
@@ -812,13 +815,13 @@ export default function ProfileScreen() {
             from={{ opacity: 0, scale: 0.96, translateY: 16 }}
             animate={{ opacity: 1, scale: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 18 }}
-            style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderRadius: R.lg, padding: S.lg, gap: S.md }}
+            style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderRadius: R.lg, padding: S.lg, gap: S.md }}
           >
-            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: theme.error + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
-              <Trash2 size={24} color={theme.error} strokeWidth={2.2} />
+            <View style={{ width: 52, height: 52, borderRadius: R.full, backgroundColor: theme.error + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
+              <Trash2 size={ICON.lg} color={theme.error} strokeWidth={2.2} />
             </View>
 
-            <Text style={{ fontSize: F.subhead, fontWeight: '800', color: theme.onSurface, textAlign: 'center', letterSpacing: -0.3 }}>
+            <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, textAlign: 'center', letterSpacing: -0.3 }}>
               {language === 'tr' ? 'Hesabını sil' : 'Delete account'}
             </Text>
 
@@ -830,13 +833,13 @@ export default function ProfileScreen() {
                     ? 'Hesabın hemen devre dışı kalır. 30 gün içinde tekrar giriş yaparsan her şey geri gelir. Süre dolunca şunlar kalıcı olarak silinir:'
                     : 'Your account is deactivated right away. Log back in within 30 days to restore everything. After that, the following is permanently deleted:'}
                 </Text>
-                <View style={{ gap: 7, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md }}>
+                <View style={{ gap: S.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md }}>
                   {(language === 'tr'
                     ? ['Profilin ve tüm ayarların', 'Tüm görev ve alışkanlıkların', 'Odak geçmişin ve istatistiklerin', 'Aktif modların ve planların']
                     : ['Your profile & all settings', 'All tasks & habits', 'Focus history & stats', 'Active modes & plans']
                   ).map((li, i) => (
-                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: theme.error, opacity: 0.7 }} />
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                      <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: theme.error, opacity: 0.7 }} />
                       <Text style={{ flex: 1, fontSize: F.caption + 1, color: theme.onSurfaceVariant, fontWeight: '500' }}>{li}</Text>
                     </View>
                   ))}
@@ -844,9 +847,9 @@ export default function ProfileScreen() {
               </>
             )}
 
-            <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, textAlign: 'center', marginTop: 2 }}>
+            <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, textAlign: 'center', marginTop: S.xxs }}>
               {language === 'tr' ? 'Onaylamak için ' : 'Type '}
-              <Text style={{ fontWeight: '900', color: theme.error, letterSpacing: 1 }}>{DELETE_WORD}</Text>
+              <Text style={{ fontWeight: '700', color: theme.error, letterSpacing: 1 }}>{DELETE_WORD}</Text>
               {language === 'tr' ? ' yazın' : ' to confirm'}
             </Text>
             <TextInput
@@ -857,15 +860,15 @@ export default function ProfileScreen() {
               placeholder={DELETE_WORD}
               placeholderTextColor={theme.onSurfaceVariant + '66'}
               editable={!deleting}
-              style={{ borderWidth: B.medium, borderColor: canConfirmDelete ? theme.error : theme.outline, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, color: theme.onSurface, fontSize: F.subhead, fontWeight: '800', letterSpacing: 2, textAlign: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
+              style={{ borderWidth: B.medium, borderColor: canConfirmDelete ? theme.error : theme.outline, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', letterSpacing: 2, textAlign: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
             />
 
-            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: 4 }}>
+            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.xs }}>
               <Touchable onPress={() => { if (!deleting) { Keyboard.dismiss(); setDeleteModalVisible(false); } }} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center' }}>
                 <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Vazgeç' : 'Cancel'}</Text>
               </Touchable>
               <Touchable disabled={!canConfirmDelete || deleting} onPress={performDeleteAccount} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.error, alignItems: 'center', justifyContent: 'center', opacity: (canConfirmDelete && !deleting) ? 1 : 0.4 }}>
-                {deleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: F.body }}>{language === 'tr' ? 'Hesabı Sil' : 'Delete'}</Text>}
+                {deleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Hesabı Sil' : 'Delete'}</Text>}
               </Touchable>
             </View>
           </MotiView>
@@ -880,12 +883,12 @@ export default function ProfileScreen() {
             from={{ opacity: 0, scale: 0.96, translateY: 16 }}
             animate={{ opacity: 1, scale: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 18 }}
-            style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderRadius: R.lg, padding: S.lg, gap: S.md }}
+            style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderRadius: R.lg, padding: S.lg, gap: S.md }}
           >
-            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: theme.primary + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
-              <Lock size={24} color={theme.primary} strokeWidth={2.2} />
+            <View style={{ width: 52, height: 52, borderRadius: R.full, backgroundColor: theme.primary + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
+              <Lock size={ICON.lg} color={theme.primary} strokeWidth={2.2} />
             </View>
-            <Text style={{ fontSize: F.subhead, fontWeight: '800', color: theme.onSurface, textAlign: 'center', letterSpacing: -0.3 }}>
+            <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, textAlign: 'center', letterSpacing: -0.3 }}>
               {language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}
             </Text>
 
@@ -907,7 +910,7 @@ export default function ProfileScreen() {
                 />
                 {f.eye && (
                   <TouchableOpacity accessibilityRole="button" accessibilityLabel={showPw ? (language === 'tr' ? 'Şifreyi gizle' : 'Hide password') : (language === 'tr' ? 'Şifreyi göster' : 'Show password')} onPress={() => setShowPw((s) => !s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    {showPw ? <EyeOff size={18} color={theme.onSurfaceVariant} /> : <Eye size={18} color={theme.onSurfaceVariant} />}
+                    {showPw ? <EyeOff size={ICON.md} color={theme.onSurfaceVariant} /> : <Eye size={ICON.md} color={theme.onSurfaceVariant} />}
                   </TouchableOpacity>
                 )}
               </View>
@@ -915,12 +918,12 @@ export default function ProfileScreen() {
 
             {pwError && <Text style={{ color: theme.error, textAlign: 'center', fontSize: F.caption + 1, fontWeight: '600' }}>{pwError}</Text>}
 
-            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: 2 }}>
+            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.xxs }}>
               <Touchable onPress={() => { if (!changingPw) { Keyboard.dismiss(); setPwModalVisible(false); } }} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center' }}>
                 <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Vazgeç' : 'Cancel'}</Text>
               </Touchable>
               <Touchable onPress={performChangePassword} disabled={changingPw} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', opacity: changingPw ? 0.6 : 1 }}>
-                {changingPw ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: F.body }}>{language === 'tr' ? 'Kaydet' : 'Save'}</Text>}
+                {changingPw ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Kaydet' : 'Save'}</Text>}
               </Touchable>
             </View>
           </MotiView>
@@ -931,8 +934,8 @@ export default function ProfileScreen() {
       <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
             <Touchable style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
-              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', maxHeight: height - insets.top - 16 }]}>
-                <View {...editPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
+              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, maxHeight: height - insets.top - 16 }]}>
+                <View {...editPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
                   <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
                 </View>
                 <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.modalTitle, { color: theme.onSurface, fontSize: F.subhead }]}>
@@ -950,7 +953,7 @@ export default function ProfileScreen() {
                   </TouchableWithoutFeedback>
                   {/* Name input */}
                   <View style={{ width: '100%', marginBottom: S.md }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
                       {t.editName || 'Display Name'}
                     </Text>
                     <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
@@ -968,7 +971,7 @@ export default function ProfileScreen() {
 
                   {/* Gender selection */}
                   <View style={{ width: '100%', marginBottom: S.md }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
                       {language === 'tr' ? 'Cinsiyet' : 'Gender'}
                     </Text>
                     <View style={{ flexDirection: 'row', gap: S.xs }}>
@@ -991,12 +994,12 @@ export default function ProfileScreen() {
                             }}
                             style={{
                               flex: 1,
-                              paddingVertical: 10,
+                              paddingVertical: S.smd,
                               borderRadius: R.sm,
                               borderWidth: 1.5,
                               alignItems: 'center',
                               justifyContent: 'center',
-                              borderColor: isSelected ? theme.primary : theme.outline + '20',
+                              borderColor: isSelected ? theme.primary : theme.outline,
                               backgroundColor: isSelected ? theme.primaryContainer : 'transparent',
                             }}
                           >
@@ -1015,7 +1018,7 @@ export default function ProfileScreen() {
 
                   {/* Avatar selection */}
                   <View style={{ width: '100%', marginBottom: S.md }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>Avatar</Text>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>Avatar</Text>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
@@ -1036,12 +1039,12 @@ export default function ProfileScreen() {
                             accessibilityRole="imagebutton"
                             accessibilityLabel={(language === 'tr' ? 'Avatar ' : 'Avatar ') + config.key}
                             accessibilityState={{ selected: isSelected }}
-                            style={{ alignItems: 'center', gap: 5 }}
+                            style={{ alignItems: 'center', gap: S.xs }}
                           >
                             <View style={{
-                              width: 64, height: 64, borderRadius: 32,
+                              width: 64, height: 64, borderRadius: R.full,
                               borderWidth: isSelected ? 3 : 1.5,
-                              borderColor: isSelected ? theme.primary : theme.outline + '40',
+                              borderColor: isSelected ? theme.primary : theme.outline,
                               overflow: 'hidden',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -1054,7 +1057,7 @@ export default function ProfileScreen() {
                               />
                             </View>
                             <Text style={{
-                              fontSize: 9, fontWeight: '800', letterSpacing: 0.3,
+                              fontSize: 9, fontWeight: '700', letterSpacing: 0.3,
                               color: isSelected ? theme.primary : theme.onSurfaceVariant,
                               opacity: isSelected ? 1 : 0.5,
                             }}>
@@ -1068,7 +1071,7 @@ export default function ProfileScreen() {
 
                   {/* Avatar Border Color */}
                   <View style={{ width: '100%', marginBottom: S.md }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
                       {language === 'tr' ? 'Profil Çerçeve Rengi' : 'Profile Border Color'}
                     </Text>
                     <ScrollView
@@ -1116,7 +1119,7 @@ export default function ProfileScreen() {
                             style={{
                               width: 38,
                               height: 38,
-                              borderRadius: 19,
+                              borderRadius: R.full,
                               borderWidth: isSelected ? 3 : 1.5,
                               borderColor: isSelected ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
                               alignItems: 'center',
@@ -1127,7 +1130,7 @@ export default function ProfileScreen() {
                             <View style={{
                               width: 26,
                               height: 26,
-                              borderRadius: 13,
+                              borderRadius: R.full,
                               borderWidth: isNone ? 1.5 : 0,
                               borderStyle: isNone ? 'dashed' : 'solid',
                               borderColor: isNone ? (isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)') : 'transparent',
@@ -1139,7 +1142,7 @@ export default function ProfileScreen() {
                                 <View style={{
                                   width: 8,
                                   height: 8,
-                                  borderRadius: 4,
+                                  borderRadius: R.full,
                                   backgroundColor: isNone ? (isDark ? '#FFFFFF' : '#000000') : '#FFFFFF',
                                 }} />
                               )}
@@ -1152,7 +1155,7 @@ export default function ProfileScreen() {
 
                   {/* Motto */}
                   <View style={{ width: '100%', marginBottom: S.lg }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
                       {language === 'tr' ? 'Kişisel Motto' : 'Personal Motto'}
                     </Text>
                     <TextInput
@@ -1163,23 +1166,23 @@ export default function ProfileScreen() {
                       maxLength={60}
                       style={{ fontSize: F.body, color: theme.onSurface, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, marginTop: S.xs }}
                     />
-                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.4, textAlign: 'right', marginTop: 4 }}>{newMotto.length}/60</Text>
+                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, textAlign: 'right', marginTop: S.xs }}>{newMotto.length}/60</Text>
                   </View>
 
                   {/* Productivity hour */}
                   <View style={{ width: '100%', marginBottom: S.lg }}>
-                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceVariant }]}>
+                    <Text style={[styles.sectionLabel, { color: theme.onSurfaceMuted }]}>
                       {language === 'tr' ? 'En Verimli Olduğun Zaman' : 'Peak Productivity Time'}
                     </Text>
-                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.5, marginBottom: S.sm }}>
+                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, marginBottom: S.sm }}>
                       {language === 'tr' ? 'Sabah özeti bu saate planlanır.' : 'Morning brief is scheduled around this time.'}
                     </Text>
                     <View style={{ flexDirection: 'row', gap: S.xs }}>
                       {([
-                        { key: 'morning',   labelTr: 'Sabah',   labelEn: 'Morning',   hint: '07:00', icon: (color: string) => <Sunrise size={18} color={color} /> },
-                        { key: 'afternoon', labelTr: 'Öğlen',   labelEn: 'Afternoon', hint: '12:00', icon: (color: string) => <Sun size={18} color={color} /> },
-                        { key: 'evening',   labelTr: 'Akşam',   labelEn: 'Evening',   hint: '17:00', icon: (color: string) => <Sunset size={18} color={color} /> },
-                        { key: 'night',     labelTr: 'Gece',    labelEn: 'Night',     hint: '21:00', icon: (color: string) => <Moon size={18} color={color} /> },
+                        { key: 'morning',   labelTr: 'Sabah',   labelEn: 'Morning',   hint: '07:00', icon: (color: string) => <Sunrise size={ICON.md} color={color} /> },
+                        { key: 'afternoon', labelTr: 'Öğlen',   labelEn: 'Afternoon', hint: '12:00', icon: (color: string) => <Sun size={ICON.md} color={color} /> },
+                        { key: 'evening',   labelTr: 'Akşam',   labelEn: 'Evening',   hint: '17:00', icon: (color: string) => <Sunset size={ICON.md} color={color} /> },
+                        { key: 'night',     labelTr: 'Gece',    labelEn: 'Night',     hint: '21:00', icon: (color: string) => <Moon size={ICON.md} color={color} /> },
                       ] as const).map(opt => {
                         const sel = newProductivityHour === opt.key;
                         const itemColor = sel ? theme.primary : theme.onSurfaceVariant;
@@ -1187,11 +1190,11 @@ export default function ProfileScreen() {
                           <Touchable
                             key={opt.key}
                             onPress={() => { Haptics.selectionAsync(); setNewProductivityHour(opt.key); }}
-                            style={{ flex: 1, alignItems: 'center', gap: 6, paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.thin, borderColor: sel ? theme.primary + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), backgroundColor: sel ? theme.primary + '15' : 'transparent' }}
+                            style={{ flex: 1, alignItems: 'center', gap: S.sm, paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.thin, borderColor: sel ? theme.primary + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), backgroundColor: sel ? theme.primary + '15' : 'transparent' }}
                           >
                             {opt.icon(itemColor)}
-                            <Text style={{ fontSize: 10, fontWeight: '800', color: itemColor }}>{language === 'tr' ? opt.labelTr : opt.labelEn}</Text>
-                            <Text style={{ fontSize: 9, color: theme.onSurfaceVariant, opacity: 0.5 }}>{opt.hint}</Text>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: itemColor }}>{language === 'tr' ? opt.labelTr : opt.labelEn}</Text>
+                            <Text style={{ fontSize: 9, color: theme.onSurfaceMuted }}>{opt.hint}</Text>
                           </Touchable>
                         );
                       })}
@@ -1213,7 +1216,7 @@ export default function ProfileScreen() {
                   >
                     {savingProfile
                       ? <ActivityIndicator color="white" />
-                      : <Text style={{ color: 'white', fontWeight: '900', fontSize: F.body }}>{t.save}</Text>
+                      : <Text style={{ color: 'white', fontWeight: '700', fontSize: F.body }}>{t.save}</Text>
                     }
                   </Touchable>
                 </View>
@@ -1235,36 +1238,56 @@ export default function ProfileScreen() {
 }
 
 // iOS tarzı bölüm başlığı (kartın üstünde küçük, harf aralıklı etiket)
-function SectionHeader({ title, theme, style }: any) {
-    return (
-        <Text style={[{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '900', letterSpacing: 1.2, opacity: 0.6, marginLeft: S.md, marginBottom: S.sm, textTransform: 'uppercase' }, style]}>
-            {title}
-        </Text>
-    );
-}
 
-// Gruplanmış ayar kartı sarmalayıcı
+/**
+ * Gruplanmış ayar kartı — dashboard'ın BentoCard'ıyla AYNI kabuk.
+ *
+ * Eskiden kendi renklerini yazıyordu ve ayrışmıştı:
+ *   koyu zemin  : '#1C1C22' sabit  → dashboard #222228 kullanıyordu. Aynı uygulamada
+ *                 iki farklı kart tonu; fark küçük ama sistematik değil, kaza.
+ *   kenar rengi : elle rgba       → palette theme.outline zaten var.
+ *   yarıçap     : R.lg (16)       → dashboard R.md (12), iOS kart standardı.
+ *
+ * "Profil sayfası farklı/karmaşık görünüyor" hissinin ölçülebilir kısmı buydu: göz
+ * aynı olması gereken iki şeyin farkını yakalar, sebebini adlandıramasa bile.
+ */
 function SettingsCard({ children, theme, isDark, style }: any) {
     return (
-        <View style={[{ backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', borderWidth: B.thin, borderRadius: R.lg, overflow: 'hidden' }, style]}>
+        <View style={[{
+            backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
+            borderColor: isDark ? theme.outline : 'transparent',
+            borderWidth: isDark ? B.thin : 0,
+            borderRadius: R.md,
+            overflow: 'hidden',
+        }, style]}>
             {children}
         </View>
     );
 }
 
-// Kart içi satır ayıracı
-function RowDivider({ isDark }: any) {
-    return <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginHorizontal: S.md }} />;
+// Kart içi satır ayıracı — paylaşılan Separator üzerine ince sarmal.
+// Eskiden kendi çizgisini çiziyordu: `height: 1` + elle rgba. Yani hem 1pt (iOS'ta
+// Apple'ın çizgisinin 3 katı) hem palet dışıydı. Aynı dosyada bir de hiç kullanılmayan
+// ikinci bir Divider vardı — tek dosyada iki ayırıcı, biri ölü.
+//
+// marginHorizontal KORUNUYOR: bu kart içi bir ayıraç, iki yandan da girintili
+// (Separator'ın inset'i yalnızca soldan — o, liste satırı deseni).
+function RowDivider({ theme }: { theme: AppTheme }) {
+    return (
+        <View style={{ marginHorizontal: S.md }}>
+            <Separator theme={theme} />
+        </View>
+    );
 }
 
 // İkon + başlık + alt açıklama + Switch satırı (tek aksan rengi)
 function ToggleRow({ icon, bg, title, subtitle, value, onValueChange, theme, isDark }: any) {
     return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: 14, gap: 12 }}>
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.smd }}>
+            <View style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
             <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body, lineHeight: 20 }}>{title}</Text>
-                {!!subtitle && <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 2, lineHeight: 15 }}>{subtitle}</Text>}
+                {!!subtitle && <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs, lineHeight: 15 }}>{subtitle}</Text>}
             </View>
             <Switch
                 value={value}
@@ -1278,40 +1301,37 @@ function ToggleRow({ icon, bg, title, subtitle, value, onValueChange, theme, isD
 
 function SettingItem({ icon, label, sub, right, onPress, theme, bg }: any) {
     return (
-        <Touchable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: 14 }} onPress={onPress}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: bg || (theme.colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
+        <Touchable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.md }} onPress={onPress}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd, flex: 1, minWidth: 0 }}>
+                <View style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: bg || (theme.colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body, lineHeight: 20 }}>{label}</Text>
-                    {!!sub && <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 2, lineHeight: 15 }}>{sub}</Text>}
+                    {!!sub && <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs, lineHeight: 15 }}>{sub}</Text>}
                 </View>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginLeft: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginLeft: S.sm }}>
                 {right}
-                <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.3} />
+                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.3} />
             </View>
         </Touchable>
     );
 }
 
-function Divider({ theme }: any) {
-    return <View style={{ height: 1, backgroundColor: theme.outlineVariant + '15', marginHorizontal: S.md }} />;
-}
 
 const styles = StyleSheet.create({
   header: { alignItems: 'center' },
   avatarLarge: { borderWidth: 3, padding: S.xs },
   image: { width: '100%', height: '100%' },
-  name: { fontWeight: '900', letterSpacing: -1 },
+  name: { fontWeight: '700', letterSpacing: -1 },
   email: { opacity: 0.6, marginTop: S.xs },
   editBtn: { marginTop: S.md, paddingHorizontal: S.lg, borderRadius: R.full },
-  editBtnText: { color: 'white', fontWeight: '800' },
+  editBtnText: { color: 'white', fontWeight: '700' },
   statsGrid: { flexDirection: 'row' },
-  statValue: { fontWeight: '900', marginTop: S.sm },
-  statLabel: { fontWeight: '800', opacity: 0.75, marginTop: S.xs },
+  statValue: { fontWeight: '700', marginTop: S.sm },
+  statLabel: { fontWeight: '700', opacity: 0.75, marginTop: S.xs },
   settingsSection: { },
-  sectionTitle: { fontSize: F.caption, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginBottom: S.md },
-  sectionLabel: { fontSize: F.caption, fontWeight: '900', letterSpacing: 1, marginBottom: S.sm, textTransform: 'uppercase', opacity: 0.75 },
+  sectionTitle: { fontSize: F.caption, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: S.md },
+  sectionLabel: { fontSize: F.caption, fontWeight: '700', letterSpacing: 1, marginBottom: S.sm, textTransform: 'uppercase' },
   settingsCard: { borderRadius: R.lg, overflow: 'hidden' },
   settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   iconBox: { width: 32, height: 32, borderRadius: R.sm, alignItems: 'center', justifyContent: 'center' },
@@ -1323,7 +1343,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, borderBottomLeftRadius: S.xl, borderBottomRightRadius: S.xl, paddingTop: S.sm, overflow: 'hidden' },
   modalHandle: { width: 40, height: 4, borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
-  modalTitle: { fontWeight: '900', marginBottom: S.lg, textAlign: 'center', paddingHorizontal: S.lg },
+  modalTitle: { fontWeight: '700', marginBottom: S.lg, textAlign: 'center', paddingHorizontal: S.lg },
   avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
   inputGroup: { borderRadius: R.md, paddingHorizontal: S.md, height: 48, justifyContent: 'center' },
   nameInput: { fontSize: F.body, fontWeight: '600' },

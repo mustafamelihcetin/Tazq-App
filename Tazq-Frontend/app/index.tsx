@@ -11,9 +11,14 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { DynamicIsland } from '@/features/focus';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
+import { ScreenHeader } from '@/shared/components/ScreenHeader';
+import { DashboardHero } from '@/features/dashboard/components/DashboardHero';
+import { TodayCard } from '@/features/dashboard/components/TodayCard';
+import { SectionHeader } from '@/shared/components/SectionHeader';
+import { NextMissionCard } from '@/features/dashboard/components/NextMissionCard';
+import { MyDayHabits } from '@/features/dashboard/components/MyDayHabits';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
-import { Plus, Zap, Play, Rocket, ChevronRight, BrainCircuit, Target, TrendingUp, Flame, Check, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee, CheckCircle2, X } from 'lucide-react-native';
-import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
+import { ArrowLeft, BarChart3, BrainCircuit, CalendarDays, Check, CheckCircle2, ChevronRight, Coffee, Flame, Play, Plus, Rocket, Sparkles, Target, Trash2, TrendingUp, X, Zap } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { TaskService, AuthService } from '@/shared/services/api';
 import * as HapticsOriginal from 'expo-haptics';
@@ -34,7 +39,7 @@ import { StatusHub } from '@/shared/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getSmartInsight, generateWeeklyTips } from '@/shared/utils/insights';
 import { computeMomentum } from '@/shared/utils/momentum';
-import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, touchSlop } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey, useSleepHealthSync } from '@/features/habits';
@@ -63,6 +68,7 @@ import { useWeeklyStats } from '@/features/user/hooks/useWeeklyStats';
 import { ReviewPromptModal } from '@/features/user/components/ReviewPromptModal';
 import { httpStatusOf, isNetworkError } from '@/shared/utils/errors';
 import { Colors } from '@/shared/constants/Colors';
+import { Separator } from '@/shared/components/Separator';
 
 
 // Hoş geldin (profil kurulumu) oturum başına yalnızca bir kez — remount'ta sıfırlanmasın diye
@@ -387,7 +393,11 @@ export default function HomeScreen() {
     return new Date(t.dueDate).toDateString() === new Date().toDateString();
   });
   const todayCompleted = todayTasks.filter(t => t.isCompleted).length;
-  const dailyGoal = todayTasks.length || 1;
+  // `|| 1` YAZILIYDI ve kullanıcıya YALAN söylüyordu: hiç görev yokken hedefi 1'e
+  // çekip "0/1 görev tamamlandı" gösteriyordu. Sıfıra bölme korkusuyla konmuş bir
+  // hileydi — ama koruma verinin değil, HESABIN işi (bkz. TodayCard: Math.max(goal, 1)).
+  // Veri gerçeği söyler; "görev yok" ayrı bir durumdur, "1 görev var" değil.
+  const dailyGoal = todayTasks.length;
   const overdueCount = tasks.filter(t =>
     !t.isCompleted && t.dueDate &&
     new Date(t.dueDate).setHours(23, 59, 59, 999) < Date.now() &&
@@ -1111,99 +1121,77 @@ export default function HomeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
-      {/* TopBar — sibling of SafeAreaView, uses insets.top to clear status bar */}
-      <MotiView
-          from={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          style={[
-              styles.floatingTopBar,
-              {
-                  position: 'absolute',
-                  top: insets.top + S.sm,
-                  left: sideInset(width),
-                  right: sideInset(width),
-                  zIndex: 100,
-                  backgroundColor: Platform.OS === 'android' ? (isDark ? 'rgba(28,28,30,0.96)' : 'rgba(255,255,255,0.96)') : 'transparent',
-                  borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                  elevation: Platform.OS === 'android' ? 4 : 0,
-              },
-              Platform.OS !== 'android' && (isDark ? styles.darkTopBarShadow : styles.lightTopBarShadow)
-          ]}
-      >
-          {Platform.OS !== 'android' && (
-            <BlurView
-                intensity={isDark ? 50 : 30}
-                tint={colorScheme}
-                style={StyleSheet.absoluteFill}
-            />
-          )}
-          <View style={[styles.topBarContent, { paddingHorizontal: S.md }]}>
-              <View style={[StyleSheet.absoluteFill, { zIndex: 10 }]} pointerEvents="box-none">
-                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                      <Touchable
-                          activeOpacity={0.8}
-                          accessibilityRole="button"
-                          accessibilityLabel={tr ? 'TAZQ' : 'TAZQ'}
-                          onPress={handleLogoPress}
-                          style={{ padding: 10, justifyContent: 'center', alignItems: 'center' }}
-                      >
-                          {/* Minimalist Focus Ripple Ring */}
-                          {logoTick > 0 && (
-                            <MotiView
-                              key={`ripple-${logoTick}`}
-                              from={{ scale: 1, opacity: 0.6 }}
-                              animate={{ scale: 2.2, opacity: 0 }}
-                              transition={{ type: 'timing', duration: 400 }}
-                              style={{
-                                position: 'absolute',
-                                width: 44,
-                                height: 24,
-                                borderRadius: 12,
-                                borderWidth: 1.2,
-                                borderColor: theme.primary,
-                              }}
-                            />
-                          )}
+      {/* Yüzen başlık — dört sayfanın da kullandığı ortak bileşen (bkz. ScreenHeader).
+          Eskiden bu blok her sayfada kopyalanmıştı; kopyalar ayrışıp boyları farklılaşmıştı. */}
+      <ScreenHeader
+        left={
+          <Touchable
+              onPress={() => router.push('/profile')}
+              accessibilityRole="button"
+              accessibilityLabel={language === 'tr' ? 'Profil' : 'Profile'}
+              // Avatar 34pt çiziliyor ama dokunma hedefi 44pt olmalı (Apple HIG).
+              // Görsel boyut ≠ erişilebilir alan.
+              hitSlop={touchSlop(scale(34))}
+              style={[
+                  styles.avatarContainer,
+                  {
+                      borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 1 : 2.5,
+                      borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 'rgba(255,255,255,0.1)' : avatarBorderColor
+                  }
+              ]}
+          >
+              <Image
+                  source={getAvatarSource(user?.avatar || null)}
+                  style={styles.avatar}
+              />
+          </Touchable>
+        }
+        center={
+          <Touchable
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={tr ? 'TAZQ' : 'TAZQ'}
+              onPress={handleLogoPress}
+              style={{ padding: S.smd, justifyContent: 'center', alignItems: 'center' }}
+          >
+              {/* Minimalist Focus Ripple Ring */}
+              {logoTick > 0 && (
+                <MotiView
+                  key={`ripple-${logoTick}`}
+                  from={{ scale: 1, opacity: 0.6 }}
+                  animate={{ scale: 2.2, opacity: 0 }}
+                  transition={{ type: 'timing', duration: 400 }}
+                  style={{
+                    position: 'absolute',
+                    width: 44,
+                    height: 24,
+                    borderRadius: R.md,
+                    borderWidth: 1.2,
+                    borderColor: theme.primary,
+                  }}
+                />
+              )}
 
-                          {/* Solid Minimal Logo Scale Heartbeat */}
-                          <MotiView
-                              animate={{
-                                  scale: logoTick === 0 ? 1 : [1, 1.06, 1]
-                              }}
-                              transition={{
-                                  type: 'timing',
-                                  duration: 200
-                              }}
-                          >
-                              <TazqLogo height={30} />
-                          </MotiView>
-                      </Touchable>
-                  </View>
-              </View>
-
-              <Touchable
-                  onPress={() => router.push('/profile')}
-                  accessibilityRole="button"
-                  accessibilityLabel={language === 'tr' ? 'Profil' : 'Profile'}
-                  style={[
-                      styles.avatarContainer,
-                      {
-                          borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 1 : 2.5,
-                          borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 'rgba(255,255,255,0.1)' : avatarBorderColor
-                      }
-                  ]}
+              {/* Solid Minimal Logo Scale Heartbeat */}
+              <MotiView
+                  animate={{
+                      scale: logoTick === 0 ? 1 : [1, 1.06, 1]
+                  }}
+                  transition={{
+                      type: 'timing',
+                      duration: 200
+                  }}
               >
-                  <Image
-                      source={getAvatarSource(user?.avatar || null)}
-                      style={styles.avatar}
-                  />
-              </Touchable>
-
-              <TourTarget id="cockpit">
-                <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStatusHubVisible(true); }} />
-              </TourTarget>
-          </View>
-      </MotiView>
+                  <TazqLogo height={30} />
+              </MotiView>
+          </Touchable>
+        }
+        right={
+          <TourTarget id="cockpit">
+            <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStatusHubVisible(true); }} />
+          </TourTarget>
+        }
+      />
 
       <View style={{ flex: 1 }}>
 
@@ -1240,32 +1228,20 @@ export default function HomeScreen() {
         <ScrollView
             ref={scrollViewRef}
             style={{ flex: 1 }}
-            contentContainerStyle={[styles.scrollContent, { paddingTop: 82 + insets.top, paddingBottom: 120, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }]}
+            // Dip boşluğu navbar'ın GERÇEK yüksekliğinden gelir (bkz. navBarSpace).
+            // Sabit S.xxl yazıyordu: navbar 106pt kaplarken 64pt bırakıyordu, yani son
+            // 42pt barın arkasında kalıyor ve kullanıcı en alta inemiyordu.
+            contentContainerStyle={[styles.scrollContent, { paddingTop: topBarSpace(insets.top) + S.lg, paddingBottom: navBarSpace(insets.bottom) + S.md, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }]}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surfaceContainer} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
-            {/* Welcome Hero */}
-            <MotiView
-                from={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                style={[styles.heroSection, { paddingHorizontal: S.lg }]}
-            >
-                {/* Selamlama + isim TEK blok (isim iç-span, primary): doğal sarar,
-                    uzun isim alt satıra geçer; kesilmez. Altında subgreeting tutarlı boşlukla. */}
-                <Text style={[styles.greeting, { color: theme.onSurface, fontSize: isSmallScreen ? 22 : 28, lineHeight: isSmallScreen ? 28 : 34 }]}>
-                    {getGreeting()},{' '}
-                    {/* İsim RENKLENDİRİLMEZ: bir isim ne eylem ne durum bildirir, yani
-                        rengin taşıyacağı bir anlam yok. Marka mavisiyle boyamak onu
-                        tıklanabilir/kritik gibi gösteriyordu. Üst Text zaten fontWeight 800
-                        veriyor — ayrı bir vurguya da gerek yok, selamlamanın parçası. */}
-                    <Text style={{ color: theme.onSurface }}>
-                        {user?.name?.split(' ')[0] || (language === 'tr' ? 'sen' : 'you')}
-                    </Text>
-                </Text>
-                <Text style={[styles.subGreeting, { color: theme.onSurfaceVariant, fontSize: F.subhead }]}>
-                    {getSubGreeting()}
-                </Text>
-            </MotiView>
+            <DashboardHero
+              greeting={getGreeting()}
+              name={user?.name?.split(' ')[0] || (language === 'tr' ? 'sen' : 'you')}
+              subGreeting={getSubGreeting()}
+              isSmallScreen={isSmallScreen}
+              theme={theme}
+            />
 
             <TourTarget id="momentum">
               <MomentumPulse
@@ -1276,96 +1252,22 @@ export default function HomeScreen() {
               />
             </TourTarget>
 
-            {/* ── TODAY CARD ── */}
-            <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
-            <Touchable onPress={todayTap.onTap} activeOpacity={1}>
-            <BentoCard index={0} style={{ overflow: 'hidden', padding: bentoPad }}>
-                <LinearGradient
-                    colors={todayHighlight
-                        ? (isDark ? [theme.tertiary + '45', 'transparent'] : [theme.tertiary + '30', 'transparent'])
-                        : todayCompleted >= dailyGoal
-                        ? (isDark ? [theme.tertiary + '30', 'transparent'] : [theme.tertiary + '20', 'transparent'])
-                        : (isDark ? [theme.primary + '28', 'transparent'] : [theme.primary + '18', 'transparent'])}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                />
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.lg }}>
-                    {/* Left: text stats */}
-                    <View style={{ flex: 1, gap: 6 }}>
-                        <Text style={[styles.metricLabel, { color: theme.onSurfaceVariant }]}>{t.todayLabel}</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
-                            <Text style={{ fontSize: isSmallScreen ? 34 : 44, fontWeight: '600', letterSpacing: -2.5, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: isSmallScreen ? 38 : 48 }}>
-                                {todayCompleted}
-                            </Text>
-                            <Text style={{ fontSize: 18, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.45, letterSpacing: -0.5 }}>
-                                /{dailyGoal}
-                            </Text>
-                        </View>
-                        <MotiView
-                            key={`today-sub-${todayBurstKey}`}
-                            from={{ scale: todayBurstKey > 0 ? 1.22 : 1, opacity: todayBurstKey > 0 ? 0 : 1 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ type: 'spring', damping: 11, stiffness: 220 }}
-                        >
-                            <Text style={{ fontSize: F.caption, fontWeight: '600', letterSpacing: 0.3,
-                                color: todayHighlight ? (todayCompleted >= dailyGoal ? theme.tertiary : theme.primary) : theme.onSurfaceVariant,
-                                opacity: todayHighlight ? 1 : 0.55 }}>
-                                {todayHighlight
-                                    ? todaySurprise
-                                    : todayCompleted >= dailyGoal
-                                    ? (language === 'tr' ? 'Tümü tamamlandı 🎉' : 'All done 🎉')
-                                    : (language === 'tr' ? 'görev tamamlandı' : 'tasks completed')}
-                            </Text>
-                        </MotiView>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                            <Zap size={10} color={theme.primary} fill={theme.primary} />
-                            <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                                <MotiView
-                                    animate={{ width: `${Math.min((dailyFocusMinutes / Math.max(dailyGoalMinutes, 1)) * 100, 100)}%` as any }}
-                                    transition={{ type: 'timing', duration: 900 }}
-                                    style={{ height: '100%', borderRadius: 2, backgroundColor: theme.primary }}
-                                />
-                            </View>
-                            <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.4 }}>
-                                {dailyFocusMinutes}{language === 'tr' ? 'dk' : 'm'}
-                            </Text>
-                        </View>
-                    </View>
-                    {/* Right: ring */}
-                    <View style={{ width: 90, height: 90 }}>
-                        <Svg width={90} height={90}>
-                            <Defs>
-                                <SvgLinearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-                                    <Stop offset="0%" stopColor={todayCompleted >= dailyGoal ? theme.tertiary : theme.primary} stopOpacity="1" />
-                                    <Stop offset="100%" stopColor={todayCompleted >= dailyGoal
-                                        ? theme.tertiary
-                                        : theme.secondary} stopOpacity="1" />
-                                </SvgLinearGradient>
-                            </Defs>
-                            <G rotation="-90" origin="45,45">
-                                <Circle cx="45" cy="45" r="37" fill="none"
-                                    stroke={isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}
-                                    strokeWidth={9} />
-                                <Circle cx="45" cy="45" r="37" fill="none"
-                                    stroke="url(#ringGrad)"
-                                    strokeWidth={9}
-                                    strokeLinecap="round"
-                                    strokeDasharray={`${2 * Math.PI * 37}`}
-                                    strokeDashoffset={`${2 * Math.PI * 37 * (1 - Math.min(dailyGoal > 0 ? todayCompleted / dailyGoal : 0, 1))}`}
-                                />
-                            </G>
-                        </Svg>
-                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={{ fontSize: 22, fontWeight: '600', letterSpacing: -1.2, color: todayCompleted >= dailyGoal ? theme.tertiary : theme.primary, lineHeight: 24 }}>
-                                {Math.round((todayCompleted / Math.max(dailyGoal, 1)) * 100)}
-                            </Text>
-                            <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.45 }}>%</Text>
-                        </View>
-                    </View>
-                </View>
-            </BentoCard>
-            </Touchable>
-            </View>
+            <TodayCard
+              completed={todayCompleted}
+              goal={dailyGoal}
+              focusMinutes={dailyFocusMinutes}
+              focusGoalMinutes={dailyGoalMinutes}
+              highlight={todayHighlight}
+              surprise={todaySurprise}
+              burstKey={todayBurstKey}
+              onTap={todayTap.onTap}
+              label={t.todayLabel}
+              isSmallScreen={isSmallScreen}
+              isDark={isDark}
+              tr={language === 'tr'}
+              theme={theme}
+              padding={bentoPad}
+            />
 
             {/* Unified My Day Bento Card */}
             {(myDayTasks.length > 0 || myDayHabits.length > 0) && (
@@ -1374,43 +1276,30 @@ export default function HomeScreen() {
                   <Touchable
                     onPress={() => router.push('/tasks')}
                     activeOpacity={0.8}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm, paddingHorizontal: 2 }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm, paddingHorizontal: S.xxs }}
                   >
-                    <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: theme.error }} />
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: theme.error, opacity: 0.85, flex: 1 }}>
+                    <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: theme.error }} />
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: theme.error, flex: 1 }}>
                       {overdueCount} {language === 'tr' ? 'gecikmiş görev' : overdueCount === 1 ? 'overdue task' : 'overdue tasks'}
                     </Text>
-                    <ChevronRight size={12} color={theme.error} opacity={0.5} />
+                    <ChevronRight size={ICON.xs} color={theme.error} opacity={0.5} />
                   </Touchable>
                 )}
                 
                 <BentoCard index={1} style={{ padding: 0, overflow: 'hidden' }}>
                   {/* BUGÜNKÜ RİTÜELLERİM (Daily Habits) */}
                   <TourTarget id="habits">
-                    <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: 2 }}>
-                    {/* Bölüm etiketi — iOS'ta bölüm başlıkları GRİDİR (secondaryLabel), asla
-                        tint değil. Bir başlık ne eylem ne durum bildirir; mavi olması dekoratifti. */}
-                    <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.onSurfaceVariant }}>
-                      {tr ? 'BUGÜNKÜ ALIŞKANLIKLARIM' : 'MY DAILY HABITS'}
-                    </Text>
-                    <Text style={{ fontSize: 8.5, color: theme.onSurfaceVariant, opacity: 0.45, marginTop: 1 }}>
-                      {tr ? 'Alışkanlığı tamamlamak için bas, mola için basılı tut' : 'Tap habit to complete, hold for break'}
-                    </Text>
-                  </View>
-
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: S.md, paddingVertical: 12, gap: 14, alignItems: 'center' }}
-                  >
-                    {myDayHabits.map((item) => (
-                      <HabitBubble
-                        key={`habit-${item.id}`}
-                        item={item}
-                        theme={theme}
-                        isDark={isDark}
-                        tr={tr}
-                        onPress={() => {
+                    <MyDayHabits
+                      habits={myDayHabits}
+                      theme={theme}
+                      isDark={isDark}
+                      tr={tr}
+                      onAddHabit={() => { Haptics.selectionAsync(); router.push('/cockpit'); }}
+                      onSkip={(item) => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        toggleHabitSkipDate(item.id as string, habitTodayKey);
+                      }}
+                      onToggle={(item) => {
                           if (!item.isCompleted) {
                             const pendingHabits = habits.filter(h => h.id !== item.id && !h.completedDates?.includes(habitTodayKey));
                             const allHabitsDone = pendingHabits.length === 0;
@@ -1435,85 +1324,26 @@ export default function HomeScreen() {
                           }
                           Haptics.impactAsync(item.isCompleted ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
                           toggleHabitDate(item.id as string, habitTodayKey);
-                        }}
-                        onLongPress={() => {
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                          toggleHabitSkipDate(item.id as string, habitTodayKey);
-                        }}
-                      />
-                    ))}
-
-                    {/* Add Habit Shortcut Bubble */}
-                    <Touchable
-                      onPress={() => { Haptics.selectionAsync(); router.push('/cockpit'); }}
-                      activeOpacity={0.7}
-                      style={{ alignItems: 'center', width: 62, gap: 6 }}
-                      accessibilityRole="button"
-                      accessibilityLabel={tr ? 'Alışkanlık ekle' : 'Add habit'}
-                    >
-                      <View style={{
-                        width: 50,
-                        height: 50,
-                        borderRadius: 25,
-                        borderWidth: 1.5,
-                        borderStyle: 'dashed',
-                        borderColor: theme.outline,
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                        <Plus size={18} color={theme.onSurfaceVariant} opacity={0.6} />
-                      </View>
-                      <Text style={{ fontSize: 9.5, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6, textAlign: 'center' }}>
-                        {tr ? 'Ekle' : 'Add'}
-                      </Text>
-                    </Touchable>
-
-                    {/* Empty State Guide Card (Shows up only when habits array is empty to introduce habits cleanly) */}
-                    {myDayHabits.length === 0 && (
-                      <View style={{
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
-                        borderRadius: 12,
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        marginLeft: 4,
-                        maxWidth: 220,
-                        borderWidth: 1,
-                        borderColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                      }}>
-                        <Text style={{ fontSize: 9.5, fontWeight: '600', color: theme.onSurfaceVariant, lineHeight: 13 }}>
-                          {tr 
-                            ? 'Günlük alışkanlıklarını belirle. Yaşam modlarını açtığında hedefler otomatik eklenir.'
-                            : 'Set daily habits. Active life modes will automatically populate habits here.'
-                          }
-                        </Text>
-                      </View>
-                    )}
-                  </ScrollView>
+}}
+                    />
                   </TourTarget>
 
-                  <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }} />
-
+                  <Separator theme={theme} />
                   <TourTarget id="tasks">
+                    {/* Dolgu YOK — SectionHeader kendi boşluğunu taşıyor. Sarmala da
+                        vermek ikiye katlıyordu: bu başlık 32pt girintili çiziliyor ve
+                        aynı karttaki alışkanlık başlığından (16pt) kaymış duruyordu. */}
                     <Touchable
                       onPress={() => router.push('/tasks')}
-                    style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      paddingHorizontal: S.md,
-                      paddingTop: S.md,
-                      paddingBottom: S.xs
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={tr ? 'Günlük görevleri yönet' : 'Manage daily tasks'}
-                  >
-                    <View>
-                      {/* Bölüm etiketi — gri (bkz. yukarıdaki not). */}
-                      <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.onSurfaceVariant }}>
-                        {tr ? 'GÜNLÜK GÖREVLERİM' : 'MY DAILY TASKS'}
-                      </Text>
-                    </View>
+                      accessibilityRole="button"
+                      accessibilityLabel={tr ? 'Günlük görevleri yönet' : 'Manage daily tasks'}
+                    >
+                    <SectionHeader
+                      title={tr ? 'Günlük görevlerim' : 'My daily tasks'}
+                      theme={theme}
+                      tr={tr}
+                      inset={S.md}
+                    />
                   </Touchable>
 
                   {/* Render Incomplete Tasks */}
@@ -1524,7 +1354,7 @@ export default function HomeScreen() {
                     if (incompleteTasks.length === 0) {
                       return (
                         <View style={{ padding: S.md, alignItems: 'center' }}>
-                          <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                          <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>
                             {tr ? 'Bugün için bekleyen görevin kalmadı 🎉' : 'No pending tasks for today 🎉'}
                           </Text>
                         </View>
@@ -1542,11 +1372,11 @@ export default function HomeScreen() {
                           <Touchable
                             onPress={() => { Haptics.selectionAsync(); setShowAllIncomplete(!showAllIncomplete); }}
                             style={{
-                              paddingVertical: 12,
+                              paddingVertical: S.smd,
                               alignItems: 'center',
                               justifyContent: 'center',
-                              borderTopWidth: 1,
-                              borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'
+                              borderTopWidth: HAIRLINE,
+                              borderTopColor: theme.separator
                             }}
                           >
                             <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
@@ -1567,7 +1397,7 @@ export default function HomeScreen() {
                     if (completedTasks.length === 0) return null;
                     
                     return (
-                      <View style={{ borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
+                      <View style={{ borderTopWidth: HAIRLINE, borderTopColor: theme.separator }}>
                         <Touchable
                           onPress={() => { Haptics.selectionAsync(); setShowCompletedSection(!showCompletedSection); }}
                           style={{
@@ -1575,11 +1405,11 @@ export default function HomeScreen() {
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             paddingHorizontal: S.md,
-                            paddingVertical: 12,
+                            paddingVertical: S.smd,
                             backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)'
                           }}
                         >
-                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted }}>
                             {language === 'tr' ? `Tamamlananlar (${completedTasks.length})` : `Completed (${completedTasks.length})`}
                           </Text>
                           <ChevronRight
@@ -1613,104 +1443,48 @@ export default function HomeScreen() {
             {completedTours?.dashboard === true && tasks.length === 0 && habits.length === 0 && (
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <BentoCard index={1} style={{ padding: isSmallScreen ? S.md : S.lg, gap: S.sm }}>
-                    <Text style={{ fontSize: F.subhead, fontWeight: '800', color: theme.onSurface, letterSpacing: -0.3, marginBottom: S.xs }}>
+                    <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.3, marginBottom: S.xs }}>
                         {tr ? 'Hoş geldin 👋 Nereden başlamak istersin?' : 'Welcome 👋 Where would you like to start?'}
                     </Text>
                     {[
-                        { icon: <Plus size={18} color={theme.primary} />, label: tr ? 'İlk görevini ekle' : 'Add your first task', sub: tr ? 'Aklındakini yaz, gerisini TAZQ halletsin' : 'Jot it down, TAZQ handles the rest', onPress: () => router.push('/tasks') },
-                        { icon: <Rocket size={18} color={theme.primary} />, label: tr ? 'Bir mod seç' : 'Choose a mode', sub: tr ? 'Sigara bırak, tasarruf, sınava hazırlık…' : 'Quit smoking, save, exam prep…', onPress: () => router.push('/modlar') },
-                        { icon: <Flame size={18} color={theme.primary} />, label: tr ? 'Bir alışkanlık başlat' : 'Start a habit', sub: tr ? 'Her gün tek dokunuşla işaretle' : 'Check in daily with one tap', onPress: () => router.push('/cockpit') },
+                        { icon: <Plus size={ICON.md} color={theme.primary} />, label: tr ? 'İlk görevini ekle' : 'Add your first task', sub: tr ? 'Aklındakini yaz, gerisini TAZQ halletsin' : 'Jot it down, TAZQ handles the rest', onPress: () => router.push('/tasks') },
+                        { icon: <Rocket size={ICON.md} color={theme.primary} />, label: tr ? 'Bir mod seç' : 'Choose a mode', sub: tr ? 'Sigara bırak, tasarruf, sınava hazırlık…' : 'Quit smoking, save, exam prep…', onPress: () => router.push('/modlar') },
+                        { icon: <Flame size={ICON.md} color={theme.primary} />, label: tr ? 'Bir alışkanlık başlat' : 'Start a habit', sub: tr ? 'Her gün tek dokunuşla işaretle' : 'Check in daily with one tap', onPress: () => router.push('/cockpit') },
                     ].map((row, i) => (
                         <Touchable key={i} onPress={row.onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.xs + 2 }} accessibilityRole="button" accessibilityLabel={row.label}>
-                            <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}>{row.icon}</View>
+                            <View style={{ width: 38, height: 38, borderRadius: R.md, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}>{row.icon}</View>
                             <View style={{ flex: 1 }}>
                                 <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
-                                <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, opacity: 0.6 }}>{row.sub}</Text>
+                                <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>{row.sub}</Text>
                             </View>
-                            <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.4} />
+                            <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.4} />
                         </Touchable>
                     ))}
                 </BentoCard>
               </View>
             )}
 
-            {/* Next Mission Widget */}
+            {/* Sonraki görev — dashboard'ın tek eylem çağrısı. Hiç görev/alışkanlık
+                yoksa gösterilmez: orada soğuk başlangıç kartı zaten yönlendiriyor. */}
             {!(tasks.length === 0 && habits.length === 0) && (
-            <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
-                <MotiView
-                    from={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ type: 'timing', duration: 250 }}
-                >
-                    <BentoCard index={1} style={[styles.nextMissionCard, { minHeight: isSmallScreen ? 120 : 140, padding: isSmallScreen ? S.md : S.lg }]}>
-                        <LinearGradient
-                            colors={!topTask
-                                ? [theme.onSurfaceVariant, 'transparent']
-                                : topTask.priority === 'High'
-                                ? [theme.priorityHigh, 'transparent']
-                                : topTask.priority === 'Medium'
-                                ? [theme.priorityMedium, 'transparent']
-                                : [theme.priorityLow, 'transparent']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.25 : 0.12 }]}
-                        />
-                        <View style={styles.missionHeader}>
-                            <View style={[styles.missionBadge, { backgroundColor: (topTask ? priorityColor(topTask.priority) : theme.primary) + '20' }]}>
-                                <Rocket size={12} color={topTask ? priorityColor(topTask.priority) : theme.primary} />
-                                <Text style={[styles.missionBadgeText, { color: topTask ? priorityColor(topTask.priority) : theme.primary }]}>{t.activeTask.toUpperCase()}</Text>
-                            </View>
-                            {topTask?.priority === 'High' && !getModeInfoForTask(topTask, usePrefsStore.getState(), theme) && (
-                                <View style={[styles.missionBadge, { backgroundColor: theme.error + '20' }]}>
-                                    <Zap size={12} color={theme.error} fill={theme.error} />
-                                    <Text style={[styles.missionBadgeText, { color: theme.error }]}>{language === 'tr' ? 'ACİL' : 'URGENT'}</Text>
-                                </View>
-                            )}
-                        </View>
-
-                        <View style={styles.missionContent}>
-                            <Text adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.missionTitle, { color: theme.onSurface, fontSize: F.title }]} numberOfLines={2} ellipsizeMode="tail">
-                                {topTask ? getLocalizedTaskTitle(topTask, language === 'tr') : t.noTasksHint}
-                            </Text>
-                            <Text style={[styles.missionSub, { color: theme.onSurfaceVariant }]}>
-                                {topTask ? (getLocalizedTaskDescription(topTask, language === 'tr') || t.waitingForAction) : t.allTasksReady}
-                            </Text>
-                        </View>
-
-                        <View style={[styles.missionFooter, { gap: S.sm }]}>
-                            {topTask ? (
-                                <Touchable
-                                    onPress={() => router.push({ pathname: '/tasks', params: { highlightId: topTask.id } })}
-                                    style={[styles.startBtn, { backgroundColor: theme.primary, flex: 2, height: 52, justifyContent: 'center' }]}
-                                >
-                                    <ChevronRight size={18} color={theme.onPrimary} />
-                                    <Text style={[styles.startBtnText, { color: theme.onPrimary, fontSize: F.subhead, fontWeight: '600' }]}>
-                                        {language === 'tr' ? 'GÖREVE GİT' : 'GO TO TASK'}
-                                    </Text>
-                                </Touchable>
-                            ) : (
-                                <Touchable 
-                                    onPress={() => router.push('/tasks')}
-                                    style={[styles.startBtn, { backgroundColor: theme.surfaceContainerHigh, flex: 2, height: 52, justifyContent: 'center' }]}
-                                >
-                                    <Plus size={18} color={theme.onSurface} />
-                                    <Text style={[styles.startBtnText, { color: theme.onSurface, fontSize: F.subhead, fontWeight: '600' }]}>{t.addTask.toUpperCase()}</Text>
-                                </Touchable>
-                            )}
-                            <Touchable 
-                                onPress={() => router.push('/tasks')} 
-                                style={[styles.seeAllBtn, { flex: 1, height: 52, justifyContent: 'flex-end', paddingRight: 4 }]}
-                            >
-                                <Text style={[styles.seeAllText, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{t.filterAll}</Text>
-                                <ChevronRight size={16} color={theme.onSurfaceVariant} />
-                            </Touchable>
-                        </View>
-                    </BentoCard>
-                </MotiView>
-            </View>
+              <NextMissionCard
+                task={topTask ? { id: topTask.id, priority: topTask.priority } : null}
+                title={topTask ? getLocalizedTaskTitle(topTask, tr) : t.noTasksHint}
+                subtitle={topTask ? (getLocalizedTaskDescription(topTask, tr) || t.waitingForAction) : t.allTasksReady}
+                badgeLabel={t.activeTask.toLocaleUpperCase(tr ? 'tr-TR' : 'en-US')}
+                showUrgent={topTask?.priority === 'High' && !getModeInfoForTask(topTask, usePrefsStore.getState(), theme)}
+                urgentLabel={tr ? 'ACİL' : 'URGENT'}
+                primaryLabel={topTask ? (tr ? 'GÖREVE GİT' : 'GO TO TASK') : t.addTask.toLocaleUpperCase(tr ? 'tr-TR' : 'en-US')}
+                seeAllLabel={t.filterAll}
+                onOpenTask={() => router.push({ pathname: '/tasks', params: { highlightId: String(topTask?.id) } })}
+                onSeeAll={() => router.push('/tasks')}
+                priorityColor={priorityColor}
+                isSmallScreen={isSmallScreen}
+                isDark={isDark}
+                theme={theme}
+                padding={isSmallScreen ? S.md : S.lg}
+              />
             )}
-
-
 
             {/* ── Turkish Mode Banner (opt-in) ── */}
             {activeMode && !modeDismissed && (
@@ -1754,7 +1528,7 @@ export default function HomeScreen() {
                   <Text style={{ fontSize: 9, fontWeight: '600', letterSpacing: 1.8, color: theme.onSurfaceVariant }}>
                     {language === 'tr' ? '✦ İYİ GİDİYOR' : '✦ LOOKING GOOD'}
                   </Text>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: theme.primary, opacity: 0.7 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '600', color: theme.primary }}>
                     {language === 'tr' ? 'devam et →' : 'keep going →'}
                   </Text>
                 </Animated.View>
@@ -1789,24 +1563,31 @@ export default function HomeScreen() {
 
       </View>
 
-      {/* Quick Draft FAB */}
-      {true && (
-        <MagneticFAB
-          onPress={() => setQuickDraftVisible(true)}
-          storageKey={`@fab_dashboard_${user?.id ?? 'guest'}`}
-          isDark={isDark}
-          theme={theme}
-          style={{
-            backgroundColor: theme.primary,
-            shadowColor: theme.primary,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          buttonSize={54}
-        >
-          <Zap size={22} color="#fff" fill="#fff" />
-        </MagneticFAB>
-      )}
+      {/* Hızlı taslak — görev listesine tek dokunuşla not düşer. */}
+      <MagneticFAB
+        onPress={() => setQuickDraftVisible(true)}
+        storageKey={`@fab_dashboard_${user?.id ?? 'guest'}`}
+        isDark={isDark}
+        theme={theme}
+        style={{
+          backgroundColor: theme.primary,
+          shadowColor: theme.primary,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        buttonSize={54}
+      >
+        {/*
+          İkon Zap (şimşek) idi: şimşek hız/enerji anlatır, bu buton ise "görev listene
+          taslak EKLE" yapıyor — ikon eylemle ilgisizdi. Plus evrensel "ekle"dir ve
+          uygulamanın geri kalanında da zaten bunu söylüyor.
+
+          Renk: "#fff" sabit yazılıydı ve paleti atlıyordu. Koyu temada primary #0A84FF
+          ve onPrimary BİLEREK koyu (beyaz, o mavinin üstünde 3.65:1 — AA'dan kalıyor).
+          Sabit beyaz, tam da paletin kaçındığı şeyi geri getiriyordu.
+        */}
+        <Plus size={ICON.lg} color={theme.onPrimary} strokeWidth={2.5} />
+      </MagneticFAB>
 
       <BottomNavBar />
 
@@ -1828,16 +1609,16 @@ export default function HomeScreen() {
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
           
-          <SafeAreaView style={{ flex: 1, paddingHorizontal: 20 }} pointerEvents="box-none">
+          <SafeAreaView style={{ flex: 1, paddingHorizontal: S.lmd }} pointerEvents="box-none">
             <MotiView
               from={{ translateY: -30, opacity: 0, scale: 0.96 }}
               animate={{ translateY: 0, opacity: 1, scale: 1 }}
               exit={{ translateY: -30, opacity: 0, scale: 0.96 }}
               transition={{ type: 'spring', damping: 28, stiffness: 180 }}
               style={{
-                marginTop: 80,
+                marginTop: S.xxl,
                 backgroundColor: isDark ? 'rgba(28, 28, 35, 0.94)' : 'rgba(255, 255, 255, 0.94)',
-                borderRadius: 24,
+                borderRadius: R.xl,
                 borderWidth: 1.2,
                 borderColor: theme.primary + '25',
                 shadowColor: theme.primary,
@@ -1853,13 +1634,13 @@ export default function HomeScreen() {
               <View style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                paddingHorizontal: 16,
-                paddingVertical: 14,
-                borderBottomWidth: 1,
-                borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
-                gap: 12
+                paddingHorizontal: S.md,
+                paddingVertical: S.md,
+                borderBottomWidth: HAIRLINE,
+                borderBottomColor: theme.separator,
+                gap: S.smd
               }}>
-                <Sparkles size={18} color={theme.primary} />
+                <Sparkles size={ICON.md} color={theme.primary} />
                 <TextInput
                   ref={portalInputRef}
                   style={{
@@ -1897,8 +1678,8 @@ export default function HomeScreen() {
                   returnKeyType="done"
                 />
                 {portalSearch.length > 0 && (
-                  <Touchable onPress={() => setPortalSearch('')} style={{ marginRight: 4 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary }}>
+                  <Touchable onPress={() => setPortalSearch('')} style={{ marginRight: S.xs }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>
                       {language === 'tr' ? 'TEMİZLE' : 'CLEAR'}
                     </Text>
                   </Touchable>
@@ -1909,24 +1690,24 @@ export default function HomeScreen() {
                   onPress={() => setCommandPortalVisible(false)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <X size={18} color={theme.onSurfaceVariant} opacity={0.6} />
+                  <X size={ICON.md} color={theme.onSurfaceVariant} opacity={0.6} />
                 </Touchable>
               </View>
 
               {/* Results / Navigation shortcuts */}
               <ScrollView
                 keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ padding: 12, gap: 4 }}
+                contentContainerStyle={{ padding: S.smd, gap: S.xs }}
               >
                 {portalSearch.trim() === '' ? (
                   // Shortcuts
-                  <View style={{ gap: 4 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 1, color: theme.onSurfaceVariant, opacity: 0.5, paddingLeft: 8, paddingBottom: 6 }}>
+                  <View style={{ gap: S.xs }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: theme.onSurfaceMuted, paddingLeft: S.sm, paddingBottom: S.sm }}>
                       {language === 'tr' ? 'HIZLI KISAYOLLAR' : 'QUICK SHORTCUTS'}
                     </Text>
                     {[
                       {
-                        icon: <Play size={16} color={theme.tertiary} fill={theme.tertiary} />,
+                        icon: <Play size={ICON.sm} color={theme.tertiary} fill={theme.tertiary} />,
                         label: language === 'tr' ? 'Hızlı Odak Seansı Başlat' : 'Start Quick Focus Session',
                         desc: language === 'tr' ? '25 dakikalık odaklanma başlat' : 'Launch a 25 min focus timer',
                         onPress: () => {
@@ -1935,7 +1716,7 @@ export default function HomeScreen() {
                         }
                       },
                       {
-                        icon: <Target size={16} color={theme.primary} />,
+                        icon: <Target size={ICON.sm} color={theme.primary} />,
                         label: language === 'tr' ? 'Tüm Görevleri Listele' : 'Show All Tasks List',
                         desc: language === 'tr' ? 'Görevler sayfasına yönlendir' : 'Go to tasks management screen',
                         onPress: () => {
@@ -1944,7 +1725,7 @@ export default function HomeScreen() {
                         }
                       },
                       {
-                        icon: <Rocket size={16} color={theme.primary} />,
+                        icon: <Rocket size={ICON.sm} color={theme.primary} />,
                         label: language === 'tr' ? 'Aktif Modları Yönet' : 'Manage Active Modes',
                         desc: language === 'tr' ? 'Alışkanlık planlarını keşfet' : 'Explore habits and life modes',
                         onPress: () => {
@@ -1959,27 +1740,27 @@ export default function HomeScreen() {
                         style={{
                           flexDirection: 'row',
                           alignItems: 'center',
-                          paddingHorizontal: 12,
-                          paddingVertical: 10,
-                          borderRadius: 12,
+                          paddingHorizontal: S.smd,
+                          paddingVertical: S.smd,
+                          borderRadius: R.md,
                           backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                          gap: 12
+                          gap: S.smd
                         }}
                       >
-                        <View style={{ width: 30, height: 30, borderRadius: 8, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', alignItems: 'center', justifyContent: 'center' }}>
                           {shortcut.icon}
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurface }}>{shortcut.label}</Text>
-                          <Text style={{ fontSize: 10, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.6 }}>{shortcut.desc}</Text>
+                          <Text style={{ fontSize: 10, fontWeight: '500', color: theme.onSurfaceMuted }}>{shortcut.desc}</Text>
                         </View>
-                        <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} />
+                        <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.3} />
                       </Touchable>
                     ))}
                   </View>
                 ) : (
                   // Search Results
-                  <View style={{ gap: 4 }}>
+                  <View style={{ gap: S.xs }}>
                     {/* Quick Add Row */}
                     <Touchable
                       onPress={() => {
@@ -2003,24 +1784,24 @@ export default function HomeScreen() {
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        paddingHorizontal: 12,
-                        paddingVertical: 12,
-                        borderRadius: 12,
+                        paddingHorizontal: S.smd,
+                        paddingVertical: S.smd,
+                        borderRadius: R.md,
                         backgroundColor: theme.primary + '12',
                         borderWidth: 1,
                         borderColor: theme.primary + '30',
-                        gap: 12,
-                        marginBottom: 8
+                        gap: S.smd,
+                        marginBottom: S.sm
                       }}
                     >
-                      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: theme.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
-                        <Plus size={16} color={theme.primary} />
+                      <View style={{ width: 28, height: 28, borderRadius: R.sm, backgroundColor: theme.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                        <Plus size={ICON.sm} color={theme.primary} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 12, fontWeight: '700', color: theme.primary }} numberOfLines={1}>
                           {language === 'tr' ? `"${portalSearch}" görevini ekle` : `Add task "${portalSearch}"`}
                         </Text>
-                        <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                        <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceMuted }}>
                           {language === 'tr' ? 'Otomatik zaman ve öncelik tespiti ile ekler' : 'Adds with automatic time & priority parsing'}
                         </Text>
                       </View>
@@ -2031,8 +1812,8 @@ export default function HomeScreen() {
                       const matchedTasks = tasks.filter(t => t.title.toLowerCase().includes(portalSearch.toLowerCase()));
                       if (matchedTasks.length === 0) return null;
                       return (
-                        <View style={{ gap: 4 }}>
-                          <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 1, color: theme.onSurfaceVariant, opacity: 0.5, paddingLeft: 8, paddingBottom: 4 }}>
+                        <View style={{ gap: S.xs }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: theme.onSurfaceMuted, paddingLeft: S.sm, paddingBottom: S.xs }}>
                             {language === 'tr' ? 'GÖREVLER' : 'TASKS'}
                           </Text>
                           {matchedTasks.slice(0, 5).map(task => (
@@ -2045,14 +1826,14 @@ export default function HomeScreen() {
                               style={{
                                 flexDirection: 'row',
                                 alignItems: 'center',
-                                paddingHorizontal: 12,
-                                paddingVertical: 10,
-                                borderRadius: 12,
+                                paddingHorizontal: S.smd,
+                                paddingVertical: S.smd,
+                                borderRadius: R.md,
                                 backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                                gap: 12
+                                gap: S.smd
                               }}
                             >
-                              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: priorityColor(task.priority) }} />
+                              <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: priorityColor(task.priority) }} />
                               <View style={{ flex: 1 }}>
                                 <Text style={{
                                   fontSize: 12,
@@ -2064,7 +1845,7 @@ export default function HomeScreen() {
                                     {getLocalizedTaskTitle(task, language === 'tr')}
                                 </Text>
                               </View>
-                              <ChevronRight size={12} color={theme.onSurfaceVariant} opacity={0.3} />
+                              <ChevronRight size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.3} />
                             </Touchable>
                           ))}
                         </View>
@@ -2097,34 +1878,16 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   topBarWrapper: { paddingHorizontal: S.lg, paddingVertical: S.sm, alignItems: 'center' },
-  floatingTopBar: { borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin },
-  // StyleSheet theme hook'una erişemez → Colors'tan doğrudan okunur. Sabit hex yazmak
-  // paleti atlamak demekti: '#3367ff' marka mavisi (#2563EB) bile değildi, kaçak bir maviydi.
-  lightTopBarShadow: { shadowColor: Colors.light.onSurface, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 8 },
-  darkTopBarShadow: { shadowColor: Colors.dark.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 },
-  topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
+  // Yükseklik SABİT (bkz. TOP_BAR_HEIGHT): eskiden paddingVertical + en yüksek çocuk
+  // belirliyordu, yani başlığa bir öğe eklendiğinde bar sessizce uzayıp sayfaların
+  // hesabını bozuyordu. Öğeler artık barın içinde ortalanır.
   avatarContainer: { width: scale(34), height: scale(34), borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.light.surfaceContainerLowest },
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
   // Üst ve alt boşluk EŞİT (simetrik blok). Üst boşluk paddingTop'tan değil buradan gelir.
-  heroSection: { marginTop: S.lg, marginBottom: S.lg },
-  greeting: { fontWeight: '800', letterSpacing: TRACKING.hero, includeFontPadding: false },
-  subGreeting: { fontWeight: '500', marginTop: S.xs, opacity: 0.7, includeFontPadding: false },
-  metricLabel: { fontSize: moderateScale(9), fontWeight: '500', letterSpacing: 1.2, opacity: 0.45, marginBottom: S.xs },
+  // marginTop KALDIRILDI: baslikla arasindaki bosluk artik topBarSpace'ten geliyor.
+  // Burada da vermek cift sayardi. marginBottom kaliyor -> ust/alt yine esit (S.lg).
   metricValue: { fontSize: F.title, fontWeight: '600', letterSpacing: -1 },
-  metricSub: { fontSize: F.caption, fontWeight: '600', opacity: 0.6, marginTop: 2 },
-  nextMissionCard: { padding: S.lg, justifyContent: 'space-between', overflow: 'hidden' },
-  missionHeader: { flexDirection: 'row', gap: S.sm },
-  missionBadge: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.md },
-  missionBadgeText: { fontSize: F.caption, fontWeight: '500', letterSpacing: 0.5 },
-  missionContent: { marginTop: 2 },
-  missionTitle: { fontWeight: '500', letterSpacing: -0.5 },
-  missionSub: { fontSize: F.body, fontWeight: '500', marginTop: S.xs, opacity: 0.8 },
-  missionFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: S.md },
-  startBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full },
-  startBtnText: { color: 'white', fontWeight: '600', fontSize: F.body },
-  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
-  seeAllText: { fontSize: F.body, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: scale(24) },
   insightCard: { width: '100%', borderRadius: R.lg + 8, padding: scale(24), borderWidth: B.thin, gap: scale(24) },
   insightHeader: { flexDirection: 'row', alignItems: 'center', gap: scale(12) },
@@ -2134,7 +1897,7 @@ const styles = StyleSheet.create({
   bentoMini: { padding: scale(16), borderRadius: R.md + 4 },
   insightMainText: { fontSize: moderateScale(16), fontWeight: '600', lineHeight: verticalScale(24), letterSpacing: -0.3 },
   insightStats: { gap: scale(12) },
-  statBento: { padding: scale(16), borderRadius: R.md + 4, alignItems: 'center', gap: 4 },
+  statBento: { padding: scale(16), borderRadius: R.md + 4, alignItems: 'center', gap: S.xs },
   statValue: { fontSize: moderateScale(18), fontWeight: '600' },
   statLabel: { fontSize: moderateScale(10), fontWeight: '500', opacity: 0.5, letterSpacing: 0.5 },
   cockpitActions: { gap: scale(12) },

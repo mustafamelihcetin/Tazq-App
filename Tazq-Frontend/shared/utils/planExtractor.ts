@@ -16,14 +16,14 @@ export interface DraftTask {
 const HABIT_PATTERNS: Array<{ keywords: string[]; nameTr: string; nameEn: string; emoji: string; color: string }> = [
   { keywords: ['koş', 'run', 'cardio', 'jog'], nameTr: 'Koşu', nameEn: 'Running', emoji: '🏃', color: CategoryColors.green },
   { keywords: ['yürü', 'walk', 'adım'], nameTr: 'Yürüyüş', nameEn: 'Walking', emoji: '🚶', color: CategoryColors.green },
-  { keywords: ['yüz', 'swim', 'havuz'], nameTr: 'Yüzme', nameEn: 'Swimming', emoji: '🏊', color: '#06B6D4' },
+  { keywords: ['yüz', 'swim', 'havuz'], nameTr: 'Yüzme', nameEn: 'Swimming', emoji: '🏊', color: CategoryColors.cyan },
   { keywords: ['spor', 'egzersiz', 'antrenman', 'gym', 'fitness', 'workout', 'training', 'ağırlık'], nameTr: 'Spor / Antrenman', nameEn: 'Workout', emoji: '💪', color: CategoryColors.orange },
-  { keywords: ['esne', 'stretch', 'mobilite', 'mobility'], nameTr: 'Esneme', nameEn: 'Stretching', emoji: '🤸', color: '#14B8A6' },
+  { keywords: ['esne', 'stretch', 'mobilite', 'mobility'], nameTr: 'Esneme', nameEn: 'Stretching', emoji: '🤸', color: CategoryColors.teal },
   { keywords: ['kitap', 'oku', 'okuma', 'read', 'reading', 'book'], nameTr: 'Okuma', nameEn: 'Reading', emoji: '📚', color: CategoryColors.indigo },
   { keywords: ['çalış', 'ders', 'study', 'ödev', 'homework', 'revize', 'tekrar', 'konu'], nameTr: 'Ders Çalışma', nameEn: 'Study', emoji: '📖', color: CategoryColors.blue },
   { keywords: ['soru çöz', 'test çöz', 'deneme', 'soru bankası'], nameTr: 'Soru Çözümü', nameEn: 'Practice Questions', emoji: '✏️', color: CategoryColors.blue },
   { keywords: ['yaz', 'yazım', 'yazma', 'write', 'writing', 'günlük', 'journal'], nameTr: 'Yazı Yazmak', nameEn: 'Writing', emoji: '✍️', color: CategoryColors.violet },
-  { keywords: ['su iç', 'water', 'hidrasyon', 'hydration'], nameTr: 'Su İçmek', nameEn: 'Hydration', emoji: '💧', color: '#06B6D4' },
+  { keywords: ['su iç', 'water', 'hidrasyon', 'hydration'], nameTr: 'Su İçmek', nameEn: 'Hydration', emoji: '💧', color: CategoryColors.cyan },
   { keywords: ['protein', 'beslenme', 'kalori', 'diyet', 'diet', 'nutrition', 'sağlıklı ye', 'sebze'], nameTr: 'Beslenme Takibi', nameEn: 'Nutrition', emoji: '🥗', color: CategoryColors.green },
   { keywords: ['uyku', 'sleep', 'uyu', 'erken yat'], nameTr: 'Uyku Düzeni', nameEn: 'Sleep', emoji: '😴', color: CategoryColors.indigo },
   { keywords: ['meditasyon', 'meditation', 'nefes', 'breath', 'mindful', 'yoga'], nameTr: 'Meditasyon', nameEn: 'Meditation', emoji: '🧘', color: CategoryColors.violet },
@@ -34,7 +34,7 @@ const HABIT_PATTERNS: Array<{ keywords: string[]; nameTr: string; nameEn: string
   { keywords: ['resim', 'çizim', 'draw', 'paint', 'art', 'sketch'], nameTr: 'Çizim / Resim', nameEn: 'Drawing', emoji: '🎨', color: CategoryColors.pink },
   { keywords: ['vitamin', 'ilaç', 'medication', 'supplement', 'takviye'], nameTr: 'Vitamin / İlaç', nameEn: 'Supplements', emoji: '💊', color: CategoryColors.amber },
   { keywords: ['araştır', 'research', 'makale', 'paper', 'literatür', 'literature', 'kaynak'], nameTr: 'Araştırma', nameEn: 'Research', emoji: '🔍', color: CategoryColors.violet },
-  { keywords: ['temizlik', 'düzen', 'clean', 'tidy', 'organize'], nameTr: 'Düzen / Temizlik', nameEn: 'Tidy Up', emoji: '🧹', color: '#14B8A6' },
+  { keywords: ['temizlik', 'düzen', 'clean', 'tidy', 'organize'], nameTr: 'Düzen / Temizlik', nameEn: 'Tidy Up', emoji: '🧹', color: CategoryColors.teal },
   { keywords: ['tasarruf', 'bütçe', 'budget', 'save money', 'para biriktir'], nameTr: 'Bütçe Takibi', nameEn: 'Budgeting', emoji: '💰', color: CategoryColors.amber },
 ];
 

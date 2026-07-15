@@ -10,6 +10,7 @@ import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, 
 import { SubtaskProgressRing } from '@/shared/components/SubtaskProgressRing';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
+import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { WeightEntryModal } from '@/shared/components/WeightEntryModal';
 import { TaskFormModal } from '@/shared/components/TaskFormModal';
 import { useTaskStore, parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
@@ -40,7 +41,7 @@ import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
 import { syncTaskToCalendar, deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
-import { S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
 import VoiceService from '@/shared/utils/voice';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -49,6 +50,7 @@ import { swallow } from '@/shared/utils/swallow';
 import { httpStatusOf, isNetworkError, errorMessage, httpDataOf } from '@/shared/utils/errors';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { Separator } from '@/shared/components/Separator';
 
 const SWIPE_THRESHOLD = -80;
 const TAG_COLORS_PALETTE = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4','#F97316'];
@@ -68,7 +70,7 @@ const VoiceWave = ({ active, theme }: { active: boolean; theme: AppTheme }) => (
             position: 'absolute',
             width: 32,
             height: 32,
-            borderRadius: 16,
+            borderRadius: R.full,
             backgroundColor: theme.primary,
             zIndex: -1,
         }}
@@ -155,14 +157,14 @@ const MemoizedTaskItem = React.memo((props: any) => {
                     >
                         <View style={{ flexDirection: 'row', alignItems: 'center', padding: S.md }}>
                             {isBulkMode && (
-                                <View style={[{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: isSelected ? theme.primary : theme.outline, backgroundColor: isSelected ? theme.primary : 'transparent', justifyContent: 'center', alignItems: 'center', marginRight: S.sm }]}>
-                                    {isSelected && <Check size={12} color={theme.onPrimary || '#fff'} />}
+                                <View style={[{ width: 22, height: 22, borderRadius: R.full, borderWidth: 2, borderColor: isSelected ? theme.primary : theme.outline, backgroundColor: isSelected ? theme.primary : 'transparent', justifyContent: 'center', alignItems: 'center', marginRight: S.sm }]}>
+                                    {isSelected && <Check size={ICON.xs} color={theme.onPrimary || '#fff'} />}
                                 </View>
                             )}
                             <View style={[styles.priorityIndicator, { backgroundColor: finalLeftColor, width: S.xs, height: '100%', borderRadius: R.sm, marginRight: S.sm, opacity: task.isCompleted || completingIds.has(task.id) ? 0.3 : 1 }]} />
                             
                             <View style={styles.taskContent}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                                     <MotiView
                                         animate={{ opacity: task.isCompleted || completingIds.has(task.id) ? 0.4 : 1, scale: task.isCompleted || completingIds.has(task.id) ? 0.97 : 1 }}
                                         transition={{ type: 'timing', duration: 300 }}
@@ -177,12 +179,12 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                         </Text>
                                     </MotiView>
                                     {task.tags && task.tags.includes('weight_entry') && (
-                                        <View style={{ backgroundColor: theme.primary + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                        <View style={{ backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xxs, borderRadius: R.xs }}>
                                             <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary }}>{language === 'tr' ? 'KİLO' : 'WEIGHT'}</Text>
                                         </View>
                                     )}
                                     {task.tags && task.tags.includes('auto_generated') && (
-                                        <View style={{ backgroundColor: theme.tertiary + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                        <View style={{ backgroundColor: theme.tertiary + '15', paddingHorizontal: S.sm, paddingVertical: S.xxs, borderRadius: R.xs }}>
                                             <Text style={{ fontSize: 10, fontWeight: '600', color: theme.tertiary }}>{language === 'tr' ? 'OTO' : 'AUTO'}</Text>
                                         </View>
                                     )}
@@ -194,11 +196,11 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                         <MotiView
                                             animate={{ opacity: task.isCompleted || completingIds.has(task.id) ? 0.4 : 1 }}
                                             transition={{ type: 'timing', duration: 300 }}
-                                            style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 2 }}
+                                            style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: S.sm, marginTop: S.xxs }}
                                         >
                                             {modeInfo && (
-                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: modeInfo.color + '1A', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                    <Sparkles size={12} color={modeInfo.color} opacity={0.9} />
+                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: modeInfo.color + '1A', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
+                                                    <Sparkles size={ICON.xs} color={modeInfo.color} opacity={0.9} />
                                                     <Text style={[{ fontSize: 11 }, { color: modeInfo.color, fontWeight: '600' }]}>
                                                         {language === 'tr' ? modeInfo.labelTr : modeInfo.labelEn}
                                                     </Text>
@@ -207,8 +209,8 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                             {taskCountdown && (() => {
                                                 const isOverdue = taskCountdown === 'Süresi geçti' || taskCountdown === 'Overdue';
                                                 return (
-                                                    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isOverdue ? theme.error + '15' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'), borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                        <Clock size={12} color={isOverdue ? theme.error : theme.onSurfaceVariant} opacity={0.7} />
+                                                    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isOverdue ? theme.error + '15' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'), borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
+                                                        <Clock size={ICON.xs} color={isOverdue ? theme.error : theme.onSurfaceVariant} opacity={0.7} />
                                                         <Text style={[{ fontSize: 11 }, { color: isOverdue ? theme.error : theme.onSurfaceVariant, fontWeight: '600' }]}>
                                                             {taskCountdown}
                                                         </Text>
@@ -216,8 +218,8 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                                 );
                                             })()}
                                             {modeInfo && modeInfo.daysLeft !== undefined && (
-                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: modeInfo.color + '18', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                    <Target size={12} color={modeInfo.color} opacity={0.9} />
+                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: modeInfo.color + '18', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
+                                                    <Target size={ICON.xs} color={modeInfo.color} opacity={0.9} />
                                                     <Text style={[{ fontSize: 11 }, { color: modeInfo.color, fontWeight: '600' }]}>
                                                         {modeInfo.unit === 'clean_day'
                                                             ? (modeInfo.daysLeft === 0
@@ -228,16 +230,16 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                                 </View>
                                             )}
                                             {task.dueDate && !taskCountdown && (
-                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                    <Calendar size={12} color={theme.onSurfaceVariant} opacity={0.7} />
+                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
+                                                    <Calendar size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
                                                     <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
                                                         {new Date(task.dueDate).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short' })}
                                                     </Text>
                                                 </View>
                                             )}
                                             {task.dueTime && (
-                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                    <Clock size={12} color={theme.onSurfaceVariant} opacity={0.7} />
+                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
+                                                    <Clock size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
                                                     <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
                                                         {(() => {
                                                             const date = new Date(task.dueTime);
@@ -249,8 +251,8 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                                 </View>
                                             )}
                                             {task.subtasks && task.subtasks.length > 0 && (
-                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                    <ListChecks size={12} color={theme.onSurfaceVariant} opacity={0.7} />
+                                                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
+                                                    <ListChecks size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
                                                     <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
                                                         {task.subtasks.filter((s: any) => s.done).length}/{task.subtasks.length}
                                                     </Text>
@@ -258,8 +260,8 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                             )}
                                             {/* User-facing text tags */}
                                             {visibleTextTags(task.tags).map((tag, tagIdx) => (
-                                                <View key={tagIdx} style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }]}>
-                                                    <Tag size={12} color={theme.onSurfaceVariant} opacity={0.7} />
+                                                <View key={tagIdx} style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
+                                                    <Tag size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
                                                     <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
                                                         {translateTag(tag, language as 'tr' | 'en')}
                                                     </Text>
@@ -271,17 +273,17 @@ const MemoizedTaskItem = React.memo((props: any) => {
                             </View>
 
                             {sortBy === 'creation' && !isBulkMode && (
-                                <View style={{ flexDirection: 'column', gap: 2, marginRight: S.sm, alignItems: 'center' }}>
+                                <View style={{ flexDirection: 'column', gap: S.xxs, marginRight: S.sm, alignItems: 'center' }}>
                                     <Touchable
                                         disabled={!onMoveUp}
                                         onPress={onMoveUp}
                                         accessibilityRole="button"
                                         accessibilityLabel={language === 'tr' ? 'Yukarı taşı' : 'Move up'}
                                         accessibilityState={{ disabled: !onMoveUp }}
-                                        style={{ opacity: onMoveUp ? 0.8 : 0.15, padding: 2 }}
+                                        style={{ opacity: onMoveUp ? 0.8 : 0.15, padding: S.xxs }}
                                         hitSlop={{ top: 8, bottom: 4, left: 8, right: 8 }}
                                     >
-                                        <ChevronUp size={16} color={theme.onSurfaceVariant} />
+                                        <ChevronUp size={ICON.sm} color={theme.onSurfaceVariant} />
                                     </Touchable>
                                     <Touchable
                                         disabled={!onMoveDown}
@@ -289,10 +291,10 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                         accessibilityRole="button"
                                         accessibilityLabel={language === 'tr' ? 'Aşağı taşı' : 'Move down'}
                                         accessibilityState={{ disabled: !onMoveDown }}
-                                        style={{ opacity: onMoveDown ? 0.8 : 0.15, padding: 2 }}
+                                        style={{ opacity: onMoveDown ? 0.8 : 0.15, padding: S.xxs }}
                                         hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}
                                     >
-                                        <ChevronDown size={16} color={theme.onSurfaceVariant} />
+                                        <ChevronDown size={ICON.sm} color={theme.onSurfaceVariant} />
                                     </Touchable>
                                 </View>
                             )}
@@ -308,14 +310,14 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                 }
                                 hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                                 style={[
-                                    { width: 24, height: 24, borderRadius: 7, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginLeft: S.sm },
+                                    { width: 24, height: 24, borderRadius: R.sm, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginLeft: S.sm },
                                     {
                                         backgroundColor: (task.isCompleted || completingIds.has(task.id)) ? theme.success : 'transparent',
                                         borderColor: (task.isCompleted || completingIds.has(task.id)) ? theme.success : (isDark ? theme.outline : 'rgba(0,0,0,0.2)'),
                                     }
                                 ]}
                             >
-                                {(task.isCompleted || completingIds.has(task.id)) && <Check size={16} color="white" />}
+                                {(task.isCompleted || completingIds.has(task.id)) && <Check size={ICON.sm} color="white" />}
                             </Touchable>
                         </View>
 
@@ -329,8 +331,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                     transition={{ type: 'timing', duration: 250 }}
                                     style={{ overflow: 'hidden', paddingHorizontal: S.md, paddingBottom: S.md }}
                                 >
-                                    <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', marginBottom: S.md }} />
-                                    
+                                    <Separator theme={theme} />
                                     {(() => {
                                         const desc = getLocalizedTaskDescription(task, language === 'tr');
                                         return desc ? (
@@ -342,7 +343,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
 
                                     {/* Subtasks */}
                                     {task.subtasks && task.subtasks.length > 0 && (
-                                        <View style={{ gap: 4, marginTop: S.xs }}>
+                                        <View style={{ gap: S.xs, marginTop: S.xs }}>
                                             {task.subtasks.map((sub: any, sIndex: number) => (
                                                 <Touchable
                                                     key={sIndex}
@@ -352,8 +353,8 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                                     style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.xs }}
                                                 >
                                                     {sub.done 
-                                                        ? <CheckCircle2 size={16} color={theme.tertiary} />
-                                                        : <Circle size={16} color={theme.onSurfaceVariant} />
+                                                        ? <CheckCircle2 size={ICON.sm} color={theme.tertiary} />
+                                                        : <Circle size={ICON.sm} color={theme.onSurfaceVariant} />
                                                     }
                                                     <Text style={{
                                                         fontSize: F.body, fontWeight: '600', color: theme.onSurface,
@@ -370,7 +371,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                     {/* Recurrence Info */}
                                     {task.recurrence && task.recurrence !== 'None' && (
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm }}>
-                                            <Repeat size={12} color={theme.secondary} />
+                                            <Repeat size={ICON.xs} color={theme.secondary} />
                                             <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.secondary }}>
                                                 {(t as any)[`recurrence${task.recurrence}`] || task.recurrence}
                                             </Text>
@@ -1377,80 +1378,53 @@ export default function ActionCenter() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       
         {/* Floating TopBar */}
-        <MotiView
-            from={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            style={[
-                styles.floatingTopBar,
-                {
-                    position: 'absolute',
-                    top: insets.top + S.sm,
-                    left: sideInset(width),
-                    right: sideInset(width),
-                    zIndex: 100,
-                    backgroundColor: Platform.OS === 'android' ? (isDark ? 'rgba(28,28,30,0.96)' : 'rgba(255,255,255,0.96)') : 'transparent',
-                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                    elevation: Platform.OS === 'android' ? 4 : 0,
-                },
-                Platform.OS !== 'android' && (isDark ? styles.darkTopBarShadow : styles.lightTopBarShadow)
-            ]}
-        >
-            {Platform.OS !== 'android' && (
-              <BlurView
-                  intensity={isDark ? 50 : 30}
-                  tint={colorScheme}
-                  style={StyleSheet.absoluteFill}
-              />
+        <ScreenHeader
+          left={
+            <>
+            {isBulkMode ? (
+                <Touchable onPress={() => { setIsBulkMode(false); setSelectedIds(new Set()); }} hitSlop={{top:10, bottom:10, left:10, right:10}} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Seçimi iptal et' : 'Cancel selection'}>
+                    <X size={ICON.lg} color={theme.onSurface} />
+                </Touchable>
+            ) : (
+                // Sol: Sırala & Filtrele. Sağ: Ara (büyüteç). Back butonu YOK — alt navigasyondan gezilir.
+                <Touchable onPress={() => { setShowSortMenu(!showSortMenu); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
+                    <View>
+                        <SlidersHorizontal size={ICON.lg} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
+                        {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) && (
+                            <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: R.full, backgroundColor: theme.primary }} />
+                        )}
+                    </View>
+                </Touchable>
             )}
-            <View style={[styles.topBarContent, { paddingHorizontal: S.sm, minHeight: 48 }]}>
-              {/* Left Side (Fixed Width for Perfect Centering) */}
-              <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
-                  {isBulkMode ? (
-                      <Touchable onPress={() => { setIsBulkMode(false); setSelectedIds(new Set()); }} hitSlop={{top:10, bottom:10, left:10, right:10}} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Seçimi iptal et' : 'Cancel selection'}>
-                          <X size={24} color={theme.onSurface} />
-                      </Touchable>
-                  ) : (
-                      // Sol: Sırala & Filtrele. Sağ: Ara (büyüteç). Back butonu YOK — alt navigasyondan gezilir.
-                      <Touchable onPress={() => { setShowSortMenu(!showSortMenu); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
-                          <View>
-                              <SlidersHorizontal size={22} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
-                              {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) && (
-                                  <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: theme.primary }} />
-                              )}
-                          </View>
-                      </Touchable>
-                  )}
-              </View>
-
-              {/* Center Title (Takes remaining space, perfectly centered) */}
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2 }}>
-                  <Text 
-                    numberOfLines={1} 
-                    adjustsFontSizeToFit
-                    style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
-                  >
-                      {isBulkMode ? (language === 'tr' ? 'Seçim' : 'Selection') : t.actionCenter}
-                  </Text>
-              </View>
-
-              {/* Right Side Buttons (Fixed Width for Perfect Centering) */}
-              <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
-                  {isBulkMode ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
-                          {selectedIds.size > 0 && (
-                              <View style={[styles.selBadge, { backgroundColor: theme.primary }]}>
-                                  <Text style={{ color: theme.onPrimary, fontSize: 11, fontWeight: '700', textAlign: 'center' }}>{selectedIds.size}</Text>
-                              </View>
-                          )}
-                      </View>
-                  ) : (
-                      <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
-                          <Search size={22} color={showSearch ? theme.primary : theme.onSurface} />
-                      </Touchable>
-                  )}
-              </View>
-            </View>
-        </MotiView>
+            </>
+          }
+          center={
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title }}
+            >
+              {isBulkMode ? (language === 'tr' ? 'Seçim' : 'Selection') : t.actionCenter}
+            </Text>
+          }
+          right={
+            <>
+            {isBulkMode ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+                    {selectedIds.size > 0 && (
+                        <View style={[styles.selBadge, { backgroundColor: theme.primary }]}>
+                            <Text style={{ color: theme.onPrimary, fontSize: 11, fontWeight: '700', textAlign: 'center' }}>{selectedIds.size}</Text>
+                        </View>
+                    )}
+                </View>
+            ) : (
+                <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
+                    <Search size={ICON.lg} color={showSearch ? theme.primary : theme.onSurface} />
+                </Touchable>
+            )}
+            </>
+          }
+        />
 
         {showSortMenu && (
             <Touchable
@@ -1475,7 +1449,7 @@ export default function ActionCenter() {
                     <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
                         {language === 'tr' ? 'Tamamlananları Gizle' : 'Hide Completed'}
                     </Text>
-                    {hideCompleted && <Check size={18} color={theme.primary} />}
+                    {hideCompleted && <Check size={ICON.md} color={theme.primary} />}
                 </Touchable>
 
                 {/* Show Future Manual Tasks Toggle */}
@@ -1486,7 +1460,7 @@ export default function ActionCenter() {
                     <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
                         {language === 'tr' ? 'İleri Tarihli Eklenenleri Göster' : 'Show Future Manual Tasks'}
                     </Text>
-                    {showFutureManualTasks && <Check size={18} color={theme.primary} />}
+                    {showFutureManualTasks && <Check size={ICON.md} color={theme.primary} />}
                 </Touchable>
 
                 {/* Archive Button */}
@@ -1497,7 +1471,7 @@ export default function ActionCenter() {
                     <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
                         {language === 'tr' ? 'Arşiv Klasörü' : 'Archive Folder'}
                     </Text>
-                    <Archive size={18} color={theme.onSurfaceVariant} />
+                    <Archive size={ICON.md} color={theme.onSurfaceVariant} />
                 </Touchable>
 
                 {/* Sorting Options */}
@@ -1514,7 +1488,7 @@ export default function ActionCenter() {
                     <Text style={[{ color: sortBy === key ? theme.primary : theme.onSurface, fontSize: F.body, fontWeight: sortBy === key ? '700' : '400' }]}>
                       {label}
                     </Text>
-                    {sortBy === key && <Check size={18} color={theme.primary} />}
+                    {sortBy === key && <Check size={ICON.md} color={theme.primary} />}
                   </Touchable>
                 ))}
               </MotiView>
@@ -1554,7 +1528,7 @@ export default function ActionCenter() {
                       style={StyleSheet.absoluteFill}
                   />
                 )}
-                <Search size={18} color={theme.onSurfaceVariant} opacity={0.6} />
+                <Search size={ICON.md} color={theme.onSurfaceVariant} opacity={0.6} />
                 <TextInput
                   ref={searchInputRef}
                   style={[styles.searchInput, { color: theme.onSurface }]}
@@ -1567,7 +1541,7 @@ export default function ActionCenter() {
                 />
                 {searchQuery.length > 0 && (
                   <Touchable onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Aramayı temizle' : 'Clear search'}>
-                    <X size={16} color={theme.onSurfaceVariant} />
+                    <X size={ICON.sm} color={theme.onSurfaceVariant} />
                   </Touchable>
                 )}
               </View>
@@ -1593,13 +1567,13 @@ export default function ActionCenter() {
             maxToRenderPerBatch={10}
             windowSize={5}
             removeClippedSubviews={false} // Must be false for itemLayoutAnimation to work when items jump large distances
-            contentContainerStyle={{ gap: S.sm, paddingBottom: 100, paddingTop: 80 + insets.top, paddingHorizontal: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+            contentContainerStyle={{ gap: S.sm, paddingBottom: navBarSpace(insets.bottom) + S.md, paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
             extraData={{ highlightedId, isBulkMode, selectedIds, completingIds, language, expandedId }}
             ListHeaderComponent={() => (
         <React.Fragment>
             <MotiView animate={{ height: showSearch ? 52 : 0 }} transition={{ type: 'timing', duration: 250 }} />
             <View style={{ paddingBottom: S.md }}>
-<Text style={[styles.subHeadline, { color: theme.onSurfaceVariant }]}>{t.allTasksReady}</Text>
+<Text style={[styles.subHeadline, { color: theme.onSurfaceMuted }]}>{t.allTasksReady}</Text>
 
           {/* Stats Row */}
           <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.md, marginBottom: S.md }}>
@@ -1614,7 +1588,7 @@ export default function ActionCenter() {
               }}
               activeOpacity={0.7}
             >
-              <TrendingUp size={13} color={filter === 'done' ? theme.tertiary : theme.onSurfaceVariant} opacity={0.7} />
+              <TrendingUp size={ICON.xs} color={filter === 'done' ? theme.tertiary : theme.onSurfaceVariant} opacity={0.7} />
               <Text style={{ fontSize: F.subhead, fontWeight: '600', color: filter === 'done' ? theme.tertiary : theme.onSurface }}>
                 {tasks.filter(tk => tk.isCompleted).length}
               </Text>
@@ -1633,7 +1607,7 @@ export default function ActionCenter() {
               }}
               activeOpacity={0.7}
             >
-              <Clock size={13} color={filter === 'all' ? theme.primary : theme.onSurfaceVariant} opacity={0.7} />
+              <Clock size={ICON.xs} color={filter === 'all' ? theme.primary : theme.onSurfaceVariant} opacity={0.7} />
               <Text style={{ fontSize: F.subhead, fontWeight: '600', color: filter === 'all' ? theme.primary : theme.onSurface }}>
                 {tasks.filter(tk => !tk.isCompleted).length}
               </Text>
@@ -1645,7 +1619,7 @@ export default function ActionCenter() {
 
           {/* Filter Pills */}
           <TourTarget id="filters">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ gap: 8 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ gap: S.sm }}>
             {filters.map((f) => {
               const label = f === 'all' ? t.filterAll :
                             f === 'today' ? t.filterToday :
@@ -1679,7 +1653,7 @@ export default function ActionCenter() {
 
           {/* Tag Filter Pills */}
           {allTags.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: S.md }} contentContainerStyle={{ gap: S.sm }}>
               <Touchable 
                 onPress={() => { setTagFilter(null); Haptics.selectionAsync(); }}
                 style={[styles.filterChip, { borderColor: !tagFilter ? theme.secondary : theme.outline, borderWidth: B.thin, paddingVertical: S.xs, paddingHorizontal: S.md }]}
@@ -1717,9 +1691,9 @@ export default function ActionCenter() {
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleClearCompleted(); }}
                     accessibilityRole="button"
                     accessibilityLabel={language === 'tr' ? 'Tamamlanan görevleri temizle' : 'Clear completed tasks'}
-                    style={{ padding: 4 }}
+                    style={{ padding: S.xs }}
                 >
-                    <Trash2 size={16} color={theme.onSurfaceVariant + '80'} />
+                    <Trash2 size={ICON.sm} color={theme.onSurfaceVariant + '80'} />
                 </Touchable>
             </View>
             
@@ -1746,21 +1720,21 @@ export default function ActionCenter() {
                       <MotiView
                           animate={{ scale: [1, 1.15, 1], rotate: ['0deg', '8deg', '-8deg', '0deg'] }}
                           transition={{ loop: true, duration: 3500 }}
-                          style={{ marginBottom: 16, opacity: hasCompletedTasks ? 0.9 : 0.4 }}
+                          style={{ marginBottom: S.md, opacity: hasCompletedTasks ? 0.9 : 0.4 }}
                       >
-                          <Sparkles size={44} color={hasCompletedTasks ? '#F59E0B' : theme.primary} />
+                          <Sparkles size={ICON.xxl} color={hasCompletedTasks ? '#F59E0B' : theme.primary} />
                       </MotiView>
                       <Text style={[styles.emptyTitle, { color: theme.onSurface, textAlign: 'center' }]}>{titleText}</Text>
-                      <Text style={[styles.emptyText, { color: theme.onSurfaceVariant, textAlign: 'center', marginTop: 6, maxWidth: 280, lineHeight: 20 }]}>{bodyText}</Text>
+                      <Text style={[styles.emptyText, { color: theme.onSurfaceMuted, textAlign: 'center', marginTop: S.sm, maxWidth: 280, lineHeight: 20 }]}>{bodyText}</Text>
                       {!isSearch && !hasCompletedTasks && (
                         <Touchable
                           onPress={handleAddBtnPress}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.primary, paddingHorizontal: S.lg, paddingVertical: S.sm + 2, borderRadius: R.full, marginTop: S.lg }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.primary, paddingHorizontal: S.lg, paddingVertical: S.sm + 2, borderRadius: R.full, marginTop: S.lg }}
                           accessibilityRole="button"
                           accessibilityLabel={language === 'tr' ? 'İlk görevini ekle' : 'Add your first task'}
                         >
-                          <Plus size={18} color={theme.onPrimary} strokeWidth={2.5} />
-                          <Text style={{ color: theme.onPrimary, fontWeight: '800', fontSize: F.body }}>
+                          <Plus size={ICON.md} color={theme.onPrimary} strokeWidth={2.5} />
+                          <Text style={{ color: theme.onPrimary, fontWeight: '700', fontSize: F.body }}>
                             {language === 'tr' ? 'İlk görevini ekle' : 'Add your first task'}
                           </Text>
                         </Touchable>
@@ -1810,7 +1784,7 @@ export default function ActionCenter() {
             )}
             ListFooterComponent={() => (
                 filteredTasks.length > 0 && !isBulkMode ? (
-                    <Text style={{ fontSize: 12, color: theme.onSurfaceVariant, opacity: isDark ? 0.5 : 0.35, textAlign: 'center', marginTop: 16, fontWeight: '600', letterSpacing: 0.3 }}>
+                    <Text style={{ fontSize: 12, color: theme.onSurfaceVariant, opacity: isDark ? 0.5 : 0.35, textAlign: 'center', marginTop: S.md, fontWeight: '600', letterSpacing: 0.3 }}>
                         {t.swipeHint}
                     </Text>
                 ) : null
@@ -1836,10 +1810,10 @@ export default function ActionCenter() {
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 16,
-                paddingHorizontal: 24,
-                paddingVertical: 14,
-                borderRadius: 999,
+                gap: S.md,
+                paddingHorizontal: S.lg,
+                paddingVertical: S.md,
+                borderRadius: R.full,
                 backgroundColor: isDark ? 'rgba(30,30,30,0.85)' : 'rgba(255,255,255,0.85)',
                 borderWidth: 1,
                 borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
@@ -1879,9 +1853,9 @@ export default function ActionCenter() {
               accessibilityRole="button"
               accessibilityLabel={language === 'tr' ? 'Seçili görevi düzenle' : 'Edit selected task'}
               accessibilityState={{ disabled: selectedIds.size !== 1 }}
-              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: selectedIds.size === 1 && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme) ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 44, height: 44, borderRadius: R.full, backgroundColor: selectedIds.size === 1 && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme) ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
             >
-              <Pencil size={20} color={selectedIds.size === 1 && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme) ? theme.onSurface : theme.onSurfaceVariant + '40'} />
+              <Pencil size={ICON.md} color={selectedIds.size === 1 && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme) ? theme.onSurface : theme.onSurfaceVariant + '40'} />
             </Touchable>
 
             {/* Complete */}
@@ -1891,9 +1865,9 @@ export default function ActionCenter() {
               accessibilityRole="button"
               accessibilityLabel={language === 'tr' ? `Seçili ${selectedIds.size} görevi tamamla` : `Complete ${selectedIds.size} selected tasks`}
               accessibilityState={{ disabled: selectedIds.size === 0 }}
-              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: selectedIds.size > 0 ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 44, height: 44, borderRadius: R.full, backgroundColor: selectedIds.size > 0 ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
             >
-              <CheckCircle2 size={22} color={selectedIds.size > 0 ? theme.success : theme.onSurfaceVariant + '40'} />
+              <CheckCircle2 size={ICON.lg} color={selectedIds.size > 0 ? theme.success : theme.onSurfaceVariant + '40'} />
             </Touchable>
 
             {/* Delete */}
@@ -1903,9 +1877,9 @@ export default function ActionCenter() {
               accessibilityRole="button"
               accessibilityLabel={language === 'tr' ? `Seçili ${selectedIds.size} görevi sil` : `Delete ${selectedIds.size} selected tasks`}
               accessibilityState={{ disabled: selectedIds.size === 0 }}
-              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: selectedIds.size > 0 ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 44, height: 44, borderRadius: R.full, backgroundColor: selectedIds.size > 0 ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
             >
-              <Trash2 size={20} color={selectedIds.size > 0 ? theme.priorityHigh : theme.onSurfaceVariant + '40'} />
+              <Trash2 size={ICON.md} color={selectedIds.size > 0 ? theme.priorityHigh : theme.onSurfaceVariant + '40'} />
             </Touchable>
           </MotiView>
         )}
@@ -1931,7 +1905,7 @@ export default function ActionCenter() {
           borderRadius={R.lg}
           tourId="quickAdd"
         >
-          <Plus size={32} color={isDark ? theme.background : '#FFFFFF'} strokeWidth={3} />
+          <Plus size={ICON.xl} color={isDark ? theme.background : '#FFFFFF'} strokeWidth={3} />
         </MagneticFAB>
       )}
 
@@ -1968,9 +1942,9 @@ const styles = StyleSheet.create({
   backBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontWeight: '600', letterSpacing: -0.5, flex: 1, textAlign: 'center' },
   headerIconBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
-  selBadge: { minWidth: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  selBadge: { minWidth: scale(22), height: scale(22), borderRadius: scale(11), alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.sm },
   aiBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: S.lg, gap: S.sm, height: verticalScale(46) },
+  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: R.full, paddingHorizontal: S.lg, gap: S.sm, height: verticalScale(46) },
   searchInput: { flex: 1, fontWeight: '400', fontSize: F.body, letterSpacing: -0.2 },
   sortMenu: { position: 'absolute', top: verticalScale(56), left: S.lg, zIndex: 200, borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', minWidth: scale(180), shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
   sortOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth },
@@ -1986,7 +1960,7 @@ const styles = StyleSheet.create({
   bulkSep: { width: 1, height: verticalScale(22), marginHorizontal: S.sm },
   bulkIconBtn: { width: scale(40), height: scale(40), borderRadius: scale(20), alignItems: 'center', justifyContent: 'center' },
   headline: { fontWeight: '600', letterSpacing: -1.5 },
-  subHeadline: { fontWeight: '600', opacity: 0.7, marginTop: S.xs },
+  subHeadline: { fontWeight: '600', marginTop: S.xs },
   statsGrid: { flexDirection: 'row' },
   statLabel: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1 },
   statValueRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginVertical: S.xs },
@@ -1994,7 +1968,7 @@ const styles = StyleSheet.create({
   trendBadge: { padding: S.xs, borderRadius: R.sm },
   statSub: { fontWeight: '600' },
   filterScroll: { marginBottom: S.lg },
-  filterChip: { borderRadius: 100 },
+  filterChip: { borderRadius: R.full },
   filterChipText: { fontWeight: '600' },
   listSection: { flex: 1 },
   sectionTitle: { fontWeight: '600', marginBottom: S.md },
@@ -2002,15 +1976,15 @@ const styles = StyleSheet.create({
   priorityIndicator: { height: verticalScale(32), borderRadius: R.sm, marginRight: S.md },
   taskContent: { flex: 1 },
   taskTitleText: { fontWeight: '600' },
-  taskMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  taskMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: S.xs },
   taskMetaText: { fontWeight: '600' },
   taskActions: { flexDirection: 'row', alignItems: 'center' },
   editBtn: { borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
   checkIcon: { borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },
   fab: { position: 'absolute', alignItems: 'center', justifyContent: 'center', elevation: 10, zIndex: 100 },
-  emptyState: { padding: S.xl, alignItems: 'center', gap: 16 },
+  emptyState: { padding: S.xl, alignItems: 'center', gap: S.md },
   emptyTitle: { fontSize: F.subhead, fontWeight: '600', letterSpacing: -0.3 },
-  emptyText: { fontSize: F.body, fontWeight: '500', opacity: 0.6, textAlign: 'center' },
+  emptyText: { fontSize: F.body, fontWeight: '500', textAlign: 'center' },
   deleteAction: {
     width: scale(80),
     marginBottom: S.sm,
@@ -2020,7 +1994,7 @@ const styles = StyleSheet.create({
     marginLeft: scale(-24),
     paddingLeft: S.sm,
   },
-  categoryBadge: { paddingHorizontal: S.sm, paddingVertical: 2, borderRadius: R.sm },
+  categoryBadge: { paddingHorizontal: S.sm, paddingVertical: S.xxs, borderRadius: R.sm },
   categoryBadgeText: { fontSize: moderateScale(10), fontWeight: '600', textTransform: 'lowercase' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: { width: '100%' },
@@ -2029,7 +2003,7 @@ const styles = StyleSheet.create({
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sheetTitle: { fontWeight: '600', letterSpacing: -0.5 },
   closeModalBtn: { width: scale(40), height: scale(40), borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
-  formContainer: { paddingHorizontal: 4 },
+  formContainer: { paddingHorizontal: S.xs },
   section: { marginBottom: S.md },
   inputGroup: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md },
   modalInput: { flex: 1, fontWeight: '600' },
@@ -2058,9 +2032,5 @@ const styles = StyleSheet.create({
   pickerConfirmBtn: { flex: 1, borderRadius: R.md, height: verticalScale(48), alignItems: 'center', justifyContent: 'center' },
   pickerBtnText: { fontWeight: '600', paddingTop: Platform.OS === 'ios' ? 2 : 0 },
 
-    floatingTopBar: { borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin },
-    lightTopBarShadow: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 8 },
-    darkTopBarShadow: { shadowColor: '#3367ff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 },
-    topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
 });
 

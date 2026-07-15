@@ -13,7 +13,7 @@ import Animated, {
 import { Trash2, Coffee } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { S, R } from '@/shared/constants/tokens';
+import { ICON, S, R } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 
 interface Props {
@@ -119,10 +119,10 @@ export const SwipeableHabitItem = ({
       <View style={[StyleSheet.absoluteFill, styles.actionsZone]}>
         <Animated.View style={[actionStyle, styles.buttonsRow]}>
           <Touchable accessibilityRole="button" accessibilityLabel={isSkipped ? (language === 'tr' ? 'Atlamayı geri al' : 'Undo skip') : (language === 'tr' ? 'Bugün atla' : 'Skip today')} onPress={handleSkipPress} style={[styles.actionBtn, { backgroundColor: isSkipped ? '#3b82f6' : '#d97706' }]}>
-            <Coffee size={20} color="white" />
+            <Coffee size={ICON.md} color="white" />
           </Touchable>
           <Touchable accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Alışkanlığı sil' : 'Delete habit'} onPress={handleDeletePress} style={[styles.actionBtn, styles.deleteBtn]}>
-            <Trash2 size={20} color="white" />
+            <Trash2 size={ICON.md} color="white" />
           </Touchable>
         </Animated.View>
       </View>
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   buttonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: S.sm,
   },
   actionBtn: {
     width: 44,

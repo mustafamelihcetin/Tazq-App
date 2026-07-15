@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { Colors, AppTheme, CategoryColors } from '@/shared/constants/Colors';
 
 /**
@@ -31,6 +33,12 @@ const CHECKS: Check[] = [
   ['ikincil metin', 'onSurfaceVariant', 'surface', 4.5],
   ['ikincil metin / kart', 'onSurfaceVariant', 'surfaceContainerHigh', 4.5],
   ['ikincil metin / en üst kart', 'onSurfaceVariant', 'surfaceContainerHighest', 4.5],
+  // ÜÇÜNCÜL metin — eşik 3.0 çünkü rolü gerçekten yardımcı bilgi (zaman damgası, birim,
+  // ipucu). Kıyas: Apple'ın kendi secondaryLabel'ı 3.44:1, tertiaryLabel'ı 1.72:1.
+  // Bizim değer ikisinden de iyi (4.40 açık / 4.12 koyu) — yani 4.5 eşiği koymamak
+  // gevşeklik değil, rolün doğru tanımı; ölçü yine de Apple'ın üstünde.
+  ['üçüncül metin', 'onSurfaceMuted', 'surface', 3.0],
+  ['üçüncül metin / kart', 'onSurfaceMuted', 'surfaceContainerHigh', 3.0],
   ['hata mesajı', 'error', 'surface', 4.5],
   ['container yazısı', 'onPrimaryContainer', 'primaryContainer', 4.5],
 
@@ -117,5 +125,109 @@ describe('palet bütünlüğü', () => {
   it('success marka yeşiliyle (tertiary) aynı olmalı', () => {
     expect(Colors.light.success).toBe(Colors.light.tertiary);
     expect(Colors.dark.success).toBe(Colors.dark.tertiary);
+  });
+});
+
+/**
+ * Kullanım yerinde soluklaştırma yasağı.
+ *
+ * NEDEN BU TEST VAR: yukarıdaki tablo TOKEN'ları ölçüyor ve hepsi geçiyordu — ama
+ * ekranlar token'ı alıp üstüne `opacity` uyguluyordu. 140 yerde. Sonuç ölçülmüş değeri
+ * çöpe atıyordu: onSurfaceVariant 7.03:1 iken `opacity: 0.6` onu 2.90:1 yapıyordu.
+ *
+ * Yani test yeşildi, uygulama kırmızıydı. Testin kendisi kördü: doğru şeyi ölçüyor ama
+ * yanlış yerde ölçüyordu. (Aynı sınıf körlük: primary'yi bir ara 3.0 UI eşiğiyle ölçmüş
+ * ve koyu temadaki metin hatasını kaçırmıştım.)
+ *
+ * Çözüm opaklığı düzeltmek değil, ÖLÇÜLMÜŞ bir seviye vermekti: onSurfaceMuted.
+ * Soluk metin gerekiyorsa o token kullanılır — palette ölçülür, testte doğrulanır.
+ */
+describe('metin soluklaştırma', () => {
+  const ROOT = path.resolve(__dirname, '..');
+  const SKIP = ['node_modules', '.expo', 'android', 'ios', '.git', '__tests__', '__mocks__', 'dist'];
+  // Pazarlama sayfası kendi görsel dilinde (bkz. designTokens.test.ts EXEMPT).
+  const EXEMPT = new Set(['app/promo.tsx']);
+
+  function walk(dir: string, out: string[] = []): string[] {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (SKIP.includes(e.name)) continue;
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p, out);
+      else if (e.name.endsWith('.tsx')) out.push(p);
+    }
+    return out;
+  }
+
+/**
+   * Blok yorumlarını boşluğa çevirir — satır sayısı korunur.
+   * Satır satır tarama yalnızca `//` başlangıcını atlıyordu; bir kuralın NEDENİNİ
+   * anlatan JSX blok yorumu (`{/* ... *\/}`) kod sanılıp ihlal sayılıyordu. Yani
+   * kuralı açıklamak kuralı çiğnemek oluyordu.
+   */
+  function stripBlockComments(src: string): string {
+    return src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
+  }
+
+  it('metin token’ına opacity uygulanmamalı — ölçülen değeri çöpe atar', () => {
+    // [^{}] ile aynı stil nesnesinde kalınır; iç içe nesnedeki opacity yanlışlıkla
+    // yakalanmaz. Yalnızca SABİT opaklık aranır: `opacity: isActive ? …` bir durum
+    // göstergesidir, soluklaştırma değil.
+    // Ağ ÖNCE yalnızca onSurface ailesini kapsıyordu ve `theme.primary + opacity: 0.7`
+    // gibi kullanımları kaçırıyordu — dashboard'da tam olarak bu vardı (4.80:1 → 2.90:1).
+    // Kural token ailesine değil, ROLE bağlı: metin rengi olarak kullanılan HER palet
+    // token'ı ölçülmüştür ve kullanım yerinde kısılamaz.
+    const TEXT_TOKENS =
+      'onSurface|onSurfaceVariant|onSurfaceMuted|onPrimary|onSecondary|onTertiary|' +
+      'primary|secondary|tertiary|error|success|warning|info|streak|priority[A-Za-z]+';
+    const pattern = new RegExp(
+      `color: theme\\.(?:${TEXT_TOKENS})[^{}]{0,90}opacity: 0\\.\\d+` +
+        `|opacity: 0\\.\\d+[^{}]{0,90}color: theme\\.(?:${TEXT_TOKENS})\\b`,
+    );
+
+    const hits: string[] = [];
+    for (const file of walk(ROOT)) {
+      const key = path.relative(ROOT, file).split(path.sep).join('/');
+      if (EXEMPT.has(key)) continue;
+      const src = fs.readFileSync(file, 'utf8');
+      src.split('\n').forEach((line, i) => {
+        const s = line.trim();
+        if (s.startsWith('//') || s.startsWith('*')) return;
+        if (pattern.test(line)) hits.push(`${key}:${i + 1}`);
+      });
+    }
+    // Soluk metin gerekiyorsa: theme.onSurfaceMuted kullan.
+    expect(hits).toEqual([]);
+  });
+
+  it('StyleSheet’teki opacity ile satır içi metin rengi birleştirilmemeli', () => {
+    /**
+     * Yukarıdaki test aynı stil NESNESİNE bakar ve 145 kullanımı yakaladı — ama 32
+     * tanesini KAÇIRDI, çünkü orada renk ve opaklık ayrı yerlerdeydi:
+     *
+     *     subGreeting: { fontWeight: '500', opacity: 0.7 }          ← StyleSheet
+     *     <Text style={[styles.subGreeting, { color: theme.onSurfaceVariant }]}>  ← inline
+     *
+     * Etki aynı (7.03:1 → 3.62:1) ama iki nesneye bölündüğü için hiçbir tarama görmüyordu.
+     * Dashboard'daki "İyi akşamlar"ın altındaki yazı tam olarak buydu.
+     */
+    const hits: string[] = [];
+    for (const file of walk(ROOT)) {
+      const key = path.relative(ROOT, file).split(path.sep).join('/');
+      if (EXEMPT.has(key)) continue;
+      const src = stripBlockComments(fs.readFileSync(file, 'utf8'));
+
+      for (const m of src.matchAll(/^\s+([a-zA-Z]+): \{([^}]*)\},/gm)) {
+        const [, name, body] = m;
+        if (!/opacity: 0\.\d+/.test(body)) continue;
+        // Metin stili mi? Değilse opaklık meşru olabilir (ör. dekoratif katman).
+        if (!/fontSize|fontWeight|letterSpacing/.test(body)) continue;
+        // Kullanım yerinde palet METİN rengi veriliyor mu?
+        const used = new RegExp(`styles\\.${name}[^\\]]{0,140}?color: theme\\.onSurface\\w*`).test(src);
+        if (used) hits.push(`${key} → styles.${name}`);
+      }
+    }
+    // Çözüm: opacity'yi stilden kaldır, kullanım yerinde bir seviye aşağı in
+    // (onSurface → onSurfaceVariant → onSurfaceMuted). Hepsi ölçülü.
+    expect(hits).toEqual([]);
   });
 });

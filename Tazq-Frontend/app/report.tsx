@@ -10,7 +10,7 @@ import { usePrefsStore } from '@/features/modes';
 import { useMomentumStore } from '@/features/user';
 import { useHabitStore } from '@/features/habits';
 import { FocusService, UserStatsResponse } from '@/shared/services/api';
-import { S, R, F, B, TRACKING, MAX_W } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, TRACKING, MAX_W } from '@/shared/constants/tokens';
 import { generateWeeklyTips, computeWeeklyMetrics, getCoachAction, ProductivityHour } from '@/shared/utils/insights';
 import { track } from '@/shared/utils/analytics';
 import type { AppTheme } from '@/shared/constants/Colors';
@@ -80,11 +80,11 @@ export default function ReportScreen() {
 
   const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode; value: string; label: string; color: string }) => (
     <View style={[styles.statCard, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
-      <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: color + '18', alignItems: 'center', justifyContent: 'center', marginBottom: S.xs }}>
+      <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: color + '18', alignItems: 'center', justifyContent: 'center', marginBottom: S.xs }}>
         {icon}
       </View>
-      <Text style={{ color: theme.onSurface, fontSize: F.title, fontWeight: '900', letterSpacing: -0.5 }}>{value}</Text>
-      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', opacity: 0.7 }}>{label}</Text>
+      <Text style={{ color: theme.onSurface, fontSize: F.title, fontWeight: '700', letterSpacing: -0.5 }}>{value}</Text>
+      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{label}</Text>
     </View>
   );
 
@@ -93,7 +93,7 @@ export default function ReportScreen() {
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'}>
-            <ArrowLeft size={24} color={theme.onSurface} />
+            <ArrowLeft size={ICON.lg} color={theme.onSurface} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: theme.onSurface }]}>{tr ? 'Haftalık Rapor' : 'Weekly Report'}</Text>
           <View style={{ width: 40 }} />
@@ -116,17 +116,17 @@ export default function ReportScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
       <View style={[styles.header, { justifyContent: 'flex-start', gap: S.md }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'}>
-          <ArrowLeft size={24} color={theme.onSurface} />
+          <ArrowLeft size={ICON.lg} color={theme.onSurface} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.onSurface }]}>{tr ? 'Haftalık Rapor' : 'Weekly Report'}</Text>
       </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: 120, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: S.xxl, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
           {/* Koç kartı — "şimdi ne yapmalıyım?" (kural-tabanlı, ücretsiz) */}
           {(() => {
             const c = toneColor(theme, coach.tone);
             return (
               <View style={[styles.coach, { backgroundColor: c + '14', borderColor: c + '33' }]}>
-                <Text style={{ color: c, fontSize: F.caption, fontWeight: '900', letterSpacing: 0.5, marginBottom: 4 }}>
+                <Text style={{ color: c, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5, marginBottom: S.xs }}>
                   {tr ? '🧭 KOÇUN' : '🧭 YOUR COACH'}
                 </Text>
                 <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', lineHeight: 22 }}>
@@ -139,7 +139,7 @@ export default function ReportScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={tr ? coach.ctaTr : coach.ctaEn}
                   >
-                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: F.caption }}>{tr ? coach.ctaTr : coach.ctaEn}</Text>
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: F.caption }}>{tr ? coach.ctaTr : coach.ctaEn}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -148,35 +148,35 @@ export default function ReportScreen() {
 
           {/* Metric grid */}
           <View style={{ flexDirection: 'row', gap: S.sm }}>
-            <StatCard icon={<Clock size={18} color="#6366F1" />} value={totalHours > 0 ? `${totalHours}s ${totalRemMin}d` : `${metrics.totalFocusMin}d`} label={tr ? 'Bu hafta odak' : 'Focus this week'} color="#6366F1" />
-            <StatCard icon={<Flame size={18} color={theme.streak} />} value={`${input.streak}`} label={tr ? 'Gün seri' : 'Day streak'} color="#FF9500" />
+            <StatCard icon={<Clock size={ICON.md} color="#6366F1" />} value={totalHours > 0 ? `${totalHours}s ${totalRemMin}d` : `${metrics.totalFocusMin}d`} label={tr ? 'Bu hafta odak' : 'Focus this week'} color="#6366F1" />
+            <StatCard icon={<Flame size={ICON.md} color={theme.streak} />} value={`${input.streak}`} label={tr ? 'Gün seri' : 'Day streak'} color="#FF9500" />
           </View>
           <View style={{ flexDirection: 'row', gap: S.sm }}>
-            <StatCard icon={<CheckCircle2 size={18} color="#34C759" />} value={`${input.completedTasksWeek}`} label={tr ? 'Tamamlanan görev' : 'Tasks done'} color="#34C759" />
-            <StatCard icon={<Zap size={18} color="#FF2D55" />} value={metrics.avgMomentum >= 0 ? `${metrics.avgMomentum}%` : '—'} label={tr ? 'Ort. momentum' : 'Avg momentum'} color="#FF2D55" />
+            <StatCard icon={<CheckCircle2 size={ICON.md} color="#34C759" />} value={`${input.completedTasksWeek}`} label={tr ? 'Tamamlanan görev' : 'Tasks done'} color="#34C759" />
+            <StatCard icon={<Zap size={ICON.md} color="#FF2D55" />} value={metrics.avgMomentum >= 0 ? `${metrics.avgMomentum}%` : '—'} label={tr ? 'Ort. momentum' : 'Avg momentum'} color="#FF2D55" />
           </View>
 
           {/* Weekly focus bar chart */}
           <View style={[styles.section, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.md }}>
-              <Calendar size={16} color={theme.onSurfaceVariant} />
-              <Text style={{ color: theme.onSurface, fontWeight: '800', fontSize: F.body }}>{tr ? 'Günlük odak (dk)' : 'Daily focus (min)'}</Text>
+              <Calendar size={ICON.sm} color={theme.onSurfaceVariant} />
+              <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Günlük odak (dk)' : 'Daily focus (min)'}</Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 90, gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 90, gap: S.sm }}>
               {weeklyMinutes.length === 0 ? (
-                <Text style={{ color: theme.onSurfaceVariant, opacity: 0.6, fontSize: F.caption }}>{tr ? 'Henüz veri yok.' : 'No data yet.'}</Text>
+                <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'Henüz veri yok.' : 'No data yet.'}</Text>
               ) : weeklyMinutes.map((min, i) => {
                 const pct = Math.max((min / maxMin) * 100, 3);
                 const isBest = i === metrics.bestDayIndex && min > 0;
                 return (
-                  <View key={i} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                  <View key={i} style={{ flex: 1, alignItems: 'center', gap: S.xs }}>
                     <MotiView
                       from={{ height: 2 }}
                       animate={{ height: `${pct}%` as any }}
                       transition={{ type: 'timing', duration: 500, delay: i * 60 }}
-                      style={{ width: '70%', borderRadius: 4, backgroundColor: isBest ? theme.primary : theme.primary + '55' }}
+                      style={{ width: '70%', borderRadius: R.xs, backgroundColor: isBest ? theme.primary : theme.primary + '55' }}
                     />
-                    <Text style={{ fontSize: 9, color: theme.onSurfaceVariant, opacity: 0.6 }}>{weeklyFocus[i]?.day?.slice(0, 2) ?? i + 1}</Text>
+                    <Text style={{ fontSize: 9, color: theme.onSurfaceMuted }}>{weeklyFocus[i]?.day?.slice(0, 2) ?? i + 1}</Text>
                   </View>
                 );
               })}
@@ -185,7 +185,7 @@ export default function ReportScreen() {
 
           {/* Insights / tips */}
           <View style={{ gap: S.sm }}>
-            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' }}>
               {tr ? 'Öneriler' : 'Insights'}
             </Text>
             {tips.map((tip, i) => {
@@ -207,9 +207,9 @@ export default function ReportScreen() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.sm },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '800', letterSpacing: TRACKING.title },
+  title: { fontSize: 20, fontWeight: '700', letterSpacing: TRACKING.title },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl },
-  statCard: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: 2 },
+  statCard: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: S.xxs },
   section: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md },
   tip: { borderRadius: R.md, borderLeftWidth: 3, padding: S.md },
   coach: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg },

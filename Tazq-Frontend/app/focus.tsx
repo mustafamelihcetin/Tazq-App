@@ -32,7 +32,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Colors } from '@/shared/constants/Colors';
 import { getRandomQuote } from '@/shared/constants/Quotes';
-import { S, R, F, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, SPRING_SOFT } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
@@ -41,6 +41,7 @@ import ReAnimated, { useSharedValue, useAnimatedStyle, useDerivedValue, withRepe
 import { Canvas, Fill, Shader, Skia, useClock } from '@shopify/react-native-skia';
 import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { Separator } from '@/shared/components/Separator';
 
 interface StarGroupProps {
   timerSize: number;
@@ -185,7 +186,7 @@ const CountdownText = React.memo(({ timerSize, colonColor, reduceMotion }: { tim
       <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: big }]}>
         {Math.floor(seconds / 60).toString().padStart(2, '0')}
       </Text>
-      <Text style={[styles.timerText, { color: colonColor, fontSize: mid, marginHorizontal: 2, opacity: colonOpacity }]}>:</Text>
+      <Text style={[styles.timerText, { color: colonColor, fontSize: mid, marginHorizontal: S.xxs, opacity: colonOpacity }]}>:</Text>
       <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: big }]}>
         {(seconds % 60).toString().padStart(2, '0')}
       </Text>
@@ -258,11 +259,28 @@ const hexToRgb = (hex: string): [number, number, number] => {
 
 // c1=primary, c2=tertiary, c3=secondary (eski blob renkleriyle birebir).
 // paused=true iken zaman uniform'u dondurulur → shader yeniden çizmez, GPU boşta (zen/ritual).
+/**
+ * Shader MODÜL seviyesinde derlenir — bileşen içinde değil.
+ *
+ * Eskiden `useMemo(() => Skia.RuntimeEffect.Make(NEBULA_SKSL), [])` bileşenin İÇİNDEYDİ.
+ * useMemo bileşen ÖRNEĞİ başına saklar, yani:
+ *   - Odak ekranına her girişte yeniden derleniyordu (yeni mount = yeni örnek).
+ *   - Aynı anda iki Nebula var (zen zemini + daire içi) → aynı shader İKİ KEZ derleniyordu.
+ *
+ * Modül seviyesinde bir kez derlenir ve tüm örnekler paylaşır. Uygulama ömrü boyunca tek
+ * derleme.
+ *
+ * NOT: bu, ilk girişteki gecikmenin TAMAMINI çözmez — SkSL derlense bile GPU'nun kendi
+ * pipeline'ı ilk çizimde oluşur ve bu maliyet doğaldır. O yüzden aurora ayrıca yumuşak
+ * açılıyor (bkz. kullanım yeri): kalan gecikme "takılma" değil "beliriş" gibi okunsun.
+ */
+const NEBULA_EFFECT = Skia.RuntimeEffect.Make(NEBULA_SKSL);
+
 // size: kare (daire-içi kullanım). width/height verilirse tam-ekran (zen zemini). speedScale: akış hızı.
 const Nebula = React.memo(({ size, width, height, c1, c2, c3, paused, speedScale = 1, holdSV }: { size: number; width?: number; height?: number; c1: string; c2: string; c3: string; paused: boolean; speedScale?: number; holdSV?: SharedValue<number> }) => {
   const w = width ?? size;
   const h = height ?? size;
-  const effect = useMemo(() => Skia.RuntimeEffect.Make(NEBULA_SKSL), []);
+  // Derleme modül seviyesinde — bkz. NEBULA_EFFECT.
   const clock = useClock();
   const pausedSV = useSharedValue(paused);
   useEffect(() => { pausedSV.value = paused; }, [paused]);
@@ -286,11 +304,11 @@ const Nebula = React.memo(({ size, width, height, c1, c2, c3, paused, speedScale
     c3: rgb3,
     u_hold: holdSV ? holdSV.value : 0,
   }));
-  if (!effect) return null;
+  if (!NEBULA_EFFECT) return null;
   return (
     <Canvas style={{ width: w, height: h }}>
       <Fill>
-        <Shader source={effect} uniforms={uniforms} />
+        <Shader source={NEBULA_EFFECT} uniforms={uniforms} />
       </Fill>
     </Canvas>
   );
@@ -335,14 +353,14 @@ const PomodoroIndicator = React.memo(({ pomodoroPhase, pomodoroRound, theme, lan
           : (language === 'tr' ? 'MOLA' : 'BREAK')}
       </Text>
     </View>
-    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+    <View style={{ flexDirection: 'row', gap: S.sm, alignItems: 'center' }}>
       {[1, 2, 3, 4].map(i => (
         <View
           key={i}
           style={{
             width: i === pomodoroRound ? 10 : 7,
             height: i === pomodoroRound ? 10 : 7,
-            borderRadius: 5,
+            borderRadius: R.xs,
             backgroundColor: i < pomodoroRound
               ? theme.primary
               : i === pomodoroRound
@@ -352,7 +370,7 @@ const PomodoroIndicator = React.memo(({ pomodoroPhase, pomodoroRound, theme, lan
         />
       ))}
     </View>
-    <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, fontWeight: '600', opacity: 0.6 }}>
+    <Text style={{ fontSize: 11, color: theme.onSurfaceMuted, fontWeight: '600' }}>
       {language === 'tr' ? `Tur ${pomodoroRound}/4` : `Round ${pomodoroRound}/4`}
     </Text>
   </View>
@@ -483,6 +501,9 @@ export default function FocusScreen() {
   const WHEEL_MINS = Array.from({ length: 180 }, (_, i) => i + 1);
 
   const timerSize = Math.min(width * 0.72, height * 0.35);
+  // Zen zemini tam DAİRENİN boyutundan büyümeye başlasın: ışık dairenin içinden taşsın,
+  // rastgele bir ölçekten değil. Eskiden 0.6 sabiti vardı ve daireyle ilgisi yoktu.
+  const zenFrom = timerSize / width;
 
   // Nebula artık Skia shader ile çiziliyor (tek draw call, overdraw yok). Eski 3-blob reanimated
   // katmanları kaldırıldı. Ripple halkaları hâlâ reanimated.
@@ -1106,10 +1127,27 @@ export default function FocusScreen() {
                 göz fark eder ama takip etmez. Daireden taşıp genişleyerek gelir. */}
             <MotiView
               pointerEvents="none"
-              from={{ opacity: 0, scale: 0.6 }}
+              /*
+                GEÇİŞ TEK BİR HAREKET: daireki ışık BÜYÜYÜP ekranı dolduruyor — ölüp
+                yeniden doğmuyor. Üç şey düzeldi:
+
+                1. Başlangıç ölçeği artık DAİRENİN GERÇEK ORANI (zenFrom), keyfi 0.6 değil.
+                   Yorum zaten "daireden taşıp genişleyerek gelir" diyordu — niyet doğruydu,
+                   sayı uydurmaydı: 0.6, dairenin ekrandaki payıyla (0.72) uyuşmuyordu, yani
+                   ışık dairenin İÇİNDEN değil rastgele bir yerden büyüyordu.
+
+                2. Yay fiziği (SPRING_SOFT), mekanik süre değil. Işığın yayılması kütlesi
+                   olan bir şeydir; sabit süreli `timing` onu asansör kapısı gibi açıyordu.
+
+                3. Süre uyumsuzluğu giderildi: daire aurorası 400ms'de ölüyor, zemin
+                   900ms'de yetişiyordu — 400. ms'de ekran %44 doluydu ve arada KARANLIK
+                   BİR BOŞLUK kalıyordu. Kullanıcının "tamamlayıcı değil" dediği şey buydu.
+                   Daire aurorası artık 700ms'de sönüyor, yani zemin büyürken üstünde.
+              */
+              from={{ opacity: 0, scale: zenFrom }}
               animate={{ opacity: 0.3, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.6 }}
-              transition={{ type: 'timing', duration: 900 }}
+              exit={{ opacity: 0, scale: zenFrom }}
+              transition={SPRING_SOFT}
               style={StyleSheet.absoluteFill}
             >
               <Nebula
@@ -1161,12 +1199,12 @@ export default function FocusScreen() {
               accessibilityRole="button"
               accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'}
             >
-              <X size={20} color={theme.onSurface} />
+              <X size={ICON.md} color={theme.onSurface} />
             </Touchable>
           </View>
 
           <View style={[styles.badge, { backgroundColor: theme.primary + '15', flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginHorizontal: S.sm }]}>
-            <Sparkles size={11} color={theme.primary} />
+            <Sparkles size={ICON.xs} color={theme.primary} />
             <Text style={[styles.badgeText, { color: theme.primary, fontSize: F.caption, letterSpacing: 1, maxWidth: 120 }]} numberOfLines={1}>
               {t.focusLabel || t.deepFocus}
             </Text>
@@ -1183,34 +1221,34 @@ export default function FocusScreen() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ type: 'timing', duration: 220 }}
-                  style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderRadius: 20, padding: 3 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderRadius: R.xl, padding: S.xs }}
                 >
                   <Touchable
                     accessibilityRole="button"
                     accessibilityLabel={language === 'tr' ? 'Nefes modu ayarları' : 'Breathing mode settings'}
                     accessibilityState={{ selected: breathMode !== 'off' }}
                     onPress={() => { Haptics.selectionAsync(); setBreathPickerVisible(true); }}
-                    style={{ padding: 6, borderRadius: 17, backgroundColor: breathMode !== 'off' ? theme.primary + '20' : 'transparent' }}
+                    style={{ padding: S.sm, borderRadius: R.lg, backgroundColor: breathMode !== 'off' ? theme.primary + '20' : 'transparent' }}
                   >
-                    <Wind size={15} color={breathMode !== 'off' ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
+                    <Wind size={ICON.sm} color={breathMode !== 'off' ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
                   </Touchable>
                   <Touchable
                     accessibilityRole="switch"
                     accessibilityLabel={language === 'tr' ? 'Pomodoro modu' : 'Pomodoro mode'}
                     accessibilityState={{ checked: pomodoroMode }}
                     onPress={() => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); }}
-                    style={{ padding: 6, borderRadius: 17, backgroundColor: pomodoroMode ? theme.primary + '20' : 'transparent' }}
+                    style={{ padding: S.sm, borderRadius: R.lg, backgroundColor: pomodoroMode ? theme.primary + '20' : 'transparent' }}
                   >
-                    <Timer size={15} color={pomodoroMode ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
+                    <Timer size={ICON.sm} color={pomodoroMode ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
                   </Touchable>
                   <Touchable
                     onPress={() => { Haptics.selectionAsync(); setStrictMode(!strictMode); }}
-                    style={{ padding: 6, borderRadius: 17, backgroundColor: strictMode ? theme.primary + '20' : 'transparent' }}
+                    style={{ padding: S.sm, borderRadius: R.lg, backgroundColor: strictMode ? theme.primary + '20' : 'transparent' }}
                     accessibilityRole="button"
                     accessibilityState={{ checked: strictMode }}
                     accessibilityLabel={language === 'tr' ? 'Katı Odak Modu' : 'Strict Focus Mode'}
                   >
-                    <Shield size={15} color={strictMode ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
+                    <Shield size={ICON.sm} color={strictMode ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
                   </Touchable>
                 </MotiView>
                 </TourTarget>
@@ -1224,21 +1262,21 @@ export default function FocusScreen() {
                 from={{ opacity: 0, translateY: -4 }}
                 animate={{ opacity: 1, translateY: 0 }}
                 transition={{ type: 'timing', duration: 260 }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, flexWrap: 'wrap', justifyContent: 'flex-end' }}
               >
                 {breathMode !== 'off' && (
-                  <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: theme.primary + '18' }}>
+                  <View style={{ paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.primary + '18' }}>
                     <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>{language === 'tr' ? 'Nefes' : 'Breath'}</Text>
                   </View>
                 )}
                 {pomodoroMode && (
-                  <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: theme.primary + '18' }}>
+                  <View style={{ paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.primary + '18' }}>
                     <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>Pomodoro</Text>
                   </View>
                 )}
                 {strictMode && (
-                  <View style={{ paddingHorizontal: 9, paddingVertical: 3.5, borderRadius: 999, backgroundColor: theme.primary }}>
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onPrimary, letterSpacing: 0.3 }}>{language === 'tr' ? 'Katı Mod' : 'Strict Mode'}</Text>
+                  <View style={{ paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.primary }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onPrimary, letterSpacing: 0.3 }}>{language === 'tr' ? 'Katı Mod' : 'Strict Mode'}</Text>
                   </View>
                 )}
               </MotiView>
@@ -1283,7 +1321,7 @@ export default function FocusScreen() {
                       horizontal
                       showsHorizontalScrollIndicator={false}
                       style={{ alignSelf: 'stretch', marginBottom: S.md }}
-                      contentContainerStyle={{ gap: 8, paddingHorizontal: 20, flexGrow: 1, alignItems: 'center', justifyContent: 'center' }}
+                      contentContainerStyle={{ gap: S.sm, paddingHorizontal: S.lmd, flexGrow: 1, alignItems: 'center', justifyContent: 'center' }}
                     >
                       {PRESETS.map((preset) => {
                         const isSelected = totalSeconds === preset.workMins * 60;
@@ -1295,7 +1333,7 @@ export default function FocusScreen() {
                             <MotiView
                               animate={{ backgroundColor: isSelected ? theme.primary : 'rgba(255,255,255,0.06)' }}
                               transition={{ type: 'timing', duration: 220 }}
-                              style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5, paddingHorizontal: 15, paddingVertical: 9, borderRadius: 999 }}
+                              style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full }}
                             >
                               <Text style={{ fontSize: 13, fontWeight: isSelected ? '800' : '600', color: isSelected ? '#fff' : 'rgba(255,255,255,0.72)', letterSpacing: 0.2 }}>
                                 {language === 'tr' ? preset.labelTr : preset.labelEn}
@@ -1314,7 +1352,7 @@ export default function FocusScreen() {
                             <MotiView
                               animate={{ backgroundColor: isCustom ? theme.primary : 'rgba(255,255,255,0.06)' }}
                               transition={{ type: 'timing', duration: 220 }}
-                              style={{ paddingHorizontal: 15, paddingVertical: 9, borderRadius: 999 }}
+                              style={{ paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full }}
                             >
                               <Text style={{ fontSize: 13, fontWeight: isCustom ? '800' : '600', color: isCustom ? '#fff' : 'rgba(255,255,255,0.72)', letterSpacing: 0.2 }}>
                                 {language === 'tr' ? 'Özel' : 'Custom'}
@@ -1466,7 +1504,7 @@ export default function FocusScreen() {
                           position: 'absolute',
                           width: 24,
                           height: 24,
-                          borderRadius: 12,
+                          borderRadius: R.full,
                           backgroundColor: 'rgba(0, 229, 255, 0.14)', // Soft glowing cyan aura
                         }}
                       />
@@ -1570,8 +1608,21 @@ export default function FocusScreen() {
                   {/* Meditatif animasyonlu iç dünya (aurora) — zen'de kaybolur */}
                   <MotiView
                     pointerEvents="none"
+                    /*
+                      YUMUŞAK AÇILIŞ — `from` yoktu, yani aurora opacity 1'de başlıyordu
+                      ve GPU pipeline'ı hazır olunca BİRDEN beliriyordu. Kullanıcı bunu
+                      "500-600ms gecikme" olarak bildirdi; teknik olarak doğru ama asıl
+                      rahatsız eden gecikmenin kendisi değil, ANİ olması: hazır olmayan
+                      bir şeyi hazırmış gibi göstermek onu takılma gibi gösteriyordu.
+
+                      Derleme maliyeti tek derlemeye indirildi (bkz. NEBULA_EFFECT) ama
+                      ilk çizimdeki GPU pipeline maliyeti doğaldır ve kaldırılamaz.
+                      Doğru çözüm onu SAKLAMAK değil, tasarlamak: aurora artık sönükten
+                      açılıyor, yani gecikme bir kusur değil bir doğuş gibi okunuyor.
+                    */
+                    from={{ opacity: 0 }}
                     animate={{ opacity: (zenMode && isActive) ? 0 : 1 }}
-                    transition={{ type: 'timing', duration: 400 }}
+                    transition={{ type: 'timing', duration: (zenMode && isActive) ? 400 : 700 }}
                     // iOS ısı: yuvarlak kırpma zaten dıştaki Touchable'da (borderRadius+overflow) yapılıyor.
                     // Buradaki ikinci maske hareketli aurora'ya her karede offscreen mask pass ekliyordu → kaldırıldı.
                     style={StyleSheet.absoluteFill}
@@ -1610,7 +1661,7 @@ export default function FocusScreen() {
                         from={{ opacity: 0, translateY: 4 }}
                         animate={{ opacity: 0.82, translateY: 0 }}
                         transition={{ type: 'timing', duration: 450 }}
-                        style={{ maxWidth: timerSize * 0.72, marginTop: 14 }}
+                        style={{ maxWidth: timerSize * 0.72, marginTop: S.md }}
                       >
                         <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600', letterSpacing: 0.3, textAlign: 'center' }}>
                           {currentTask}
@@ -1619,7 +1670,7 @@ export default function FocusScreen() {
                     ) : null}
 
                     {/* Breath cue — fades between phases in sync with glow animation */}
-                    <View style={{ height: 28, marginTop: 9, justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+                    <View style={{ height: 28, marginTop: S.sm, justifyContent: 'center', alignItems: 'center', width: '100%' }}>
                       <AnimatePresence>
                         {isActive && breathMode !== 'off' && (
                           <MotiView
@@ -1668,10 +1719,10 @@ export default function FocusScreen() {
                       </View>
                     ) : (
                       <View style={{ height: 40, alignItems: 'center', justifyContent: 'center' }}>
-                        <Sparkles size={24} color={theme.onSurface} style={{ opacity: 0.2 }} />
+                        <Sparkles size={ICON.lg} color={theme.onSurface} style={{ opacity: 0.2 }} />
                       </View>
                     )}
-                    <Text style={{ fontFamily: 'Jakarta-SemiBold', fontSize: 10, color: '#8E8E93', opacity: 0.25, marginTop: 28, letterSpacing: 1 }}>
+                    <Text style={{ fontFamily: 'Jakarta-SemiBold', fontSize: 10, color: '#8E8E93', opacity: 0.25, marginTop: S.slg, letterSpacing: 1 }}>
                       {language === 'tr' ? 'Çıkmak için dokun' : 'Tap to exit Zen Mode'}
                     </Text>
                   </MotiView>
@@ -1708,7 +1759,7 @@ export default function FocusScreen() {
                       accessibilityLabel={language === 'tr' ? 'Sıfırla' : 'Reset'}
                       style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg, opacity: sessionStarted ? 1 : 0.3 }]}
                     >
-                      <RotateCcw size={24} color={theme.onSurfaceVariant} />
+                      <RotateCcw size={ICON.lg} color={theme.onSurfaceVariant} />
                     </Touchable>
                   </MotiView>
                 )}
@@ -1723,7 +1774,7 @@ export default function FocusScreen() {
               style={{
                 width: 72,
                 height: 72,
-                borderRadius: 36,
+                borderRadius: R.full,
                 backgroundColor: isActive 
                   ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)') 
                   : (pomodoroMode && pomodoroPhase === 'break' ? theme.tertiary : theme.primary),
@@ -1737,8 +1788,8 @@ export default function FocusScreen() {
               }}
             >
               {isActive
-                ? <Pause size={28} color={theme.onSurface} fill={theme.onSurface} style={{ opacity: 0.8 }} />
-                : <Play size={28} color={theme.onPrimary} fill={theme.onPrimary} style={{ marginLeft: 4 }} />}
+                ? <Pause size={ICON.xl} color={theme.onSurface} fill={theme.onSurface} style={{ opacity: 0.8 }} />
+                : <Play size={ICON.xl} color={theme.onPrimary} fill={theme.onPrimary} style={{ marginLeft: S.xs }} />}
             </Touchable>
             </TourTarget>
 
@@ -1808,10 +1859,10 @@ export default function FocusScreen() {
                 <MotiView
                   key="volume-stepper"
                   from={{ opacity: 0, height: 0, marginTop: 0 }}
-                  animate={{ opacity: 1, height: 24, marginTop: 12 }}
+                  animate={{ opacity: 1, height: 24, marginTop: S.smd }}
                   exit={{ opacity: 0, height: 0, marginTop: 0 }}
                   transition={{ type: 'timing', duration: 300 }}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm }}
                 >
                   {[0.2, 0.4, 0.6, 0.8, 1.0].map(v => (
                     <Touchable
@@ -1821,7 +1872,7 @@ export default function FocusScreen() {
                       style={{ width: 34, height: 24, justifyContent: 'center', alignItems: 'center' }}
                       accessibilityLabel={`Ses seviyesi ${v * 100}`}
                     >
-                      <View style={{ width: '100%', height: 4, borderRadius: 2, backgroundColor: ambientVolume >= v ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)') }} />
+                      <View style={{ width: '100%', height: 4, borderRadius: R.xs, backgroundColor: ambientVolume >= v ? theme.primary : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)') }} />
                     </Touchable>
                   ))}
                 </MotiView>
@@ -1842,7 +1893,7 @@ export default function FocusScreen() {
                   style={{ alignItems: 'center' }}
                   pointerEvents={zenMode && isActive ? "none" : "auto"}
                 >
-                  <Text style={{ fontSize: F.caption, color: theme.tertiary, fontWeight: '700', letterSpacing: 0.2, opacity: 0.85 }}>
+                  <Text style={{ fontSize: F.caption, color: theme.tertiary, fontWeight: '700', letterSpacing: 0.2 }}>
                     {language === 'tr' ? '💧 Su iç  ·  Esne  ·  Gözlerini kapat' : '💧 Hydrate  ·  Stretch  ·  Close your eyes'}
                   </Text>
                 </MotiView>
@@ -1860,7 +1911,7 @@ export default function FocusScreen() {
                     onPress={finishEarly}
                     style={[styles.finishBtn, { borderColor: theme.tertiary + '50', backgroundColor: theme.tertiary + '12' }]}
                   >
-                    <CheckCircle2 size={15} color={theme.tertiary} />
+                    <CheckCircle2 size={ICON.sm} color={theme.tertiary} />
                     <Text style={[styles.finishText, { color: theme.tertiary, fontSize: F.body }]}>
                       {t.focusEndSession}
                     </Text>
@@ -1875,7 +1926,7 @@ export default function FocusScreen() {
                   transition={{ type: 'timing', duration: 350 }}
                 >
                   <View style={[styles.footer, { paddingHorizontal: S.xl }]}>
-                    <Text style={{ fontStyle: 'italic', textAlign: 'center', opacity: 0.5, color: theme.onSurfaceVariant, fontSize: F.body }}>{quote}</Text>
+                    <Text style={{ fontStyle: 'italic', textAlign: 'center', color: theme.onSurfaceMuted, fontSize: F.body }}>{quote}</Text>
                   </View>
                 </MotiView>
               )}
@@ -1901,9 +1952,9 @@ export default function FocusScreen() {
               from={{ scale: 0.4, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', damping: 11, stiffness: 180, delay: 100 }}
-              style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: theme.primaryContainer, alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 88, height: 88, borderRadius: R.full, backgroundColor: theme.primaryContainer, alignItems: 'center', justifyContent: 'center' }}
             >
-              <CheckCircle2 size={44} color={theme.primary} strokeWidth={2} />
+              <CheckCircle2 size={ICON.xxl} color={theme.primary} strokeWidth={2} />
             </MotiView>
             <MotiView
               from={{ opacity: 0, translateY: 8 }}
@@ -1911,10 +1962,10 @@ export default function FocusScreen() {
               transition={{ type: 'timing', duration: 380, delay: 320 }}
               style={{ alignItems: 'center', gap: S.sm }}
             >
-              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5 }}>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>
                 {language === 'tr' ? 'Tamamlandı' : 'Complete'}
               </Text>
-              <Text style={{ fontSize: F.body, color: theme.onSurfaceVariant, fontWeight: '600', opacity: 0.7 }}>
+              <Text style={{ fontSize: F.body, color: theme.onSurfaceMuted, fontWeight: '600' }}>
                 {language === 'tr' ? 'Harika bir seans ✦' : 'Great session ✦'}
               </Text>
             </MotiView>
@@ -1943,7 +1994,7 @@ export default function FocusScreen() {
                   : (language === 'tr' ? 'Kısa Mola!' : 'Short Break!'))
                 : (language === 'tr' ? 'Odaklanma Vakti!' : 'Back to Work!')}
             </Text>
-            <Text style={[styles.transitionSub, { color: theme.onSurfaceVariant }]}>
+            <Text style={[styles.transitionSub, { color: theme.onSurfaceMuted }]}>
               {pomodoroTransition.type === 'break'
                 ? (pomodoroTransition.isLong
                   ? (language === 'tr' ? `${activePreset.longBreak} dakika dinlen, hak ettin.` : `${activePreset.longBreak} min rest — you earned it.`)
@@ -1977,11 +2028,11 @@ export default function FocusScreen() {
               { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', paddingBottom: S.xxl },
             ]}
           >
-            <View {...customPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
+            <View {...customPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
             </View>
             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>{t.focusCustomDuration}</Text>
-            <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant }]}>{language === 'tr' ? '1 – 180 dakika' : '1 – 180 minutes'}</Text>
+            <Text style={[styles.sheetSub, { color: theme.onSurfaceMuted }]}>{language === 'tr' ? '1 – 180 dakika' : '1 – 180 minutes'}</Text>
 
             {/* Drum-roll wheel */}
             <View style={{ height: WHEEL_ITEM_H * 5, width: '100%', alignItems: 'center', overflow: 'hidden' }}>
@@ -2013,7 +2064,7 @@ export default function FocusScreen() {
               >
                 {WHEEL_MINS.map(m => (
                   <View key={m} style={{ height: WHEEL_ITEM_H, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 36, fontWeight: '900', letterSpacing: -1, color: theme.onSurface }}>
+                    <Text style={{ fontSize: 36, fontWeight: '700', letterSpacing: -1, color: theme.onSurface }}>
                       {m}
                     </Text>
                   </View>
@@ -2021,7 +2072,7 @@ export default function FocusScreen() {
               </ScrollView>
             </View>
 
-            <Text style={[styles.minLabel, { color: theme.onSurfaceVariant, marginTop: S.xs }]}>
+            <Text style={[styles.minLabel, { color: theme.onSurfaceMuted, marginTop: S.xs }]}>
               {language === 'tr' ? 'DAKİKA' : 'MINUTES'}
             </Text>
 
@@ -2052,17 +2103,17 @@ export default function FocusScreen() {
               { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', paddingBottom: S.xxl },
             ]}
           >
-            <View {...breathPan.panHandlers} style={{ paddingTop: 14, paddingBottom: 18, alignItems: 'center' }}>
+            <View {...breathPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
             </View>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface, paddingHorizontal: 24 }]}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface, paddingHorizontal: S.lg }]}>
               {language === 'tr' ? 'Nefes Egzersizi' : 'Breathing Exercise'}
             </Text>
-            <Text style={[styles.sheetSub, { color: theme.onSurfaceVariant, paddingHorizontal: 24, marginBottom: 16 }]}>
+            <Text style={[styles.sheetSub, { color: theme.onSurfaceMuted, paddingHorizontal: S.lg, marginBottom: S.md }]}>
               {language === 'tr' ? 'Odağınızı artırmak ve zihninizi sakinleştirmek için bir ritim seçin' : 'Select a rhythm to boost focus and calm your mind'}
             </Text>
 
-            <View style={{ width: '100%', paddingHorizontal: 24, gap: 12 }}>
+            <View style={{ width: '100%', paddingHorizontal: S.lg, gap: S.smd }}>
               {(['classic', 'box', 'calm', 'off'] as const).map((mode) => {
                 const isActive = breathMode === mode;
                 const title = mode === 'classic'
@@ -2093,22 +2144,22 @@ export default function FocusScreen() {
                       flexDirection: 'row',
                       alignItems: 'center',
                       backgroundColor: isActive ? theme.primary + '18' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
-                      borderRadius: 16,
-                      padding: 16,
+                      borderRadius: R.lg,
+                      padding: S.md,
                       borderWidth: B.medium,
                       borderColor: isActive ? theme.primary : 'transparent',
                     }}
                   >
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '800', color: isActive ? theme.primary : theme.onSurface }}>
+                    <View style={{ flex: 1, gap: S.xs }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: isActive ? theme.primary : theme.onSurface }}>
                         {title}
                       </Text>
-                      <Text style={{ fontSize: 12, color: theme.onSurfaceVariant, opacity: 0.8 }}>
+                      <Text style={{ fontSize: 12, color: theme.onSurfaceVariant }}>
                         {desc}
                       </Text>
                     </View>
                     {isActive && (
-                      <CheckCircle2 size={20} color={theme.primary} />
+                      <CheckCircle2 size={ICON.md} color={theme.primary} />
                     )}
                   </Touchable>
                 );
@@ -2135,7 +2186,7 @@ export default function FocusScreen() {
               style={{ 
                 width: 72, 
                 height: 72, 
-                borderRadius: 36, 
+                borderRadius: R.full, 
                 backgroundColor: summaryCompleted ? theme.primaryContainer : theme.secondaryContainer, 
                 alignItems: 'center', 
                 justifyContent: 'center',
@@ -2143,31 +2194,31 @@ export default function FocusScreen() {
               }}
             >
               {summaryCompleted
-                ? <CheckCircle2 size={36} color={theme.primary} strokeWidth={2.2} />
-                : <Sparkles size={36} color={theme.secondary} strokeWidth={2.2} />}
+                ? <CheckCircle2 size={ICON.xl} color={theme.primary} strokeWidth={2.2} />
+                : <Sparkles size={ICON.xl} color={theme.secondary} strokeWidth={2.2} />}
             </MotiView>
 
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}>
               {summaryCompleted ? t.summaryGreatWork : t.summaryGoodStart}
             </Text>
 
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-              <Text style={{ fontSize: 52, fontWeight: '900', color: theme.primary, letterSpacing: -2, lineHeight: 56 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs }}>
+              <Text style={{ fontSize: 52, fontWeight: '700', color: theme.primary, letterSpacing: -2, lineHeight: 56 }}>
                 {summaryMinutes}
               </Text>
-              <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: 4 }}>
+              <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.xs }}>
                 {t.summaryMinFocused}
               </Text>
             </View>
 
 
 
-            <View style={{ width: '100%', backgroundColor: (summaryCompleted ? theme.primaryContainer : theme.secondaryContainer) + '60', borderRadius: R.md, padding: S.md, gap: 4 }}>
+            <View style={{ width: '100%', backgroundColor: (summaryCompleted ? theme.primaryContainer : theme.secondaryContainer) + '60', borderRadius: R.md, padding: S.md, gap: S.xs }}>
               <Text style={{ fontSize: F.body, fontWeight: '700', color: summaryCompleted ? theme.primary : theme.secondary, lineHeight: 20 }}>
                 {summaryCompleted ? t.summaryCoachCompleted : t.summaryCoachGoodStart}
               </Text>
               {summaryCompleted && (
-                <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.7 }}>
+                <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted }}>
                   {t.summaryBreakSuggestion}
                 </Text>
               )}
@@ -2197,7 +2248,7 @@ export default function FocusScreen() {
                           style={{
                             width: 38,
                             height: 38,
-                            borderRadius: 19,
+                            borderRadius: R.full,
                             backgroundColor: isSelected ? theme.primary + '20' : 'transparent',
                             justifyContent: 'center',
                             alignItems: 'center',
@@ -2218,15 +2269,14 @@ export default function FocusScreen() {
               )}
             </View>
 
-            <View style={{ width: '100%', height: 1, backgroundColor: theme.onSurface + '12', marginVertical: S.xs }} />
-
+            <Separator theme={theme} spacing={S.xs} />
             {/* Break button (only after standard completed session) */}
             {summaryCompleted && !pomodoroMode && (
               <Touchable
                 onPress={() => startBreak(activePreset.shortBreak)}
                 style={{ width: '100%', paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: theme.tertiary + '50', backgroundColor: theme.tertiary + '12', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.sm }}
               >
-                <Text style={{ fontSize: F.body, fontWeight: '800', color: theme.tertiary }}>
+                <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.tertiary }}>
                   {language === 'tr' ? `${activePreset.shortBreak} dk Mola Başlat` : `Start ${activePreset.shortBreak}-min Break`}
                 </Text>
               </Touchable>
@@ -2248,7 +2298,7 @@ export default function FocusScreen() {
               }}
               style={{ width: '100%', paddingVertical: S.md, borderRadius: R.full, backgroundColor: theme.primary, alignItems: 'center' }}
             >
-              <Text style={{ fontSize: F.subhead, fontWeight: '900', color: theme.onPrimary, letterSpacing: 0.5 }}>
+              <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onPrimary, letterSpacing: 0.5 }}>
                 {t.summaryBackHome}
               </Text>
             </Touchable>
@@ -2263,7 +2313,7 @@ export default function FocusScreen() {
               }}
               style={{ paddingVertical: S.sm }}
             >
-              <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>
+              <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurfaceMuted }}>
                 {t.summaryNewSession}
               </Text>
             </Touchable>
@@ -2273,18 +2323,18 @@ export default function FocusScreen() {
 
       {/* ── Pomodoro Info Modal ── */}
       <Modal visible={pomodoroInfoVisible} transparent animationType="fade" onRequestClose={() => setPomodoroInfoVisible(false)}>
-        <Touchable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 32 }} activeOpacity={1} onPress={() => setPomodoroInfoVisible(false)}>
+        <Touchable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: S.slg }} activeOpacity={1} onPress={() => setPomodoroInfoVisible(false)}>
           <MotiView
             from={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', damping: 18 }}
-            style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderRadius: 28, padding: 28, width: '100%', gap: 16 }}
+            style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderRadius: R.xl, padding: S.slg, width: '100%', gap: S.md }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: theme.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
-                <Timer size={20} color={theme.primary} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd }}>
+              <View style={{ width: 40, height: 40, borderRadius: R.md, backgroundColor: theme.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
+                <Timer size={ICON.md} color={theme.primary} />
               </View>
-              <Text style={{ fontSize: 17, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, flex: 1 }}>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, flex: 1 }}>
                 {language === 'tr' ? 'Pomodoro Tekniği' : 'Pomodoro Technique'}
               </Text>
             </View>
@@ -2293,28 +2343,28 @@ export default function FocusScreen() {
                 ? `"${language === 'tr' ? activePreset.labelTr : activePreset.labelEn}" modunda ${activePreset.workMins} dk çalışıp ${activePreset.shortBreak} dk dinleniyorsun. 4. turda ${activePreset.longBreak} dk uzun mola.`
                 : `In "${activePreset.labelEn}" mode you work for ${activePreset.workMins} min and rest ${activePreset.shortBreak} min. After round 4, a ${activePreset.longBreak}-min long break.`}
             </Text>
-            <View style={{ gap: 8 }}>
+            <View style={{ gap: S.sm }}>
               {PRESETS.map((preset) => {
                 const isActive = preset.key === selectedPreset;
                 return (
                   <Touchable
                     key={preset.key}
                     onPress={() => { setSelectedPreset(preset.key); setDuration(preset.workMins); if (pomodoroMode) {}; }}
-                    style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isActive ? theme.primary + '18' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: B.thin, borderColor: isActive ? theme.primary + '40' : 'transparent' }}
+                    style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isActive ? theme.primary + '18' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.smd, borderWidth: B.thin, borderColor: isActive ? theme.primary + '40' : 'transparent' }}
                   >
-                    <View style={{ gap: 2 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '800', color: isActive ? theme.primary : theme.onSurface }}>
+                    <View style={{ gap: S.xxs }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: isActive ? theme.primary : theme.onSurface }}>
                         {language === 'tr' ? preset.labelTr : preset.labelEn}
                       </Text>
-                      <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, opacity: 0.7 }}>
+                      <Text style={{ fontSize: 11, color: theme.onSurfaceMuted }}>
                         {language === 'tr' ? preset.descTr : preset.descEn}
                       </Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                      <Text style={{ fontSize: 12, fontWeight: '900', color: isActive ? theme.primary : theme.onSurfaceVariant }}>
+                    <View style={{ alignItems: 'flex-end', gap: S.xxs }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: isActive ? theme.primary : theme.onSurfaceVariant }}>
                         {language === 'tr' ? `${preset.workMins}dk çalış` : `${preset.workMins}m work`}
                       </Text>
-                      <Text style={{ fontSize: 10, color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                      <Text style={{ fontSize: 10, color: theme.onSurfaceMuted }}>
                         {language === 'tr' ? `${preset.shortBreak}/${preset.longBreak}dk mola` : `${preset.shortBreak}/${preset.longBreak}m break`}
                       </Text>
                     </View>
@@ -2324,9 +2374,9 @@ export default function FocusScreen() {
             </View>
             <Touchable
               onPress={() => setPomodoroInfoVisible(false)}
-              style={{ backgroundColor: theme.primary, borderRadius: 16, paddingVertical: 14, alignItems: 'center' }}
+              style={{ backgroundColor: theme.primary, borderRadius: R.lg, paddingVertical: S.md, alignItems: 'center' }}
             >
-              <Text style={{ fontSize: 15, fontWeight: '900', color: theme.onPrimary }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: theme.onPrimary }}>
                 {language === 'tr' ? 'Anladım' : 'Got it'}
               </Text>
             </Touchable>
@@ -2344,34 +2394,34 @@ export default function FocusScreen() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.lg },
   closeBtn: { width: 44, height: 44, borderRadius: R.lg, alignItems: 'center', justifyContent: 'center' },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full },
-  badgeText: { fontWeight: '900', letterSpacing: 1 },
-  pomodoroToggle: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 18, borderWidth: B.thin },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full },
+  badgeText: { fontWeight: '700', letterSpacing: 1 },
+  pomodoroToggle: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, borderWidth: B.thin },
   pomodoroToggleText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
   pomodoroRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.xl, justifyContent: 'center' },
-  phaseBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: R.full },
-  phaseLabel: { fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
+  phaseBadge: { paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full },
+  phaseLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5 },
   content: { flex: 1, alignItems: 'center', width: '100%' },
   durationRow: { flexDirection: 'row' },
-  durationChip: { borderRadius: 100 },
-  durationText: { fontWeight: '800' },
+  durationChip: { borderRadius: R.full },
+  durationText: { fontWeight: '700' },
   timerContainer: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
   timerCircle: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.1, shadowRadius: 30, elevation: 10 },
   timerText: { fontWeight: '200', letterSpacing: -1, fontVariant: ['tabular-nums'] },
   timerGlow: { textShadowColor: 'rgba(150,180,255,0.45)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 18 },
-  currentTaskText: { fontWeight: '600', marginTop: 8, textAlign: 'center' },
+  currentTaskText: { fontWeight: '600', marginTop: S.sm, textAlign: 'center' },
   breathGlow: { position: 'absolute', zIndex: -1 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontWeight: '900', letterSpacing: 1.5 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full },
+  statusDot: { width: 6, height: 6, borderRadius: R.full },
+  statusText: { fontWeight: '700', letterSpacing: 1.5 },
   taskPickerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, marginTop: S.md, maxWidth: 260, gap: S.sm },
   taskPickerLabel: { fontSize: F.caption, fontWeight: '600', flex: 1 },
   controlsRow: { flexDirection: 'row', alignItems: 'center' },
   secondaryBtn: { alignItems: 'center', justifyContent: 'center' },
   playBtn: { overflow: 'hidden', elevation: 8, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 },
   btnGradient: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
-  ambientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: S.md, paddingHorizontal: S.lg },
-  ambientBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: R.full, borderWidth: B.thin },
+  ambientRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: S.md, paddingHorizontal: S.lg },
+  ambientBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin },
   ambientLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.1 },
   finishBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin },
   finishText: { fontWeight: '700', letterSpacing: 0.3 },
@@ -2380,16 +2430,16 @@ const styles = StyleSheet.create({
   modalOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
   customSheet: { borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, padding: S.lg, alignItems: 'center', gap: S.sm },
   sheetHandle: { width: 36, height: 4, borderRadius: R.sm, marginBottom: S.sm },
-  sheetTitle: { fontSize: F.title, fontWeight: '800', letterSpacing: -0.5 },
-  sheetSub: { fontSize: F.body, fontWeight: '600', opacity: 0.5, marginBottom: S.sm },
-  inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: B.thin, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: S.xs, marginBottom: 6 },
-  customInput: { fontWeight: '900', letterSpacing: -2, textAlign: 'center' },
-  minLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5, opacity: 0.35, textAlign: 'center', marginBottom: S.sm },
+  sheetTitle: { fontSize: F.title, fontWeight: '700', letterSpacing: -0.5 },
+  sheetSub: { fontSize: F.body, fontWeight: '600', marginBottom: S.sm },
+  inputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: B.thin, borderRadius: R.md, paddingHorizontal: S.lg, paddingVertical: S.xs, marginBottom: S.sm },
+  customInput: { fontWeight: '700', letterSpacing: -2, textAlign: 'center' },
+  minLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5, textAlign: 'center', marginBottom: S.sm },
   applyBtn: { width: '100%', paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
-  applyBtnText: { color: 'white', fontWeight: '900', fontSize: F.subhead, letterSpacing: 0.5 },
+  applyBtnText: { color: 'white', fontWeight: '700', fontSize: F.subhead, letterSpacing: 0.5 },
   taskPickerItem: { flexDirection: 'row', alignItems: 'flex-start', gap: S.md, paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth },
   taskPickerItemTitle: { fontSize: F.body, fontWeight: '600', lineHeight: 20 },
   transitionOverlay: { alignItems: 'center', justifyContent: 'center', gap: S.md },
-  transitionTitle: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
-  transitionSub: { fontSize: F.subhead, fontWeight: '600', textAlign: 'center', opacity: 0.7 },
+  transitionTitle: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
+  transitionSub: { fontSize: F.subhead, fontWeight: '600', textAlign: 'center' },
 });

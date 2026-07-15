@@ -7,7 +7,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { BrainCircuit, Zap, Target, Play, TrendingUp, TrendingDown, Check, Coffee, BarChart2, Calendar, Sparkles } from 'lucide-react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { Touchable } from '@/shared/components/Touchable';
-import { S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 interface StatusHubModalProps {
   visible: boolean;
@@ -211,7 +211,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
             styles.sheet,
             {
               backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-              borderColor: theme.outlineVariant + '40',
+              borderColor: theme.outlineVariant,
             },
           ]}
         >
@@ -232,13 +232,13 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
           {/* Header */}
           <View style={styles.insightHeader}>
             <View style={[styles.insightIcon, { backgroundColor: theme.primary + '15' }]}>
-              <BrainCircuit size={20} color={theme.primary} />
+              <BrainCircuit size={ICON.md} color={theme.primary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.insightHeaderTitle, { color: theme.onSurface }]}>
+              <Text style={[styles.insightHeaderTitle, { color: theme.onSurfaceVariant }]}>
                 TAZQ INSIGHTS
               </Text>
-              <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.6, marginTop: 1 }}>
+              <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceMuted, marginTop: S.xxs }}>
                 {language === 'tr' ? 'Haftalık odaklanma ve alışkanlık gelişimi analitiği' : 'Weekly focus and habit growth analytics'}
               </Text>
             </View>
@@ -252,7 +252,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
           >
             {/* HERO: Focus Score Card */}
             <View style={{
-              borderRadius: 20,
+              borderRadius: R.xl,
               overflow: 'hidden',
               backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.015)',
               borderWidth: 1,
@@ -262,7 +262,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                 colors={isDark ? ['rgba(59, 130, 246, 0.15)', 'rgba(147, 51, 234, 0.1)'] : ['rgba(59, 130, 246, 0.05)', 'rgba(147, 51, 234, 0.03)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }}
+                style={{ padding: S.md, flexDirection: 'row', alignItems: 'center', gap: S.md }}
               >
                 {/* Circular Score Indicator */}
                 <View style={{ width: 64, height: 64, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
@@ -281,21 +281,21 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                     />
                   </Svg>
                   <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 16, fontWeight: '800', color: theme.onSurface }}>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: theme.onSurface }}>
                       %{focusScore}
                     </Text>
                   </View>
                 </View>
 
                 {/* Score Description */}
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, letterSpacing: 0.8, textTransform: 'uppercase', opacity: 0.6 }}>
+                <View style={{ flex: 1, gap: S.xs }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                     {language === 'tr' ? 'HAFTALIK ODAK SKORU' : 'WEEKLY FOCUS SCORE'}
                   </Text>
                   <Text style={{ fontSize: 12.5, fontWeight: '600', color: theme.onSurface, lineHeight: 17 }}>
                     {focusEvaluation}
                   </Text>
-                  <Text style={{ fontSize: 9.5, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                  <Text style={{ fontSize: 9.5, fontWeight: '500', color: theme.onSurfaceMuted }}>
                     {language === 'tr'
                       ? `Odak: ${totalFocusMins}dk • Alışkanlık: ${completedHabitsCount} tamamlandı • Seri: ${streak}g\n(10s altında tamamlananlar odak skorunu etkilemez)`
                       : `Focus: ${totalFocusMins}m • Habits: ${completedHabitsCount} done • Streak: ${streak}d\n(Tasks checked in <10s do not count towards the score)`}
@@ -305,7 +305,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
             </View>
             {/* Daily Focused Coach Tip */}
             <View style={{
-              borderRadius: 16,
+              borderRadius: R.lg,
               overflow: 'hidden',
               backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
               borderWidth: 1,
@@ -315,11 +315,11 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                 colors={isDark ? [theme.primary + '0A', 'transparent'] : [theme.primary + '05', 'transparent']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={{ padding: 14 }}
+                style={{ padding: S.md }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' }} />
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: theme.primary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
+                  <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: '#10B981' }} />
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                     {language === 'tr' ? 'AKILLI ODAK ÖNERİSİ' : 'SMART FOCUS ADVICE'}
                   </Text>
                 </View>
@@ -330,20 +330,20 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
             </View>
 
             {/* SECTION 1: Haftalık Odaklanma Analizi (Chart + Trend metrics side-by-side) */}
-            <View style={{ gap: 8 }}>
+            <View style={{ gap: S.sm }}>
               <View>
-                <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, letterSpacing: 0.8, textTransform: 'uppercase', opacity: 0.6 }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                   {language === 'tr' ? 'HAFTALIK ODAK HACMİ' : 'WEEKLY FOCUS VOLUME'}
                 </Text>
-                <Text style={{ fontSize: 9, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                <Text style={{ fontSize: 9, fontWeight: '500', color: theme.onSurfaceMuted }}>
                   {language === 'tr' ? 'Son 7 günlük odaklanma sürelerinin dağılımı' : 'Distribution of focus time over the last 7 days'}
                 </Text>
               </View>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flexDirection: 'row', gap: S.smd }}>
                 {/* Visual Bar Chart */}
-                <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1.6, paddingVertical: 12, paddingHorizontal: 8, position: 'relative' }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8, alignSelf: 'flex-start', zIndex: 2 }}>
-                    <BarChart2 size={12} color={theme.primary} />
+                <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1.6, paddingVertical: S.smd, paddingHorizontal: S.sm, position: 'relative' }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm, alignSelf: 'flex-start', zIndex: 2 }}>
+                    <BarChart2 size={ICON.xs} color={theme.primary} />
                     <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant }}>
                       {language === 'tr' ? 'Odak Süreleri' : 'Focus Duration'}
                     </Text>
@@ -356,7 +356,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                     <View style={{ height: 0.5, borderStyle: 'dashed', borderWidth: 0.5, borderColor: theme.onSurfaceVariant }} />
                   </View>
 
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', height: 60, alignItems: 'flex-end', paddingTop: 10, zIndex: 2 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', height: 60, alignItems: 'flex-end', paddingTop: S.smd, zIndex: 2 }}>
                     {weeklyFocusData && weeklyFocusData.map((d, i) => {
                       const maxMins = Math.max(...weeklyFocusData.map(val => val.minutes || 0), 30);
                       const todayIndex = (new Date().getDay() + 6) % 7; // pt=0 ... pa=6
@@ -366,7 +366,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                       return (
                         <View key={i} style={{ flex: 1, alignItems: 'center', position: 'relative' }}>
                           {d.minutes > 0 && (
-                            <Text style={{ fontSize: 7, fontWeight: '800', color: theme.onSurface, position: 'absolute', top: -10 }}>
+                            <Text style={{ fontSize: 7, fontWeight: '700', color: theme.onSurface, position: 'absolute', top: -10 }}>
                               {d.minutes}
                             </Text>
                           )}
@@ -377,7 +377,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                             width: '100%'
                           }}>
                             {isToday ? (
-                              <View style={{ height: barHeight, width: 8, borderRadius: 4, overflow: 'hidden' }}>
+                              <View style={{ height: barHeight, width: 8, borderRadius: R.xs, overflow: 'hidden' }}>
                                 <LinearGradient
                                   colors={[theme.primary, theme.secondary || theme.primary]}
                                   style={{ flex: 1 }}
@@ -387,12 +387,12 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                               <View style={{
                                 height: barHeight,
                                 width: 8,
-                                borderRadius: 4,
+                                borderRadius: R.xs,
                                 backgroundColor: d.minutes > 0 ? theme.primary + '40' : isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
                               }} />
                             )}
                           </View>
-                          <Text style={{ fontSize: 8, fontWeight: '700', color: isToday ? theme.primary : theme.onSurfaceVariant, marginTop: 4, opacity: isToday ? 1 : 0.6 }}>
+                          <Text style={{ fontSize: 8, fontWeight: '700', color: isToday ? theme.primary : theme.onSurfaceVariant, marginTop: S.xs, opacity: isToday ? 1 : 0.6 }}>
                             {getLocalizedDayName(d.day)}
                           </Text>
                         </View>
@@ -402,31 +402,31 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                 </View>
 
                 {/* Trend Analytics Bento Box */}
-                <View style={{ flex: 1, gap: 8 }}>
-                  <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1, padding: 10, justifyContent: 'center' }]}>
+                <View style={{ flex: 1, gap: S.sm }}>
+                  <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1, padding: S.smd, justifyContent: 'center' }]}>
                     <Text style={{ fontSize: 8, fontWeight: '700', color: theme.onSurfaceVariant, alignSelf: 'flex-start' }}>
                       {language === 'tr' ? 'EN VERİMLİ GÜN' : 'BEST DAY'}
                     </Text>
-                    <Text style={{ fontSize: 12, fontWeight: '800', color: theme.onSurface, marginTop: 2 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurface, marginTop: S.xxs }}>
                       {bestDayMins > 0 ? `${getLocalizedDayName(bestDayName, true)} (${bestDayMins}m)` : '-'}
                     </Text>
                   </View>
-                  <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1, padding: 10, justifyContent: 'center' }]}>
+                  <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1, padding: S.smd, justifyContent: 'center' }]}>
                     <Text style={{ fontSize: 8, fontWeight: '700', color: theme.onSurfaceVariant, alignSelf: 'flex-start' }}>
                       {language === 'tr' ? 'HAFTALIK TREND' : 'WEEKLY TREND'}
                     </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, marginTop: S.xxs }}>
                       {weekTrend >= 0 ? (
                         <>
-                          <TrendingUp size={11} color="#10B981" />
-                          <Text style={{ fontSize: 12, fontWeight: '800', color: '#10B981' }}>
+                          <TrendingUp size={ICON.xs} color="#10B981" />
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>
                             +{weekTrend}%
                           </Text>
                         </>
                       ) : (
                         <>
-                          <TrendingDown size={11} color={theme.warning} />
-                          <Text style={{ fontSize: 12, fontWeight: '800', color: theme.warning }}>
+                          <TrendingDown size={ICON.xs} color={theme.warning} />
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: theme.warning }}>
                             {weekTrend}%
                           </Text>
                         </>
@@ -442,18 +442,18 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
               <View style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 12,
+                gap: S.smd,
                 backgroundColor: isDark ? 'rgba(59, 130, 246, 0.07)' : 'rgba(59, 130, 246, 0.04)',
                 borderWidth: 1,
                 borderColor: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(59, 130, 246, 0.08)',
-                borderRadius: 16,
-                padding: 12,
+                borderRadius: R.lg,
+                padding: S.smd,
               }}>
-                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: theme.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
-                  <Sparkles size={14} color={theme.primary} />
+                <View style={{ width: 28, height: 28, borderRadius: R.full, backgroundColor: theme.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                  <Sparkles size={ICON.sm} color={theme.primary} />
                 </View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={{ fontSize: 9, fontWeight: '800', color: theme.primary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                <View style={{ flex: 1, gap: S.xxs }}>
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.primary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                     {language === 'tr' ? 'ALIŞKANLIK & ODAK SİNERJİSİ' : 'HABIT & FOCUS SYNERGY'}
                   </Text>
                   <Text style={{ fontSize: 11.5, fontWeight: '600', color: theme.onSurface, lineHeight: 16 }}>
@@ -467,39 +467,39 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
 
             {/* SECTION 2: Habit Consistency Grid */}
             {habits && habits.length > 0 && (
-              <View style={{ gap: 8 }}>
+              <View style={{ gap: S.sm }}>
                 <View>
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, letterSpacing: 0.8, textTransform: 'uppercase', opacity: 0.6 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                     {language === 'tr' ? 'ALIŞKANLIK ZİNCİRİ' : 'HABIT CONSISTENCY'}
                   </Text>
-                  <Text style={{ fontSize: 9, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '500', color: theme.onSurfaceMuted }}>
                     {language === 'tr' ? 'Son 7 günlük rutinlerin tamamlanma takvimi' : 'Routine completion calendar for the last 7 days'}
                   </Text>
                 </View>
-                <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, alignItems: 'stretch', gap: 10, padding: 12 }]}>
+                <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, alignItems: 'stretch', gap: S.smd, padding: S.smd }]}>
                   {habits.slice(0, 3).map((habit, hIdx) => {
                     const completedSet = new Set(habit.completedDates || []);
                     const skippedSet = new Set(habit.skippedDates || []);
                     return (
                       <View key={hIdx} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         {/* Habit label */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 }}>
                           {renderModeEmojiIcon(habit.emoji ?? '📌', 14, habit.color || theme.primary)}
                           <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: '700', color: theme.onSurface, maxWidth: 90 }}>
                             {habit.name}
                           </Text>
                         </View>
                         {/* Checklist grid */}
-                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <View style={{ flexDirection: 'row', gap: S.sm }}>
                           {last7Days.map((day, dIdx) => {
                             const done = completedSet.has(day.key);
                             const skipped = skippedSet.has(day.key);
                             return (
-                              <View key={dIdx} style={{ alignItems: 'center', gap: 2 }}>
+                              <View key={dIdx} style={{ alignItems: 'center', gap: S.xxs }}>
                                 <View style={{
                                   width: 16,
                                   height: 16,
-                                  borderRadius: 4,
+                                  borderRadius: R.xs,
                                   backgroundColor: done
                                     ? habit.color
                                     : skipped
@@ -511,9 +511,9 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                                   borderColor: theme.primary,
                                 }}>
                                   {done ? (
-                                    <Check size={9} color="#ffffff" strokeWidth={3.5} />
+                                    <Check size={ICON.xs} color="#ffffff" strokeWidth={3.5} />
                                   ) : skipped ? (
-                                    <Coffee size={9} color="#d97706" />
+                                    <Coffee size={ICON.xs} color="#d97706" />
                                   ) : null}
                                 </View>
                                 <Text style={{ fontSize: 6.5, fontWeight: '700', color: theme.onSurfaceVariant, opacity: day.isToday ? 1 : 0.5 }}>
@@ -528,16 +528,16 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                   })}
 
                   {/* Legend underneath */}
-                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4, borderTopWidth: 0.5, borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', paddingTop: 6 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                      <View style={{ width: 6, height: 6, borderRadius: 1.5, backgroundColor: theme.primary }} />
-                      <Text style={{ fontSize: 7, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: S.smd, marginTop: S.xs, borderTopWidth: 0.5, borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', paddingTop: S.sm }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                      <View style={{ width: 6, height: 6, borderRadius: R.xs, backgroundColor: theme.primary }} />
+                      <Text style={{ fontSize: 7, fontWeight: '700', color: theme.onSurfaceMuted }}>
                         {language === 'tr' ? 'Tamamlandı' : 'Completed'}
                       </Text>
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                      <View style={{ width: 6, height: 6, borderRadius: 1.5, backgroundColor: 'rgba(217,119,6,0.25)' }} />
-                      <Text style={{ fontSize: 7, fontWeight: '700', color: theme.onSurfaceVariant, opacity: 0.6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                      <View style={{ width: 6, height: 6, borderRadius: R.xs, backgroundColor: 'rgba(217,119,6,0.25)' }} />
+                      <Text style={{ fontSize: 7, fontWeight: '700', color: theme.onSurfaceMuted }}>
                         {language === 'tr' ? 'Mola Verildi' : 'Skipped/Break'}
                       </Text>
                     </View>
@@ -548,18 +548,18 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
 
             {/* SECTION 3: Haftalık Tavsiyeler (Koç Kartları) */}
             {weeklyTips && weeklyTips.length > 0 && (
-              <View style={{ gap: 8 }}>
+              <View style={{ gap: S.sm }}>
                 <View>
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: theme.onSurfaceVariant, letterSpacing: 0.8, textTransform: 'uppercase', opacity: 0.6, marginBottom: 2 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: S.xxs }}>
                     {language === 'tr' ? 'HAFTALIK AKSİYON ÖNERİLERİ' : 'WEEKLY ACTIONABLE TIPS'}
                   </Text>
-                  <Text style={{ fontSize: 9, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '500', color: theme.onSurfaceMuted }}>
                     {language === 'tr' ? 'Performans verilerinize dayalı kişisel tavsiyeler' : 'Personal tips based on your performance trends'}
                   </Text>
                 </View>
                 {weeklyTips.map((tip, idx) => {
                   let badgeBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
-                  let badgeBorder = theme.outlineVariant + '30';
+                  let badgeBorder = theme.outlineVariant;
                   let iconColor = theme.onSurfaceVariant;
                   let IconComponent = BrainCircuit;
 
@@ -588,19 +588,19 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        gap: 10,
+                        gap: S.smd,
                         backgroundColor: badgeBg,
                         borderWidth: 1,
                         borderColor: badgeBorder,
                         borderRadius: R.md,
-                        paddingVertical: 10,
-                        paddingHorizontal: 12,
+                        paddingVertical: S.smd,
+                        paddingHorizontal: S.smd,
                       }}
                     >
                       <View style={{
                         width: 26,
                         height: 26,
-                        borderRadius: 13,
+                        borderRadius: R.full,
                         backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                         alignItems: 'center',
                         justifyContent: 'center'
@@ -618,9 +618,9 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
 
             {/* SECTION 4: Temel İvme ve Görev Metrikleri */}
             <View style={styles.insightStats}>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flexDirection: 'row', gap: S.smd }}>
                 <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1 }]}>
-                  <Zap size={16} color={momentumColor} fill={momentumColor} />
+                  <Zap size={ICON.sm} color={momentumColor} fill={momentumColor} />
                   <Text
                     numberOfLines={1}
                     adjustsFontSizeToFit
@@ -629,12 +629,12 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                   >
                     {momentum}%
                   </Text>
-                  <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>
+                  <Text style={[styles.statLabel, { color: theme.onSurfaceMuted }]}>
                     Momentum
                   </Text>
                 </View>
                 <View style={[styles.statBento, { backgroundColor: theme.surfaceContainerLow, flex: 1 }]}>
-                  <Target size={16} color={theme.secondary} />
+                  <Target size={ICON.sm} color={theme.secondary} />
                   <Text
                     numberOfLines={1}
                     adjustsFontSizeToFit
@@ -643,7 +643,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                   >
                     {todayCompleted}/{dailyGoal}
                   </Text>
-                  <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>
+                  <Text style={[styles.statLabel, { color: theme.onSurfaceMuted }]}>
                     {t.cockpitTarget}
                   </Text>
                 </View>
@@ -654,12 +654,11 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
             <Text style={{
               fontSize: 9,
               fontWeight: '500',
-              color: theme.onSurfaceVariant,
-              opacity: 0.45,
+              color: theme.onSurfaceMuted,
               textAlign: 'center',
               lineHeight: 13,
-              marginTop: 4,
-              paddingHorizontal: 8
+              marginTop: S.xs,
+              paddingHorizontal: S.sm
             }}>
               {language === 'tr'
                 ? '* Momentum ve Odak Skoru, en az 10 saniye aralıklarla tamamlanan görevlerden beslenir.'
@@ -687,14 +686,14 @@ const styles = StyleSheet.create({
     gap: scale(24),
   },
   dragHandleContainer: {
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingTop: S.smd,
+    paddingBottom: S.sm,
     alignItems: 'center',
   },
   dragHandle: {
     width: 36,
     height: 4,
-    borderRadius: 2,
+    borderRadius: R.xs,
   },
   insightHeader: {
     flexDirection: 'row',
@@ -712,7 +711,6 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(13),
     fontWeight: '600',
     letterSpacing: 1,
-    opacity: 0.6,
   },
   insightBody: {
     gap: scale(16),
@@ -734,7 +732,7 @@ const styles = StyleSheet.create({
     padding: scale(16),
     borderRadius: R.md + 4,
     alignItems: 'center',
-    gap: 4,
+    gap: S.xs,
   },
   statValue: {
     fontSize: moderateScale(18),
@@ -743,7 +741,6 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: moderateScale(10),
     fontWeight: '500',
-    opacity: 0.5,
     letterSpacing: 0.5,
   },
   cockpitActions: {

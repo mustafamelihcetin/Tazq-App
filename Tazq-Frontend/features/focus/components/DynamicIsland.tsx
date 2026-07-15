@@ -1,5 +1,5 @@
 import React from 'react';
-import { B } from '@/shared/constants/tokens';
+import { S, ICON, R, B } from '@/shared/constants/tokens';
 import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
@@ -62,10 +62,10 @@ export const DynamicIsland = () => {
                     animate={{ scale: [1, 1.15, 1] }}
                     transition={{ loop: true, duration: 1800 }}
                   >
-                    <Zap size={20} color={theme.onPrimaryContainer} fill={theme.onPrimaryContainer} />
+                    <Zap size={ICON.md} color={theme.onPrimaryContainer} fill={theme.onPrimaryContainer} />
                   </MotiView>
                 ) : (
-                  <Zap size={20} color={theme.onSurfaceVariant} />
+                  <Zap size={ICON.md} color={theme.onSurfaceVariant} />
                 )}
             </View>
 
@@ -107,12 +107,12 @@ export const DynamicIsland = () => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 24,
-    marginBottom: 16,
+    paddingHorizontal: S.lg,
+    marginBottom: S.md,
   },
   wrapper: {
-    borderRadius: 48,
-    padding: 12,
+    borderRadius: R.xl,
+    padding: S.smd,
     borderWidth: B.thin,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 20 },
@@ -123,12 +123,12 @@ const styles = StyleSheet.create({
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: S.smd,
   },
   iconCircle: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: R.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 9,
     letterSpacing: 1,
-    marginBottom: 2,
+    marginBottom: S.xxs,
     fontFamily: 'Jakarta-ExtraBold',
   },
   title: {
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Jakarta-Bold',
   },
   actionButton: {
-    borderRadius: 100,
+    borderRadius: R.full,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 15,
@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   btnGradient: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: S.lmd,
+    paddingVertical: S.smd,
     alignItems: 'center',
     justifyContent: 'center',
   },

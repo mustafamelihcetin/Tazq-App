@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TextInput, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Image, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Touchable } from '@/shared/components/Touchable';
-import { S, R, F, B, MAX_W } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import { AVATAR_CONFIGS } from '@/features/user';
 import * as Haptics from 'expo-haptics';
 import { Sunrise, Sun, Sunset, Moon, Zap } from 'lucide-react-native';
@@ -100,10 +100,10 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
   ] as const;
 
   const prodHourOptions = [
-    { key: 'morning',   labelTr: 'Sabah',   labelEn: 'Morning',   hint: '07:00', icon: (color: string) => <Sunrise size={16} color={color} /> },
-    { key: 'afternoon', labelTr: 'Öğlen',   labelEn: 'Afternoon', hint: '12:00', icon: (color: string) => <Sun size={16} color={color} /> },
-    { key: 'evening',   labelTr: 'Akşam',   labelEn: 'Evening',   hint: '17:00', icon: (color: string) => <Sunset size={16} color={color} /> },
-    { key: 'night',     labelTr: 'Gece',    labelEn: 'Night',     hint: '21:00', icon: (color: string) => <Moon size={16} color={color} /> },
+    { key: 'morning',   labelTr: 'Sabah',   labelEn: 'Morning',   hint: '07:00', icon: (color: string) => <Sunrise size={ICON.sm} color={color} /> },
+    { key: 'afternoon', labelTr: 'Öğlen',   labelEn: 'Afternoon', hint: '12:00', icon: (color: string) => <Sun size={ICON.sm} color={color} /> },
+    { key: 'evening',   labelTr: 'Akşam',   labelEn: 'Evening',   hint: '17:00', icon: (color: string) => <Sunset size={ICON.sm} color={color} /> },
+    { key: 'night',     labelTr: 'Gece',    labelEn: 'Night',     hint: '21:00', icon: (color: string) => <Moon size={ICON.sm} color={color} /> },
   ] as const;
 
   // Filter avatars based on gender:
@@ -118,14 +118,14 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.7)' }}>
         <BlurView intensity={20} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
         
-        <View style={[styles.card, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: theme.outlineVariant + '40', borderWidth: B.thin }]}>
+        <View style={[styles.card, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: theme.outlineVariant, borderWidth: B.thin }]}>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
           <View style={{ alignItems: 'center', marginBottom: S.xs }}>
             {!isNamePlaceholder && (
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: theme.primaryContainer, alignItems: 'center', justifyContent: 'center', marginBottom: S.xs, marginTop: S.xs }}>
-                <Zap size={20} color={theme.primary} fill={theme.primary} />
+              <View style={{ width: 44, height: 44, borderRadius: R.full, backgroundColor: theme.primaryContainer, alignItems: 'center', justifyContent: 'center', marginBottom: S.xs, marginTop: S.xs }}>
+                <Zap size={ICON.md} color={theme.primary} fill={theme.primary} />
               </View>
             )}
             <Text style={[styles.title, { color: theme.onSurface }]}>
@@ -133,7 +133,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                 ? (language === 'tr' ? 'TAZQ Profilini Oluştur' : 'Create TAZQ Profile')
                 : (language === 'tr' ? `Hoş Geldin, ${currentName.trim().split(' ')[0]}` : `Welcome, ${currentName.trim().split(' ')[0]}`)}
             </Text>
-            <Text style={[styles.subtitle, { color: theme.onSurfaceVariant }]}>
+            <Text style={[styles.subtitle, { color: theme.onSurfaceMuted }]}>
               {isNamePlaceholder
                 ? (language === 'tr' ? 'Sana hitap edebilmemiz için bilgilerini tamamla.' : 'Please complete your details so we can address you.')
                 : (language === 'tr' ? 'Profilini özelleştirip TAZQ deneyimine hemen başla.' : 'Customize your profile and start your TAZQ experience.')}
@@ -184,7 +184,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                         }
                       }}
                       style={[styles.goalChip, {
-                        borderColor: isSelected ? theme.primary : theme.outline + '20',
+                        borderColor: isSelected ? theme.primary : theme.outline,
                         backgroundColor: isSelected ? theme.primaryContainer : 'transparent',
                       }]}
                     >
@@ -217,7 +217,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                       accessibilityLabel={language === 'tr' ? `Avatar ${config.key}` : `Avatar ${config.key}`}
                       onPress={() => { Haptics.selectionAsync(); setSelectedAvatar(config.key); }}
                       style={[styles.avatarWrapper, {
-                        borderColor: isSelected ? theme.primary : theme.outline + '20',
+                        borderColor: isSelected ? theme.primary : theme.outline,
                         borderWidth: isSelected ? 2.5 : 1,
                       }]}
                     >
@@ -271,7 +271,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                       key={opt.key}
                       onPress={() => { Haptics.selectionAsync(); setProductivityHour(opt.key); }}
                       style={[styles.goalChip, {
-                        borderColor: isSelected ? theme.primary : theme.outline + '20',
+                        borderColor: isSelected ? theme.primary : theme.outline,
                         backgroundColor: isSelected ? theme.primaryContainer : 'transparent',
                       }]}
                     >
@@ -280,7 +280,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                         fontSize: 10,
                         fontFamily: 'Jakarta-Bold',
                         color: isSelected ? theme.onPrimaryContainer : theme.onSurfaceVariant,
-                        marginTop: 4,
+                        marginTop: S.xs,
                       }}>
                         {language === 'tr' ? opt.labelTr : opt.labelEn}
                       </Text>
@@ -354,7 +354,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Jakarta-SemiBold',
     textAlign: 'center',
     marginBottom: S.md,
-    opacity: 0.7,
   },
   errorText: {
     color: '#EF4444',
@@ -370,7 +369,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginBottom: S.xs,
-    opacity: 0.8,
   },
   inputContainer: {
     borderRadius: R.md,
@@ -384,7 +382,7 @@ const styles = StyleSheet.create({
   avatarWrapper: {
     width: 50,
     height: 50,
-    borderRadius: 25,
+    borderRadius: R.full,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
@@ -393,13 +391,13 @@ const styles = StyleSheet.create({
   colorBubble: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: R.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   goalChip: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: S.smd,
     borderRadius: R.sm,
     borderWidth: 1.5,
     alignItems: 'center',
@@ -407,7 +405,7 @@ const styles = StyleSheet.create({
   },
   btn: {
     width: '100%',
-    padding: 14,
+    padding: S.md,
     borderRadius: R.md,
     alignItems: 'center',
     justifyContent: 'center',

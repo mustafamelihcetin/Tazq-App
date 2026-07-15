@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { SupportService, MySupportMessage } from '@/shared/services/api';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
-import { S, R, F, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { httpStatusOf, isNetworkError, httpRawDataOf } from '@/shared/utils/errors';
 import { swallow } from '@/shared/utils/swallow';
@@ -177,7 +177,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
                 underlineColorAndroid="transparent"
               />
             </View>
-            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, alignSelf: 'flex-end', marginTop: -S.sm }}>
+            <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, alignSelf: 'flex-end', marginTop: -S.sm }}>
               {supportText.length}/500
             </Text>
             <Touchable
@@ -197,8 +197,8 @@ export const SupportModal: React.FC<SupportModalProps> = ({
                 <ActivityIndicator color="white" />
               ) : (
                 <>
-                  <Send size={18} color="white" />
-                  <Text style={{ color: 'white', fontWeight: '900', fontSize: F.body }}>
+                  <Send size={ICON.md} color="white" />
+                  <Text style={{ color: 'white', fontWeight: '700', fontSize: F.body }}>
                     {t.support?.send || (language === 'tr' ? 'Mesajı Gönder' : 'Send Message')}
                   </Text>
                 </>
@@ -208,7 +208,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
             {/* Support Message Log */}
             {(loadingMine || myMessages.length > 0) && (
               <View style={{ marginTop: S.sm, gap: S.sm }}>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', opacity: 0.7 }}>
+                <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' }}>
                   {language === 'tr' ? 'Mesajların' : 'Your messages'}
                 </Text>
                 <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
@@ -222,13 +222,13 @@ export const SupportModal: React.FC<SupportModalProps> = ({
                             : theme.surfaceContainerLow,
                           borderRadius: R.md,
                           padding: S.sm,
-                          gap: 6,
+                          gap: S.sm,
                         }}
                       >
                         <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>
                           {mm.message}
                         </Text>
-                        <Text style={{ color: theme.onSurfaceVariant, fontSize: 9, opacity: 0.5 }}>
+                        <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>
                           {new Date(mm.createdAt).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
                             day: 'numeric',
                             month: 'short',
@@ -244,10 +244,10 @@ export const SupportModal: React.FC<SupportModalProps> = ({
                               borderLeftColor: '#10B981',
                               borderRadius: R.sm,
                               padding: S.sm,
-                              gap: 2,
+                              gap: S.xxs,
                             }}
                           >
-                            <Text style={{ color: '#10B981', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }}>
+                            <Text style={{ color: '#10B981', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>
                               {language === 'tr' ? '✓ DESTEK YANITI' : '✓ SUPPORT REPLY'}
                             </Text>
                             <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>
@@ -255,7 +255,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
                             </Text>
                           </View>
                         ) : (
-                          <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, fontStyle: 'italic', opacity: 0.6 }}>
+                          <Text style={{ color: theme.onSurfaceMuted, fontSize: 10, fontStyle: 'italic' }}>
                             {language === 'tr' ? 'Yanıt bekleniyor…' : 'Awaiting reply…'}
                           </Text>
                         )}
@@ -287,13 +287,13 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 40,
     height: 4,
-    borderRadius: 2,
+    borderRadius: R.xs,
     alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 16,
+    marginTop: S.smd,
+    marginBottom: S.md,
   },
   modalTitle: {
-    fontWeight: '800',
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: S.md,
     letterSpacing: 0.5,

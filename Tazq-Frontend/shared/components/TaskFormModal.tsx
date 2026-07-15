@@ -7,7 +7,7 @@ import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { Touchable } from '@/shared/components/Touchable';
 import VoiceService from '@/shared/utils/voice';
 import { parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS } from '@/features/tasks';
-import { S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
@@ -73,14 +73,14 @@ const VoiceWave = ({ active, theme }: { active: boolean; theme: AppTheme }) => (
         position: 'absolute',
         width: 32,
         height: 32,
-        borderRadius: 16,
+        borderRadius: R.full,
         backgroundColor: theme.primary,
         opacity: active ? 0.35 : 0,
         transform: [{ scale: active ? 1.4 : 1 }],
         zIndex: -1,
       }}
     />
-    <Mic size={18} color={active ? theme.primary : theme.onSurfaceVariant} />
+    <Mic size={ICON.md} color={active ? theme.primary : theme.onSurfaceVariant} />
   </View>
 );
 
@@ -436,7 +436,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 accessibilityRole="button"
                 accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'}
               >
-                <X size={20} color={theme.onSurfaceVariant} />
+                <X size={ICON.md} color={theme.onSurfaceVariant} />
               </Touchable>
             </View>
 
@@ -444,11 +444,11 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
             {!task && (
               <View style={{ flexDirection: 'row', gap: S.xs, marginBottom: S.lg, flexWrap: 'wrap' }}>
                 {[
-                  { text: language === 'tr' ? 'Tarih' : 'Due date', icon: <Calendar size={10} color={theme.primary} /> },
-                  { text: language === 'tr' ? 'Öncelik' : 'Priority', icon: <Target size={10} color={theme.primary} /> },
-                  { text: language === 'tr' ? 'Hatırlatıcı' : 'Reminder', icon: <Bell size={10} color={theme.primary} /> }
+                  { text: language === 'tr' ? 'Tarih' : 'Due date', icon: <Calendar size={ICON.xs} color={theme.primary} /> },
+                  { text: language === 'tr' ? 'Öncelik' : 'Priority', icon: <Target size={ICON.xs} color={theme.primary} /> },
+                  { text: language === 'tr' ? 'Hatırlatıcı' : 'Reminder', icon: <Bell size={ICON.xs} color={theme.primary} /> }
                 ].map((chip) => (
-                  <View key={chip.text} style={{ backgroundColor: theme.primary + '14', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View key={chip.text} style={{ backgroundColor: theme.primary + '14', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs, flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                     {chip.icon}
                     <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary, letterSpacing: 0.3 }}>{chip.text}</Text>
                   </View>
@@ -481,7 +481,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     underlineColorAndroid="transparent"
                   />
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                    {nlpHint ? <Sparkles size={16} color={theme.primary} /> : null}
+                    {nlpHint ? <Sparkles size={ICON.sm} color={theme.primary} /> : null}
                     <Touchable
                       onPress={() => toggleVoice('title')}
                       style={{ padding: S.xs, alignItems: 'center', justifyContent: 'center' }}
@@ -500,8 +500,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                   </Text>
                 ) : showSmartHint && !task ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm, marginLeft: S.md }}>
-                    <Sparkles size={11} color={theme.primary} />
-                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '600', opacity: 0.75 }}>
+                    <Sparkles size={ICON.xs} color={theme.primary} />
+                    <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '600' }}>
                       {language === 'tr'
                         ? '"yarın", "acil", "hatırlatıcı" gibi kelimeler otomatik algılanır'
                         : '"tomorrow", "urgent", "reminder" are auto-detected'}
@@ -539,28 +539,28 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 {!showDatePicker && !showTimePicker && (
                   <View style={styles.dateTimeRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.md }]}>
+                      <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: F.caption, marginBottom: S.md }]}>
                         {t.dueDate.toUpperCase()}
                       </Text>
                       <Touchable
                         onPress={openDatePicker}
                         style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
                       >
-                        <Timer size={14} color={theme.primary} />
+                        <Timer size={ICON.sm} color={theme.primary} />
                         <Text style={[styles.chipText, { color: form.dueDate ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]} numberOfLines={1}>
                           {form.dueDate || t.selectDate}
                         </Text>
                       </Touchable>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.md }]}>
+                      <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: F.caption, marginBottom: S.md }]}>
                         {t.dueTime.toUpperCase()}
                       </Text>
                       <Touchable
                         onPress={openTimePicker}
                         style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
                       >
-                        <Sparkles size={14} color={theme.secondary} />
+                        <Sparkles size={ICON.sm} color={theme.secondary} />
                         <Text style={[styles.chipText, { color: form.dueTime ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]} numberOfLines={1}>
                           {form.dueTime ? new Date(form.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t.selectTime}
                         </Text>
@@ -572,10 +572,10 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 {/* Inline Date Picker */}
                 {showDatePicker && (
                   <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]}>
-                    <Text style={[styles.inlinePickerTitle, { color: theme.onSurface }]}>{t.dueDate}</Text>
+                    <Text style={[styles.inlinePickerTitle, { color: theme.onSurfaceVariant }]}>{t.dueDate}</Text>
                     <View style={styles.pickerRow}>
                       <View style={styles.pickerCol}>
-                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.day}</Text>
+                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceMuted }]}>{t.day}</Text>
                         <Touchable onPress={() => setPickerDate(d => ({ ...d, day: Math.min(d.day + 1, daysInMonth(d.year, d.month)) }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
                         <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.day).padStart(2, '0')}</Text>
                         <Touchable 
@@ -590,7 +590,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         </Touchable>
                       </View>
                       <View style={styles.pickerCol}>
-                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.month}</Text>
+                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceMuted }]}>{t.month}</Text>
                         <Touchable onPress={() => setPickerDate(d => ({ ...d, month: d.month === 12 ? 1 : d.month + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
                         <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerDate.month).padStart(2, '0')}</Text>
                         <Touchable 
@@ -605,7 +605,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         </Touchable>
                       </View>
                       <View style={styles.pickerCol}>
-                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.year}</Text>
+                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceMuted }]}>{t.year}</Text>
                         <Touchable onPress={() => setPickerDate(d => ({ ...d, year: d.year + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
                         <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{pickerDate.year}</Text>
                         <Touchable 
@@ -631,17 +631,17 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 {/* Inline Time Picker */}
                 {showTimePicker && (
                   <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]}>
-                    <Text style={[styles.inlinePickerTitle, { color: theme.onSurface }]}>{t.dueTime}</Text>
+                    <Text style={[styles.inlinePickerTitle, { color: theme.onSurfaceVariant }]}>{t.dueTime}</Text>
                     <View style={styles.pickerRow}>
                       <View style={styles.pickerCol}>
-                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.hour}</Text>
+                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceMuted }]}>{t.hour}</Text>
                         <Touchable onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 23 ? 0 : pt.hour + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
                         <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.hour).padStart(2, '0')}</Text>
                         <Touchable onPress={() => setPickerTime(pt => ({ ...pt, hour: pt.hour === 0 ? 23 : pt.hour - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></Touchable>
                       </View>
                       <Text style={[styles.pickerColon, { color: theme.onSurface }]}>:</Text>
                       <View style={styles.pickerCol}>
-                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceVariant }]}>{t.minute}</Text>
+                        <Text style={[styles.pickerColLabel, { color: theme.onSurfaceMuted }]}>{t.minute}</Text>
                         <Touchable onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 59 ? 0 : pt.minute + 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▲</Text></Touchable>
                         <Text style={[styles.pickerValue, { color: theme.onSurface }]}>{String(pickerTime.minute).padStart(2, '0')}</Text>
                         <Touchable onPress={() => setPickerTime(pt => ({ ...pt, minute: pt.minute === 0 ? 59 : pt.minute - 1 }))} style={styles.pickerArrow}><Text style={[styles.pickerArrowText, { color: theme.primary }]}>▼</Text></Touchable>
@@ -657,7 +657,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
               {/* Priority Selectors */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.priority.toUpperCase()}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: 10 }]}>{t.priority.toUpperCase()}</Text>
                 <View style={[styles.priorityRow, { gap: S.sm }]}>
                   {([
                     { key: 'Low', label: t.filterLow },
@@ -687,7 +687,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
               {/* Recurrence Selectors */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.recurrence.toUpperCase()}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: 10 }]}>{t.recurrence.toUpperCase()}</Text>
                 <View style={[styles.priorityRow, { gap: S.sm }]}>
                   {RECURRENCE_OPTIONS.map((r) => (
                     <Touchable
@@ -696,7 +696,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, recurrence: r.key })); }}
                       style={[styles.priorityTab, { backgroundColor: form.recurrence === r.key ? theme.secondary : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 42 }]}
                     >
-                      {r.key !== 'None' && <Repeat size={12} color={form.recurrence === r.key ? 'white' : theme.onSurfaceVariant} />}
+                      {r.key !== 'None' && <Repeat size={ICON.xs} color={form.recurrence === r.key ? 'white' : theme.onSurfaceVariant} />}
                       <Text style={[styles.priorityTabText, { color: form.recurrence === r.key ? 'white' : theme.onSurfaceVariant, fontSize: F.caption }]}>
                         {(t as any)[r.labelKey]}
                       </Text>
@@ -705,7 +705,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 </View>
                 {form.recurrence !== 'None' && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm }}>
-                    <Repeat size={11} color={theme.secondary} />
+                    <Repeat size={ICON.xs} color={theme.secondary} />
                     {form.dueDate ? (
                       <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.secondary }}>
                         {getNextOccurrenceLabel(form.dueDate, form.recurrence, language)}
@@ -804,20 +804,20 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     height: 52,
                   }]}
                 >
-                  <Bell size={18} color={form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant} />
+                  <Bell size={ICON.md} color={form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant} />
                   <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant, marginLeft: S.sm }}>
                     {t.reminderLabel}
                   </Text>
                   <View style={{
-                    width: 44, height: 26, borderRadius: 13,
+                    width: 44, height: 26, borderRadius: R.md,
                     backgroundColor: form.reminderEnabled ? theme.priorityMedium : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'),
-                    justifyContent: 'center', paddingHorizontal: 2,
+                    justifyContent: 'center', paddingHorizontal: S.xxs,
                   }}>
                     <RNAnimated.View
                       style={{
                         width: 22,
                         height: 22,
-                        borderRadius: 11,
+                        borderRadius: R.full,
                         backgroundColor: 'white',
                         transform: [{ translateX: form.reminderEnabled ? 18 : 0 }]
                       }}
@@ -828,7 +828,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
               {/* Subtasks Editor */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{t.subtasks.toUpperCase()}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: 10 }]}>{t.subtasks.toUpperCase()}</Text>
                 {form.subtasks.map((sub, i) => (
                   <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
                     <Touchable
@@ -842,9 +842,9 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         setForm(f => ({ ...f, subtasks: subs }));
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }}
-                      style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 1.5, borderColor: sub.done ? '#10B981' : theme.outline, alignItems: 'center', justifyContent: 'center', backgroundColor: sub.done ? '#10B9811A' : 'transparent' }}
+                      style={{ width: 24, height: 24, borderRadius: R.sm, borderWidth: 1.5, borderColor: sub.done ? '#10B981' : theme.outline, alignItems: 'center', justifyContent: 'center', backgroundColor: sub.done ? '#10B9811A' : 'transparent' }}
                     >
-                      {sub.done ? <Check size={14} color="#10B981" /> : null}
+                      {sub.done ? <Check size={ICON.sm} color="#10B981" /> : null}
                     </Touchable>
                     <Text style={{ flex: 1, fontSize: F.body, color: sub.done ? theme.onSurfaceVariant : theme.onSurface, textDecorationLine: sub.done ? 'line-through' : 'none', opacity: sub.done ? 0.6 : 1 }}>
                       {sub.text}
@@ -858,7 +858,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       }}
                       style={{ padding: S.xs }}
                     >
-                      <Trash2 size={16} color={theme.priorityHigh} />
+                      <Trash2 size={ICON.sm} color={theme.priorityHigh} />
                     </Touchable>
                   </View>
                 ))}
@@ -889,22 +889,22 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     }}
                     style={{ width: 44, height: 44, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <Plus size={20} color={theme.onPrimary} />
+                    <Plus size={ICON.md} color={theme.onPrimary} />
                   </Touchable>
                 </View>
               </View>
 
               {/* Tag Editor (Visual selector chips) */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceVariant, fontSize: 10 }]}>{(t as any).tags?.toUpperCase() || (language === 'tr' ? 'ETİKETLER' : 'TAGS')}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: 10 }]}>{(t as any).tags?.toUpperCase() || (language === 'tr' ? 'ETİKETLER' : 'TAGS')}</Text>
                 <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap', marginBottom: S.sm }}>
                   {visibleTextTags(form.tags).map(tag => (
-                    <View key={tag} style={{ backgroundColor: theme.primary + '1F', borderRadius: 8, paddingLeft: S.sm, paddingRight: 4, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <View key={tag} style={{ backgroundColor: theme.primary + '1F', borderRadius: R.sm, paddingLeft: S.sm, paddingRight: S.xs, paddingVertical: S.xs, flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                       <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>
                         {translateTag(tag, language as 'tr' | 'en')}
                       </Text>
-                      <Touchable accessibilityRole="button" accessibilityLabel={language === 'tr' ? `${tag} etiketini kaldır` : `Remove tag ${tag}`} onPress={() => setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tag) }))} style={{ padding: 2 }}>
-                        <X size={12} color={theme.primary} />
+                      <Touchable accessibilityRole="button" accessibilityLabel={language === 'tr' ? `${tag} etiketini kaldır` : `Remove tag ${tag}`} onPress={() => setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tag) }))} style={{ padding: S.xxs }}>
+                        <X size={ICON.xs} color={theme.primary} />
                       </Touchable>
                     </View>
                   ))}
@@ -922,7 +922,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                           if (hasTag) setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tagOption) }));
                           else setForm(f => ({ ...f, tags: [...f.tags, tagOption] }));
                         }}
-                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: R.md, backgroundColor: hasTag ? theme.primary : (isDark ? '#2C2C2E' : '#E5E5EA'), borderWidth: 0.5, borderColor: theme.outlineVariant + '40' }}
+                        style={{ paddingHorizontal: S.smd, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: hasTag ? theme.primary : (isDark ? '#2C2C2E' : '#E5E5EA'), borderWidth: 0.5, borderColor: theme.outlineVariant }}
                       >
                         <Text style={{ fontSize: 11, fontWeight: '600', color: hasTag ? theme.onPrimary : theme.onSurfaceVariant }}>
                           {translateTag(tagOption, language as 'tr' | 'en')}
@@ -995,8 +995,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   dragHandleContainer: {
-    paddingTop: 14,
-    paddingBottom: 18,
+    paddingTop: S.md,
+    paddingBottom: S.lmd,
     alignItems: 'center',
   },
   handle: {
@@ -1022,7 +1022,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   formContainer: {
-    paddingHorizontal: 4,
+    paddingHorizontal: S.xs,
   },
   section: {
     marginBottom: S.md,
@@ -1063,7 +1063,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     marginBottom: S.sm,
     marginLeft: S.xs,
-    opacity: 0.6,
   },
   priorityRow: {
     flexDirection: 'row',
@@ -1108,7 +1107,6 @@ const styles = StyleSheet.create({
     marginBottom: S.md,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-    opacity: 0.7,
   },
   pickerRow: {
     flexDirection: 'row',
@@ -1125,7 +1123,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 1,
     marginBottom: S.sm,
-    opacity: 0.5,
   },
   pickerArrow: {
     padding: S.sm,

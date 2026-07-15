@@ -13,7 +13,7 @@ import { GlassCard } from '@/shared/components/GlassCard';
 import { AnimatedBackground } from '@/shared/components/AnimatedBackground';
 import { Touchable } from '@/shared/components/Touchable';
 import { useToastStore } from '@/shared/store/useToastStore';
-import { S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 
 const CODE_LEN = 6;
 
@@ -98,7 +98,7 @@ export default function VerifyEmailScreen() {
             accessibilityRole="button"
             accessibilityLabel={tr ? 'Geri' : 'Back'}
           >
-            <ArrowLeft size={22} color={theme.onSurface} />
+            <ArrowLeft size={ICON.lg} color={theme.onSurface} />
           </Touchable>
 
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -135,7 +135,7 @@ export default function VerifyEmailScreen() {
                   >
                     {tr ? 'E-postanı Doğrula' : 'Verify your email'}
                   </MotiText>
-                  <Text style={[styles.subtitle, { color: theme.onSurfaceVariant, marginTop: verticalScale(6) }]}>
+                  <Text style={[styles.subtitle, { color: theme.onSurfaceMuted, marginTop: verticalScale(6) }]}>
                     {tr ? '6 haneli kodu şu adrese gönderdik' : 'We sent a 6-digit code to'}
                   </Text>
                   {!!email && (
@@ -219,7 +219,7 @@ export default function VerifyEmailScreen() {
                         ) : (
                           <>
                             <Text style={[styles.buttonText, { color: theme.onSecondary }]}>{tr ? 'Doğrula' : 'Verify'}</Text>
-                            <ArrowRight size={20} color={theme.onSecondary} />
+                            <ArrowRight size={ICON.md} color={theme.onSecondary} />
                           </>
                         )}
                       </MotiView>
@@ -255,15 +255,15 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, paddingHorizontal: scale(24), width: '100%', maxWidth: 480, alignSelf: 'center' },
   header: { alignItems: 'center' },
   title: { fontSize: F.title + 4, fontFamily: 'Jakarta-ExtraBold', letterSpacing: -0.5, textAlign: 'center' },
-  subtitle: { fontSize: F.body, fontWeight: '500', opacity: 0.75, textAlign: 'center' },
+  subtitle: { fontSize: F.body, fontWeight: '500', textAlign: 'center' },
   email: { fontSize: F.body, fontFamily: 'Jakarta-Bold', marginTop: verticalScale(2), textAlign: 'center' },
   otpRow: { flexDirection: 'row', justifyContent: 'center', gap: scale(8) },
   hiddenInput: { position: 'absolute', opacity: 0, height: 1, width: 1 },
   errorText: { fontSize: F.caption + 2, fontWeight: '600', textAlign: 'center' },
   button: { height: Platform.OS === 'android' ? verticalScale(50) : verticalScale(56), borderRadius: R.md, overflow: 'hidden' },
   buttonInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10) },
-  buttonText: { fontSize: F.subhead + 1, fontWeight: '800' },
+  buttonText: { fontSize: F.subhead + 1, fontWeight: '700' },
   resendRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   resendText: { fontSize: moderateScale(14), fontWeight: '500' },
-  resendLink: { fontSize: moderateScale(14), fontWeight: '800' },
+  resendLink: { fontSize: moderateScale(14), fontWeight: '700' },
 });

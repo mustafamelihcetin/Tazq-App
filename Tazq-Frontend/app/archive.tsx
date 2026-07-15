@@ -6,7 +6,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { S, F, R, B, MAX_W } from '@/shared/constants/tokens';
+import { ICON, S, F, R, B, MAX_W } from '@/shared/constants/tokens';
 import { TaskService } from '@/shared/services/api';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -77,7 +77,7 @@ export default function ArchiveScreen() {
             {/* Header */}
             <View style={[styles.header, { borderBottomColor: theme.outline }]}>
                 <Touchable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'}>
-                    <ArrowLeft size={24} color={theme.onBackground} />
+                    <ArrowLeft size={ICON.lg} color={theme.onBackground} />
                 </Touchable>
                 <Text style={[styles.headerTitle, { color: theme.onBackground }]}>
                     {language === 'tr' ? 'Arşiv' : 'Archive'}
@@ -90,7 +90,7 @@ export default function ArchiveScreen() {
                 keyExtractor={item => item.id.toString()}
                 contentContainerStyle={{ padding: S.md, gap: S.sm, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
                 ListEmptyComponent={() => (
-                    <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 100 }}>
+                    <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: S.xxl }}>
                         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body }}>
                             {language === 'tr' ? 'Arşivde görev bulunmuyor.' : 'No archived tasks.'}
                         </Text>
@@ -103,17 +103,17 @@ export default function ArchiveScreen() {
                                 {item.title}
                             </Text>
                             {item.description && (
-                                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginTop: 4 }} numberOfLines={1}>
+                                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginTop: S.xs }} numberOfLines={1}>
                                     {item.description}
                                 </Text>
                             )}
                         </View>
                         <View style={{ flexDirection: 'row', gap: S.sm }}>
                             <Touchable onPress={() => handleRestore(item)} style={[styles.actionBtn, { backgroundColor: theme.primary + '1A' }]} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri yükle' : 'Restore'}>
-                                <RotateCcw size={18} color={theme.primary} />
+                                <RotateCcw size={ICON.md} color={theme.primary} />
                             </Touchable>
                             <Touchable onPress={() => handleDelete(item.id)} style={[styles.actionBtn, { backgroundColor: theme.error + '1A' }]} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kalıcı sil' : 'Delete permanently'}>
-                                <Trash2 size={18} color={theme.error} />
+                                <Trash2 size={ICON.md} color={theme.error} />
                             </Touchable>
                         </View>
                     </View>
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
         flex: 1,
         textAlign: 'center',
         fontSize: F.title,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     taskCard: {
         flexDirection: 'row',

@@ -9,6 +9,7 @@ import { BookOpen, ChevronRight, CalendarDays, X, Info, BarChart3, Flame, Zap, S
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
+import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { usePrefsStore, getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, localizeSporGoal, RAMAZAN, renderModeEmojiIcon, deriveDateSlot } from '@/features/modes';
@@ -25,7 +26,7 @@ import {
   scheduleRamadanStartNotification,
   cancelRamadanStartNotification,
 } from '@/shared/utils/notifications';
-import { S, R, F, B, TRACKING, SPRING, MAX_W, sideInset } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useSporStore, getThisWeekEntry } from '@/shared/store/useSporStore';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
@@ -595,10 +596,10 @@ export default function ModlarScreen() {
   const statusTodayDone = statusTodayTasks.filter(t => t.isCompleted).length;
   const statusTodayPct = statusTodayTotal > 0 ? Math.round(statusTodayDone / statusTodayTotal * 100) : 0;
   const statusGreetingObj = statusTodayTotal === 0
-    ? { text: language === 'tr' ? 'Planın hazır' : 'Your plan is ready', icon: <CheckCircle2 size={18} color="#10B981" /> }
-    : statusTodayPct >= 80 ? { text: language === 'tr' ? 'Harika gidiyorsun!' : 'Crushing it!', icon: <Flame size={18} color="#F97316" /> }
-    : statusTodayPct >= 40 ? { text: language === 'tr' ? 'İyi gidiyorsun' : "You're doing great", icon: <Dumbbell size={18} color="#3B82F6" /> }
-    : { text: language === 'tr' ? 'Bugün biraz hızlanalım' : "Let's pick up the pace", icon: <Zap size={18} color="#F59E0B" /> };
+    ? { text: language === 'tr' ? 'Planın hazır' : 'Your plan is ready', icon: <CheckCircle2 size={ICON.md} color="#10B981" /> }
+    : statusTodayPct >= 80 ? { text: language === 'tr' ? 'Harika gidiyorsun!' : 'Crushing it!', icon: <Flame size={ICON.md} color="#F97316" /> }
+    : statusTodayPct >= 40 ? { text: language === 'tr' ? 'İyi gidiyorsun' : "You're doing great", icon: <Dumbbell size={ICON.md} color="#3B82F6" /> }
+    : { text: language === 'tr' ? 'Bugün biraz hızlanalım' : "Let's pick up the pace", icon: <Zap size={ICON.md} color="#F59E0B" /> };
   const statusMotiv = !statusNearest ? ''
     : statusNearest.days <= 3
       ? (language === 'tr' ? `Son düzlük! "${statusNearest.label}" çok yakın — bugün her şey sayar.` : `Final stretch! "${statusNearest.label}" is close — today counts.`)
@@ -681,86 +682,58 @@ export default function ModlarScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <MotiView 
-            from={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            transition={{ type: 'timing', duration: 250 }}
-            style={[
-                styles.floatingTopBar,
-                {
-                    position: 'absolute',
-                    top: insets.top + S.sm,
-                    left: sideInset(screenWidth),
-                    right: sideInset(screenWidth),
-                    zIndex: 100,
-                    backgroundColor: Platform.OS === 'android' ? (isDark ? 'rgba(28,28,30,0.96)' : 'rgba(255,255,255,0.96)') : 'transparent',
-                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                    elevation: Platform.OS === 'android' ? 4 : 0,
-                },
-                Platform.OS !== 'android' && {
-                    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 24,
-                }
-            ]}
-        >
-            {Platform.OS === 'ios' && (
-              <BlurView 
-                  intensity={isDark ? 30 : 60} 
-                  tint={colorScheme}
-                  style={StyleSheet.absoluteFill}
-              />
-            )}
-            <View style={[styles.topBarContent, { paddingHorizontal: S.sm, minHeight: 48 }]}>
-              {/* Left Side (Fixed Width for Perfect Centering) */}
-              <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
-                  {/* Sol: Modların Özeti (içgörü) sayfası. Back butonu YOK — alt navigasyondan gezilir. */}
-                  <TourTarget id="overview">
-                  <Touchable
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/mod-ozet'); }}
-                    style={styles.headerIconBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel={language === 'tr' ? 'Modların özeti' : 'Modes overview'}
-                  >
-                    <BarChart3 size={24} color={theme.onSurfaceVariant} />
-                  </Touchable>
-                  </TourTarget>
-              </View>
-
-              {/* Center Title (Takes remaining space, perfectly centered) */}
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2 }}>
-                  <Text 
-                    numberOfLines={1} 
-                    adjustsFontSizeToFit
-                    style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
-                  >
-                      {language === 'tr' ? 'Dönemsel Modlar' : 'Seasonal Modes'}
-                  </Text>
-              </View>
-
-              {/* Right Side Buttons (Fixed Width for Perfect Centering) */}
-              <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
-                 <Touchable 
-                   onPress={() => Alert.alert(
-                      language === 'tr' ? 'Modlar Hakkında' : 'About Seasonal Modes',
-                      language === 'tr'
-                        ? 'Dönemsel modlar belirli bir hedef veya dönem için hazırlanmış alışkanlık ve görev paketleridir. Aktif ettiğinde ilgili plan otomatik olarak Haftalık Merkez\'e ve görevlerine eklenir. Mod kapatıldığında eklenen içerikler kaldırılır.'
-                        : 'Seasonal modes are curated bundles of tasks and habits for a specific goal or period. When activated, the plan is automatically added to your Weekly Hub. Deactivating the mode removes the added content.'
-                   )}
-                   style={styles.headerIconBtn}
-                   accessibilityRole="button"
-                   accessibilityLabel={language === 'tr' ? 'Modlar hakkında bilgi' : 'About modes'}
-                 >
-                     <Info size={24} color={theme.onSurfaceVariant} />
-                 </Touchable>
-              </View>
-            </View>
-        </MotiView>
+        <ScreenHeader
+          left={
+            <>
+            {/* Sol: Modların Özeti (içgörü) sayfası. Back butonu YOK — alt navigasyondan gezilir. */}
+            <TourTarget id="overview">
+            <Touchable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/mod-ozet'); }}
+              style={styles.headerIconBtn}
+              accessibilityRole="button"
+              accessibilityLabel={language === 'tr' ? 'Modların özeti' : 'Modes overview'}
+            >
+              <BarChart3 size={ICON.lg} color={theme.onSurfaceVariant} />
+            </Touchable>
+            </TourTarget>
+            </>
+          }
+          center={
+            <>
+            <Text 
+              numberOfLines={1} 
+              adjustsFontSizeToFit
+              style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
+            >
+                {language === 'tr' ? 'Dönemsel Modlar' : 'Seasonal Modes'}
+            </Text>
+            </>
+          }
+          right={
+            <>
+           <Touchable 
+             onPress={() => Alert.alert(
+                language === 'tr' ? 'Modlar Hakkında' : 'About Seasonal Modes',
+                language === 'tr'
+                  ? 'Dönemsel modlar belirli bir hedef veya dönem için hazırlanmış alışkanlık ve görev paketleridir. Aktif ettiğinde ilgili plan otomatik olarak Haftalık Merkez\'e ve görevlerine eklenir. Mod kapatıldığında eklenen içerikler kaldırılır.'
+                  : 'Seasonal modes are curated bundles of tasks and habits for a specific goal or period. When activated, the plan is automatically added to your Weekly Hub. Deactivating the mode removes the added content.'
+             )}
+             style={styles.headerIconBtn}
+             accessibilityRole="button"
+             accessibilityLabel={language === 'tr' ? 'Modlar hakkında bilgi' : 'About modes'}
+           >
+               <Info size={ICON.lg} color={theme.onSurfaceVariant} />
+           </Touchable>
+            </>
+          }
+        />
 
       <View style={{ flex: 1 }}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView
             ref={scrollViewRef}
             style={{ flex: 1 }}
-            contentContainerStyle={{ paddingBottom: 240 + insets.bottom, paddingHorizontal: S.lg, paddingTop: 80 + insets.top, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+            contentContainerStyle={{ paddingBottom: navBarSpace(insets.bottom) + S.md, paddingHorizontal: S.lg, paddingTop: topBarSpace(insets.top) + S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             scrollEventThrottle={16}
@@ -782,47 +755,47 @@ export default function ModlarScreen() {
               >
                 {/* üst satır: selam + aktif mod çipi */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                     {statusGreetingObj.icon}
                     <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{statusGreetingObj.text}</Text>
                   </View>
-                  <View style={{ backgroundColor: (statusNearest?.color ?? urgencyColor) + (isDark ? '26' : '1A'), paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                  <View style={{ backgroundColor: (statusNearest?.color ?? urgencyColor) + (isDark ? '26' : '1A'), paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
                     <Text style={{ color: statusNearest?.color ?? urgencyColor, fontSize: 11, fontWeight: '700' }}>{statusActiveCount} {language === 'tr' ? 'mod' : 'modes'}</Text>
                   </View>
                 </View>
 
                 {/* ana satır: emoji + hedef + geri sayım | bugünkü plan noktaları */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: S.md, gap: S.md }}>
-                  <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: (statusNearest?.color ?? urgencyColor) + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 46, height: 46, borderRadius: R.lg, backgroundColor: (statusNearest?.color ?? urgencyColor) + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
                     {renderModeEmojiIcon(statusNearest?.emoji ?? '📅', 24, statusNearest?.color ?? urgencyColor)}
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{statusNearest?.label ?? (language === 'tr' ? 'Süresiz hedef' : 'Open-ended goal')}</Text>
                     {statusNearest ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 1 }}>
-                        <Text style={{ color: statusNearest.color, fontWeight: '800', fontSize: 22, letterSpacing: -0.5 }}>{statusNearest.days}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs, marginTop: S.xxs }}>
+                        <Text style={{ color: statusNearest.color, fontWeight: '700', fontSize: 22, letterSpacing: -0.5 }}>{statusNearest.days}</Text>
                         <Text style={{ color: statusNearest.color, fontWeight: '600', fontSize: F.caption }}>{language === 'tr' ? (statusNearest.days === 0 ? 'bugün!' : 'gün kaldı') : (statusNearest.days === 0 ? 'today!' : 'days left')}</Text>
                       </View>
                     ) : (
-                      <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, marginTop: 2 }}>{language === 'tr' ? 'tarih yok — kendi tempon' : 'no deadline — your pace'}</Text>
+                      <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, marginTop: S.xxs }}>{language === 'tr' ? 'tarih yok — kendi tempon' : 'no deadline — your pace'}</Text>
                     )}
                   </View>
                   {/* bugünkü plan: noktalar (betimsel) */}
                   <View style={{ alignItems: 'flex-end' }}>
                     {statusTodayTotal > 0 ? (
                       <>
-                        <View style={{ flexDirection: 'row', gap: 5 }}>
+                        <View style={{ flexDirection: 'row', gap: S.xs }}>
                           {Array.from({ length: Math.min(statusTodayTotal, 6) }).map((_, i) => {
                             const shown = Math.min(statusTodayTotal, 6);
                             const filled = Math.round((statusTodayDone / statusTodayTotal) * shown);
                             const on = i < filled;
-                            return <View key={i} style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: on ? (statusNearest?.color ?? urgencyColor) : theme.onSurfaceVariant + '30' }} />;
+                            return <View key={i} style={{ width: 8, height: 8, borderRadius: R.full, backgroundColor: on ? (statusNearest?.color ?? urgencyColor) : theme.onSurfaceVariant + '30' }} />;
                           })}
                         </View>
-                        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', marginTop: 6 }}>{language === 'tr' ? `bugün ${statusTodayDone}/${statusTodayTotal}` : `today ${statusTodayDone}/${statusTodayTotal}`}</Text>
+                        <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', marginTop: S.sm }}>{language === 'tr' ? `bugün ${statusTodayDone}/${statusTodayTotal}` : `today ${statusTodayDone}/${statusTodayTotal}`}</Text>
                       </>
                     ) : (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#10B981' + (isDark ? '22' : '15'), paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: '#10B981' + (isDark ? '22' : '15'), paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
                         <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '700' }}>✓ {language === 'tr' ? 'bugün boş' : 'clear'}</Text>
                       </View>
                     )}
@@ -840,11 +813,11 @@ export default function ModlarScreen() {
                 transition={{ type: 'timing', duration: 250 }}
                 style={[styles.modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', padding: S.md }]}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Sparkles size={18} color={theme.primary} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                  <Sparkles size={ICON.md} color={theme.primary} />
                   <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Bir hedef seç, gerisini bize bırak' : 'Pick a goal, leave the rest to us'}</Text>
                 </View>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '500', marginTop: 6, lineHeight: 18 }}>{language === 'tr' ? 'Sınav, tez, mülakat ya da spor — birini aç, hazır plan otomatik olarak Haftalık Merkez ve görevlerine düşsün.' : 'Exam, thesis, interview or fitness — turn one on and a ready plan flows into your Weekly Hub and tasks automatically.'}</Text>
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '500', marginTop: S.sm, lineHeight: 18 }}>{language === 'tr' ? 'Sınav, tez, mülakat ya da spor — birini aç, hazır plan otomatik olarak Haftalık Merkez ve görevlerine düşsün.' : 'Exam, thesis, interview or fitness — turn one on and a ready plan flows into your Weekly Hub and tasks automatically.'}</Text>
               </MotiView>
             )}
             </TourTarget>
@@ -852,9 +825,9 @@ export default function ModlarScreen() {
             <TourTarget id="contents">
             {(statusActiveCount > 0 || hasAnyActiveMode) && (
               <View style={{ gap: S.md, marginTop: S.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-                  <Flame size={16} color="#F97316" />
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginLeft: S.xs }}>
+                  <Flame size={ICON.sm} color="#F97316" />
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>
                     {language === 'tr' ? 'Aktif Hedeflerim' : 'Active Goals'}
                   </Text>
                 </View>
@@ -933,14 +906,14 @@ export default function ModlarScreen() {
 
               return (
                 <View style={{ gap: S.md, marginTop: statusActiveCount > 0 ? S.lg : S.sm }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Sparkles size={16} color="#8B5CF6" />
-                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.xs }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                      <Sparkles size={ICON.sm} color="#8B5CF6" />
+                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>
                         {language === 'tr' ? 'Yeni Hedef Keşfet' : 'Discover New Goals'}
                       </Text>
                     </View>
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600', opacity: 0.6 }}>
+                    <Text style={{ color: theme.onSurfaceMuted, fontSize: 11, fontWeight: '600' }}>
                       {language === 'tr' ? 'Dokun & Başla' : 'Tap to Start'}
                     </Text>
                   </View>
@@ -966,16 +939,16 @@ export default function ModlarScreen() {
                         activeOpacity={0.7}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: item.color + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
+                          <View style={{ width: 42, height: 42, borderRadius: R.md, backgroundColor: item.color + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
                             {renderModeEmojiIcon(item.icon, 22, item.color)}
                           </View>
-                          <View style={{ backgroundColor: item.color + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 }}>
+                          <View style={{ backgroundColor: item.color + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
                             <Text style={{ color: item.color, fontSize: 11, fontWeight: '700' }}>{language === 'tr' ? '+ Ekle' : '+ Add'}</Text>
                           </View>
                         </View>
-                        <View style={{ gap: 4, marginTop: 6 }}>
+                        <View style={{ gap: S.xs, marginTop: S.sm }}>
                           <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: 14 }} numberOfLines={1}>{item.title}</Text>
-                          <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, lineHeight: 15, opacity: 0.8 }} numberOfLines={2}>{item.desc}</Text>
+                          <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, lineHeight: 15 }} numberOfLines={2}>{item.desc}</Text>
                         </View>
                       </Touchable>
                     ))}
@@ -1193,9 +1166,7 @@ export default function ModlarScreen() {
 }
 
 const styles = StyleSheet.create({
-  floatingTopBar: { borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin },
-  topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
-  headerIconBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  headerIconBtn: { width: 44, height: 44, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   modeCard: {
     borderWidth: B.thin,
     borderRadius: R.lg,

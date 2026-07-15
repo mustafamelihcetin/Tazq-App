@@ -18,7 +18,8 @@ import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf } from '@/shared/utils/planTaskOps';
-import { S, R, F, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B } from '@/shared/constants/tokens';
+import { Separator } from '@/shared/components/Separator';
 
 const TEZ = '#8B5CF6';
 const BASE_CALENDAR_WIDTH = 340;
@@ -80,15 +81,15 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
     <View style={[styles_modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.tezMode && isComplete ? (past ? theme.error + '40' : accent + '35') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.tezMode ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: (seasonal.tezMode && isComplete ? (past ? theme.error : accent) : TEZ) + '18', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: (seasonal.tezMode && isComplete ? (past ? theme.error : accent) : TEZ) + '18', alignItems: 'center', justifyContent: 'center' }}>
             {renderModeEmojiIcon('📝', 18, seasonal.tezMode && isComplete ? (past ? theme.error : accent) : TEZ)}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Tez / Proje' : 'Thesis / Project'}</Text>
             {seasonal.tezMode && isComplete ? (
-              <Text style={{ color: past ? theme.error : accent, fontSize: F.caption, fontWeight: '500', marginTop: 1 }}>{past ? (tr ? 'Teslim tarihi geçti' : 'Deadline passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
+              <Text style={{ color: past ? theme.error : accent, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{past ? (tr ? 'Teslim tarihi geçti' : 'Deadline passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
             ) : (
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>{tr ? 'Deadline odaklı akademik / proje planı' : 'Deadline-driven thesis or project plan'}</Text>
+              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{tr ? 'Deadline odaklı akademik / proje planı' : 'Deadline-driven thesis or project plan'}</Text>
             )}
           </View>
           <Switch
@@ -108,13 +109,12 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
 
       {seasonal.tezMode && (
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
-          <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }} />
-
+          <Separator theme={theme} />
           {!isComplete && !expanded && (
             <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
               {renderModeEmojiIcon('📝', 16, theme.onSurfaceVariant)}
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.body, flex: 1 }}>{tr ? 'Proje ekle' : 'Add project'}</Text>
-              <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.4} />
+              <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.4} />
             </Touchable>
           )}
 
@@ -125,16 +125,16 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                   {renderModeEmojiIcon('📝', 16, accent)}
                   <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
-                  <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onOpenPreview(); }} activeOpacity={0.7} style={{ backgroundColor: accent + (isDark ? '22' : '15'), paddingHorizontal: 10, paddingVertical: 5, borderRadius: R.full }}>
+                  <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onOpenPreview(); }} activeOpacity={0.7} style={{ backgroundColor: accent + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
                     <Text style={{ color: accent, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Plan Oluştur ›' : 'Create Plan ›')}</Text>
                   </Touchable>
                   <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
                   <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} activeOpacity={0.7}>
-                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', opacity: 0.8 }}>{tr ? 'Düzenle' : 'Edit'}</Text>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                   </Touchable>
                 </View>
                 {past ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                     {renderModeEmojiIcon('📅', 14, theme.error)}
                     <Text style={{ color: theme.error, fontWeight: '500' }}>{tr ? 'Teslim tarihi geçti' : 'Deadline passed'} · {formatPlanDate(date, tr)}</Text>
                   </View>
@@ -144,19 +144,19 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
                       <Text style={{ color: accent, fontWeight: '600', fontSize: 40, lineHeight: 42, letterSpacing: -1 }}>{daysLeft}</Text>
                       <Text style={{ color: accent, fontSize: 10, fontWeight: '600', opacity: 0.7, letterSpacing: 1 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
                     </View>
-                    <View style={{ flex: 1, paddingTop: 2 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <View style={{ flex: 1, paddingTop: S.xxs }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                         {renderModeEmojiIcon('📅', 13, theme.onSurfaceVariant)}
                         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{formatPlanDate(date, tr)}</Text>
                       </View>
                       {progTotal > 0 && (
-                        <View style={{ marginTop: S.sm, gap: 4 }}>
+                        <View style={{ marginTop: S.sm, gap: S.xs }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                             <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
                             <Text style={{ color: accent, fontSize: 11, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
                           </View>
-                          <View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                            <View style={{ height: 5, borderRadius: 3, backgroundColor: accent, width: `${progPct}%` as any }} />
+                          <View style={{ height: 5, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                            <View style={{ height: 5, borderRadius: R.xs, backgroundColor: accent, width: `${progPct}%` as any }} />
                           </View>
                         </View>
                       )}
@@ -174,7 +174,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
               </View>
               <Touchable onPress={() => { Haptics.selectionAsync(); setShowDatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
                 <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Teslim tarihi seç' : 'Select deadline')}</Text>
-                <CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} />
+                <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
               </Touchable>
               {showDatePicker && (
                 <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>

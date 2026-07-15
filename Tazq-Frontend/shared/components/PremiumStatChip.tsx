@@ -135,7 +135,7 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
           overflow: 'hidden',
           padding: S.md,
           alignItems: 'center',
-          gap: 5,
+          gap: S.xs,
         }}>
 
           {/* Glow overlay — both tiers */}
@@ -153,7 +153,7 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
             style={[{
               position: 'absolute',
               width: 22, height: 22,
-              borderRadius: 11,
+              borderRadius: R.full,
               backgroundColor: color + '50',
               alignSelf: 'center',
               top: '50%',
@@ -177,7 +177,7 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
 
           {/* Value */}
           <Text style={{
-            fontSize: F.title, fontWeight: '900', letterSpacing: -1,
+            fontSize: F.title, fontWeight: '700', letterSpacing: -1,
             color, lineHeight: 26,
           }}>
             {value}
@@ -192,7 +192,7 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
           >
             <Text style={{
               fontSize: burst ? 9 : 8,
-              fontWeight: '800',
+              fontWeight: '700',
               letterSpacing: 0.3,
               textAlign: 'center',
               color: burst ? color : theme.onSurfaceVariant,

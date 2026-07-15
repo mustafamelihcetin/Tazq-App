@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, ViewStyle, StyleProp, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, ViewStyle, StyleProp, TouchableOpacity } from 'react-native';
 import { MotiView } from 'moti';
 import { BlurView } from 'expo-blur';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -26,19 +26,18 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
       style={[
         styles.card,
         {
+          // Kartı zeminden AYIRAN şey kontrast: açık temada beyaz kart / gri zemin,
+          // koyu temada bir ton açık yüzey + hairline çerçeve. Bu, iOS'un "grouped
+          // inset list" deseninin ta kendisi (Ayarlar, Hatırlatıcılar).
           backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
           borderColor: isDark ? theme.outline : 'transparent',
           borderWidth: isDark ? B.thin : 0,
-          ...(Platform.OS === 'ios' ? {
-            shadowColor: isDark ? '#000' : '#000',
-            shadowOpacity: isDark ? 0.2 : 0.04,
-            shadowOffset: { width: 0, height: 6 },
-            shadowRadius: 16,
-          } : {
-            elevation: isDark ? 2 : 1,
-          }),
+          // GÖLGE YOK — bilinçli. iOS gruplanmış içeriği gölgelemez; gölge, Material
+          // Design'ın "yükseklik" metaforudur. Kontrast zaten ayırıyorken gölge eklemek
+          // kartları zeminde "yüzdürüyordu" ve web/Android dilinde konuşuyordu.
+          // (Eskiden: shadowRadius 16, offset y=6 + elevation.)
           padding: S.lg,
-          borderRadius: R.lg,
+          borderRadius: R.md,   // iOS kart standardı (eskiden R.lg = 24, fazla yuvarlaktı)
         },
         style,
       ]}

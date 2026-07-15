@@ -26,8 +26,9 @@ import { usePrefsStore, renderModeEmojiIcon } from '@/features/modes';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
+import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { FocusService } from '@/shared/services/api';
-import { S, R, F, B, TRACKING, MAX_W, sideInset } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { SwipeableHabitItem } from '@/shared/components/SwipeableHabitItem';
@@ -522,80 +523,52 @@ export default function CockpitScreen() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
 
-      <MotiView 
-            from={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            transition={{ type: 'timing', duration: 250 }}
-            style={[
-                styles.floatingTopBar,
-                {
-                    position: 'absolute',
-                    top: insets.top + S.sm,
-                    left: sideInset(screenWidth),
-                    right: sideInset(screenWidth),
-                    zIndex: 100,
-                    backgroundColor: Platform.OS === 'android' ? (isDark ? 'rgba(28,28,30,0.96)' : 'rgba(255,255,255,0.96)') : 'transparent',
-                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                    elevation: Platform.OS === 'android' ? 4 : 0,
-                },
-                Platform.OS !== 'android' && {
-                    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 24,
-                }
-            ]}
-        >
-            {Platform.OS === 'ios' && (
-              <BlurView 
-                  intensity={isDark ? 30 : 60} 
-                  tint={colorScheme}
-                  style={StyleSheet.absoluteFill}
-              />
-            )}
-            <View style={[styles.topBarContent, { paddingHorizontal: S.sm, minHeight: 48 }]}>
-              {/* Left Side — Haftalık rapor (denge için sola alındı) */}
-              <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}>
-                  <Touchable
-                    onPress={() => router.push('/report')}
-                    style={styles.headerIconBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel={tr ? 'Haftalık rapor' : 'Weekly report'}
-                  >
-                    <BarChart3 size={22} color={theme.onSurface} />
-                  </Touchable>
-              </View>
-
-              {/* Center Title */}
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2 }}>
-                  <Text 
-                    numberOfLines={1} 
-                    adjustsFontSizeToFit
-                    style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
-                  >
-                      {tr ? 'Haftalık Merkez' : 'Weekly Hub'}
-                  </Text>
-                  <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary, letterSpacing: 0.5, marginTop: 1 }}>
-                    {`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }).toUpperCase()}`}
-                  </Text>
-              </View>
-
-              {/* Right Side — Ekle (denge için tek buton) */}
-              <View style={{ width: 90, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
-                  <Touchable
-                    onPress={() => { prepareAdd(); setAddVisible(true); }}
-                    style={styles.headerIconBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel={tr ? 'Ekle' : 'Add'}
-                  >
-                    <Plus size={24} color={theme.onSurface} />
-                  </Touchable>
-              </View>
-            </View>
-        </MotiView>
+        <ScreenHeader
+          left={
+            <>
+            <Touchable
+              onPress={() => router.push('/report')}
+              style={styles.headerIconBtn}
+              accessibilityRole="button"
+              accessibilityLabel={tr ? 'Haftalık rapor' : 'Weekly report'}
+            >
+              <BarChart3 size={ICON.lg} color={theme.onSurface} />
+            </Touchable>
+            </>
+          }
+          center={
+            <>
+            <Text 
+              numberOfLines={1} 
+              adjustsFontSizeToFit
+              style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
+            >
+                {tr ? 'Haftalık Merkez' : 'Weekly Hub'}
+            </Text>
+            <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary, letterSpacing: 0.5, marginTop: S.xxs }}>
+              {`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }).toUpperCase()}`}
+            </Text>
+            </>
+          }
+          right={
+            <>
+            <Touchable
+              onPress={() => { prepareAdd(); setAddVisible(true); }}
+              style={styles.headerIconBtn}
+              accessibilityRole="button"
+              accessibilityLabel={tr ? 'Ekle' : 'Add'}
+            >
+              <Plus size={ICON.lg} color={theme.onSurface} />
+            </Touchable>
+            </>
+          }
+        />
 
       <View style={{ flex: 1 }}>
         <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingTop: 80 + insets.top, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: 140, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: navBarSpace(insets.bottom) + S.md, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
         >
           {/* ── WEEK STRIP ── */}
@@ -613,7 +586,7 @@ export default function CockpitScreen() {
                     animate={{ opacity: 1, translateX: 0 }}
                     exit={{ opacity: 0, translateX: 8 }}
                     transition={{ type: 'timing', duration: 400 }}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: theme.primary + '15', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm }}
                   >
                     <Text style={{ fontSize: 10, color: theme.primary, fontWeight: '600' }}>
                       {tr ? '← Geçmiş günlere dokun' : '← Tap past days'}
@@ -693,9 +666,9 @@ export default function CockpitScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push({ pathname: '/tasks', params: { action: 'add', dateFilter: selectedDay } });
               }}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: theme.primary + '18', paddingHorizontal: 12, paddingVertical: 6, borderRadius: R.full }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.primary + '18', paddingHorizontal: S.smd, paddingVertical: S.sm, borderRadius: R.full }}
             >
-              <Plus size={13} color={theme.primary} strokeWidth={2.5} />
+              <Plus size={ICON.xs} color={theme.primary} strokeWidth={2.5} />
               <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
                 {tr ? 'Görev Ekle' : 'Add Task'}
               </Text>
@@ -714,15 +687,15 @@ export default function CockpitScreen() {
                   styles.dayTasksCard,
                   {
                     backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
-                    borderColor: theme.outline + '30',
+                    borderColor: theme.outline,
                     marginBottom: S.lg,
-                    paddingVertical: 24,
+                    paddingVertical: S.lg,
                     alignItems: 'center',
                     justifyContent: 'center',
                   },
                 ]}
               >
-                <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurfaceVariant, opacity: 0.5 }}>
+                <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurfaceMuted }}>
                   {tr ? 'Planlanmış görev yok' : 'No tasks planned'}
                 </Text>
               </MotiView>
@@ -739,7 +712,7 @@ export default function CockpitScreen() {
                     backgroundColor: isDark
                       ? theme.surfaceContainerHigh
                       : theme.surfaceContainerLowest,
-                    borderColor: theme.outline + '30',
+                    borderColor: theme.outline,
                     marginBottom: S.lg,
                   },
                 ]}
@@ -755,7 +728,7 @@ export default function CockpitScreen() {
                     style={[
                       styles.dayTaskRow,
                       {
-                        borderTopColor: theme.outline + '20',
+                        borderTopColor: theme.outline,
                         borderTopWidth: idx === 0 ? 0 : 1,
                       },
                     ]}
@@ -763,11 +736,11 @@ export default function CockpitScreen() {
                     <View style={[
                       styles.miniCheck,
                       {
-                        borderColor: task.isCompleted ? theme.success : theme.outline + '80',
+                        borderColor: task.isCompleted ? theme.success : theme.outline,
                         backgroundColor: task.isCompleted ? theme.success + '18' : 'transparent',
                       },
                     ]}>
-                      {task.isCompleted && <Check size={10} color={theme.success} strokeWidth={3} />}
+                      {task.isCompleted && <Check size={ICON.xs} color={theme.success} strokeWidth={3} />}
                     </View>
                     <Text
                       style={[
@@ -800,7 +773,7 @@ export default function CockpitScreen() {
                         ? { filter: 'today' }
                         : { dateFilter: selectedDay },
                     })}
-                    style={[styles.dayTaskRow, { borderTopColor: theme.outline + '20', borderTopWidth: 1, justifyContent: 'center' }]}
+                    style={[styles.dayTaskRow, { borderTopColor: theme.separator, borderTopWidth: HAIRLINE, justifyContent: 'center' }]}
                   >
                     <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.primary }}>
                       +{selectedDayTasks.length - 5} {tr ? 'daha' : 'more'}
@@ -818,7 +791,7 @@ export default function CockpitScreen() {
               <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
                 {tr ? 'ALIŞKANLIKLAR' : 'HABITS'}
               </Text>
-              <Text style={{ fontSize: 9.5, color: theme.onSurfaceVariant, opacity: 0.6, marginTop: 2 }}>
+              <Text style={{ fontSize: 9.5, color: theme.onSurfaceMuted, marginTop: S.xxs }}>
                 {tr ? 'Mola için butona basılı tut' : 'Hold check button to take break'}
               </Text>
             </View>
@@ -834,7 +807,7 @@ export default function CockpitScreen() {
                 transition={{ loop: true, duration: 2800 }}
                 style={{ marginBottom: S.md, opacity: 0.35 }}
               >
-                <Flame size={40} color={theme.primary} />
+                <Flame size={ICON.xxl} color={theme.primary} />
               </MotiView>
               {(
                 <>
@@ -850,7 +823,7 @@ export default function CockpitScreen() {
                     onPress={() => { prepareAdd(); setAddVisible(true); }}
                     style={[styles.emptyAddBtn, { backgroundColor: theme.primary }]}
                   >
-                    <Plus size={15} color={theme.onPrimary} />
+                    <Plus size={ICON.sm} color={theme.onPrimary} />
                     <Text style={[styles.emptyAddText, { color: theme.onPrimary }]}>
                       {tr ? 'Alışkanlık Ekle' : 'Add Habit'}
                     </Text>
@@ -869,13 +842,13 @@ export default function CockpitScreen() {
                 if (doneHabits.length === 0) return null;
                 return (
                   <View style={{ gap: S.xs, marginBottom: S.sm }}>
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.success, opacity: 0.7, letterSpacing: 1, paddingHorizontal: S.sm }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.success, letterSpacing: 1, paddingHorizontal: S.sm }}>
                       {tr ? `✓ BUGÜN TAMAMLANDI (${doneHabits.length})` : `✓ DONE TODAY (${doneHabits.length})`}
                     </Text>
                     {doneHabits.map(habit => (
                       <View
                         key={habit.id}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.md, paddingVertical: 10, borderRadius: R.lg,
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.md, paddingVertical: S.smd, borderRadius: R.lg,
                           backgroundColor: theme.success + (isDark ? '12' : '0D'),
                           borderWidth: B.thin, borderColor: theme.success + '18' }}
                       >
@@ -885,10 +858,10 @@ export default function CockpitScreen() {
                           style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.md }}
                           activeOpacity={0.8}
                         >
-                          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
+                          <View style={{ width: 32, height: 32, borderRadius: R.full, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
                             {renderModeEmojiIcon(habit.emoji ?? '📌', 16, habit.color ?? theme.success)}
                           </View>
-                          <Text style={{ flex: 1, fontSize: F.body, fontWeight: '500', color: theme.onSurfaceVariant, textDecorationLine: 'line-through', opacity: 0.55 }} numberOfLines={expandedHabitIds.has(habit.id) ? undefined : 1}>
+                          <Text style={{ flex: 1, fontSize: F.body, fontWeight: '500', color: theme.onSurfaceMuted, textDecorationLine: 'line-through' }} numberOfLines={expandedHabitIds.has(habit.id) ? undefined : 1}>
                             {habit.name}
                           </Text>
                         </Touchable>
@@ -900,7 +873,7 @@ export default function CockpitScreen() {
                           style={{ padding: S.xs }}
                           activeOpacity={0.7}
                         >
-                          <Check size={14} color={theme.success} strokeWidth={3} />
+                          <Check size={ICON.sm} color={theme.success} strokeWidth={3} />
                         </Touchable>
                       </View>
                     ))}
@@ -1070,9 +1043,9 @@ export default function CockpitScreen() {
 
               <Touchable
                 onPress={() => { prepareAdd(); setAddVisible(true); }}
-                style={[styles.addHabitRow, { borderColor: theme.outline + '50' }]}
+                style={[styles.addHabitRow, { borderColor: theme.outline }]}
               >
-                <Plus size={15} color={theme.onSurfaceVariant} />
+                <Plus size={ICON.sm} color={theme.onSurfaceVariant} />
                 <Text style={[styles.addHabitText, { color: theme.onSurfaceVariant }]}>
                   {tr ? 'Alışkanlık Ekle' : 'Add Habit'}
                 </Text>
@@ -1093,19 +1066,19 @@ export default function CockpitScreen() {
             <View style={{ flexDirection: 'row', gap: S.sm }}>
               {[
                 {
-                  icon: <Check size={15} color={theme.success} strokeWidth={3} />,
+                  icon: <Check size={ICON.sm} color={theme.success} strokeWidth={3} />,
                   value: String(thisWeekCompleted),
                   label: tr ? 'Tamamlandı' : 'Completed',
                   accent: theme.success,
                 },
                 {
-                  icon: <Clock size={15} color={theme.primary} />,
+                  icon: <Clock size={ICON.sm} color={theme.primary} />,
                   value: focusLabel,
                   label: tr ? 'Odak' : 'Focus',
                   accent: theme.primary,
                 },
                 {
-                  icon: <Flame size={15} color={theme.streak} />,
+                  icon: <Flame size={ICON.sm} color={theme.streak} />,
                   value: `${habitsThisWeekPct}%`,
                   label: tr ? 'Alışkanlık' : 'Habits',
                   accent: theme.streak,
@@ -1127,7 +1100,7 @@ export default function CockpitScreen() {
                   <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.statValue, { color: stat.accent }]}>
                     {stat.value}
                   </Text>
-                  <Text style={[styles.statLabel, { color: theme.onSurfaceVariant }]}>
+                  <Text style={[styles.statLabel, { color: theme.onSurfaceMuted }]}>
                     {stat.label}
                   </Text>
                 </View>
@@ -1140,12 +1113,12 @@ export default function CockpitScreen() {
                 styles.goalChip,
                 { backgroundColor: theme.primary + '12', borderColor: theme.primary + '25' },
               ]}>
-                <Target size={13} color={theme.primary} />
+                <Target size={ICON.xs} color={theme.primary} />
                 <Text style={[styles.goalText, { color: theme.primary }]} numberOfLines={2}>
                   {weeklyGoal}
                 </Text>
                 <Touchable accessibilityRole="button" accessibilityLabel={tr ? 'Haftalık planı aç' : 'Open weekly plan'} onPress={() => { setPlanGoal(weeklyGoal); preparePlan(); setPlanVisible(true); }}>
-                  <ChevronRight size={15} color={theme.primary} />
+                  <ChevronRight size={ICON.sm} color={theme.primary} />
                 </Touchable>
               </View>
             )}
@@ -1163,13 +1136,13 @@ export default function CockpitScreen() {
                 { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)' },
               ]}
             >
-              <Sparkles size={15} color={theme.primary} />
+              <Sparkles size={ICON.sm} color={theme.primary} />
               <Text style={[styles.planBtnText, { color: theme.onSurface, flex: 1 }]}>
                 {showPlanButton
                   ? (tr ? 'Gelecek Haftayı Planla' : 'Plan Next Week')
                   : (tr ? 'Haftalık Hedefi Güncelle' : 'Update Weekly Goal')}
               </Text>
-              <ChevronRight size={15} color={theme.onSurfaceVariant} />
+              <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} />
             </Touchable>
           </BentoCard>
           </TourTarget>
@@ -1210,7 +1183,7 @@ export default function CockpitScreen() {
               <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface, marginBottom: 0 }]}>
                 {tr ? 'Yeni Alışkanlık' : 'New Habit'}
               </Text>
-              <View style={{ backgroundColor: newColor + '20', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={{ backgroundColor: newColor + '20', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs, flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                 {renderModeEmojiIcon('🔄', 10, newColor)}
                 <Text style={{ fontSize: 10, fontWeight: '600', color: newColor, letterSpacing: 0.3 }}>
                   {tr ? 'Her gün takip edilir' : 'Tracked daily'}
@@ -1223,7 +1196,7 @@ export default function CockpitScreen() {
               styles.nameInput,
               {
                 backgroundColor: isDark ? theme.surfaceContainerHighest : theme.surfaceContainerLowest,
-                borderColor: theme.outline + '40',
+                borderColor: theme.outline,
               },
             ]}>
               {renderModeEmojiIcon(newEmoji, 22, newColor)}
@@ -1243,7 +1216,7 @@ export default function CockpitScreen() {
 
             {/* Emoji row */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: S.md }}>
-              <View style={{ flexDirection: 'row', gap: S.sm, paddingVertical: 2 }}>
+              <View style={{ flexDirection: 'row', gap: S.sm, paddingVertical: S.xxs }}>
                 {HABIT_EMOJIS.map((e) => (
                   <Touchable
                     key={e}
@@ -1367,7 +1340,7 @@ export default function CockpitScreen() {
                   backgroundColor: isDark
                     ? theme.surfaceContainerHighest
                     : theme.surfaceContainerLowest,
-                  borderColor: theme.outline + '40',
+                  borderColor: theme.outline,
                   color: theme.onSurface,
                 },
               ]}
@@ -1403,9 +1376,7 @@ export default function CockpitScreen() {
 }
 
 const styles = StyleSheet.create({
-  floatingTopBar: { borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin },
-  topBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.sm },
-  headerIconBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  headerIconBtn: { width: 44, height: 44, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   // Header
   header: {
     flexDirection: 'row',
@@ -1416,28 +1387,28 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1.5 },
-  headerSub: { fontSize: 11, fontWeight: '600', marginTop: 1 },
-  addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  headerSub: { fontSize: 11, fontWeight: '600', marginTop: S.xxs },
+  addBtn: { width: 36, height: 36, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
 
   // Week strip
   sectionLabel: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1.5, marginBottom: S.md },
-  weekRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
+  weekRow: { flexDirection: 'row', justifyContent: 'space-between', gap: S.xs },
   dayCell: {
-    flex: 1, alignItems: 'center', paddingVertical: 6,
-    borderRadius: 10, borderWidth: B.thin, gap: 4,
+    flex: 1, alignItems: 'center', paddingVertical: S.sm,
+    borderRadius: R.sm, borderWidth: B.thin, gap: S.xs,
   },
   dayAbbr: { fontSize: 10, fontWeight: '600', letterSpacing: 0.2 },
-  dayCircle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  dayCircle: { width: 30, height: 30, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   dayNum: { fontSize: 13, fontWeight: '700' },
-  taskDot: { width: 5, height: 5, borderRadius: 2.5 },
+  taskDot: { width: 5, height: 5, borderRadius: R.full },
 
   // Day tasks card
   dayTasksCard: { borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden' },
   dayTasksHeading: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1, padding: S.md, paddingBottom: S.sm },
-  dayTaskRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: 10 },
-  miniCheck: { width: 18, height: 18, borderRadius: 9, borderWidth: B.medium, alignItems: 'center', justifyContent: 'center' },
+  dayTaskRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.smd },
+  miniCheck: { width: 18, height: 18, borderRadius: R.full, borderWidth: B.medium, alignItems: 'center', justifyContent: 'center' },
   dayTaskText: { flex: 1, fontSize: F.body, fontWeight: '600' },
-  priorityPip: { width: 6, height: 6, borderRadius: 3 },
+  priorityPip: { width: 6, height: 6, borderRadius: R.full },
 
   // Section headers
   sectionHeader: {
@@ -1448,27 +1419,27 @@ const styles = StyleSheet.create({
   sectionSub: { fontSize: 11, fontWeight: '600' },
 
   // Empty state
-  emptyTitle: { fontSize: F.subhead, fontWeight: '600', marginBottom: 6, textAlign: 'center' },
+  emptyTitle: { fontSize: F.subhead, fontWeight: '600', marginBottom: S.sm, textAlign: 'center' },
   emptySub: { fontSize: F.body, textAlign: 'center', marginBottom: S.lg, lineHeight: 20, paddingHorizontal: S.md },
-  emptyAddBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: 12, borderRadius: R.full },
+  emptyAddBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.smd, borderRadius: R.full },
   emptyAddText: { fontSize: F.body, fontWeight: '600' },
 
   // Habit row
   habitCard: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 2 },
   habitRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   habitLeft: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 },
-  habitIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  habitIcon: { width: 44, height: 44, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   habitName: { fontSize: F.body, fontWeight: '600' },
-  streakRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  streakRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.xxs },
   streakText: { fontSize: 11, fontWeight: '600' },
 
   // Heatmap
-  heatmapGrid: { gap: 2 },
-  heatmapRow: { flexDirection: 'row', gap: 2 },
-  heatCell: { width: 11, height: 11, borderRadius: 3 },
+  heatmapGrid: { gap: S.xxs },
+  heatmapRow: { flexDirection: 'row', gap: S.xxs },
+  heatCell: { width: 11, height: 11, borderRadius: R.xs },
 
   // Check button
-  checkBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: B.medium, alignItems: 'center', justifyContent: 'center' },
+  checkBtn: { width: 36, height: 36, borderRadius: R.full, borderWidth: B.medium, alignItems: 'center', justifyContent: 'center' },
   deleteHabitBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
 
   // Add habit row
@@ -1480,9 +1451,9 @@ const styles = StyleSheet.create({
   addHabitText: { fontSize: F.body, fontWeight: '500' },
 
   // Weekly stats
-  statChip: { alignItems: 'center', padding: S.md, borderRadius: R.md, gap: 4 },
+  statChip: { alignItems: 'center', padding: S.md, borderRadius: R.md, gap: S.xs },
   statValue: { fontSize: F.title, fontWeight: '600', letterSpacing: -0.5 },
-  statLabel: { fontSize: 10, fontWeight: '500', opacity: 0.7 },
+  statLabel: { fontSize: 10, fontWeight: '500' },
   goalChip: { flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.md, borderRadius: R.md, borderWidth: B.thin },
   goalText: { flex: 1, fontSize: F.body, fontWeight: '500' },
   planBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, padding: S.md, borderRadius: R.md },
@@ -1490,18 +1461,18 @@ const styles = StyleSheet.create({
 
   // Sheets
   sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: S.xl, paddingTop: S.md, gap: S.md },
-  handleArea: { paddingTop: 14, paddingBottom: 18, alignItems: 'center' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2 },
+  handleArea: { paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' },
+  sheetHandle: { width: 36, height: 4, borderRadius: R.xs },
   sheetTitle: { fontSize: F.title, fontWeight: '600', letterSpacing: -0.5 },
   sheetSub: { fontSize: F.body, marginTop: -S.sm },
 
   nameInput: {
     flexDirection: 'row', alignItems: 'center', gap: S.md,
-    borderRadius: R.md, borderWidth: B.thin, paddingHorizontal: S.md, paddingVertical: 12,
+    borderRadius: R.md, borderWidth: B.thin, paddingHorizontal: S.md, paddingVertical: S.smd,
   },
   nameInputText: { flex: 1, fontSize: F.subhead, fontWeight: '500' },
-  emojiBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: B.medium },
-  colorDot: { width: 28, height: 28, borderRadius: 14 },
+  emojiBtn: { width: 44, height: 44, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', borderWidth: B.medium },
+  colorDot: { width: 28, height: 28, borderRadius: R.full },
   goalInput: { borderRadius: R.md, borderWidth: B.thin, padding: S.md, fontSize: F.body, fontWeight: '600', minHeight: 88 },
   saveBtn: { paddingVertical: S.md, borderRadius: R.full, alignItems: 'center' },
   saveBtnText: { fontSize: F.subhead, fontWeight: '600' },

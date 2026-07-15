@@ -116,9 +116,9 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
             width: '100%',
             maxWidth: 400,
             backgroundColor: theme.surface,
-            borderColor: theme.outlineVariant + '40',
+            borderColor: theme.outlineVariant,
             borderWidth: B.thin,
-            borderRadius: 24,
+            borderRadius: R.xl,
             padding: S.lg,
             gap: S.md,
             shadowColor: '#000',
@@ -129,12 +129,12 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
           }}
         >
           {/* Header */}
-          <View style={{ alignItems: 'center', gap: 6 }}>
+          <View style={{ alignItems: 'center', gap: S.sm }}>
             <Text style={{ fontSize: 32 }}>✨</Text>
-            <Text style={{ color: theme.onSurface, fontSize: 18, fontWeight: '800', textAlign: 'center', letterSpacing: -0.5 }}>
+            <Text style={{ color: theme.onSurface, fontSize: 18, fontWeight: '700', textAlign: 'center', letterSpacing: -0.5 }}>
               {tr ? 'TAZQ\'ı Nasıl Buluyorsunuz?' : 'How do you rate TAZQ?'}
             </Text>
-            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center', opacity: 0.8 }}>
+            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center' }}>
               {tr ? 'Görüşleriniz bizim için çok değerli.' : 'Your feedback is very valuable to us.'}
             </Text>
           </View>
@@ -156,7 +156,7 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                         setRating(star);
                       }}
-                      style={{ padding: 4 }}
+                      style={{ padding: S.xs }}
                     >
                       <Zap
                         size={32}
@@ -189,7 +189,7 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
                     accessibilityLabel={tr ? 'Geri bildirim metni' : 'Feedback text'}
                     style={{
                       backgroundColor: theme.surfaceContainerLow,
-                      borderColor: theme.outlineVariant + '60',
+                      borderColor: theme.outlineVariant,
                       borderWidth: B.thin,
                       borderRadius: R.md,
                       color: theme.onSurface,
@@ -224,7 +224,7 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
                     {sending ? (
                       <ActivityIndicator size="small" color="#FFF" />
                     ) : (
-                      <Text style={{ color: '#FFF', fontWeight: '800', fontSize: F.body }}>
+                      <Text style={{ color: '#FFF', fontWeight: '700', fontSize: F.body }}>
                         {rating >= POSITIVE_RATING_THRESHOLD ? (tr ? 'Yorum Yap' : 'Rate App') : (tr ? 'Gönder' : 'Submit')}
                       </Text>
                     )}
@@ -239,10 +239,10 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
               style={{ alignItems: 'center', paddingVertical: S.lg, gap: S.md }}
             >
               <Text style={{ fontSize: 44 }}>❤️</Text>
-              <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '800', textAlign: 'center' }}>
+              <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', textAlign: 'center' }}>
                 {tr ? 'Geri bildiriminiz için teşekkürler!' : 'Thank you for your feedback!'}
               </Text>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, textAlign: 'center', opacity: 0.7 }}>
+              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, textAlign: 'center' }}>
                 {tr ? 'TAZQ\'u geliştirmek için durmaksızın çalışıyoruz.' : 'We are constantly working to improve TAZQ.'}
               </Text>
             </MotiView>

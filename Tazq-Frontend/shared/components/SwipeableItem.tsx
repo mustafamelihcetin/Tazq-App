@@ -20,7 +20,7 @@ const Haptics = {
   NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
   ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
 };
-import { S, R } from '@/shared/constants/tokens';
+import { ICON, S, R } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 
 interface Props {
@@ -114,7 +114,7 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
             onPress={onDelete}
             style={styles.deleteBtn}
           >
-            <Trash2 size={22} color="white" />
+            <Trash2 size={ICON.lg} color="white" />
           </Touchable>
         </Animated.View>
       </View>

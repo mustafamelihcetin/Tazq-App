@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   alertBox: {
     width: '80%',
     maxWidth: 320,
-    borderRadius: 24,
+    borderRadius: R.xl,
     borderWidth: 1,
     overflow: 'hidden',
     elevation: 24,
@@ -229,14 +229,14 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: R.full,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: S.md,
   },
   title: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: S.xs,
     letterSpacing: -0.3,
@@ -246,7 +246,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
     lineHeight: 20,
-    opacity: 0.85,
   },
   buttonContainer: {
     paddingHorizontal: S.lg,
@@ -255,7 +254,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   button: {
-    paddingVertical: 12,
+    paddingVertical: S.smd,
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: 46,

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { B } from '@/shared/constants/tokens';
+import { S, ICON, R, B } from '@/shared/constants/tokens';
 import {
   View,
   Text,
@@ -210,9 +210,9 @@ export default function OnboardingScreen() {
                   <MotiView
                     animate={{ scale: isActive ? 1 : 0.6, opacity: isActive ? 1 : 0 }}
                     transition={{ delay: 600 + i * 120, type: 'spring' }}
-                    style={{ backgroundColor: row.color + '22', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 }}
+                    style={{ backgroundColor: row.color + '22', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm }}
                   >
-                    <Text style={{ fontSize: 9, fontWeight: '800', color: row.color }}>{row.badge}</Text>
+                    <Text style={{ fontSize: 9, fontWeight: '700', color: row.color }}>{row.badge}</Text>
                   </MotiView>
                 </MotiView>
               ))}
@@ -222,24 +222,24 @@ export default function OnboardingScreen() {
       case 'privacy':
         return (
           <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20, paddingHorizontal: 16 }}>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: S.lmd, paddingHorizontal: S.md }}>
               {/* Top Row: Device -> Lock -> Server Cloud */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 
                 {/* Local Device */}
                 <MotiView 
                   animate={{ scale: isActive ? 1 : 0.8 }} 
-                  style={{ alignItems: 'center', gap: 4, width: 60 }}
+                  style={{ alignItems: 'center', gap: S.xs, width: 60 }}
                 >
-                  <Smartphone size={24} color={theme.onSurface} />
+                  <Smartphone size={ICON.lg} color={theme.onSurface} />
                   <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'Cihazınız' : 'Your Device'}</Text>
                 </MotiView>
 
                 {/* Animated Line with Data Packet */}
-                <View style={{ flex: 1, height: 2, backgroundColor: theme.outlineVariant, position: 'relative', marginHorizontal: 8, justifyContent: 'center' }}>
+                <View style={{ flex: 1, height: 2, backgroundColor: theme.outlineVariant, position: 'relative', marginHorizontal: S.sm, justifyContent: 'center' }}>
                   {/* Lock symbol in the center */}
-                  <View style={{ position: 'absolute', left: '50%', marginLeft: -12, top: -11, width: 24, height: 24, borderRadius: 12, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-                    <Lock size={12} color="#fff" />
+                  <View style={{ position: 'absolute', left: '50%', marginLeft: -12, top: -11, width: 24, height: 24, borderRadius: R.full, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+                    <Lock size={ICON.xs} color="#fff" />
                   </View>
                   
                   {/* Animated data packet */}
@@ -258,7 +258,7 @@ export default function OnboardingScreen() {
                       position: 'absolute',
                       width: 8,
                       height: 8,
-                      borderRadius: 4,
+                      borderRadius: R.full,
                       top: -3,
                     }}
                   />
@@ -267,23 +267,23 @@ export default function OnboardingScreen() {
                 {/* Secure Server */}
                 <MotiView 
                   animate={{ scale: isActive ? 1 : 0.8 }} 
-                  style={{ alignItems: 'center', gap: 4, width: 60 }}
+                  style={{ alignItems: 'center', gap: S.xs, width: 60 }}
                 >
-                  <Cloud size={24} color={theme.onSurface} />
+                  <Cloud size={ICON.lg} color={theme.onSurface} />
                   <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'Sunucu' : 'Server'}</Text>
                 </MotiView>
 
               </View>
 
               {/* Bottom Row: Demonstration of Encryption */}
-              <View style={{ width: '100%', gap: 8, marginTop: 10 }}>
+              <View style={{ width: '100%', gap: S.sm, marginTop: S.smd }}>
                 {/* Plain Text row */}
                 <MotiView 
                   animate={{ translateX: isActive ? 0 : -20, opacity: isActive ? 1 : 0 }}
                   transition={{ delay: 300 }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.surfaceContainerHighest, padding: 8, borderRadius: 8 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.surfaceContainerHighest, padding: S.sm, borderRadius: R.sm }}
                 >
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#3367ff' }}>PLAIN:</Text>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#3367ff' }}>PLAIN:</Text>
                   <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurface }}>"TAZQ Toplantısı"</Text>
                 </MotiView>
 
@@ -291,9 +291,9 @@ export default function OnboardingScreen() {
                 <MotiView 
                   animate={{ translateX: isActive ? 0 : 20, opacity: isActive ? 1 : 0 }}
                   transition={{ delay: 700 }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#10b9811A', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#10b98130' }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: '#10b9811A', padding: S.sm, borderRadius: R.sm, borderWidth: 1, borderColor: '#10b98130' }}
                 >
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#10b981' }}>CIPHER:</Text>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#10b981' }}>CIPHER:</Text>
                   <MotiText 
                     animate={{ opacity: isActive ? [1, 0.4, 1] : 1 }}
                     transition={{ loop: true, duration: 2000 }}
@@ -309,13 +309,13 @@ export default function OnboardingScreen() {
       case 'momentum':
         return (
           <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
-            <View style={{ alignItems: 'center', justifyContent: 'center', gap: 14, flex: 1, paddingHorizontal: 20 }}>
+            <View style={{ alignItems: 'center', justifyContent: 'center', gap: S.md, flex: 1, paddingHorizontal: S.lmd }}>
               <MotiView
                 animate={{ scale: isActive ? 1 : 0.7, opacity: isActive ? 1 : 0 }}
                 transition={{ type: 'spring', damping: 14 }}
               >
-                <Text style={{ fontSize: isSmallDevice ? 52 : 64, fontWeight: '900', letterSpacing: -4, color: item.color, lineHeight: isSmallDevice ? 56 : 70 }}>78</Text>
-                <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: item.color, opacity: 0.5, textAlign: 'center' }}>MOMENTUM</Text>
+                <Text style={{ fontSize: isSmallDevice ? 52 : 64, fontWeight: '700', letterSpacing: -4, color: item.color, lineHeight: isSmallDevice ? 56 : 70 }}>78</Text>
+                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: item.color, opacity: 0.5, textAlign: 'center' }}>MOMENTUM</Text>
               </MotiView>
               {[
                 { label: tr ? '✅ Görevler' : '✅ Tasks', pct: '40%' },
@@ -326,10 +326,10 @@ export default function OnboardingScreen() {
                   key={i}
                   animate={{ translateX: isActive ? 0 : 30, opacity: isActive ? 1 : 0 }}
                   transition={{ delay: 400 + i * 100, type: 'spring' }}
-                  style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', backgroundColor: item.color + '18', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}
+                  style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', backgroundColor: item.color + '18', borderRadius: R.sm, paddingHorizontal: S.smd, paddingVertical: S.sm }}
                 >
                   <Text style={{ fontSize: 11, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: '900', color: item.color }}>{row.pct}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: item.color }}>{row.pct}</Text>
                 </MotiView>
               ))}
             </View>
@@ -338,7 +338,7 @@ export default function OnboardingScreen() {
       case 'modes':
         return (
           <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
-            <View style={{ alignItems: 'center', justifyContent: 'center', gap: 10, flex: 1, paddingHorizontal: 20 }}>
+            <View style={{ alignItems: 'center', justifyContent: 'center', gap: S.smd, flex: 1, paddingHorizontal: S.lmd }}>
               {[
                 { icon: <Ban size={isSmallDevice ? 20 : 24} color="#ff2d55" />, label: tr ? 'Sigarayı Bırak' : 'Quit Smoking', sub: tr ? 'Gün gün plan' : 'Day-by-day plan', color: '#ff2d55' },
                 { icon: <Coins size={isSmallDevice ? 20 : 24} color="#00cc88" />, label: tr ? 'Tasarruf' : 'Save Money', sub: tr ? 'Birikim hedefi' : 'Savings goal', color: '#00cc88' },
@@ -348,17 +348,17 @@ export default function OnboardingScreen() {
                   key={i}
                   animate={{ translateX: isActive ? 0 : 36, opacity: isActive ? 1 : 0 }}
                   transition={{ delay: 300 + i * 130, type: 'spring' }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%', backgroundColor: row.color + '14', borderRadius: 14, paddingHorizontal: 14, paddingVertical: isSmallDevice ? 9 : 12 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd, width: '100%', backgroundColor: row.color + '14', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: isSmallDevice ? 9 : 12 }}
                 >
                   <View style={{ width: isSmallDevice ? 26 : 30, alignItems: 'center', justifyContent: 'center' }}>
                     {row.icon}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: isSmallDevice ? 12 : 14, fontWeight: '800', color: theme.onSurface }}>{row.label}</Text>
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.7 }}>{row.sub}</Text>
+                    <Text style={{ fontSize: isSmallDevice ? 12 : 14, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceMuted }}>{row.sub}</Text>
                   </View>
-                  <View style={{ width: 30, height: 18, borderRadius: 9, backgroundColor: row.color, alignItems: 'flex-end', justifyContent: 'center', paddingHorizontal: 2 }}>
-                    <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#fff' }} />
+                  <View style={{ width: 30, height: 18, borderRadius: R.sm, backgroundColor: row.color, alignItems: 'flex-end', justifyContent: 'center', paddingHorizontal: S.xxs }}>
+                    <View style={{ width: 14, height: 14, borderRadius: R.full, backgroundColor: '#fff' }} />
                   </View>
                 </MotiView>
               ))}
@@ -374,16 +374,16 @@ export default function OnboardingScreen() {
                 transition={{ type: 'spring', delay: 200 }}
                 style={{ width: '100%' }}
               >
-                <Text style={{ fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: item.color, opacity: 0.7, marginBottom: 8 }}>{tr ? 'HAFTALIK MERKEZ' : 'WEEKLY HUB'}</Text>
-                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: item.color, opacity: 0.7, marginBottom: S.sm }}>{tr ? 'HAFTALIK MERKEZ' : 'WEEKLY HUB'}</Text>
+                <View style={{ flexDirection: 'row', gap: S.sm, marginBottom: S.sm }}>
                   {(tr ? ['P', 'S', 'Ç', 'P', 'C', 'C', 'P'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S']).map((d, i) => (
                     <MotiView
                       key={i}
                       animate={{ scale: isActive ? 1 : 0.5, opacity: isActive ? 1 : 0 }}
                       transition={{ delay: 400 + i * 60, type: 'spring' }}
-                      style={{ flex: 1, alignItems: 'center', backgroundColor: i === 4 ? item.color : theme.surfaceContainerHighest, borderRadius: 8, paddingVertical: 6 }}
+                      style={{ flex: 1, alignItems: 'center', backgroundColor: i === 4 ? item.color : theme.surfaceContainerHighest, borderRadius: R.sm, paddingVertical: S.sm }}
                     >
-                      <Text style={{ fontSize: 9, fontWeight: '800', color: i === 4 ? '#fff' : theme.onSurfaceVariant }}>{d}</Text>
+                      <Text style={{ fontSize: 9, fontWeight: '700', color: i === 4 ? '#fff' : theme.onSurfaceVariant }}>{d}</Text>
                     </MotiView>
                   ))}
                 </View>
@@ -392,7 +392,7 @@ export default function OnboardingScreen() {
                     key={i}
                     animate={{ width: isActive ? `${h}%` : '5%' } as any}
                     transition={{ delay: 800 + i * 80, type: 'timing', duration: 500 }}
-                    style={{ height: 8, borderRadius: 4, backgroundColor: item.color + (i === 3 ? 'FF' : '55'), marginBottom: 5 }}
+                    style={{ height: 8, borderRadius: R.xs, backgroundColor: item.color + (i === 3 ? 'FF' : '55'), marginBottom: S.xs }}
                   />
                 ))}
               </MotiView>
@@ -483,7 +483,7 @@ export default function OnboardingScreen() {
                 transition={{ loop: true, duration: 1600 }}
                 style={{ position: 'absolute', right: -28 }}
               >
-                <ChevronRight size={16} color={theme.onSurfaceVariant} />
+                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} />
               </MotiView>
             )}
           </View>
@@ -496,7 +496,7 @@ export default function OnboardingScreen() {
              <Text style={[styles.nextBtnText, { color: theme.onPrimary, fontSize: isSmallDevice ? 16 : 18 }]}>
                 {currentIndex === SLIDES.length - 1 ? t.welcome.getStarted : t.next}
              </Text>
-             <ChevronRight size={20} color={theme.onPrimary} strokeWidth={3} />
+             <ChevronRight size={ICON.md} color={theme.onPrimary} strokeWidth={3} />
           </Touchable>
         </View>
       </SafeAreaView>
@@ -507,41 +507,41 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 32, paddingTop: Platform.OS === 'ios' ? 8 : 16 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.slg, paddingTop: Platform.OS === 'ios' ? 8 : 16 },
   logoTop: { fontSize: 24, fontFamily: 'Jakarta-ExtraBold', letterSpacing: -2 },
-  skipBtn: { padding: 8 },
-  skipText: { fontSize: 14, fontWeight: '800' },
-  slide: { height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  visualContainer: { alignItems: 'center', justifyContent: 'center', height: '35%', marginBottom: 40 },
+  skipBtn: { padding: S.sm },
+  skipText: { fontSize: 14, fontWeight: '700' },
+  slide: { height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.slg },
+  visualContainer: { alignItems: 'center', justifyContent: 'center', height: '35%', marginBottom: S.xl },
   visualCard: { alignItems: 'center', justifyContent: 'center' },
-  withFrame: { borderRadius: 40, borderWidth: B.thin, overflow: 'hidden' },
+  withFrame: { borderRadius: R.xl, borderWidth: B.thin, overflow: 'hidden' },
   sculptureWrapper: { zIndex: 2, alignItems: 'center', justifyContent: 'center' },
   fallback: { alignItems: 'center', justifyContent: 'center' },
-  glowBlob: { position: 'absolute', borderRadius: 200, zIndex: 1 },
-  simContainer: { width: '100%', padding: 16, gap: 10, alignItems: 'center' },
+  glowBlob: { position: 'absolute', borderRadius: R.full, zIndex: 1 },
+  simContainer: { width: '100%', padding: S.md, gap: S.smd, alignItems: 'center' },
   centeredSim: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
-  cinematicTask: { width: '100%', borderRadius: 14, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10, overflow: 'hidden' },
-  taskContent: { flex: 1, gap: 6 },
-  cinematicCheck: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  cinematicLine: { height: 6, borderRadius: 3 },
-  cinematicLineShort: { height: 6, borderRadius: 3 },
-  activeIndicator: { position: 'absolute', right: 12, width: 6, height: 6, borderRadius: 3, backgroundColor: '#00cc88' },
+  cinematicTask: { width: '100%', borderRadius: R.md, flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.smd, gap: S.smd, overflow: 'hidden' },
+  taskContent: { flex: 1, gap: S.sm },
+  cinematicCheck: { width: 20, height: 20, borderRadius: R.sm, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  cinematicLine: { height: 6, borderRadius: R.xs },
+  cinematicLineShort: { height: 6, borderRadius: R.xs },
+  activeIndicator: { position: 'absolute', right: 12, width: 6, height: 6, borderRadius: R.full, backgroundColor: '#00cc88' },
   cinematicRing: { position: 'absolute', borderWidth: 5, borderStyle: 'dashed' },
-  cinematicTimer: { alignItems: 'center', gap: 12 },
-  cinematicTimeText: { fontWeight: '900' },
-  cinematicStats: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 2 },
-  cinematicChart: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: '35%', width: '100%', justifyContent: 'center' },
-  cinematicBar: { borderRadius: 6 },
-  floatingBadge: { marginTop: 24, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 18, gap: 4 },
-  floatingBadgeText: { fontWeight: '900' },
-  textContainer: { marginTop: 10, alignItems: 'center', gap: 8, paddingHorizontal: 10 },
+  cinematicTimer: { alignItems: 'center', gap: S.smd },
+  cinematicTimeText: { fontWeight: '700' },
+  cinematicStats: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', padding: S.md, zIndex: 2 },
+  cinematicChart: { flexDirection: 'row', alignItems: 'flex-end', gap: S.sm, height: '35%', width: '100%', justifyContent: 'center' },
+  cinematicBar: { borderRadius: R.sm },
+  floatingBadge: { marginTop: S.lg, flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.smd, paddingVertical: S.sm, borderRadius: R.lg, gap: S.xs },
+  floatingBadgeText: { fontWeight: '700' },
+  textContainer: { marginTop: S.smd, alignItems: 'center', gap: S.sm, paddingHorizontal: S.smd },
   title: { fontFamily: 'Jakarta-ExtraBold', textAlign: 'center', letterSpacing: -2.5 },
-  sub: { fontWeight: '500', textAlign: 'center', lineHeight: 22, paddingHorizontal: 4 },
-  footer: { paddingHorizontal: 32, paddingBottom: Platform.OS === 'ios' ? 16 : 24, gap: 16 },
-  indicatorContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, position: 'relative', paddingRight: 16 },
-  indicator: { height: 8, borderRadius: 4 },
-  nextBtn: { borderRadius: 28, width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  sub: { fontWeight: '500', textAlign: 'center', lineHeight: 22, paddingHorizontal: S.xs },
+  footer: { paddingHorizontal: S.slg, paddingBottom: Platform.OS === 'ios' ? 16 : 24, gap: S.md },
+  indicatorContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: S.sm, position: 'relative', paddingRight: S.md },
+  indicator: { height: 8, borderRadius: R.xs },
+  nextBtn: { borderRadius: R.xl, width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm },
   clayShadow: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 15 },
-  nextBtnText: { fontWeight: '900' },
+  nextBtnText: { fontWeight: '700' },
 });
 

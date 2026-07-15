@@ -15,7 +15,7 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { AnimatedBackground } from '@/shared/components/AnimatedBackground';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { BlurView } from 'expo-blur';
-import { S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { validateLogin, isValidEmail } from '@/shared/utils/validation';
@@ -328,7 +328,7 @@ export default function LoginScreen() {
                 >
                   {t.login.title}
                 </MotiText>
-                <Text style={[styles.subtitle, { color: theme.onSurfaceVariant, fontSize: isSmallScreen ? 12 : 14, marginTop: isSmallScreen ? 2 : 4 }]}>
+                <Text style={[styles.subtitle, { color: theme.onSurfaceMuted, fontSize: isSmallScreen ? 12 : 14, marginTop: isSmallScreen ? 2 : 4 }]}>
                   {t.login.sub}
                 </Text>
               </MotiView>
@@ -346,7 +346,7 @@ export default function LoginScreen() {
                       animate={{ opacity: 1, height: 'auto' }}
                       style={[styles.errorContainer, { backgroundColor: theme.error + '15' }]}
                     >
-                      <AlertCircle size={16} color={theme.error} style={{ marginTop: 1 }} />
+                      <AlertCircle size={ICON.sm} color={theme.error} style={{ marginTop: S.xxs }} />
                       <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
                     </MotiView>
                   )}
@@ -359,7 +359,7 @@ export default function LoginScreen() {
                     >
                       <View style={styles.bannedHeader}>
                         <View style={[styles.bannedIcon, { backgroundColor: theme.error + '20' }]}>
-                          <Ban size={16} color={theme.error} strokeWidth={2.4} />
+                          <Ban size={ICON.sm} color={theme.error} strokeWidth={2.4} />
                         </View>
                         <Text style={[styles.bannedTitle, { color: theme.error }]}>
                           {language === 'tr' ? 'Hesabın askıya alındı' : 'Your account is suspended'}
@@ -380,7 +380,7 @@ export default function LoginScreen() {
                         activeOpacity={0.7}
                         style={[styles.bannedAppeal, { borderColor: theme.error + '30' }]}
                       >
-                        <Mail size={13} color={theme.error} />
+                        <Mail size={ICON.xs} color={theme.error} />
                         <Text style={[styles.bannedAppealText, { color: theme.error }]}>
                           {language === 'tr' ? 'İtiraz et: destek@tazqapp.com' : 'Appeal: destek@tazqapp.com'}
                         </Text>
@@ -395,7 +395,7 @@ export default function LoginScreen() {
                         borderColor: theme.outlineVariant,
                         height: isSmallScreen ? 42 : 52,
                       }]}>
-                        <Mail size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
+                        <Mail size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
                           ref={emailRef}
                           placeholder={t.login.email}
@@ -422,7 +422,7 @@ export default function LoginScreen() {
                         borderColor: theme.outlineVariant,
                         height: isSmallScreen ? 42 : 52,
                       }]}>
-                        <Lock size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
+                        <Lock size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                         <TextInput
                           ref={passwordRef}
                           placeholder="••••••••"
@@ -435,11 +435,11 @@ export default function LoginScreen() {
                         />
                         <Touchable onPress={() => setShowPassword(!showPassword)} accessibilityRole="button" accessibilityLabel={showPassword ? (language === 'tr' ? 'Şifreyi gizle' : 'Hide password') : (language === 'tr' ? 'Şifreyi göster' : 'Show password')}>
                           {showPassword
-                            ? <EyeOff size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
-                            : <Eye size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
+                            ? <EyeOff size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
+                            : <Eye size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
                         </Touchable>
                       </View>
-                      <Touchable onPress={() => setForgotVisible(true)} style={{ alignSelf: 'flex-end', marginTop: 6 }}>
+                      <Touchable onPress={() => setForgotVisible(true)} style={{ alignSelf: 'flex-end', marginTop: S.sm }}>
                         <Text style={[styles.forgotText, { color: theme.primary }]}>{t.login.forgotPassword}</Text>
                       </Touchable>
                     </View>
@@ -458,7 +458,7 @@ export default function LoginScreen() {
                         ) : (
                           <>
                             <Text style={[styles.buttonText, { color: theme.onPrimary }]}>{t.login.button}</Text>
-                            <ArrowRight size={20} color={theme.onPrimary} />
+                            <ArrowRight size={ICON.md} color={theme.onPrimary} />
                           </>
                         )}
                       </MotiView>
@@ -466,9 +466,9 @@ export default function LoginScreen() {
 
                     {/* OR Divider */}
                     <View style={[styles.dividerRow, { marginVertical: isSmallScreen ? 4 : 10 }]}>
-                      <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '40' }]} />
-                      <Text style={[styles.dividerText, { color: theme.onSurfaceVariant }]}>{t.login.orDivider}</Text>
-                      <View style={[styles.divider, { backgroundColor: theme.outlineVariant + '40' }]} />
+                      <View style={[styles.divider, { backgroundColor: theme.outlineVariant }]} />
+                      <Text style={[styles.dividerText, { color: theme.onSurfaceMuted }]}>{t.login.orDivider}</Text>
+                      <View style={[styles.divider, { backgroundColor: theme.outlineVariant }]} />
                     </View>
 
                     {/* Social Buttons — Coming soon */}
@@ -495,24 +495,24 @@ export default function LoginScreen() {
                       )}
                     </View>
 
-                    <Text style={[styles.disclaimerText, { color: theme.onSurfaceVariant, marginTop: isSmallScreen ? 4 : 10 }]}>
+                    <Text style={[styles.disclaimerText, { color: theme.onSurfaceMuted, marginTop: isSmallScreen ? 4 : 10 }]}>
                       {language === 'tr' ? 'Google veya Apple ile devam ederek, ' : 'By continuing with Google or Apple, you agree to our '}
                       <Text
-                        style={{ color: theme.primary, fontWeight: '800' }}
+                        style={{ color: theme.primary, fontWeight: '700' }}
                         onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
                       >
                         {language === 'tr' ? 'Kullanıcı Sözleşmesi' : 'Terms of Service'}
                       </Text>
                       {language === 'tr' ? "'ni, " : ', '}
                       <Text
-                        style={{ color: theme.primary, fontWeight: '800' }}
+                        style={{ color: theme.primary, fontWeight: '700' }}
                         onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
                       >
                         {language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}
                       </Text>
                       {language === 'tr' ? ' ve ' : ' and '}
                       <Text
-                        style={{ color: theme.primary, fontWeight: '800' }}
+                        style={{ color: theme.primary, fontWeight: '700' }}
                         onPress={() => router.push({ pathname: '/legal', params: { doc: 'kvkk' } })}
                       >
                         {language === 'tr' ? 'KVKK Metni' : 'Data Notice'}
@@ -550,14 +550,14 @@ export default function LoginScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/onboarding')}
                   activeOpacity={0.7}
-                  style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: 8 }}
+                  style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: S.sm }}
                   accessibilityRole="button"
                 >
-                  <Sparkles size={14} color={theme.primary} strokeWidth={2.2} />
+                  <Sparkles size={ICON.sm} color={theme.primary} strokeWidth={2.2} />
                   <Text style={{ fontSize: 13.5, fontWeight: '700', color: theme.primary, letterSpacing: 0.2 }}>
                     {language === 'tr' ? 'Uygulamayı keşfet' : 'Explore the app'}
                   </Text>
-                  <ArrowRight size={15} color={theme.primary} strokeWidth={2.4} />
+                  <ArrowRight size={ICON.sm} color={theme.primary} strokeWidth={2.4} />
                 </TouchableOpacity>
               </MotiView>
           </ScrollView>
@@ -575,8 +575,8 @@ export default function LoginScreen() {
             <GlassCard style={styles.modalCard}>
               {forgotSuccess ? (
                 <View style={{ alignItems: 'center', gap: S.md, paddingVertical: S.sm }}>
-                  <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: theme.tertiary + '15', alignItems: 'center', justifyContent: 'center' }}>
-                    <CheckCircle2 size={32} color={theme.tertiary} />
+                  <View style={{ width: 56, height: 56, borderRadius: R.full, backgroundColor: theme.tertiary + '15', alignItems: 'center', justifyContent: 'center' }}>
+                    <CheckCircle2 size={ICON.xl} color={theme.tertiary} />
                   </View>
                   <Text style={{ fontFamily: 'Jakarta-ExtraBold', fontSize: F.title, color: theme.onSurface, textAlign: 'center' }}>
                     {language === 'tr' ? 'E-posta Gönderildi' : 'Email Sent'}
@@ -598,17 +598,17 @@ export default function LoginScreen() {
                       justifyContent: 'center'
                     }}
                   >
-                    <Text style={{ color: theme.onPrimary, fontWeight: '800', fontFamily: 'Jakarta-Bold' }}>
+                    <Text style={{ color: theme.onPrimary, fontWeight: '700', fontFamily: 'Jakarta-Bold' }}>
                       {language === 'tr' ? 'Harika' : 'Got it'}
                     </Text>
                   </Touchable>
 
-                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: S.xs, marginTop: S.xxs }}>
                     <Text style={{ fontSize: 12.5, color: theme.onSurfaceVariant, fontFamily: 'Jakarta-Medium' }}>
                       {language === 'tr' ? 'Ulaşmadı mı?' : "Didn't arrive?"}
                     </Text>
                     <TouchableOpacity onPress={resendForgot} disabled={forgotResendIn > 0 || forgotLoading} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <Text style={{ fontSize: 12.5, fontWeight: '800', fontFamily: 'Jakarta-Bold', color: forgotResendIn > 0 ? theme.onSurfaceVariant : theme.primary }}>
+                      <Text style={{ fontSize: 12.5, fontWeight: '700', fontFamily: 'Jakarta-Bold', color: forgotResendIn > 0 ? theme.onSurfaceVariant : theme.primary }}>
                         {forgotResendIn > 0
                           ? (language === 'tr' ? `${forgotResendIn} sn sonra tekrar gönder` : `Resend in ${forgotResendIn}s`)
                           : (language === 'tr' ? 'Tekrar gönder' : 'Resend')}
@@ -619,7 +619,7 @@ export default function LoginScreen() {
               ) : (
                 <>
                   <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.modalTitle, { color: theme.onSurface, fontFamily: 'Jakarta-ExtraBold' }]}>{t.login.forgotTitle}</Text>
-                  <Text style={[styles.modalSub, { color: theme.onSurfaceVariant, fontFamily: 'Jakarta-Medium', marginTop: 2, marginBottom: 10 }]}>{t.login.forgotSub}</Text>
+                  <Text style={[styles.modalSub, { color: theme.onSurfaceVariant, fontFamily: 'Jakarta-Medium', marginTop: S.xxs, marginBottom: S.smd }]}>{t.login.forgotSub}</Text>
                   
                   {forgotMsg && (
                     <MotiView 
@@ -635,7 +635,7 @@ export default function LoginScreen() {
                         marginBottom: S.sm
                       }}
                     >
-                      <AlertCircle size={16} color={theme.error} />
+                      <AlertCircle size={ICON.sm} color={theme.error} />
                       <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: theme.error }}>{forgotMsg.text}</Text>
                     </MotiView>
                   )}
@@ -646,7 +646,7 @@ export default function LoginScreen() {
                     height: 46,
                     marginBottom: S.md,
                   }]}>
-                    <Mail size={18} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
+                    <Mail size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />
                     <TextInput
                       placeholder={t.login.email}
                       placeholderTextColor={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'}
@@ -715,44 +715,44 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, paddingHorizontal: scale(24), width: '100%', maxWidth: 480, alignSelf: 'center' },
   header: { alignItems: 'center' },
   title: { fontFamily: 'Jakarta-ExtraBold', letterSpacing: -1.2 },
-  subtitle: { fontSize: moderateScale(15), fontWeight: '500', marginTop: verticalScale(6), opacity: 0.6, letterSpacing: 0.1 },
+  subtitle: { fontSize: moderateScale(15), fontWeight: '500', marginTop: verticalScale(6), letterSpacing: 0.1 },
   cardContainer: { width: '100%' },
   glassCard: { width: '100%' },
   errorContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm, padding: S.sm + 4, borderRadius: R.sm + 4, marginBottom: S.md },
   errorText: { flex: 1, fontSize: F.caption + 2, fontWeight: '600', lineHeight: verticalScale(18), flexWrap: 'wrap' },
   bannedBox: { borderWidth: B.thin, borderRadius: R.md, padding: S.md, marginBottom: S.md, gap: S.sm },
   bannedHeader: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
-  bannedIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  bannedTitle: { flex: 1, fontSize: F.body, fontWeight: '800', letterSpacing: -0.2 },
+  bannedIcon: { width: 30, height: 30, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  bannedTitle: { flex: 1, fontSize: F.body, fontWeight: '700', letterSpacing: -0.2 },
   bannedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm },
   bannedLabel: { width: 52, fontSize: F.caption, fontWeight: '700' },
   bannedValue: { flex: 1, fontSize: F.caption + 1, fontWeight: '600', lineHeight: verticalScale(17) },
-  bannedAppeal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: B.thin, borderRadius: R.sm + 2, paddingVertical: S.sm, marginTop: 2 },
-  bannedAppealText: { fontSize: F.caption + 1, fontWeight: '800' },
+  bannedAppeal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderWidth: B.thin, borderRadius: R.sm + 2, paddingVertical: S.sm, marginTop: S.xxs },
+  bannedAppealText: { fontSize: F.caption + 1, fontWeight: '700' },
   form: { gap: moderateScale(14) },
   inputGroup: { gap: S.sm + 4 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { fontSize: F.caption, fontWeight: '800', letterSpacing: 1 },
+  label: { fontSize: F.caption, fontWeight: '700', letterSpacing: 1 },
   forgotText: { fontSize: F.caption + 1, fontWeight: '700' },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, height: Platform.OS === 'android' ? verticalScale(52) : verticalScale(56), borderRadius: R.md, borderWidth: B.thin, gap: S.sm + 4 },
   input: { flex: 1, fontSize: F.body + 2, fontWeight: '600', height: '100%', textAlignVertical: 'center' },
   loginButton: { height: Platform.OS === 'android' ? verticalScale(52) : verticalScale(56), borderRadius: R.md, overflow: 'hidden' },
   buttonInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10) },
-  buttonText: { fontSize: F.subhead + 1, fontWeight: '800' },
+  buttonText: { fontSize: F.subhead + 1, fontWeight: '700' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginVertical: S.sm },
   divider: { flex: 1, height: 1 },
-  dividerText: { fontSize: F.caption + 1, fontWeight: '700', opacity: 0.5 },
+  dividerText: { fontSize: F.caption + 1, fontWeight: '700' },
   socialRow: { flexDirection: 'row', gap: S.md },
   socialButton: { flex: 1, height: Platform.OS === 'android' ? verticalScale(48) : verticalScale(56), borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: moderateScale(10), borderWidth: B.thin },
   socialText: { fontSize: moderateScale(15), fontWeight: '700' },
-  disclaimerText: { fontSize: moderateScale(11), lineHeight: verticalScale(16), textAlign: 'center', marginTop: S.sm + 2, paddingHorizontal: S.xs, opacity: 0.75 },
+  disclaimerText: { fontSize: moderateScale(11), lineHeight: verticalScale(16), textAlign: 'center', marginTop: S.sm + 2, paddingHorizontal: S.xs },
   footer: { alignItems: 'center', marginTop: verticalScale(28) },
   footerRow: { flexDirection: 'row', alignItems: 'center' },
   footerText: { fontSize: moderateScale(15), fontWeight: '500' },
-  link: { fontSize: moderateScale(15), fontWeight: '800' },
+  link: { fontSize: moderateScale(15), fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: scale(24) },
   modalCard: { padding: scale(24), gap: S.md },
-  modalTitle: { fontSize: F.title + 2, fontWeight: '900' },
+  modalTitle: { fontSize: F.title + 2, fontWeight: '700' },
   modalSub: { fontSize: F.body, fontWeight: '500', lineHeight: verticalScale(20) },
   modalInput: { height: verticalScale(56), borderRadius: R.md, borderWidth: B.thin, paddingHorizontal: S.md, fontSize: F.body + 2, fontWeight: '600' },
   modalActions: { flexDirection: 'row', gap: S.md },

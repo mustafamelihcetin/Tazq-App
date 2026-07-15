@@ -19,7 +19,8 @@ import { retirePlanTask } from '@/shared/utils/planTaskOps';
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
 import { RAMAZAN_HABIT_NAMES } from '../../utils/turkishModes';
 import { scheduleRamadanStartNotification, cancelRamadanStartNotification } from '@/shared/utils/notifications';
-import { S, R, F, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B } from '@/shared/constants/tokens';
+import { Separator } from '@/shared/components/Separator';
 
 export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const { theme, isDark } = useAppTheme();
@@ -63,12 +64,12 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
     <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.ramazan ? (isDark ? 'rgba(99,102,241,0.30)' : 'rgba(99,102,241,0.20)') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.ramazan ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: seasonal.ramazan ? '#6366F122' : '#6366F115', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: seasonal.ramazan ? '#6366F122' : '#6366F115', alignItems: 'center', justifyContent: 'center' }}>
             {renderModeEmojiIcon('🌙', 18, seasonal.ramazan ? '#6366F1' : '#6366F1aa')}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Ramazan Modu' : 'Ramadan Mode'}</Text>
-            <Text style={{ fontSize: F.caption, fontWeight: '500', marginTop: 1, color: ramadanStatus.isActive ? accent : seasonal.ramazan && ramadanStatus.period ? accent : theme.onSurfaceVariant, opacity: ramadanStatus.isActive ? 0.9 : seasonal.ramazan && ramadanStatus.period ? 0.75 : 0.55 }}>
+            <Text style={{ fontSize: F.caption, fontWeight: '500', marginTop: S.xxs, color: ramadanStatus.isActive ? accent : seasonal.ramazan && ramadanStatus.period ? accent : theme.onSurfaceVariant, opacity: ramadanStatus.isActive ? 0.9 : seasonal.ramazan && ramadanStatus.period ? 0.75 : 0.55 }}>
               {ramadanStatus.isActive && ramadanStatus.period
                 ? (tr
                     ? `🌙 ${formatRamadanDate(ramadanStatus.period.start, 'tr')} – ${formatRamadanDate(ramadanStatus.period.end, 'tr')} · ${ramadanStatus.daysRemaining} gün kaldı`
@@ -103,12 +104,12 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
       </View>
       {seasonal.ramazan && (
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md }}>
-          <View style={{ height: 1, backgroundColor: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.10)', marginBottom: S.md }} />
+          <Separator theme={theme} />
           {!ramadanStatus.isActive && ramadanStatus.period ? (
             <Touchable onPress={onOpenPreview} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: accent }} />
+              <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: accent }} />
               <Text style={{ color: accent, fontSize: F.caption, fontWeight: '600', flex: 1 }}>{tr ? 'Planı şimdiden hazırla' : 'Set up your plan in advance'}</Text>
-              <ChevronRight size={12} color={accent} />
+              <ChevronRight size={ICON.xs} color={accent} />
             </Touchable>
           ) : progTotal > 0 ? (
             <View style={{ gap: S.sm }}>
@@ -116,15 +117,15 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
                 <Text style={{ color: accent, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
               </View>
-              <View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.10)', overflow: 'hidden' }}>
-                <View style={{ height: 5, borderRadius: 3, backgroundColor: accent, width: `${progPct}%` as any }} />
+              <View style={{ height: 5, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.10)', overflow: 'hidden' }}>
+                <View style={{ height: 5, borderRadius: R.xs, backgroundColor: accent, width: `${progPct}%` as any }} />
               </View>
             </View>
           ) : (
             <Touchable onPress={onOpenPreview} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: accent }} />
+              <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: accent }} />
               <Text style={{ color: accent, fontSize: F.caption, fontWeight: '500', flex: 1 }}>{tr ? 'Plan henüz oluşturulmadı — Oluştur' : 'No plan yet — Create one'}</Text>
-              <ChevronRight size={12} color={accent} />
+              <ChevronRight size={ICON.xs} color={accent} />
             </Touchable>
           )}
         </View>

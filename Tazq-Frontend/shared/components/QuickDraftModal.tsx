@@ -3,7 +3,7 @@ import { View, Text, Modal, Animated, TextInput, StyleSheet, ActivityIndicator, 
 import { Zap } from 'lucide-react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { Touchable } from '@/shared/components/Touchable';
-import { S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 
 interface QuickDraftModalProps {
@@ -108,7 +108,7 @@ export const QuickDraftModal: React.FC<QuickDraftModalProps> = ({
             {/* Header */}
             <View style={styles.sheetHeader}>
               <View style={[styles.sheetIcon, { backgroundColor: '#F59E0B20' }]}>
-                <Zap size={20} color="#F59E0B" fill="#F59E0B" />
+                <Zap size={ICON.md} color="#F59E0B" fill="#F59E0B" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text
@@ -119,7 +119,7 @@ export const QuickDraftModal: React.FC<QuickDraftModalProps> = ({
                 >
                   {t.draftNote}
                 </Text>
-                <Text style={{ fontSize: F.caption, fontWeight: '600', color: '#F59E0B', opacity: 0.8, marginTop: 1 }}>
+                <Text style={{ fontSize: F.caption, fontWeight: '600', color: '#F59E0B', opacity: 0.8, marginTop: S.xxs }}>
                   {language === 'tr' ? 'Aklındakini yaz, sonra düzenlersin' : 'Capture now, refine later'}
                 </Text>
               </View>
@@ -197,8 +197,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   dragHandleContainer: {
-    paddingTop: 14,
-    paddingBottom: 18,
+    paddingTop: S.md,
+    paddingBottom: S.lmd,
     alignItems: 'center',
   },
   sheetHandle: {

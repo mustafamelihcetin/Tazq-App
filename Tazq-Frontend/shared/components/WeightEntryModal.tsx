@@ -17,7 +17,7 @@ import { Activity } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useSporStore, getThisWeekEntry } from '@/shared/store/useSporStore';
-import { S, R, F, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
 import { Touchable } from '@/shared/components/Touchable';
 import { recordWeeklyWeight, daysUntilNextWeight } from '@/shared/utils/weightCheckin';
@@ -124,23 +124,23 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
           {/* Handle */}
-          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginBottom: S.lg }} />
+          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginBottom: S.lg }} />
 
           {/* Header */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.lg }}>
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#10B98120', alignItems: 'center', justifyContent: 'center' }}>
-              <Activity size={18} color="#10B981" strokeWidth={2} />
+            <View style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: '#10B98120', alignItems: 'center', justifyContent: 'center' }}>
+              <Activity size={ICON.md} color="#10B981" strokeWidth={2} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.onSurface, fontWeight: '900', fontSize: F.body }}>
+              <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
                 {tr ? 'Haftalık Tartı' : 'Weekly Weigh-In'}
               </Text>
               {thisWeek ? (
-                <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '700', marginTop: 1 }}>
+                <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '700', marginTop: S.xxs }}>
                   {tr ? `Bu hafta: ${thisWeek.weight} kg kaydedildi` : `This week: ${thisWeek.weight} kg logged`}
                 </Text>
               ) : (
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>
+                <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>
                   {tr ? 'Sabah aç karna ölç — en doğru sonuç' : 'Measure fasted in the morning — most accurate'}
                 </Text>
               )}
@@ -163,14 +163,14 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
               placeholderTextColor={theme.onSurfaceVariant + '60'}
               keyboardType="decimal-pad"
               autoFocus
-              style={{ flex: 1, fontSize: 28, fontWeight: '900', color: theme.onSurface, letterSpacing: -0.5, height: '100%', textAlignVertical: 'center' }}
+              style={{ flex: 1, fontSize: 28, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, height: '100%', textAlignVertical: 'center' }}
             />
             <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontWeight: '700' }}>kg</Text>
           </View>
 
           {/* Diff indicator */}
           {diffLabel ? (
-            <Text style={{ color: diffColor, fontSize: F.caption, fontWeight: '800', textAlign: 'right', marginBottom: S.md }}>
+            <Text style={{ color: diffColor, fontSize: F.caption, fontWeight: '700', textAlign: 'right', marginBottom: S.md }}>
               {diffLabel}
             </Text>
           ) : (
@@ -182,8 +182,8 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             <View style={{ flexDirection: 'row', gap: S.sm, marginBottom: S.lg }}>
               {weightLog.slice(0, 3).map((e, i) => (
                 <View key={e.date} style={{ flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.sm, paddingVertical: S.xs, alignItems: 'center' }}>
-                  <Text style={{ color: theme.onSurface, fontWeight: '800', fontSize: F.caption }}>{e.weight} kg</Text>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 10, opacity: 0.5, marginTop: 2 }}>
+                  <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{e.weight} kg</Text>
+                  <Text style={{ color: theme.onSurfaceMuted, fontSize: 10, marginTop: S.xxs }}>
                     {new Date(e.date).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-GB', { day: 'numeric', month: 'short' })}
                   </Text>
                 </View>
@@ -209,7 +209,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             }}
             activeOpacity={0.8}
           >
-            <Text style={{ color: '#fff', fontWeight: '900', fontSize: F.body }}>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: F.body }}>
               {saving ? (tr ? 'Kaydediliyor…' : 'Saving…') : (tr ? 'Kaydet' : 'Save')}
             </Text>
           </Touchable>

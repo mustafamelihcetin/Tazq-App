@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { ArrowLeft } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { S, R, F, TRACKING } from '@/shared/constants/tokens';
+import { ICON, S, R, F, TRACKING } from '@/shared/constants/tokens';
 
 const HEADER_H = 52;
 
@@ -47,7 +47,7 @@ export function CollapsingHeaderScreen({ title, onBack, rightSlot, children, bac
         <View style={styles.headerRow}>
           {onBack ? (
             <TouchableOpacity onPress={onBack} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={backLabel ?? 'Back'}>
-              <ArrowLeft size={24} color={theme.onSurface} />
+              <ArrowLeft size={ICON.lg} color={theme.onSurface} />
             </TouchableOpacity>
           ) : <View style={{ width: 40 }} />}
           <Animated.Text numberOfLines={1} style={[styles.compactTitle, { color: theme.onSurface, opacity: compactOpacity, transform: [{ translateY: compactTranslate }] }]}>{title}</Animated.Text>
@@ -56,7 +56,7 @@ export function CollapsingHeaderScreen({ title, onBack, rightSlot, children, bac
       </View>
 
       <Animated.ScrollView
-        contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: HEADER_H + S.xs, paddingBottom: 120, gap: S.lg }}
+        contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: HEADER_H + S.xs, paddingBottom: S.xxl, gap: S.lg }}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={onScroll}
@@ -74,6 +74,6 @@ const styles = StyleSheet.create({
   headerAbs: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   headerRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md },
   compactTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', letterSpacing: TRACKING.subhead },
-  largeTitle: { fontSize: 30, fontWeight: '800', letterSpacing: TRACKING.hero, includeFontPadding: false },
+  largeTitle: { fontSize: 30, fontWeight: '700', letterSpacing: TRACKING.hero, includeFontPadding: false },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 });

@@ -9,6 +9,7 @@ import { AlertCircle, RotateCcw } from 'lucide-react-native';
 // Hata sınırı hook kullanamaz (render dışı yakalar), ama paleti elle kopyalamamalı:
 // doğrudan Colors'tan okur ki tema değişince birlikte değişsin.
 import { Colors } from '@/shared/constants/Colors';
+import { S, ICON, R } from '@/shared/constants/tokens';
 
 interface Props {
   children: React.ReactNode;
@@ -60,7 +61,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <View style={styles.container}>
           <View style={styles.card}>
             <View style={styles.iconWrapper}>
-              <AlertCircle size={32} color="#EF4444" strokeWidth={2.2} />
+              <AlertCircle size={ICON.xl} color="#EF4444" strokeWidth={2.2} />
             </View>
             
             <Text style={styles.title}>Bir Şeyler Ters Gitti</Text>
@@ -75,12 +76,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
             <Text style={styles.info}>
               Hata detayları geliştirici panelimize otomatik olarak raporlandı. En kısa sürede düzelteceğiz!
             </Text>
-            <Text style={[styles.info, { marginTop: 4, opacity: 0.5 }]}>
+            <Text style={[styles.info, { marginTop: S.xs, opacity: 0.5 }]}>
               Crash report has been automatically sent to the admin dashboard. We'll fix it soon!
             </Text>
 
             <Touchable onPress={this.reset} style={styles.btn}>
-              <RotateCcw size={16} color="white" style={{ marginRight: 6 }} />
+              <RotateCcw size={ICON.sm} color="white" style={{ marginRight: S.sm }} />
               <Text style={styles.btnText}>Tekrar Dene / Try Again</Text>
             </Touchable>
           </View>
@@ -97,31 +98,31 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     justifyContent: 'center', 
     backgroundColor: Colors.dark.background,
-    padding: 24 
+    padding: S.lg 
   },
   card: {
     width: '100%',
     maxWidth: 400,
     backgroundColor: Colors.dark.surfaceVariant,
-    borderRadius: 24,
+    borderRadius: R.xl,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    padding: 28,
+    padding: S.slg,
     alignItems: 'center',
-    gap: 12,
+    gap: S.smd,
   },
   iconWrapper: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: R.full,
     backgroundColor: 'rgba(239,68,68,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: S.sm,
   },
   title: { 
     fontSize: 20, 
-    fontWeight: '900', 
+    fontWeight: '700', 
     color: Colors.dark.onSurface,
     textAlign: 'center',
     letterSpacing: -0.5,
@@ -132,15 +133,15 @@ const styles = StyleSheet.create({
     color: Colors.dark.onSurfaceVariant,
     textAlign: 'center',
     marginTop: -8,
-    marginBottom: 8,
+    marginBottom: S.sm,
   },
   errorBox: {
     width: '100%',
     backgroundColor: 'rgba(239,68,68,0.05)',
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.15)',
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: R.md,
+    padding: S.md,
   },
   errorText: { 
     fontSize: 12, 
@@ -157,17 +158,17 @@ const styles = StyleSheet.create({
   },
   btn: { 
     backgroundColor: '#3B82F6', 
-    paddingHorizontal: 20, 
-    paddingVertical: 12, 
-    borderRadius: 99,
+    paddingHorizontal: S.lmd, 
+    paddingVertical: S.smd, 
+    borderRadius: R.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
+    marginTop: S.smd,
   },
   btnText: { 
     color: 'white', 
-    fontWeight: '800',
+    fontWeight: '700',
     fontSize: 14,
   },
 });

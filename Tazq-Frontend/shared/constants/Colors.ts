@@ -65,7 +65,17 @@ const lightPalette = {
   error: '#B91C1C',             // Red 700 — Red 600 (#DC2626) 4.43:1 ile kıl payı kalıyordu
   onBackground: '#18181B',      // Zinc 900
   onSurface: '#18181B',         // Zinc 900 — 16.12:1
-  onSurfaceVariant: '#52525B',  // Zinc 600 — 7.03:1
+  onSurfaceVariant: '#52525B',  // Zinc 600 — 7.03:1 (İKİNCİL metin)
+  // ÜÇÜNCÜL metin — gerçekten yardımcı bilgi (zaman damgası, ipucu, birim).
+  //
+  // Neden token: 140 yerde `onSurfaceVariant` + `opacity` yazılmıştı. Token tek başına
+  // 7.03:1 iken opacity 0.6 onu 2.90:1'e düşürüyordu — yani her kullanım yerinde elle,
+  // ölçülmeden soluklaştırılıyordu. Kıyas: Apple'ın kendi secondaryLabel'ı 3.44:1.
+  //
+  // Zinc 500 iki temada da çalışıyor (açık 4.40 / koyu 4.12) ve ikisi de Apple'ın
+  // değerinden iyi. Soluklaştırma artık ÖLÇÜLMÜŞ bir seviye, keyfi bir çarpan değil.
+  // Metne opacity uygulama — bu token'ı kullan. Bkz. __tests__/colorContrast.test.ts
+  onSurfaceMuted: '#71717A',    // Zinc 500 — 4.40:1
 
   background: '#F4F4F5',        // Zinc 100 — iOS systemGray6 (#F2F2F7) hizasında
   surface: '#F4F4F5',
@@ -78,6 +88,23 @@ const lightPalette = {
 
   outline: Platform.OS === 'android' ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.08)',
   outlineVariant: Platform.OS === 'android' ? 'rgba(0,0,0,0.03)' : 'rgba(0,0,0,0.04)',
+
+  // Liste satırı AYIRICISI — outline'dan ayrı bir iş.
+  //
+  // outline bir NESNENİN sınırıdır (kartın nerede bittiği). separator bir RİTİMDİR
+  // (aynı grup içinde iki satırın nerede ayrıldığı). İkisi aynı token olunca ayırıcılar
+  // kart kenarı kadar soluk kaldı ve 16 yerde elle rgba yazıldı.
+  //
+  // Apple systemSeparator (light): rgba(60,60,67,0.29). Bizim outline'dan 3.6× daha
+  // belirgin — ÇÜNKÜ hairline (@3x'te 0.33pt) çizilir. İnce+belirgin = iOS'un kesin
+  // çizgisi; kalın+soluk = web'in bulanık çizgisi. Kalınlık için: HAIRLINE (tokens.ts).
+  separator: 'rgba(60,60,67,0.29)',
+
+  // YÜZEN kabuk zemini (navbar, başlık) — saydam olmak ZORUNDA: iOS'ta altındaki
+  // BlurView'in görünmesi buna bağlı. Opak yapmak blur'u görünmez kılar.
+  // Navbar ve başlık bunu elle yazıyordu (rgba(255,255,255,0.95)); iki yüzen kabuk
+  // ayrı ayrı tanımlanınca ayrışıyorlar.
+  surfaceFloating: 'rgba(255,255,255,0.95)',
 
   // Interaction overlays
   pressedOverlay: 'rgba(0, 0, 0, 0.08)',
@@ -123,7 +150,10 @@ const darkPalette = {
 
   onBackground: '#F4F4F5',      // Zinc 100
   onSurface: '#F4F4F5',         // 18.24:1
-  onSurfaceVariant: '#A1A1AA',  // Zinc 400 — 7.76:1
+  onSurfaceVariant: '#A1A1AA',  // Zinc 400 — 7.76:1 (İKİNCİL metin)
+  // ÜÇÜNCÜL metin — açık temayla AYNI değer (Zinc 500). Nadir bir denge: bu ton hem
+  // beyaza hem siyaha yeterince uzak. Bkz. lightPalette.onSurfaceMuted.
+  onSurfaceMuted: '#71717A',    // Zinc 500 — 4.12:1
 
   background: '#09090B',        // Zinc 950 — iOS systemBackground (dark) hizasında
   surface: '#09090B',
@@ -137,6 +167,15 @@ const darkPalette = {
 
   outline: Platform.OS === 'android' ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.07)',
   outlineVariant: Platform.OS === 'android' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.03)',
+
+  // Apple systemSeparator (dark): rgba(84,84,88,0.65). Açık temadakinden daha yüksek
+  // opaklık — koyu zeminde bir çizginin "görünmesi" için daha çok ışık gerekir; aynı
+  // opaklıkla çevrilseydi koyu temada ayırıcılar kaybolurdu. Bkz. lightPalette.separator.
+  separator: 'rgba(84,84,88,0.65)',
+
+  // Bkz. lightPalette.surfaceFloating. Zinc 950'nin (#09090B) bir tık üstü —
+  // yüzen kabuk zeminden ayrılmalı ki "üstte duruyor" okunsun.
+  surfaceFloating: 'rgba(15,15,18,0.95)',
 
   // Interaction overlays
   pressedOverlay: 'rgba(255, 255, 255, 0.08)',
@@ -185,6 +224,8 @@ export const CategoryColors = {
   indigo:  '#6366F1', // Indigo 500  — açık 4.06:1 · koyu 4.45:1
   pink:    '#EC4899', // Pink 500    — açık 3.21:1 · koyu 5.64:1
   orange:  '#EA580C', // Orange 600  — açık 3.24:1 · koyu 5.59:1  (500 açıkta 2.55 ✗)
+  cyan:    '#0891B2', // Cyan 600    — açık 3.35:1 · koyu 5.40:1  (500 açıkta 2.21 ✗)
+  teal:    '#0D9488', // Teal 600    — açık 3.41:1 · koyu 5.31:1  (500 açıkta 2.26 ✗)
 } as const;
 
 export type CategoryColor = typeof CategoryColors[keyof typeof CategoryColors];

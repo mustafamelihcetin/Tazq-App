@@ -240,7 +240,7 @@ export const CelebrationOverlay: React.FC = () => {
           top: height * 0.5 - 80,
           width: 160,
           height: 160,
-          borderRadius: 80,
+          borderRadius: R.full,
           backgroundColor: theme.primary + '40',
           opacity: ringOpacity,
           transform: [{ scale: ringScale }],
@@ -277,7 +277,7 @@ export const CelebrationOverlay: React.FC = () => {
             <Animated.View style={{
               width: 120,
               height: 120,
-              borderRadius: 60,
+              borderRadius: R.full,
               borderWidth: B.medium,
               borderColor: (ACHIEVEMENT_ICONS[pending.id]?.color || theme.primary) + '30', // 19% opacity colored border
               backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
@@ -297,7 +297,7 @@ export const CelebrationOverlay: React.FC = () => {
             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.title, { color: theme.onSurface }]}>
               {tr ? pending.titleTr : pending.titleEn}
             </Text>
-            <Text style={[styles.subtitle, { color: theme.onSurfaceVariant }]}>
+            <Text style={[styles.subtitle, { color: theme.onSurfaceMuted }]}>
               {tr ? pending.subtitleTr : pending.subtitleEn}
             </Text>
             <View style={[styles.pill, { backgroundColor: theme.primary + '1C' }]}>
@@ -328,13 +328,13 @@ const styles = StyleSheet.create({
     backfaceVisibility: 'hidden',
   },
   achievementIcon: { width: 100, height: 100, marginBottom: S.sm },
-  title: { fontSize: F.title + 2, fontWeight: '900', textAlign: 'center', letterSpacing: -0.5 },
-  subtitle: { fontSize: F.body, fontWeight: '500', textAlign: 'center', opacity: 0.65, lineHeight: 22 },
+  title: { fontSize: F.title + 2, fontWeight: '700', textAlign: 'center', letterSpacing: -0.5 },
+  subtitle: { fontSize: F.body, fontWeight: '500', textAlign: 'center', lineHeight: 22 },
   pill: {
     marginTop: S.sm,
     paddingHorizontal: S.md + 4,
     paddingVertical: S.xs + 2,
     borderRadius: R.full,
   },
-  pillText: { fontSize: F.caption, fontWeight: '800', letterSpacing: 0.8 },
+  pillText: { fontSize: F.caption, fontWeight: '700', letterSpacing: 0.8 },
 });

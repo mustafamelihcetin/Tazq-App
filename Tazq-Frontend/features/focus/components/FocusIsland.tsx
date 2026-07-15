@@ -1,5 +1,5 @@
 import React from 'react';
-import { B } from '@/shared/constants/tokens';
+import { S, ICON, R, B } from '@/shared/constants/tokens';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
 import { Zap } from 'lucide-react-native';
@@ -63,7 +63,7 @@ export const FocusIsland = () => {
           style={styles.inner}
           activeOpacity={0.8}
         >
-          <Zap size={13} color={theme.primary} fill={theme.primary} />
+          <Zap size={ICON.xs} color={theme.primary} fill={theme.primary} />
           <Text style={[styles.task, { color: theme.onSurface }]} numberOfLines={1}>
             {currentTask || 'Focus'}
           </Text>
@@ -87,11 +87,11 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 100,
+    borderRadius: R.full,
     borderWidth: B.medium,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    gap: 8,
+    paddingVertical: S.sm,
+    paddingHorizontal: S.md,
+    gap: S.sm,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 16,
@@ -100,12 +100,12 @@ const styles = StyleSheet.create({
   dot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: R.full,
   },
   inner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: S.sm,
     maxWidth: 220,
   },
   task: {
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: -0.5,
   },
 });

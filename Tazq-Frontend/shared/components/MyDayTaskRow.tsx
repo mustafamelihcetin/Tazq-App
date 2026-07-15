@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { CheckCircle2, ChevronRight } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
-import { S, F } from '@/shared/constants/tokens';
+import { ICON, R, S, F, HAIRLINE } from '@/shared/constants/tokens';
 import { getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { getLocalizedTaskTitle } from '@/features/tasks';
 import type { AppTheme } from '@/shared/constants/Colors';
@@ -26,15 +26,28 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
       activeOpacity={0.7}
       style={{
         flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: S.md, paddingVertical: 13,
-        borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+        // Dikey boşluk BİLEREK burada değil, içerik bloğunda: ayırıcı satırın alt
+        // kenarına oturmalı, iç boşluğun içinde asılı kalmamalı.
+        paddingLeft: S.md,
+        // Zemin tonu TAM GENİŞLİK kalır — iOS satırın tamamını boyar, girintiyi
+        // yalnızca ayırıcıya uygular.
         backgroundColor: modeInfo ? (isDark ? modeInfo.color + '0B' : modeInfo.color + '04') : 'transparent'
       }}
     >
-      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: modeInfo ? modeInfo.color : priorityColor(item.priority), marginRight: S.md }} />
-      <View style={{ flex: 1, gap: 2 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+      <View style={{ width: 7, height: 7, borderRadius: R.full, backgroundColor: modeInfo ? modeInfo.color : priorityColor(item.priority), marginRight: S.md }} />
+      {/*
+        Ayırıcı bu blokta — yani noktanın SAĞINDAN, metnin başladığı yerden başlıyor.
+        Apple listelerinin imzası bu: çizgi ikonun altını boş bırakır, böylece satırlar
+        tek bir grup gibi okunur. Tam genişlik çizgi web/Android deseni.
+      */}
+      <View style={{
+        flex: 1, flexDirection: 'row', alignItems: 'center',
+        paddingVertical: S.smd, paddingRight: S.md,
+        borderBottomWidth: isLast ? 0 : HAIRLINE,
+        borderBottomColor: theme.separator,
+      }}>
+      <View style={{ flex: 1, gap: S.xxs }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, overflow: 'hidden' }}>
           <Text style={{
             fontSize: F.body,
             fontWeight: '600',
@@ -48,15 +61,15 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
           {modeInfo && (
             <View style={{
               backgroundColor: modeInfo.color + (isDark ? '24' : '15'),
-              borderRadius: 6,
-              paddingHorizontal: 5,
-              paddingVertical: 1.5,
+              borderRadius: R.sm,
+              paddingHorizontal: S.xs,
+              paddingVertical: S.xxs,
               borderWidth: 0.5,
               borderColor: modeInfo.color + '40'
             }}>
               <Text style={{
                 fontSize: 7.5,
-                fontWeight: '800',
+                fontWeight: '700',
                 color: modeInfo.color,
                 letterSpacing: 0.4
               }}>
@@ -72,9 +85,8 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
               <Text style={{
                 fontSize: 9,
                 fontWeight: '600',
-                color: theme.onSurfaceVariant,
-                opacity: 0.5,
-                marginTop: 0.5
+                color: theme.onSurfaceMuted,
+                marginTop: S.xxs
               }}>
                 {modeInfo.daysLeft === 0
                   ? (tr ? '1. Gün' : 'Day 1')
@@ -99,7 +111,7 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
               fontWeight: '600',
               color: isOverdue ? theme.error : theme.onSurfaceVariant,
               opacity: 0.5,
-              marginTop: 0.5
+              marginTop: S.xxs
             }}>
               {displayLabel}
             </Text>
@@ -107,10 +119,11 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
         })()}
       </View>
       {item.isCompleted ? (
-        <CheckCircle2 size={14} color="#10B981" style={{ marginLeft: S.sm }} />
+        <CheckCircle2 size={ICON.sm} color={theme.success} style={{ marginLeft: S.sm }} />
       ) : (
-        <ChevronRight size={14} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
+        <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
       )}
+      </View>
     </Touchable>
   );
 });

@@ -31,6 +31,7 @@ import { MomentumPulse } from '@/shared/components/MomentumPulse';
 import { HabitBubble } from '@/shared/components/HabitBubble';
 import { MyDayTaskRow } from '@/shared/components/MyDayTaskRow';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { S, ICON, R } from '@/shared/constants/tokens';
 
 interface Props {
   pageId: string;
@@ -51,7 +52,7 @@ const TapPoint: React.FC<{ x: number; y: number; k: any; color: string }> = ({ x
       from={{ scale: 0.55, opacity: 0.85 }}
       animate={{ scale: 2, opacity: 0 }}
       transition={{ type: 'timing', duration: 900, easing: REasing.out(REasing.cubic) }}
-      style={{ position: 'absolute', width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, borderColor: color }}
+      style={{ position: 'absolute', width: 26, height: 26, borderRadius: R.full, borderWidth: 1.5, borderColor: color }}
     />
     {/* Basış halkası — zarif, cam hissi */}
     <MotiView
@@ -59,14 +60,14 @@ const TapPoint: React.FC<{ x: number; y: number; k: any; color: string }> = ({ x
       from={{ scale: 1.12, opacity: 0.5 }}
       animate={{ scale: 0.88, opacity: 1 }}
       transition={{ type: 'timing', duration: 300, repeat: 1, repeatReverse: true, easing: REasing.inOut(REasing.ease) }}
-      style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: color, backgroundColor: 'rgba(255,255,255,0.10)' }}
+      style={{ width: 22, height: 22, borderRadius: R.full, borderWidth: 2, borderColor: color, backgroundColor: 'rgba(255,255,255,0.10)' }}
     />
   </View>
 );
 
 // İşlev ekranı yüzeyi — gerçek genişlikte (ölçeksiz), yükseklik içeriğe göre (dinamik + responsive)
 const ScaledScreen: React.FC<{ innerW: number; children: React.ReactNode; tap?: { x: number; y: number; k: any; color?: string } }> = ({ children, tap }) => (
-  <View style={{ paddingVertical: 15 }}>
+  <View style={{ paddingVertical: S.md }}>
     <View style={{ position: 'relative', width: '100%' }}>
       {children}
       {tap && <TapPoint x={tap.x} y={tap.y} k={tap.k} color={tap.color ?? 'rgba(120,120,130,0.5)'} />}
@@ -106,18 +107,18 @@ const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${St
 const TimerCircle: React.FC<{ secs: number; angle: number; accent: string; theme: AppTheme; isDark: boolean; tr: boolean }> = ({ secs, angle, accent, theme, isDark, tr }) => {
   const SIZE = 144;
   const STROKE = 9;
-  const R = (SIZE - STROKE) / 2;
-  const C = 2 * Math.PI * R;
+  const ringR = (SIZE - STROKE) / 2;
+  const C = 2 * Math.PI * ringR;
   const frac = (angle % 360) / 360;
   const off = C * (1 - frac);
   const rad = ((angle % 360) - 90) * (Math.PI / 180);
-  const tipX = SIZE / 2 + R * Math.cos(rad);
-  const tipY = SIZE / 2 + R * Math.sin(rad);
+  const tipX = SIZE / 2 + ringR * Math.cos(rad);
+  const tipY = SIZE / 2 + ringR * Math.sin(rad);
   const mm = String(Math.floor(secs / 60)).padStart(2, '0');
   const ss = String(secs % 60).padStart(2, '0');
   const track = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)';
   const numLight = { fontSize: 36, fontWeight: '200' as const, letterSpacing: 1, color: '#fff', fontVariant: ['tabular-nums'] as any };
-  const innerR = R - STROKE / 2 - 2;
+  const innerR = ringR - STROKE / 2 - 2;
   return (
     <View style={{ width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' }}>
       {/* İç dünya — canlı ışıltılı cam orb */}
@@ -136,11 +137,11 @@ const TimerCircle: React.FC<{ secs: number; angle: number; accent: string; theme
 
       {/* İlerleme yayı */}
       <Svg width={SIZE} height={SIZE} style={{ position: 'absolute' }}>
-        <Circle cx={SIZE / 2} cy={SIZE / 2} r={R} stroke={track} strokeWidth={STROKE} fill="none" />
+        <Circle cx={SIZE / 2} cy={SIZE / 2} r={ringR} stroke={track} strokeWidth={STROKE} fill="none" />
         <Circle
           cx={SIZE / 2}
           cy={SIZE / 2}
-          r={R}
+          r={ringR}
           stroke={accent}
           strokeWidth={STROKE}
           fill="none"
@@ -152,12 +153,12 @@ const TimerCircle: React.FC<{ secs: number; angle: number; accent: string; theme
       </Svg>
 
       {/* Işıldayan ilerleme ucu */}
-      <View pointerEvents="none" style={{ position: 'absolute', left: tipX - 6, top: tipY - 6, width: 12, height: 12, borderRadius: 6, backgroundColor: '#fff', borderWidth: 2.5, borderColor: accent, shadowColor: accent, shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } }} />
+      <View pointerEvents="none" style={{ position: 'absolute', left: tipX - 6, top: tipY - 6, width: 12, height: 12, borderRadius: R.full, backgroundColor: '#fff', borderWidth: 2.5, borderColor: accent, shadowColor: accent, shadowOpacity: 1, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } }} />
 
       {/* Tatlı zaman — orb'un içinde yüzer */}
       <MotiView key={secs} from={{ scale: 1.035 }} animate={{ scale: 1 }} transition={{ type: 'timing', duration: 280, easing: REasing.out(REasing.cubic) }} style={{ flexDirection: 'row', alignItems: 'baseline' }}>
         <Text style={numLight}>{mm}</Text>
-        <Text style={{ fontSize: 30, fontWeight: '200', color: '#fff', marginHorizontal: 2, opacity: secs % 2 === 0 ? 1 : 0.25 }}>:</Text>
+        <Text style={{ fontSize: 30, fontWeight: '200', color: '#fff', marginHorizontal: S.xxs, opacity: secs % 2 === 0 ? 1 : 0.25 }}>:</Text>
         <Text style={numLight}>{ss}</Text>
       </MotiView>
     </View>
@@ -215,14 +216,14 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
 
   // Gerçek ekranlardaki kart görünümü (BentoCard benzeri)
   const card: any = {
-    borderRadius: 18,
+    borderRadius: R.lg,
     borderWidth: 1,
     borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
     backgroundColor: isDark ? '#16171c' : '#ffffff',
-    padding: 14,
+    padding: S.md,
   };
 
-  const sectionLabel = { fontSize: 9, fontWeight: '800', letterSpacing: 1, opacity: 0.6 } as const;
+  const sectionLabel = { fontSize: 9, fontWeight: '700', letterSpacing: 1, opacity: 0.6 } as const;
 
   switch (key) {
     // ───────────────── DASHBOARD (gerçek bileşenler) ─────────────────
@@ -230,8 +231,8 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       return (
         <ScaledScreen innerW={frameW}>
           <View>
-            <View style={{ paddingHorizontal: 16, marginBottom: 10 }}>
-              <Text style={{ fontSize: 20, fontWeight: '800', color: theme.onSurface, letterSpacing: -0.5 }}>
+            <View style={{ paddingHorizontal: S.md, marginBottom: S.smd }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>
                 {tr ? 'Günaydın, ' : 'Good morning, '}
                 <Text style={{ color: theme.primary }}>{tr ? 'Melih' : 'Alex'}</Text>
               </Text>
@@ -249,18 +250,18 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                 { date: '7', score: 84 },
               ]}
             />
-            <View style={{ paddingHorizontal: 16 }}>
+            <View style={{ paddingHorizontal: S.md }}>
               {/* İvme Kalkanı — tatil günlerinde skor erimesini durdurur */}
-              <View style={[card, { padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderColor: toggle ? theme.streak + '55' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') }]}>
-                <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: theme.streak + '20', alignItems: 'center', justifyContent: 'center' }}>
-                  <Shield size={17} color={theme.streak} strokeWidth={2.3} />
+              <View style={[card, { padding: S.smd, flexDirection: 'row', alignItems: 'center', gap: S.smd, borderColor: toggle ? theme.streak + '55' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') }]}>
+                <View style={{ width: 34, height: 34, borderRadius: R.md, backgroundColor: theme.streak + '20', alignItems: 'center', justifyContent: 'center' }}>
+                  <Shield size={ICON.sm} color={theme.streak} strokeWidth={2.3} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: theme.onSurface }}>{tr ? 'İvme Kalkanı' : 'Momentum Shield'}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurface }}>{tr ? 'İvme Kalkanı' : 'Momentum Shield'}</Text>
                   <Text style={{ fontSize: 9.5, fontWeight: '600', color: toggle ? theme.streak : theme.onSurfaceVariant, opacity: toggle ? 1 : 0.5 }}>{toggle ? (tr ? 'Aktif · skor donduruldu' : 'Active · score frozen') : (tr ? 'Devre dışı' : 'Inactive')}</Text>
                 </View>
-                <MotiView animate={{ backgroundColor: toggle ? theme.streak : (isDark ? '#3a3a3c' : '#e5e5ea') }} transition={{ type: 'timing', duration: 260 }} style={{ width: 34, height: 20, borderRadius: 10, padding: 2, justifyContent: 'center' }}>
-                  <MotiView animate={{ translateX: toggle ? 14 : 0 }} transition={{ type: 'spring', damping: 16 }} style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#fff' }} />
+                <MotiView animate={{ backgroundColor: toggle ? theme.streak : (isDark ? '#3a3a3c' : '#e5e5ea') }} transition={{ type: 'timing', duration: 260 }} style={{ width: 34, height: 20, borderRadius: R.sm, padding: S.xxs, justifyContent: 'center' }}>
+                  <MotiView animate={{ translateX: toggle ? 14 : 0 }} transition={{ type: 'spring', damping: 16 }} style={{ width: 16, height: 16, borderRadius: R.full, backgroundColor: '#fff' }} />
                 </MotiView>
               </View>
             </View>
@@ -276,14 +277,14 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       ];
       return (
         <ScaledScreen innerW={frameW} tap={{ x: 123, y: 66, k: toggle, color: theme.primary }}>
-          <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.onSurfaceVariant }}>
+          <View style={{ paddingHorizontal: S.md }}>
+            <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: theme.onSurfaceVariant }}>
               {tr ? 'BUGÜNKÜ ALIŞKANLIKLARIM' : 'MY DAILY HABITS'}
             </Text>
-            <Text style={{ fontSize: 8.5, color: theme.onSurfaceVariant, opacity: 0.45, marginTop: 1 }}>
+            <Text style={{ fontSize: 8.5, color: theme.onSurfaceMuted, marginTop: S.xxs }}>
               {tr ? 'Alışkanlığı tamamlamak için bas' : 'Tap habit to complete'}
             </Text>
-            <View style={{ flexDirection: 'row', gap: 14, paddingVertical: 14 }}>
+            <View style={{ flexDirection: 'row', gap: S.md, paddingVertical: S.md }}>
               {habits.map((h) => (
                 <HabitBubble key={h.id} item={h} theme={theme} isDark={isDark} tr={tr} onPress={noop} onLongPress={noop} />
               ))}
@@ -301,8 +302,8 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       ];
       return (
         <ScaledScreen innerW={frameW} tap={{ x: frameW - 30, y: 46, k: toggle, color: theme.primary }}>
-          <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 1.5, color: theme.onSurfaceVariant, marginBottom: 4 }}>
+          <View style={{ paddingHorizontal: S.md }}>
+            <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: theme.onSurfaceVariant, marginBottom: S.xs }}>
               {tr ? 'GÜNLÜK GÖREVLERİM' : 'MY DAILY TASKS'}
             </Text>
             {tasks.map((t, i) => (
@@ -326,26 +327,26 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
     case 'dashboard-3': // Kokpit girişi: BUGÜN kartı + haftalık karne butonu
       return (
         <ScaledScreen innerW={frameW} tap={{ x: frameW - 34, y: 96, k: cyc3, color: theme.primary }}>
-          <View style={{ paddingHorizontal: 16 }}>
-            <View style={[card, { overflow: 'hidden', marginBottom: 12 }]}>
+          <View style={{ paddingHorizontal: S.md }}>
+            <View style={[card, { overflow: 'hidden', marginBottom: S.smd }]}>
               <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: theme.primary + (isDark ? '20' : '12') }} />
-              <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: theme.onSurfaceVariant, opacity: 0.7 }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: theme.onSurfaceMuted }}>
                 {tr ? 'BUGÜN' : 'TODAY'}
               </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3, marginTop: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs, marginTop: S.xs }}>
                 <CountUp from={0} to={6} duration={1200} hold={1500} style={{ fontSize: 40, fontWeight: '600', letterSpacing: -2.5, color: theme.primary }} />
-                <Text style={{ fontSize: 18, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.45 }}>/8</Text>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.55, marginLeft: 6 }}>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: theme.onSurfaceMuted }}>/8</Text>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: theme.onSurfaceMuted, marginLeft: S.sm }}>
                   {tr ? 'görev tamamlandı' : 'tasks done'}
                 </Text>
               </View>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: theme.tertiary + '18' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <BarChart3 size={16} color={theme.tertiary} strokeWidth={2.4} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: S.smd, paddingHorizontal: S.md, borderRadius: R.md, backgroundColor: theme.tertiary + '18' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                <BarChart3 size={ICON.sm} color={theme.tertiary} strokeWidth={2.4} />
                 <Text style={{ fontSize: 12, fontWeight: '700', color: theme.tertiary }}>{tr ? 'Haftalık karneni gör' : 'View weekly review'}</Text>
               </View>
-              <ChevronRight size={15} color={theme.tertiary} strokeWidth={2.6} />
+              <ChevronRight size={ICON.sm} color={theme.tertiary} strokeWidth={2.6} />
             </View>
           </View>
         </ScaledScreen>
@@ -361,19 +362,19 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       ];
       return (
         <ScaledScreen innerW={frameW} tap={{ x: frameW - 34, y: 176, k: toggle, color: theme.primary }}>
-          <View style={{ paddingHorizontal: 16 }}>
+          <View style={{ paddingHorizontal: S.md }}>
             {/* Arama çubuğu */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: soft(isDark), borderRadius: 999, paddingHorizontal: 14, height: 38, marginBottom: 10 }}>
-              <Search size={15} color={theme.onSurfaceVariant} strokeWidth={2.2} />
-              <Text style={{ fontSize: 12, color: theme.onSurfaceVariant, opacity: 0.55 }}>{tr ? 'Görev ara…' : 'Search tasks…'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: soft(isDark), borderRadius: R.full, paddingHorizontal: S.md, height: 38, marginBottom: S.smd }}>
+              <Search size={ICON.sm} color={theme.onSurfaceVariant} strokeWidth={2.2} />
+              <Text style={{ fontSize: 12, color: theme.onSurfaceMuted }}>{tr ? 'Görev ara…' : 'Search tasks…'}</Text>
             </View>
             {/* Filtre çipleri */}
-            <View style={{ flexDirection: 'row', gap: 7, marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', gap: S.sm, marginBottom: S.smd }}>
               {labels.map((l, i) => {
                 const on = i === active;
                 return (
                   <MotiView key={i} animate={{ borderColor: on ? theme.primary : isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.14)' }} transition={{ type: 'timing', duration: 240 }}
-                    style={{ borderWidth: 1, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 12, backgroundColor: on ? (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)') : 'transparent' }}>
+                    style={{ borderWidth: 1, borderRadius: R.full, paddingVertical: S.xs, paddingHorizontal: S.smd, backgroundColor: on ? (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)') : 'transparent' }}>
                     <Text style={{ fontSize: 12, fontWeight: on ? '900' : '600', color: on ? theme.primary : theme.onSurfaceVariant }}>{l}</Text>
                   </MotiView>
                 );
@@ -389,9 +390,9 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
             from={{ scale: 1 }}
             animate={{ scale: 1.12 }}
             transition={{ type: 'timing', duration: 550, repeat: 2, repeatReverse: true, easing: REasing.inOut(REasing.ease) }}
-            style={{ position: 'absolute', right: 16, top: 158, width: 46, height: 46, borderRadius: 23, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', shadowColor: theme.primary, shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8 }}
+            style={{ position: 'absolute', right: 16, top: 158, width: 46, height: 46, borderRadius: R.full, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', shadowColor: theme.primary, shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8 }}
           >
-            <Plus size={22} color="#fff" strokeWidth={2.6} />
+            <Plus size={ICON.lg} color="#fff" strokeWidth={2.6} />
           </MotiView>
         </ScaledScreen>
       );
@@ -404,16 +405,16 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       ];
       return (
         <ScaledScreen innerW={frameW} tap={{ x: frameW - 30, y: 88, k: toggle, color: theme.primary }}>
-          <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: theme.onSurface, marginBottom: 6 }}>{tr ? 'Yaklaşanlar' : 'Upcoming'}</Text>
+          <View style={{ paddingHorizontal: S.md }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: theme.onSurface, marginBottom: S.sm }}>{tr ? 'Yaklaşanlar' : 'Upcoming'}</Text>
             {/* Kaydırılan satır → ertele/sil aksiyonları */}
-            <View style={{ height: 50, borderRadius: 12, overflow: 'hidden', justifyContent: 'center', marginBottom: 2 }}>
+            <View style={{ height: 50, borderRadius: R.md, overflow: 'hidden', justifyContent: 'center', marginBottom: S.xxs }}>
               <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, flexDirection: 'row' }}>
                 <View style={{ width: 46, backgroundColor: theme.tertiary, alignItems: 'center', justifyContent: 'center' }}>
-                  <CalendarClock size={16} color="#fff" strokeWidth={2.4} />
+                  <CalendarClock size={ICON.sm} color="#fff" strokeWidth={2.4} />
                 </View>
                 <View style={{ width: 46, backgroundColor: theme.error, alignItems: 'center', justifyContent: 'center' }}>
-                  <Trash2 size={16} color="#fff" strokeWidth={2.4} />
+                  <Trash2 size={ICON.sm} color="#fff" strokeWidth={2.4} />
                 </View>
               </View>
               <MotiView
@@ -421,9 +422,9 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                 from={{ translateX: 0 }}
                 animate={{ translateX: -92 }}
                 transition={{ type: 'timing', duration: 900, repeat: 1, repeatReverse: true, delay: 400, easing: REasing.inOut(REasing.ease) }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 50, borderRadius: 12, paddingHorizontal: 12, backgroundColor: theme.background }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd, height: 50, borderRadius: R.md, paddingHorizontal: S.smd, backgroundColor: theme.background }}
               >
-                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: theme.error }} />
+                <View style={{ width: 7, height: 7, borderRadius: R.full, backgroundColor: theme.error }} />
                 <Text style={{ fontSize: 14, fontWeight: '600', color: theme.onSurface, flex: 1 }}>{tr ? 'Spor salonu' : 'Go to gym'}</Text>
               </MotiView>
             </View>
@@ -444,13 +445,13 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       ];
       return (
         <ScaledScreen innerW={frameW}>
-          <View style={{ paddingHorizontal: 16, gap: 14 }}>
+          <View style={{ paddingHorizontal: S.md, gap: S.md }}>
             <View style={{ alignItems: 'center' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: soft(isDark), borderRadius: 20, padding: 3 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: soft(isDark), borderRadius: R.xl, padding: S.xs }}>
                 {[Wind, Timer, Shield].map((Ic, i) => {
                   const on = i === cyc3;
                   return (
-                    <MotiView key={i} animate={{ backgroundColor: on ? theme.primary + '20' : 'transparent' }} transition={{ type: 'timing', duration: 240 }} style={{ padding: 10, borderRadius: 17 }}>
+                    <MotiView key={i} animate={{ backgroundColor: on ? theme.primary + '20' : 'transparent' }} transition={{ type: 'timing', duration: 240 }} style={{ padding: S.smd, borderRadius: R.lg }}>
                       <Ic size={17} color={on ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
                     </MotiView>
                   );
@@ -458,18 +459,18 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
               </View>
             </View>
             <View>
-              <Text style={[sectionLabel, { color: theme.onSurfaceVariant, marginBottom: 8 }]}>{tr ? 'AMBİYANS SESLERİ' : 'AMBIENT SOUNDS'}</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Text style={[sectionLabel, { color: theme.onSurfaceVariant, marginBottom: S.sm }]}>{tr ? 'AMBİYANS SESLERİ' : 'AMBIENT SOUNDS'}</Text>
+              <View style={{ flexDirection: 'row', gap: S.sm }}>
                 {sounds.map((s, i) => {
                   const on = i === cyc3;
                   return (
                     <MotiView key={i} animate={{ borderColor: on ? theme.tertiary : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), backgroundColor: on ? theme.tertiary + '14' : 'transparent' }} transition={{ type: 'timing', duration: 240 }}
-                      style={{ flex: 1, alignItems: 'center', gap: 5, paddingVertical: 12, borderRadius: 14, borderWidth: 1 }}>
+                      style={{ flex: 1, alignItems: 'center', gap: S.xs, paddingVertical: S.smd, borderRadius: R.md, borderWidth: 1 }}>
                       <s.Ic size={17} color={on ? theme.tertiary : theme.onSurfaceVariant} strokeWidth={2.2} />
                       <Text style={{ fontSize: 10, fontWeight: '700', color: on ? theme.tertiary : theme.onSurfaceVariant }}>{s.l}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 10 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: S.xxs, height: 10 }}>
                         {[0, 1, 2].map((b) => (
-                          <MotiView key={`eq${beat}-${b}`} from={{ height: 3 }} animate={{ height: on ? 9 : 3 }} transition={{ type: 'timing', duration: 380, repeat: on ? 5 : 0, repeatReverse: true, delay: b * 120 }} style={{ width: 2.5, borderRadius: 1.5, backgroundColor: on ? theme.tertiary : theme.onSurfaceVariant + '55' }} />
+                          <MotiView key={`eq${beat}-${b}`} from={{ height: 3 }} animate={{ height: on ? 9 : 3 }} transition={{ type: 'timing', duration: 380, repeat: on ? 5 : 0, repeatReverse: true, delay: b * 120 }} style={{ width: 2.5, borderRadius: R.xs, backgroundColor: on ? theme.tertiary : theme.onSurfaceVariant + '55' }} />
                         ))}
                       </View>
                     </MotiView>
@@ -485,14 +486,14 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
     case 'focus-1': // Zamanlayıcı + süre seçimi (çalışan seans)
       return (
         <ScaledScreen innerW={frameW}>
-          <View style={{ alignItems: 'center', gap: 16, paddingTop: 2 }}>
+          <View style={{ alignItems: 'center', gap: S.md, paddingTop: S.xxs }}>
             <TimerCircle secs={timerSecs} angle={timerAngle} accent={theme.primary} theme={theme} isDark={isDark} tr={tr} />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: 'row', gap: S.sm }}>
               {['15', '25', '50'].map((m, i) => {
                 const on = i === 1;
                 return (
-                  <View key={i} style={{ paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: on ? theme.primary : soft(isDark) }}>
-                    <Text style={{ fontSize: 11, fontWeight: '800', color: on ? '#fff' : theme.onSurfaceVariant }}>{m}{tr ? 'dk' : 'm'}</Text>
+                  <View key={i} style={{ paddingVertical: S.sm, paddingHorizontal: S.md, borderRadius: R.full, backgroundColor: on ? theme.primary : soft(isDark) }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: on ? '#fff' : theme.onSurfaceVariant }}>{m}{tr ? 'dk' : 'm'}</Text>
                   </View>
                 );
               })}
@@ -504,15 +505,15 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
     case 'focus-2': // Başlat + katı/zen kontrolleri
       return (
         <ScaledScreen innerW={frameW}>
-          <View style={{ alignItems: 'center', gap: 18, paddingTop: 4 }}>
+          <View style={{ alignItems: 'center', gap: S.lmd, paddingTop: S.xs }}>
             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <MotiView key={`fr${beat}`} from={{ scale: 0.5, opacity: 0.45 }} animate={{ scale: 1.9, opacity: 0 }} transition={{ type: 'timing', duration: 900, repeat: 1, easing: REasing.out(REasing.ease) }} style={{ position: 'absolute', width: 72, height: 72, borderRadius: 36, backgroundColor: theme.primary + '40' }} />
-              <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', shadowColor: theme.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 }}>
-                <Play size={28} color="#fff" fill="#fff" style={{ marginLeft: 4 }} />
+              <MotiView key={`fr${beat}`} from={{ scale: 0.5, opacity: 0.45 }} animate={{ scale: 1.9, opacity: 0 }} transition={{ type: 'timing', duration: 900, repeat: 1, easing: REasing.out(REasing.ease) }} style={{ position: 'absolute', width: 72, height: 72, borderRadius: R.full, backgroundColor: theme.primary + '40' }} />
+              <View style={{ width: 72, height: 72, borderRadius: R.full, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', shadowColor: theme.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 }}>
+                <Play size={ICON.xl} color="#fff" fill="#fff" style={{ marginLeft: S.xs }} />
               </View>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: theme.primary + '18' }}>
-              <Shield size={13} color={theme.primary} strokeWidth={2.4} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: S.sm, paddingHorizontal: S.md, borderRadius: R.full, backgroundColor: theme.primary + '18' }}>
+              <Shield size={ICON.xs} color={theme.primary} strokeWidth={2.4} />
               <Text style={{ fontSize: 11, fontWeight: '700', color: theme.primary }}>{tr ? 'Katı Mod açık' : 'Strict Mode on'}</Text>
             </View>
           </View>
@@ -535,18 +536,18 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       return (
         <View style={{ height: H, overflow: 'hidden', backgroundColor: theme.background }}>
           {/* Katman 1: aydınlık çalışan seans + çembere dokunma */}
-          <MotiView animate={{ opacity: zen ? 0 : 1 }} transition={{ type: 'timing', duration: 450 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <MotiView animate={{ opacity: zen ? 0 : 1 }} transition={{ type: 'timing', duration: 450 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: S.smd }}>
             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
               <TimerCircle secs={timerSecs} angle={timerAngle} accent={theme.primary} theme={theme} isDark={isDark} tr={tr} />
               {/* Çembere dokunma göstergesi — çemberin alt kenarında */}
               {!zen && (
                 <View pointerEvents="none" style={{ position: 'absolute', bottom: -8, alignItems: 'center' }}>
-                  <MotiView key={`ztap${beat}`} from={{ scale: 0.55, opacity: 0.85 }} animate={{ scale: 2, opacity: 0 }} transition={{ type: 'timing', duration: 900, repeat: 2, easing: REasing.out(REasing.cubic) }} style={{ position: 'absolute', width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, borderColor: theme.secondary }} />
-                  <MotiView key={`zdot${beat}`} from={{ scale: 1.12, opacity: 0.5 }} animate={{ scale: 0.88, opacity: 1 }} transition={{ type: 'timing', duration: 340, repeat: 3, repeatReverse: true, easing: REasing.inOut(REasing.ease) }} style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: theme.secondary, backgroundColor: 'rgba(255,255,255,0.10)' }} />
+                  <MotiView key={`ztap${beat}`} from={{ scale: 0.55, opacity: 0.85 }} animate={{ scale: 2, opacity: 0 }} transition={{ type: 'timing', duration: 900, repeat: 2, easing: REasing.out(REasing.cubic) }} style={{ position: 'absolute', width: 26, height: 26, borderRadius: R.full, borderWidth: 1.5, borderColor: theme.secondary }} />
+                  <MotiView key={`zdot${beat}`} from={{ scale: 1.12, opacity: 0.5 }} animate={{ scale: 0.88, opacity: 1 }} transition={{ type: 'timing', duration: 340, repeat: 3, repeatReverse: true, easing: REasing.inOut(REasing.ease) }} style={{ width: 22, height: 22, borderRadius: R.full, borderWidth: 2, borderColor: theme.secondary, backgroundColor: 'rgba(255,255,255,0.10)' }} />
                 </View>
               )}
             </View>
-            <Text style={{ fontSize: 11, fontWeight: '600', color: theme.onSurfaceVariant, opacity: 0.7 }}>{tr ? 'çembere dokun →' : 'tap the circle →'}</Text>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: theme.onSurfaceMuted }}>{tr ? 'çembere dokun →' : 'tap the circle →'}</Text>
           </MotiView>
 
           {/* Katman 2: koyu yıldız gökyüzü + kozmik saat (Zen) */}
@@ -564,12 +565,12 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
               </View>
               <View style={{ position: 'absolute', width: RING, height: RING, alignItems: 'center', transform: [{ rotate: `${timerAngle}deg` }] }}>
                 <View style={{ position: 'absolute', top: -8, width: 16, height: 16, alignItems: 'center', justifyContent: 'center' }}>
-                  <View style={{ position: 'absolute', width: 16, height: 16, borderRadius: 8, backgroundColor: 'rgba(0,229,255,0.18)' }} />
+                  <View style={{ position: 'absolute', width: 16, height: 16, borderRadius: R.full, backgroundColor: 'rgba(0,229,255,0.18)' }} />
                   <View style={{ width: 8, height: 8, backgroundColor: '#fff', transform: [{ rotate: '45deg' }] }} />
                 </View>
               </View>
               <Text style={{ fontSize: 26, fontWeight: '300', letterSpacing: 1, color: '#fff' }}>{mmss(timerSecs)}</Text>
-              <Text style={{ fontSize: 8, fontWeight: '900', letterSpacing: 3, color: 'rgba(0,229,255,0.85)', marginTop: 2 }}>ZEN</Text>
+              <Text style={{ fontSize: 8, fontWeight: '700', letterSpacing: 3, color: 'rgba(0,229,255,0.85)', marginTop: S.xxs }}>ZEN</Text>
             </View>
           </MotiView>
         </View>
@@ -580,34 +581,34 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
     case 'modlar-0': // Haftalık Merkez — genel bakış (aktif mod durumu)
       return (
         <ScaledScreen innerW={frameW}>
-          <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ fontSize: 22, fontWeight: '800', color: theme.onSurface, letterSpacing: -0.5 }}>{tr ? 'Haftalık Merkez' : 'Weekly Hub'}</Text>
-            <Text style={{ fontSize: 12, color: theme.onSurfaceVariant, opacity: 0.7, marginTop: 3, marginBottom: 12 }}>
+          <View style={{ paddingHorizontal: S.md }}>
+            <Text style={{ fontSize: 22, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{tr ? 'Haftalık Merkez' : 'Weekly Hub'}</Text>
+            <Text style={{ fontSize: 12, color: theme.onSurfaceMuted, marginTop: S.xs, marginBottom: S.smd }}>
               {tr ? 'Aktif dönem hedeflerini tek yerden takip et' : 'Track your active seasonal goals in one place'}
             </Text>
 
-            <View style={[card, { borderColor: theme.primary + '40', backgroundColor: isDark ? theme.primary + '1A' : theme.primary + '12', padding: 12 }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: theme.primary + '20', alignItems: 'center', justifyContent: 'center' }}>
-                  <GraduationCap size={23} color={theme.primary} />
+            <View style={[card, { borderColor: theme.primary + '40', backgroundColor: isDark ? theme.primary + '1A' : theme.primary + '12', padding: S.smd }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd }}>
+                <View style={{ width: 44, height: 44, borderRadius: R.md, backgroundColor: theme.primary + '20', alignItems: 'center', justifyContent: 'center' }}>
+                  <GraduationCap size={ICON.lg} color={theme.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: 14 }}>{tr ? 'Sınav Planı' : 'Exam Plan'}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                    <Text style={{ color: theme.primary, fontWeight: '800', fontSize: 20, letterSpacing: -0.5 }}>13</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs }}>
+                    <Text style={{ color: theme.primary, fontWeight: '700', fontSize: 20, letterSpacing: -0.5 }}>13</Text>
                     <Text style={{ color: theme.primary, fontWeight: '600', fontSize: 11 }}>{tr ? 'gün kaldı' : 'days left'}</Text>
                   </View>
                 </View>
-                <View style={{ alignItems: 'flex-end', gap: 5 }}>
-                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                <View style={{ alignItems: 'flex-end', gap: S.xs }}>
+                  <View style={{ flexDirection: 'row', gap: S.xs }}>
                     {[0, 1, 2, 3].map((i) => (
-                      <View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: i < 3 ? theme.primary : theme.onSurfaceVariant + '30' }} />
+                      <View key={i} style={{ width: 7, height: 7, borderRadius: R.full, backgroundColor: i < 3 ? theme.primary : theme.onSurfaceVariant + '30' }} />
                     ))}
                   </View>
                   <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant }}>{tr ? 'bugün 3/4' : 'today 3/4'}</Text>
                 </View>
               </View>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '500', marginTop: 10, lineHeight: 16 }}>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '500', marginTop: S.smd, lineHeight: 16 }}>
                 {tr ? 'Son düzlük! Bugünkü planına sadık kal, hedefe çok az kaldı.' : 'Final stretch! Stick to today’s plan, you’re almost there.'}
               </Text>
             </View>
@@ -624,12 +625,12 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       ];
       return (
         <ScaledScreen innerW={frameW}>
-          <View style={{ paddingHorizontal: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <Sparkles size={13} color="#8B5CF6" />
+          <View style={{ paddingHorizontal: S.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.smd }}>
+              <Sparkles size={ICON.xs} color="#8B5CF6" />
               <Text style={[sectionLabel, { color: theme.onSurfaceVariant, textTransform: 'uppercase' }]}>{tr ? 'Yeni Hedef Keşfet' : 'Discover New Goals'}</Text>
             </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.sm }}>
               {modes.map((m, i) => {
                 const on = i === cyc7 % 4;
                 return (
@@ -637,9 +638,9 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                     key={i}
                     animate={{ borderColor: on ? m.c : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'), backgroundColor: on ? m.c + '16' : (isDark ? '#16171c' : '#fff'), scale: on ? 1.03 : 1 }}
                     transition={{ type: 'spring', damping: 15 }}
-                    style={{ width: '47%', flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, borderWidth: 1.2 }}
+                    style={{ width: '47%', flexDirection: 'row', alignItems: 'center', gap: S.smd, padding: S.smd, borderRadius: R.md, borderWidth: 1.2 }}
                   >
-                    <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: m.c + '20', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: 34, height: 34, borderRadius: R.md, backgroundColor: m.c + '20', alignItems: 'center', justifyContent: 'center' }}>
                       <m.Ic size={17} color={m.c} strokeWidth={2.3} />
                     </View>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurface }}>{m.l}</Text>
@@ -656,10 +657,10 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       const items = tr ? ['Edebiyat çalış', 'Deneme sınavı', 'Su iç'] : ['Study literature', 'Practice exam', 'Drink water'];
       return (
         <ScaledScreen innerW={frameW}>
-          <View style={{ paddingHorizontal: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <Flame size={16} color="#F97316" />
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>{tr ? 'Aktif Hedeflerim' : 'Active Goals'}</Text>
+          <View style={{ paddingHorizontal: S.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
+              <Flame size={ICON.sm} color="#F97316" />
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>{tr ? 'Aktif Hedeflerim' : 'Active Goals'}</Text>
             </View>
             {items.map((it, i) => (
               <MotiView
@@ -667,9 +668,9 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                 from={{ opacity: 0, translateX: 20 }}
                 animate={{ opacity: 1, translateX: 0 }}
                 transition={{ type: 'timing', duration: 340, delay: i * 120 }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: i < 2 ? 1 : 0, borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd, paddingVertical: S.smd, borderBottomWidth: i < 2 ? 1 : 0, borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}
               >
-                <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: theme.primary }} />
+                <View style={{ width: 7, height: 7, borderRadius: R.full, backgroundColor: theme.primary }} />
                 <Text style={{ color: theme.onSurface, fontSize: 14, fontWeight: '600' }}>{it}</Text>
               </MotiView>
             ))}
@@ -684,9 +685,9 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       const abbr = tr ? ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
       return (
         <ScaledScreen innerW={frameW}>
-          <View style={{ paddingHorizontal: 16 }}>
+          <View style={{ paddingHorizontal: S.md }}>
             <View style={card}>
-              <Text style={{ fontSize: 10, fontWeight: '800', letterSpacing: 1, color: theme.onSurfaceVariant, opacity: 0.6, marginBottom: 10 }}>{tr ? 'BU HAFTA' : 'THIS WEEK'}</Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: theme.onSurfaceMuted, marginBottom: S.smd }}>{tr ? 'BU HAFTA' : 'THIS WEEK'}</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 {abbr.map((a, i) => {
                   const today = i === 2;
@@ -696,10 +697,10 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                       key={i}
                       animate={{ backgroundColor: today ? theme.primary + '18' : sel ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', borderColor: sel ? theme.primary + '70' : 'transparent' }}
                       transition={{ type: 'timing', duration: 220 }}
-                      style={{ alignItems: 'center', width: 28, paddingVertical: 6, borderRadius: 10, borderWidth: 1, gap: 5 }}
+                      style={{ alignItems: 'center', width: 28, paddingVertical: S.sm, borderRadius: R.sm, borderWidth: 1, gap: S.xs }}
                     >
                       <Text style={{ fontSize: 9, fontWeight: '700', color: today ? theme.primary : theme.onSurfaceVariant, opacity: i < 2 && !today ? 0.4 : 1 }}>{a}</Text>
-                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: today || sel ? theme.primary : theme.onSurfaceVariant + '40' }} />
+                      <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: today || sel ? theme.primary : theme.onSurfaceVariant + '40' }} />
                     </MotiView>
                   );
                 })}
@@ -717,11 +718,11 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       ];
       return (
         <ScaledScreen innerW={frameW} tap={{ x: frameW - 30, y: 74, k: toggle, color: theme.primary }}>
-          <View style={{ paddingHorizontal: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: theme.onSurface }}>{tr ? 'PAZARTESİ' : 'MONDAY'}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: theme.primary + '18', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 }}>
-                <Plus size={13} color={theme.primary} strokeWidth={2.5} />
+          <View style={{ paddingHorizontal: S.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S.sm }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: theme.onSurface }}>{tr ? 'PAZARTESİ' : 'MONDAY'}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.primary + '18', paddingHorizontal: S.smd, paddingVertical: S.sm, borderRadius: R.full }}>
+                <Plus size={ICON.xs} color={theme.primary} strokeWidth={2.5} />
                 <Text style={{ fontSize: 11, fontWeight: '700', color: theme.primary }}>{tr ? 'Görev Ekle' : 'Add Task'}</Text>
               </View>
             </View>
@@ -743,30 +744,30 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       ];
       return (
         <ScaledScreen innerW={frameW}>
-          <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: theme.onSurface, marginBottom: 10 }}>{tr ? 'Haftalık Özet' : 'Weekly Review'}</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ paddingHorizontal: S.md }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: theme.onSurface, marginBottom: S.smd }}>{tr ? 'Haftalık Özet' : 'Weekly Review'}</Text>
+            <View style={{ flexDirection: 'row', gap: S.sm }}>
               {stats.map((s, i) => (
-                <View key={i} style={{ flex: 1, alignItems: 'center', gap: 4, paddingVertical: 12, borderRadius: 14, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}>
+                <View key={i} style={{ flex: 1, alignItems: 'center', gap: S.xs, paddingVertical: S.smd, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}>
                   <s.Ic size={15} color={s.c} strokeWidth={2.5} />
-                  <Text style={{ fontSize: 15, fontWeight: '800', color: s.c }}>{s.val}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: s.c }}>{s.val}</Text>
                   <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant }}>{s.lbl}</Text>
                 </View>
               ))}
             </View>
 
             {/* Haftalık hedef ilerlemesi */}
-            <View style={[card, { marginTop: 12, padding: 12 }]}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+            <View style={[card, { marginTop: S.smd, padding: S.smd }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: S.sm }}>
                 <Text style={{ fontSize: 11, fontWeight: '700', color: theme.onSurface }}>{tr ? 'Haftalık Hedef' : 'Weekly Goal'}</Text>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: theme.success }}>23/30</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: theme.success }}>23/30</Text>
               </View>
-              <View style={{ height: 7, borderRadius: 4, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+              <View style={{ height: 7, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
                 <MotiView
                   from={{ width: '10%' }}
                   animate={{ width: '77%' }}
                   transition={{ type: 'timing', duration: 1200, easing: REasing.out(REasing.cubic) }}
-                  style={{ height: 7, borderRadius: 4, backgroundColor: theme.success }}
+                  style={{ height: 7, borderRadius: R.xs, backgroundColor: theme.success }}
                 />
               </View>
             </View>
@@ -781,6 +782,6 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
 };
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 16, justifyContent: 'center' },
+  screen: { flex: 1, padding: S.md, justifyContent: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

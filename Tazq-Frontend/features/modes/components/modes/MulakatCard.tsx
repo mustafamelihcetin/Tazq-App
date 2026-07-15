@@ -16,7 +16,8 @@ import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf } from '@/shared/utils/planTaskOps';
-import { S, R, F, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B } from '@/shared/constants/tokens';
+import { Separator } from '@/shared/components/Separator';
 
 const ACCENT = '#10B981';
 const BASE_CALENDAR_WIDTH = 340;
@@ -82,7 +83,7 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
 
   return (
     <View style={{ marginTop: S.xs }}>
-      <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', marginBottom: S.sm }} />
+      <Separator theme={theme} />
       {complete && !expanded ? (
         <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: (past ? theme.error : ACCENT) + '10', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.8}>
           {renderModeEmojiIcon('💼', 14, ACCENT)}
@@ -92,7 +93,7 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
           </View>
           <Text style={{ color: ACCENT, fontSize: 11, fontWeight: '600' }}>{tr ? 'Düzenle ›' : 'Edit ›'}</Text>
           <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(tr ? 'Mülakatı Sil' : 'Delete Interview', tr ? `"${name}" silinecek. Emin misin?` : `"${name}" will be deleted. Are you sure?`, [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Sil' : 'Delete', style: 'destructive', onPress: del }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }} accessibilityRole="button" accessibilityLabel={tr ? 'Sil' : 'Delete'}>
-            <X size={13} color={theme.onSurfaceVariant} strokeWidth={2.5} />
+            <X size={ICON.xs} color={theme.onSurfaceVariant} strokeWidth={2.5} />
           </Touchable>
         </Touchable>
       ) : !complete && !expanded ? (
@@ -108,14 +109,14 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
           </View>
           <Touchable hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => { Haptics.selectionAsync(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
             <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Mülakat tarihi seç' : 'Select interview date')}</Text>
-            <CalendarDays size={14} color={theme.onSurfaceVariant} opacity={0.5} />
+            <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
           </Touchable>
           {showPicker && <DatePickerInline value={dateObj} onPick={(iso) => setSeasonalPref(dateKey, iso)} onClose={() => setShowPicker(false)} />}
           <View style={{ flexDirection: 'row', gap: S.sm }}>
             <Touchable onPress={() => { if (name || date) del(); setExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
             </Touchable>
-            {complete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={13} color="#fff" /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></Touchable>)}
+            {complete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color="#fff" /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></Touchable>)}
           </View>
         </View>
       )}
@@ -175,15 +176,15 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
     <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.mulakatMode && isComplete ? (past ? theme.error + '40' : ACCENT + '35') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.mulakatMode ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: (seasonal.mulakatMode && isComplete ? (past ? theme.error : ACCENT) : ACCENT) + '18', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: (seasonal.mulakatMode && isComplete ? (past ? theme.error : ACCENT) : ACCENT) + '18', alignItems: 'center', justifyContent: 'center' }}>
             {renderModeEmojiIcon('💼', 18, seasonal.mulakatMode && isComplete ? (past ? theme.error : ACCENT) : ACCENT)}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'İş Mülakatı' : 'Job Interview'}</Text>
             {seasonal.mulakatMode && isComplete ? (
-              <Text style={{ color: past ? theme.error : ACCENT, fontSize: F.caption, fontWeight: '500', marginTop: 1 }}>{past ? (tr ? 'Mülakat tarihi geçti' : 'Interview passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
+              <Text style={{ color: past ? theme.error : ACCENT, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{past ? (tr ? 'Mülakat tarihi geçti' : 'Interview passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
             ) : (
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, opacity: 0.6, marginTop: 1 }}>{tr ? 'Mülakat tarihine kadar hazırlık planı' : 'Prep plan until your interview date'}</Text>
+              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{tr ? 'Mülakat tarihine kadar hazırlık planı' : 'Prep plan until your interview date'}</Text>
             )}
           </View>
           <Switch
@@ -203,13 +204,12 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
 
       {seasonal.mulakatMode && (
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
-          <View style={{ height: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }} />
-
+          <Separator theme={theme} />
           {!isComplete && !expanded && (
             <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
               {renderModeEmojiIcon('💼', 16, theme.onSurfaceVariant)}
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.body, flex: 1 }}>{tr ? 'Mülakat ekle' : 'Add interview'}</Text>
-              <ChevronRight size={16} color={theme.onSurfaceVariant} opacity={0.4} />
+              <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.4} />
             </Touchable>
           )}
 
@@ -221,16 +221,16 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                     {renderModeEmojiIcon('💼', 16, ACCENT)}
                     <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
-                    <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onOpenPreview('mulakat'); }} activeOpacity={0.7} style={{ backgroundColor: ACCENT + (isDark ? '22' : '15'), paddingHorizontal: 10, paddingVertical: 5, borderRadius: R.full }}>
+                    <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onOpenPreview('mulakat'); }} activeOpacity={0.7} style={{ backgroundColor: ACCENT + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
                       <Text style={{ color: ACCENT, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Plan Oluştur ›' : 'Create Plan ›')}</Text>
                     </Touchable>
                     <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
                     <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} activeOpacity={0.7}>
-                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', opacity: 0.8 }}>{tr ? 'Düzenle' : 'Edit'}</Text>
+                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                     </Touchable>
                   </View>
                   {past ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                       {renderModeEmojiIcon('📅', 14, theme.error)}
                       <Text style={{ color: theme.error, fontWeight: '500' }}>{tr ? 'Mülakat tarihi geçti' : 'Interview date passed'} · {formatPlanDate(date, tr)}</Text>
                     </View>
@@ -240,19 +240,19 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
                         <Text style={{ color: ACCENT, fontWeight: '600', fontSize: 40, lineHeight: 42, letterSpacing: -1 }}>{daysLeft}</Text>
                         <Text style={{ color: ACCENT, fontSize: 10, fontWeight: '600', opacity: 0.7, letterSpacing: 1 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
                       </View>
-                      <View style={{ flex: 1, paddingTop: 2 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <View style={{ flex: 1, paddingTop: S.xxs }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                           {renderModeEmojiIcon('📅', 13, theme.onSurfaceVariant)}
                           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{formatPlanDate(date, tr)}</Text>
                         </View>
                         {progTotal > 0 && (
-                          <View style={{ marginTop: S.sm, gap: 4 }}>
+                          <View style={{ marginTop: S.sm, gap: S.xs }}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                               <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
                               <Text style={{ color: ACCENT, fontSize: 11, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
                             </View>
-                            <View style={{ height: 5, borderRadius: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                              <View style={{ height: 5, borderRadius: 3, backgroundColor: ACCENT, width: `${progPct}%` as any }} />
+                            <View style={{ height: 5, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                              <View style={{ height: 5, borderRadius: R.xs, backgroundColor: ACCENT, width: `${progPct}%` as any }} />
                             </View>
                           </View>
                         )}
@@ -276,14 +276,14 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
               </View>
               <Touchable onPress={() => { Haptics.selectionAsync(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
                 <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Mülakat tarihi seç' : 'Select interview date')}</Text>
-                <CalendarDays size={16} color={theme.onSurfaceVariant} opacity={0.5} />
+                <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
               </Touchable>
               {showPicker && <DatePickerInline value={dateObj} onPick={(iso) => setSeasonalPref('mulakatDate', iso)} onClose={() => setShowPicker(false)} />}
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
                 </Touchable>
-                {isComplete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview('mulakat'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={14} color="#fff" /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></Touchable>)}
+                {isComplete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview('mulakat'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={ICON.sm} color="#fff" /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></Touchable>)}
               </View>
             </View>
           )}
