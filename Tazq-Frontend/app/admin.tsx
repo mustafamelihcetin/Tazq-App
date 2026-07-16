@@ -468,7 +468,7 @@ export default function AdminScreen() {
                 <Touchable key={tb.key} onPress={() => { Haptics.selectionAsync(); setActiveTab(tb.key as any); }}
                   style={{ flex: 1, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: active ? theme.primary : 'transparent', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.xs }}>
                   <Icon size={14} color={active ? '#FFF' : theme.onSurfaceVariant} />
-                  <Text numberOfLines={1} style={{ color: active ? '#FFF' : theme.onSurfaceVariant, fontWeight: '700', fontSize: 11 }}>{tb.label}</Text>
+                  <Text numberOfLines={1} style={{ color: active ? '#FFF' : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{tb.label}</Text>
                   {'badge' in tb && (tb as any).badge > 0 && (
                     <View style={{ backgroundColor: '#EF4444', borderRadius: R.sm, paddingHorizontal: S.xs, paddingVertical: S.xxs }}>
                       <Text style={{ color: '#FFF', fontSize: 8, fontWeight: '700' }}>{(tb as any).badge}</Text>
@@ -492,7 +492,7 @@ export default function AdminScreen() {
                   <MotiView key={c.label} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 350 }}
                     style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: S.xs }}>
                     <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: c.color + '20', alignItems: 'center', justifyContent: 'center' }}>{c.icon}</View>
-                    <Text style={{ fontSize: 20, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
+                    <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
                     <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{c.label}</Text>
                   </MotiView>
                 ))}
@@ -507,7 +507,7 @@ export default function AdminScreen() {
                   <MotiView key={c.label} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 400 }}
                     style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: S.xs }}>
                     <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: c.color + '20', alignItems: 'center', justifyContent: 'center' }}>{c.icon}</View>
-                    <Text style={{ fontSize: 20, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
+                    <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
                     <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{c.label}</Text>
                   </MotiView>
                 ))}
@@ -522,7 +522,7 @@ export default function AdminScreen() {
                   <MotiView key={c.label} from={{ opacity: 0, translateY: 8 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 450 }}
                     style={{ flex: 1, backgroundColor: cardBg, borderRadius: R.md, borderWidth: B.thin, borderColor: cardBorder, padding: S.sm + 2, alignItems: 'center', gap: S.xs }}>
                     <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: c.color + '20', alignItems: 'center', justifyContent: 'center' }}>{c.icon}</View>
-                    <Text style={{ fontSize: 20, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
+                    <Text style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{c.value}</Text>
                     <Text style={{ fontSize: 10, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{c.label}</Text>
                   </MotiView>
                 ))}
@@ -854,7 +854,7 @@ export default function AdminScreen() {
                                     onPress={() => { Haptics.selectionAsync(); setBanReason(opt); }}
                                     style={{ paddingHorizontal: S.sm, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: active ? theme.primary + '22' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'), borderWidth: B.thin, borderColor: active ? theme.primary + '55' : cardBorder }}
                                   >
-                                    <Text style={{ fontSize: 11, fontWeight: '700', color: active ? theme.primary : theme.onSurfaceVariant }}>{opt}</Text>
+                                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? theme.primary : theme.onSurfaceVariant }}>{opt}</Text>
                                   </Touchable>
                                 );
                               })}
@@ -888,7 +888,7 @@ export default function AdminScreen() {
                                     onPress={() => performBan(user, opt.d, effectiveReason)}
                                     style={{ flex: 1, paddingVertical: S.sm, borderRadius: R.md, alignItems: 'center', backgroundColor: perm ? theme.error + '15' : (isDark ? 'rgba(245,158,11,0.10)' : 'rgba(245,158,11,0.08)'), borderWidth: B.thin, borderColor: perm ? theme.error + '40' : '#F59E0B40' }}
                                   >
-                                    <Text style={{ fontSize: 11, fontWeight: '700', color: perm ? theme.error : '#F59E0B' }}>{opt.label}</Text>
+                                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: perm ? theme.error : '#F59E0B' }}>{opt.label}</Text>
                                   </Touchable>
                                 );
                               })}
@@ -914,7 +914,7 @@ export default function AdminScreen() {
                                 <Text style={{ fontSize: 8, fontWeight: '700', color: isBan ? theme.error : '#10B981' }}>{isBan ? 'BAN' : (tr ? 'KALDIR' : 'UNBAN')}</Text>
                               </View>
                               <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 11, color: theme.onSurface, fontWeight: '600' }}>
+                                <Text style={{ fontSize: F.caption, color: theme.onSurface, fontWeight: '600' }}>
                                   {isBan ? `${h.reason || '—'} · ${dur}` : (tr ? 'Ban kaldırıldı' : 'Ban lifted')}
                                 </Text>
                                 <Text style={{ fontSize: 9, color: theme.onSurfaceMuted }}>
@@ -1112,7 +1112,7 @@ export default function AdminScreen() {
                             <Text style={{ color: meta.c, fontSize: 8, fontWeight: '700' }}>{meta.l}</Text>
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text numberOfLines={2} style={{ color: theme.onSurface, fontSize: 11, fontWeight: '600', lineHeight: 15 }}>
+                            <Text numberOfLines={2} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600', lineHeight: 15 }}>
                               {a.targetName ? `${a.targetName} — ` : ''}{a.details || '—'}
                             </Text>
                             <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>
@@ -1193,7 +1193,7 @@ export default function AdminScreen() {
                   </View>
                   {sysSentry?.dashboard && (
                     <Touchable onPress={() => Linking.openURL(sysSentry.dashboard!)} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-                      <Text style={{ color: theme.primary, fontSize: 11, fontWeight: '700' }}>{tr ? 'Panele git' : 'Open'}</Text>
+                      <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Panele git' : 'Open'}</Text>
                       <ExternalLink size={ICON.xs} color={theme.primary} />
                     </Touchable>
                   )}
@@ -1357,7 +1357,7 @@ export default function AdminScreen() {
                             <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: 10, fontWeight: '700', flex: 1 }}>{lg.category}</Text>
                             <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>{new Date(lg.timestamp).toLocaleTimeString(tr ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</Text>
                           </View>
-                          <Text numberOfLines={3} style={{ color: theme.onSurface, fontSize: 11, lineHeight: 16 }}>{lg.message}</Text>
+                          <Text numberOfLines={3} style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 16 }}>{lg.message}</Text>
                         </View>
                       );
                     })}

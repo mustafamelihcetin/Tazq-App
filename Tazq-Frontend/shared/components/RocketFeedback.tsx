@@ -7,7 +7,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import * as Haptics from 'expo-haptics';
 import { Rocket, Flame, Zap, Layers, Sparkles } from 'lucide-react-native';
 import { usePathname } from 'expo-router';
-import { S, R } from '@/shared/constants/tokens';
+import { F, S, R } from '@/shared/constants/tokens';
 
 export const RocketFeedback: React.FC = () => {
   const { theme, colorScheme } = useAppTheme();
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   body: {
-    fontSize: 12,
+    fontSize: F.caption2,
     fontWeight: '700',
     lineHeight: 16,
   },

@@ -107,9 +107,12 @@ export const ICON = {
  */
 export const F = {
   caption: moderateScale(11),  // iOS Caption 2 — okunabilirliğin ALT SINIRI
+  caption2: moderateScale(12), // iOS Caption 1 — rozet/etiket, caption'dan bir tık büyük
   footnote: moderateScale(13), // iOS Footnote — bölüm başlığı, yardımcı satır
   body: moderateScale(14),
+  callout: moderateScale(16),  // iOS Callout — vurgulu gövde / ikincil başlık
   subhead: moderateScale(17),
+  title3: moderateScale(20),   // iOS Title 3 — kart başlığı
   title: moderateScale(22),   // iOS Title 2
   display: moderateScale(28), // iOS Title 1 — selamlama, ekran başlığı
   hero: moderateScale(34),    // iOS Large Title

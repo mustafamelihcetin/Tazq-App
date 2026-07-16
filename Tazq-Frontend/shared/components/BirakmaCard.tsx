@@ -25,10 +25,11 @@ import { TaskService } from '@/shared/services/api';
 import { CustomAlert as Alert } from './CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
-import { S, R, F, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { buildBirakmaPlan, birakmaTypeTasks, birakmaTypeLabel, BIRAKMA_COLOR } from '@/shared/utils/lifeModePlans';
 import { retirePlanTask } from '@/shared/utils/planTaskOps';
 import { swallow } from '@/shared/utils/swallow';
+import { Ban, Shield } from 'lucide-react-native';
 
 export function BirakmaCard() {
   const { theme, isDark } = useAppTheme();
@@ -182,7 +183,7 @@ export function BirakmaCard() {
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: applied || expanded ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
           <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: C + (seasonal.birakmaMode ? '22' : '15'), alignItems: 'center', justifyContent: 'center' }}>
-            {renderModeEmojiIcon('🚭', 18, seasonal.birakmaMode ? C : C + 'aa')}
+            {<Ban size={ICON.md} color={seasonal.birakmaMode ? C : C + 'aa'} />}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Bırakma' : 'Quit'}</Text>
@@ -218,7 +219,7 @@ export function BirakmaCard() {
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text numberOfLines={1} style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{it.name}</Text>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600', marginTop: S.xxs }}>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', marginTop: S.xxs }}>
                     {tr ? 'En uzun' : 'Best'}: {Math.max(it.bestStreak, days)}{tr ? 'g' : 'd'}{next ? ` · ${tr ? 'sonraki' : 'next'} ${next}${tr ? 'g' : 'd'}` : ''}
                   </Text>
                 </View>
@@ -227,8 +228,8 @@ export function BirakmaCard() {
                   <Text style={{ color: C, fontSize: 9, fontWeight: '700', opacity: 0.8, letterSpacing: 0.5 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
                 </View>
                 <View style={{ gap: S.sm, marginLeft: S.xs }}>
-                  <Touchable onPress={() => onRelapse(it.id, it.name)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={{ color: theme.onSurfaceVariant, fontSize: 16 }}>↺</Text></Touchable>
-                  <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeOne(it.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={{ color: theme.onSurfaceMuted, fontSize: 16 }}>✕</Text></Touchable>
+                  <Touchable onPress={() => onRelapse(it.id, it.name)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.callout }}>↺</Text></Touchable>
+                  <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeOne(it.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={{ color: theme.onSurfaceMuted, fontSize: F.callout }}>✕</Text></Touchable>
                 </View>
               </View>
             );
@@ -238,7 +239,7 @@ export function BirakmaCard() {
             onPress={() => { if (checkinHabit) { if (!doneToday) { require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(tr ? 'Günü Kurtardın!' : 'Day Saved!', tr ? 'Tebrikler, bugünü de temiz geçtin. 🛡️' : 'Congratulations on keeping today clean. 🛡️'); } Haptics.impactAsync(doneToday ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium); toggleDate(checkinHabit.id, todayKey); } }}
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: doneToday ? C : C + '12', borderWidth: doneToday ? 0 : B.thin, borderColor: C + '30' }}
           >
-            {renderModeEmojiIcon('🛡️', 15, doneToday ? '#fff' : C)}
+            {<Shield size={ICON.sm} color={doneToday ? '#fff' : C} />}
             <Text style={{ color: doneToday ? '#fff' : C, fontSize: F.caption, fontWeight: '700' }}>{doneToday ? (tr ? 'Bugün temiz ✓' : 'Clean today ✓') : (tr ? 'Bugünü temiz işaretle' : 'Mark today clean')}</Text>
           </Touchable>
 

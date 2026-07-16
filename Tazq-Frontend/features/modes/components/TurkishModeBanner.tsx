@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MotiView } from 'moti';
-import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle, Star, Shield } from 'lucide-react-native';
+import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle, Star, Shield, Lightbulb, Pencil, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -618,7 +618,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
             {tr ? 'Akıllı Sistem Mantığı' : 'Smart Engine Logic'}
           </Text>
         </View>
-        <Text style={{ fontSize: 11, color: theme.onSurfaceVariant, lineHeight: 15.5, fontWeight: '500' }}>
+        <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, lineHeight: 15.5, fontWeight: '500' }}>
           {tr ? desc.tr : desc.en}
         </Text>
       </View>
@@ -708,7 +708,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
           >
             <ArrowLeft size={ICON.md} color={theme.onSurfaceVariant} />
           </Touchable>
-          {renderModeEmojiIcon('✨', 26, modeAccent)}
+          {<Sparkles size={ICON.lg} color={modeAccent} />}
           <View style={{ flex: 1 }}>
             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>
               {tr ? 'Kendi Planını Oluştur' : 'Build Your Own Plan'}
@@ -938,14 +938,14 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 gap: S.sm
               }}
             >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: theme.onSurface }}>
+              <Text style={{ fontSize: F.footnote, fontWeight: '700', color: theme.onSurface }}>
                 {tr ? 'Zaman Çizelgesini Düzenle' : 'Edit Timeline'}
               </Text>
 
               {/* Target Date Input (if not ramadan or quit mode) */}
               {activeSlot !== 'birakma' && activeSlot !== 'ramazan' && (
                 <View style={{ gap: S.sm }}>
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: theme.onSurfaceVariant }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
                     {tr ? 'Hedef Tarih (YYYY-AA-GG)' : 'Target Date (YYYY-MM-DD)'}
                   </Text>
                   <TextInput
@@ -959,7 +959,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                       borderRadius: R.sm,
                       paddingHorizontal: S.smd,
                       paddingVertical: S.sm,
-                      fontSize: 14,
+                      fontSize: F.body,
                       fontWeight: '600'
                     }}
                   />
@@ -968,7 +968,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
               {/* Daily Minutes Input (if has minutes) */}
               <View style={{ gap: S.sm }}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: theme.onSurfaceVariant }}>
+                <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>
                   {tr ? 'Günlük Çalışma Süresi' : 'Daily Study Duration'}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd }}>
@@ -998,7 +998,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   onPress={handleSaveTimeline}
                   style={{ flex: 1, backgroundColor: modeAccent, paddingVertical: S.smd, borderRadius: R.sm, alignItems: 'center' }}
                 >
-                  <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                  <Text style={{ color: '#fff', fontSize: F.caption2, fontWeight: '700' }}>
                     {tr ? 'Kaydet' : 'Save'}
                   </Text>
                 </Touchable>
@@ -1006,7 +1006,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   onPress={() => setIsEditingTimeline(false)}
                   style={{ flex: 1, backgroundColor: isDark ? '#2C2C2E' : '#E0E0E4', paddingVertical: S.smd, borderRadius: R.sm, alignItems: 'center' }}
                 >
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 12, fontWeight: '700' }}>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption2, fontWeight: '700' }}>
                     {tr ? 'İptal' : 'Cancel'}
                   </Text>
                 </Touchable>
@@ -1029,7 +1029,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               }}
             >
               <RefreshCw size={ICON.sm} color={modeAccent} />
-              <Text style={{ fontSize: 12, fontWeight: '700', color: modeAccent }}>
+              <Text style={{ fontSize: F.caption2, fontWeight: '700', color: modeAccent }}>
                 {tr ? 'Zaman Çizelgesini Ayarla' : 'Adjust Timeline'}
               </Text>
             </Touchable>
@@ -1048,11 +1048,11 @@ export const TurkishModeBanner: React.FC<Props> = ({
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.xxs }}>
             <TrendingUp size={ICON.sm} color={modeAccent} />
-            <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: 11, letterSpacing: 0.5 }}>
+            <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.caption, letterSpacing: 0.5 }}>
               {tr ? 'İÇGÖRÜ & DEĞERLENDİRME' : 'INSIGHT & EVALUATION'}
             </Text>
           </View>
-          <Text style={{ color: theme.onSurfaceVariant, fontSize: 12, lineHeight: 17 }}>
+          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption2, lineHeight: 17 }}>
             {insightText}
           </Text>
         </View>
@@ -1068,7 +1068,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
           gap: S.sm,
           alignItems: 'center'
         }}>
-          <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: 12, textAlign: 'center' }}>
+          <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.caption2, textAlign: 'center' }}>
             {tr ? 'Bugün performansını nasıl değerlendiriyorsun?' : 'How do you rate your performance today?'}
           </Text>
           <View style={{ flexDirection: 'row', gap: S.md, marginTop: S.xs }}>
@@ -1097,13 +1097,13 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={{ fontSize: 20, opacity: selected ? 1 : 0.65 }}>{item.emoji}</Text>
+                  <Text style={{ fontSize: F.title3, opacity: selected ? 1 : 0.65 }}>{item.emoji}</Text>
                 </Touchable>
               );
             })}
           </View>
           {rating ? (
-            <Text style={{ color: modeAccent, fontSize: 11, fontWeight: '600', marginTop: S.xxs }}>
+            <Text style={{ color: modeAccent, fontSize: F.caption, fontWeight: '600', marginTop: S.xxs }}>
               {(() => {
                 const item = [
                   { score: 1, emoji: '😫', labelTr: 'Çok Kötü', labelEn: 'Terrible' },
@@ -1309,7 +1309,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                 {/* Exam-specific tip pill */}
                 {(tr ? mode.tipTr : mode.tipEn) ? (
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.sm, backgroundColor: modeAccent + '12', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm + 1, marginBottom: S.sm, borderWidth: B.thin, borderColor: modeAccent + '28' }}>
-                    {renderModeEmojiIcon('💡', 13, modeAccent)}
+                    {<Lightbulb size={ICON.sm} color={modeAccent} />}
                     <Text style={{ flex: 1, fontSize: F.caption, fontWeight: '500', color: modeAccent, lineHeight: 17, opacity: 0.95 }}>
                       {tr ? mode.tipTr : mode.tipEn}
                     </Text>
@@ -1389,7 +1389,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     }]}
                     activeOpacity={0.75}
                   >
-                    <View style={{ marginBottom: S.xs }}>{renderModeEmojiIcon('✏️', 24, modeAccent)}</View>
+                    <View style={{ marginBottom: S.xs }}>{<Pencil size={ICON.lg} color={modeAccent} />}</View>
                     <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurface }}>
                       {tr ? 'Kendi Planını Oluştur' : 'Build Your Own Plan'}
                     </Text>
@@ -1514,7 +1514,7 @@ const styles = StyleSheet.create({
     paddingVertical: S.sm + 2, paddingHorizontal: S.md, marginBottom: S.md,
   },
   bannerLeft: { flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 },
-  bannerEmoji: { fontSize: 22 },
+  bannerEmoji: { fontSize: F.title },
   bannerTitle: { fontSize: F.body, fontWeight: '600' },
   bannerSub: { fontSize: F.caption, fontWeight: '500', marginTop: S.xxs },
   bannerRight: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
@@ -1547,7 +1547,7 @@ const styles = StyleSheet.create({
   habitMeta: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: S.xs },
   weekDots: { flexDirection: 'row', gap: S.xs },
   dot: { width: 6, height: 6, borderRadius: R.full },
-  streakText: { fontSize: 11, fontWeight: '600' },
+  streakText: { fontSize: F.caption, fontWeight: '600' },
   doneBadge: { width: 26, height: 26, borderRadius: R.full, borderWidth: B.thin, alignItems: 'center', justifyContent: 'center' },
   priorityChip: { borderRadius: R.sm, paddingHorizontal: S.xs + 1, paddingVertical: S.xxs },
   priorityChipText: { fontSize: 9, fontWeight: '600', letterSpacing: 0.3 },

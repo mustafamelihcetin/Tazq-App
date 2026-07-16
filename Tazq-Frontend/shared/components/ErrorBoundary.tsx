@@ -9,7 +9,7 @@ import { AlertCircle, RotateCcw } from 'lucide-react-native';
 // Hata sınırı hook kullanamaz (render dışı yakalar), ama paleti elle kopyalamamalı:
 // doğrudan Colors'tan okur ki tema değişince birlikte değişsin.
 import { Colors } from '@/shared/constants/Colors';
-import { S, ICON, R } from '@/shared/constants/tokens';
+import { F, S, ICON, R } from '@/shared/constants/tokens';
 
 interface Props {
   children: React.ReactNode;
@@ -121,14 +121,14 @@ const styles = StyleSheet.create({
     marginBottom: S.sm,
   },
   title: { 
-    fontSize: 20, 
+    fontSize: F.title3, 
     fontWeight: '700', 
     color: Colors.dark.onSurface,
     textAlign: 'center',
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: F.body,
     fontWeight: '600',
     color: Colors.dark.onSurfaceVariant,
     textAlign: 'center',
@@ -144,13 +144,13 @@ const styles = StyleSheet.create({
     padding: S.md,
   },
   errorText: { 
-    fontSize: 12, 
+    fontSize: F.caption2, 
     color: '#FDA4AF', 
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     lineHeight: 16,
   },
   info: {
-    fontSize: 11,
+    fontSize: F.caption,
     color: '#71717A',
     textAlign: 'center',
     lineHeight: 15,
@@ -169,6 +169,6 @@ const styles = StyleSheet.create({
   btnText: { 
     color: 'white', 
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: F.body,
   },
 });

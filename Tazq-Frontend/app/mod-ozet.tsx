@@ -142,7 +142,7 @@ export default function ModOzetScreen() {
 
   const Stat = ({ icon, value, label, color }: { icon: React.ReactNode; value: string; label: string; color: string }) => (
     <View style={[styles.statCard, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
-      <View style={{ width: 32, height: 32, borderRadius: R.sm, backgroundColor: color + '18', alignItems: 'center', justifyContent: 'center', marginBottom: S.xs }}>{icon}</View>
+      <View style={{ width: 32, height: 32, borderRadius: R.sm, backgroundColor: color, alignItems: 'center', justifyContent: 'center', marginBottom: S.xs }}>{icon}</View>
       <Text style={{ color: theme.onSurface, fontSize: F.title, fontWeight: '700', letterSpacing: -0.5 }}>{value}</Text>
       <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{label}</Text>
     </View>
@@ -163,7 +163,7 @@ export default function ModOzetScreen() {
             <View style={styles.iconBtn}>
               <ArrowLeft size={ICON.lg} color={theme.onSurface} />
             </View>
-            <Text numberOfLines={1} style={{ fontSize: 20, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{navTitle}</Text>
+            <Text numberOfLines={1} style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{navTitle}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -246,8 +246,8 @@ export default function ModOzetScreen() {
                 {c.habitCount > 0 && (
                   <View style={{ marginTop: S.sm }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: S.xs }}>
-                      <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{tr ? 'Bu hafta alışkanlık' : 'Habits this week'}</Text>
-                      <Text style={{ color: c.color, fontSize: 11, fontWeight: '700' }}>{c.weekActive}/{c.habitCount} · %{c.pct}</Text>
+                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bu hafta alışkanlık' : 'Habits this week'}</Text>
+                      <Text style={{ color: c.color, fontSize: F.caption, fontWeight: '700' }}>{c.weekActive}/{c.habitCount} · %{c.pct}</Text>
                     </View>
                     <View style={{ height: 5, borderRadius: R.xs, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
                       <View style={{ height: 5, borderRadius: R.xs, width: `${c.pct}%`, backgroundColor: c.color }} />
@@ -267,10 +267,10 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.sm },
   headerAbs: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   headerRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md },
-  compactTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', letterSpacing: TRACKING.subhead },
+  compactTitle: { flex: 1, textAlign: 'center', fontSize: F.subhead, fontWeight: '700', letterSpacing: TRACKING.subhead },
   largeTitle: { fontSize: 30, fontWeight: '700', letterSpacing: TRACKING.hero, includeFontPadding: false },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '700', letterSpacing: TRACKING.title },
+  title: { fontSize: F.title3, fontWeight: '700', letterSpacing: TRACKING.title },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl },
   statCard: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: S.xxs },
   section: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md },

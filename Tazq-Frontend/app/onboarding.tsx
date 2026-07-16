@@ -17,7 +17,8 @@ import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { ChevronRight, Clock, Smartphone, Lock, Cloud, Ban, Coins, GraduationCap } from 'lucide-react-native';
+import { ChevronRight, Clock, Smartphone, Lock, Cloud, Ban, Coins, GraduationCap, Calendar, Zap, Bell, Flame, ListChecks } from 'lucide-react-native';
+import { CategoryColors } from '@/shared/constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { Easing } from 'react-native-reanimated';
 import { TazqLogo } from '@/shared/components/TazqLogo';
@@ -32,49 +33,49 @@ const SLIDES = [
     id: '1',
     titleKey: 'onboardingTitle1',
     bodyKey: 'onboardingBody1',
-    color: '#3367ff',
+    accentKey: 'primary',
     type: 'welcome',
   },
   {
     id: '2',
     titleKey: 'onboardingTitle2b',
     bodyKey: 'onboardingBody2b',
-    color: '#00cc88',
+    accentKey: 'teal',
     type: 'smart_input',
   },
   {
     id: 'privacy',
     titleKey: 'onboardingTitlePrivacy',
     bodyKey: 'onboardingBodyPrivacy',
-    color: '#10b981',
+    accentKey: 'success',
     type: 'privacy',
   },
   {
     id: 'modes',
     titleKey: 'onboardingTitleModes',
     bodyKey: 'onboardingBodyModes',
-    color: '#8b5cf6',
+    accentKey: 'secondary',
     type: 'modes',
   },
   {
     id: '3',
     titleKey: 'onboardingTitle3',
     bodyKey: 'onboardingBody3b',
-    color: '#ff2d55',
+    accentKey: 'error',
     type: 'focus',
   },
   {
     id: '4',
     titleKey: 'onboardingTitle4c',
     bodyKey: 'onboardingBody4c',
-    color: '#6200ee',
+    accentKey: 'indigo',
     type: 'cockpit',
   },
   {
     id: '5',
     titleKey: 'onboardingTitle4b',
     bodyKey: 'onboardingBody4b',
-    color: '#f59e0b',
+    accentKey: 'warning',
     type: 'momentum',
   },
 ];
@@ -91,6 +92,14 @@ export default function OnboardingScreen() {
 
   const isSmallDevice = height < 750;
   const visualSize = Math.min(width * 0.72, height * 0.3);
+
+  // Slayt vurgu rengi → palet token'ı (tema-duyarlı ve marka-içi).
+  // teal/indigo CategoryColors'tan (iki temada da WCAG-ayarlı tek değer); gerisi temadan.
+  const accentOf = (key: string): string => {
+    if (key === 'teal') return CategoryColors.teal;
+    if (key === 'indigo') return CategoryColors.indigo;
+    return (theme as Record<string, string>)[key] ?? theme.primary;
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -133,6 +142,7 @@ export default function OnboardingScreen() {
 
   const renderVisual = (item: typeof SLIDES[0], index: number) => {
     const isActive = currentIndex === index;
+    const accent = accentOf(item.accentKey);
 
     switch (item.type) {
       case 'welcome':
@@ -153,7 +163,7 @@ export default function OnboardingScreen() {
                   height: visualSize,
                   borderRadius: visualSize / 2,
                   borderWidth: B.medium,
-                  borderColor: item.color,
+                  borderColor: accent,
                 }}
               />
             ))}
@@ -169,7 +179,7 @@ export default function OnboardingScreen() {
             <MotiView
               animate={{ scale: isActive ? [1, 1.2, 1] : 0.8, opacity: isActive ? 0.08 : 0 }}
               transition={{ loop: true, duration: 5000 }}
-              style={[styles.glowBlob, { backgroundColor: item.color, width: visualSize, height: visualSize }]}
+              style={[styles.glowBlob, { backgroundColor: accent, width: visualSize, height: visualSize }]}
             />
           </View>
         );
@@ -194,9 +204,9 @@ export default function OnboardingScreen() {
           <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
             <View style={styles.simContainer}>
               {[
-                { text: tr ? 'yarın teslim et' : 'submit tomorrow', badge: tr ? '📅 Yarın' : '📅 Tomorrow', color: '#00cc88' },
-                { text: tr ? 'acil rapor yaz' : 'urgent report', badge: tr ? '⚡ Yüksek' : '⚡ High', color: '#ff3b30' },
-                { text: tr ? 'hatırlatıcı ekle' : 'add reminder', badge: tr ? '🔔 Bildirim' : '🔔 Reminder', color: theme.primary },
+                { text: tr ? 'yarın teslim et' : 'submit tomorrow', Ic: Calendar, badge: tr ? 'Yarın' : 'Tomorrow', color: theme.tertiary },
+                { text: tr ? 'acil rapor yaz' : 'urgent report', Ic: Zap, badge: tr ? 'Yüksek' : 'High', color: theme.error },
+                { text: tr ? 'hatırlatıcı ekle' : 'add reminder', Ic: Bell, badge: tr ? 'Bildirim' : 'Reminder', color: theme.primary },
               ].map((row, i) => (
                 <MotiView
                   key={i}
@@ -210,8 +220,9 @@ export default function OnboardingScreen() {
                   <MotiView
                     animate={{ scale: isActive ? 1 : 0.6, opacity: isActive ? 1 : 0 }}
                     transition={{ delay: 600 + i * 120, type: 'spring' }}
-                    style={{ backgroundColor: row.color + '22', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, backgroundColor: row.color + '22', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm }}
                   >
+                    <row.Ic size={ICON.xs} color={row.color} strokeWidth={2.5} />
                     <Text style={{ fontSize: 9, fontWeight: '700', color: row.color }}>{row.badge}</Text>
                   </MotiView>
                 </MotiView>
@@ -238,7 +249,7 @@ export default function OnboardingScreen() {
                 {/* Animated Line with Data Packet */}
                 <View style={{ flex: 1, height: 2, backgroundColor: theme.outlineVariant, position: 'relative', marginHorizontal: S.sm, justifyContent: 'center' }}>
                   {/* Lock symbol in the center */}
-                  <View style={{ position: 'absolute', left: '50%', marginLeft: -12, top: -11, width: 24, height: 24, borderRadius: R.full, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+                  <View style={{ position: 'absolute', left: '50%', marginLeft: -12, top: -11, width: 24, height: 24, borderRadius: R.full, backgroundColor: theme.success, alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
                     <Lock size={ICON.xs} color="#fff" />
                   </View>
                   
@@ -246,7 +257,7 @@ export default function OnboardingScreen() {
                   <MotiView
                     animate={{
                       left: isActive ? ['0%', '100%'] : '0%',
-                      backgroundColor: isActive ? ['#3367ff', '#10b981'] : '#3367ff',
+                      backgroundColor: isActive ? [theme.primary, theme.success] : theme.primary,
                     }}
                     transition={{
                       loop: true,
@@ -283,7 +294,7 @@ export default function OnboardingScreen() {
                   transition={{ delay: 300 }}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.surfaceContainerHighest, padding: S.sm, borderRadius: R.sm }}
                 >
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#3367ff' }}>PLAIN:</Text>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>PLAIN:</Text>
                   <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurface }}>"TAZQ Toplantısı"</Text>
                 </MotiView>
 
@@ -291,13 +302,13 @@ export default function OnboardingScreen() {
                 <MotiView 
                   animate={{ translateX: isActive ? 0 : 20, opacity: isActive ? 1 : 0 }}
                   transition={{ delay: 700 }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: '#10b9811A', padding: S.sm, borderRadius: R.sm, borderWidth: 1, borderColor: '#10b98130' }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.success + '1A', padding: S.sm, borderRadius: R.sm, borderWidth: 1, borderColor: theme.success + '30' }}
                 >
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#10b981' }}>CIPHER:</Text>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.success }}>CIPHER:</Text>
                   <MotiText 
                     animate={{ opacity: isActive ? [1, 0.4, 1] : 1 }}
                     transition={{ loop: true, duration: 2000 }}
-                    style={{ fontSize: 10, fontWeight: '700', color: '#10b981', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}
+                    style={{ fontSize: 10, fontWeight: '700', color: theme.success, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}
                   >
                     "U0dWMmJYTkVhVzg9"
                   </MotiText>
@@ -314,22 +325,25 @@ export default function OnboardingScreen() {
                 animate={{ scale: isActive ? 1 : 0.7, opacity: isActive ? 1 : 0 }}
                 transition={{ type: 'spring', damping: 14 }}
               >
-                <Text style={{ fontSize: isSmallDevice ? 52 : 64, fontWeight: '700', letterSpacing: -4, color: item.color, lineHeight: isSmallDevice ? 56 : 70 }}>78</Text>
-                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: item.color, opacity: 0.5, textAlign: 'center' }}>MOMENTUM</Text>
+                <Text style={{ fontSize: isSmallDevice ? 52 : 64, fontWeight: '700', letterSpacing: -4, color: accent, lineHeight: isSmallDevice ? 56 : 70 }}>78</Text>
+                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: accent, opacity: 0.5, textAlign: 'center' }}>MOMENTUM</Text>
               </MotiView>
               {[
-                { label: tr ? '✅ Görevler' : '✅ Tasks', pct: '40%' },
-                { label: tr ? '⚡ Odak' : '⚡ Focus', pct: '35%' },
-                { label: tr ? '🔥 Seri' : '🔥 Streak', pct: '25%' },
+                { Ic: ListChecks, label: tr ? 'Görevler' : 'Tasks', pct: '40%', c: theme.success },
+                { Ic: Zap, label: tr ? 'Odak' : 'Focus', pct: '35%', c: theme.primary },
+                { Ic: Flame, label: tr ? 'Seri' : 'Streak', pct: '25%', c: theme.streak },
               ].map((row, i) => (
                 <MotiView
                   key={i}
                   animate={{ translateX: isActive ? 0 : 30, opacity: isActive ? 1 : 0 }}
                   transition={{ delay: 400 + i * 100, type: 'spring' }}
-                  style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', backgroundColor: item.color + '18', borderRadius: R.sm, paddingHorizontal: S.smd, paddingVertical: S.sm }}
+                  style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', backgroundColor: accent + '18', borderRadius: R.sm, paddingHorizontal: S.smd, paddingVertical: S.sm }}
                 >
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: item.color }}>{row.pct}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                    <row.Ic size={ICON.xs} color={row.c} strokeWidth={2.5} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: theme.onSurface }}>{row.label}</Text>
+                  </View>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: accent }}>{row.pct}</Text>
                 </MotiView>
               ))}
             </View>
@@ -340,9 +354,9 @@ export default function OnboardingScreen() {
           <View style={[styles.visualCard, styles.withFrame, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant, width: visualSize, height: visualSize }]}>
             <View style={{ alignItems: 'center', justifyContent: 'center', gap: S.smd, flex: 1, paddingHorizontal: S.lmd }}>
               {[
-                { icon: <Ban size={isSmallDevice ? 20 : 24} color="#ff2d55" />, label: tr ? 'Sigarayı Bırak' : 'Quit Smoking', sub: tr ? 'Gün gün plan' : 'Day-by-day plan', color: '#ff2d55' },
-                { icon: <Coins size={isSmallDevice ? 20 : 24} color="#00cc88" />, label: tr ? 'Tasarruf' : 'Save Money', sub: tr ? 'Birikim hedefi' : 'Savings goal', color: '#00cc88' },
-                { icon: <GraduationCap size={isSmallDevice ? 20 : 24} color={item.color} />, label: tr ? 'Sınava Hazırlık' : 'Exam Prep', sub: tr ? 'Günlük program' : 'Daily plan', color: item.color },
+                { icon: <Ban size={isSmallDevice ? 20 : 24} color={theme.error} />, label: tr ? 'Sigarayı Bırak' : 'Quit Smoking', sub: tr ? 'Gün gün plan' : 'Day-by-day plan', color: theme.error },
+                { icon: <Coins size={isSmallDevice ? 20 : 24} color={theme.tertiary} />, label: tr ? 'Tasarruf' : 'Save Money', sub: tr ? 'Birikim hedefi' : 'Savings goal', color: theme.tertiary },
+                { icon: <GraduationCap size={isSmallDevice ? 20 : 24} color={accent} />, label: tr ? 'Sınava Hazırlık' : 'Exam Prep', sub: tr ? 'Günlük program' : 'Daily plan', color: accent },
               ].map((row, i) => (
                 <MotiView
                   key={i}
@@ -374,14 +388,14 @@ export default function OnboardingScreen() {
                 transition={{ type: 'spring', delay: 200 }}
                 style={{ width: '100%' }}
               >
-                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: item.color, opacity: 0.7, marginBottom: S.sm }}>{tr ? 'HAFTALIK MERKEZ' : 'WEEKLY HUB'}</Text>
+                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: accent, opacity: 0.7, marginBottom: S.sm }}>{tr ? 'HAFTALIK MERKEZ' : 'WEEKLY HUB'}</Text>
                 <View style={{ flexDirection: 'row', gap: S.sm, marginBottom: S.sm }}>
                   {(tr ? ['P', 'S', 'Ç', 'P', 'C', 'C', 'P'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S']).map((d, i) => (
                     <MotiView
                       key={i}
                       animate={{ scale: isActive ? 1 : 0.5, opacity: isActive ? 1 : 0 }}
                       transition={{ delay: 400 + i * 60, type: 'spring' }}
-                      style={{ flex: 1, alignItems: 'center', backgroundColor: i === 4 ? item.color : theme.surfaceContainerHighest, borderRadius: R.sm, paddingVertical: S.sm }}
+                      style={{ flex: 1, alignItems: 'center', backgroundColor: i === 4 ? accent : theme.surfaceContainerHighest, borderRadius: R.sm, paddingVertical: S.sm }}
                     >
                       <Text style={{ fontSize: 9, fontWeight: '700', color: i === 4 ? '#fff' : theme.onSurfaceVariant }}>{d}</Text>
                     </MotiView>
@@ -392,7 +406,7 @@ export default function OnboardingScreen() {
                     key={i}
                     animate={{ width: isActive ? `${h}%` : '5%' } as any}
                     transition={{ delay: 800 + i * 80, type: 'timing', duration: 500 }}
-                    style={{ height: 8, borderRadius: R.xs, backgroundColor: item.color + (i === 3 ? 'FF' : '55'), marginBottom: S.xs }}
+                    style={{ height: 8, borderRadius: R.xs, backgroundColor: accent + (i === 3 ? 'FF' : '55'), marginBottom: S.xs }}
                   />
                 ))}
               </MotiView>
@@ -525,7 +539,6 @@ const styles = StyleSheet.create({
   cinematicCheck: { width: 20, height: 20, borderRadius: R.sm, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   cinematicLine: { height: 6, borderRadius: R.xs },
   cinematicLineShort: { height: 6, borderRadius: R.xs },
-  activeIndicator: { position: 'absolute', right: 12, width: 6, height: 6, borderRadius: R.full, backgroundColor: '#00cc88' },
   cinematicRing: { position: 'absolute', borderWidth: 5, borderStyle: 'dashed' },
   cinematicTimer: { alignItems: 'center', gap: S.smd },
   cinematicTimeText: { fontWeight: '700' },

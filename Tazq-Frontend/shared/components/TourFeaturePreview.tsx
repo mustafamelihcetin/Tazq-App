@@ -32,6 +32,7 @@ import { HabitBubble } from '@/shared/components/HabitBubble';
 import { MyDayTaskRow } from '@/shared/components/MyDayTaskRow';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { S, ICON, R } from '@/shared/constants/tokens';
+import { AppIcon } from '@/shared/components/AppIcon';
 
 interface Props {
   pageId: string;
@@ -253,8 +254,8 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
             <View style={{ paddingHorizontal: S.md }}>
               {/* İvme Kalkanı — tatil günlerinde skor erimesini durdurur */}
               <View style={[card, { padding: S.smd, flexDirection: 'row', alignItems: 'center', gap: S.smd, borderColor: toggle ? theme.streak + '55' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') }]}>
-                <View style={{ width: 34, height: 34, borderRadius: R.md, backgroundColor: theme.streak + '20', alignItems: 'center', justifyContent: 'center' }}>
-                  <Shield size={ICON.sm} color={theme.streak} strokeWidth={2.3} />
+                <View style={{ width: 34, height: 34, borderRadius: R.md, backgroundColor: theme.streak, alignItems: 'center', justifyContent: 'center' }}>
+                  <Shield size={ICON.sm} color="#FFFFFF" strokeWidth={2.3} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurface }}>{tr ? 'İvme Kalkanı' : 'Momentum Shield'}</Text>
@@ -375,7 +376,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                 return (
                   <MotiView key={i} animate={{ borderColor: on ? theme.primary : isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.14)' }} transition={{ type: 'timing', duration: 240 }}
                     style={{ borderWidth: 1, borderRadius: R.full, paddingVertical: S.xs, paddingHorizontal: S.smd, backgroundColor: on ? (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)') : 'transparent' }}>
-                    <Text style={{ fontSize: 12, fontWeight: on ? '900' : '600', color: on ? theme.primary : theme.onSurfaceVariant }}>{l}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: on ? '700' : '600', color: on ? theme.primary : theme.onSurfaceVariant }}>{l}</Text>
                   </MotiView>
                 );
               })}
@@ -589,9 +590,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
 
             <View style={[card, { borderColor: theme.primary + '40', backgroundColor: isDark ? theme.primary + '1A' : theme.primary + '12', padding: S.smd }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd }}>
-                <View style={{ width: 44, height: 44, borderRadius: R.md, backgroundColor: theme.primary + '20', alignItems: 'center', justifyContent: 'center' }}>
-                  <GraduationCap size={ICON.lg} color={theme.primary} />
-                </View>
+                <AppIcon Icon={GraduationCap} color={theme.primary} size={44} radius={R.md} iconSize={ICON.lg} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: 14 }}>{tr ? 'Sınav Planı' : 'Exam Plan'}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs }}>
@@ -640,8 +639,8 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                     transition={{ type: 'spring', damping: 15 }}
                     style={{ width: '47%', flexDirection: 'row', alignItems: 'center', gap: S.smd, padding: S.smd, borderRadius: R.md, borderWidth: 1.2 }}
                   >
-                    <View style={{ width: 34, height: 34, borderRadius: R.md, backgroundColor: m.c + '20', alignItems: 'center', justifyContent: 'center' }}>
-                      <m.Ic size={17} color={m.c} strokeWidth={2.3} />
+                    <View style={{ width: 34, height: 34, borderRadius: R.md, backgroundColor: m.c, alignItems: 'center', justifyContent: 'center' }}>
+                      <m.Ic size={ICON.sm} color="#FFFFFF" strokeWidth={2.3} />
                     </View>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurface }}>{m.l}</Text>
                   </MotiView>

@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     paddingTop: S.lg,
   },
   body: {
-    fontSize: 13,
+    fontSize: F.footnote,
     lineHeight: 22,
     fontFamily: 'Jakarta-SemiBold',
   },

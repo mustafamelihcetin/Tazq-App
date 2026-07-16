@@ -1,5 +1,5 @@
 import React from 'react';
-import { S, ICON, R, B } from '@/shared/constants/tokens';
+import { F, S, ICON, R, B } from '@/shared/constants/tokens';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
 import { Zap } from 'lucide-react-native';
@@ -109,12 +109,12 @@ const styles = StyleSheet.create({
     maxWidth: 220,
   },
   task: {
-    fontSize: 13,
+    fontSize: F.footnote,
     fontWeight: '700',
     flexShrink: 1,
   },
   time: {
-    fontSize: 14,
+    fontSize: F.body,
     fontWeight: '700',
     letterSpacing: -0.5,
   },

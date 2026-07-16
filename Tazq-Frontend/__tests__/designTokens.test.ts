@@ -108,10 +108,15 @@ describe('ölçek tanımları', () => {
     expect(S.sm).toBeLessThan(S.md);
     expect(S.md).toBeLessThan(S.lg);
 
-    expect(F.caption).toBeLessThan(F.body);
-    expect(F.body).toBeLessThan(F.subhead);
-    expect(F.subhead).toBeLessThan(F.title);
-    expect(F.title).toBeLessThan(F.hero);
+    expect(F.caption).toBeLessThan(F.caption2);
+    expect(F.caption2).toBeLessThan(F.footnote);
+    expect(F.footnote).toBeLessThan(F.body);
+    expect(F.body).toBeLessThan(F.callout);
+    expect(F.callout).toBeLessThan(F.subhead);
+    expect(F.subhead).toBeLessThan(F.title3);
+    expect(F.title3).toBeLessThan(F.title);
+    expect(F.title).toBeLessThan(F.display);
+    expect(F.display).toBeLessThan(F.hero);
   });
 });
 
@@ -173,6 +178,41 @@ describe('ölçek disiplini', () => {
     const hits = sourcesWithout(new RegExp(`\\b(${props}):\\s*(?!0\\b)[0-9]`));
     expect(hits).toEqual([]);
   });
+
+  it('punto ölçeğe eşitse elle yazılmamalı — F ölçeğini kullan', () => {
+    // fontSize: 14  ✗     fontSize: F.body  ✓
+    //
+    // Neden: F token'ları moderateScale ile ekrana göre BÜYÜR/küçülür; elle yazılmış
+    // sabit punto büyümez. Yani `fontSize: 14` küçük iPhone SE'de de büyük Pro Max'te
+    // de 14 kalır — token ise ölçeklenir. ~460 sabit punto vardı; token değerine TAM
+    // eşit olanlar (aşağıdaki set) tokenlendi. Ölçek-dışı yarım/ara puntolar (9/10/15/
+    // 18/24 …) token'ı olmadığı için serbest — onlar için bir F adımı yok.
+    //
+    // Ondalık HARİÇ: `fontSize: 13.5` kasıtlı optik yarım-punto, token değil (negatif
+    // lookahead `.` ile elenir).
+    //
+    // FONT_EXEMPT: kendi ekran-oransal punto şemasını çizen mock/sinematik dosyalar.
+    const TOKEN_SIZES = new Set([11, 12, 13, 14, 16, 17, 20, 22, 28, 34]);
+    const FONT_EXEMPT = new Set([
+      'app/onboarding.tsx',          // sinematik intro: `isSmallDevice ? A : B` elle adaptif
+      'shared/components/TourFeaturePreview.tsx', // tur önizleme mock'u — küçültülmüş temsil
+      'shared/components/MomentumPulse.tsx',      // yoğun mini görselleştirme
+    ]);
+    const rx = /fontSize:\s*(\d+)(?![.\d])/g;
+    const hits: string[] = [];
+    for (const file of FILES) {
+      if (FONT_EXEMPT.has(rel(file))) continue;
+      const src = stripBlockComments(fs.readFileSync(file, 'utf8'));
+      src.split('\n').forEach((line, i) => {
+        const s = line.trim();
+        if (s.startsWith('//') || s.startsWith('*')) return;
+        for (const m of line.matchAll(rx)) {
+          if (TOKEN_SIZES.has(Number(m[1]))) hits.push(`${rel(file)}:${i + 1} =${m[1]}`);
+        }
+      });
+    }
+    expect(hits).toEqual([]);
+  });
 });
 
 describe('yazı ağırlığı', () => {
@@ -183,7 +223,11 @@ describe('yazı ağırlığı', () => {
     // 253 kullanım vardı (%30) ve en ağırlar en KÜÇÜK puntolardaydı (9/10/11pt) —
     // çünkü ekranlarda punto hiyerarşisi yok, tek kaldıraç ağırlık kalmış.
     // Doğru çözüm ağırlığı artırmak değil, puntoyu ayırmak (bkz. W, F).
-    const hits = sourcesWithout(/fontWeight: '(800|900)'/);
+    //
+    // Ternary de yakalanır: `fontWeight: active ? '900' : '600'` guard'ı atlıyordu —
+    // seçili durumu ağırlıkla vurgulamak en sık kaçış yoluydu. `fontWeight:` ile '800'/
+    // '900' arasında virgül/kapanış olmadığı sürece (aynı stil değeri) eşleşir.
+    const hits = sourcesWithout(/fontWeight:[^,}\n]*'(800|900)'/);
     expect(hits).toEqual([]);
   });
 });

@@ -581,7 +581,7 @@ export default function LoginScreen() {
                   <Text style={{ fontFamily: 'Jakarta-ExtraBold', fontSize: F.title, color: theme.onSurface, textAlign: 'center' }}>
                     {language === 'tr' ? 'E-posta Gönderildi' : 'Email Sent'}
                   </Text>
-                  <Text style={{ fontSize: 13, color: theme.onSurfaceVariant, textAlign: 'center', lineHeight: 18, fontFamily: 'Jakarta-SemiBold', paddingHorizontal: S.xs }}>
+                  <Text style={{ fontSize: F.footnote, color: theme.onSurfaceVariant, textAlign: 'center', lineHeight: 18, fontFamily: 'Jakarta-SemiBold', paddingHorizontal: S.xs }}>
                     {language === 'tr' 
                       ? 'Şifre sıfırlama talimatları e-posta adresinize başarıyla gönderildi. Gelen kutunuzu kontrol edin.'
                       : 'Password reset instructions have been sent to your email. Please check your inbox.'}
@@ -636,7 +636,7 @@ export default function LoginScreen() {
                       }}
                     >
                       <AlertCircle size={ICON.sm} color={theme.error} />
-                      <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: theme.error }}>{forgotMsg.text}</Text>
+                      <Text style={{ flex: 1, fontSize: F.footnote, fontWeight: '600', color: theme.error }}>{forgotMsg.text}</Text>
                     </MotiView>
                   )}
 
@@ -675,7 +675,7 @@ export default function LoginScreen() {
                         backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' 
                       }}
                     >
-                      <Text style={{ color: theme.onSurfaceVariant, fontFamily: 'Jakarta-Bold', fontSize: 14 }}>{t.cancel}</Text>
+                      <Text style={{ color: theme.onSurfaceVariant, fontFamily: 'Jakarta-Bold', fontSize: F.body }}>{t.cancel}</Text>
                     </Touchable>
                     <Touchable 
                       onPress={handleForgotPassword} 
@@ -692,7 +692,7 @@ export default function LoginScreen() {
                       {forgotLoading ? (
                         <ActivityIndicator color={theme.onPrimary} size="small" />
                       ) : (
-                        <Text style={{ color: theme.onPrimary, fontFamily: 'Jakarta-Bold', fontSize: 14 }}>{t.login.forgotSend}</Text>
+                        <Text style={{ color: theme.onPrimary, fontFamily: 'Jakarta-Bold', fontSize: F.body }}>{t.login.forgotSend}</Text>
                       )}
                     </Touchable>
                   </View>

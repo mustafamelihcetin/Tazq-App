@@ -27,9 +27,10 @@ import { TaskService } from '@/shared/services/api';
 import { CustomAlert as Alert } from './CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
-import { S, R, F, B } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { buildTasarrufPlan, tasarrufTypeLabel, TASARRUF_COLOR } from '@/shared/utils/lifeModePlans';
 import { retirePlanTask } from '@/shared/utils/planTaskOps';
+import { Coins } from 'lucide-react-native';
 
 const fmtMoney = (n: number) => n.toLocaleString('tr-TR');
 
@@ -228,7 +229,7 @@ export function TasarrufCard() {
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: applied || expanded ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
           <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: C + (seasonal.tasarrufMode ? '22' : '15'), alignItems: 'center', justifyContent: 'center' }}>
-            {renderModeEmojiIcon('💰', 18, seasonal.tasarrufMode ? C : C + 'aa')}
+            {<Coins size={ICON.md} color={seasonal.tasarrufMode ? C : C + 'aa'} />}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Tasarruf / Bütçe' : 'Savings / Budget'}</Text>
@@ -272,16 +273,16 @@ export function TasarrufCard() {
               </Touchable>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{tr ? 'Hedefe ilerleme' : 'Goal progress'}</Text>
-              <Text style={{ color: C, fontSize: 11, fontWeight: '700' }}>₺{fmtMoney(doneAmt)}/₺{fmtMoney(goalAmt)} · {pct}%</Text>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Hedefe ilerleme' : 'Goal progress'}</Text>
+              <Text style={{ color: C, fontSize: F.caption, fontWeight: '700' }}>₺{fmtMoney(doneAmt)}/₺{fmtMoney(goalAmt)} · {pct}%</Text>
             </View>
             <View style={{ height: 6, borderRadius: R.xs, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
               <View style={{ height: 6, borderRadius: R.xs, width: `${pct}%`, backgroundColor: C }} />
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11 }}>{tr ? 'Başlangıç' : 'Start'}: ₺{fmtMoney(start)}</Text>
-              <Text style={{ color: theme.onSurface, fontSize: 11, fontWeight: '700' }}>₺{fmtMoney(latest)}</Text>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11 }}>{tr ? 'Hedef' : 'Target'}: ₺{fmtMoney(target)}</Text>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'Başlangıç' : 'Start'}: ₺{fmtMoney(start)}</Text>
+              <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700' }}>₺{fmtMoney(latest)}</Text>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'Hedef' : 'Target'}: ₺{fmtMoney(target)}</Text>
             </View>
           </View>
 
@@ -293,7 +294,7 @@ export function TasarrufCard() {
             </View>
           ) : (
             <Touchable disabled={!canLog} onPress={() => { if (canLog) { Haptics.selectionAsync(); setShowEntry(true); } }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: canLog ? C + '12' : 'transparent', borderWidth: canLog ? 0 : B.thin, borderColor: theme.onSurfaceVariant + '20' }}>
-              {renderModeEmojiIcon('💰', 14, canLog ? C : theme.onSurfaceVariant)}
+              {<Coins size={ICON.sm} color={canLog ? C : theme.onSurfaceVariant} />}
               <Text style={{ color: canLog ? C : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{canLog ? (tr ? 'Bu hafta bakiyeni gir' : 'Log this week\'s balance') : (tr ? 'Kaydedildi · sonraki hafta' : 'Logged · next week')}</Text>
             </Touchable>
           )}
@@ -318,35 +319,35 @@ export function TasarrufCard() {
           {budgetType === 'birikim' && (
             <View style={{ flexDirection: 'row', gap: S.sm }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: S.xs }}>{tr ? 'Şu anki birikim ₺' : 'Current savings ₺'}</Text>
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? 'Şu anki birikim ₺' : 'Current savings ₺'}</Text>
                 {moneyInput(startAmount, setStartAmount)}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: S.xs }}>{tr ? 'Hedef tutar ₺' : 'Target amount ₺'}</Text>
+                <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? 'Hedef tutar ₺' : 'Target amount ₺'}</Text>
                 {moneyInput(targetAmount, setTargetAmount)}
               </View>
             </View>
           )}
           {budgetType === 'borc' && (
             <View>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: S.xs }}>{tr ? 'Toplam borcun ₺' : 'Total debt ₺'}</Text>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? 'Toplam borcun ₺' : 'Total debt ₺'}</Text>
               {moneyInput(startAmount, setStartAmount)}
-              <Text style={{ color: theme.onSurfaceMuted, fontSize: 11, marginTop: S.xs }}>{tr ? '🎯 Hedef: borcu sıfırlamak (₺0)' : '🎯 Goal: clear the debt (₺0)'}</Text>
+              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xs }}>{tr ? '🎯 Hedef: borcu sıfırlamak (₺0)' : '🎯 Goal: clear the debt (₺0)'}</Text>
             </View>
           )}
           {budgetType === 'acilfon' && (
             <View style={{ gap: S.sm }}>
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: S.xs }}>{tr ? 'Aylık giderin ₺' : 'Monthly expenses ₺'}</Text>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? 'Aylık giderin ₺' : 'Monthly expenses ₺'}</Text>
                   {moneyInput(monthlyExpense, setMonthlyExpense)}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, marginBottom: S.xs }}>{tr ? 'Şu anki birikim ₺' : 'Current savings ₺'}</Text>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? 'Şu anki birikim ₺' : 'Current savings ₺'}</Text>
                   {moneyInput(startAmount, setStartAmount)}
                 </View>
               </View>
-              <Text style={{ color: theme.onSurfaceVariant, fontSize: 11 }}>{tr ? 'Kaç aylık güvence?' : 'Months of coverage?'}</Text>
+              <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'Kaç aylık güvence?' : 'Months of coverage?'}</Text>
               <View style={{ flexDirection: 'row', gap: S.xs }}>
                 {[3, 6, 9, 12].map(m => {
                   const active = coverMonths === m;
@@ -358,11 +359,11 @@ export function TasarrufCard() {
                 })}
               </View>
               {monthlyExp > 0 && (
-                <Text style={{ color: C, fontSize: 11, fontWeight: '700' }}>{tr ? `🎯 Hedef: ₺${fmtMoney(computedTarget)}` : `🎯 Target: ₺${fmtMoney(computedTarget)}`}</Text>
+                <Text style={{ color: C, fontSize: F.caption, fontWeight: '700' }}>{tr ? `🎯 Hedef: ₺${fmtMoney(computedTarget)}` : `🎯 Target: ₺${fmtMoney(computedTarget)}`}</Text>
               )}
             </View>
           )}
-          <Text style={{ color: theme.onSurfaceVariant, fontSize: 11 }}>{tr ? 'Süre' : 'Duration'}</Text>
+          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'Süre' : 'Duration'}</Text>
           <View style={{ flexDirection: 'row', gap: S.xs }}>
             {DURATIONS.map(m => {
               const active = durationMonths === m;

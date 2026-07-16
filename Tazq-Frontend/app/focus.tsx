@@ -42,6 +42,7 @@ import { Canvas, Fill, Shader, Skia, useClock } from '@shopify/react-native-skia
 import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
+import { AppIcon } from '@/shared/components/AppIcon';
 
 interface StarGroupProps {
   timerSize: number;
@@ -370,7 +371,7 @@ const PomodoroIndicator = React.memo(({ pomodoroPhase, pomodoroRound, theme, lan
         />
       ))}
     </View>
-    <Text style={{ fontSize: 11, color: theme.onSurfaceMuted, fontWeight: '600' }}>
+    <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, fontWeight: '600' }}>
       {language === 'tr' ? `Tur ${pomodoroRound}/4` : `Round ${pomodoroRound}/4`}
     </Text>
   </View>
@@ -1335,7 +1336,7 @@ export default function FocusScreen() {
                               transition={{ type: 'timing', duration: 220 }}
                               style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full }}
                             >
-                              <Text style={{ fontSize: 13, fontWeight: isSelected ? '800' : '600', color: isSelected ? '#fff' : 'rgba(255,255,255,0.72)', letterSpacing: 0.2 }}>
+                              <Text style={{ fontSize: F.footnote, fontWeight: isSelected ? '700' : '600', color: isSelected ? '#fff' : 'rgba(255,255,255,0.72)', letterSpacing: 0.2 }}>
                                 {language === 'tr' ? preset.labelTr : preset.labelEn}
                               </Text>
                               <Text style={{ fontSize: 10.5, fontWeight: '700', color: isSelected ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.38)' }}>
@@ -1354,7 +1355,7 @@ export default function FocusScreen() {
                               transition={{ type: 'timing', duration: 220 }}
                               style={{ paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full }}
                             >
-                              <Text style={{ fontSize: 13, fontWeight: isCustom ? '800' : '600', color: isCustom ? '#fff' : 'rgba(255,255,255,0.72)', letterSpacing: 0.2 }}>
+                              <Text style={{ fontSize: F.footnote, fontWeight: isCustom ? '700' : '600', color: isCustom ? '#fff' : 'rgba(255,255,255,0.72)', letterSpacing: 0.2 }}>
                                 {language === 'tr' ? 'Özel' : 'Custom'}
                               </Text>
                             </MotiView>
@@ -1663,7 +1664,7 @@ export default function FocusScreen() {
                         transition={{ type: 'timing', duration: 450 }}
                         style={{ maxWidth: timerSize * 0.72, marginTop: S.md }}
                       >
-                        <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600', letterSpacing: 0.3, textAlign: 'center' }}>
+                        <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.8)', fontSize: F.footnote, fontWeight: '600', letterSpacing: 0.3, textAlign: 'center' }}>
                           {currentTask}
                         </Text>
                       </MotiView>
@@ -2154,7 +2155,7 @@ export default function FocusScreen() {
                       <Text style={{ fontSize: 15, fontWeight: '700', color: isActive ? theme.primary : theme.onSurface }}>
                         {title}
                       </Text>
-                      <Text style={{ fontSize: 12, color: theme.onSurfaceVariant }}>
+                      <Text style={{ fontSize: F.caption2, color: theme.onSurfaceVariant }}>
                         {desc}
                       </Text>
                     </View>
@@ -2256,14 +2257,14 @@ export default function FocusScreen() {
                             borderColor: isSelected ? theme.primary : 'transparent'
                           }}
                         >
-                          <Text style={{ fontSize: 20 }}>{emojis[num - 1]}</Text>
+                          <Text style={{ fontSize: F.title3 }}>{emojis[num - 1]}</Text>
                         </Touchable>
                       );
                     })}
                   </View>
                 </>
               ) : (
-                <Text style={{ fontSize: 12, fontWeight: '600', color: theme.tertiary, letterSpacing: 0.2 }}>
+                <Text style={{ fontSize: F.caption2, fontWeight: '600', color: theme.tertiary, letterSpacing: 0.2 }}>
                   ✦ {language === 'tr' ? 'Geri bildiriminiz kaydedildi, teşekkürler!' : 'Feedback recorded, thank you!'} ✦
                 </Text>
               )}
@@ -2331,14 +2332,12 @@ export default function FocusScreen() {
             style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderRadius: R.xl, padding: S.slg, width: '100%', gap: S.md }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd }}>
-              <View style={{ width: 40, height: 40, borderRadius: R.md, backgroundColor: theme.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
-                <Timer size={ICON.md} color={theme.primary} />
-              </View>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, flex: 1 }}>
+              <AppIcon Icon={Timer} color={theme.primary} size={40} radius={R.md} iconSize={ICON.md} />
+              <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, flex: 1 }}>
                 {language === 'tr' ? 'Pomodoro Tekniği' : 'Pomodoro Technique'}
               </Text>
             </View>
-            <Text style={{ fontSize: 14, fontWeight: '500', color: theme.onSurfaceVariant, lineHeight: 22 }}>
+            <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurfaceVariant, lineHeight: 22 }}>
               {language === 'tr'
                 ? `"${language === 'tr' ? activePreset.labelTr : activePreset.labelEn}" modunda ${activePreset.workMins} dk çalışıp ${activePreset.shortBreak} dk dinleniyorsun. 4. turda ${activePreset.longBreak} dk uzun mola.`
                 : `In "${activePreset.labelEn}" mode you work for ${activePreset.workMins} min and rest ${activePreset.shortBreak} min. After round 4, a ${activePreset.longBreak}-min long break.`}
@@ -2353,15 +2352,15 @@ export default function FocusScreen() {
                     style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isActive ? theme.primary + '18' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.smd, borderWidth: B.thin, borderColor: isActive ? theme.primary + '40' : 'transparent' }}
                   >
                     <View style={{ gap: S.xxs }}>
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: isActive ? theme.primary : theme.onSurface }}>
+                      <Text style={{ fontSize: F.footnote, fontWeight: '700', color: isActive ? theme.primary : theme.onSurface }}>
                         {language === 'tr' ? preset.labelTr : preset.labelEn}
                       </Text>
-                      <Text style={{ fontSize: 11, color: theme.onSurfaceMuted }}>
+                      <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>
                         {language === 'tr' ? preset.descTr : preset.descEn}
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end', gap: S.xxs }}>
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: isActive ? theme.primary : theme.onSurfaceVariant }}>
+                      <Text style={{ fontSize: F.caption2, fontWeight: '700', color: isActive ? theme.primary : theme.onSurfaceVariant }}>
                         {language === 'tr' ? `${preset.workMins}dk çalış` : `${preset.workMins}m work`}
                       </Text>
                       <Text style={{ fontSize: 10, color: theme.onSurfaceMuted }}>
@@ -2397,10 +2396,10 @@ const styles = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full },
   badgeText: { fontWeight: '700', letterSpacing: 1 },
   pomodoroToggle: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, borderWidth: B.thin },
-  pomodoroToggleText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
+  pomodoroToggleText: { fontSize: F.caption2, fontWeight: '700', letterSpacing: 0.2 },
   pomodoroRow: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.xl, justifyContent: 'center' },
   phaseBadge: { paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full },
-  phaseLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5 },
+  phaseLabel: { fontSize: F.caption, fontWeight: '700', letterSpacing: 1.5 },
   content: { flex: 1, alignItems: 'center', width: '100%' },
   durationRow: { flexDirection: 'row' },
   durationChip: { borderRadius: R.full },
@@ -2422,7 +2421,7 @@ const styles = StyleSheet.create({
   btnGradient: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   ambientRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: S.md, paddingHorizontal: S.lg },
   ambientBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.md, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin },
-  ambientLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.1 },
+  ambientLabel: { fontSize: F.caption2, fontWeight: '700', letterSpacing: 0.1 },
   finishBtn: { flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin },
   finishText: { fontWeight: '700', letterSpacing: 0.3 },
   footer: { alignItems: 'center' },
@@ -2440,6 +2439,6 @@ const styles = StyleSheet.create({
   taskPickerItem: { flexDirection: 'row', alignItems: 'flex-start', gap: S.md, paddingHorizontal: S.lg, paddingVertical: S.md, borderBottomWidth: StyleSheet.hairlineWidth },
   taskPickerItemTitle: { fontSize: F.body, fontWeight: '600', lineHeight: 20 },
   transitionOverlay: { alignItems: 'center', justifyContent: 'center', gap: S.md },
-  transitionTitle: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
+  transitionTitle: { fontSize: F.display, fontWeight: '700', letterSpacing: -0.5 },
   transitionSub: { fontSize: F.subhead, fontWeight: '600', textAlign: 'center' },
 });

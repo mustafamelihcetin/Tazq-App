@@ -69,6 +69,7 @@ import { ReviewPromptModal } from '@/features/user/components/ReviewPromptModal'
 import { httpStatusOf, isNetworkError } from '@/shared/utils/errors';
 import { Colors } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
+import { AppIcon } from '@/shared/components/AppIcon';
 
 
 // Hoş geldin (profil kurulumu) oturum başına yalnızca bir kez — remount'ta sıfırlanmasın diye
@@ -1279,7 +1280,7 @@ export default function HomeScreen() {
                     style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm, paddingHorizontal: S.xxs }}
                   >
                     <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: theme.error }} />
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: theme.error, flex: 1 }}>
+                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.error, flex: 1 }}>
                       {overdueCount} {language === 'tr' ? 'gecikmiş görev' : overdueCount === 1 ? 'overdue task' : 'overdue tasks'}
                     </Text>
                     <ChevronRight size={ICON.xs} color={theme.error} opacity={0.5} />
@@ -1645,7 +1646,7 @@ export default function HomeScreen() {
                   ref={portalInputRef}
                   style={{
                     flex: 1,
-                    fontSize: 14,
+                    fontSize: F.body,
                     fontWeight: '600',
                     color: theme.onSurface,
                     padding: 0,
@@ -1751,7 +1752,7 @@ export default function HomeScreen() {
                           {shortcut.icon}
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurface }}>{shortcut.label}</Text>
+                          <Text style={{ fontSize: F.caption2, fontWeight: '700', color: theme.onSurface }}>{shortcut.label}</Text>
                           <Text style={{ fontSize: 10, fontWeight: '500', color: theme.onSurfaceMuted }}>{shortcut.desc}</Text>
                         </View>
                         <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.3} />
@@ -1794,11 +1795,9 @@ export default function HomeScreen() {
                         marginBottom: S.sm
                       }}
                     >
-                      <View style={{ width: 28, height: 28, borderRadius: R.sm, backgroundColor: theme.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
-                        <Plus size={ICON.sm} color={theme.primary} />
-                      </View>
+                      <AppIcon Icon={Plus} color={theme.primary} size={28} radius={R.sm} iconSize={ICON.sm} />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: theme.primary }} numberOfLines={1}>
+                        <Text style={{ fontSize: F.caption2, fontWeight: '700', color: theme.primary }} numberOfLines={1}>
                           {language === 'tr' ? `"${portalSearch}" görevini ekle` : `Add task "${portalSearch}"`}
                         </Text>
                         <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceMuted }}>
@@ -1836,7 +1835,7 @@ export default function HomeScreen() {
                               <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: priorityColor(task.priority) }} />
                               <View style={{ flex: 1 }}>
                                 <Text style={{
-                                  fontSize: 12,
+                                  fontSize: F.caption2,
                                   fontWeight: '600',
                                   color: task.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
                                   textDecorationLine: task.isCompleted ? 'line-through' : 'none',

@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import type { AppTheme } from '@/shared/constants/Colors';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, Switch, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, TouchableWithoutFeedback } from 'react-native';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, Settings } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -41,8 +41,8 @@ import { DottedBackground } from '@/shared/components/DottedBackground';
 import { swallow } from '@/shared/utils/swallow';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
 import { isNetworkError, httpDataOf } from '@/shared/utils/errors';
-import { Separator } from '@/shared/components/Separator';
 import { SectionHeader } from '@/shared/components/SectionHeader';
+import { SettingsCard, SettingItem, ToggleRow, RowDivider, settingsAccents } from '@/shared/components/SettingsRows';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -65,6 +65,7 @@ export default function ProfileScreen() {
   const { width, height } = useWindowDimensions();
   const router = useRouter();
   const isDark = colorScheme === 'dark';
+  const A = settingsAccents(theme);  // Apple tarzı çip renkleri (domain'e göre)
   const { show: showToast } = useToastStore();
   const insets = useSafeAreaInsets();
 
@@ -433,7 +434,7 @@ export default function ProfileScreen() {
             </View>
           ) : statsError ? (
             <Touchable onPress={loadStats} style={{ marginTop: S.md, alignSelf: 'flex-start', paddingHorizontal: S.md, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: theme.surfaceContainerHigh }}>
-              <Text style={{ color: theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>
+              <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption }}>
                 {language === 'tr' ? '↺ Yenile' : '↺ Retry'}
               </Text>
             </Touchable>
@@ -475,7 +476,7 @@ export default function ProfileScreen() {
               <View style={{ marginTop: S.md }}>
                 <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', marginBottom: S.md }} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: S.sm }}>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1.5 }}>
+                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', letterSpacing: 1.5 }}>
                     {tr ? 'BAŞARILAR' : 'ACHIEVEMENTS'}
                   </Text>
                   <View style={{ marginLeft: S.sm, backgroundColor: unlockedList.length > 0 ? theme.tertiary + '22' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xxs }}>
@@ -529,7 +530,7 @@ export default function ProfileScreen() {
                               borderRadius: R.full,
                               backgroundColor: ach.locked
                                 ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.015)')
-                                : ((ACHIEVEMENT_ICONS[ach.id]?.color || theme.primary) + '12'), // 7% opacity colored backdrop
+                                : (ACHIEVEMENT_ICONS[ach.id]?.color || theme.primary), // 7% opacity colored backdrop
                               alignItems: 'center',
                               justifyContent: 'center',
                               marginBottom: S.sm,
@@ -563,258 +564,47 @@ export default function ProfileScreen() {
             );
           })()}
 
+          {/* AYARLAR — gruplu kategori satırları (Apple tarzı ikonlar). Her biri
+              ayrıntı için ayarlar sayfasına götürür; profil yalnızca KİMLİK taşır. */}
           <View style={[styles.settingsSection, { marginTop: S.lg }]}>
-            <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', marginBottom: S.lg }} />
-            <Text style={[styles.sectionTitle, { color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', letterSpacing: -0.5, marginBottom: S.lg, marginLeft: S.xs }]}>{t.settings}</Text>
-
-            {/* ── BİLDİRİMLER ── */}
-            <SectionHeader title={language === 'tr' ? 'BİLDİRİMLER' : 'NOTIFICATIONS'} theme={theme} tr={language === 'tr'} />
+            <SectionHeader title={language === 'tr' ? 'AYARLAR' : 'SETTINGS'} theme={theme} tr={language === 'tr'} />
             <SettingsCard theme={theme} isDark={isDark}>
-                <SettingItem
-                    icon={<Bell size={ICON.md} color="#F59E0B" />}
-                    label={t.notifications}
-                    sub={language === 'tr' ? 'Sistem izinleri' : 'System permission'}
-                    bg={isDark ? "rgba(245, 158, 11, 0.1)" : "#F59E0B15"}
-                    right={<Text style={{ color: notifEnabled ? '#10B981' : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{notifEnabled ? t.notificationsEnabled : t.notificationsDisabled}</Text>}
-                    onPress={toggleNotifications}
-                    theme={theme}
-                />
-                <RowDivider theme={theme} />
-                <ToggleRow
-                    icon={<Sunrise size={ICON.md} color={theme.primary} />}
-                    bg={theme.primary + '15'}
-                    title={language === 'tr' ? 'Sabah Özeti' : 'Morning Brief'}
-                    subtitle={language === 'tr' ? 'Her sabah 08:00 — bugünkü görevler' : 'Daily at 08:00 — today\'s tasks'}
-                    value={morningBrief}
-                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setMorningBrief(v); if (!v) cancelMorningBrief(); }}
-                    theme={theme} isDark={isDark}
-                />
-                <RowDivider theme={theme} />
-                <ToggleRow
-                    icon={<Sunset size={ICON.md} color={theme.primary} />}
-                    bg={theme.primary + '15'}
-                    title={language === 'tr' ? 'Akşam Özeti' : 'Evening Brief'}
-                    subtitle={language === 'tr' ? 'Her gün 21:00 — günlük tamamlanma' : 'Daily at 21:00 — day completion'}
-                    value={eveningBrief}
-                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setEveningBrief(v); if (!v) cancelEveningBrief(); }}
-                    theme={theme} isDark={isDark}
-                />
-                <RowDivider theme={theme} />
-                <ToggleRow
-                    icon={<CalendarDays size={ICON.md} color={theme.primary} />}
-                    bg={theme.primary + '15'}
-                    title={language === 'tr' ? 'Haftalık Özet' : 'Weekly Summary'}
-                    subtitle={language === 'tr' ? 'Her Pazar akşamı momentum özeti' : 'Momentum recap every Sunday'}
-                    value={weeklyNotification}
-                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setWeeklyNotification(v); if (!v) cancelWeeklySummary(); }}
-                    theme={theme} isDark={isDark}
-                />
-                <RowDivider theme={theme} />
-                <ToggleRow
-                    icon={<CalendarDays size={ICON.md} color={theme.primary} />}
-                    bg={theme.primary + '15'}
-                    title={language === 'tr' ? 'Takvim Senkronizasyonu' : 'Calendar Sync'}
-                    subtitle={language === 'tr' ? 'Görevleri sistem takvimine kaydeder' : 'Syncs tasks to system calendar'}
-                    value={calendarSync}
-                    onValueChange={toggleCalendarSync}
-                    theme={theme} isDark={isDark}
-                />
+              <SettingItem
+                icon={<Bell size={ICON.md} color="#FFFFFF" />}
+                bg={A.notify}
+                label={language === 'tr' ? 'Bildirimler' : 'Notifications'}
+                sub={language === 'tr' ? 'Hatırlatma, özet, takvim' : 'Reminders, briefs, calendar'}
+                onPress={() => router.push({ pathname: '/settings', params: { section: 'notify' } })}
+                theme={theme}
+              />
+              <RowDivider theme={theme} />
+              <SettingItem
+                icon={<Languages size={ICON.md} color="#FFFFFF" />}
+                bg={A.system}
+                label={language === 'tr' ? 'Görünüm & Dil' : 'Appearance & Language'}
+                sub={language === 'tr' ? 'Tema, dil, sade mod' : 'Theme, language, lite mode'}
+                onPress={() => router.push({ pathname: '/settings', params: { section: 'system' } })}
+                theme={theme}
+              />
+              <RowDivider theme={theme} />
+              <SettingItem
+                icon={<Moon size={ICON.md} color="#FFFFFF" />}
+                bg={A.health}
+                label={language === 'tr' ? 'Uyku & Sağlık' : 'Sleep & Health'}
+                sub={language === 'tr' ? 'Apple Sağlık, uyku hedefi' : 'Apple Health, sleep goal'}
+                onPress={() => router.push({ pathname: '/settings', params: { section: 'health' } })}
+                theme={theme}
+              />
+              <RowDivider theme={theme} />
+              <SettingItem
+                icon={<Shield size={ICON.md} color="#FFFFFF" />}
+                bg={A.legal}
+                label={language === 'tr' ? 'Gizlilik & Yasal' : 'Privacy & Legal'}
+                sub={language === 'tr' ? 'Hesap, gizlilik, destek' : 'Account, privacy, support'}
+                onPress={() => router.push({ pathname: '/settings', params: { section: 'legal' } })}
+                theme={theme}
+              />
             </SettingsCard>
-
-            {/* ── GÖRÜNÜM & DİL ── */}
-            <SectionHeader title={language === 'tr' ? 'GÖRÜNÜM & DİL' : 'APPEARANCE & LANGUAGE'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
-            <SettingsCard theme={theme} isDark={isDark}>
-                <SettingItem
-                    icon={<Moon size={ICON.md} color="#818CF8" />}
-                    label={t.appearance}
-                    bg={isDark ? "rgba(129, 140, 248, 0.1)" : "#818CF815"}
-                    right={<Text style={{ color: theme.primary, fontWeight: '700', fontSize: F.caption }}>{((t as any)[`theme${currentSetting.charAt(0).toUpperCase() + currentSetting.slice(1)}`] || currentSetting).toUpperCase()}</Text>}
-                    onPress={toggleTheme}
-                    theme={theme}
-                />
-                <RowDivider theme={theme} />
-                <SettingItem
-                    icon={<Languages size={ICON.md} color="#10B981" />}
-                    label={t.language}
-                    bg={isDark ? "rgba(16, 185, 129, 0.1)" : "#10B98115"}
-                    right={<Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{language.toUpperCase()}</Text>}
-                    onPress={toggleLanguage}
-                    theme={theme}
-                />
-                <RowDivider theme={theme} />
-                <ToggleRow
-                    icon={<Zap size={ICON.md} color={theme.primary} />}
-                    bg={theme.primary + '15'}
-                    title={language === 'tr' ? 'Sade Mod' : 'Lite Mode'}
-                    subtitle={language === 'tr' ? 'Oyunlaştırma ve modları gizler — sadece görevler' : 'Hides gamification & modes — tasks only'}
-                    value={uiMode === 'lite'}
-                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
-                    theme={theme} isDark={isDark}
-                />
-            </SettingsCard>
-
-            {/* ── DENEYİM ── */}
-            <SectionHeader title={language === 'tr' ? 'DENEYİM' : 'EXPERIENCE'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
-            <SettingsCard theme={theme} isDark={isDark}>
-                <ToggleRow
-                    icon={<Volume2 size={ICON.md} color={theme.primary} />}
-                    bg={theme.primary + '15'}
-                    title={language === 'tr' ? 'Ses Efektleri' : 'Sound Effects'}
-                    subtitle={language === 'tr' ? 'Görev & timer tamamlama sesleri' : 'Task & timer completion sounds'}
-                    value={soundEffects}
-                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setSoundEffects(v); }}
-                    theme={theme} isDark={isDark}
-                />
-                <RowDivider theme={theme} />
-                <SettingItem
-                    icon={<Zap size={ICON.md} color={theme.primary} />}
-                    label={language === 'tr' ? 'Focus Puanları' : 'Focus Points'}
-                    sub={language === 'tr' ? `${focusPoints} XP · Her 100 puanda 1 kalkan kazanırsın` : `${focusPoints} XP · Gain 1 shield every 100 points`}
-                    bg={theme.primary + '15'}
-                    right={<Text style={{ color: theme.primary, fontWeight: '700', fontSize: F.caption }}>{focusPoints}/100</Text>}
-                    theme={theme}
-                />
-                <RowDivider theme={theme} />
-                <SettingItem
-                    icon={<Shield size={ICON.md} color={isDark ? "#2DD4BF" : "#0D9488"} />}
-                    label={t.streakFreeze}
-                    sub={language === 'tr' ? `${streakShields}/3 kalkan hazır — seriyi korur` : `${streakShields}/3 shields ready — protects streak`}
-                    bg={isDark ? "rgba(45, 212, 191, 0.12)" : "rgba(13, 148, 136, 0.12)"}
-                    right={
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                        {[1, 2, 3].map((num) => (
-                          <Shield
-                            key={num}
-                            size={12}
-                            color={num <= streakShields ? (isDark ? '#2DD4BF' : '#0D9488') : theme.onSurfaceVariant}
-                            fill={num <= streakShields ? (isDark ? '#2DD4BF' : '#0D9488') : 'transparent'}
-                            opacity={num <= streakShields ? 1 : 0.25}
-                          />
-                        ))}
-                      </View>
-                    }
-                    onPress={handleStreakFreeze}
-                    theme={theme}
-                />
-            </SettingsCard>
-
-            {/* ── UYKU (Apple Sağlık) — yalnız desteklenen cihazda ── */}
-            {sleepSupported && (
-              <>
-                <SectionHeader title={language === 'tr' ? 'UYKU' : 'SLEEP'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
-                <SettingsCard theme={theme} isDark={isDark}>
-                    <ToggleRow
-                        icon={<Moon size={ICON.md} color="#818CF8" />}
-                        bg={'#818CF815'}
-                        title={language === 'tr' ? 'Apple Sağlık ile Uyku' : 'Sleep via Apple Health'}
-                        subtitle={language === 'tr' ? 'Uyku alışkanlığın her sabah otomatik işaretlenir' : 'Your sleep habit is auto-marked each morning'}
-                        value={sleepHealthOptIn === 'yes'}
-                        onValueChange={handleSleepToggle}
-                        theme={theme} isDark={isDark}
-                    />
-                    <RowDivider theme={theme} />
-                    <SettingItem
-                        icon={<Target size={ICON.md} color="#818CF8" />}
-                        label={language === 'tr' ? 'Uyku Hedefi' : 'Sleep Goal'}
-                        sub={language === 'tr' ? 'Hedefi tuttuğunda kutlanır' : 'Celebrated when you hit it'}
-                        bg={'#818CF815'}
-                        right={<Text style={{ color: '#818CF8', fontWeight: '700', fontSize: F.caption }}>{sleepGoalHours}{language === 'tr' ? ' saat' : 'h'}</Text>}
-                        onPress={cycleSleepGoal}
-                        theme={theme}
-                    />
-                </SettingsCard>
-              </>
-            )}
-
-            {/*
-              MERKEZ — YALNIZCA Sade modda.
-
-              /cockpit zaten alt navigasyonda bir sekme, yani Pro modda bu satır bir
-              dokunuş uzaktaki şeyi ikinci kez sunuyordu: koca bir bölüm başlığı + satır,
-              sıfır yeni yetenek. Ayarlar sayfasının "kalabalık" hissinin bir parçası buydu.
-
-              Ama körlemesine silinemez: Sade mod sekmeleri home/tasks/focus ile sınırlıyor
-              (bkz. BottomNavBar.LITE_TAB_IDS), yani orada bu satır cockpit'e TEK erişim yolu.
-              Koşullu olunca ikisi de doğru: Pro'da yok, Sade'de var.
-            */}
-            {uiMode === 'lite' && (
-              <>
-              <SectionHeader title={language === 'tr' ? 'MERKEZ' : 'HUB'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
-              <SettingsCard theme={theme} isDark={isDark}>
-                  <SettingItem
-                      icon={<CalendarDays size={ICON.md} color={theme.primary} />}
-                      label={language === 'tr' ? 'Haftalık Merkez' : 'Weekly Hub'}
-                      sub={language === 'tr' ? 'Momentum, seri ve haftalık bakış' : 'Momentum, streak & weekly view'}
-                      bg={theme.primary + '15'}
-                      onPress={() => router.push('/cockpit')}
-                      theme={theme}
-                  />
-              </SettingsCard>
-              </>
-            )}
-
-            {/* ── YASAL & GİZLİLİK ── */}
-            <SectionHeader title={t.legalAndPrivacy || (language === 'tr' ? 'YASAL & GİZLİLİK' : 'LEGAL & PRIVACY')} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
-            <SettingsCard theme={theme} isDark={isDark}>
-                <SettingItem
-                    icon={<FileText size={ICON.md} color="#8B5CF6" />}
-                    label={t.termsOfService || (language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service')}
-                    bg="#8B5CF615"
-                    onPress={() => router.push({ pathname: '/legal', params: { doc: 'terms' } })}
-                    theme={theme}
-                />
-                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
-                <SettingItem
-                    icon={<Shield size={ICON.md} color="#10B981" />}
-                    label={t.privacyPolicy || (language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy')}
-                    bg="#10B98115"
-                    onPress={() => router.push({ pathname: '/legal', params: { doc: 'privacy' } })}
-                    theme={theme}
-                />
-                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
-                <SettingItem
-                    icon={<MessageSquare size={ICON.md} color="#3B82F6" />}
-                    label={(t as any).support?.title || (language === 'tr' ? 'Destek & İletişim' : 'Support & Contact')}
-                    sub={(t as any).support?.sub || (language === 'tr' ? 'Soru ve önerilerini ilet' : 'Send questions & feedback')}
-                    bg="#3B82F615"
-                    onPress={() => setSupportModalVisible(true)}
-                    theme={theme}
-                />
-            </SettingsCard>
-
-            {user?.role === 'Admin' && (
-              <Touchable
-                onPress={() => router.push('/admin')}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.08)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl, borderWidth: B.thin, borderColor: isDark ? 'rgba(99,102,241,0.25)' : 'rgba(99,102,241,0.15)' }}
-              >
-                <Shield size={ICON.md} color="#6366F1" />
-                <Text style={{ color: '#6366F1', fontWeight: '700', fontSize: F.body, flex: 1 }}>
-                  {language === 'tr' ? 'Admin Paneli' : 'Admin Panel'}
-                </Text>
-                <ChevronRight size={ICON.sm} color="#6366F1" />
-              </Touchable>
-            )}
-
-            {(user as any)?.hasPassword && (
-              <Touchable
-                onPress={openChangePassword}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl }}
-              >
-                <Lock size={ICON.md} color={theme.onSurfaceVariant} />
-                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body, flex: 1 }}>{language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}</Text>
-                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
-              </Touchable>
-            )}
-
-            <Touchable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.error + '10', marginTop: (user as any)?.hasPassword ? S.md : S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
-                <LogOut size={ICON.md} color={theme.error} />
-                <Text style={[styles.logoutText, { color: theme.error, fontSize: F.body }]}>{t.logout}</Text>
-            </Touchable>
-
-            <Touchable onPress={openDeleteAccount} style={[styles.logoutBtn, { backgroundColor: 'transparent', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md }]}>
-                <Trash2 size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.6} />
-                <Text style={[styles.logoutText, { color: theme.onSurfaceMuted, fontSize: F.caption }]}>{t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account')}</Text>
-            </Touchable>
           </View>
         </ScrollView>
       </View>
@@ -822,127 +612,8 @@ export default function ProfileScreen() {
       <BottomNavBar />
 
       {/* Hesap Silme Onayı — "SİL" yazdıran, parolasız (Google/Apple) kullanıcılar dahil */}
-      <Modal visible={deleteModalVisible} transparent animationType="fade" onRequestClose={() => { if (!deleting) setDeleteModalVisible(false); }}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insets.top + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insets.bottom) + S.lg }}>
-          <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { if (!deleting) { Keyboard.dismiss(); setDeleteModalVisible(false); } }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
-          <MotiView
-            from={{ opacity: 0, scale: 0.96, translateY: 16 }}
-            animate={{ opacity: 1, scale: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 18 }}
-            style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderRadius: R.lg, padding: S.lg, gap: S.md }}
-          >
-            <View style={{ width: 52, height: 52, borderRadius: R.full, backgroundColor: theme.error + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
-              <Trash2 size={ICON.lg} color={theme.error} strokeWidth={2.2} />
-            </View>
-
-            <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, textAlign: 'center', letterSpacing: -0.3 }}>
-              {language === 'tr' ? 'Hesabını sil' : 'Delete account'}
-            </Text>
-
-            {/* Açıklama + kayıp listesi yalnızca klavye kapalıyken (yazarken kompakt kalır, scroll gerekmez) */}
-            {kbHeight === 0 && (
-              <>
-                <Text style={{ fontSize: F.body, color: theme.onSurfaceVariant, textAlign: 'center', lineHeight: 20 }}>
-                  {language === 'tr'
-                    ? 'Hesabın hemen devre dışı kalır. 30 gün içinde tekrar giriş yaparsan her şey geri gelir. Süre dolunca şunlar kalıcı olarak silinir:'
-                    : 'Your account is deactivated right away. Log back in within 30 days to restore everything. After that, the following is permanently deleted:'}
-                </Text>
-                <View style={{ gap: S.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md }}>
-                  {(language === 'tr'
-                    ? ['Profilin ve tüm ayarların', 'Tüm görev ve alışkanlıkların', 'Odak geçmişin ve istatistiklerin', 'Aktif modların ve planların']
-                    : ['Your profile & all settings', 'All tasks & habits', 'Focus history & stats', 'Active modes & plans']
-                  ).map((li, i) => (
-                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: theme.error, opacity: 0.7 }} />
-                      <Text style={{ flex: 1, fontSize: F.caption + 1, color: theme.onSurfaceVariant, fontWeight: '500' }}>{li}</Text>
-                    </View>
-                  ))}
-                </View>
-              </>
-            )}
-
-            <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, textAlign: 'center', marginTop: S.xxs }}>
-              {language === 'tr' ? 'Onaylamak için ' : 'Type '}
-              <Text style={{ fontWeight: '700', color: theme.error, letterSpacing: 1 }}>{DELETE_WORD}</Text>
-              {language === 'tr' ? ' yazın' : ' to confirm'}
-            </Text>
-            <TextInput
-              value={deleteConfirmText}
-              onChangeText={setDeleteConfirmText}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              placeholder={DELETE_WORD}
-              placeholderTextColor={theme.onSurfaceVariant + '66'}
-              editable={!deleting}
-              style={{ borderWidth: B.medium, borderColor: canConfirmDelete ? theme.error : theme.outline, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', letterSpacing: 2, textAlign: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
-            />
-
-            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.xs }}>
-              <Touchable onPress={() => { if (!deleting) { Keyboard.dismiss(); setDeleteModalVisible(false); } }} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center' }}>
-                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Vazgeç' : 'Cancel'}</Text>
-              </Touchable>
-              <Touchable disabled={!canConfirmDelete || deleting} onPress={performDeleteAccount} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.error, alignItems: 'center', justifyContent: 'center', opacity: (canConfirmDelete && !deleting) ? 1 : 0.4 }}>
-                {deleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Hesabı Sil' : 'Delete'}</Text>}
-              </Touchable>
-            </View>
-          </MotiView>
-        </View>
-      </Modal>
 
       {/* Şifre Değiştir */}
-      <Modal visible={pwModalVisible} transparent animationType="fade" onRequestClose={() => { if (!changingPw) setPwModalVisible(false); }}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insets.top + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insets.bottom) + S.lg }}>
-          <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { if (!changingPw) { Keyboard.dismiss(); setPwModalVisible(false); } }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
-          <MotiView
-            from={{ opacity: 0, scale: 0.96, translateY: 16 }}
-            animate={{ opacity: 1, scale: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 18 }}
-            style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderRadius: R.lg, padding: S.lg, gap: S.md }}
-          >
-            <View style={{ width: 52, height: 52, borderRadius: R.full, backgroundColor: theme.primary + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
-              <Lock size={ICON.lg} color={theme.primary} strokeWidth={2.2} />
-            </View>
-            <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, textAlign: 'center', letterSpacing: -0.3 }}>
-              {language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}
-            </Text>
-
-            {[
-              { val: curPw, set: setCurPw, ph: language === 'tr' ? 'Mevcut şifren' : 'Current password', eye: false },
-              { val: newPw, set: setNewPw, ph: language === 'tr' ? 'Yeni şifre (8+ karakter, harf ve rakam)' : 'New password (8+ chars, letter & number)', eye: true },
-              { val: confPw, set: setConfPw, ph: language === 'tr' ? 'Yeni şifre (tekrar)' : 'Confirm new password', eye: false },
-            ].map((f, i) => (
-              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: B.medium, borderColor: theme.outline, borderRadius: R.md, paddingHorizontal: S.md, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
-                <TextInput
-                  value={f.val}
-                  onChangeText={(v) => { f.set(v); if (pwError) setPwError(null); }}
-                  secureTextEntry={!showPw}
-                  placeholder={f.ph}
-                  placeholderTextColor={theme.onSurfaceVariant + '80'}
-                  autoCapitalize="none"
-                  editable={!changingPw}
-                  style={{ flex: 1, paddingVertical: S.sm, color: theme.onSurface, fontSize: F.body }}
-                />
-                {f.eye && (
-                  <TouchableOpacity accessibilityRole="button" accessibilityLabel={showPw ? (language === 'tr' ? 'Şifreyi gizle' : 'Hide password') : (language === 'tr' ? 'Şifreyi göster' : 'Show password')} onPress={() => setShowPw((s) => !s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    {showPw ? <EyeOff size={ICON.md} color={theme.onSurfaceVariant} /> : <Eye size={ICON.md} color={theme.onSurfaceVariant} />}
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-
-            {pwError && <Text style={{ color: theme.error, textAlign: 'center', fontSize: F.caption + 1, fontWeight: '600' }}>{pwError}</Text>}
-
-            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.xxs }}>
-              <Touchable onPress={() => { if (!changingPw) { Keyboard.dismiss(); setPwModalVisible(false); } }} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center' }}>
-                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Vazgeç' : 'Cancel'}</Text>
-              </Touchable>
-              <Touchable onPress={performChangePassword} disabled={changingPw} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', opacity: changingPw ? 0.6 : 1 }}>
-                {changingPw ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Kaydet' : 'Save'}</Text>}
-              </Touchable>
-            </View>
-          </MotiView>
-        </View>
-      </Modal>
 
       {/* Edit Profile Modal */}
       <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
@@ -1018,7 +689,7 @@ export default function ProfileScreen() {
                             }}
                           >
                             <Text style={{
-                              fontSize: 12,
+                              fontSize: F.caption2,
                               fontFamily: 'Jakarta-Bold',
                               color: isSelected ? theme.onPrimaryContainer : theme.onSurfaceVariant,
                             }}>
@@ -1239,97 +910,12 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* Support Modal */}
-      <SupportModal
-        visible={supportModalVisible}
-        onClose={() => setSupportModalVisible(false)}
-        theme={theme}
-        isDark={isDark}
-        language={language}
-        t={t}
-      />
     </View>
   );
 }
 
 // iOS tarzı bölüm başlığı (kartın üstünde küçük, harf aralıklı etiket)
 
-/**
- * Gruplanmış ayar kartı — dashboard'ın BentoCard'ıyla AYNI kabuk.
- *
- * Eskiden kendi renklerini yazıyordu ve ayrışmıştı:
- *   koyu zemin  : '#1C1C22' sabit  → dashboard #222228 kullanıyordu. Aynı uygulamada
- *                 iki farklı kart tonu; fark küçük ama sistematik değil, kaza.
- *   kenar rengi : elle rgba       → palette theme.outline zaten var.
- *   yarıçap     : R.lg (16)       → dashboard R.md (12), iOS kart standardı.
- *
- * "Profil sayfası farklı/karmaşık görünüyor" hissinin ölçülebilir kısmı buydu: göz
- * aynı olması gereken iki şeyin farkını yakalar, sebebini adlandıramasa bile.
- */
-function SettingsCard({ children, theme, isDark, style }: any) {
-    return (
-        <View style={[{
-            backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
-            borderColor: isDark ? theme.outline : 'transparent',
-            borderWidth: isDark ? B.thin : 0,
-            borderRadius: R.md,
-            overflow: 'hidden',
-        }, style]}>
-            {children}
-        </View>
-    );
-}
-
-// Kart içi satır ayıracı — paylaşılan Separator üzerine ince sarmal.
-// Eskiden kendi çizgisini çiziyordu: `height: 1` + elle rgba. Yani hem 1pt (iOS'ta
-// Apple'ın çizgisinin 3 katı) hem palet dışıydı. Aynı dosyada bir de hiç kullanılmayan
-// ikinci bir Divider vardı — tek dosyada iki ayırıcı, biri ölü.
-//
-// marginHorizontal KORUNUYOR: bu kart içi bir ayıraç, iki yandan da girintili
-// (Separator'ın inset'i yalnızca soldan — o, liste satırı deseni).
-function RowDivider({ theme }: { theme: AppTheme }) {
-    return (
-        <View style={{ marginHorizontal: S.md }}>
-            <Separator theme={theme} />
-        </View>
-    );
-}
-
-// İkon + başlık + alt açıklama + Switch satırı (tek aksan rengi)
-function ToggleRow({ icon, bg, title, subtitle, value, onValueChange, theme, isDark }: any) {
-    return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.md, gap: S.smd }}>
-            <View style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
-            <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body, lineHeight: 20 }}>{title}</Text>
-                {!!subtitle && <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs, lineHeight: 15 }}>{subtitle}</Text>}
-            </View>
-            <Switch
-                value={value}
-                onValueChange={onValueChange}
-                trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: theme.primary + '80' }}
-                thumbColor={value ? theme.primary : (isDark ? '#636366' : '#fff')}
-            />
-        </View>
-    );
-}
-
-function SettingItem({ icon, label, sub, right, onPress, theme, bg }: any) {
-    return (
-        <Touchable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.md }} onPress={onPress}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd, flex: 1, minWidth: 0 }}>
-                <View style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: bg || (theme.colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body, lineHeight: 20 }}>{label}</Text>
-                    {!!sub && <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs, lineHeight: 15 }}>{sub}</Text>}
-                </View>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginLeft: S.sm }}>
-                {right}
-                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.3} />
-            </View>
-        </Touchable>
-    );
-}
 
 
 const styles = StyleSheet.create({

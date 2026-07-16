@@ -201,7 +201,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                             {modeInfo && (
                                                 <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: modeInfo.color + '1A', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
                                                     <Sparkles size={ICON.xs} color={modeInfo.color} opacity={0.9} />
-                                                    <Text style={[{ fontSize: 11 }, { color: modeInfo.color, fontWeight: '600' }]}>
+                                                    <Text style={[{ fontSize: F.caption }, { color: modeInfo.color, fontWeight: '600' }]}>
                                                         {language === 'tr' ? modeInfo.labelTr : modeInfo.labelEn}
                                                     </Text>
                                                 </View>
@@ -211,7 +211,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                                 return (
                                                     <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isOverdue ? theme.error + '15' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'), borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
                                                         <Clock size={ICON.xs} color={isOverdue ? theme.error : theme.onSurfaceVariant} opacity={0.7} />
-                                                        <Text style={[{ fontSize: 11 }, { color: isOverdue ? theme.error : theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                        <Text style={[{ fontSize: F.caption }, { color: isOverdue ? theme.error : theme.onSurfaceVariant, fontWeight: '600' }]}>
                                                             {taskCountdown}
                                                         </Text>
                                                     </View>
@@ -220,7 +220,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                             {modeInfo && modeInfo.daysLeft !== undefined && (
                                                 <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: modeInfo.color + '18', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
                                                     <Target size={ICON.xs} color={modeInfo.color} opacity={0.9} />
-                                                    <Text style={[{ fontSize: 11 }, { color: modeInfo.color, fontWeight: '600' }]}>
+                                                    <Text style={[{ fontSize: F.caption }, { color: modeInfo.color, fontWeight: '600' }]}>
                                                         {modeInfo.unit === 'clean_day'
                                                             ? (modeInfo.daysLeft === 0
                                                                 ? (language === 'tr' ? '1. Gün' : 'Day 1')
@@ -232,7 +232,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                             {task.dueDate && !taskCountdown && (
                                                 <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
                                                     <Calendar size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                    <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                    <Text style={[{ fontSize: F.caption }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
                                                         {new Date(task.dueDate).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short' })}
                                                     </Text>
                                                 </View>
@@ -240,7 +240,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                             {task.dueTime && (
                                                 <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
                                                     <Clock size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                    <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                    <Text style={[{ fontSize: F.caption }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
                                                         {(() => {
                                                             const date = new Date(task.dueTime);
                                                             return isNaN(date.getTime())
@@ -253,7 +253,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                             {task.subtasks && task.subtasks.length > 0 && (
                                                 <View style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
                                                     <ListChecks size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                    <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                    <Text style={[{ fontSize: F.caption }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
                                                         {task.subtasks.filter((s: any) => s.done).length}/{task.subtasks.length}
                                                     </Text>
                                                 </View>
@@ -262,7 +262,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                             {visibleTextTags(task.tags).map((tag, tagIdx) => (
                                                 <View key={tagIdx} style={[{ flexDirection: 'row', alignItems: 'center', gap: S.xs }, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs }]}>
                                                     <Tag size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.7} />
-                                                    <Text style={[{ fontSize: 11 }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
+                                                    <Text style={[{ fontSize: F.caption }, { color: theme.onSurfaceVariant, fontWeight: '600' }]}>
                                                         {translateTag(tag, language as 'tr' | 'en')}
                                                     </Text>
                                                 </View>
@@ -1402,7 +1402,7 @@ export default function ActionCenter() {
             <Text
               numberOfLines={1}
               adjustsFontSizeToFit
-              style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title }}
+              style={{ fontSize: F.title3, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title }}
             >
               {isBulkMode ? (language === 'tr' ? 'Seçim' : 'Selection') : t.actionCenter}
             </Text>
@@ -1413,7 +1413,7 @@ export default function ActionCenter() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
                     {selectedIds.size > 0 && (
                         <View style={[styles.selBadge, { backgroundColor: theme.primary }]}>
-                            <Text style={{ color: theme.onPrimary, fontSize: 11, fontWeight: '700', textAlign: 'center' }}>{selectedIds.size}</Text>
+                            <Text style={{ color: theme.onPrimary, fontSize: F.caption, fontWeight: '700', textAlign: 'center' }}>{selectedIds.size}</Text>
                         </View>
                     )}
                 </View>
@@ -1476,7 +1476,7 @@ export default function ActionCenter() {
 
                 {/* Sorting Options */}
                 <View style={{ paddingHorizontal: S.lg, paddingVertical: S.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}>
-                   <Text style={{ fontSize: 11, fontWeight: '600', opacity: 0.5, letterSpacing: 1 }}>{language === 'tr' ? 'SIRALAMA' : 'SORTING'}</Text>
+                   <Text style={{ fontSize: F.caption, fontWeight: '600', opacity: 0.5, letterSpacing: 1 }}>{language === 'tr' ? 'SIRALAMA' : 'SORTING'}</Text>
                 </View>
 
                 {([['creation', t.sortByCreation], ['priority', t.sortByPriority], ['date', t.sortByDate]] as const).map(([key, label]) => (
@@ -1642,7 +1642,7 @@ export default function ActionCenter() {
                       }
                   ]}
                 >
-                  <Text style={[styles.filterChipText, { color: filter === f ? theme.primary : theme.onSurfaceVariant, fontSize: F.body, fontWeight: filter === f ? '900' : '600' }]}>
+                  <Text style={[styles.filterChipText, { color: filter === f ? theme.primary : theme.onSurfaceVariant, fontSize: F.body, fontWeight: filter === f ? '700' : '600' }]}>
                     {label}
                   </Text>
                 </Touchable>
@@ -1784,7 +1784,7 @@ export default function ActionCenter() {
             )}
             ListFooterComponent={() => (
                 filteredTasks.length > 0 && !isBulkMode ? (
-                    <Text style={{ fontSize: 12, color: theme.onSurfaceVariant, opacity: isDark ? 0.5 : 0.35, textAlign: 'center', marginTop: S.md, fontWeight: '600', letterSpacing: 0.3 }}>
+                    <Text style={{ fontSize: F.caption2, color: theme.onSurfaceVariant, opacity: isDark ? 0.5 : 0.35, textAlign: 'center', marginTop: S.md, fontWeight: '600', letterSpacing: 0.3 }}>
                         {t.swipeHint}
                     </Text>
                 ) : null
@@ -1896,16 +1896,15 @@ export default function ActionCenter() {
             bottom: 44,
             right: 24,
             zIndex: 100,
-            backgroundColor: isDark ? theme.onSurface : theme.onBackground,
-            shadowColor: '#000',
+            backgroundColor: theme.primary,
+            shadowColor: theme.primary,
             alignItems: 'center',
             justifyContent: 'center',
           }}
-          buttonSize={64}
-          borderRadius={R.lg}
+          buttonSize={54}
           tourId="quickAdd"
         >
-          <Plus size={ICON.xl} color={isDark ? theme.background : '#FFFFFF'} strokeWidth={3} />
+          <Plus size={ICON.lg} color={theme.onPrimary} strokeWidth={2.5} />
         </MagneticFAB>
       )}
 

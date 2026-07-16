@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { View, Text, Switch, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
-import { ChevronRight, CalendarDays } from 'lucide-react-native';
+import { ChevronRight, CalendarDays, GraduationCap, Calendar } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
@@ -20,6 +20,7 @@ import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf } from '@/shared/utils/planTaskOps';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
+import { AppIcon } from '@/shared/components/AppIcon';
 
 const TEZ = '#8B5CF6';
 const BASE_CALENDAR_WIDTH = 340;
@@ -81,9 +82,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
     <View style={[styles_modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.tezMode && isComplete ? (past ? theme.error + '40' : accent + '35') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.tezMode ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: (seasonal.tezMode && isComplete ? (past ? theme.error : accent) : TEZ) + '18', alignItems: 'center', justifyContent: 'center' }}>
-            {renderModeEmojiIcon('📝', 18, seasonal.tezMode && isComplete ? (past ? theme.error : accent) : TEZ)}
-          </View>
+          <AppIcon Icon={GraduationCap} color={seasonal.tezMode && isComplete ? (past ? theme.error : accent) : TEZ} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Tez / Proje' : 'Thesis / Project'}</Text>
             {seasonal.tezMode && isComplete ? (
@@ -112,7 +111,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
           <Separator theme={theme} />
           {!isComplete && !expanded && (
             <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
-              {renderModeEmojiIcon('📝', 16, theme.onSurfaceVariant)}
+              <AppIcon Icon={GraduationCap} color={theme.onSurfaceVariant} size={24} radius={R.sm} iconSize={ICON.sm} />
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.body, flex: 1 }}>{tr ? 'Proje ekle' : 'Add project'}</Text>
               <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.4} />
             </Touchable>
@@ -123,7 +122,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
               <View style={{ height: 3, backgroundColor: past ? theme.error : accent }} />
               <View style={{ padding: S.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
-                  {renderModeEmojiIcon('📝', 16, accent)}
+                  <AppIcon Icon={GraduationCap} color={accent} size={24} radius={R.sm} iconSize={ICON.sm} />
                   <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
                   <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onOpenPreview(); }} activeOpacity={0.7} style={{ backgroundColor: accent + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
                     <Text style={{ color: accent, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Plan Oluştur ›' : 'Create Plan ›')}</Text>
@@ -135,7 +134,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
                 </View>
                 {past ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                    {renderModeEmojiIcon('📅', 14, theme.error)}
+                    {<Calendar size={ICON.sm} color={theme.error} />}
                     <Text style={{ color: theme.error, fontWeight: '500' }}>{tr ? 'Teslim tarihi geçti' : 'Deadline passed'} · {formatPlanDate(date, tr)}</Text>
                   </View>
                 ) : (
@@ -146,14 +145,14 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
                     </View>
                     <View style={{ flex: 1, paddingTop: S.xxs }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                        {renderModeEmojiIcon('📅', 13, theme.onSurfaceVariant)}
+                        {<Calendar size={ICON.sm} color={theme.onSurfaceVariant} />}
                         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{formatPlanDate(date, tr)}</Text>
                       </View>
                       {progTotal > 0 && (
                         <View style={{ marginTop: S.sm, gap: S.xs }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                            <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
-                            <Text style={{ color: accent, fontSize: 11, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
+                            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
+                            <Text style={{ color: accent, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
                           </View>
                           <View style={{ height: 5, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
                             <View style={{ height: 5, borderRadius: R.xs, backgroundColor: accent, width: `${progPct}%` as any }} />

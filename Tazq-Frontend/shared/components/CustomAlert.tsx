@@ -102,7 +102,7 @@ export function CustomAlertModal() {
 
   const isDestructive = buttons.some(b => b.style === 'destructive');
   const IconComponent = isDestructive ? Trash2 : (title.toLowerCase().includes('hata') || title.toLowerCase().includes('error') ? AlertCircle : Info);
-  const iconColor = isDestructive ? '#EF4444' : theme.primary;
+  const iconColor = isDestructive ? theme.error : theme.primary;
 
   // Sıralama: Cancel solda, Primary/Destructive sağda olmalı.
   // Gelen array genelde [Cancel, Destructive] şeklindedir.
@@ -152,8 +152,8 @@ export function CustomAlertModal() {
               const isCancel = btn.style === 'cancel';
               const isPrimary = !isCancel && !isBtnDestructive;
               
-              const btnBg = isBtnDestructive 
-                ? '#EF4444' 
+              const btnBg = isBtnDestructive
+                ? theme.error
                 : isPrimary 
                   ? theme.primary 
                   : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)');
@@ -183,7 +183,7 @@ export function CustomAlertModal() {
                       styles.buttonText, 
                       { 
                         color: textColor,
-                        fontWeight: isCancel ? '600' : '800',
+                        fontWeight: isCancel ? '600' : '700',
                         fontFamily: 'Jakarta-Bold'
                       }
                     ]}
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   message: {
-    fontSize: 14,
+    fontSize: F.body,
     fontWeight: '500',
     textAlign: 'center',
     lineHeight: 20,

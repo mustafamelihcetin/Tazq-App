@@ -59,10 +59,12 @@ export interface SectionHeaderProps {
   inset?: number;
   /** Ek boşluk/hizalama gerektiğinde. */
   style?: object;
+  /** Konum ölçümü — bölüme kaydırma için (settings sayfası param ile bölüme atlar). */
+  onLayout?: (e: { nativeEvent: { layout: { y: number } } }) => void;
 }
 
-export const SectionHeader = React.memo<SectionHeaderProps>(({ title, hint, theme, style, tr = false, inset = 0 }) => (
-  <View style={[styles.wrap, { paddingHorizontal: inset }, style]}>
+export const SectionHeader = React.memo<SectionHeaderProps>(({ title, hint, theme, style, tr = false, inset = 0, onLayout }) => (
+  <View style={[styles.wrap, { paddingHorizontal: inset }, style]} onLayout={onLayout}>
     <Text style={[styles.title, { color: theme.onSurfaceVariant }]}>
       {/*
         Büyük harf çevirimi BURADA ve dile GÖRE. Türkçe'de "i" → "İ", İngilizce'de

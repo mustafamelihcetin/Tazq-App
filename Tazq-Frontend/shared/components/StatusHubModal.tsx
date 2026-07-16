@@ -9,6 +9,7 @@ import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { Touchable } from '@/shared/components/Touchable';
 import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { AppIcon } from '@/shared/components/AppIcon';
 interface StatusHubModalProps {
   visible: boolean;
   onClose: () => void;
@@ -135,7 +136,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
     if (score >= 80) {
       evalTr = 'Zirvedesin. Bu hafta odaklanma disiplinin mükemmeldi.';
       evalEn = 'Peak focus. Excellent focus discipline this week.';
-      color = '#10B981'; // Green
+      color = theme.success; // semantik başarı (tema-duyarlı; eski #10B981 iki temada da aynıydı)
     } else if (score >= 55) {
       evalTr = 'Dengeli ve istikrarlı bir ilerleme. Ritim yavaş yavaş oturuyor.';
       evalEn = 'Steady progress. You are building a consistent rhythm.';
@@ -281,7 +282,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                     />
                   </Svg>
                   <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: theme.onSurface }}>
+                    <Text style={{ fontSize: F.callout, fontWeight: '700', color: theme.onSurface }}>
                       %{focusScore}
                     </Text>
                   </View>
@@ -318,12 +319,12 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                 style={{ padding: S.md }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
-                  <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: '#10B981' }} />
+                  <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: theme.success }} />
                   <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                     {language === 'tr' ? 'AKILLI ODAK ÖNERİSİ' : 'SMART FOCUS ADVICE'}
                   </Text>
                 </View>
-                <Text style={[styles.insightMainText, { color: theme.onSurface, fontSize: 13, fontWeight: '500', lineHeight: 18.5, fontStyle: 'italic' }]}>
+                <Text style={[styles.insightMainText, { color: theme.onSurface, fontSize: F.footnote, fontWeight: '500', lineHeight: 18.5, fontStyle: 'italic' }]}>
                   "{insight}"
                 </Text>
               </LinearGradient>
@@ -407,7 +408,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                     <Text style={{ fontSize: 8, fontWeight: '700', color: theme.onSurfaceVariant, alignSelf: 'flex-start' }}>
                       {language === 'tr' ? 'EN VERİMLİ GÜN' : 'BEST DAY'}
                     </Text>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurface, marginTop: S.xxs }}>
+                    <Text style={{ fontSize: F.caption2, fontWeight: '700', color: theme.onSurface, marginTop: S.xxs }}>
                       {bestDayMins > 0 ? `${getLocalizedDayName(bestDayName, true)} (${bestDayMins}m)` : '-'}
                     </Text>
                   </View>
@@ -418,15 +419,15 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, marginTop: S.xxs }}>
                       {weekTrend >= 0 ? (
                         <>
-                          <TrendingUp size={ICON.xs} color="#10B981" />
-                          <Text style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>
+                          <TrendingUp size={ICON.xs} color={theme.success} />
+                          <Text style={{ fontSize: F.caption2, fontWeight: '700', color: theme.success }}>
                             +{weekTrend}%
                           </Text>
                         </>
                       ) : (
                         <>
                           <TrendingDown size={ICON.xs} color={theme.warning} />
-                          <Text style={{ fontSize: 12, fontWeight: '700', color: theme.warning }}>
+                          <Text style={{ fontSize: F.caption2, fontWeight: '700', color: theme.warning }}>
                             {weekTrend}%
                           </Text>
                         </>
@@ -449,9 +450,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                 borderRadius: R.lg,
                 padding: S.smd,
               }}>
-                <View style={{ width: 28, height: 28, borderRadius: R.full, backgroundColor: theme.primary + '15', alignItems: 'center', justifyContent: 'center' }}>
-                  <Sparkles size={ICON.sm} color={theme.primary} />
-                </View>
+                <AppIcon Icon={Sparkles} color={theme.primary} size={28} radius={R.full} iconSize={ICON.sm} />
                 <View style={{ flex: 1, gap: S.xxs }}>
                   <Text style={{ fontSize: 9, fontWeight: '700', color: theme.primary, letterSpacing: 0.8, textTransform: 'uppercase' }}>
                     {language === 'tr' ? 'ALIŞKANLIK & ODAK SİNERJİSİ' : 'HABIT & FOCUS SYNERGY'}
@@ -485,7 +484,7 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                         {/* Habit label */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, flex: 1 }}>
                           {renderModeEmojiIcon(habit.emoji ?? '📌', 14, habit.color || theme.primary)}
-                          <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: '700', color: theme.onSurface, maxWidth: 90 }}>
+                          <Text numberOfLines={1} style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurface, maxWidth: 90 }}>
                             {habit.name}
                           </Text>
                         </View>
@@ -597,17 +596,8 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
                         paddingHorizontal: S.smd,
                       }}
                     >
-                      <View style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: R.full,
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <IconComponent size={13} color={iconColor} />
-                      </View>
-                      <Text style={{ flex: 1, fontSize: 12, fontWeight: '600', color: theme.onSurface, lineHeight: 16 }}>
+                      <AppIcon Icon={IconComponent} color={iconColor} size={26} radius={R.full} iconSize={ICON.sm} />
+                      <Text style={{ flex: 1, fontSize: F.caption2, fontWeight: '600', color: theme.onSurface, lineHeight: 16 }}>
                         {text}
                       </Text>
                     </View>

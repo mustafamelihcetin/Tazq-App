@@ -6,7 +6,7 @@
 import React from 'react';
 import { View, Text, Switch } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight, Moon } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
@@ -21,6 +21,7 @@ import { RAMAZAN_HABIT_NAMES } from '../../utils/turkishModes';
 import { scheduleRamadanStartNotification, cancelRamadanStartNotification } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
+import { AppIcon } from '@/shared/components/AppIcon';
 
 export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const { theme, isDark } = useAppTheme();
@@ -64,9 +65,7 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
     <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.ramazan ? (isDark ? 'rgba(99,102,241,0.30)' : 'rgba(99,102,241,0.20)') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.ramazan ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: seasonal.ramazan ? '#6366F122' : '#6366F115', alignItems: 'center', justifyContent: 'center' }}>
-            {renderModeEmojiIcon('🌙', 18, seasonal.ramazan ? '#6366F1' : '#6366F1aa')}
-          </View>
+          <AppIcon Icon={Moon} color="#6366F1" />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Ramazan Modu' : 'Ramadan Mode'}</Text>
             <Text style={{ fontSize: F.caption, fontWeight: '500', marginTop: S.xxs, color: ramadanStatus.isActive ? accent : seasonal.ramazan && ramadanStatus.period ? accent : theme.onSurfaceVariant, opacity: ramadanStatus.isActive ? 0.9 : seasonal.ramazan && ramadanStatus.period ? 0.75 : 0.55 }}>

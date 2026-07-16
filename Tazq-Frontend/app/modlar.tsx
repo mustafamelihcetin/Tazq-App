@@ -5,7 +5,8 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { BlurView } from 'expo-blur';
 import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, ChevronRight, CalendarDays, X, Info, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity } from 'lucide-react-native';
+import { BookOpen, ChevronRight, CalendarDays, X, Info, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, PiggyBank, Ban } from 'lucide-react-native';
+import { AppIcon } from '@/shared/components/AppIcon';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
@@ -703,7 +704,7 @@ export default function ModlarScreen() {
             <Text 
               numberOfLines={1} 
               adjustsFontSizeToFit
-              style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
+              style={{ fontSize: F.title3, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
             >
                 {language === 'tr' ? 'Dönemsel Modlar' : 'Seasonal Modes'}
             </Text>
@@ -760,7 +761,7 @@ export default function ModlarScreen() {
                     <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{statusGreetingObj.text}</Text>
                   </View>
                   <View style={{ backgroundColor: (statusNearest?.color ?? urgencyColor) + (isDark ? '26' : '1A'), paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-                    <Text style={{ color: statusNearest?.color ?? urgencyColor, fontSize: 11, fontWeight: '700' }}>{statusActiveCount} {language === 'tr' ? 'mod' : 'modes'}</Text>
+                    <Text style={{ color: statusNearest?.color ?? urgencyColor, fontSize: F.caption, fontWeight: '700' }}>{statusActiveCount} {language === 'tr' ? 'mod' : 'modes'}</Text>
                   </View>
                 </View>
 
@@ -773,7 +774,7 @@ export default function ModlarScreen() {
                     <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{statusNearest?.label ?? (language === 'tr' ? 'Süresiz hedef' : 'Open-ended goal')}</Text>
                     {statusNearest ? (
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs, marginTop: S.xxs }}>
-                        <Text style={{ color: statusNearest.color, fontWeight: '700', fontSize: 22, letterSpacing: -0.5 }}>{statusNearest.days}</Text>
+                        <Text style={{ color: statusNearest.color, fontWeight: '700', fontSize: F.title, letterSpacing: -0.5 }}>{statusNearest.days}</Text>
                         <Text style={{ color: statusNearest.color, fontWeight: '600', fontSize: F.caption }}>{language === 'tr' ? (statusNearest.days === 0 ? 'bugün!' : 'gün kaldı') : (statusNearest.days === 0 ? 'today!' : 'days left')}</Text>
                       </View>
                     ) : (
@@ -796,7 +797,7 @@ export default function ModlarScreen() {
                       </>
                     ) : (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: '#10B981' + (isDark ? '22' : '15'), paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '700' }}>✓ {language === 'tr' ? 'bugün boş' : 'clear'}</Text>
+                        <Text style={{ color: '#10B981', fontSize: F.caption2, fontWeight: '700' }}>✓ {language === 'tr' ? 'bugün boş' : 'clear'}</Text>
                       </View>
                     )}
                   </View>
@@ -850,6 +851,7 @@ export default function ModlarScreen() {
                   title: language === 'tr' ? 'Spor & Fiziksel' : 'Fitness & Health',
                   desc: language === 'tr' ? 'Kilo, koşu veya antrenman takibi' : 'Weight, running or workouts',
                   icon: '🏋️',
+                  Icon: Dumbbell,
                   color: '#F97316',
                   onActivate: () => { setSeasonalPref('sporMode', true); focusCard('spor'); },
                 },
@@ -859,6 +861,7 @@ export default function ModlarScreen() {
                   title: language === 'tr' ? 'Sınav Takibi' : 'Exam Tracking',
                   desc: language === 'tr' ? 'YKS, KPSS, ALES çalışma planı' : 'Study plan for any exam',
                   icon: '📖',
+                  Icon: BookOpen,
                   color: '#3B82F6',
                   onActivate: () => { setSeasonalPref('examMode', true); focusCard('exam'); },
                 },
@@ -868,6 +871,7 @@ export default function ModlarScreen() {
                   title: language === 'tr' ? 'Tez / Proje' : 'Thesis / Project',
                   desc: language === 'tr' ? 'Deadline odaklı bitirme akışı' : 'Deadline-driven project plan',
                   icon: '📝',
+                  Icon: FileText,
                   color: '#8B5CF6',
                   onActivate: () => { setSeasonalPref('tezMode', true); focusCard('tez'); },
                 },
@@ -877,6 +881,7 @@ export default function ModlarScreen() {
                   title: language === 'tr' ? 'İş Mülakatı' : 'Job Interview',
                   desc: language === 'tr' ? 'Mülakat gününe hazırlık akışı' : 'Preparation until interview',
                   icon: '💼',
+                  Icon: Briefcase,
                   color: '#10B981',
                   onActivate: () => { setSeasonalPref('mulakatMode', true); focusCard('mulakat'); },
                 },
@@ -886,7 +891,8 @@ export default function ModlarScreen() {
                   title: language === 'tr' ? 'Tasarruf / Bütçe' : 'Savings / Budget',
                   desc: language === 'tr' ? 'Para hedefine ulaşma planı' : 'Steps to reach money goal',
                   icon: '💰',
-                  color: '#10B981',
+                  Icon: PiggyBank,
+                  color: '#0D9488',
                   onActivate: () => { setSeasonalPref('tasarrufMode', true); focusCard('tasarruf'); },
                 },
                 {
@@ -895,6 +901,7 @@ export default function ModlarScreen() {
                   title: language === 'tr' ? 'Bırakma' : 'Quit Habit',
                   desc: language === 'tr' ? 'Kötü alışkanlıklardan adım adım kurtul' : 'Quit bad habits step by step',
                   icon: '🚫',
+                  Icon: Ban,
                   color: '#EF4444',
                   onActivate: () => { setSeasonalPref('birakmaMode', true); focusCard('birakma'); },
                 },
@@ -913,7 +920,7 @@ export default function ModlarScreen() {
                         {language === 'tr' ? 'Yeni Hedef Keşfet' : 'Discover New Goals'}
                       </Text>
                     </View>
-                    <Text style={{ color: theme.onSurfaceMuted, fontSize: 11, fontWeight: '600' }}>
+                    <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>
                       {language === 'tr' ? 'Dokun & Başla' : 'Tap to Start'}
                     </Text>
                   </View>
@@ -939,16 +946,14 @@ export default function ModlarScreen() {
                         activeOpacity={0.7}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <View style={{ width: 42, height: 42, borderRadius: R.md, backgroundColor: item.color + (isDark ? '26' : '18'), alignItems: 'center', justifyContent: 'center' }}>
-                            {renderModeEmojiIcon(item.icon, 22, item.color)}
-                          </View>
+                          <AppIcon Icon={item.Icon} color={item.color} size={42} radius={R.md} iconSize={ICON.md} />
                           <View style={{ backgroundColor: item.color + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-                            <Text style={{ color: item.color, fontSize: 11, fontWeight: '700' }}>{language === 'tr' ? '+ Ekle' : '+ Add'}</Text>
+                            <Text style={{ color: item.color, fontSize: F.caption, fontWeight: '700' }}>{language === 'tr' ? '+ Ekle' : '+ Add'}</Text>
                           </View>
                         </View>
                         <View style={{ gap: S.xs, marginTop: S.sm }}>
-                          <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: 14 }} numberOfLines={1}>{item.title}</Text>
-                          <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, lineHeight: 15 }} numberOfLines={2}>{item.desc}</Text>
+                          <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{item.title}</Text>
+                          <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, lineHeight: 15 }} numberOfLines={2}>{item.desc}</Text>
                         </View>
                       </Touchable>
                     ))}

@@ -6,7 +6,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Check } from 'lucide-react-native';
 import { swallow } from '@/shared/utils/swallow';
-import { S, ICON, R } from '@/shared/constants/tokens';
+import { F, S, ICON, R } from '@/shared/constants/tokens';
 
 const CONFETTI_COLORS = [
   '#6366F1', '#EC4899', '#F59E0B', '#10B981',
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeTitle: {
-    fontSize: 14,
+    fontSize: F.body,
     fontFamily: 'Jakarta-Bold',
   },
   badgeSubtitle: {

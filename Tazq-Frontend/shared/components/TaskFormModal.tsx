@@ -547,7 +547,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
                       >
                         <Timer size={ICON.sm} color={theme.primary} />
-                        <Text style={[styles.chipText, { color: form.dueDate ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]} numberOfLines={1}>
+                        <Text style={[styles.chipText, { color: form.dueDate ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: F.caption2 }]} numberOfLines={1}>
                           {form.dueDate || t.selectDate}
                         </Text>
                       </Touchable>
@@ -561,7 +561,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
                       >
                         <Sparkles size={ICON.sm} color={theme.secondary} />
-                        <Text style={[styles.chipText, { color: form.dueTime ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: 12 }]} numberOfLines={1}>
+                        <Text style={[styles.chipText, { color: form.dueTime ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: F.caption2 }]} numberOfLines={1}>
                           {form.dueTime ? new Date(form.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t.selectTime}
                         </Text>
                       </Touchable>
@@ -842,9 +842,9 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         setForm(f => ({ ...f, subtasks: subs }));
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }}
-                      style={{ width: 24, height: 24, borderRadius: R.sm, borderWidth: 1.5, borderColor: sub.done ? '#10B981' : theme.outline, alignItems: 'center', justifyContent: 'center', backgroundColor: sub.done ? '#10B9811A' : 'transparent' }}
+                      style={{ width: 24, height: 24, borderRadius: R.sm, borderWidth: 1.5, borderColor: sub.done ? theme.success : theme.outline, alignItems: 'center', justifyContent: 'center', backgroundColor: sub.done ? theme.success + '1A' : 'transparent' }}
                     >
-                      {sub.done ? <Check size={ICON.sm} color="#10B981" /> : null}
+                      {sub.done ? <Check size={ICON.sm} color={theme.success} /> : null}
                     </Touchable>
                     <Text style={{ flex: 1, fontSize: F.body, color: sub.done ? theme.onSurfaceVariant : theme.onSurface, textDecorationLine: sub.done ? 'line-through' : 'none', opacity: sub.done ? 0.6 : 1 }}>
                       {sub.text}
@@ -924,7 +924,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         }}
                         style={{ paddingHorizontal: S.smd, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: hasTag ? theme.primary : (isDark ? '#2C2C2E' : '#E5E5EA'), borderWidth: 0.5, borderColor: theme.outlineVariant }}
                       >
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: hasTag ? theme.onPrimary : theme.onSurfaceVariant }}>
+                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: hasTag ? theme.onPrimary : theme.onSurfaceVariant }}>
                           {translateTag(tagOption, language as 'tr' | 'en')}
                         </Text>
                       </Touchable>

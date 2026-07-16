@@ -189,7 +189,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                       }]}
                     >
                       <Text style={{
-                        fontSize: 12,
+                        fontSize: F.caption2,
                         fontFamily: 'Jakarta-Bold',
                         color: isSelected ? theme.onPrimaryContainer : theme.onSurfaceVariant,
                       }}>
@@ -343,13 +343,13 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
   },
   title: {
-    fontSize: 20,
+    fontSize: F.title3,
     fontFamily: 'Jakarta-Bold',
     textAlign: 'center',
     marginBottom: S.xs,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: F.caption2,
     lineHeight: 18,
     fontFamily: 'Jakarta-SemiBold',
     textAlign: 'center',
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#EF4444',
-    fontSize: 12,
+    fontSize: F.caption2,
     fontWeight: '600',
     textAlign: 'center',
     marginTop: S.sm,
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   label: {
-    fontSize: 12,
+    fontSize: F.caption2,
     fontWeight: '700',
     marginBottom: S.xs,
   },
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? 12 : 6,
   },
   input: {
-    fontSize: 14,
+    fontSize: F.body,
     fontFamily: 'Jakarta-Bold',
   },
   avatarWrapper: {
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnText: {
-    fontSize: 14,
+    fontSize: F.body,
     fontWeight: '700',
   },
 });

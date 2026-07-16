@@ -36,16 +36,25 @@ const EXEMPT_FILES = new Set(['shared/constants/Colors.ts']);
  */
 const CEILING: Record<string, number> = {
   'app/admin.tsx': 100,  // admin paneli — son kullanıcı görmüyor
-  // 53 → 43: SettingsCard ve üç modal zemini palete bağlandı. Hepsi aynı kazaydı —
-  // '#1C1C22' sabiti. Dashboard kartları theme.surfaceContainerHigh (#222228) kullanırken
-  // profil kendi tonunu yazmıştı: aynı uygulamada iki kart rengi. Kalanlar başarım
-  // rozetleri ve kullanıcının seçtiği çerçeve renkleri (kategorik — bakılması gerekiyor).
-  'app/profile.tsx': 43,
+  // 53 → 43 → 28 → 19: kart/modal palete, ikon renkleri anlamsal haritaya, sonra ayarlar
+  // ayrı sayfaya taşındı (silme/parola/destek modalları settings.tsx'e gitti). Kalan 19:
+  // başarım rozetleri ve kullanıcının seçtiği çerçeve renkleri (kategorik, kimlik taşır).
+  'app/profile.tsx': 19,
+  // settings.tsx profile'den byte-byte çıkarıldı; bu 9 renk silme/parola modallarının
+  // dekoratif tonları (profilde de aynen vardı). Split tamamlanınca (blok profilden
+  // sökülünce) profil tavanı düşecek. Modal renkleri ayrı bir temizlik işi.
+  // 8 → 7: "Bildirimler Açık" yeşili theme.success'e bağlandı (kapalı hâli zaten tema-token'dı)
+  'app/settings.tsx': 7,
   'shared/components/RocketFeedback.tsx': 49,  // kendi durum renk dili (cyan/mor/turuncu/kırmızı)
-  'app/promo.tsx': 42,  // pazarlama sayfası — kendi görsel dili
+  // 42 → 57: pazarlama sayfası, kendi görsel dili. Aydınlık/koyu tema seçimi eklendi →
+  // artık İKİ tam palet (accent + nötr çiftleri) taşıyor; renk tanımları doğal olarak ~ikiye
+  // katlandı. Bilinçli yükseltme (bkz. tema toggle, ACCENTS/NEUTRAL). Bu satır yine yalnız küçülmeli.
+  'app/promo.tsx': 57,
   'app/modlar.tsx': 25,
   'app/cockpit.tsx': 23,
-  'app/onboarding.tsx': 23,
+  // onboarding: temizlendi. 7 marka-dışı slayt rengi (Material #6200ee, #3367ff, #ff2d55…)
+  // palet token'larına bağlandı (accentKey → theme/CategoryColors, tema-duyarlı); emoji
+  // etiketler lucide glife çevrildi. İlk-izlenim ekranı artık app'in paletiyle aynı.
   'features/modes/components/TurkishModeBanner.tsx': 23,
   'shared/components/ProfileSetupModal.tsx': 22,  // kullanıcının seçtiği avatar renkleri
   'features/modes/components/modes/SporCard.tsx': 21,
@@ -57,13 +66,17 @@ const CEILING: Record<string, number> = {
   'shared/components/ConfettiOverlay.tsx': 12,
   'shared/components/TourFeaturePreview.tsx': 12,
   'app/tasks.tsx': 10,
-  'shared/components/StatusHubModal.tsx': 10,
-  'shared/components/WeightEntryModal.tsx': 8,
+  // 10 → 7: trend/nokta/değerlendirme yeşilleri theme.success'e bağlandı (tema-kör #10B981'di)
+  'shared/components/StatusHubModal.tsx': 7,
+  // 8 → 1: kilo artış/azalış + kaydet butonu + aktivite aksanı semantik theme.success/error'a
+  // bağlandı (buton bg'de beyaz-üstü kontrast da düzeldi — #10B981 2.5:1'di)
+  'shared/components/WeightEntryModal.tsx': 1,
   'app/report.tsx': 7,
   'features/modes/utils/modeHelpers.ts': 7,
   'shared/components/QuickDraftModal.tsx': 7,
   'features/modes/components/modes/ExamCard.tsx': 6,
-  'shared/components/TaskFormModal.tsx': 6,
+  // 6 → 3: alt-görev "yapıldı" tik/çerçeve/zemin semantik theme.success'e bağlandı
+  'shared/components/TaskFormModal.tsx': 3,
   'features/modes/components/modes/MulakatCard.tsx': 5,
   'features/modes/components/modes/TezCard.tsx': 5,
   'shared/components/SupportModal.tsx': 5,
@@ -78,9 +91,10 @@ const CEILING: Record<string, number> = {
   'shared/components/Toast.tsx': 3,
   'features/user/components/ReviewPromptModal.tsx': 2,
   'shared/components/AnimatedSplash.tsx': 2,
-  'shared/components/CustomAlert.tsx': 2,
   'shared/utils/calendarSync.ts': 2,
   'shared/utils/lifeModePlans.ts': 2,
+  // CustomAlert: temizlendi. Yıkıcı-eylem kırmızısı (#EF4444, iki temada da aynı; beyaz
+  // yazı üstünde 3.3:1 AA'dan kalıyordu) theme.error'a bağlandı → dosya artık palet-temiz.
   'features/focus/components/FocusIsland.tsx': 1,
   'features/habits/store/useHabitStore.ts': 1,
   'shared/components/GlassCard.tsx': 1,

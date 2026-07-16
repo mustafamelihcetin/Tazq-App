@@ -93,7 +93,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
 
   const parsedInput = parseFloat(input.replace(',', '.'));
   const diff = lastWeight && !isNaN(parsedInput) && parsedInput > 0 ? parsedInput - lastWeight : null;
-  const diffColor = diff === null ? theme.onSurfaceVariant : diff < 0 ? '#10B981' : diff > 0 ? '#EF4444' : theme.onSurfaceVariant;
+  const diffColor = diff === null ? theme.onSurfaceVariant : diff < 0 ? theme.success : diff > 0 ? theme.error : theme.onSurfaceVariant;
   const diffLabel = diff === null ? '' : diff === 0 ? (tr ? 'Değişim yok' : 'No change') : `${diff > 0 ? '+' : ''}${diff.toFixed(1)} kg`;
 
   return (
@@ -128,15 +128,15 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
 
           {/* Header */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.lg }}>
-            <View style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: '#10B98120', alignItems: 'center', justifyContent: 'center' }}>
-              <Activity size={ICON.md} color="#10B981" strokeWidth={2} />
+            <View style={{ width: 36, height: 36, borderRadius: R.sm, backgroundColor: theme.success + '20', alignItems: 'center', justifyContent: 'center' }}>
+              <Activity size={ICON.md} color={theme.success} strokeWidth={2} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>
                 {tr ? 'Haftalık Tartı' : 'Weekly Weigh-In'}
               </Text>
               {thisWeek ? (
-                <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '700', marginTop: S.xxs }}>
+                <Text style={{ color: theme.success, fontSize: F.caption, fontWeight: '700', marginTop: S.xxs }}>
                   {tr ? `Bu hafta: ${thisWeek.weight} kg kaydedildi` : `This week: ${thisWeek.weight} kg logged`}
                 </Text>
               ) : (
@@ -163,7 +163,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
               placeholderTextColor={theme.onSurfaceVariant + '60'}
               keyboardType="decimal-pad"
               autoFocus
-              style={{ flex: 1, fontSize: 28, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, height: '100%', textAlignVertical: 'center' }}
+              style={{ flex: 1, fontSize: F.display, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, height: '100%', textAlignVertical: 'center' }}
             />
             <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontWeight: '700' }}>kg</Text>
           </View>
@@ -193,7 +193,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
 
           {/* 7-gün uyarısı */}
           {err ? (
-            <Text style={{ color: '#EF4444', fontSize: F.caption, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>{err}</Text>
+            <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>{err}</Text>
           ) : null}
 
           {/* Save button */}
@@ -201,7 +201,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             onPress={handleSave}
             disabled={saving || !input}
             style={{
-              backgroundColor: '#10B981',
+              backgroundColor: theme.success,
               borderRadius: R.full,
               paddingVertical: S.md,
               alignItems: 'center',

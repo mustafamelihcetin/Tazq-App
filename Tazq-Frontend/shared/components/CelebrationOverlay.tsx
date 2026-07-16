@@ -280,7 +280,7 @@ export const CelebrationOverlay: React.FC = () => {
               borderRadius: R.full,
               borderWidth: B.medium,
               borderColor: (ACHIEVEMENT_ICONS[pending.id]?.color || theme.primary) + '30', // 19% opacity colored border
-              backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+              backgroundColor: ACHIEVEMENT_ICONS[pending.id]?.color || theme.primary,
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: S.lg,

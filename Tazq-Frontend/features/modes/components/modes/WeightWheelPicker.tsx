@@ -68,7 +68,7 @@ export function WeightWheelPicker({ value, onChange, min = 30, max = 220, theme,
           const active = item === value;
           return (
             <View key={item} style={{ height: itemHeight, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: active ? 20 : 15, fontWeight: active ? '900' : '600', color: active ? sporColor : (isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)') }}>
+              <Text style={{ fontSize: active ? 20 : 15, fontWeight: active ? '700' : '600', color: active ? sporColor : (isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)') }}>
                 {item} <Text style={{ fontSize: active ? 12 : 9, fontWeight: '500' }}>kg</Text>
               </Text>
             </View>

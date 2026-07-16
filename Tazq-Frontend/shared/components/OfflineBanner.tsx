@@ -5,7 +5,7 @@ import { WifiOff } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { S, ICON, R } from '@/shared/constants/tokens';
+import { F, S, ICON, R } from '@/shared/constants/tokens';
 
 export const OfflineBanner = () => {
   const { isOnline } = useNetworkStore();
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: F.footnote,
     fontWeight: '700',
   },
 });

@@ -6,7 +6,7 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
-import { S, ICON, R } from '@/shared/constants/tokens';
+import { F, S, ICON, R } from '@/shared/constants/tokens';
 
 const COLORS = {
   error: { bg: '#ff3b30', icon: AlertCircle },
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: F.body,
     fontWeight: '700',
     flex: 1,
   },
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: F.footnote,
     fontWeight: '700',
   },
   close: {

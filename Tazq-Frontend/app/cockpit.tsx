@@ -8,7 +8,7 @@ import { BlurView } from 'expo-blur';
 import {
   Plus, Check, Flame, Clock, Target,
   ChevronRight, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee,
-} from 'lucide-react-native';
+  RefreshCw } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as HapticsOriginal from 'expo-haptics';
 const Haptics = {
@@ -541,7 +541,7 @@ export default function CockpitScreen() {
             <Text 
               numberOfLines={1} 
               adjustsFontSizeToFit
-              style={{ fontSize: 20, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
+              style={{ fontSize: F.title3, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
             >
                 {tr ? 'Haftalık Merkez' : 'Weekly Hub'}
             </Text>
@@ -1184,7 +1184,7 @@ export default function CockpitScreen() {
                 {tr ? 'Yeni Alışkanlık' : 'New Habit'}
               </Text>
               <View style={{ backgroundColor: newColor + '20', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs, flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                {renderModeEmojiIcon('🔄', 10, newColor)}
+                {<RefreshCw size={ICON.xs} color={newColor} />}
                 <Text style={{ fontSize: 10, fontWeight: '600', color: newColor, letterSpacing: 0.3 }}>
                   {tr ? 'Her gün takip edilir' : 'Tracked daily'}
                 </Text>
@@ -1387,7 +1387,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1.5 },
-  headerSub: { fontSize: 11, fontWeight: '600', marginTop: S.xxs },
+  headerSub: { fontSize: F.caption, fontWeight: '600', marginTop: S.xxs },
   addBtn: { width: 36, height: 36, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
 
   // Week strip
@@ -1399,7 +1399,7 @@ const styles = StyleSheet.create({
   },
   dayAbbr: { fontSize: 10, fontWeight: '600', letterSpacing: 0.2 },
   dayCircle: { width: 30, height: 30, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
-  dayNum: { fontSize: 13, fontWeight: '700' },
+  dayNum: { fontSize: F.footnote, fontWeight: '700' },
   taskDot: { width: 5, height: 5, borderRadius: R.full },
 
   // Day tasks card
@@ -1416,7 +1416,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between', marginBottom: S.sm,
   },
   sectionTitle: { fontSize: F.caption, fontWeight: '600', letterSpacing: 1.5 },
-  sectionSub: { fontSize: 11, fontWeight: '600' },
+  sectionSub: { fontSize: F.caption, fontWeight: '600' },
 
   // Empty state
   emptyTitle: { fontSize: F.subhead, fontWeight: '600', marginBottom: S.sm, textAlign: 'center' },
@@ -1431,7 +1431,7 @@ const styles = StyleSheet.create({
   habitIcon: { width: 44, height: 44, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   habitName: { fontSize: F.body, fontWeight: '600' },
   streakRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.xxs },
-  streakText: { fontSize: 11, fontWeight: '600' },
+  streakText: { fontSize: F.caption, fontWeight: '600' },
 
   // Heatmap
   heatmapGrid: { gap: S.xxs },

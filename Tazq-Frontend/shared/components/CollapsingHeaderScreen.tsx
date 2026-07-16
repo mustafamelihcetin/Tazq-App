@@ -73,7 +73,7 @@ export function CollapsingHeaderScreen({ title, onBack, rightSlot, children, bac
 const styles = StyleSheet.create({
   headerAbs: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   headerRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md },
-  compactTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', letterSpacing: TRACKING.subhead },
+  compactTitle: { flex: 1, textAlign: 'center', fontSize: F.subhead, fontWeight: '700', letterSpacing: TRACKING.subhead },
   largeTitle: { fontSize: 30, fontWeight: '700', letterSpacing: TRACKING.hero, includeFontPadding: false },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 });

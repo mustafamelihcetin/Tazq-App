@@ -120,7 +120,7 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
               pointerEvents: 'none',
             }}
           >
-            <Text style={{ fontSize: 34 }}>{surprise.icon}</Text>
+            <Text style={{ fontSize: F.hero }}>{surprise.icon}</Text>
           </MotiView>
         )}
 

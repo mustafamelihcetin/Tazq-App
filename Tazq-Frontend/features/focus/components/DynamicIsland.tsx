@@ -1,5 +1,5 @@
 import React from 'react';
-import { S, ICON, R, B } from '@/shared/constants/tokens';
+import { F, S, ICON, R, B } from '@/shared/constants/tokens';
 import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionText: {
-    fontSize: 13,
+    fontSize: F.footnote,
     fontFamily: 'Jakarta-ExtraBold',
     letterSpacing: -0.2,
   }

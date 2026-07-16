@@ -80,7 +80,7 @@ export default function ReportScreen() {
 
   const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode; value: string; label: string; color: string }) => (
     <View style={[styles.statCard, { backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}>
-      <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: color + '18', alignItems: 'center', justifyContent: 'center', marginBottom: S.xs }}>
+      <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: color, alignItems: 'center', justifyContent: 'center', marginBottom: S.xs }}>
         {icon}
       </View>
       <Text style={{ color: theme.onSurface, fontSize: F.title, fontWeight: '700', letterSpacing: -0.5 }}>{value}</Text>
@@ -148,12 +148,12 @@ export default function ReportScreen() {
 
           {/* Metric grid */}
           <View style={{ flexDirection: 'row', gap: S.sm }}>
-            <StatCard icon={<Clock size={ICON.md} color="#6366F1" />} value={totalHours > 0 ? `${totalHours}s ${totalRemMin}d` : `${metrics.totalFocusMin}d`} label={tr ? 'Bu hafta odak' : 'Focus this week'} color="#6366F1" />
-            <StatCard icon={<Flame size={ICON.md} color={theme.streak} />} value={`${input.streak}`} label={tr ? 'Gün seri' : 'Day streak'} color="#FF9500" />
+            <StatCard icon={<Clock size={ICON.md} color="#FFFFFF" />} value={totalHours > 0 ? `${totalHours}s ${totalRemMin}d` : `${metrics.totalFocusMin}d`} label={tr ? 'Bu hafta odak' : 'Focus this week'} color="#6366F1" />
+            <StatCard icon={<Flame size={ICON.md} color="#FFFFFF" />} value={`${input.streak}`} label={tr ? 'Gün seri' : 'Day streak'} color="#FF9500" />
           </View>
           <View style={{ flexDirection: 'row', gap: S.sm }}>
-            <StatCard icon={<CheckCircle2 size={ICON.md} color="#34C759" />} value={`${input.completedTasksWeek}`} label={tr ? 'Tamamlanan görev' : 'Tasks done'} color="#34C759" />
-            <StatCard icon={<Zap size={ICON.md} color="#FF2D55" />} value={metrics.avgMomentum >= 0 ? `${metrics.avgMomentum}%` : '—'} label={tr ? 'Ort. momentum' : 'Avg momentum'} color="#FF2D55" />
+            <StatCard icon={<CheckCircle2 size={ICON.md} color="#FFFFFF" />} value={`${input.completedTasksWeek}`} label={tr ? 'Tamamlanan görev' : 'Tasks done'} color="#34C759" />
+            <StatCard icon={<Zap size={ICON.md} color="#FFFFFF" />} value={metrics.avgMomentum >= 0 ? `${metrics.avgMomentum}%` : '—'} label={tr ? 'Ort. momentum' : 'Avg momentum'} color="#FF2D55" />
           </View>
 
           {/* Weekly focus bar chart */}
@@ -207,7 +207,7 @@ export default function ReportScreen() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.sm },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '700', letterSpacing: TRACKING.title },
+  title: { fontSize: F.title3, fontWeight: '700', letterSpacing: TRACKING.title },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl },
   statCard: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: S.xxs },
   section: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md },
