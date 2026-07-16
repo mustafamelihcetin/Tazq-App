@@ -415,7 +415,7 @@ export default function ProfileScreen() {
             </MotiView>
             <View style={{ alignItems: 'center', marginTop: S.md }}>
                 <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{user?.name || 'Alex'}</Text>
-                <Text style={[styles.email, { color: theme.onSurfaceVariant, fontSize: F.body }]}>{user?.email || 'user@tazq.com'}</Text>
+                <Text style={[styles.email, { color: theme.onSurfaceMuted, fontSize: F.body }]}>{user?.email || 'user@tazq.com'}</Text>
                 {!!motto && (
                   <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontStyle: 'italic', marginTop: S.xs, textAlign: 'center', paddingHorizontal: S.lg }}>"{motto}"</Text>
                 )}
@@ -1337,12 +1337,11 @@ const styles = StyleSheet.create({
   avatarLarge: { borderWidth: 3, padding: S.xs },
   image: { width: '100%', height: '100%' },
   name: { fontWeight: '700', letterSpacing: -1 },
-  email: { opacity: 0.6, marginTop: S.xs },
+  email: { marginTop: S.xs },
   editBtn: { marginTop: S.md, paddingHorizontal: S.lg, borderRadius: R.full },
   editBtnText: { color: 'white', fontWeight: '700' },
   statsGrid: { flexDirection: 'row' },
   statValue: { fontWeight: '700', marginTop: S.sm },
-  statLabel: { fontWeight: '700', opacity: 0.75, marginTop: S.xs },
   settingsSection: { },
   sectionTitle: { fontSize: F.caption, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: S.md },
   sectionLabel: { fontSize: F.caption, fontWeight: '700', letterSpacing: 1, marginBottom: S.sm, textTransform: 'uppercase' },

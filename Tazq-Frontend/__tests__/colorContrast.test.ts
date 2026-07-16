@@ -219,9 +219,14 @@ describe('metin soluklaştırma', () => {
       for (const m of src.matchAll(/^\s+([a-zA-Z]+): \{([^}]*)\},/gm)) {
         const [, name, body] = m;
         if (!/opacity: 0\.\d+/.test(body)) continue;
-        // Metin stili mi? Değilse opaklık meşru olabilir (ör. dekoratif katman).
-        if (!/fontSize|fontWeight|letterSpacing/.test(body)) continue;
-        // Kullanım yerinde palet METİN rengi veriliyor mu?
+
+        // "Metin stili mi?" sorusunu stil nesnesinin İÇİNDEKİ font prop'larıyla
+        // yanıtlamak YANLIŞTI: `email: { opacity: 0.6, marginTop }` gibi bir stil
+        // metin olabilir ama fontSize'ı satır içinde gelir. Bu delik profil e-posta
+        // satırını kaçırdı (onSurfaceVariant × 0.6 = 2.90:1, WCAG altı).
+        //
+        // Gerçek sinyal KULLANIM YERİNDE: bu stil bir palet METİN rengiyle birlikte
+        // kullanılıyorsa metindir — çünkü View'lar renk almaz. Font prop'u aramaya gerek yok.
         const used = new RegExp(`styles\\.${name}[^\\]]{0,140}?color: theme\\.onSurface\\w*`).test(src);
         if (used) hits.push(`${key} → styles.${name}`);
       }
