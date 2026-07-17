@@ -235,7 +235,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
             <View style={{ paddingHorizontal: S.md, marginBottom: S.smd }}>
               <Text style={{ fontSize: 20, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>
                 {tr ? 'Günaydın, ' : 'Good morning, '}
-                <Text style={{ color: theme.primary }}>{tr ? 'Melih' : 'Alex'}</Text>
+                <Text style={{ color: theme.primary }}>{tr ? 'Deniz' : 'Alex'}</Text>
               </Text>
             </View>
             <MomentumPulse

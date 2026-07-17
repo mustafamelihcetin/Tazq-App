@@ -95,9 +95,53 @@ namespace Tazq_App.Services
             return task;
         }
 
-        private const int MaxTasksPerUser = 200;
+        /// <summary>
+        /// AKTİF (tamamlanmamış) görev tavanı — kullanıcının "çalışma seti" sınırı.
+        ///
+        /// NEDEN tamamlananlar sayılmaz: eski sayım TÜM satırları sayıyordu. 6 ay aktif kullanan,
+        /// 200 görev TAMAMLAMIŞ gerçek bir kullanıcı yeni görev ekleyemez hâle geliyordu — kota
+        /// kötüye kullanımı değil, başarıyı cezalandırıyordu. Sunucuyu koruyan şey açık görev
+        /// sayısıdır; tamamlanan görev kullanıcının geçmişidir.
+        /// </summary>
+        private const int MaxActiveTasksPerUser = 200;
+
+        /// <summary>
+        /// TOPLAM satır tavanı — depolama emniyet freni (patolojik kötüye kullanım).
+        /// Aktif tavan çalışma setini zaten sınırlar; bu yalnızca "sonsuz oluştur-tamamla"
+        /// döngüsüyle satır şişirmeyi durdurur. Gerçek kullanıcı pratikte buna çarpmaz.
+        /// </summary>
+        private const int MaxTotalTasksPerUser = 5000;
+
         private const int MaxSubtasksPerTask = 15;
         private const int MaxTagsPerTask = 8;
+
+        // Alan uzunluk tavanları — görev BAŞINA depolama sınırı. Şifrelemeden ÖNCE (düz metinde)
+        // uygulanır; yoksa tek görev megabaytlarca not taşıyabilirdi (satır tavanı tek başına yetmez).
+        private const int MaxTitleLength = 200;
+        private const int MaxDescriptionLength = 5000;
+
+        private static string Clamp(string? value, int max) =>
+            string.IsNullOrEmpty(value) ? string.Empty : (value.Length <= max ? value : value.Substring(0, max));
+
+        /// <summary>Kota + alan sınırlarını uygular. Aşımda InvalidOperationException fırlatır.</summary>
+        private async Task EnforceQuotaAsync(int userId, int adding)
+        {
+            var activeCount = await _context.Tasks.CountAsync(t => t.UserId == userId && !t.IsCompleted);
+            if (activeCount + adding > MaxActiveTasksPerUser)
+                throw new InvalidOperationException($"TASK_LIMIT_REACHED:{MaxActiveTasksPerUser}");
+
+            var totalCount = await _context.Tasks.CountAsync(t => t.UserId == userId);
+            if (totalCount + adding > MaxTotalTasksPerUser)
+                throw new InvalidOperationException($"TASK_STORAGE_LIMIT_REACHED:{MaxTotalTasksPerUser}");
+        }
+
+        private static void ClampFields(TaskItem t)
+        {
+            t.Title = Clamp(t.Title, MaxTitleLength);
+            t.Description = Clamp(t.Description, MaxDescriptionLength);
+            t.Tags = (t.Tags ?? new List<string>()).Take(MaxTagsPerTask).ToList();
+            t.Subtasks = (t.Subtasks ?? new List<SubtaskItem>()).Take(MaxSubtasksPerTask).ToList();
+        }
 
         public async Task<TaskItem> CreateTaskAsync(int userId, TaskItem task)
         {
@@ -119,13 +163,10 @@ namespace Tazq_App.Services
                 }
             }
 
-            var taskCount = await _context.Tasks.CountAsync(t => t.UserId == userId);
-            if (taskCount >= MaxTasksPerUser)
-                throw new InvalidOperationException($"TASK_LIMIT_REACHED:{MaxTasksPerUser}");
+            await EnforceQuotaAsync(userId, 1);
 
             task.UserId = userId;
-            task.Tags = (task.Tags ?? new List<string>()).Take(MaxTagsPerTask).ToList();
-            task.Subtasks = (task.Subtasks ?? new List<SubtaskItem>()).Take(MaxSubtasksPerTask).ToList();
+            ClampFields(task);
 
             // Ensure UTC for Postgres timestamptz compatibility
             if (task.DueDate.HasValue && task.DueDate.Value.Kind == DateTimeKind.Unspecified)
@@ -146,8 +187,11 @@ namespace Tazq_App.Services
 
         public async Task<bool> CreateTasksBulkAsync(int userId, List<TaskItem> tasks)
         {
-            var taskCount = await _context.Tasks.CountAsync(t => t.UserId == userId);
-            var allowed = MaxTasksPerUser - taskCount;
+            // Toplu ekleme (mod planları): kotaya SIĞDIĞI KADARINI ekler — hepsini reddetmez.
+            // Aktif tavan ve toplam tavan ayrı ayrı kırpar; hangisi darsa o belirler.
+            var activeCount = await _context.Tasks.CountAsync(t => t.UserId == userId && !t.IsCompleted);
+            var totalCount = await _context.Tasks.CountAsync(t => t.UserId == userId);
+            var allowed = Math.Min(MaxActiveTasksPerUser - activeCount, MaxTotalTasksPerUser - totalCount);
             if (allowed <= 0)
                 return false;
             tasks = tasks.Take(allowed).ToList();
@@ -157,8 +201,7 @@ namespace Tazq_App.Services
             foreach (var t in tasks)
             {
                 t.UserId = userId;
-                t.Tags = (t.Tags ?? new List<string>()).Take(MaxTagsPerTask).ToList();
-                t.Subtasks = (t.Subtasks ?? new List<SubtaskItem>()).Take(MaxSubtasksPerTask).ToList();
+                ClampFields(t);
                 EncryptTask(t, key);
             }
 

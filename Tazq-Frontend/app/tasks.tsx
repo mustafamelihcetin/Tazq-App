@@ -1167,8 +1167,30 @@ export default function ActionCenter() {
           syncTaskToCalendar({ id: tempId, ...safePayload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         }
       } else if (httpStatusOf(err) === 429) {
-        const msg = language === 'tr' ? 'Maksimum görev sayısına ulaştın (200). Eski görevleri tamamla veya sil.' : 'Task limit reached (200). Complete or delete existing tasks.';
-        Alert.alert(language === 'tr' ? 'Limit Doldu' : 'Limit Reached', msg);
+        // 429 iki KAYNAKTAN gelir: görev kotası ve IP hız limiti. Eskiden hepsi "200 görev doldu"
+        // diye gösteriliyordu — hız limitine takılan kullanıcı yanlış bilgi alıyordu.
+        const body = httpDataOf<{ message?: string; Message?: string }>(err);
+        const code = body.message || body.Message || '';
+        const tr = language === 'tr';
+        if (code.startsWith('TASK_STORAGE_LIMIT_REACHED')) {
+          Alert.alert(
+            tr ? 'Arşiv Doldu' : 'Archive Full',
+            tr ? 'Toplam görev arşivin sınıra ulaştı. Eski görevleri silerek yer açabilirsin.'
+               : 'Your total task archive is full. Delete old tasks to free up space.',
+          );
+        } else if (code.startsWith('TASK_LIMIT_REACHED')) {
+          Alert.alert(
+            tr ? 'Limit Doldu' : 'Limit Reached',
+            tr ? 'Aynı anda en fazla 200 AÇIK görevin olabilir. Bir görevi tamamla ya da sil — tamamladıkların limiti işgal etmez.'
+               : 'You can have up to 200 OPEN tasks. Complete or delete one — completed tasks don’t count toward the limit.',
+          );
+        } else {
+          Alert.alert(
+            tr ? 'Çok Hızlı' : 'Slow Down',
+            tr ? 'Çok fazla istek gönderdin. Kısa bir süre bekleyip tekrar dene.'
+               : 'Too many requests. Please wait a moment and try again.',
+          );
+        }
       } else {
         const body = httpDataOf<{ message?: string; Message?: string }>(err);
         const serverMsg = body.message || body.Message || errorMessage(err);

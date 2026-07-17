@@ -39,90 +39,48 @@ export function parseTimeParts(timeStr: string): { hours: number; minutes: numbe
 export async function registerNotificationCategories(): Promise<void> {
   if (!Notifications?.setNotificationCategoryAsync) return;
   try {
-    // Morning brief — start focus or open tasks
-    await Notifications.setNotificationCategoryAsync('morning-brief', [
-      {
-        identifier: 'start-focus',
-        buttonTitle: '▶️ Odak Başlat',
-        options: { opensAppToForeground: true },
-      },
-      {
-        identifier: 'open-tasks',
-        buttonTitle: '📋 Görevler',
-        options: { opensAppToForeground: true },
-      },
-    ]);
-
+    // Dil EN İLK belirlenir — böylece TÜM kategori butonları lokalize olur (eskiden sabah/
+    // alışkanlık/odak butonları Türkçe-sabitti, İngilizce kullanıcı Türkçe metin görüyordu).
     const lang = require('@/shared/store/useLanguageStore').useLanguageStore.getState().language;
     const tr = lang === 'tr';
 
-    // Task due reminder — complete, snooze, or view
+    // Sabah özeti — odaklan ya da görevleri aç
+    await Notifications.setNotificationCategoryAsync('morning-brief', [
+      { identifier: 'start-focus', buttonTitle: tr ? 'Odaklan' : 'Focus', options: { opensAppToForeground: true } },
+      { identifier: 'open-tasks', buttonTitle: tr ? 'Görevler' : 'Tasks', options: { opensAppToForeground: true } },
+    ]);
+
+    // Görev hatırlatma — uygulamayı açmadan tamamla/ertele
     await Notifications.setNotificationCategoryAsync('task-reminder', [
-      {
-        identifier: 'task-complete',
-        buttonTitle: tr ? '✅ Tamamla' : '✅ Complete',
-        options: { opensAppToForeground: false },
-      },
-      {
-        identifier: 'task-snooze',
-        buttonTitle: tr ? '⏰ 15 Dk Ertele' : '⏰ Snooze 15m',
-        options: { opensAppToForeground: false },
-      },
-      {
-        identifier: 'open-tasks',
-        buttonTitle: tr ? '➡️ Göreve Git' : '➡️ Go to Task',
-        options: { opensAppToForeground: true },
-      },
+      { identifier: 'task-complete', buttonTitle: tr ? 'Tamamla' : 'Complete', options: { opensAppToForeground: false } },
+      { identifier: 'task-snooze', buttonTitle: tr ? '15 dk ertele' : 'Snooze 15 min', options: { opensAppToForeground: false } },
+      { identifier: 'open-tasks', buttonTitle: tr ? 'Aç' : 'Open', options: { opensAppToForeground: true } },
     ]);
 
-    // Habit reminder — Watch & Lock Screen actions
+    // Alışkanlık hatırlatma — kilit ekranından işaretle
     await Notifications.setNotificationCategoryAsync('habit-reminder', [
-      {
-        identifier: 'habit-complete',
-        buttonTitle: '✅ Tamamladım',
-        options: { opensAppToForeground: false },
-      },
-      {
-        identifier: 'habit-skip',
-        buttonTitle: '⏭ Geç',
-        options: { opensAppToForeground: false, isDestructive: true },
-      },
+      { identifier: 'habit-complete', buttonTitle: tr ? 'Yaptım' : 'Done', options: { opensAppToForeground: false } },
+      { identifier: 'habit-skip', buttonTitle: tr ? 'Bugün geç' : 'Skip today', options: { opensAppToForeground: false, isDestructive: true } },
     ]);
 
-    // Habit at-risk streak warning
+    // Seri riski — alışkanlıklara git
     await Notifications.setNotificationCategoryAsync('habit-risk', [
-      {
-        identifier: 'open-cockpit',
-        buttonTitle: '💪 Alışkanlıklara Git',
-        options: { opensAppToForeground: true },
-      },
+      { identifier: 'open-cockpit', buttonTitle: tr ? 'Alışkanlıklar' : 'Habits', options: { opensAppToForeground: true } },
     ]);
 
-    // Focus active — stop from notification
+    // Aktif odak — bildirimden bitir
     await Notifications.setNotificationCategoryAsync('focus-active', [
-      {
-        identifier: 'focus-stop',
-        buttonTitle: '⏹ Durdur',
-        options: { opensAppToForeground: false, isDestructive: true },
-      },
+      { identifier: 'focus-stop', buttonTitle: tr ? 'Bitir' : 'End', options: { opensAppToForeground: false, isDestructive: true } },
     ]);
 
-    // Exam countdown — open plan
+    // Sınav geri sayımı — planı aç
     await Notifications.setNotificationCategoryAsync('exam-countdown', [
-      {
-        identifier: 'exam-open',
-        buttonTitle: '📋 Planı Görüntüle',
-        options: { opensAppToForeground: true },
-      },
+      { identifier: 'exam-open', buttonTitle: tr ? 'Planı aç' : 'Open plan', options: { opensAppToForeground: true } },
     ]);
 
-    // Evening summary / weekly review — open tasks
+    // Akşam / haftalık özet — aç
     await Notifications.setNotificationCategoryAsync('daily-summary', [
-      {
-        identifier: 'open-tasks',
-        buttonTitle: '📋 Görevleri Aç',
-        options: { opensAppToForeground: true },
-      },
+      { identifier: 'open-tasks', buttonTitle: tr ? 'Aç' : 'Open', options: { opensAppToForeground: true } },
     ]);
   } catch (e) { swallow('notifications.registerNotificationCategories', e); }
 }
@@ -155,7 +113,8 @@ export async function scheduleMorningBrief(
   todayTaskCount: number,
   streak: number,
   locale: string = 'en',
-  productivityHour: string = 'morning'
+  productivityHour: string = 'morning',
+  name?: string
 ): Promise<void> {
   if (!Notifications || isExpoGo) return;
   try {
@@ -169,22 +128,29 @@ export async function scheduleMorningBrief(
     // Üretkenlik saatine göre tetikle — kullanıcının en uygun anında hatırlat.
     const briefHour = PRODUCTIVITY_HOUR[productivityHour] ?? 8;
 
+    // Seri satırı — emojisiz, doğal. Sadece anlamlıysa (2+ gün).
     const streakLine = streak > 1
-      ? (isTR ? ` · 🔥 ${streak} günlük seri` : ` · 🔥 ${streak}-day streak`)
+      ? (isTR ? ` Serin ${streak}. günde.` : ` You're on day ${streak}.`)
       : '';
 
+    // Metin: ileri-bakan, davetkâr. "Küçük bir adım" psikolojisi = harekete geçmeyi kolaylaştırır.
     const body = todayTaskCount > 0
       ? (isTR
-          ? `Bugün ${todayTaskCount} görevin var.${streakLine}`
-          : `You have ${todayTaskCount} task${todayTaskCount > 1 ? 's' : ''} today.${streakLine}`)
-      : (isTR ? `Serin devam ediyor.${streakLine}` : `Keep the streak alive.${streakLine}`);
+          ? `Bugün ${todayTaskCount} görevin var. Birini seçip başla.${streakLine}`
+          : `You have ${todayTaskCount} task${todayTaskCount > 1 ? 's' : ''} today. Pick one and start.${streakLine}`)
+      : (isTR
+          ? `Serin ${streak}. günde — bugün de canlı tut.`
+          : `Day ${streak} of your streak — keep it alive today.`);
 
     // Selamlamayı saate göre seç (üretkenlik saati akşam/gece olabilir)
-    const greeting = briefHour < 12
+    const baseGreeting = briefHour < 12
       ? (isTR ? 'Günaydın' : 'Good morning')
       : briefHour < 18
         ? (isTR ? 'İyi günler' : 'Good afternoon')
         : (isTR ? 'İyi akşamlar' : 'Good evening');
+    // İsimle kişiselleştir — "Günaydın, Deniz" opak bir "Günaydın"dan çok daha sıcak.
+    const firstName = (name ?? '').trim().split(/\s+/)[0];
+    const greeting = firstName ? `${baseGreeting}, ${firstName}` : baseGreeting;
 
     await Notifications.scheduleNotificationAsync({
       identifier: 'morning-brief',
@@ -217,11 +183,13 @@ export async function cancelMorningBrief(): Promise<void> {
 export async function scheduleEveningBrief(
   completedToday: number,
   pendingTotal: number,
-  locale: string = 'en'
+  locale: string = 'en',
+  name?: string
 ): Promise<void> {
   if (!Notifications || isExpoGo || (completedToday === 0 && pendingTotal === 0)) return;
   try {
     const isTR = locale === 'tr';
+    const firstName = (name ?? '').trim().split(/\s+/)[0];
 
     await Notifications.cancelScheduledNotificationAsync('evening-brief').catch(() => {});
 
@@ -235,20 +203,22 @@ export async function scheduleEveningBrief(
     let body: string;
 
     if (completedToday > 0 && pendingTotal === 0) {
-      title = isTR ? 'Mükemmel gün' : 'Perfect day';
+      // Zafer anı — kişisel ve gurur verici.
+      title = isTR ? 'Kusursuz bir gün' : 'A flawless day';
       body = isTR
-        ? `Tüm görevleri tamamladın. Harika gitti.`
-        : 'All tasks done. You crushed it.';
+        ? `Bugünün her görevini bitirdin${firstName ? `, ${firstName}` : ''}. Bunu hak ettin.`
+        : `Every task done today${firstName ? `, ${firstName}` : ''}. You earned this.`;
     } else if (completedToday > 0) {
-      title = isTR ? 'Günü kapatıyorsun' : 'Wrapping up';
+      title = isTR ? 'Günü güzel kapatıyorsun' : 'Nicely wrapping up';
       body = isTR
-        ? `${completedToday} görev tamamlandı · yarın için ${pendingTotal} bekliyor.`
-        : `${completedToday} done · ${pendingTotal} waiting for tomorrow.`;
+        ? `${completedToday} görev tamam. ${pendingTotal} tanesi yarın için hazır.`
+        : `${completedToday} done today. ${pendingTotal} ready for tomorrow.`;
     } else {
-      title = isTR ? 'Henüz başlamadın' : 'Not started yet';
+      // SUÇLAMA YOK — ileri-bakan, ivme dili. Bir görev bile fark yaratır.
+      title = isTR ? 'Gün bitmeden' : 'Before the day ends';
       body = isTR
-        ? `${pendingTotal} görev bekliyor. Gün bitmeden birini tamamla.`
-        : `${pendingTotal} task${pendingTotal > 1 ? 's' : ''} waiting. Finish one before midnight.`;
+        ? `${pendingTotal} görev duruyor. Bir tanesini bitirmek bile ivme yaratır.`
+        : `${pendingTotal} task${pendingTotal > 1 ? 's' : ''} left. Finishing even one builds momentum.`;
     }
 
     await Notifications.scheduleNotificationAsync({
@@ -317,7 +287,7 @@ export async function scheduleTaskNotification(
     await Notifications.scheduleNotificationAsync({
       identifier: id,
       content: {
-        title: isTR ? 'Görev Zamanı' : 'Task Due',
+        title: isTR ? 'Görev zamanı' : 'Task due',
         body: title,
         data: { taskId, type: 'task-reminder' },
         sound: true,
@@ -358,7 +328,7 @@ export async function scheduleHabitReminder(
     await Notifications.scheduleNotificationAsync({
       identifier: id,
       content: {
-        title: isTR ? 'Alışkanlık Zamanı' : 'Habit Time',
+        title: isTR ? 'Alışkanlık zamanı' : 'Habit time',
         body: habitName,
         sound: true,
         data: { type: 'habit-reminder', habitId },
@@ -403,10 +373,10 @@ export async function scheduleHabitAtRisk(
     await Notifications.scheduleNotificationAsync({
       identifier: 'habit-at-risk',
       content: {
-        title: isTR ? 'Serin risk altında' : 'Streak at risk',
+        title: isTR ? 'Serini koru' : 'Keep your streak',
         body: isTR
-          ? 'Bugün hiç alışkanlık tamamlamadın. Gün bitmeden bir tane yap.'
-          : "You haven't completed any habits today. Do one before midnight.",
+          ? 'Serini canlı tutmak için bugünün alışkanlıklarını tamamla. Küçük bir adım yeter.'
+          : "Complete today's habits to keep your streak alive. One small step is enough.",
         sound: true,
         data: { type: 'habit-risk' },
         categoryIdentifier: 'habit-risk',
@@ -477,11 +447,11 @@ export async function scheduleWeeklySummary(
     const isTR = locale === 'tr';
     const title = isTR ? 'Haftalık Özet' : 'Weekly Review';
     const streakLine = streak > 0
-      ? (isTR ? ` · 🔥 ${streak} günlük seri` : ` · 🔥 ${streak}-day streak`)
+      ? (isTR ? ` Seri: ${streak} gün.` : ` Streak: ${streak} days.`)
       : '';
     const body = isTR
-      ? `Momentum: ${momentumScore}. Yeni haftayı planla.${streakLine}`
-      : `Momentum: ${momentumScore}. Plan the week ahead.${streakLine}`;
+      ? `Momentumun ${momentumScore}. Önümüzdeki haftayı planla, ivmeni sürdür.${streakLine}`
+      : `Your momentum is ${momentumScore}. Plan the week ahead and keep it going.${streakLine}`;
 
     const now = new Date();
     const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
@@ -532,8 +502,12 @@ export async function scheduleExamCountdownNotifs(
               ? `${name}'a ${daysBefore} gün kaldı`
               : `${daysBefore} day${daysBefore > 1 ? 's' : ''} until ${name}`,
             body: isTR
-              ? 'Planın güncel mi? Hızlıca kontrol et.'
-              : 'Is your plan up to date? Quick check.',
+              ? (daysBefore === 1
+                  ? 'Son düzlük. Planına göz at ve hazır ol.'
+                  : `Geri sayım başladı: ${daysBefore} gün. Planına göz at, ritmi koru.`)
+              : (daysBefore === 1
+                  ? 'Final stretch. Review your plan and stay ready.'
+                  : `${daysBefore} days to go. Review your plan and keep the pace.`),
             sound: true,
             data: { type: 'exam-countdown', daysBefore },
             categoryIdentifier: 'exam-countdown',

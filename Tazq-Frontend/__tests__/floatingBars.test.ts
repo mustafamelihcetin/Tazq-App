@@ -153,7 +153,12 @@ describe('sayfa dibi boşluğu', () => {
   it('navbar’lı sayfalar bulunmalı — tarama boşa düşmemeli', () => {
     // Bu test alttakinin bekçisi: dosya düzeni değişip liste boşalırsa alttaki test
     // hiçbir şey denemeden yeşil yanar. Sessiz geçen test, testsizlikten kötüdür.
-    expect(screens.length).toBeGreaterThanOrEqual(5);
+    //
+    // 5 → 4: navbar artık YALNIZCA gerçek sekmelerde (ana · görevler · haftalık · modlar).
+    // profil ve ayarlar SEKME DEĞİL (dashboard avatarından / profilden push edilir); orada
+    // tab-bar "hiçbir sekme aktif değil" halinde duruyordu — iOS deseni gereği geri butonu +
+    // tam ekran yapıldı. Derin Odak zaten immersive olduğu için hiç çizmiyor.
+    expect(screens.length).toBeGreaterThanOrEqual(4);
   });
 
   it.each(screens)('%s dibini navBarSpace’ten türetmeli', (file) => {

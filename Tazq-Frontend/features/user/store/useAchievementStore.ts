@@ -16,6 +16,12 @@ export interface Achievement {
 interface AchievementState {
   unlocked: string[];
   /**
+   * Kazanma tarihleri (id → epoch ms). YEREL — buluta gönderilmez: tarih "hoş ama kritik değil"
+   * bir detaydır, kaynağı `unlocked` listesidir (o senkronlanır). Sessiz baseline ile kilitlenenlerde
+   * gerçek tarih bilinmez → giriş olmaz (detayda "✓ Açıldı", tarihsiz gösterilir; dürüst).
+   */
+  unlockedAt: Record<string, number>;
+  /**
    * Sessiz baseline alındı mı? İlk gözlemde kullanıcının ZATEN hak ettiği eşikler
    * kutlanmadan işaretlenir (eski kullanıcı migrasyonu / yerel hafıza kaybı sonrası
    * "konfeti yağmuru" ve her açılışta tekrar kutlama olmasın). Bulut ile senkronlanır.
@@ -47,6 +53,7 @@ export const useAchievementStore = create<AchievementState>()(
   persist(
     (set, get) => ({
       unlocked: [],
+      unlockedAt: {},
       baselined: false,
       pending: null,
       queue: [],
@@ -59,11 +66,12 @@ export const useAchievementStore = create<AchievementState>()(
         if (unlocked.includes(achievement.id)) return; // idempotent — bir kez
         try { require('@/shared/utils/analytics').track('achievement_unlocked', { id: achievement.id }); } catch (e) { swallow('achievementStore.trackUnlockAnalytics', e); }
         const nextUnlocked = [...unlocked, achievement.id];
+        const nextAt = { ...get().unlockedAt, [achievement.id]: Date.now() };
         if (pending) {
           // Zaten gösterimde bir kutlama var → sıraya al
-          set({ unlocked: nextUnlocked, queue: [...get().queue, achievement] });
+          set({ unlocked: nextUnlocked, unlockedAt: nextAt, queue: [...get().queue, achievement] });
         } else {
-          set({ unlocked: nextUnlocked, pending: achievement });
+          set({ unlocked: nextUnlocked, unlockedAt: nextAt, pending: achievement });
         }
         pushCloud();
 
@@ -111,7 +119,7 @@ export const useAchievementStore = create<AchievementState>()(
     {
       name: 'tazq-achievements',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (s) => ({ unlocked: s.unlocked, baselined: s.baselined }),
+      partialize: (s) => ({ unlocked: s.unlocked, unlockedAt: s.unlockedAt, baselined: s.baselined }),
       onRehydrateStorage: () => () => {
         // Hidrasyon bitti (başarılı ya da değil) — kapıyı aç.
         useAchievementStore.getState().setHasHydrated(true);

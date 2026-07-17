@@ -17,7 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, User, ArrowRight, ArrowLeft, AlertCircle, Eye, EyeOff, CheckSquare, Square, Sparkles } from 'lucide-react-native';
+import { Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, CheckSquare, Square, Sparkles } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '@/shared/services/api';
@@ -29,6 +29,7 @@ import { AnimatedBackground } from '@/shared/components/AnimatedBackground';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { ICON, S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { BackButton } from '@/shared/components/BackButton';
 import { validateRegister } from '@/shared/utils/validation';
 import { httpStatusOf, isNetworkError, errorMessage, errorCode, httpRawDataOf } from '@/shared/utils/errors';
 
@@ -246,15 +247,7 @@ export default function RegisterScreen() {
         <AnimatedBackground />
 
         <SafeAreaView style={styles.safeArea}>
-          <Touchable
-            onPress={() => router.back()}
-            style={[styles.backButton, { top: insets.top + 12 }]}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'}
-          >
-            <ArrowLeft size={ICON.lg} color={theme.onSurface} />
-          </Touchable>
+          <BackButton onPress={() => router.back()} style={[styles.backButton, { top: insets.top + 12 }]} />
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -514,7 +507,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  backButton: { position: 'absolute', left: scale(20), zIndex: 10, width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
+  backButton: { position: 'absolute', left: scale(20), zIndex: 10 },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingHorizontal: scale(24), width: '100%', maxWidth: 480, alignSelf: 'center' },
   header: { alignItems: 'center' },

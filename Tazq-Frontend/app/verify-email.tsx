@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, useWindowDimension
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, ArrowRight, MailCheck } from 'lucide-react-native';
+import { ArrowRight, MailCheck } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { AuthService } from '@/shared/services/api';
 import { useAuthStore } from '@/features/user';
@@ -12,6 +12,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { GlassCard } from '@/shared/components/GlassCard';
 import { AnimatedBackground } from '@/shared/components/AnimatedBackground';
 import { Touchable } from '@/shared/components/Touchable';
+import { BackButton } from '@/shared/components/BackButton';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 
@@ -91,15 +92,7 @@ export default function VerifyEmailScreen() {
         <AnimatedBackground />
 
         <SafeAreaView style={styles.safeArea}>
-          <Touchable
-            onPress={() => router.replace('/register')}
-            style={[styles.backButton, { top: insets.top + 12 }]}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={tr ? 'Geri' : 'Back'}
-          >
-            <ArrowLeft size={ICON.lg} color={theme.onSurface} />
-          </Touchable>
+          <BackButton onPress={() => router.replace('/register')} style={[styles.backButton, { top: insets.top + 12 }]} />
 
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <ScrollView
@@ -250,7 +243,7 @@ export default function VerifyEmailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  backButton: { position: 'absolute', left: scale(20), zIndex: 10, width: scale(40), height: scale(40), alignItems: 'center', justifyContent: 'center' },
+  backButton: { position: 'absolute', left: scale(20), zIndex: 10 },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingHorizontal: scale(24), width: '100%', maxWidth: 480, alignSelf: 'center' },
   header: { alignItems: 'center' },

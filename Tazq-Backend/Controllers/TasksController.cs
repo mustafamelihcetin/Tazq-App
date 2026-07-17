@@ -81,7 +81,10 @@ namespace Tazq_App.Controllers
                 var createdTask = await _taskService.CreateTaskAsync(userId.Value, task);
                 return CreatedAtAction(nameof(GetTaskById), new { id = createdTask.Id }, createdTask);
             }
-            catch (InvalidOperationException ex) when (ex.Message.StartsWith("TASK_LIMIT_REACHED"))
+            // Kota aşımı → 429. İki tür: aktif görev tavanı (TASK_LIMIT_REACHED) ve
+            // depolama emniyet freni (TASK_STORAGE_LIMIT_REACHED). İstemci mesajdan ayırt eder.
+            catch (InvalidOperationException ex) when (
+                ex.Message.StartsWith("TASK_LIMIT_REACHED") || ex.Message.StartsWith("TASK_STORAGE_LIMIT_REACHED"))
             {
                 return StatusCode(429, new { StatusCode = 429, Message = ex.Message });
             }

@@ -6,25 +6,41 @@ export interface IconMapping {
   color: string;
 }
 
+/**
+ * Rozet renkleri — markayla uyumlu, KÜRATE edilmiş kimlik paleti.
+ *
+ * NEDEN değişti: eski set dağınık, eski iOS sistem renkleriydi (#FF9500, #FFCC00, #FF2D55…)
+ * — uygulamanın geri kalanında terk ettiğimiz palet. Rozet renkleri "kimlik"tir (madalya
+ * gibi, temayla dönmez) ama tek bir SİSTEM gibi durmalı. Üç kademeli aile + iki dönüm noktası:
+ *
+ *   • Seri  → ATEŞ rampası (amber→turuncu→kırmızı): seri uzadıkça "ısınır". Nadirlik = derin kırmızı.
+ *   • Momentum → YÜKSELİŞ rampası (gök→mavi→indigo→mor): serinlik, yukarı ivme.
+ *   • Odak  → DERİNLİK rampası (teal→zümrüt→koyu zümrüt): odak derinleştikçe yeşil koyulaşır.
+ *   • Mükemmel Gün → altın (gün standardı) · İlk Görev → pembe (kutlama patlaması).
+ *
+ * Glif kontrastı luminance'a göre (glyphOn) — parlak amber/altında siyah, koyu tonda beyaz.
+ */
 export const ACHIEVEMENT_ICONS: Record<string, IconMapping> = {
-  streak_3: { Icon: Lucide.Flame, color: '#FF9500' },       // Orange
-  streak_7: { Icon: Lucide.Zap, color: '#FFCC00' },         // Gold/Yellow
-  streak_14: { Icon: Lucide.Trophy, color: '#FFD700' },     // Yellow/Gold
-  streak_30: { Icon: Lucide.Gem, color: '#00C7BE' },        // Teal
-  streak_100: { Icon: Lucide.Crown, color: '#AF52DE' },     // Purple
+  // Seri — ateş rampası
+  streak_3: { Icon: Lucide.Flame, color: '#FBBF24' },       // Amber — kıvılcım
+  streak_7: { Icon: Lucide.Zap, color: '#FB923C' },         // Turuncu
+  streak_14: { Icon: Lucide.Trophy, color: '#F97316' },     // Koyu turuncu
+  streak_30: { Icon: Lucide.Gem, color: '#EF4444' },        // Kırmızı
+  streak_100: { Icon: Lucide.Crown, color: '#B91C1C' },     // Derin kırmızı — efsane
 
-  momentum_50: { Icon: Lucide.Rocket, color: '#30B0C7' },   // Cyan
-  momentum_75: { Icon: Lucide.Star, color: '#FFCC00' },     // Gold
-  momentum_90: { Icon: Lucide.Compass, color: '#5856D6' },  // Indigo
-  momentum_100: { Icon: Lucide.Sparkles, color: '#FF2D55' }, // Pink
+  // Momentum — yükseliş rampası
+  momentum_50: { Icon: Lucide.Rocket, color: '#38BDF8' },   // Gök
+  momentum_75: { Icon: Lucide.Star, color: '#3B82F6' },     // Mavi
+  momentum_90: { Icon: Lucide.Compass, color: '#6366F1' },  // Indigo
+  momentum_100: { Icon: Lucide.Sparkles, color: '#8B5CF6' }, // Mor — zirve
 
-  focus_first: { Icon: Lucide.Target, color: '#FF3B30' },   // Red
-  focus_5h: { Icon: Lucide.Brain, color: '#AF52DE' },       // Purple
-  focus_25h: { Icon: Lucide.Award, color: '#FF9500' },      // Orange/Gold Award
+  // Odak — derinlik rampası
+  focus_first: { Icon: Lucide.Target, color: '#2DD4BF' },   // Teal
+  focus_5h: { Icon: Lucide.Brain, color: '#10B981' },       // Zümrüt
+  focus_25h: { Icon: Lucide.Award, color: '#059669' },      // Koyu zümrüt — ustalık
 
-  daily_perfect: { Icon: Lucide.CheckCircle2, color: '#34C759' }, // Emerald Green
-
-  first_task: { Icon: Lucide.PartyPopper, color: '#6366F1' }, // İlk zafer — Indigo
+  daily_perfect: { Icon: Lucide.CheckCircle2, color: '#EAB308' }, // Altın — mükemmel gün
+  first_task: { Icon: Lucide.PartyPopper, color: '#EC4899' },     // Pembe — ilk kutlama
 };
 
 /**

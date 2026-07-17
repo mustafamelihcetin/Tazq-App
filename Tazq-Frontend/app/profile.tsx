@@ -12,8 +12,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
 import { SupportModal } from '@/shared/components/SupportModal';
-import { BottomNavBar } from '@/shared/components/BottomNavBar';
-import { useAuthStore, getAvatarSource, AVATAR_CONFIGS, AVATAR_MAP, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
+import { useAuthStore, getAvatarSource, AVATAR_CONFIGS, AVATAR_MAP, useAchievementStore } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
 import * as HapticsOriginal from 'expo-haptics';
@@ -28,7 +27,7 @@ import { useRouter } from 'expo-router';
 import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ICON, S, R, F, B, MAX_W, navBarSpace } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
@@ -37,6 +36,7 @@ import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
 import { Touchable } from '@/shared/components/Touchable';
+import { BackButton } from '@/shared/components/BackButton';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { swallow } from '@/shared/utils/swallow';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
@@ -45,18 +45,6 @@ import { SectionHeader } from '@/shared/components/SectionHeader';
 import { SettingsCard, SettingItem, ToggleRow, RowDivider, settingsAccents } from '@/shared/components/SettingsRows';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
-
-// Kilitli rozetin "nasıl açılır" ipucu (id eşiği kodluyor: streak_3, momentum_50, focus_5h...).
-function achievementHint(id: string, tr: boolean): string {
-  if (id.startsWith('streak_')) { const n = id.split('_')[1]; return tr ? `${n} günlük seri yakala.` : `Reach a ${n}-day streak.`; }
-  if (id.startsWith('momentum_')) { const n = id.split('_')[1]; return tr ? `Momentum'u %${n} seviyesine çıkar.` : `Get momentum to ${n}%.`; }
-  if (id === 'focus_first') return tr ? 'İlk odak seansını başlat.' : 'Start your first focus session.';
-  if (id === 'focus_5h') return tr ? 'Toplam 5 saat odaklan.' : 'Focus for 5 hours in total.';
-  if (id === 'focus_25h') return tr ? 'Toplam 25 saat odaklan.' : 'Focus for 25 hours in total.';
-  if (id === 'first_task') return tr ? 'İlk görevini tamamla.' : 'Complete your first task.';
-  if (id === 'daily_perfect') return tr ? 'Bir günün tüm görevlerini bitir.' : "Complete all of a day's tasks.";
-  return tr ? 'Uygulamayı kullanmaya devam et.' : 'Keep using the app.';
-}
 
 export default function ProfileScreen() {
   const { theme, colorScheme, setTheme, currentSetting } = useAppTheme();
@@ -403,10 +391,16 @@ export default function ProfileScreen() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
       <View style={{ flex: 1 }}>
+        {/* Profil bir SEKME değil (dashboard avatarından push edilir) → alt tab-bar göstermek
+            "hiçbir sekme aktif değil" tuhaflığı yaratıyordu. iOS deseni: geri butonu + tam ekran. */}
+        <BackButton
+          onPress={() => router.back()}
+          style={{ position: 'absolute', top: insets.top + S.xs, left: S.md, zIndex: 10 }}
+        />
         <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: navBarSpace(insets.bottom) + S.md, paddingHorizontal: S.lg, paddingTop: S.xl + insets.top, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + S.xl, paddingHorizontal: S.lg, paddingTop: S.xl + insets.top, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -456,110 +450,79 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {/* ── Achievement Bölümü ── */}
+          {/* ── Başarılar — teaser kart (tam vitrin ayrı ekranda: /achievements) ── */}
           {(() => {
-            const all = Object.values(ACHIEVEMENTS);
-            const unlockedList = all.filter(a => unlockedAchievements.includes(a.id));
-            const streakSeq = ['streak_3','streak_7','streak_14','streak_30','streak_100'];
-            const momentumSeq = ['momentum_50','momentum_75','momentum_90','momentum_100'];
-            const focusSeq = ['focus_first','focus_5h','focus_25h'];
-            const dailySeq = ['daily_perfect'];
-            const nextOf = (seq: string[]) => seq.find(id => !unlockedAchievements.includes(id));
-            const nextIds = [nextOf(streakSeq), nextOf(momentumSeq), nextOf(focusSeq), nextOf(dailySeq)].filter(Boolean) as string[];
-            const nextList = nextIds.map(id => ACHIEVEMENTS[id]).filter(Boolean);
             const tr = language === 'tr';
-            const chips = [
-              ...unlockedList.map(a => ({ ...a, locked: false })),
-              ...nextList.map(a => ({ ...a, locked: true })),
-            ];
+            const allIds = ['streak_3','streak_7','streak_14','streak_30','streak_100','momentum_50','momentum_75','momentum_90','momentum_100','focus_first','focus_5h','focus_25h','first_task','daily_perfect'];
+            const earned = allIds.filter(id => unlockedAchievements.includes(id));
+            const total = allIds.length;
+            // Önizleme: kazanılan varsa gurur için onları göster; yoksa ilk hedefleri (davet).
+            const preview = (earned.length ? earned : allIds).slice(0, 5);
+            const goShowcase = () => {
+              Haptics.selectionAsync();
+              router.push({ pathname: '/achievements', params: { streak: String(stats.activeStreak), focusHours: String(Math.round(stats.totalFocusHours)) } });
+            };
             return (
               <View style={{ marginTop: S.md }}>
-                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)', marginBottom: S.md }} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: S.sm }}>
-                  <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', letterSpacing: 1.5 }}>
-                    {tr ? 'BAŞARILAR' : 'ACHIEVEMENTS'}
-                  </Text>
-                  <View style={{ marginLeft: S.sm, backgroundColor: unlockedList.length > 0 ? theme.tertiary + '22' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xxs }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: unlockedList.length > 0 ? theme.tertiary : theme.onSurfaceVariant, opacity: unlockedList.length > 0 ? 1 : 0.5 }}>
-                      {unlockedList.length}/{all.length}
+                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.separator, marginBottom: S.md }} />
+                <Touchable
+                  activeOpacity={0.85}
+                  onPress={goShowcase}
+                  accessibilityRole="button"
+                  accessibilityLabel={tr ? `Başarılar, ${earned.length} / ${total} açıldı` : `Achievements, ${earned.length} of ${total} earned`}
+                  style={{
+                    padding: S.md,
+                    borderRadius: R.lg,
+                    borderWidth: B.thin,
+                    borderColor: theme.separator,
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                    gap: S.md,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1.5 }}>
+                      {tr ? 'BAŞARILAR' : 'ACHIEVEMENTS'}
                     </Text>
+                    <View style={{ marginLeft: S.sm, backgroundColor: earned.length > 0 ? theme.tertiary + '22' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xxs }}>
+                      <Text style={{ fontSize: F.caption2, fontWeight: '700', color: earned.length > 0 ? theme.tertiary : theme.onSurfaceVariant }}>
+                        {earned.length}/{total}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }} />
+                    <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600', marginRight: S.xxs }}>{tr ? 'Tümünü Gör' : 'View All'}</Text>
+                    <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
                   </View>
-                </View>
 
-                {chips.length === 0 ? (
-                  <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>
-                    {tr ? '3 günlük seri yap ya da odak seansı başlat.' : 'Build a 3-day streak or start a focus session.'}
-                  </Text>
-                ) : (
-                  <View style={{ gap: S.xs }}>
-                    {Array.from({ length: Math.ceil(chips.length / 3) }, (_, rowIdx) => (
-                      <View key={rowIdx} style={{ flexDirection: 'row', gap: S.xs }}>
-                        {chips.slice(rowIdx * 3, rowIdx * 3 + 3).map(ach => (
-                          <Touchable
-                            key={ach.id}
-                            activeOpacity={0.7}
-                            onPress={() => {
-                              Haptics.selectionAsync();
-                              Alert.alert(
-                                tr ? ach.titleTr : ach.titleEn,
-                                ach.locked
-                                  ? (tr ? `🔒 Nasıl açılır: ${achievementHint(ach.id, true)}` : `🔒 How to unlock: ${achievementHint(ach.id, false)}`)
-                                  : (tr ? `✓ Açıldı — ${ach.subtitleTr}` : `✓ Unlocked — ${ach.subtitleEn}`)
-                              );
-                            }}
-                            style={{
-                              flex: 1,
-                              alignItems: 'center',
-                              gap: S.xs,
-                              paddingVertical: S.sm,
-                              paddingHorizontal: S.xs,
-                              borderRadius: R.md,
-                              borderWidth: B.thin,
-                              borderColor: ach.locked
-                                ? (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)')
-                                : (isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.09)'),
-                              backgroundColor: ach.locked
-                                ? 'transparent'
-                                : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                              opacity: ach.locked ? 0.45 : 1,
-                            }}
-                          >
-                            <View style={{
-                              width: 48,
-                              height: 48,
-                              borderRadius: R.full,
-                              backgroundColor: ach.locked
-                                ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.015)')
-                                : (ACHIEVEMENT_ICONS[ach.id]?.color || theme.primary), // 7% opacity colored backdrop
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              marginBottom: S.sm,
-                              borderWidth: ach.locked ? 0 : 1,
-                              borderColor: (ACHIEVEMENT_ICONS[ach.id]?.color || theme.primary) + '22', // 13% opacity colored border
-                            }}>
-                              {renderAchievementIcon(ach.id, 22, ach.locked)}
-                            </View>
-                            <Text style={{
-                              fontSize: 10,
-                              fontWeight: '700',
-                              color: ach.locked ? theme.onSurfaceVariant : theme.onSurface,
-                              opacity: ach.locked ? 0.65 : 1,
-                              textAlign: 'center',
-                              lineHeight: 13
-                            }} numberOfLines={2}>
-                              {tr ? ach.titleTr : ach.titleEn}
-                            </Text>
-                          </Touchable>
-                        ))}
-                        {chips.slice(rowIdx * 3, rowIdx * 3 + 3).length < 3 &&
-                          Array.from({ length: 3 - chips.slice(rowIdx * 3, rowIdx * 3 + 3).length }, (_, i) => (
-                            <View key={`placeholder-${i}`} style={{ flex: 1 }} />
-                          ))
-                        }
-                      </View>
-                    ))}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                    {preview.map(id => {
+                      const isEarned = earned.includes(id);
+                      const color = ACHIEVEMENT_ICONS[id]?.color || theme.primary;
+                      return (
+                        <View
+                          key={id}
+                          style={{
+                            width: 42, height: 42, borderRadius: R.full,
+                            alignItems: 'center', justifyContent: 'center',
+                            backgroundColor: isEarned ? color : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
+                            borderWidth: isEarned ? 0 : B.thin, borderColor: theme.separator,
+                          }}
+                        >
+                          {renderAchievementIcon(id, 20, !isEarned)}
+                        </View>
+                      );
+                    })}
+                    {earned.length > preview.length && (
+                      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.footnote, fontWeight: '700' }}>+{earned.length - preview.length}</Text>
+                    )}
                   </View>
-                )}
+
+                  {/* Yeni kullanıcı: 0 kazanımda soluk madalyalar "boş" hissettirir → sıcak bir davet. */}
+                  {earned.length === 0 && (
+                    <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '500', lineHeight: 17 }}>
+                      {tr ? 'İlk madalyanı kazan — bir seri başlat ya da odak seansı yap.' : 'Earn your first medal — start a streak or a focus session.'}
+                    </Text>
+                  )}
+                </Touchable>
               </View>
             );
           })()}
@@ -608,8 +571,6 @@ export default function ProfileScreen() {
           </View>
         </ScrollView>
       </View>
-
-      <BottomNavBar />
 
       {/* Hesap Silme Onayı — "SİL" yazdıran, parolasız (Google/Apple) kullanıcılar dahil */}
 

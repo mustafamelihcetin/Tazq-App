@@ -254,14 +254,14 @@ export default function RootLayout() {
 
       // Morning brief: today's task count + streak (respects user preference)
       if (morningBriefEnabled) {
-        scheduleMorningBrief(todayTasks.length, streak, language || 'en', productivityHour);
+        scheduleMorningBrief(todayTasks.length, streak, language || 'en', productivityHour, currentUser?.name);
       } else {
         cancelMorningBrief();
       }
 
       // Evening brief: completed today vs still pending (respects user preference)
       if (eveningBriefEnabled) {
-        scheduleEveningBrief(completedToday, pending, language || 'en');
+        scheduleEveningBrief(completedToday, pending, language || 'en', currentUser?.name);
       } else {
         cancelEveningBrief();
       }
@@ -545,6 +545,7 @@ export default function RootLayout() {
             <Stack.Screen name="legal" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="promo" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="report" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="achievements" options={{ animation: 'slide_from_right' }} />
           </Stack>
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: uiDepth.interpolate({ inputRange: [0, 1], outputRange: [0, 0.18] }) }]} />
         </Animated.View>
