@@ -79,7 +79,7 @@ export default function SettingsScreen() {
     section === 'notify' ? (language === 'tr' ? 'Bildirimler' : 'Notifications')
     : section === 'system' ? (language === 'tr' ? 'Görünüm & Dil' : 'Appearance & Language')
     : section === 'health' ? (language === 'tr' ? 'Uyku & Sağlık' : 'Sleep & Health')
-    : section === 'legal' ? (language === 'tr' ? 'Gizlilik & Yasal' : 'Privacy & Legal')
+    : section === 'legal' ? (language === 'tr' ? 'Hesap, Yasal & Destek' : 'Account, Legal & Support')
     : (language === 'tr' ? 'Ayarlar' : 'Settings');
   const { show: showToast } = useToastStore();
   const insets = useSafeAreaInsets();

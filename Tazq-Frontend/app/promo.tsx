@@ -6,8 +6,9 @@ import { BlurView } from 'expo-blur';
 import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
 import {
-  X, EyeOff, Play, Timer, Music, Moon, GraduationCap, Dumbbell, Briefcase,
+  X, EyeOff, Moon, GraduationCap, Dumbbell, Briefcase,
   CheckCircle2, Circle, Flame, TrendingUp, Home, Target, ListChecks, BarChart3, Sun,
+  Wifi, BatteryFull, SignalHigh, Trophy,
 } from 'lucide-react-native';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { Touchable } from '@/shared/components/Touchable';
@@ -30,7 +31,7 @@ const NEUTRAL = {
   light: { screen: '#F2F2F7', card: '#FFFFFF', border: 'rgba(0,0,0,0.07)', text: '#1C1C1E', sub: 'rgba(0,0,0,0.55)', muted: 'rgba(0,0,0,0.42)', track: 'rgba(0,0,0,0.07)' },
 } as const;
 
-type Kind = 'focus' | 'deepfocus' | 'modes' | 'tasks' | 'momentum' | 'home' | 'brand';
+type Kind = 'focus' | 'deepfocus' | 'modes' | 'tasks' | 'momentum' | 'cockpit' | 'home' | 'brand';
 
 type SlideDef = {
   kind: Kind;
@@ -50,9 +51,11 @@ const SLIDES: SlideDef[] = [
   { kind: 'tasks', accentKey: 'indigo', darkColors: ['#0f1140', '#25297a', '#0b0d30'], ebTr: 'Görevler & Alışkanlıklar', ebEn: 'Tasks & Habits', tTr: 'Bugünün planı,\nalışkanlıkların', tEn: "Today's plan,\nyour habits", sTr: 'Görevlerini, alışkanlıklarını ve serilerini takip et.', sEn: 'Track your tasks, habits and streaks.' },
   // 4 — Momentum: ilerleme · emerald
   { kind: 'momentum', accentKey: 'emerald', darkColors: ['#06271f', '#0d4a3c', '#051c16'], ebTr: 'Momentum', ebEn: 'Momentum', tTr: 'İlerlemeni gör,\nmomentumu koru', tEn: 'See progress,\nkeep momentum', sTr: 'Haftalık odak istatistikleri ve momentum skorun.', sEn: 'Weekly focus stats and your momentum score.' },
-  // 5 — Ana ekran: genel bakış · primary (mavi, marka hero)
+  // 5 — Kokpit / Haftalık Karne: başarı & ilerleme · amber (ödül/karne tonu)
+  { kind: 'cockpit', accentKey: 'amber', darkColors: ['#2a1a06', '#5c3c0f', '#1e1305'], ebTr: 'Kokpit · Haftalık', ebEn: 'Cockpit · Weekly', tTr: 'Haftanı\nkarneyle bitir', tEn: 'Close your week\nwith a report', sTr: 'Günlük tutarlılığını gör, haftalık karnenle ilerlemeni ölç.', sEn: 'See daily consistency and measure progress with a weekly report.' },
+  // 6 — Ana ekran: genel bakış · primary (mavi, marka hero)
   { kind: 'home', accentKey: 'blue', darkColors: ['#08122f', '#123a86', '#070c26'], ebTr: 'Genel Bakış', ebEn: 'Overview', tTr: 'Her şey\ntek yerde', tEn: 'Everything\nin one place', sTr: 'Odak, plan ve alışkanlıklar — dengeli bir gün.', sEn: 'Focus, plans and habits — a balanced day.' },
-  // 6 — Marka kapanışı · violet. Dramatik kapanış HER ZAMAN koyu.
+  // 7 — Marka kapanışı · violet. Dramatik kapanış HER ZAMAN koyu.
   { kind: 'brand', accentKey: 'violet', darkColors: ['#1a0b42', '#2f1280', '#140a30'], ebTr: 'TAZQ', ebEn: 'TAZQ', tTr: 'Odaklan. İlerle.\nDengede kal.', tEn: 'Focus. Progress.\nStay balanced.', sTr: 'Üretkenliğin ve huzurun bir arada. Bugün başla.', sEn: 'Productivity and calm, together. Start today.' },
 ];
 
@@ -117,16 +120,31 @@ export default function PromoScreen() {
     // Solid AppIcon imzası: dolu renkli kutu + beyaz glif (uygulamanın güncel ikon dili).
     const chip = (c: string, sz: number) => ({ width: sz, height: sz, borderRadius: Math.round(sz * 0.32), backgroundColor: c, alignItems: 'center' as const, justifyContent: 'center' as const });
 
-    // Ekran iskeleti: başlık+içerik üstte (flex), altta gerçek uygulama gibi sekme çubuğu.
-    // Böylece mock telefonun tamamını doldurur (boş alt yarı kalmaz) ve daha gerçekçi durur.
+    // Gerçek iOS ekran iskeleti: durum çubuğu (saat + sinyal/wifi/batarya) · başlık payı ·
+    // içerik (flex) · alt sekme çubuğu · home göstergesi. Paylar tek birimden (u) türetilir ki
+    // boşluk ritmi tutarlı olsun; mock telefonun tamamını gerçek bir ekran gibi doldurur.
     const NAV = [Home, ListChecks, Target, BarChart3, Dumbbell];
     const Screen: React.FC<{ active: number; children: React.ReactNode }> = ({ active, children }) => (
       <View style={{ flex: 1, backgroundColor: M.screen }}>
-        <View style={{ flex: 1, padding: pad, gap: gap }}>{children}</View>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingTop: u * 1.1, paddingBottom: u * 1.5, borderTopWidth: 1, borderTopColor: M.border, backgroundColor: M.card }}>
-          {NAV.map((Ic, i) => (
-            <Ic key={i} size={19 * S} color={i === active ? A.blue : M.muted} strokeWidth={i === active ? 2.6 : 2} />
-          ))}
+        {/* Durum çubuğu — çentiğin iki yanına saat ve sistem göstergeleri */}
+        <View style={{ height: u * 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: pad + u * 0.5 }}>
+          <Text style={{ color: M.text, fontSize: 9.5 * S, fontWeight: '800', letterSpacing: 0.2 }}>9:41</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 * S }}>
+            <SignalHigh size={11 * S} color={M.text} strokeWidth={2.4} />
+            <Wifi size={11 * S} color={M.text} strokeWidth={2.4} />
+            <BatteryFull size={13 * S} color={M.text} strokeWidth={2} />
+          </View>
+        </View>
+        {/* İçerik — yatay pay + üst başlık payı; kartlar arası ritim = gap */}
+        <View style={{ flex: 1, paddingHorizontal: pad, paddingTop: u * 0.75, gap: gap }}>{children}</View>
+        {/* Alt sekme çubuğu + home göstergesi */}
+        <View style={{ borderTopWidth: 1, borderTopColor: M.border, backgroundColor: M.card, paddingTop: u * 1.1 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
+            {NAV.map((Ic, i) => (
+              <Ic key={i} size={20 * S} color={i === active ? A.blue : M.muted} strokeWidth={i === active ? 2.6 : 2} />
+            ))}
+          </View>
+          <View style={{ alignSelf: 'center', marginTop: u * 1, marginBottom: u * 0.7, width: fw * 0.32, height: 3.5 * S, borderRadius: 999, backgroundColor: M.text, opacity: 0.26 }} />
         </View>
       </View>
     );
@@ -216,9 +234,9 @@ export default function PromoScreen() {
             <Text style={LAB}>{tr ? 'BUGÜN · 6 TEMMUZ' : 'TODAY · JUL 6'}</Text>
             <Text style={{ color: M.text, fontSize: T.h1, fontWeight: '800', letterSpacing: -0.4, marginTop: 3 * S }}>{tr ? 'Günün Planı' : 'Your Day'}</Text>
           </View>
-          <View style={[CARD, { paddingHorizontal: pad, paddingVertical: u * 0.4 }]}>
+          <View style={[CARD, { paddingHorizontal: pad, paddingVertical: u * 0.3 }]}>
             {tasks.map(([t, done], i) => (
-              <View key={t} style={{ flexDirection: 'row', alignItems: 'center', gap: u * 1.25, paddingVertical: u * 1.1, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: M.border }}>
+              <View key={t} style={{ flexDirection: 'row', alignItems: 'center', gap: u * 1.25, paddingVertical: u, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: M.border }}>
                 {done ? <CheckCircle2 size={20 * S} color={A.emerald} /> : <Circle size={20 * S} color={M.muted} />}
                 <Text style={{ flex: 1, color: done ? M.muted : M.text, fontSize: T.body, fontWeight: '600', textDecorationLine: done ? 'line-through' : 'none' }} numberOfLines={1}>{t}</Text>
               </View>
@@ -273,6 +291,45 @@ export default function PromoScreen() {
       );
     }
 
+    if (kind === 'cockpit') {
+      const stats: [string, string, any][] = [
+        [tr ? 'Toplam Odak' : 'Total Focus', tr ? '9.5 sa' : '9.5 h', Target],
+        [tr ? 'Tamamlanan' : 'Completed', tr ? '28 görev' : '28 tasks', CheckCircle2],
+      ];
+      return (
+        <Screen active={3}>
+          <View style={{ marginTop: u * 0.5 }}>
+            <Text style={LAB}>{tr ? 'KOKPİT · HAFTALIK' : 'COCKPIT · WEEKLY'}</Text>
+            <Text style={{ color: M.text, fontSize: T.h1, fontWeight: '800', letterSpacing: -0.4, marginTop: 3 * S }}>{tr ? 'Haftalık Karne' : 'Weekly Review'}</Text>
+          </View>
+          {/* Karne hero: kupa + hafta skoru + gün-gün tutarlılık */}
+          <View style={[CARD, { padding: pad, alignItems: 'center', gap: u }]}>
+            <View style={chip(A.amber, 46 * S)}><Trophy size={24 * S} color="#FFFFFF" /></View>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 * S }}>
+              <Text style={{ color: M.text, fontSize: T.big, fontWeight: '800', letterSpacing: -0.5 }}>92</Text>
+              <Text style={{ color: M.sub, fontSize: T.body, fontWeight: '700' }}>/100</Text>
+            </View>
+            <Text style={{ color: A.amber, fontSize: T.sub, fontWeight: '700' }}>{tr ? 'Zirve haftası · +18%' : 'Peak week · +18%'}</Text>
+            <View style={{ flexDirection: 'row', gap: 5 * S, marginTop: u * 0.4 }}>
+              {[1, 1, 1, 1, 1, 0, 1].map((on, i) => (
+                <View key={i} style={{ width: 7 * S, height: 7 * S, borderRadius: 999, backgroundColor: on ? A.amber : M.track }} />
+              ))}
+            </View>
+          </View>
+          {/* iki özet stat */}
+          <View style={{ flexDirection: 'row', gap: gap }}>
+            {stats.map(([l, v, Ic]) => (
+              <View key={l} style={[CARD, { flex: 1, padding: pad, gap: u * 0.6 }]}>
+                <Ic size={16 * S} color={A.amber} />
+                <Text style={{ color: M.text, fontSize: T.body + 1, fontWeight: '800' }}>{v}</Text>
+                <Text style={{ color: M.sub, fontSize: T.cap, fontWeight: '600' }} numberOfLines={1}>{l}</Text>
+              </View>
+            ))}
+          </View>
+        </Screen>
+      );
+    }
+
     // home
     return (
       <Screen active={0}>
@@ -282,7 +339,7 @@ export default function PromoScreen() {
         </View>
         <View style={{ flexDirection: 'row', gap: u * 1.1 }}>
           {[[Target, tr ? 'Odak' : 'Focus', '1.5 sa', A.blue], [ListChecks, tr ? 'Görev' : 'Tasks', '3/5', A.emerald], [Flame, tr ? 'Seri' : 'Streak', '12', A.orange]].map(([Ic, l, v, c]: any) => (
-            <View key={l} style={[CARD, { flex: 1, paddingVertical: pad, paddingHorizontal: u, alignItems: 'center', gap: u }]}>
+            <View key={l} style={[CARD, { flex: 1, padding: pad, alignItems: 'center', gap: u * 0.75 }]}>
               <View style={chip(c, 34 * S)}><Ic size={17 * S} color="#FFFFFF" /></View>
               <Text style={{ color: M.text, fontSize: T.body + 2.5, fontWeight: '800', letterSpacing: -0.3 }}>{v}</Text>
               <Text style={{ color: M.sub, fontSize: 9.5 * S, fontWeight: '700' }}>{l}</Text>

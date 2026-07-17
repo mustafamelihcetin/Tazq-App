@@ -522,7 +522,9 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: S.slg, paddingTop: Platform.OS === 'ios' ? 8 : 16 },
-  logoTop: { fontSize: 24, fontFamily: 'Jakarta-ExtraBold', letterSpacing: -2 },
+  // letterSpacing -2 çok sıkıydı: iOS son glifi (Q) metin kutusundan sağdan kırpıyordu.
+  // -1 + küçük sağ pay glif taşmasına yer açar.
+  logoTop: { fontSize: 24, fontFamily: 'Jakarta-ExtraBold', letterSpacing: -1, paddingRight: S.xs },
   skipBtn: { padding: S.sm },
   skipText: { fontSize: 14, fontWeight: '700' },
   slide: { height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.slg },

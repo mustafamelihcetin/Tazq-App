@@ -7,7 +7,6 @@ const DARK_BG = '#0A0A0A';
 const LIGHT_BG = '#F8F8F7';
 const DARK_LINE = 'rgba(255,255,255,0.18)';
 const LIGHT_LINE = 'rgba(0,0,0,0.12)';
-const LINE_WIDTH = 72;
 
 export const AnimatedSplash = ({
   onFinish,
@@ -19,9 +18,11 @@ export const AnimatedSplash = ({
   isDark?: boolean;
 }) => {
   const { width } = useWindowDimensions();
-  // Tabletlere ve büyük ekranlara özel logo büyümesini sınırla (pikselleşmeyi önler)
+  // Ölçüler ekran genişliğinden türetilir → %100 responsive (küçük telefondan tablete).
+  // Logo büyük ekranda sınırlanır (pikselleşmeyi önler); ince çizgi logoya oranlı.
   const logoWidth = Math.min(width * 0.48, 220);
   const logoHeight = logoWidth / 3.2;
+  const lineWidth = Math.round(logoWidth * 0.42);
 
   const bg = isDark ? DARK_BG : LIGHT_BG;
   const lineColor = isDark ? DARK_LINE : LIGHT_LINE;
@@ -36,7 +37,7 @@ export const AnimatedSplash = ({
   useEffect(() => {
     onReady();
 
-    // Avuç İçinde Atan Kalp (Heartbeat Haptic Pulse) — Logo otururken minik çift titreşim
+    // Avuç İçinde Atan Kalp (Heartbeat Haptic Pulse) — logo otururken minik çift titreşim
     const hapticTimer = setTimeout(() => {
       Haptics.selectionAsync().catch(() => {});
       setTimeout(() => {
@@ -45,7 +46,7 @@ export const AnimatedSplash = ({
     }, 650);
 
     Animated.sequence([
-      // 1. Logo fades in + rises (0–700ms)
+      // 1. Logo yükselerek belirir (0–700ms)
       Animated.parallel([
         Animated.timing(logoOpacity, {
           toValue: 1,
@@ -61,7 +62,7 @@ export const AnimatedSplash = ({
         }),
       ]),
 
-      // 2. Kinetic Typographic Breath (Haptic ile senkronize mikroskopik kalp atışı)
+      // 2. Kalp atışı — haptic ile senkron mikroskopik nabız (marka "canlanır")
       Animated.sequence([
         Animated.timing(logoScale, {
           toValue: 1.035,
@@ -77,7 +78,7 @@ export const AnimatedSplash = ({
         }),
       ]),
 
-      // 3. Line grows from center outward
+      // 3. İnce çizgi merkezden dışa doğru açılır
       Animated.parallel([
         Animated.timing(lineOpacity, {
           toValue: 1,
@@ -92,10 +93,10 @@ export const AnimatedSplash = ({
         }),
       ]),
 
-      // 4. Hold
+      // 4. Bekleme
       Animated.delay(600),
 
-      // 5. Fade out everything
+      // 5. Her şey yumuşakça kaybolur
       Animated.timing(screenOpacity, {
         toValue: 0,
         duration: 500,
@@ -122,6 +123,7 @@ export const AnimatedSplash = ({
           style={[
             styles.line,
             {
+              width: lineWidth,
               backgroundColor: lineColor,
               opacity: lineOpacity,
               transform: [{ scaleX: lineScale }],
@@ -142,7 +144,6 @@ const styles = StyleSheet.create({
   },
   line: {
     marginTop: -2,
-    width: LINE_WIDTH,
     height: StyleSheet.hairlineWidth,
   },
 });

@@ -833,53 +833,6 @@ export default function CockpitScreen() {
             </BentoCard>
           ) : (
             <View style={{ gap: S.sm, marginBottom: S.md }}>
-              {/* Tamamlanan alışkanlıklar — tam liste */}
-              {(() => {
-                const doneHabits = personalHabits.filter(h => {
-                  const dates = Array.isArray(h.completedDates) ? h.completedDates : [];
-                  return dates.includes(todayKey) && !completingHabitIds.has(h.id);
-                });
-                if (doneHabits.length === 0) return null;
-                return (
-                  <View style={{ gap: S.xs, marginBottom: S.sm }}>
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.success, letterSpacing: 1, paddingHorizontal: S.sm }}>
-                      {tr ? `✓ BUGÜN TAMAMLANDI (${doneHabits.length})` : `✓ DONE TODAY (${doneHabits.length})`}
-                    </Text>
-                    {doneHabits.map(habit => (
-                      <View
-                        key={habit.id}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.md, paddingVertical: S.smd, borderRadius: R.lg,
-                          backgroundColor: theme.success + (isDark ? '12' : '0D'),
-                          borderWidth: B.thin, borderColor: theme.success + '18' }}
-                      >
-                        <Touchable
-                          onPress={() => toggleHabitExpand(habit.id)}
-                          onLongPress={() => handleLongPressHabit(habit.id, habit.name)}
-                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.md }}
-                          activeOpacity={0.8}
-                        >
-                          <View style={{ width: 32, height: 32, borderRadius: R.full, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
-                            {renderModeEmojiIcon(habit.emoji ?? '📌', 16, habit.color ?? theme.success)}
-                          </View>
-                          <Text style={{ flex: 1, fontSize: F.body, fontWeight: '500', color: theme.onSurfaceMuted, textDecorationLine: 'line-through' }} numberOfLines={expandedHabitIds.has(habit.id) ? undefined : 1}>
-                            {habit.name}
-                          </Text>
-                        </Touchable>
-                        <Touchable
-                          accessibilityRole="checkbox"
-                          accessibilityState={{ checked: true }}
-                          accessibilityLabel={tr ? `${habit.name} — tamamlandı, geri al` : `${habit.name} — done, undo`}
-                          onPress={() => handleToggleHabit(habit.id)}
-                          style={{ padding: S.xs }}
-                          activeOpacity={0.7}
-                        >
-                          <Check size={ICON.sm} color={theme.success} strokeWidth={3} />
-                        </Touchable>
-                      </View>
-                    ))}
-                  </View>
-                );
-              })()}
               {[...personalHabits]
                 .filter((h) => {
                   const safeDates = Array.isArray(h.completedDates) ? h.completedDates : [];
@@ -1050,6 +1003,55 @@ export default function CockpitScreen() {
                   {tr ? 'Alışkanlık Ekle' : 'Add Habit'}
                 </Text>
               </Touchable>
+
+              {/* Tamamlananlar EN ALTTA (iOS Reminders gibi): bekleyenler üstte kalır, tamamlanan
+                  aşağı kayıp buraya oturur → çıkış animasyonu (aşağı) mantıkla aynı yönde. */}
+              {(() => {
+                const doneHabits = personalHabits.filter(h => {
+                  const dates = Array.isArray(h.completedDates) ? h.completedDates : [];
+                  return dates.includes(todayKey) && !completingHabitIds.has(h.id);
+                });
+                if (doneHabits.length === 0) return null;
+                return (
+                  <View style={{ gap: S.xs, marginTop: S.xs }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.success, letterSpacing: 1, paddingHorizontal: S.sm }}>
+                      {tr ? `✓ BUGÜN TAMAMLANDI (${doneHabits.length})` : `✓ DONE TODAY (${doneHabits.length})`}
+                    </Text>
+                    {doneHabits.map(habit => (
+                      <View
+                        key={habit.id}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingHorizontal: S.md, paddingVertical: S.smd, borderRadius: R.lg,
+                          backgroundColor: theme.success + (isDark ? '12' : '0D'),
+                          borderWidth: B.thin, borderColor: theme.success + '18' }}
+                      >
+                        <Touchable
+                          onPress={() => toggleHabitExpand(habit.id)}
+                          onLongPress={() => handleLongPressHabit(habit.id, habit.name)}
+                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.md }}
+                          activeOpacity={0.8}
+                        >
+                          <View style={{ width: 32, height: 32, borderRadius: R.full, backgroundColor: (habit.color ?? theme.success) + '22', alignItems: 'center', justifyContent: 'center' }}>
+                            {renderModeEmojiIcon(habit.emoji ?? '📌', 16, habit.color ?? theme.success)}
+                          </View>
+                          <Text style={{ flex: 1, fontSize: F.body, fontWeight: '500', color: theme.onSurfaceMuted, textDecorationLine: 'line-through' }} numberOfLines={expandedHabitIds.has(habit.id) ? undefined : 1}>
+                            {habit.name}
+                          </Text>
+                        </Touchable>
+                        <Touchable
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: true }}
+                          accessibilityLabel={tr ? `${habit.name} — tamamlandı, geri al` : `${habit.name} — done, undo`}
+                          onPress={() => handleToggleHabit(habit.id)}
+                          style={{ padding: S.xs }}
+                          activeOpacity={0.7}
+                        >
+                          <Check size={ICON.sm} color={theme.success} strokeWidth={3} />
+                        </Touchable>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
             </View>
           )}
 

@@ -599,8 +599,8 @@ export default function ProfileScreen() {
               <SettingItem
                 icon={<Shield size={ICON.md} color="#FFFFFF" />}
                 bg={A.legal}
-                label={language === 'tr' ? 'Gizlilik & Yasal' : 'Privacy & Legal'}
-                sub={language === 'tr' ? 'Hesap, gizlilik, destek' : 'Account, privacy, support'}
+                label={language === 'tr' ? 'Hesap, Yasal & Destek' : 'Account, Legal & Support'}
+                sub={language === 'tr' ? 'Gizlilik, koşullar, çıkış, destek' : 'Privacy, terms, logout, support'}
                 onPress={() => router.push({ pathname: '/settings', params: { section: 'legal' } })}
                 theme={theme}
               />

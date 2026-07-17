@@ -1579,15 +1579,13 @@ export default function HomeScreen() {
         buttonSize={54}
       >
         {/*
-          İkon Zap (şimşek) idi: şimşek hız/enerji anlatır, bu buton ise "görev listene
-          taslak EKLE" yapıyor — ikon eylemle ilgisizdi. Plus evrensel "ekle"dir ve
-          uygulamanın geri kalanında da zaten bunu söylüyor.
+          İkon Zap (şimşek): bu buton HIZLI taslak yakalama (quick draft) — "aksiyon merkezi"
+          zaten Plus (+) kullanıyor, aynı ekranda iki + çelişki yaratıyordu. Şimşek bu butonu
+          "anında yakala / hızlı ekle" olarak ayırır; + ise yapılandırılmış görev eklemede kalır.
 
-          Renk: "#fff" sabit yazılıydı ve paleti atlıyordu. Koyu temada primary #0A84FF
-          ve onPrimary BİLEREK koyu (beyaz, o mavinin üstünde 3.65:1 — AA'dan kalıyor).
-          Sabit beyaz, tam da paletin kaçındığı şeyi geri getiriyordu.
+          Renk: paletten — koyu temada primary #0A84FF üstünde onPrimary (BİLEREK koyu, AA).
         */}
-        <Plus size={ICON.lg} color={theme.onPrimary} strokeWidth={2.5} />
+        <Zap size={ICON.lg} color={theme.onPrimary} strokeWidth={2.5} fill={theme.onPrimary} />
       </MagneticFAB>
 
       <BottomNavBar />

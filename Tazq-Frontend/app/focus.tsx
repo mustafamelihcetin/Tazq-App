@@ -7,7 +7,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil, Timer, ChevronRight, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, Shield } from 'lucide-react-native';
+import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil, Timer, ChevronRight, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, Shield, SlidersHorizontal } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
@@ -183,11 +183,13 @@ const CountdownText = React.memo(({ timerSize, colonColor, reduceMotion }: { tim
   // saniyeliği yaşam belirtisi kalsın ama göz köşesinde rahatsız etmesin.
   const colonOpacity = reduceMotion ? 0.7 : ((isActive && seconds % 2 === 1) ? 0.55 : 0.85);
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: big }]}>
         {Math.floor(seconds / 60).toString().padStart(2, '0')}
       </Text>
-      <Text style={[styles.timerText, { color: colonColor, fontSize: mid, marginHorizontal: S.xxs, opacity: colonOpacity }]}>:</Text>
+      {/* ':' rakamlarla DİKEY ORTALI — satır 'center', böylece küçük iki nokta tabana düşmez.
+          Küçük hizalama payı: optik olarak tam ortaya oturması için minik yukarı nudge. */}
+      <Text style={[styles.timerText, { color: colonColor, fontSize: mid, marginHorizontal: S.xxs, opacity: colonOpacity, includeFontPadding: false, textAlignVertical: 'center' }]}>:</Text>
       <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: big }]}>
         {(seconds % 60).toString().padStart(2, '0')}
       </Text>
@@ -444,6 +446,7 @@ export default function FocusScreen() {
   const breathMode = focusBreathMode;
   const setBreathMode = setFocusBreathMode;
   const [breathPickerVisible, setBreathPickerVisible] = useState(false);
+  const [modesSheetVisible, setModesSheetVisible] = useState(false);
   const [zenMode, setZenMode] = useState(false);
 
   // (Aurora reanimated animasyonları timerSize tanımından sonra kuruldu — aşağıya bakınız.)
@@ -483,6 +486,7 @@ export default function FocusScreen() {
   useEffect(() => {
     const handleBackPress = () => {
       if (customVisible) { setCustomVisible(false); return true; }
+      if (modesSheetVisible) { setModesSheetVisible(false); return true; }
       if (breathPickerVisible) { setBreathPickerVisible(false); return true; }
       if (taskEditMode) { setTaskEditMode(false); return true; }
       if (pomodoroInfoVisible) { setPomodoroInfoVisible(false); return true; }
@@ -496,7 +500,7 @@ export default function FocusScreen() {
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     return () => backHandler.remove();
-  }, [customVisible, breathPickerVisible, taskEditMode, pomodoroInfoVisible, summaryVisible, summaryCompleted, completionRitual]);
+  }, [customVisible, modesSheetVisible, breathPickerVisible, taskEditMode, pomodoroInfoVisible, summaryVisible, summaryCompleted, completionRitual]);
 
   const WHEEL_ITEM_H = 56;
   const WHEEL_MINS = Array.from({ length: 180 }, (_, i) => i + 1);
@@ -1172,14 +1176,16 @@ export default function FocusScreen() {
       </View>
       <View style={{ flex: 1, paddingBottom: insets.bottom || S.md }}>
 
-        {/* Header — left/right slots are equal width so badge stays perfectly centered */}
+        {/* Header — X solda, mod pill'i sağda; başlık MUTLAK ekran-merkezinde (position:absolute).
+            Böylece "Derin Odak" X ve pill'in genişliğinden bağımsız her zaman tam ortada durur
+            (eski flex düzeninde pill genişleyince badge merkezden kayıyordu = simetrisizlik). */}
         <MotiView
           pointerEvents={zenMode && isActive ? "none" : "auto"}
           animate={{ opacity: zenMode && isActive ? 0 : 1 }}
           transition={{ type: 'timing', duration: 400 }}
           style={[styles.header, { paddingTop: insets.top, paddingBottom: S.md }]}
         >
-          <View style={{ flex: 1, alignItems: 'flex-start' }}>
+          <View style={{ flexShrink: 0 }}>
             <Touchable
               onPress={() => {
                 stopAllSounds();
@@ -1204,15 +1210,18 @@ export default function FocusScreen() {
             </Touchable>
           </View>
 
-          <View style={[styles.badge, { backgroundColor: theme.primary + '15', flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginHorizontal: S.sm }]}>
-            <Sparkles size={ICON.xs} color={theme.primary} />
-            <Text style={[styles.badgeText, { color: theme.primary, fontSize: F.caption, letterSpacing: 1, maxWidth: 120 }]} numberOfLines={1}>
-              {t.focusLabel || t.deepFocus}
-            </Text>
+          {/* Başlık — MUTLAK ekran-merkezinde: X ve pill genişliğinden bağımsız, hep tam ortada. */}
+          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: insets.top, bottom: S.md, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={[styles.badge, { backgroundColor: theme.primary + '15', maxWidth: '44%' }]}>
+              <Sparkles size={ICON.xs} color={theme.primary} />
+              <Text style={[styles.badgeText, { color: theme.primary, fontSize: F.caption, letterSpacing: 1 }]} numberOfLines={1}>
+                {t.focusLabel || t.deepFocus}
+              </Text>
+            </View>
           </View>
 
           {/* Pomodoro & Breath Toggles - Unified Premium Pill */}
-          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
             <AnimatePresence>
               {!isActive && (
                 <TourTarget id="modeSelect">
@@ -1222,35 +1231,23 @@ export default function FocusScreen() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ type: 'timing', duration: 220 }}
-                  style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)', borderRadius: R.xl, padding: S.xs }}
                 >
-                  <Touchable
-                    accessibilityRole="button"
-                    accessibilityLabel={language === 'tr' ? 'Nefes modu ayarları' : 'Breathing mode settings'}
-                    accessibilityState={{ selected: breathMode !== 'off' }}
-                    onPress={() => { Haptics.selectionAsync(); setBreathPickerVisible(true); }}
-                    style={{ padding: S.sm, borderRadius: R.lg, backgroundColor: breathMode !== 'off' ? theme.primary + '20' : 'transparent' }}
-                  >
-                    <Wind size={ICON.sm} color={breathMode !== 'off' ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
-                  </Touchable>
-                  <Touchable
-                    accessibilityRole="switch"
-                    accessibilityLabel={language === 'tr' ? 'Pomodoro modu' : 'Pomodoro mode'}
-                    accessibilityState={{ checked: pomodoroMode }}
-                    onPress={() => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); }}
-                    style={{ padding: S.sm, borderRadius: R.lg, backgroundColor: pomodoroMode ? theme.primary + '20' : 'transparent' }}
-                  >
-                    <Timer size={ICON.sm} color={pomodoroMode ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
-                  </Touchable>
-                  <Touchable
-                    onPress={() => { Haptics.selectionAsync(); setStrictMode(!strictMode); }}
-                    style={{ padding: S.sm, borderRadius: R.lg, backgroundColor: strictMode ? theme.primary + '20' : 'transparent' }}
-                    accessibilityRole="button"
-                    accessibilityState={{ checked: strictMode }}
-                    accessibilityLabel={language === 'tr' ? 'Katı Odak Modu' : 'Strict Focus Mode'}
-                  >
-                    <Shield size={ICON.sm} color={strictMode ? theme.primary : theme.onSurfaceVariant} strokeWidth={2.5} />
-                  </Touchable>
+                  {/* Tek "modlar" butonu — soldaki X ile aynı boyut/biçim → header simetrik.
+                      3 mod (Nefes/Pomodoro/Katı) alt-sheet'te açılır. Aktif mod varsa buton vurgulanır. */}
+                  {(() => {
+                    const anyModeOn = breathMode !== 'off' || pomodoroMode || strictMode;
+                    return (
+                      <Touchable
+                        accessibilityRole="button"
+                        accessibilityLabel={language === 'tr' ? 'Odak modları' : 'Focus modes'}
+                        accessibilityState={{ expanded: modesSheetVisible }}
+                        onPress={() => { Haptics.selectionAsync(); setModesSheetVisible(true); }}
+                        style={[styles.closeBtn, { backgroundColor: anyModeOn ? theme.primary + '20' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)') }]}
+                      >
+                        <SlidersHorizontal size={ICON.md} color={anyModeOn ? theme.primary : theme.onSurface} strokeWidth={2.4} />
+                      </Touchable>
+                    );
+                  })()}
                 </MotiView>
                 </TourTarget>
               )}
@@ -1321,8 +1318,8 @@ export default function FocusScreen() {
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
-                      style={{ alignSelf: 'stretch', marginBottom: S.md }}
-                      contentContainerStyle={{ gap: S.sm, paddingHorizontal: S.lmd, flexGrow: 1, alignItems: 'center', justifyContent: 'center' }}
+                      style={{ marginHorizontal: -S.lg, marginBottom: S.md }}
+                      contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.lg }}
                     >
                       {PRESETS.map((preset) => {
                         const isSelected = totalSeconds === preset.workMins * 60;
@@ -2084,6 +2081,54 @@ export default function FocusScreen() {
               <Text style={[styles.applyBtnText, { color: theme.onPrimary }]}>{t.focusCustomApply}</Text>
             </Touchable>
           </Animated.View>
+        </View>
+      </Modal>
+
+      {/* ── Odak Modları Alt-Sheet (header'daki tek butondan açılır) ─────────── */}
+      <Modal
+        visible={modesSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModesSheetVisible(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <Touchable style={styles.modalOverlay} activeOpacity={1} onPress={() => setModesSheetVisible(false)} />
+          <View style={[styles.customSheet, { backgroundColor: isDark ? theme.surfaceContainerHighest : '#FFFFFF', paddingBottom: (insets.bottom || S.md) + S.md, alignItems: 'stretch' }]}>
+            <View style={{ alignItems: 'center' }}>
+              <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
+            </View>
+            <Text style={[styles.sheetTitle, { color: theme.onSurface, textAlign: 'center' }]}>{language === 'tr' ? 'Odak Modları' : 'Focus Modes'}</Text>
+            <Text style={[styles.sheetSub, { color: theme.onSurfaceMuted, textAlign: 'center', marginBottom: S.md }]}>{language === 'tr' ? 'Seansını nasıl geçireceğini seç' : 'Choose how your session runs'}</Text>
+            {[
+              { key: 'breath', Ic: Wind, on: breathMode !== 'off', title: language === 'tr' ? 'Nefes' : 'Breathing', desc: language === 'tr' ? 'Ritmik nefes rehberi' : 'Guided breathing rhythm', chevron: true, onPress: () => { Haptics.selectionAsync(); setModesSheetVisible(false); setTimeout(() => setBreathPickerVisible(true), 260); } },
+              { key: 'pomo', Ic: Timer, on: pomodoroMode, title: 'Pomodoro', desc: language === 'tr' ? 'Çalış / mola döngüleri' : 'Work / break cycles', chevron: false, onPress: () => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); } },
+              { key: 'strict', Ic: Shield, on: strictMode, title: language === 'tr' ? 'Katı Odak' : 'Strict Focus', desc: language === 'tr' ? 'Seans bitene dek çıkışı kilitler' : 'Locks the exit until done', chevron: false, onPress: () => { Haptics.selectionAsync(); setStrictMode(!strictMode); } },
+            ].map((row) => (
+              <Touchable
+                key={row.key}
+                onPress={row.onPress}
+                accessibilityRole={row.chevron ? 'button' : 'switch'}
+                accessibilityState={row.chevron ? undefined : { checked: row.on }}
+                accessibilityLabel={row.title}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.smd, paddingHorizontal: S.sm, borderRadius: R.lg, marginBottom: S.xs, backgroundColor: row.on ? theme.primary + (isDark ? '14' : '0D') : 'transparent' }}
+              >
+                <View style={{ width: 40, height: 40, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', backgroundColor: row.on ? theme.primary : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') }}>
+                  <row.Ic size={ICON.md} color={row.on ? '#FFFFFF' : theme.onSurfaceVariant} strokeWidth={2.2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface }}>{row.title}</Text>
+                  <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, marginTop: S.xxs }} numberOfLines={1}>{row.desc}</Text>
+                </View>
+                {row.chevron ? (
+                  <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
+                ) : (
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: row.on ? theme.primary : theme.onSurfaceMuted }}>
+                    {row.on ? (language === 'tr' ? 'AÇIK' : 'ON') : (language === 'tr' ? 'KAPALI' : 'OFF')}
+                  </Text>
+                )}
+              </Touchable>
+            ))}
+          </View>
         </View>
       </Modal>
 
