@@ -18,7 +18,10 @@
 <meta property="og:description" content="Pomodoro odak, dönemsel günlük planlar ve alışkanlık takibi tek uygulamada. Odaklan. İlerle. Dengede kal." />
 <meta property="og:url" content="https://tazqapp.com/" />
 <meta property="og:image" content="https://tazqapp.com/images/icon.png" />
+<meta property="og:image:alt" content="TAZQ — odak, görev yönetimi ve alışkanlık uygulaması" />
 <meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="TAZQ — Odak, Pomodoro ve Günlük Görev Planlayıcı" />
+<meta name="twitter:description" content="Yapılacaklar listesi, Pomodoro odak, dönemsel günlük planlar ve alışkanlık takibi tek uygulamada. Ücretsiz." />
 <meta name="twitter:image" content="https://tazqapp.com/images/icon.png" />
 <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png" />
 <link rel="icon" type="image/png" sizes="48x48" href="/images/favicon-48x48.png" />
@@ -33,12 +36,54 @@
 
 <script type="application/ld+json">
 {
-  "@context": "https://schema.org", "@type": "MobileApplication", "name": "TAZQ",
-  "operatingSystem": "iOS", "applicationCategory": "ProductivityApplication",
-  "description": "Pomodoro odak zamanlayıcısı, dönemine özel günlük planlar, alışkanlık takibi ve görev yönetimini birleştiren üretkenlik uygulaması.",
-  "url": "https://tazqapp.com/", "inLanguage": ["tr","en"],
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "TRY" },
-  "publisher": { "@type": "Organization", "name": "Malthen", "email": "destek@tazqapp.com" }
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://tazqapp.com/#website",
+      "url": "https://tazqapp.com/",
+      "name": "TAZQ",
+      "inLanguage": "tr",
+      "publisher": { "@id": "https://tazqapp.com/#org" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://tazqapp.com/#org",
+      "name": "TAZQ",
+      "url": "https://tazqapp.com/",
+      "logo": "https://tazqapp.com/images/icon.png",
+      "email": "destek@tazqapp.com",
+      "sameAs": ["https://apps.apple.com/app/tazq/id6748417336"]
+    },
+    {
+      "@type": "MobileApplication",
+      "@id": "https://tazqapp.com/#app",
+      "name": "TAZQ",
+      "operatingSystem": "iOS",
+      "applicationCategory": "ProductivityApplication",
+      "description": "Pomodoro odak zamanlayıcısı, yapılacaklar listesi ve görev yönetimi, dönemine özel günlük planlar (sınav, spor, kariyer) ve alışkanlık takibini birleştiren ücretsiz üretkenlik uygulaması.",
+      "url": "https://tazqapp.com/",
+      "downloadUrl": "https://apps.apple.com/app/tazq/id6748417336",
+      "inLanguage": ["tr", "en"],
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "TRY" },
+      "publisher": { "@id": "https://tazqapp.com/#org" }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://tazqapp.com/#faq",
+      "mainEntity": [
+        { "@type": "Question", "name": "TAZQ ücretsiz mi?", "acceptedAnswer": { "@type": "Answer", "text": "Evet. TAZQ mevcut sürümüyle tüm özellikleriyle ücretsiz ve reklamsızdır. İleride opsiyonel bir premium paket gelebilir, ancak mevcut özellikler ücretsiz kalır." } },
+        { "@type": "Question", "name": "Hangi platformlarda kullanabilirim?", "acceptedAnswer": { "@type": "Answer", "text": "Şu an iOS (App Store) için hazır; Android sürümü çok yakında. Verilerin hesabınla senkronize olduğu için cihaz değiştirsen bile kaldığın yerden devam edersin." } },
+        { "@type": "Question", "name": "Derin Odak (Pomodoro) nasıl çalışır?", "acceptedAnswer": { "@type": "Answer", "text": "25 dakikalık odak ve kısa mola döngüleriyle çalışırsın; ambiyans sesleri ve zen moduyla dikkatini toplarsın. Her seans momentumuna ve haftalık istatistiklerine işlenir." } },
+        { "@type": "Question", "name": "Dönemsel modlar nedir?", "acceptedAnswer": { "@type": "Answer", "text": "Sınav, spor, kariyer, tez veya mülakat gibi bir dönem seçtiğinde TAZQ o döneme özel günlük planını her gün otomatik oluşturur — gelecek haftaları görevle doldurmak yerine sadece bugüne odaklanırsın." } },
+        { "@type": "Question", "name": "Alışkanlık ve seriler nasıl çalışır?", "acceptedAnswer": { "@type": "Answer", "text": "Günlük alışkanlıklarını tek dokunuşla işaretlersin; kesintisiz günler serini büyütür. Bir günü kaçırırsan biriktirdiğin seri kalkanı serini koruyabilir." } },
+        { "@type": "Question", "name": "Momentum skoru nedir?", "acceptedAnswer": { "@type": "Answer", "text": "Görev, odak ve alışkanlık aktiviteni tek bir 0–100 puanında birleştiren ivme göstergesidir; haftalık gidişatını bir bakışta gösterir." } },
+        { "@type": "Question", "name": "İnternet olmadan çalışır mı?", "acceptedAnswer": { "@type": "Answer", "text": "Evet. TAZQ çevrimdışı-öncelikli çalışır; verilerin cihazında saklanır ve internet olduğunda güvenle senkronize edilir." } },
+        { "@type": "Question", "name": "Verilerim güvende mi?", "acceptedAnswer": { "@type": "Answer", "text": "Verilerin şifreli olarak saklanır ve üçüncü şahıslarla paylaşılmaz. Ayrıntı için Gizlilik Politikası sayfasına bakabilirsin." } },
+        { "@type": "Question", "name": "Hesabımı nasıl silerim?", "acceptedAnswer": { "@type": "Answer", "text": "Uygulama içi ayarlardan ya da destek@tazqapp.com adresine yazarak hesabını kapatabilirsin; talebinin ardından verilerin 30 gün içinde kalıcı olarak silinir." } }
+      ]
+    }
+  ]
 }
 </script>
 
@@ -224,29 +269,12 @@
     .foot-in{grid-template-columns:1fr 1fr; gap:28px} .foot-brand{grid-column:1/-1} section.wrap{padding:64px 24px 0}
   }
 </style>
-<script>
-  // Dinamik Sekme Logosu (Favicon) Yuvarlama
-  window.addEventListener('DOMContentLoaded', () => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 128; canvas.height = 128;
-      const ctx = canvas.getContext('2d');
-      const r = 29; // ~22.5% squircle
-      ctx.beginPath();
-      ctx.moveTo(r, 0); ctx.lineTo(128-r, 0); ctx.quadraticCurveTo(128, 0, 128, r);
-      ctx.lineTo(128, 128-r); ctx.quadraticCurveTo(128, 128, 128-r, 128);
-      ctx.lineTo(r, 128); ctx.quadraticCurveTo(0, 128, 0, 128-r);
-      ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
-      ctx.clip();
-      ctx.drawImage(img, 0, 0, 128, 128);
-      document.querySelectorAll("link[rel~='icon']").forEach(l => {
-        if(l.rel === 'icon') l.href = canvas.toDataURL();
-      });
-    };
-    img.src = '/images/icon.png';
-  });
-</script>
+<!--
+  Not: Sekme favicon'unu canvas ile yuvarlayıp link[rel=icon] href'ini data: URL yapan JS
+  KALDIRILDI. Google favicon için data: URI'yi desteklemiyor (geçerli, erişilebilir bir URL
+  ister); render sırasında bu data: URL'ler favicon'un arama sonuçlarında çıkmamasına yol
+  açabiliyordu. Statik PNG favicon'lar (32/48/96/192) zaten doğru — onlar kalır.
+-->
 </head>
 <body>
 
@@ -273,7 +301,7 @@
   <header class="hero">
     <p class="eyebrow" data-i18n="hero.eyebrow">Üretkenlik &amp; huzur</p>
     <h1 data-i18n-html="hero.title">Odağını topla,<br><span class="g">hayatını dengele</span></h1>
-    <p class="lead" data-i18n="hero.lead">Pomodoro odak zamanlayıcısı, dönemine özel günlük planlar ve alışkanlık takibi — hepsi tek, sade bir uygulamada.</p>
+    <p class="lead" data-i18n="hero.lead">Pomodoro odak zamanlayıcısı, yapılacaklar listesi ve görev yönetimi, dönemine özel günlük planlar ve alışkanlık takibi — hepsi tek, sade bir uygulamada.</p>
     <div class="badges">
       <!-- TODO: id0000000000 -> gerçek App Store ID -->
       <a class="badge" href="https://apps.apple.com/app/tazq/id6748417336" aria-label="Download on the App Store">
@@ -463,7 +491,7 @@ var I18N = {
     "nav.features":"Özellikler","nav.how":"Nasıl çalışır","nav.faq":"SSS","soon":"YAKINDA",
     "hero.eyebrow":"Üretkenlik & huzur",
     "hero.title":"Odağını topla,<br><span class='g'>hayatını dengele</span>",
-    "hero.lead":"Pomodoro odak zamanlayıcısı, dönemine özel günlük planlar ve alışkanlık takibi — hepsi tek, sade bir uygulamada.",
+    "hero.lead":"Pomodoro odak zamanlayıcısı, yapılacaklar listesi ve görev yönetimi, dönemine özel günlük planlar ve alışkanlık takibi — hepsi tek, sade bir uygulamada.",
     "trust.1":"<b>Ücretsiz</b> · Reklamsız","trust.2":"<b>TR · EN</b> dil desteği","trust.3":"<b>Çevrimdışı</b> çalışır",
     "ph.greet":"İyi akşamlar,","ph.focus":"Odak","ph.tasks":"Görev","ph.streak":"Seri","ph.today":"Bugün",
     "ph.t1":"Haftalık Raporu Hazırla","ph.t2":"Kitap Oku (20 sayfa)","ph.t3":"Spor Salonuna Git",
@@ -505,7 +533,7 @@ var I18N = {
     "nav.features":"Features","nav.how":"How it works","nav.faq":"FAQ","soon":"SOON",
     "hero.eyebrow":"Productivity & calm",
     "hero.title":"Focus deeply,<br><span class='g'>live in balance</span>",
-    "hero.lead":"Pomodoro focus timer, daily plans for your season, and habit tracking — all in one clean app.",
+    "hero.lead":"Pomodoro focus timer, to-do list and task management, daily plans for your season, and habit tracking — all in one clean app.",
     "trust.1":"<b>Free</b> · No ads","trust.2":"<b>TR · EN</b> language support","trust.3":"<b>Offline</b> ready",
     "ph.greet":"Good evening,","ph.focus":"Focus","ph.tasks":"Tasks","ph.streak":"Streak","ph.today":"Today",
     "ph.t1":"Prepare weekly report","ph.t2":"Read book (20 pages)","ph.t3":"Go to the gym",
