@@ -65,6 +65,7 @@ export default function AdminScreen() {
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
   const [replyingId, setReplyingId] = useState<number | null>(null);
   const [expandedMsgs, setExpandedMsgs] = useState<Record<number, boolean>>({});
+  const [expandedCrashes, setExpandedCrashes] = useState<Record<string, boolean>>({});
   const [unreadCount, setUnreadCount] = useState(0);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -1274,21 +1275,40 @@ export default function AdminScreen() {
                   </Text>
                 ) : (
                   <View style={{ gap: S.sm }}>
-                    {crashes.map((crash, idx) => (
-                      <View key={crash.id || idx} style={{ borderTopWidth: idx > 0 ? B.thin : 0, borderTopColor: cardBorder, paddingTop: idx > 0 ? S.sm : 0, gap: S.xs }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption, flex: 1 }} numberOfLines={1}>
-                            {crash.errorMessage}
+                    {crashes.map((crash, idx) => {
+                      const ckey = String(crash.id ?? idx); const open = !!expandedCrashes[ckey];
+                      return (
+                      <View key={ckey} style={{ borderTopWidth: idx > 0 ? B.thin : 0, borderTopColor: cardBorder, paddingTop: idx > 0 ? S.sm : 0, gap: S.xs }}>
+                        <Touchable
+                          activeOpacity={0.7}
+                          onPress={() => { Haptics.selectionAsync(); setExpandedCrashes(e => ({ ...e, [ckey]: !e[ckey] })); }}
+                          style={{ gap: S.xs }}
+                        >
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: S.sm }}>
+                            <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption, flex: 1 }} numberOfLines={open ? undefined : 1}>
+                              {crash.errorMessage}
+                            </Text>
+                            <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>
+                              {crash.createdAt ? new Date(crash.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </Text>
+                          </View>
+
+                          {open ? (
+                            <View style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.sm, padding: S.sm, marginTop: S.xxs }}>
+                              <Text selectable style={{ color: theme.onSurfaceVariant, fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', lineHeight: 15 }}>
+                                {crash.stackTrace || (tr ? '(stack trace yok)' : '(no stack trace)')}
+                              </Text>
+                            </View>
+                          ) : (
+                            <Text style={{ color: theme.onSurfaceVariant, fontSize: 10 }} numberOfLines={2}>
+                              {crash.stackTrace}
+                            </Text>
+                          )}
+                          <Text style={{ color: theme.primary, fontSize: 9, fontWeight: '700' }}>
+                            {open ? (tr ? 'Daha az' : 'Show less') : (tr ? 'Detayı gör' : 'View detail')}
                           </Text>
-                          <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>
-                            {crash.createdAt ? new Date(crash.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                          </Text>
-                        </View>
-                        
-                        <Text style={{ color: theme.onSurfaceVariant, fontSize: 10 }} numberOfLines={2}>
-                          {crash.stackTrace}
-                        </Text>
-                        
+                        </Touchable>
+
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: S.xxs }}>
                           <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>
                             {crash.platform} · {crash.deviceName} · v{crash.appVersion} {crash.userEmail ? `(${crash.userEmail})` : ''}
@@ -1314,7 +1334,7 @@ export default function AdminScreen() {
                           )}
                         </View>
                       </View>
-                    ))}
+                      ); })}
                   </View>
                 )}
               </View>
