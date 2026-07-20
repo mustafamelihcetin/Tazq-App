@@ -277,6 +277,8 @@ builder.Services.AddScoped<IFocusSessionService, FocusSessionService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IGroqService, GroqService>();
 builder.Services.AddHostedService<ScheduledEmailService>();
+// Günlük admin kayıt özeti (ADMIN_EMAIL / ADMIN_EMAILS boşsa kendini devre dışı bırakır)
+builder.Services.AddHostedService<Tazq_App.Services.AdminSignupDigestService>();
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5201";
 builder.WebHost.UseUrls($"http://*:{port}");

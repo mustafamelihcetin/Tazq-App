@@ -9,6 +9,8 @@ import { Touchable } from '@/shared/components/Touchable';
 import { useMomentumStore } from '@/features/user/store/useMomentumStore';
 import { swallow } from '@/shared/utils/swallow';
 import { Separator } from '@/shared/components/Separator';
+import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
+import { useSettledValue } from '@/shared/hooks/useSettledValue';
 
 interface DayScore { date: string; score: number }
 
@@ -43,7 +45,21 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
     return () => clearInterval(timer);
   }, [infoVisible]);
 
-  const accentColor = score >= 75 ? theme.tertiary : score >= 40 ? theme.streak : theme.onSurfaceVariant;
+  // Skor birden çok store'dan (görev, odak, seri, alışkanlık) beslendiği için ilk açılışta
+  // her biri hidrate oldukça yeniden hesaplanıyor. Durulmasını bekleyip TEK bir hedef
+  // değere sayıyoruz; ara değerler ekrana hiç çıkmıyor.
+  const targetScore = useSettledValue(score, 400);
+
+  // Lite modda süslemeler kapalı: sayım animasyonu da kapanır, değer anında yazılır.
+  let isLite = false;
+  try {
+    const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
+    isLite = usePrefsStore.getState().uiMode === 'lite';
+  } catch (e) { swallow('MomentumPulse.uiMode', e); }
+
+  // Renk hedef değerden türetilir: sayım eşikleri geçerken renk gri→turuncu→yeşil
+  // diye titremesin, en baştan varacağı rengi alsın.
+  const accentColor = targetScore >= 75 ? theme.tertiary : targetScore >= 40 ? theme.streak : theme.onSurfaceVariant;
 
   // Week-over-week delta: yesterday vs 7 days ago
   const isEight = history.length >= 8;
@@ -72,9 +88,12 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'spring', damping: 18 }}
       >
-        <Text style={{ fontSize: 48, fontWeight: '700', letterSpacing: -3, color: accentColor, lineHeight: 52 }}>
-          {score}
-        </Text>
+        <AnimatedNumber
+          value={targetScore}
+          from={0}
+          duration={isLite ? 0 : 1100}
+          style={{ fontSize: 48, fontWeight: '700', letterSpacing: -3, color: accentColor, lineHeight: 52 }}
+        />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: -2 }}>
           <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: accentColor, opacity: 0.5 }}>
             MOMENTUM

@@ -69,6 +69,11 @@ namespace Tazq_App.Models
         // süre dolunca arka plan servisi kalıcı olarak siler. null = aktif hesap.
         public DateTime? DeletedAt { get; set; }
 
+        // Hesabın oluşturulma anı (UTC). Günlük admin kayıt özeti bu alana dayanır.
+        // Sütun eklenmeden önceki satırlar migration'da 2000-01-01 damgasını alır:
+        // o tarih "kayıt zamanı bilinmiyor" demektir, gerçek bir kayıt anı değildir.
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
         // E-posta doğrulama. Google/Apple ile girenlerde sağlayıcı doğruladığı için true;
         // e-posta/şifre kaydında kod girilene kadar false.
         public bool IsEmailVerified { get; set; } = false;

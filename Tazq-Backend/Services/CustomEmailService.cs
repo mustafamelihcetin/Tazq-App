@@ -187,6 +187,62 @@ namespace Tazq_App.Services
 			await SendEmailAsync(toEmail, subject, body);
 		}
 
+		// Günlük admin özeti: dünkü yeni üyeler. Kayıt olmayan günlerde de gönderilir —
+		// sıfır satırı, kayıt akışının sessizce bozulduğunu (SMTP düşmesi, doğrulama kodunun
+		// gitmemesi) fark etmenin en ucuz yolu. Mail admin'e gider, kullanıcıya değil.
+		public async Task SendAdminSignupDigestAsync(string toEmail, DateOnly day, IReadOnlyList<SignupDigestEntry> signups)
+		{
+			string dayLabel = day.ToString("dd.MM.yyyy");
+			int verified = signups.Count(s => s.IsEmailVerified);
+			string subject = signups.Count == 0
+				? $"TAZQ · {dayLabel} — yeni kayıt yok"
+				: $"TAZQ · {dayLabel} — {signups.Count} yeni üye";
+
+			string content;
+			if (signups.Count == 0)
+			{
+				content = $@"
+					<p><b>{dayLabel}</b> (UTC) tarihinde yeni kayıt olmadı.</p>
+					<p style=""color:#64748b; font-size:13px;"">Bu satırı görüyorsan özet servisi çalışıyor demektir. Arka arkaya beklenmedik şekilde sıfır günler görüyorsan kayıt akışını kontrol et.</p>";
+			}
+			else
+			{
+				var rows = new StringBuilder();
+				foreach (var s in signups.OrderBy(s => s.CreatedAtUtc))
+				{
+					string badge = s.IsEmailVerified
+						? @"<span style=""display:inline-block; padding:2px 8px; border-radius:999px; background:#f0fdf4; color:#059669; font-size:11px; font-weight:700;"">doğrulandı</span>"
+						: @"<span style=""display:inline-block; padding:2px 8px; border-radius:999px; background:#fff7ed; color:#c2410c; font-size:11px; font-weight:700;"">beklemede</span>";
+
+					rows.Append($@"<tr>
+						<td style=""padding:10px 12px; border-bottom:1px solid #e2e8f0; color:#0f172a; font-weight:600;"">{WebUtility.HtmlEncode(s.Name)}</td>
+						<td style=""padding:10px 12px; border-bottom:1px solid #e2e8f0; color:#334155;"">{WebUtility.HtmlEncode(s.Email)}</td>
+						<td style=""padding:10px 12px; border-bottom:1px solid #e2e8f0; color:#64748b; white-space:nowrap;"">{s.CreatedAtUtc:HH:mm} UTC</td>
+						<td style=""padding:10px 12px; border-bottom:1px solid #e2e8f0; color:#64748b;"">{WebUtility.HtmlEncode(s.Provider)}</td>
+						<td style=""padding:10px 12px; border-bottom:1px solid #e2e8f0;"">{badge}</td>
+					</tr>");
+				}
+
+				content = $@"
+					<p><b>{dayLabel}</b> (UTC) tarihinde <b>{signups.Count}</b> yeni üye kaydoldu; {verified} tanesi e-postasını doğruladı.</p>
+					<div style=""overflow-x:auto;"">
+						<table role=""presentation"" cellpadding=""0"" cellspacing=""0"" style=""width:100%; border-collapse:collapse; margin:20px 0; font-size:13px;"">
+							<tr style=""background:#f8fafc;"">
+								<th align=""left"" style=""padding:10px 12px; font-size:11px; color:#64748b; letter-spacing:.4px;"">AD</th>
+								<th align=""left"" style=""padding:10px 12px; font-size:11px; color:#64748b; letter-spacing:.4px;"">E-POSTA</th>
+								<th align=""left"" style=""padding:10px 12px; font-size:11px; color:#64748b; letter-spacing:.4px;"">SAAT</th>
+								<th align=""left"" style=""padding:10px 12px; font-size:11px; color:#64748b; letter-spacing:.4px;"">YÖNTEM</th>
+								<th align=""left"" style=""padding:10px 12px; font-size:11px; color:#64748b; letter-spacing:.4px;"">DURUM</th>
+							</tr>
+							{rows}
+						</table>
+					</div>";
+			}
+
+			string body = GetHtmlBaseLayout("Günlük Kayıt Özeti", content);
+			await SendEmailAsync(toEmail, subject, body);
+		}
+
 		// HTML gövdeden okunabilir düz-metin üretir (multipart/alternative için)
 		private static string StripHtml(string html)
 		{
