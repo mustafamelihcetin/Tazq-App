@@ -300,6 +300,19 @@ app.UseForwardedHeaders(forwardedOptions);
 // Served from wwwroot BEFORE the X-App-Signature gate below, so ordinary
 // browsers — App Store review, end users, search engines — can open them
 // without the app signature header. API routes still pass through the gate.
+// SEO: eski URL'lerden kalıcı (301) yönlendirmeler — statik dosyalardan ÖNCE
+// koşmalı ki sunucuda bayat bir support.html kalmış olsa bile eski URL 301 dönsün.
+app.Use(async (context, next) =>
+{
+    if (HttpMethods.IsGet(context.Request.Method) &&
+        string.Equals(context.Request.Path.Value, "/support.html", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.Redirect("/support/", permanent: true);
+        return;
+    }
+    await next();
+});
+
 app.UseDefaultFiles();   // "/" -> wwwroot/index.html
 app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
 {
@@ -462,10 +475,10 @@ app.MapControllers();
 // (Gizlilik, Kullanıcı Sözleşmesi, KVKK, Açık Rıza — TR/EN, tabbed single page.)
 // These short redirects are added to the signature-gate bypass above so shared
 // links keep working from a browser.
-app.MapGet("/privacy", () => Results.Redirect("/gizlilik.html#privacy"));
-app.MapGet("/terms", () => Results.Redirect("/gizlilik.html#terms"));
-app.MapGet("/gizlilik", () => Results.Redirect("/gizlilik.html#privacy"));
-app.MapGet("/kvkk", () => Results.Redirect("/gizlilik.html#kvkk"));
+app.MapGet("/privacy", () => Results.Redirect("/gizlilik.html#privacy", permanent: true));
+app.MapGet("/terms", () => Results.Redirect("/gizlilik.html#terms", permanent: true));
+app.MapGet("/gizlilik", () => Results.Redirect("/gizlilik.html#privacy", permanent: true));
+app.MapGet("/kvkk", () => Results.Redirect("/gizlilik.html#kvkk", permanent: true));
 
 // robots.txt — arama motorlarına sitemap'i işaret eder
 app.MapGet("/robots.txt", () => Results.Content(
@@ -482,19 +495,35 @@ app.MapGet("/sitemap.xml", (IWebHostEnvironment env) =>
     sb.AppendLine("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:xhtml=\"http://www.w3.org/1999/xhtml\">");
     if (Directory.Exists(root))
     {
-        foreach (var file in Directory.GetFiles(root, "*.html").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+        // Kök *.html + alt klasörlerdeki index.html'ler (ör. /support/) → (loc, lastmod)
+        var entries = new List<(string Loc, DateTime LastMod)>();
+        foreach (var file in Directory.GetFiles(root, "*.html"))
         {
             var name = Path.GetFileName(file);
+            // Aynı adlı klasörü olan bayat dosyaları atla (ör. support.html vs support/):
+            // bu URL'ler 301 ile klasör haline yönlendirilir, sitemap'e girmemeli.
+            if (Directory.Exists(Path.Combine(root, Path.GetFileNameWithoutExtension(name))))
+                continue;
             var isHome = name.Equals("index.html", StringComparison.OrdinalIgnoreCase);
-            var loc = isHome ? baseUrl + "/" : $"{baseUrl}/{name}";
-            var lastmod = File.GetLastWriteTimeUtc(file).ToString("yyyy-MM-dd");
+            entries.Add((isHome ? baseUrl + "/" : $"{baseUrl}/{name}", File.GetLastWriteTimeUtc(file)));
+        }
+        foreach (var dir in Directory.GetDirectories(root))
+        {
+            var idx = Path.Combine(dir, "index.html");
+            if (File.Exists(idx))
+                entries.Add(($"{baseUrl}/{Path.GetFileName(dir)}/", File.GetLastWriteTimeUtc(idx)));
+        }
+        foreach (var (loc, lastModUtc) in entries.OrderBy(e => e.Loc, StringComparer.OrdinalIgnoreCase))
+        {
+            var isHome = loc == baseUrl + "/";
             sb.AppendLine("  <url>");
             sb.AppendLine($"    <loc>{loc}</loc>");
-            sb.AppendLine($"    <lastmod>{lastmod}</lastmod>");
+            sb.AppendLine($"    <lastmod>{lastModUtc:yyyy-MM-dd}</lastmod>");
             sb.AppendLine("    <changefreq>weekly</changefreq>");
             sb.AppendLine($"    <priority>{(isHome ? "1.0" : "0.8")}</priority>");
             sb.AppendLine($"    <xhtml:link rel=\"alternate\" hreflang=\"tr\" href=\"{loc}\"/>");
-            sb.AppendLine($"    <xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"{loc}{(loc.Contains('?') ? "&" : "?")}lang=en\"/>");
+            sb.AppendLine($"    <xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"{loc}?lang=en\"/>");
+            sb.AppendLine($"    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"{loc}\"/>");
             sb.AppendLine("  </url>");
         }
     }

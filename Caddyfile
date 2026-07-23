@@ -13,8 +13,13 @@ api.tazqapp.com {
 }
 
 # TAZQ — Landing + legal pages (served from backend wwwroot)
-tazqapp.com, www.tazqapp.com {
+tazqapp.com {
     reverse_proxy tazq-backend:80
+}
+
+# SEO: tek kanonik host — www her zaman apex'e 301 döner
+www.tazqapp.com {
+    redir https://tazqapp.com{uri} permanent
 }
 
 # Malthen Portfolio & Corporate
