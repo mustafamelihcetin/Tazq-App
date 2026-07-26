@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { MotiView } from 'moti';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import * as HapticsOriginal from 'expo-haptics';
 import { X } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -16,11 +15,11 @@ import { ACHIEVEMENT_ICONS, renderAchievementIcon } from '@/shared/utils/achieve
 import { BackButton } from '@/shared/components/BackButton';
 import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
-import { S, R, F, B, ICON, MIN_TOUCH } from '@/shared/constants/tokens';
+import { S, R, F, B, ICON, MIN_TOUCH , MAX_W} from '@/shared/constants/tokens';
+import { haptic } from '@/shared/utils/haptics';
 
-const Haptics = {
-  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
-};
+// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
+// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 
 // Kategoriler — vitrin bu sıra ve gruplarla gezilir (her aile bir "koleksiyon").
 const CATEGORIES = [
@@ -86,7 +85,7 @@ export default function AchievementsScreen() {
   const colGap = S.md;
   const tileW = (width - S.lg * 2 - colGap) / 2;
 
-  const open = (a: Achievement, earned: boolean) => { Haptics.selectionAsync(); setDetail({ ...a, earned }); };
+  const open = (a: Achievement, earned: boolean) => { haptic.select(); setDetail({ ...a, earned }); };
 
   const Medal = ({ id, earned, size }: { id: string; earned: boolean; size: number }) => {
     const color = ACHIEVEMENT_ICONS[id]?.color || theme.primary;
@@ -119,7 +118,7 @@ export default function AchievementsScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: MIN_TOUCH + S.md, paddingBottom: insets.bottom + S.xxl }}
+          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: MIN_TOUCH + S.md, paddingBottom: insets.bottom + S.xxl, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
         >
           {/* ── Kahraman: koleksiyon ilerlemesi ── */}
           <View style={{ alignItems: 'center', marginBottom: S.xl }}>
@@ -214,7 +213,7 @@ export default function AchievementsScreen() {
           const p = !detail.earned ? progressOf(detail.id) : null;
           return (
             <Touchable activeOpacity={1} onPress={() => setDetail(null)} style={{ flex: 1 }}>
-              <BlurView intensity={isDark ? 55 : 40} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+              <AppBlur material="thick" />
               <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.20)' }]} />
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.xl }}>
                 <MotiView

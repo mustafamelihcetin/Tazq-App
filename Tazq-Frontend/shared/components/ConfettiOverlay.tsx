@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, useWindowDimensions } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { useConfettiStore } from '@/shared/store/useConfettiStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Check } from 'lucide-react-native';
 import { swallow } from '@/shared/utils/swallow';
 import { F, S, ICON, R } from '@/shared/constants/tokens';
+import { haptic } from '@/shared/utils/haptics';
 
 const CONFETTI_COLORS = [
   '#6366F1', '#EC4899', '#F59E0B', '#10B981',
@@ -164,14 +164,14 @@ export const ConfettiOverlay: React.FC = () => {
 
     // Trigger haptic feedback based on intensity
     if (intensity === 'high') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      haptic.success();
       setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        haptic.commit();
       }, 150);
     } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      haptic.commit();
       setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        haptic.surface();
       }, 150);
     }
 

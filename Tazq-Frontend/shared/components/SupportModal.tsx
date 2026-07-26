@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, Modal, ScrollView, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 import { SupportService, MySupportMessage } from '@/shared/services/api';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
@@ -10,6 +9,7 @@ import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { httpStatusOf, isNetworkError, httpRawDataOf } from '@/shared/utils/errors';
 import { swallow } from '@/shared/utils/swallow';
+import { haptic } from '@/shared/utils/haptics';
 
 interface SupportModalProps {
   visible: boolean;
@@ -66,7 +66,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
     setSendingSupport(true);
     try {
       await SupportService.sendMessage(supportText.trim());
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      haptic.success();
       setSupportText('');
       loadMyMessages();
       Alert.alert(
@@ -74,7 +74,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
         t.support?.success || (tr ? 'Mesajın bize ulaştı.' : 'Your message has been sent to support.')
       );
     } catch (err: unknown) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      haptic.error();
       swallow('supportModal.sendMessage', err);
       let msg = t.support?.error || (tr ? 'Mesaj gönderilemedi.' : 'Could not send message.');
       if (isNetworkError(err)) {

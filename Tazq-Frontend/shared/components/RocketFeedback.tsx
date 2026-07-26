@@ -4,10 +4,10 @@ import { useMomentumStore } from '@/features/user/store/useMomentumStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import * as Haptics from 'expo-haptics';
 import { Rocket, Flame, Zap, Layers, Sparkles } from 'lucide-react-native';
 import { usePathname } from 'expo-router';
 import { F, S, R } from '@/shared/constants/tokens';
+import { haptic } from '@/shared/utils/haptics';
 
 export const RocketFeedback: React.FC = () => {
   const { theme, colorScheme } = useAppTheme();
@@ -41,11 +41,7 @@ export const RocketFeedback: React.FC = () => {
       }
 
       setVisible(true);
-      Haptics.notificationAsync(
-        isOverheated 
-          ? Haptics.NotificationFeedbackType.Warning 
-          : Haptics.NotificationFeedbackType.Success
-      ).catch(() => {});
+      isOverheated ? haptic.destructive() : haptic.celebrate();
 
       Animated.spring(slideAnim, {
         toValue: 1,

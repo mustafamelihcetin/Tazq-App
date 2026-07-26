@@ -500,6 +500,10 @@ export default function RootLayout() {
     return (
       <AnimatedSplash
         isDark={isDark}
+        // Splash, uygulama GERÇEKTEN hazır olana kadar kaybolmaz. Eskiden sabit
+        // süreli animasyon bitince saydama geçiyordu; yavaş açılışta kullanıcı
+        // boş ekrana bakıyordu (splash oradaydı ama görünmezdi).
+        ready={fontsLoaded && assetsLoaded}
         onFinish={() => setShowSplash(false)}
         onReady={() => {
           // This ensures the native splash only hides when our custom splash is visible

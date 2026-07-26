@@ -15,19 +15,13 @@ import { SupportModal } from '@/shared/components/SupportModal';
 import { useAuthStore, getAvatarSource, AVATAR_CONFIGS, AVATAR_MAP, useAchievementStore } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
-import * as HapticsOriginal from 'expo-haptics';
-const Haptics = {
-  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
-  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
-  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
-  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
-  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
-};
+// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
+// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useRouter } from 'expo-router';
 import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ICON, S, R, F, B, MAX_W } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MAX_W , sheetMaxHeight} from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
@@ -43,6 +37,7 @@ import { playSoundEffect } from '@/shared/utils/soundEffects';
 import { isNetworkError, httpDataOf } from '@/shared/utils/errors';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { SettingsCard, SettingItem, ToggleRow, RowDivider, settingsAccents } from '@/shared/components/SettingsRows';
+import { haptic } from '@/shared/utils/haptics';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -71,7 +66,7 @@ export default function ProfileScreen() {
   const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours } = usePrefsStore();
   const [sleepSupported] = useState(() => SleepHealth.isSupported());
   const handleSleepToggle = async (v: boolean) => {
-    Haptics.selectionAsync();
+    haptic.select();
     if (v) {
       const ok = await SleepHealth.requestAuthorization();
       setSleepHealthOptIn(ok ? 'yes' : 'no');
@@ -84,7 +79,7 @@ export default function ProfileScreen() {
       setSleepHealthOptIn('no');
     }
   };
-  const cycleSleepGoal = () => { Haptics.selectionAsync(); setSleepGoalHours(sleepGoalHours >= 9 ? 6 : sleepGoalHours + 1); };
+  const cycleSleepGoal = () => { haptic.select(); setSleepGoalHours(sleepGoalHours >= 9 ? 6 : sleepGoalHours + 1); };
   const { unlocked: unlockedAchievements } = useAchievementStore();
 
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -175,7 +170,7 @@ export default function ProfileScreen() {
   const handleSaveProfile = async () => {
     if (!user) return;
     if (!newName.trim()) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       setProfileError(language === 'tr' ? 'Görünen ad boş olamaz.' : 'Name cannot be empty.');
       return;
     }
@@ -210,7 +205,7 @@ export default function ProfileScreen() {
   };
 
   const toggleNotifications = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     if (notifEnabled) {
       Alert.alert(t.notifications, t.notifDisableHint, [
         { text: t.cancel, style: 'cancel' },
@@ -230,7 +225,7 @@ export default function ProfileScreen() {
   };
 
   const toggleCalendarSync = async (val: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     if (val) {
       const granted = await requestCalendarPermissions();
       if (granted) {
@@ -294,13 +289,13 @@ export default function ProfileScreen() {
   const canConfirmDelete = deleteConfirmText.trim().toLocaleUpperCase(language === 'tr' ? 'tr-TR' : 'en-US') === DELETE_WORD;
 
   const openDeleteAccount = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
     setDeleteConfirmText('');
     setDeleteModalVisible(true);
   };
 
   const openChangePassword = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     setCurPw(''); setNewPw(''); setConfPw(''); setShowPw(false); setPwError(null);
     setPwModalVisible(true);
   };
@@ -314,12 +309,12 @@ export default function ProfileScreen() {
     setChangingPw(true);
     try {
       await AuthService.changePassword(curPw, newPw);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       Keyboard.dismiss();
       setPwModalVisible(false);
       showToast(language === 'tr' ? 'Şifren güncellendi.' : 'Password updated.', 'success');
     } catch (err: unknown) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       const msg = httpDataOf<{ message?: string }>(err).message;
       setPwError(msg || (language === 'tr' ? 'Şifre değiştirilemedi.' : 'Could not change password.'));
     } finally {
@@ -330,7 +325,7 @@ export default function ProfileScreen() {
   const performDeleteAccount = async () => {
     if (!canConfirmDelete || deleting) return;
     setDeleting(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    haptic.destructive();
     try { await AuthService.deleteAccount(); } catch (e) { swallow('profile.performDeleteAccount', e); }
     setDeleting(false);
     setDeleteModalVisible(false);
@@ -339,12 +334,12 @@ export default function ProfileScreen() {
   };
 
   const toggleLanguage = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     setLanguage(language === 'tr' ? 'en' : 'tr');
   };
 
   const toggleTheme = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     const next = currentSetting === 'light' ? 'dark' : currentSetting === 'dark' ? 'system' : 'light';
     setTheme(next);
   };
@@ -370,7 +365,7 @@ export default function ProfileScreen() {
           habits.forEach(h => {
             if (!h.completedDates.includes(todayKey)) toggleDate(h.id, todayKey);
           });
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          haptic.success();
           if (soundEffects) {
             playSoundEffect(require('../assets/sounds/freeze.mp3'), {
               context: 'profile.streakFreezeSound',
@@ -459,7 +454,6 @@ export default function ProfileScreen() {
             // Önizleme: kazanılan varsa gurur için onları göster; yoksa ilk hedefleri (davet).
             const preview = (earned.length ? earned : allIds).slice(0, 5);
             const goShowcase = () => {
-              Haptics.selectionAsync();
               router.push({ pathname: '/achievements', params: { streak: String(stats.activeStreak), focusHours: String(Math.round(stats.totalFocusHours)) } });
             };
             return (
@@ -580,7 +574,7 @@ export default function ProfileScreen() {
       <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
             <Touchable style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
-              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, maxHeight: height - insets.top - 16 }]}>
+              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, maxHeight: sheetMaxHeight(height, insets.top) }]}>
                 <View {...editPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
                   <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
                 </View>
@@ -630,7 +624,7 @@ export default function ProfileScreen() {
                           <Touchable
                             key={g.key}
                             onPress={() => {
-                              Haptics.selectionAsync();
+                              haptic.select();
                               setNewGender(g.key);
                               if (g.key === 'male') {
                                 setSelectedAvatar('m1');
@@ -680,7 +674,7 @@ export default function ProfileScreen() {
                         return (
                           <Touchable
                             key={config.id}
-                            onPress={() => { Haptics.selectionAsync(); setSelectedAvatar(config.key); }}
+                            onPress={() => { haptic.select(); setSelectedAvatar(config.key); }}
                             activeOpacity={0.75}
                             accessibilityRole="imagebutton"
                             accessibilityLabel={(language === 'tr' ? 'Avatar ' : 'Avatar ') + config.key}
@@ -760,7 +754,7 @@ export default function ProfileScreen() {
                             accessibilityState={{ selected: selectedBorderColor === colorOpt.key }}
                             accessibilityLabel={language === 'tr' ? `Çerçeve rengi: ${colorOpt.key}` : `Border color: ${colorOpt.key}`}
                             hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-                            onPress={() => { Haptics.selectionAsync(); setSelectedBorderColor(colorOpt.color); }}
+                            onPress={() => { haptic.select(); setSelectedBorderColor(colorOpt.color); }}
                             activeOpacity={0.8}
                             style={{
                               width: 38,
@@ -835,7 +829,7 @@ export default function ProfileScreen() {
                         return (
                           <Touchable
                             key={opt.key}
-                            onPress={() => { Haptics.selectionAsync(); setNewProductivityHour(opt.key); }}
+                            onPress={() => { haptic.select(); setNewProductivityHour(opt.key); }}
                             style={{ flex: 1, alignItems: 'center', gap: S.sm, paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.thin, borderColor: sel ? theme.primary + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)'), backgroundColor: sel ? theme.primary + '15' : 'transparent' }}
                           >
                             {opt.icon(itemColor)}

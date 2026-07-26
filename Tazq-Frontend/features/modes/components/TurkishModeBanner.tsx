@@ -6,7 +6,6 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MotiView } from 'moti';
 import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle, Star, Shield, Lightbulb, Pencil, Sparkles } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -18,13 +17,14 @@ import { TurkishMode, StudyTemplate, ModeHabit, ModeTask } from '../utils/turkis
 import { getCurrentRamadanStatus } from '@/shared/utils/ramadanDates';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { extractPlanFromText, QUICK_EMOJIS, QUICK_COLORS, DraftHabit, DraftTask } from '@/shared/utils/planExtractor';
-import { ICON, S, R, F, B, HAIRLINE } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, HAIRLINE , sheetMaxHeight} from '@/shared/constants/tokens';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Touchable } from '@/shared/components/Touchable';
 import { usePrefsStore, PlanMode, PlanSpec, SeasonalPrefs } from '../store/usePrefsStore';
 import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
 import { modeAccent as resolveModeAccent } from '@/shared/constants/Colors';
+import { haptic } from '@/shared/utils/haptics';
 
 interface Props {
   mode: TurkishMode;
@@ -201,7 +201,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
     }
 
     setIsEditingTimeline(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     showToast(tr ? 'Zaman çizelgesi güncellendi ve plan adapte edildi.' : 'Timeline updated and plan adapted.', 'success');
 
     setTimeout(() => {
@@ -311,7 +311,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
   const saveRating = async (score: number) => {
     try {
-      Haptics.selectionAsync();
+      haptic.select();
       setRating(score);
       await AsyncStorage.setItem(ratingKey, score.toString());
       onRatingChange?.(score);
@@ -485,7 +485,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
   const applyAll = async () => {
     if (applying || allDone) return;
     setApplying(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     
     // Temiz bir sayfa açmak ve eski (çifte) hedefleri önlemek için önceki planı sil:
     onClearPlan?.(true);
@@ -626,7 +626,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
   };
 
   const selectTemplate = (tpl: StudyTemplate) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     setSelectedTemplate(tpl);
     setDeselectedHabits(new Set());
     setApplied(false);
@@ -668,7 +668,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
       if (hs.length) setCustomHabits(prev => [...prev, ...hs].slice(0, 5));
       if (ts.length) setCustomTasks(prev => [...prev, ...ts].slice(0, 7));
       if (hs.length + ts.length > 0) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        haptic.success();
         // Net geri bildirim: kaç öğe eklendi → "çalışıyor mu" belirsizliği biter.
         toast(tr ? `${hs.length} alışkanlık · ${ts.length} görev eklendi` : `${hs.length} habits · ${ts.length} tasks added`, 'success');
       } else {
@@ -700,7 +700,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
       <>
         <View style={styles.sheetHeader}>
           <Touchable
-            onPress={() => { Haptics.selectionAsync(); setStep('template'); }}
+            onPress={() => { haptic.select(); setStep('template'); }}
             accessibilityRole="button"
             accessibilityLabel={tr ? 'Geri' : 'Back'}
             style={{ marginRight: S.sm, padding: S.xs }}
@@ -817,7 +817,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   return (
                     <Touchable
                       key={p}
-                      onPress={() => { Haptics.selectionAsync(); setCustomTasks(prev => { const n = [...prev]; n[idx] = { ...n[idx], priority: p }; return n; }); }}
+                      onPress={() => { haptic.select(); setCustomTasks(prev => { const n = [...prev]; n[idx] = { ...n[idx], priority: p }; return n; }); }}
                       style={{ paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm, backgroundColor: t.priority === p ? pColor + '20' : 'transparent', borderWidth: B.thin, borderColor: t.priority === p ? pColor + '60' : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)') }}
                       activeOpacity={0.7}
                     >
@@ -1199,7 +1199,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
         <View style={{ flexDirection: 'row', gap: S.sm }}>
           {onClearPlan && (
             <Touchable
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onClearPlan(); setSheetVisible(false); }}
+              onPress={() => { haptic.commit(); onClearPlan(); setSheetVisible(false); }}
               activeOpacity={0.8}
               style={[styles.clearBtn, { flex: 1, borderColor: theme.error + '40' }]}
             >
@@ -1283,7 +1283,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
             style={[
               animatedStyle,
               styles.sheet,
-              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant, maxHeight: screenHeight - insets.top - 16, paddingBottom: Math.max(insets.bottom, S.lg) + S.md },
+              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant, maxHeight: sheetMaxHeight(screenHeight, insets.top), paddingBottom: Math.max(insets.bottom, S.lg) + S.md },
             ]}
           >
             <View {...panResponder.panHandlers} style={styles.dragHandle}>
@@ -1372,6 +1372,17 @@ export const TurkishModeBanner: React.FC<Props> = ({
                         <View style={[styles.metaChip, { backgroundColor: modeAccent + '18' }]}>
                           <Text style={[styles.metaChipText, { color: modeAccent }]}>{tpl.dailyGoalMinutes} {tr ? 'dk/gün' : 'min/day'}</Text>
                         </View>
+                        {/* YÜK ÖNİZLEMESİ — "bunu açarsam günüm nasıl görünecek?"
+                            Kart yalnız görev SAYISINI gösteriyordu; alışkanlıklar ve
+                            günlük üretilecek görevler görünmüyordu. Kullanıcı toplam
+                            yükü ancak plan uygulandıktan SONRA öğreniyordu. */}
+                        <View style={[styles.metaChip, { backgroundColor: theme.surfaceContainerHigh }]}>
+                          <Text style={[styles.metaChipText, { color: theme.onSurfaceVariant }]}>
+                            {tr
+                              ? `${tpl.habits.length} alışkanlık · ${tpl.tasks.length} görev`
+                              : `${tpl.habits.length} habits · ${tpl.tasks.length} tasks`}
+                          </Text>
+                        </View>
                         <Text style={[styles.templateTarget, { color: theme.onSurfaceMuted }]}>{tr ? tpl.targetTr : tpl.targetEn}</Text>
                       </View>
                     </Touchable>
@@ -1379,7 +1390,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   })}
                   {/* Custom plan card */}
                   <Touchable
-                    onPress={() => { Haptics.selectionAsync(); setStep('custom'); }}
+                    onPress={() => { haptic.select(); setStep('custom'); }}
                     style={[styles.templateCard, {
                       backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                       borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
@@ -1410,7 +1421,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                     <Touchable
                       accessibilityRole="button"
                       accessibilityLabel={tr ? 'Geri' : 'Back'}
-                      onPress={() => { Haptics.selectionAsync(); setStep('template'); setSelectedTemplate(null); }}
+                      onPress={() => { haptic.select(); setStep('template'); setSelectedTemplate(null); }}
                       style={{ marginRight: S.sm, padding: S.xs }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
@@ -1438,7 +1449,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
                         key={h.name}
                         onPress={() => {
                           if (exists) return;
-                          Haptics.selectionAsync();
+                          haptic.select();
                           setDeselectedHabits(prev => {
                             const next = new Set(prev);
                             if (next.has(h.name)) next.delete(h.name);

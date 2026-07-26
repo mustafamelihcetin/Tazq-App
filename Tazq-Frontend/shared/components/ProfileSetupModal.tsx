@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TextInput, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Image, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { Touchable } from '@/shared/components/Touchable';
 import { ICON, S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import { AVATAR_CONFIGS } from '@/features/user';
-import * as Haptics from 'expo-haptics';
 import { Sunrise, Sun, Sunset, Moon, Zap } from 'lucide-react-native';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { haptic } from '@/shared/utils/haptics';
 
 interface ProfileSetupModalProps {
   visible: boolean;
@@ -54,7 +54,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
     const trimmedName = name.trim();
     if (isNamePlaceholder && trimmedName.length < 2) {
       setError(language === 'tr' ? 'Lütfen en az 2 karakterden oluşan bir isim girin.' : 'Please enter a name with at least 2 characters.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      haptic.error();
       return;
     }
     setError(null);
@@ -68,10 +68,10 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
         productivityHour,
         gender
       );
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      haptic.success();
     } catch (err) {
       setError(language === 'tr' ? 'Bir hata oluştu, lütfen tekrar deneyin.' : 'An error occurred, please try again.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      haptic.error();
     } finally {
       setLoading(false);
     }
@@ -116,7 +116,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="fade">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.7)' }}>
-        <BlurView intensity={20} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        <AppBlur material="thin" />
         
         <View style={[styles.card, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: theme.outlineVariant, borderWidth: B.thin }]}>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -175,7 +175,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                     <Touchable
                       key={g.key}
                       onPress={() => {
-                        Haptics.selectionAsync();
+                        haptic.select();
                         setGender(g.key);
                         if (g.key === 'male') {
                           setSelectedAvatar('m1');
@@ -215,7 +215,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                       accessibilityRole="radio"
                       accessibilityState={{ selected: isSelected }}
                       accessibilityLabel={language === 'tr' ? `Avatar ${config.key}` : `Avatar ${config.key}`}
-                      onPress={() => { Haptics.selectionAsync(); setSelectedAvatar(config.key); }}
+                      onPress={() => { haptic.select(); setSelectedAvatar(config.key); }}
                       style={[styles.avatarWrapper, {
                         borderColor: isSelected ? theme.primary : theme.outline,
                         borderWidth: isSelected ? 2.5 : 1,
@@ -239,7 +239,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                   return (
                     <Touchable
                       key={colorOpt.key}
-                      onPress={() => { Haptics.selectionAsync(); setSelectedBorderColor(colorOpt.color); }}
+                      onPress={() => { haptic.select(); setSelectedBorderColor(colorOpt.color); }}
                       style={[styles.colorBubble, {
                         backgroundColor: colorOpt.color === 'transparent' ? (isDark ? '#2C2C35' : '#E5E7EB') : colorOpt.color,
                         borderColor: isSelected ? theme.primary : 'transparent',
@@ -269,7 +269,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                   return (
                     <Touchable
                       key={opt.key}
-                      onPress={() => { Haptics.selectionAsync(); setProductivityHour(opt.key); }}
+                      onPress={() => { haptic.select(); setProductivityHour(opt.key); }}
                       style={[styles.goalChip, {
                         borderColor: isSelected ? theme.primary : theme.outline,
                         backgroundColor: isSelected ? theme.primaryContainer : 'transparent',

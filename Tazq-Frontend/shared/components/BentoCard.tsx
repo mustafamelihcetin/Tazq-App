@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, ViewStyle, StyleProp, TouchableOpacity } from 'react-native';
 import { MotiView } from 'moti';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { S, R, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
@@ -43,11 +43,7 @@ export const BentoCard: React.FC<BentoCardProps> = ({ children, style, index = 0
       ]}
     >
       {glass && (
-        <BlurView
-          intensity={isDark ? 20 : 40}
-          tint={isDark ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFill}
-        />
+        <AppBlur material="thin" />
       )}
       {children}
     </MotiView>

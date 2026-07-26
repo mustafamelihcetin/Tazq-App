@@ -4,7 +4,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MotiView, MotiText } from 'moti';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowRight, MailCheck } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 import { AuthService } from '@/shared/services/api';
 import { useAuthStore } from '@/features/user';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -15,6 +14,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { BackButton } from '@/shared/components/BackButton';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
+import { haptic } from '@/shared/utils/haptics';
 
 const CODE_LEN = 6;
 
@@ -52,10 +52,10 @@ export default function VerifyEmailScreen() {
       const { token, refreshToken, isNewUser } = await AuthService.verifyEmail(email, c);
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken, isNewUser ?? true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       router.replace('/');
     } catch {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       setError(tr ? 'Kod geçersiz veya süresi dolmuş.' : 'Invalid or expired code.');
       setCode('');
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -76,7 +76,7 @@ export default function VerifyEmailScreen() {
     try {
       await AuthService.resendVerification(email);
       setResendIn(45);
-      Haptics.selectionAsync();
+      haptic.select();
       useToastStore.getState().show(tr ? 'Kod tekrar gönderildi' : 'Code resent', 'success');
     } catch {
       /* sessiz */

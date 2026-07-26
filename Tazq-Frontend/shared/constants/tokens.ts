@@ -340,7 +340,38 @@ export const TOP_SUBTITLE_SIZE = 11; // başlık altı yardımcı satır (ör. t
  * buydu. Ayrıca `scale()` ile yazıldıkları için tablette daha da büyüyorlardı; chrome
  * ölçeklenmez (bkz. NAV_ICON_SIZE).
  */
-export const TOP_ITEM_SIZE = 30;
+export const TOP_ITEM_SIZE = 32;
+
+/**
+ * BAŞLIK ÇUBUĞUNDAKİ AVATAR — artık glif öğelerle AYNI ölçüde (takma ad).
+ *
+ * ÖNCEDEN AYRIŞIKTI (34 vs 30) ve gerekçesi doğruydu: çubukta üç öğe vardı
+ * (avatar · TAZQ kelime işareti · durum rozeti) ve bir FOTOĞRAF, aynı kutudaki tek
+ * renkli bir gliften optik olarak küçük okunur; bu yüzden telafi ediliyordu.
+ *
+ * O gerekçe kelime işaretiyle birlikte düştü. Çubukta artık İKİ öğe var ve ikisi de
+ * karşılıklı KENARDA duruyor. Aralarında hiçbir şey yokken göz onları doğrudan
+ * karşılaştırır: farklı çaptaki iki daire "denge" değil "hata" gibi okunur. Üç öğeli
+ * bir kompozisyonda gizlenen fark, iki öğeli olanda tek görülen şey olur.
+ *
+ * Optik telafi kaldırılmadı, YER DEĞİŞTİRDİ: fotoğrafın ağırlığı artık çapla değil,
+ * çevresindeki halkanın incelmesiyle dengeleniyor (bkz. index.tsx avatarContainer).
+ * Böylece iki kenar aynı çapta, aynı görsel ağırlıkta.
+ *
+ * 32pt, 44pt'lik çubukta 6pt nefes bırakır — Apple'ın nav bar bandının içinde.
+ * Takma ad olarak tanımlı: ikisi bir daha ayrışamaz.
+ */
+export const TOP_AVATAR_SIZE = TOP_ITEM_SIZE;
+
+/**
+ * Alt sayfanın (bottom sheet) ÜST SINIRI.
+ *
+ * Dört dosyada `screenHeight - insets.top - 16` elle yazılıydı; 16 nereden geliyor
+ * kimse bilmiyordu ve biri değişse diğerleri ayrışırdı. Tek yerde: güvenli alanın
+ * altında, ekranın tepesine değmeyecek kadar pay.
+ */
+export const sheetMaxHeight = (screenHeight: number, insetTop: number) =>
+  screenHeight - insetTop - S.md;
 
 /** Yüzen başlığın kapladığı toplam dikey alan. Sayfa üstü boşluğu bundan az olamaz. */
 export const topBarSpace = (insetTop: number) => insetTop + TOP_BAR_LIFT + TOP_BAR_HEIGHT;

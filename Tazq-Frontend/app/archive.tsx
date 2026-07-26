@@ -87,7 +87,7 @@ export default function ArchiveScreen() {
             <FlatList
                 data={archivedTasks}
                 keyExtractor={item => item.id.toString()}
-                contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.md, paddingBottom: insets.bottom + S.xl, gap: S.sm, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+                contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, gap: S.sm, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
                 ListEmptyComponent={() => (
                     <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: S.xxl }}>
                         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body }}>

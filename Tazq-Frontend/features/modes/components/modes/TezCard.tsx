@@ -7,7 +7,6 @@
 import React, { useState } from 'react';
 import { View, Text, Switch, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import * as Haptics from 'expo-haptics';
 import { ChevronRight, CalendarDays, GraduationCap, Calendar } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -17,12 +16,14 @@ import { useTaskStore } from '@/features/tasks';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
-import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf } from '@/shared/utils/planTaskOps';
+import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf , retireModeTasksByTag} from '@/shared/utils/planTaskOps';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
+import { haptic } from '@/shared/utils/haptics';
+import { closeModeWithUndo } from '@/shared/utils/modeUndo';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -74,7 +75,13 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const closePlan = () => {
     tezPlanHabitIds.forEach(id => removeHabit(id));
     tezPlanTaskIds.forEach(id => retirePlanTask(id, 'tez'));
-    clearPlanIds('tez');
+        // ETIKET TABANLI SUPURME — id listesine bakmadan moda ait HER seyi kaldirir.
+    // Yukaridaki id-tabanli temizlik yalnizca 'bildigimiz' gorevleri siler; bir
+    // gorev o listeden dusmusse (offline tempId kaymasi, basarisiz silme) ekranda
+    // kaliyordu ve ancak bir sonraki UYGULAMA ACILISINDA siliniyordu. Kullanicinin
+    // gordugu: "modu kapattim ama gorevi hala duruyor".
+    retireModeTasksByTag('tez');
+clearPlanIds('tez');
     setSeasonalPref('tezMode', false);
     setSeasonalPref('tezName', '');
     setSeasonalPref('tezDate', null);
@@ -82,7 +89,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   };
 
   return (
-    <View style={[styles_modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.tezMode && isComplete ? (past ? theme.error + '40' : accent + '35') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
+    <View style={[styles_modeCard, { backgroundColor: theme.surfaceCard, borderColor: seasonal.tezMode && isComplete ? (past ? theme.error + '40' : accent + '35') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }]}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.tezMode ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
           <AppIcon Icon={GraduationCap} color={seasonal.tezMode && isComplete ? (past ? theme.error : accent) : TEZ} />
@@ -97,10 +104,10 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
           <Switch
             value={seasonal.tezMode}
             onValueChange={(v) => {
-              Haptics.selectionAsync();
+              haptic.select();
               if (!v && seasonal.tezMode) {
                 if (!hasPlan) { closePlan(); return; }
-                Alert.alert(tr ? 'Tez Modu Kapatılıyor' : 'Turning off Thesis Mode', tr ? 'Eklenen alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'Added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: closePlan }]);
+                Alert.alert(tr ? 'Tez Modu Kapatılıyor' : 'Turning off Thesis Mode', tr ? 'Eklenen alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'Added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: () => closeModeWithUndo('tez', closePlan, tr ? 'Tez modu kapatıldı' : 'Thesis mode closed', tr ? 'Geri al' : 'Undo') }]);
               } else if (v) { setSeasonalPref('tezMode', true); setExpanded(true); }
             }}
             trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: (isComplete ? accent : TEZ) + '80' }}
@@ -113,7 +120,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
           <Separator theme={theme} />
           {!isComplete && !expanded && (
-            <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
+            <Touchable onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
               <AppIcon Icon={GraduationCap} color={theme.onSurfaceVariant} size={24} radius={R.sm} iconSize={ICON.sm} />
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.body, flex: 1 }}>{tr ? 'Proje ekle' : 'Add project'}</Text>
               <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.4} />
@@ -127,11 +134,11 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                   <AppIcon Icon={GraduationCap} color={accent} size={24} radius={R.sm} iconSize={ICON.sm} />
                   <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
-                  <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onOpenPreview(); }} activeOpacity={0.7} style={{ backgroundColor: accent + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
+                  <Touchable onPress={() => { haptic.surface(); onOpenPreview(); }} activeOpacity={0.7} style={{ backgroundColor: accent + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
                     <Text style={{ color: TEZ_TX, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
                   </Touchable>
                   <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
-                  <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} activeOpacity={0.7}>
+                  <Touchable onPress={() => { haptic.select(); setExpanded(true); }} activeOpacity={0.7}>
                     <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                   </Touchable>
                 </View>
@@ -172,7 +179,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
               <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
                 <TextInput value={name} onChangeText={(v) => setSeasonalPref('tezName', v)} placeholder={tr ? 'Proje adı (Yüksek Lisans Tezi...)' : "Project name (Master's Thesis...)"} placeholderTextColor={theme.onSurfaceVariant + '70'} style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" />
               </View>
-              <Touchable onPress={() => { Haptics.selectionAsync(); setShowDatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
+              <Touchable onPress={() => { haptic.select(); setShowDatePicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
                 <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Teslim tarihi seç' : 'Select deadline')}</Text>
                 <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
               </Touchable>
@@ -193,7 +200,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
                   </View>
                 </View>
               )}
-              <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(false); }} style={{ alignSelf: 'flex-end', paddingHorizontal: S.md, paddingVertical: S.xs }} activeOpacity={0.7}>
+              <Touchable onPress={() => { haptic.select(); setExpanded(false); }} style={{ alignSelf: 'flex-end', paddingHorizontal: S.md, paddingVertical: S.xs }} activeOpacity={0.7}>
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bitti' : 'Done'}</Text>
               </Touchable>
             </View>

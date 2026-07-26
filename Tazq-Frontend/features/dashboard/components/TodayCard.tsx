@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
-import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { Zap } from 'lucide-react-native';
 import { BentoCard } from '@/shared/components/BentoCard';
@@ -21,7 +20,17 @@ import type { AppTheme } from '@/shared/constants/Colors';
 
 /** Halka geometrisi — hepsi tek ölçüden türer, böylece boyut değişince bozulmaz. */
 const RING = 90;
-const RING_STROKE = 9;
+/**
+ * ÇİZGİ KALINLIĞI ÇAPIN ~%14'Ü. Önceden 9pt'ydi, yani %10 — o oranda çizilen şey
+ * "halka" değil "ince çember" gibi okunur ve kartın sağında zayıf kalır.
+ *
+ * Apple'ın Fitness halkaları çapın yaklaşık %18'i kadardır; renk oradan gelir, çünkü
+ * kalın bir yay yeterince ALAN kaplar ve doygun rengi taşıyabilir. Kartın üstündeki
+ * renk yıkaması kaldırılınca (bkz. aşağıdaki not) sayfadaki tek canlı renk bu halka
+ * oldu — o yüzden gerçekten görülebilmesi gerekiyor. 13pt, Fitness'ın biraz altında:
+ * bizim halkamız 90pt ve içinde sayı var, çok kalın olursa sayıya yer kalmaz.
+ */
+const RING_STROKE = 13;
 const RING_C = RING / 2;
 const RING_R = RING_C - RING_STROKE / 2 - 3.5; // 37 — çizgi kalınlığı + optik pay
 const RING_LEN = 2 * Math.PI * RING_R;
@@ -68,6 +77,21 @@ export const TodayCard = React.memo<TodayCardProps>(
     const hasGoal = goal > 0;
     const reached = hasGoal && completed >= goal;
 
+    /**
+     * GÜN HENÜZ AÇILMADI — planı var ama hiçbir şey bitmedi.
+     *
+     * Bu durum "devam ediyor"un bir alt hâli değil, AYRI bir an: gösterilecek ilerleme
+     * yok. Kart bu anda şunları aynı anda söylüyordu — büyük `0`, yanında `/1`, sağda
+     * `%0` yazan boş bir halka, altında `0dk`. Aynı gerçeğin üç ayrı kopyası ve hepsi
+     * olumsuz. Halka özellikle kötüydü: dolmamış bir çember, ilerleme göstermez, ekranda
+     * bir DELİK gibi durur.
+     *
+     * Yüzde halkası bu anda kaldırılıyor (0/1 zaten aynı şeyi söylüyor) ve alt satır
+     * "görev tamamlandı"dan davete dönüyor. Kartın yapısı değişmiyor; yalnız söyleyecek
+     * bir şeyi olmadığı anda susuyor.
+     */
+    const notStarted = hasGoal && completed === 0;
+
     // Tek karar, üç yerde birden kullanılıyor (gradyan, halka, sayı) — ayrı ayrı
     // hesaplansaydı biri unutulur ve kart kendi içinde çelişirdi.
     // Görev yokken NÖTR: ne mavi (yapacak iş yok) ne yeşil (başarılacak şey yoktu).
@@ -80,13 +104,19 @@ export const TodayCard = React.memo<TodayCardProps>(
       <View style={styles.wrap}>
         <Touchable onPress={onTap} activeOpacity={1}>
           <BentoCard index={0} style={{ overflow: 'hidden', padding }}>
-            <LinearGradient
-              colors={[accent + (isDark ? (highlight ? '45' : '28') : (highlight ? '30' : '18')), 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
+            {/*
+              KART ÜSTÜ RENK YIKAMASI KALDIRILDI — bkz. NextMissionCard'daki uzun not.
+              Kısaca: iOS'ta yüzey temizdir, renk kontrol/sembol/veride ve TAM
+              doygunlukta görünür. Kartın tamamına serilmiş %18'lik mavi, beyazı
+              kirletiyor ve rengin anlam taşımasını engelliyordu.
 
+              Bu kartta renk zaten doğru yerde: 90pt'lik ilerleme HALKASI. Yıkama
+              kalkınca halka gerçekten öne çıkıyor — Apple'ın Fitness kartı da tam
+              olarak böyledir: beyaz yüzey, tek canlı halka.
+
+              `highlight` (çift dokunma kolay yumurtası) artık alt satırın rengiyle
+              anlatılıyor; zaten orada da anlatılıyordu, yıkama ikinci bir kopyaydı.
+            */}
             <View style={styles.row}>
               {/* Sol: sayısal özet */}
               <View style={styles.stats}>
@@ -130,7 +160,12 @@ export const TodayCard = React.memo<TodayCardProps>(
                         ? (tr ? 'Bugün için planın boş' : 'Nothing planned today')
                         : reached
                           ? (tr ? 'Tümü tamamlandı 🎉' : 'All done 🎉')
-                          : (tr ? 'görev tamamlandı' : 'tasks completed')}
+                          : notStarted
+                            // "görev tamamlandı" cümlesi 0'ın yanında "hiçbir görev
+                            // tamamlamadın" diye okunuyordu — doğru ama sayfanın işi
+                            // bunu duyurmak değil. Aynı gerçeğin ileri bakan hâli.
+                            ? (tr ? 'gün yeni başlıyor' : 'the day is just starting')
+                            : (tr ? 'görev tamamlandı' : 'tasks completed')}
                   </Text>
                 </MotiView>
 
@@ -162,9 +197,17 @@ export const TodayCard = React.memo<TodayCardProps>(
                   {/* -90°: dolum saat 12'den başlasın — saat 3'ten başlayan halka
                       "ilerleme" değil "rastgele yay" gibi okunur. */}
                   <G rotation="-90" origin={`${RING_C},${RING_C}`}>
+                    {/*
+                      BOŞ KISIM VURGU RENGİNİN SOLUK HÂLİ — nötr gri değil.
+                      `theme.outline` ile çiziliyordu: halka o zaman "gri bir çember
+                      üstünde renkli bir yay" oluyordu, yani iki ayrı nesne gibi. Apple'ın
+                      halkalarında boş kısım AYNI rengin kısılmış hâlidir; böylece tek bir
+                      nesne okunur ve boşluk "bu metriğin henüz dolmamış kısmı" der.
+                      Alfa `1A` (~%10): ölçülen kontrastı etkilemez, çünkü bu metin değil.
+                    */}
                     <Circle
                       cx={RING_C} cy={RING_C} r={RING_R} fill="none"
-                      stroke={theme.outline} strokeWidth={RING_STROKE}
+                      stroke={accent + '1A'} strokeWidth={RING_STROKE}
                     />
                     <Circle
                       cx={RING_C} cy={RING_C} r={RING_R} fill="none"
@@ -177,8 +220,31 @@ export const TodayCard = React.memo<TodayCardProps>(
                   </G>
                 </Svg>
                 <View style={styles.ringCenter}>
-                  <Text testID="today-pct" style={[styles.pct, { color: reached ? theme.tertiary : theme.onSurface }]}>{pct}</Text>
-                  <Text style={[styles.pctSign, { color: theme.onSurfaceMuted }]}>%</Text>
+                  {/*
+                    GÜN BAŞINDA HALKA HEDEFİ GÖSTERİR, YÜZDEYİ DEĞİL.
+
+                    Burada `%0` yazıyordu: solda zaten `0 /1` duruyordu, yani aynı gerçek
+                    iki kez ve ikisi de olumsuz. Dolmamış bir çemberin ortasındaki sıfır,
+                    ilerleme değil EKSİKLİK gösterir.
+
+                    Halkayı kaldırmak da çözüm değildi (denendi): kartın sağ yanı boş
+                    kalıyor, kart tek yana yatıyordu. Doğrusu geometriyi korumak ve içine
+                    ileri bakan sayıyı koymak — kaç tane BİTİRDİĞİNİ değil, kaç tane
+                    HEDEFLEDİĞİNİ. Aynı çember artık bir eksik değil, bir nişan.
+                  */}
+                  {notStarted ? (
+                    <>
+                      <Text testID="today-goal" style={[styles.pct, { color: theme.onSurface }]}>{goal}</Text>
+                      <Text style={[styles.pctSign, { color: theme.onSurfaceMuted }]}>
+                        {tr ? 'hedef' : 'goal'}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text testID="today-pct" style={[styles.pct, { color: reached ? theme.tertiary : theme.onSurface }]}>{pct}</Text>
+                      <Text style={[styles.pctSign, { color: theme.onSurfaceMuted }]}>%</Text>
+                    </>
+                  )}
                 </View>
               </View>
             </View>

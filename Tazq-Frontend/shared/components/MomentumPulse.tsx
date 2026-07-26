@@ -2,15 +2,15 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { MotiView } from 'moti';
 import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame, Shield } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { ICON, S, F, R } from '@/shared/constants/tokens';
+import { ICON, S, F, R, METRIC, LH, trackingFor } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { useMomentumStore } from '@/features/user/store/useMomentumStore';
 import { swallow } from '@/shared/utils/swallow';
 import { Separator } from '@/shared/components/Separator';
 import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
 import { useSettledValue } from '@/shared/hooks/useSettledValue';
+import { haptic } from '@/shared/utils/haptics';
 
 interface DayScore { date: string; score: number }
 
@@ -75,6 +75,20 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
     );
   }
 
+  /**
+   * Kaç günün gerçek verisi var — grafiğin NE söylediğini bu belirliyor.
+   *
+   * Veri olmayan günler 3px'lik soluk çubuklara düşüyor. Yedi tanesi yan yana gelince
+   * grafik düz bir çizgi gibi okunuyor, yani "hiç ilerlemen yok" diyor — halbuki
+   * söylemek istediği "henüz ölçecek kadar gün geçmedi". İkisi çok farklı cümleler.
+   *
+   * Blok bir ara tamamen gizlenmişti; yanlıştı — çalışan bir özelliği kullanıcıdan
+   * saklamak, kötü görünen bir durumu düzeltmek değil. Bunun yerine grafik, veri
+   * yetersizken NE OLDUĞUNU söylüyor (bkz. aşağıdaki altyazı).
+   */
+  const daysWithData = history.filter((d) => d.score >= 0).length;
+  const buildingUp = daysWithData < 3;
+
   const displayHistory = isEight ? history.slice(1) : history;
 
   return (
@@ -92,7 +106,28 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           value={targetScore}
           from={0}
           duration={isLite ? 0 : 1100}
-          style={{ fontSize: 48, fontWeight: '700', letterSpacing: -3, color: accentColor, lineHeight: 52 }}
+          /*
+            İKİNCİL SAYI ÖLÇEĞİ — kart kahramanından KÜÇÜK olmak zorunda.
+
+            48pt elle yazılıydı, yani METRIC ölçeğinin dışındaydı; ölçekte `md: 44`
+            "kart kahramanı", `sm: 32` "ikincil sayı" demek. Sonuç: momentum sayfadaki
+            EN BÜYÜK sayıydı ve "Bugün" kartının 44pt'lik ana sayısını eziyordu.
+
+            Hiyerarşi tersti ve en çok da başarı anında görünüyordu: kullanıcı günün
+            hedefinin %100'ünü bitirdiğinde ekranın en büyük öğesi hâlâ gri bir momentum
+            puanı oluyor, asıl başarı onun altında daha küçük duruyordu. Momentum
+            BAĞLAMDIR (uzun vadeli eğilim); günün sonucu ise KONUDUR. Punto bunu söylemeli.
+
+            Harf aralığı ve satır yüksekliği de puntodan türüyor artık — -3 ve 52 elle
+            yazılıydı, yani 48'e göreydi ve punto değişince sessizce bozulurlardı.
+          */
+          style={{
+            fontSize: METRIC.sm,
+            fontWeight: '700',
+            letterSpacing: trackingFor(METRIC.sm),
+            color: accentColor,
+            lineHeight: METRIC.sm * LH.tight,
+          }}
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: -2 }}>
           <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: accentColor, opacity: 0.5 }}>
@@ -100,7 +135,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           </Text>
           <Touchable
             hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setInfoVisible(true); }}
+            onPress={() => { haptic.surface(); setInfoVisible(true); }}
             style={{ width: 16, height: 16, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', backgroundColor: accentColor + '22' }}
           >
             <Text style={{ fontSize: 9, fontWeight: '700', color: accentColor }}>ⓘ</Text>
@@ -140,8 +175,17 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             );
           })}
         </View>
+        {/*
+          ALTYAZI GRAFİĞİN NE OLDUĞUNU SÖYLER.
+          "son 7 gün" yazıp neredeyse boş bir grafik göstermek yanlış bir cümle kuruyordu:
+          kullanıcı 7 günlük verisine baktığını sanıp düz çizgi görüyor ve "hiç ilerlemem
+          yok" diye okuyordu. Veri yetersizken grafik boş değil, HENÜZ DOLMAMIŞTIR —
+          altyazı bunu söyleyince aynı görüntü suçlama olmaktan çıkıp beklenti oluyor.
+        */}
         <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3 }}>
-          {tr ? 'son 7 gün' : 'last 7 days'}
+          {buildingUp
+            ? (tr ? `${daysWithData}. gün · grafik doluyor` : `day ${daysWithData} · chart filling up`)
+            : (tr ? 'son 7 gün' : 'last 7 days')}
         </Text>
       </View>
 
@@ -290,7 +334,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
               <Touchable
                 disabled={!momentumShieldActive && shieldCharges <= 0}
                 onPress={() => {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  haptic.success();
                   toggleMomentumShield();
                 }}
                 style={{

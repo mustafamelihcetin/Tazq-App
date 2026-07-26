@@ -8,11 +8,11 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 
 import { TourTarget } from '@/shared/components/TourContext';
 import { S, navBarSpace, topBarSpace } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { haptic } from '@/shared/utils/haptics';
 
 interface MagneticFABProps {
   onPress: () => void;
@@ -94,7 +94,7 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
       onPanResponderGrant: () => {
         isDragging.current = true;
         pan.extractOffset();
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        haptic.surface();
         
         // Premium touch state: slightly scale up and add depth
         Animated.spring(scale, {
@@ -161,7 +161,7 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
             stiffness: 120,
           }),
         ]).start(async () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          haptic.commit();
           // Persist the snapped position coordinates
           try {
             await AsyncStorage.setItem(`${storageKey}_x`, String(targetX));

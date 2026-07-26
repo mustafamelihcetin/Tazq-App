@@ -9,10 +9,10 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { MotiView } from 'moti';
-import * as Haptics from 'expo-haptics';
 import { R, S, F, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { haptic } from '@/shared/utils/haptics';
 
 export interface Surprise {
   icon: string;
@@ -89,11 +89,8 @@ export const PremiumStatChip = React.memo(function PremiumStatChip({
   const handlePress = useCallback(() => {
     const now = Date.now();
     if (now - tapTime.current < 380) {
-      Haptics.notificationAsync(
-        surprise?.tier === 'nudge'
-          ? Haptics.NotificationFeedbackType.Warning
-          : Haptics.NotificationFeedbackType.Success,
-      ).catch(() => {});
+      // 'nudge' bir UYARI, digerleri KUTLAMA — iki farkli anlam, iki farkli his.
+      surprise?.tier === 'nudge' ? haptic.destructive() : haptic.celebrate();
       triggerBurst();
     }
     tapTime.current = now;

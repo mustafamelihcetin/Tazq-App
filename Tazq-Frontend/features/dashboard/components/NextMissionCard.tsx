@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Rocket, Zap, ChevronRight, Plus } from 'lucide-react-native';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { Touchable } from '@/shared/components/Touchable';
@@ -58,14 +57,25 @@ export const NextMissionCard = React.memo<NextMissionCardProps>(
       <View style={styles.wrap}>
         <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 250 }}>
           <BentoCard index={1} style={[styles.card, { minHeight: isSmallScreen ? 120 : 140, padding }]}>
-            {/* Dekoratif katman — metin değil, o yüzden opacity meşru. */}
-            <LinearGradient
-              colors={[accent, 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[StyleSheet.absoluteFill, { opacity: isDark ? 0.25 : 0.12 }]}
-            />
+            {/*
+              KART ÜSTÜ RENK YIKAMASI KALDIRILDI.
 
+              Burada köşegen bir gradyan vardı: öncelik rengi kartın tamamına %12 (koyu
+              temada %25) opaklıkla seriliyordu. Dekoratif diye meşru sayılmıştı ama iki
+              şeyi birden bozuyordu:
+
+               · BEYAZI KİRLETİYORDU. Yüksek öncelikli bir görev varken kart pembemsi,
+                 normalde mavimsi bir zemine dönüyordu. Temiz olması gereken yüzey,
+                 üstüne renk sürülmüş gibi duruyordu.
+               · RENGİ ANLAMSIZLAŞTIRIYORDU. %12'ye inen bir kırmızı ne "acil" der ne
+                 başka bir şey; yalnız ortamı boyar. Renk bir şey söyleyecekse tam
+                 doygunlukta ve KÜÇÜK bir alanda olmalı.
+
+              Apple'ın kuralı bu: iOS'ta yüzeyler temizdir, renk yalnız KONTROLLERDE
+              (düğme), SEMBOLLERDE ve VERİ GÖRSELLEŞTİRMESİNDE (halka, grafik) görünür.
+              Renk kaldırılmadı, hak ettiği yere çekildi — aşağıdaki rozet ve dolu mavi
+              düğme zaten taşıyor.
+            */}
             <View style={styles.header}>
               <View style={[styles.badge, { backgroundColor: accent + (isDark ? '25' : '18') }]}>
                 <Rocket size={ICON.xs} color={accent} />

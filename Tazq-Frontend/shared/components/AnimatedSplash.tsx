@@ -1,10 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Easing, useWindowDimensions } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { TazqLogo } from './TazqLogo';
+import { haptic } from '@/shared/utils/haptics';
+import { Colors } from '@/shared/constants/Colors';
 
-const DARK_BG = '#0A0A0A';
-const LIGHT_BG = '#F8F8F7';
+// Zemin PALETTEN. Elle yazılıyordu ve uygulamanınkiyle AYNI DEĞİLDİ
+// (açık: #F8F8F7 vs #F4F4F5 → 4,4,2 RGB fark). Splash kaybolurken zemin
+// değişiyor, tüm ekranı kaplayan bir sıçrama olarak görünüyordu.
+const DARK_BG = Colors.dark.background;
+const LIGHT_BG = Colors.light.background;
 const DARK_LINE = 'rgba(255,255,255,0.18)';
 const LIGHT_LINE = 'rgba(0,0,0,0.12)';
 
@@ -12,10 +16,21 @@ export const AnimatedSplash = ({
   onFinish,
   onReady,
   isDark = false,
+  ready = true,
 }: {
   onFinish: () => void;
   onReady: () => void;
   isDark?: boolean;
+  /**
+   * Uygulama gerçekten hazır mı (font + varlık yüklendi mi)?
+   *
+   * NEDEN GEREKLİ: animasyon SABİT 2.6 sn sürüyordu ve sonunda ekranı saydama
+   * çekiyordu. Yavaş bir açılışta (soğuk başlatma, büyük paket) animasyon biter
+   * ama uygulama hazır olmaz → kullanıcı BOŞ ekrana bakar; splash orada durur
+   * ama görünmezdir. Artık giriş animasyonu bittikten sonra hazır olmayı BEKLER,
+   * ancak ondan sonra kaybolur.
+   */
+  ready?: boolean;
 }) => {
   const { width } = useWindowDimensions();
   // Ölçüler ekran genişliğinden türetilir → %100 responsive (küçük telefondan tablete).
@@ -26,6 +41,9 @@ export const AnimatedSplash = ({
 
   const bg = isDark ? DARK_BG : LIGHT_BG;
   const lineColor = isDark ? DARK_LINE : LIGHT_LINE;
+
+  // Giriş animasyonu bitti mi? Kaybolma bundan SONRA ve `ready` olunca başlar.
+  const [introDone, setIntroDone] = React.useState(false);
 
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoY = useRef(new Animated.Value(14)).current;
@@ -39,24 +57,27 @@ export const AnimatedSplash = ({
 
     // Avuç İçinde Atan Kalp (Heartbeat Haptic Pulse) — logo otururken minik çift titreşim
     const hapticTimer = setTimeout(() => {
-      Haptics.selectionAsync().catch(() => {});
+      haptic.select();
       setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        haptic.surface();
       }, 130);
     }, 650);
 
     Animated.sequence([
-      // 1. Logo yükselerek belirir (0–700ms)
+      // 1. Logo yükselerek belirir
+      //    700ms idi. Toplam 2.6 sn ediyordu — açılış ekranında sektör eşiği
+      //    1–1.5 sn, 2 sn üstü "bekliyorum" hissi verir. Apple splash'e animasyon
+      //    koymaz; marka anı korunuyor ama kısaltıldı.
       Animated.parallel([
         Animated.timing(logoOpacity, {
           toValue: 1,
-          duration: 700,
+          duration: 450,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(logoY, {
           toValue: 0,
-          duration: 700,
+          duration: 450,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -93,20 +114,25 @@ export const AnimatedSplash = ({
         }),
       ]),
 
-      // 4. Bekleme
-      Animated.delay(600),
+      // 4. Kısa nefes
+      Animated.delay(220),
 
-      // 5. Her şey yumuşakça kaybolur
-      Animated.timing(screenOpacity, {
-        toValue: 0,
-        duration: 500,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(() => onFinish());
+    ]).start(() => setIntroDone(true));
 
     return () => clearTimeout(hapticTimer);
   }, []);
+
+  // 5. Kaybolma — giriş bitti VE uygulama hazır olduğunda. İkisi de şart:
+  //    erken kaybolmak boş ekran, geç kaybolmak gereksiz bekleme demek.
+  useEffect(() => {
+    if (!introDone || !ready) return;
+    Animated.timing(screenOpacity, {
+      toValue: 0,
+      duration: 380,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => onFinish());
+  }, [introDone, ready]);
 
   return (
     <Animated.View style={[styles.container, { backgroundColor: bg, opacity: screenOpacity }]}>

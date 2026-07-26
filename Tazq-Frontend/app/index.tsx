@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
@@ -13,25 +13,19 @@ import { DynamicIsland } from '@/features/focus';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { DashboardHero } from '@/features/dashboard/components/DashboardHero';
+import { TazqLogo } from '@/shared/components/TazqLogo';
 import { TodayCard } from '@/features/dashboard/components/TodayCard';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { NextMissionCard } from '@/features/dashboard/components/NextMissionCard';
 import { MyDayHabits } from '@/features/dashboard/components/MyDayHabits';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import { ArrowLeft, BarChart3, BrainCircuit, CalendarDays, Check, CheckCircle2, ChevronRight, Coffee, Flame, Play, Plus, Rocket, Sparkles, Target, Trash2, TrendingUp, X, Zap } from 'lucide-react-native';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { TaskService, AuthService } from '@/shared/services/api';
-import * as HapticsOriginal from 'expo-haptics';
-const Haptics = {
-  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
-  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
-  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
-  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
-  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
-};
+// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
+// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { TazqLogo } from '@/shared/components/TazqLogo';
 import { PremiumStatChip } from '@/shared/components/PremiumStatChip';
 import { useFocusStore } from '@/features/focus';
 import { useSporStore } from '@/shared/store/useSporStore';
@@ -39,7 +33,7 @@ import { StatusHub } from '@/shared/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getSmartInsight, generateWeeklyTips } from '@/shared/utils/insights';
 import { computeMomentum } from '@/shared/utils/momentum';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, touchSlop } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey, useSleepHealthSync } from '@/features/habits';
@@ -70,6 +64,7 @@ import { httpStatusOf, isNetworkError } from '@/shared/utils/errors';
 import { Colors } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
+import { haptic } from '@/shared/utils/haptics';
 
 
 // Hoş geldin (profil kurulumu) oturum başına yalnızca bir kez — remount'ta sıfırlanmasın diye
@@ -223,7 +218,7 @@ export default function HomeScreen() {
   // Çift dokunma vurguları: durum + söndürme zamanlayıcısı useDoubleTapHighlight'ta
   // (zamanlayıcı unmount'ta iptal edilir; eskiden edilmiyordu).
   const headerTap = useDoubleTapHighlight(1800, useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
     Animated.sequence([
       Animated.spring(headerScale, { toValue: 1.06, useNativeDriver: true, damping: 5, stiffness: 200 }),
       Animated.spring(headerScale, { toValue: 1, useNativeDriver: true, damping: 10, stiffness: 200 }),
@@ -231,7 +226,7 @@ export default function HomeScreen() {
   }, [headerScale]));
 
   const todayTap = useDoubleTapHighlight(1600, useCallback(() => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
   }, []));
 
   const headerHighlight = headerTap.active;
@@ -241,7 +236,33 @@ export default function HomeScreen() {
   const { weeklyFocus, lastWeekMinutes, loading: statsLoading, refresh: fetchStats } = useWeeklyStats();
   const [showAllIncomplete, setShowAllIncomplete] = useState(false);
   const [showCompletedSection, setShowCompletedSection] = useState(false);
+  /** Logoya her dokunuşta artar — nabız/halka animasyonunu tetikler. */
   const [logoTick, setLogoTick] = useState(0);
+
+  /**
+   * Selamlamanın ölçülen yüksekliği — başlığın ne zaman belireceğini BUNDAN türetiyoruz.
+   *
+   * Sabit bir eşik (ör. "64pt kaydırınca göster") yazılabilirdi ama yanlış olurdu:
+   * selamlama dar ekranda 22pt, geniş ekranda 28pt puntoda çiziliyor ve uzun bir isim
+   * onu iki satıra taşırıyor. Sabit sayı bu üç durumdan yalnız birinde doğru olurdu.
+   * Ölçerek, başlık HER durumda "selamlama çubuğun altına girdiği an" beliriyor.
+   */
+  const [heroHeight, setHeroHeight] = useState(0);
+
+  /**
+   * Kaydırma konumu — başlığın belirmesini süren tek kaynak.
+   * `useNativeDriver` ile UI thread'de çalışıyor: saniyede 60 kare React render'ı
+   * tetiklemez (dashboard'un render'ı ağır — bkz. momentum/istatistik hesapları).
+   */
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  /**
+   * Başlığın devralacağı kaydırma mesafesi — selamlama bloğunun ALT BOŞLUĞU HARİÇ
+   * yüksekliği. Tam o kadar kaydırıldığında büyük selamlama çubuğun altına girmiş,
+   * yani gerçekten "gitmiş" olur; kompakt başlık da tam o an yerine oturur.
+   * Nasıl canlandırılacağına ScreenHeader karar veriyor — burası yalnız ÖLÇÜ verir.
+   */
+  const titleCollapseAt = useMemo(() => Math.max(heroHeight - S.lg, 1), [heroHeight]);
   const [commandPortalVisible, setCommandPortalVisible] = useState(false);
   const [portalSearch, setPortalSearch] = useState('');
   const portalInputRef = useRef<TextInput>(null);
@@ -324,7 +345,7 @@ export default function HomeScreen() {
                 streakFreezeAvailable: nextShields > 0
               });
 
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              haptic.success();
 
               // Play freeze SFX
               if (usePrefsStore.getState().soundEffects) {
@@ -438,7 +459,7 @@ export default function HomeScreen() {
   }, []);
 
   const handleQuickSave = async (title: string) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     
     const hint = parseTaskHint(title, language as 'tr' | 'en');
     const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
@@ -920,12 +941,12 @@ export default function HomeScreen() {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
     if (task.tags?.includes('weight_entry')) {
-      Haptics.selectionAsync();
+      haptic.select();
       setWeightModalTaskId(task.id);
       return;
     }
     if (task.isCompleted) return; // aksiyon merkezi sadece tamamlar, hiç geri almaz
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date(todayStart.getTime() + 86400000);
@@ -997,7 +1018,7 @@ export default function HomeScreen() {
   };
 
   const startQuickFocus = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    haptic.commit();
     const target = topTaskToday;
     setCurrentTask('');
     // setDuration resets isActive to false internally — set both together after
@@ -1007,21 +1028,23 @@ export default function HomeScreen() {
     router.replace('/focus');
   };
 
-  const handleLogoPress = () => {
-    // Biologically timed heartbeat haptic (lub-dub): soft click (1st beat) -> 130ms delay -> light impact (2nd beat)
-    Haptics.selectionAsync();
-    setTimeout(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }, 130);
-
+  /**
+   * Marka işaretine dokunma — komut paletini açar (görev arama + akıllı hızlı ekleme).
+   *
+   * Logonun nabız atması ve halkası KORUNUYOR: uygulamanın karakteri ve dokunuşun
+   * kaydedildiğinin tek işareti.
+   *
+   * Panel artık BEKLEMEDEN açılıyor. Eskiden 220ms gecikme vardı (nabız bitsin diye) ve
+   * bu gözle görülür bir tepki gecikmesiydi — animasyon zaten paletin arkasında sürüyor,
+   * bitmesini beklemek gerekmiyor. Haptik de tek `surface`e indi: açılan bir yüzeyin
+   * karşılığı budur; çift atış (select + 130ms + surface) aynı olayı iki kez anlatıyordu.
+   */
+  const handleLogoPress = useCallback(() => {
+    haptic.surface();
     setLogoTick(prev => prev + 1);
-    
-    // Smooth transition delay matching the clean 200ms logo pop
-    setTimeout(() => {
-      setCommandPortalVisible(true);
-      setPortalSearch('');
-    }, 220);
-  };
+    setPortalSearch('');
+    setCommandPortalVisible(true);
+  }, []);
 
   const momentumLabel = momentum >= 75 ? t.momentumHigh : momentum >= 40 ? t.momentumMid : t.momentumLow;
 
@@ -1101,7 +1124,7 @@ export default function HomeScreen() {
         tr={tr}
         onPress={() => {
           if (item.tags?.includes('weight_entry')) {
-            Haptics.selectionAsync();
+            haptic.select();
             setWeightModalTaskId(item.id);
           } else {
             router.push({ pathname: '/tasks', params: { highlightId: item.id } });
@@ -1119,6 +1142,31 @@ export default function HomeScreen() {
     return theme.priorityLow;
   };
 
+
+  /*
+    Tek tanım, iki olası konum. İki ayrı yere KOPYALANSAYDI props zamanla ayrışır ve
+    kartın davranışı sayfanın neresinde durduğuna göre değişirdi.
+  */
+  const nextMissionCard = !(tasks.length === 0 && habits.length === 0) ? (
+    <NextMissionCard
+      task={topTask ? { id: topTask.id, priority: topTask.priority } : null}
+      title={topTask ? getLocalizedTaskTitle(topTask, tr) : t.noTasksHint}
+      subtitle={topTask ? (getLocalizedTaskDescription(topTask, tr) || t.waitingForAction) : t.allTasksReady}
+      badgeLabel={t.activeTask.toLocaleUpperCase(tr ? 'tr-TR' : 'en-US')}
+      showUrgent={topTask?.priority === 'High' && !getModeInfoForTask(topTask, usePrefsStore.getState(), theme)}
+      urgentLabel={tr ? 'ACİL' : 'URGENT'}
+      primaryLabel={topTask ? (tr ? 'GÖREVE GİT' : 'GO TO TASK') : t.addTask.toLocaleUpperCase(tr ? 'tr-TR' : 'en-US')}
+      seeAllLabel={t.filterAll}
+      onOpenTask={() => router.push({ pathname: '/tasks', params: { highlightId: String(topTask?.id) } })}
+      onSeeAll={() => router.push('/tasks')}
+      priorityColor={priorityColor}
+      isSmallScreen={isSmallScreen}
+      isDark={isDark}
+      theme={theme}
+      padding={isSmallScreen ? S.md : S.lg}
+    />
+  ) : null;
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <DottedBackground color={theme.onBackground} opacity={isDark ? 0.05 : 0.08} size={24} dotSize={1} />
@@ -1132,12 +1180,28 @@ export default function HomeScreen() {
               accessibilityLabel={language === 'tr' ? 'Profil' : 'Profile'}
               // Avatar 34pt çiziliyor ama dokunma hedefi 44pt olmalı (Apple HIG).
               // Görsel boyut ≠ erişilebilir alan.
-              hitSlop={touchSlop(TOP_ITEM_SIZE)}
+              hitSlop={touchSlop(TOP_AVATAR_SIZE)}
               style={[
                   styles.avatarContainer,
                   {
-                      borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 1 : 2.5,
-                      borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 'rgba(255,255,255,0.1)' : avatarBorderColor
+                      // HALKA HER İKİ DURUMDA DA HAIRLINE — 32pt'de tek doğru kalınlık.
+                      //
+                      // İki ayrı sebep aynı yere çıkıyor:
+                      //  · DENGE: solda dolu bir fotoğraf, sağda saydam zeminli ince bir
+                      //    glif var. Aynı çapta olsalar bile dolu olan ağır okunur; halka
+                      //    kalınlaştıkça (eskiden 2.5pt) sol kenar iyice ağır basıyordu —
+                      //    üstelik yalnız renk SEÇEN kullanıcılarda, yani tasarımı test
+                      //    edenin göremeyeceği bir durumda.
+                      //  · ÖLÇEK: renkli bir halka ancak fotoğrafla arasında boşluk varken
+                      //    ÇERÇEVE gibi okunur; boşluksuz olunca yüzün etrafına çizilmiş
+                      //    bir kontur gibi durur. 32pt'de boşluğa yer yok (2pt boşluk
+                      //    fotoğrafı 25pt'ye düşürürdü). Bu ölçekte doğru olan inceltmek:
+                      //    seçilen renk hâlâ görünür, kenar tanımlı kalır, fotoğraf
+                      //    sıkışmaz. Apple'ın nav bar avatarlarında zaten halka yoktur.
+                      borderWidth: B.thin,
+                      // Varsayılan halka `rgba(255,255,255,0.1)` idi — AÇIK TEMADA beyaz
+                      // üstünde beyaz, yani görünmüyordu. Tema jetonu iki temada da çalışır.
+                      borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? theme.outlineVariant : avatarBorderColor
                   }
               ]}
           >
@@ -1147,18 +1211,31 @@ export default function HomeScreen() {
               />
           </Touchable>
         }
+        /*
+          ORTA YUVA İKİ KATMANLI: tepede marka işareti, kaydırınca selamlama.
+
+          Kelime işareti bir ara tamamen kaldırılmıştı. Doğru teşhis yanlış tedaviydi:
+          teşhis, çubuğun kaydırıldığında hiçbir şey söylememesiydi (selamlama gidiyor,
+          yerine bir şey gelmiyordu) — ama tedavi olarak marka işaretini silmek, HİÇ
+          şikâyet edilmemiş bir şeyi bozdu. Üstelik logo tıklanabilirdi: komut paletinin
+          tek girişiydi.
+
+          Şimdi ikisi de duruyor ve aynı yuvayı SIRAYLA kullanıyorlar. Tepede logo
+          (sayfanın başlığı zaten altındaki büyük selamlama), kaydırınca selamlama
+          devralıyor. Tek bir yuva, iki farklı an, çakışma yok.
+        */
         center={
           <Touchable
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={tr ? 'TAZQ' : 'TAZQ'}
+              accessibilityLabel={language === 'tr' ? 'Hızlı görev ve arama' : 'Quick task and search'}
               onPress={handleLogoPress}
-              // Dokunma hedefi 44pt (çubuğun tam boyu), GÖRSEL öğe 30pt: Apple'ın bar
+              // Dokunma hedefi 44pt (çubuğun tam boyu), GÖRSEL öğe 24pt: Apple'ın bar
               // button item'ı gibi. Eskiden padding S.smd (12) ile toplam 54.5pt olup
               // 44pt çubuğa taşıyordu — "sıkışmışlık" hissinin kaynağı buydu.
               style={{ height: '100%', paddingHorizontal: S.sm, justifyContent: 'center', alignItems: 'center' }}
           >
-              {/* Minimalist Focus Ripple Ring */}
+              {/* Odak halkası — dokunuşun kaydedildiğini söyler. */}
               {logoTick > 0 && (
                 <MotiView
                   key={`ripple-${logoTick}`}
@@ -1176,27 +1253,22 @@ export default function HomeScreen() {
                 />
               )}
 
-              {/* Solid Minimal Logo Scale Heartbeat */}
               <MotiView
-                  animate={{
-                      scale: logoTick === 0 ? 1 : [1, 1.06, 1]
-                  }}
-                  transition={{
-                      type: 'timing',
-                      duration: 200
-                  }}
+                  animate={{ scale: logoTick === 0 ? 1 : [1, 1.06, 1] }}
+                  transition={{ type: 'timing', duration: 200 }}
               >
-                  {/* Marka işareti, başlık YUVASINDA duruyor — yani diğer ekranlardaki 17pt
-                      başlığın yerinde. Optik olarak onunla aynı ağırlıkta okunmalı:
-                      TazqLogo'nun kendi varsayılanı 24pt ve 44pt çubukta 10pt nefes
-                      bırakıyor. (30 eski 54pt çubuğa göreydi; 0.72 çarpanı ise keyfiydi.) */}
+                  {/* TazqLogo'nun kendi varsayılanı 24pt ve 44pt çubukta 10pt nefes
+                      bırakıyor. (30 eski 54pt çubuğa göreydi; 0.72 çarpanı keyfiydi.) */}
                   <TazqLogo height={24} />
               </MotiView>
           </Touchable>
         }
+        title={getGreeting()}
+        scrollY={scrollY}
+        collapseAt={titleCollapseAt}
         right={
           <TourTarget id="cockpit">
-            <StatusHub onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setStatusHubVisible(true); }} />
+            <StatusHub onPress={() => { haptic.commit(); setStatusHubVisible(true); }} />
           </TourTarget>
         }
       />
@@ -1233,9 +1305,16 @@ export default function HomeScreen() {
           tr={tr}
         />
 
-        <ScrollView
+        <Animated.ScrollView
             ref={scrollViewRef}
             style={{ flex: 1 }}
+            // Kaydırma konumunu doğrudan Animated.Value'ya bağlar. useNativeDriver:
+            // başlığın belirmesi UI thread'de olur, her karede React render'ı tetiklemez.
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true },
+            )}
+            scrollEventThrottle={16}
             // Dip boşluğu navbar'ın GERÇEK yüksekliğinden gelir (bkz. navBarSpace).
             // Sabit S.xxl yazıyordu: navbar 106pt kaplarken 64pt bırakıyordu, yani son
             // 42pt barın arkasında kalıyor ve kullanıcı en alta inemiyordu.
@@ -1243,13 +1322,16 @@ export default function HomeScreen() {
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surfaceContainer} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
-            <DashboardHero
-              greeting={getGreeting()}
-              name={user?.name?.split(' ')[0] || (language === 'tr' ? 'sen' : 'you')}
-              subGreeting={getSubGreeting()}
-              isSmallScreen={isSmallScreen}
-              theme={theme}
-            />
+            {/* onLayout: başlığın belirme eşiği bu ölçümden türüyor (bkz. titleProgress). */}
+            <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
+              <DashboardHero
+                greeting={getGreeting()}
+                name={user?.name?.split(' ')[0] || (language === 'tr' ? 'sen' : 'you')}
+                subGreeting={getSubGreeting()}
+                isSmallScreen={isSmallScreen}
+                theme={theme}
+              />
+            </View>
 
             <TourTarget id="momentum">
               <MomentumPulse
@@ -1286,11 +1368,20 @@ export default function HomeScreen() {
                     activeOpacity={0.8}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm, paddingHorizontal: S.xxs }}
                   >
-                    <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: theme.error }} />
-                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.error, flex: 1 }}>
+                    {/*
+                      HATA DEĞİL, UYARI. Bu satır `theme.error` (kırmızı) ile çiziliyordu
+                      ve dashboard'da gözün bulduğu İLK renkti. Ama gecikmiş bir görev
+                      bozulmuş bir şey değil, bir DURUMDUR — kırmızı, gerçekten yanlış
+                      giden şeyler için ayrılmalı, yoksa uygulamanın her yerinde kırmızı
+                      görünce kullanıcı onu okumayı bırakır.
+                      `warning` (amber) iki temada da AA geçiyor: bilgi kaybolmuyor,
+                      yalnız aciliyet tonu gerçeğe indiriliyor.
+                    */}
+                    <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: theme.warning }} />
+                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.warning, flex: 1 }}>
                       {overdueCount} {language === 'tr' ? 'gecikmiş görev' : overdueCount === 1 ? 'overdue task' : 'overdue tasks'}
                     </Text>
-                    <ChevronRight size={ICON.xs} color={theme.error} opacity={0.5} />
+                    <ChevronRight size={ICON.xs} color={theme.warning} opacity={0.5} />
                   </Touchable>
                 )}
                 
@@ -1302,9 +1393,9 @@ export default function HomeScreen() {
                       theme={theme}
                       isDark={isDark}
                       tr={tr}
-                      onAddHabit={() => { Haptics.selectionAsync(); router.push('/cockpit'); }}
+                      onAddHabit={() => { router.push('/cockpit'); }}
                       onSkip={(item) => {
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        haptic.success();
                         toggleHabitSkipDate(item.id as string, habitTodayKey);
                       }}
                       onToggle={(item) => {
@@ -1330,7 +1421,8 @@ export default function HomeScreen() {
                               useFocusStore.getState().addFocusPoints(20);
                             }
                           }
-                          Haptics.impactAsync(item.isCompleted ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium);
+                          // Tamamlama BAŞARI, geri alma yalnızca yüzey hareketi — ikisi farklı anlam.
+                          item.isCompleted ? haptic.surface() : haptic.success();
                           toggleHabitDate(item.id as string, habitTodayKey);
 }}
                     />
@@ -1378,7 +1470,7 @@ export default function HomeScreen() {
                         
                         {incompleteTasks.length > 4 && (
                           <Touchable
-                            onPress={() => { Haptics.selectionAsync(); setShowAllIncomplete(!showAllIncomplete); }}
+                            onPress={() => { haptic.select(); setShowAllIncomplete(!showAllIncomplete); }}
                             style={{
                               paddingVertical: S.smd,
                               alignItems: 'center',
@@ -1407,7 +1499,7 @@ export default function HomeScreen() {
                     return (
                       <View style={{ borderTopWidth: HAIRLINE, borderTopColor: theme.separator }}>
                         <Touchable
-                          onPress={() => { Haptics.selectionAsync(); setShowCompletedSection(!showCompletedSection); }}
+                          onPress={() => { haptic.select(); setShowCompletedSection(!showCompletedSection); }}
                           style={{
                             flexDirection: 'row',
                             alignItems: 'center',
@@ -1473,26 +1565,14 @@ export default function HomeScreen() {
             )}
 
             {/* Sonraki görev — dashboard'ın tek eylem çağrısı. Hiç görev/alışkanlık
-                yoksa gösterilmez: orada soğuk başlangıç kartı zaten yönlendiriyor. */}
-            {!(tasks.length === 0 && habits.length === 0) && (
-              <NextMissionCard
-                task={topTask ? { id: topTask.id, priority: topTask.priority } : null}
-                title={topTask ? getLocalizedTaskTitle(topTask, tr) : t.noTasksHint}
-                subtitle={topTask ? (getLocalizedTaskDescription(topTask, tr) || t.waitingForAction) : t.allTasksReady}
-                badgeLabel={t.activeTask.toLocaleUpperCase(tr ? 'tr-TR' : 'en-US')}
-                showUrgent={topTask?.priority === 'High' && !getModeInfoForTask(topTask, usePrefsStore.getState(), theme)}
-                urgentLabel={tr ? 'ACİL' : 'URGENT'}
-                primaryLabel={topTask ? (tr ? 'GÖREVE GİT' : 'GO TO TASK') : t.addTask.toLocaleUpperCase(tr ? 'tr-TR' : 'en-US')}
-                seeAllLabel={t.filterAll}
-                onOpenTask={() => router.push({ pathname: '/tasks', params: { highlightId: String(topTask?.id) } })}
-                onSeeAll={() => router.push('/tasks')}
-                priorityColor={priorityColor}
-                isSmallScreen={isSmallScreen}
-                isDark={isDark}
-                theme={theme}
-                padding={isSmallScreen ? S.md : S.lg}
-              />
-            )}
+                yoksa gösterilmez: orada soğuk başlangıç kartı zaten yönlendiriyor.
+
+                SIRA DENENDİ VE GERİ ALINDI: gün açılmamışken bu kart sayfanın en üstüne,
+                selamlamanın hemen altına taşınmıştı. Mantığı doğruydu (sayfa skorla değil
+                eylemle açılsın) ama SAYFANIN RİTMİNİ bozdu: momentum satırı kartsızdır ve
+                eskiden selamlamayla kartlar arasında yumuşak bir geçiş kuruyordu. Üstüne
+                bir kart konunca iki ağır kartın arasında sıkışıp öksüz kaldı. */}
+            {nextMissionCard}
 
             {/* ── Turkish Mode Banner (opt-in) ── */}
             {activeMode && !modeDismissed && (
@@ -1544,7 +1624,7 @@ export default function HomeScreen() {
             )}
 
 
-        </ScrollView>
+        </Animated.ScrollView>
 
         {/* Quick Draft Modal */}
         <QuickDraftModal
@@ -1609,7 +1689,7 @@ export default function HomeScreen() {
         }}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
-          <BlurView intensity={25} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          <AppBlur material="regular" />
           
           <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setCommandPortalVisible(false); }}>
             <View style={StyleSheet.absoluteFill} />
@@ -1677,7 +1757,7 @@ export default function HomeScreen() {
                       };
                       useTaskStore.getState().addTask(newTask);
                       setCommandPortalVisible(false);
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      haptic.success();
                       showToast(language === 'tr' ? 'Görev başarıyla eklendi!' : 'Task added successfully!', 'success');
                     }
                   }}
@@ -1784,7 +1864,7 @@ export default function HomeScreen() {
                         };
                         useTaskStore.getState().addTask(newTask);
                         setCommandPortalVisible(false);
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        haptic.success();
                         showToast(language === 'tr' ? 'Görev başarıyla eklendi!' : 'Task added successfully!', 'success');
                       }}
                       style={{
@@ -1887,7 +1967,11 @@ const styles = StyleSheet.create({
   // hesabını bozuyordu. Öğeler artık barın içinde ortalanır.
   // Başlık çubuğu öğesi: SABİT 30pt (bkz. TOP_ITEM_SIZE). scale(34) hem 44pt'lik
   // çubukta kenara 1.8pt bırakıyordu hem de tablette 42.5'e çıkıyordu — chrome ölçeklenmez.
-  avatarContainer: { width: TOP_ITEM_SIZE, height: TOP_ITEM_SIZE, borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.light.surfaceContainerLowest },
+  // borderWidth/borderColor BURADA YOK: ikisi de kullanım yerinde temaya ve
+  // kişiselleştirme rengine göre veriliyor. Burada da yazılıydı ve değeri
+  // `rgba(255,255,255,0.1)` idi — açık temada görünmeyen bir renk. Hiç etkisi yoktu
+  // (satır içi hep eziyordu) ama kopyalanmayı bekleyen yanlış bir örnekti.
+  avatarContainer: { width: TOP_AVATAR_SIZE, height: TOP_AVATAR_SIZE, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.light.surfaceContainerLowest },
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
   // Üst ve alt boşluk EŞİT (simetrik blok). Üst boşluk paddingTop'tan değil buradan gelir.
@@ -1913,14 +1997,6 @@ const styles = StyleSheet.create({
   actionButtonTextSecondary: { fontSize: moderateScale(14), fontWeight: '600' },
   draftOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   bottomSheetWrapper: { width: '100%' },
-  quickDraftSheet: {
-    width: '100%',
-    borderTopLeftRadius: R.lg,
-    borderTopRightRadius: R.lg,
-    padding: S.lg,
-    borderWidth: B.thin,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
   sheetHandle: { width: scale(40), height: scale(4), borderRadius: R.sm, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginBottom: S.md },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: S.sm },
   sheetIcon: { width: scale(40), height: scale(40), borderRadius: R.md, alignItems: 'center', justifyContent: 'center' },

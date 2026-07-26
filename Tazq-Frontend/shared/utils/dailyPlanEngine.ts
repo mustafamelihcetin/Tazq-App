@@ -40,6 +40,12 @@ export interface DailyPlanSpec {
    */
   slot?: string;
   isRamazan?: boolean;
+  /**
+   * Bu plan/faz icin BIR KEZ uretilip onbellege alinmis ek gorev varyantlari.
+   * Sabit havuza EKLENIR (yerini almaz). Verilmezse motor bugunku gibi calisir —
+   * yani bu alan tamamen istege bagli ve basarisizlik sessizdir.
+   */
+  extraPool?: { tr: string; en: string }[];
 }
 
 type Pool = { tr: string; en: string }[];
@@ -293,6 +299,47 @@ function poolFor(spec: DailyPlanSpec): Pool {
   }
 }
 
+/**
+ * Bu plan/faz için kullanılacak havuz: SABİT havuz + (varsa) genişletilmiş varyantlar.
+ *
+ * Sabit havuzlar çok küçük (tıp/tez/mülakat fazlarında 2 görev). Günde 1 görev üreten
+ * kullanıcı aynı iki görevi aylarca dönüşümlü görüyordu. `extraPool` bu havuzu bir kez
+ * genişletilmiş varyantlarla büyütür (bkz. usePlanPoolStore).
+ *
+ * SABİT HAVUZ ÖNDE: elle yazılmış, gözden geçirilmiş görevler her zaman önce gelir;
+ * üretilmiş varyantlar onların üstüne EKLENİR, yerini almaz. `extraPool` boş/gelmemişse
+ * sonuç bugünküyle birebir aynıdır — yani bu özellik hiçbir şeyi bozamaz.
+ */
+function effectivePool(spec: DailyPlanSpec): Pool {
+  const base = poolFor(spec);
+  const extra = spec.extraPool;
+  if (!extra || extra.length === 0) return base;
+  // Aynı metin iki kez görünmesin (üretilmiş varyant sabitlerden birini tekrarlayabilir).
+  const seen = new Set(base.map(p => p.tr.trim().toLocaleLowerCase('tr')));
+  const merged = [...base];
+  for (const v of extra) {
+    const key = v.tr.trim().toLocaleLowerCase('tr');
+    if (!v.tr?.trim() || !v.en?.trim() || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(v);
+  }
+  return merged;
+}
+
+/**
+ * Genişletilmiş havuzun anahtarı — `kind` + faz. Faz ilerledikçe (foundation →
+ * sprint) yeni bir havuz üretilir; bir plan ömrü boyunca en fazla 5 kez.
+ */
+export function planPoolKeyFor(spec: DailyPlanSpec): { kind: string; phase: string } {
+  switch (spec.kind) {
+    case 'exam': return { kind: 'exam', phase: getPhase(spec.daysLeft) };
+    case 'tez': return { kind: 'tez', phase: getPhase(spec.daysLeft) };
+    case 'mulakat': return { kind: 'mulakat', phase: mulakatBand(spec.daysLeft) };
+    // Spor/Ramazan havuzları faza bölünmüyor — tek havuz.
+    default: return { kind: spec.kind, phase: '' };
+  }
+}
+
 /** O gün ilgili plandan zaten günlük görev üretilmiş mi? */
 export function hasDailyToday(
   tasks: { tags?: string[] | null; dueDate?: string | null; isCompleted: boolean }[],
@@ -325,7 +372,7 @@ export function buildDailyTasks(
   if (hasDailyToday(existingTasks, tagKey, today)) return [];
 
   const tr = lang === 'tr';
-  const pool = poolFor(spec);
+  const pool = effectivePool(spec);
   if (!pool.length) return [];
 
   const count = Math.min(adaptiveTaskCount(taskCountFor(spec.dailyMinutes), spec.adherence), pool.length);

@@ -6,6 +6,13 @@ import { renderModeEmojiIcon } from '@/features/modes';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { S, ICON, R } from '@/shared/constants/tokens';
 
+/**
+ * Etiket satır yüksekliği. 9.5pt yazının doğal satır aralığından biraz açık: iki satır
+ * alt alta gelince harfler birbirine değmesin. Yuvanın yüksekliği bunun İKİ katı
+ * (bkz. aşağıdaki not) — sabit tutuluyor ki kısa ve uzun adlar aynı hizada bitsin.
+ */
+const LABEL_LINE = 12;
+
 export interface HabitBubbleProps {
   item: any;
   theme: AppTheme;
@@ -105,17 +112,33 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
         )}
       </View>
 
+      {/*
+        İKİ SATIR — tek satırdayken alışkanlıkların NEREDEYSE HEPSİ kesiliyordu.
+        62pt'lik yuvada 9.5pt yazı ~11 karakter alır; "Direnç antrenmanı", "Günlük
+        protein hedefi", "Kalori fazlası" gibi gerçek adların hiçbiri sığmıyor. Ekranda
+        yan yana beş tane "Direnç antre…" durunca sayfa bitmemiş görünüyor — kullanıcı
+        bunu tasarım tercihi değil, eksik iş diye okur.
+
+        Yükseklik SABİT (iki satırlık): bir etiket bir satır, komşusu iki satır olursa
+        baloncuklar aynı hizada başlasa da satır altı tırtıklı biter. Sabit yükseklikle
+        ritim korunuyor, kısa adlar da aynı yuvayı kaplıyor.
+
+        `opacity` KALDIRILDI: ölçülmüş rengi kullanım yerinde kısmak kontrastı geçersiz
+        kılar (bkz. colorContrast.test.ts) — bu dosyada 0.8 ile %20 kısılıyordu, üstelik
+        zaten 9.5pt olan bir yazıda. Soluk görünüm artık renk SEVİYESİNDEN geliyor.
+      */}
       <Text
         style={{
           fontSize: 9.5,
+          lineHeight: LABEL_LINE,
+          height: LABEL_LINE * 2,
           fontWeight: '700',
-          color: isCompleted ? theme.onSurfaceVariant : theme.onSurface,
+          color: isCompleted ? theme.onSurfaceMuted : theme.onSurface,
           textAlign: 'center',
           textDecorationLine: isCompleted ? 'line-through' : 'none',
-          opacity: isCompleted ? 0.55 : 0.8,
           width: '100%',
         }}
-        numberOfLines={1}
+        numberOfLines={2}
       >
         {item.title}
       </Text>

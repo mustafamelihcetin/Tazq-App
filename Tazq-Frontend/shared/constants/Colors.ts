@@ -100,11 +100,32 @@ const lightPalette = {
   // çizgisi; kalın+soluk = web'in bulanık çizgisi. Kalınlık için: HAIRLINE (tokens.ts).
   separator: 'rgba(60,60,67,0.29)',
 
-  // YÜZEN kabuk zemini (navbar, başlık) — saydam olmak ZORUNDA: iOS'ta altındaki
-  // BlurView'in görünmesi buna bağlı. Opak yapmak blur'u görünmez kılar.
-  // Navbar ve başlık bunu elle yazıyordu (rgba(255,255,255,0.95)); iki yüzen kabuk
-  // ayrı ayrı tanımlanınca ayrışıyorlar.
-  surfaceFloating: 'rgba(255,255,255,0.95)',
+  /**
+   * YÜZEN kabuk zemini (navbar, başlık) — YALNIZ ANDROID'DE kullanılır.
+   *
+   * iOS'ta bu değer hiç okunmuyor: orada zemin `'transparent'` verilip altına gerçek
+   * bir BlurView konuyor. Buna rağmen renk `rgba(255,255,255,0.95)` yazılıydı ve
+   * gerekçesi "iOS'ta blur görünsün diye saydam olmak zorunda" diye not düşülmüştü —
+   * kod o hâle geçerken güncellenmemiş, artık doğru olmayan bir gerekçe.
+   *
+   * Bedeli Android'de görünüyordu: %5 saydamlık, altından kayan içeriği
+   * BULANIKLAŞTIRMADAN geçiriyor. iOS'ta blur onu bir malzemeye çevirir; Android'de
+   * blur olmadığı için sadece okunabilir bir hayalet kalıyor — durum çubuğunun
+   * hizasında sayfadaki başlıklar seçiliyordu. Kullanıcı bunu "cam" diye değil,
+   * "çizim hatası" diye okur. Android'in kendi dili de zaten opak app bar'dır.
+   *
+   * Sayfa zemininden (#F4F4F5) ayrı tutuluyor ki kabuk "üstte duruyor" okunsun.
+   */
+  surfaceFloating: '#FFFFFF',
+  /**
+   * KART YÜZEYİ — mod kartları, liste kartları, panel kutuları.
+   *
+   * Token yoktu; 9 dosya `isDark ? '#1C1C22' : theme.surfaceContainerLowest`
+   * diye ELLE yazıyordu. Ham hex demek: palet değişince kartlar değişmez ve
+   * koyu tema tonu tek yerden ayarlanamaz. Açıkta beyaz, koyuda zeminden bir
+   * tık açık (#1C1C22) — kartın "yüzeyden yükseldiğini" söyleyen fark.
+   */
+  surfaceCard: '#FFFFFF',
 
   // Interaction overlays
   pressedOverlay: 'rgba(0, 0, 0, 0.08)',
@@ -173,9 +194,11 @@ const darkPalette = {
   // opaklıkla çevrilseydi koyu temada ayırıcılar kaybolurdu. Bkz. lightPalette.separator.
   separator: 'rgba(84,84,88,0.65)',
 
-  // Bkz. lightPalette.surfaceFloating. Zinc 950'nin (#09090B) bir tık üstü —
-  // yüzen kabuk zeminden ayrılmalı ki "üstte duruyor" okunsun.
-  surfaceFloating: 'rgba(15,15,18,0.95)',
+  // Bkz. lightPalette.surfaceFloating — orada neden opak olduğu anlatılıyor.
+  // Zinc 950'nin (#09090B) bir tık üstü: yüzen kabuk zeminden ayrılmalı ki
+  // "üstte duruyor" okunsun.
+  surfaceFloating: '#0F0F12',
+  surfaceCard: '#1C1C22',
 
   // Interaction overlays
   pressedOverlay: 'rgba(255, 255, 255, 0.08)',

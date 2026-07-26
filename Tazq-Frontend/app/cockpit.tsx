@@ -4,20 +4,13 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Modal,
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { BlurView } from 'expo-blur';
 import {
   Plus, Check, Flame, Clock, Target,
   ChevronRight, Sparkles, CalendarDays, Trash2, ArrowLeft, BarChart3, Coffee,
   RefreshCw } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import * as HapticsOriginal from 'expo-haptics';
-const Haptics = {
-  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
-  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
-  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
-  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
-  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
-};
+// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
+// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useTaskStore, getLocalizedTaskTitle } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus';
 import { useHabitStore, Habit, fmtDateKey } from '@/features/habits';
@@ -28,7 +21,7 @@ import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { FocusService } from '@/shared/services/api';
-import { ICON, S, R, F, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight} from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { SwipeableHabitItem } from '@/shared/components/SwipeableHabitItem';
@@ -37,6 +30,7 @@ import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { swallow } from '@/shared/utils/swallow';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
+import { haptic } from '@/shared/utils/haptics';
 
 // Alışkanlık odaklı kalmalı — mantıklı üst sınır (plan + manuel toplam).
 const MAX_HABITS = 15;
@@ -45,9 +39,33 @@ const HABIT_COLORS = [
   '#3B82F6', '#EF4444', '#8B5CF6', '#06B6D4',
 ];
 
+/**
+ * Alışkanlık simgeleri — 16'dan 28'e çıkarıldı ve HEPSİ FARKLI glif.
+ *
+ * İki sorun vardı:
+ *  1. 🏃 ve 🧘 ikisi de `Activity` (kalp-atışı çizgisi) ikonuna eşleniyordu —
+ *     ekranda aynı simge iki kez görünüyordu (bkz. modeIcons.tsx).
+ *  2. Set yalnız 16 öğeydi ve tek satır yatay kaydırmada duruyordu; kullanıcı
+ *     çoğunu hiç görmüyordu.
+ *
+ * Sıra rastgele değil, KATEGORİ akışına göre: hareket → sağlık → zihin →
+ * üretim/yaratım → yaşam → sosyal/hedef. Böylece aradığın simgeyi taramadan bulursun.
+ */
 const HABIT_EMOJIS = [
-  '💪', '📚', '💧', '🏃', '🧘', '✍️', '🥗', '😴',
-  '🎯', '🎨', '💊', '🌿', '🎵', '🧠', '🌅', '⚡',
+  // hareket
+  '💪', '🏃', '🚴', '🧘',
+  // sağlık
+  '💧', '😴', '🥗', '💊',
+  // zihin / öğrenme
+  '📚', '🧠', '✍️', '🗣️',
+  // üretim / yaratım
+  '💻', '🎨', '🎵', '📷',
+  // yaşam
+  '🌿', '🌅', '☕', '🧹',
+  // para / sosyal
+  '💰', '👥', '🙏', '🚭',
+  // hedef / tempo
+  '🎯', '🏆', '⏱️', '⚡',
 ];
 
 function getWeekDays(startDay: 0 | 1 = 1): Date[] {
@@ -383,7 +401,7 @@ export default function CockpitScreen() {
       );
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     addHabit(name, newEmoji, newColor);
     setNewName('');
     setNewEmoji('💪');
@@ -396,7 +414,7 @@ export default function CockpitScreen() {
     const doneToday = Array.isArray(habit?.completedDates) && habit!.completedDates.includes(todayKey);
 
     if (!doneToday) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       const pendingHabits = habits.filter(h => h.id !== id && !h.completedDates?.includes(todayKey));
       const allHabitsDone = pendingHabits.length === 0;
 
@@ -440,7 +458,7 @@ export default function CockpitScreen() {
         });
       });
     } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      haptic.commit();
       toggleDate(id, todayKey);
     }
   };
@@ -484,7 +502,7 @@ export default function CockpitScreen() {
     if (!habit) return;
     const safeSkipped = Array.isArray(habit.skippedDates) ? habit.skippedDates : [];
     const isSkipped = safeSkipped.includes(todayKey);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
     Alert.alert(
       name,
       tr ? 'Bu alışkanlık için ne yapmak istersin?' : 'What do you want to do with this habit?',
@@ -493,7 +511,7 @@ export default function CockpitScreen() {
           text: isSkipped ? (tr ? 'Pas Geçmeyi Geri Al' : 'Undo Skip') : (tr ? 'Bugün Pas Geç (Mola)' : 'Skip Today (Break)'),
           onPress: () => {
             toggleSkipDate(id, todayKey);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            haptic.success();
           }
         },
         {
@@ -594,7 +612,7 @@ export default function CockpitScreen() {
                     key={day.key}
                     onPress={() => {
                       setSelectedDay(day.key);
-                      Haptics.selectionAsync();
+                      haptic.select();
                     }}
                     style={[
                       styles.dayCell,
@@ -652,7 +670,6 @@ export default function CockpitScreen() {
             </Text>
             <Touchable
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push({ pathname: '/tasks', params: { action: 'add', dateFilter: selectedDay } });
               }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.primary + '18', paddingHorizontal: S.smd, paddingVertical: S.sm, borderRadius: R.full }}
@@ -710,7 +727,6 @@ export default function CockpitScreen() {
                   <Touchable
                     key={task.id}
                     onPress={() => {
-                      Haptics.selectionAsync();
                       router.push({ pathname: '/tasks', params: { highlightId: String(task.id) } });
                     }}
                     activeOpacity={0.7}
@@ -842,7 +858,7 @@ export default function CockpitScreen() {
                     <SwipeableHabitItem
                       onDelete={() => handleDeleteHabit(habit.id, habit.name)}
                       onSkip={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        haptic.commit();
                         toggleSkipDate(habit.id, todayKey);
                       }}
                       isSkipped={isSkipped}
@@ -937,7 +953,7 @@ export default function CockpitScreen() {
                             <Touchable
                               onPress={() => handleToggleHabit(habit.id)}
                               onLongPress={() => {
-                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                haptic.success();
                                 toggleSkipDate(habit.id, todayKey);
                               }}
                               style={[
@@ -1120,7 +1136,7 @@ export default function CockpitScreen() {
                 setPlanGoal(weeklyGoal);
                 preparePlan();
                 setPlanVisible(true);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                haptic.commit();
               }}
               style={[
                 styles.planBtn,
@@ -1160,7 +1176,10 @@ export default function CockpitScreen() {
               {
                 backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface,
                 paddingBottom: Math.max(insets.bottom, S.xl),
-                maxHeight: screenHeight - insets.top - 16,
+                // flexShrink: klavye açılınca KeyboardAvoidingView'ın iç alanı daralır;
+                // sheet küçülebilmezse taşar. maxHeight yalnız ÜST sınır.
+                flexShrink: 1,
+                maxHeight: sheetMaxHeight(screenHeight, insets.top),
               },
             ]}
           >
@@ -1182,6 +1201,19 @@ export default function CockpitScreen() {
               </View>
             </View>
 
+            {/* KAYDIRILABILIR GÖVDE — klavye açılınca içerik ekranın üstünden taşıyordu.
+                Sebep: sayfa yığını kaydırılamıyordu ve `maxHeight` TAM EKRAN
+                yüksekliğine göre hesaplanmıştı; klavyenin kapladığı alan hesaba
+                katılmıyordu. Simge ızgarası (28 seçenek) gövdeyi iyice uzatınca
+                taşma görünür hale geldi. Başlık ve Ekle düğmesi sabit kalır,
+                aradaki form kayar → içerik ne kadar uzarsa uzasın taşamaz. */}
+            <ScrollView
+              style={{ flexShrink: 1 }}
+              contentContainerStyle={{ paddingBottom: S.sm }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            >
             {/* Name input */}
             <View style={[
               styles.nameInput,
@@ -1205,9 +1237,11 @@ export default function CockpitScreen() {
               />
             </View>
 
-            {/* Emoji row */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: S.md }}>
-              <View style={{ flexDirection: 'row', gap: S.sm, paddingVertical: S.xxs }}>
+            {/* Simge ızgarası — eskiden tek satır yatay kaydırmaydı ve 16 seçeneğin
+                ancak 5-6'sı görünüyordu; geri kalanı keşfedilmiyordu. Sarmalayan
+                ızgarada hepsi tek bakışta. */}
+            <View style={{ marginBottom: S.md }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.sm, paddingVertical: S.xxs }}>
                 {HABIT_EMOJIS.map((e) => (
                   <Touchable
                     key={e}
@@ -1218,20 +1252,29 @@ export default function CockpitScreen() {
                     style={[
                       styles.emojiBtn,
                       {
-                        backgroundColor: e === newEmoji ? theme.primary + '22' : 'transparent',
-                        borderColor: e === newEmoji ? theme.primary : 'transparent',
+                        // Seçili olmayan hücre ARTIK GÖRÜNÜR: eskiden zemini ve çerçevesi
+                        // tamamen saydamdı, yani ızgara "boşlukta yüzen simgeler" gibi
+                        // duruyordu ve nereye basılacağı belli olmuyordu.
+                        backgroundColor: e === newEmoji
+                          ? newColor + '1F'
+                          : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.035)'),
+                        borderColor: e === newEmoji
+                          ? newColor
+                          : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
                       },
                     ]}
                   >
                     {renderModeEmojiIcon(
                       e,
                       22,
-                      e === newEmoji ? newColor : (isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.4)')
+                      // Seçili değilken ham rgba yerine tema token'ı: koyu/açık temada
+                      // ölçülü kontrast, palet disiplinine de uyar.
+                      e === newEmoji ? newColor : theme.onSurfaceVariant
                     )}
                   </Touchable>
                 ))}
               </View>
-            </ScrollView>
+            </View>
 
             {/* Color row */}
             <View style={{ flexDirection: 'row', gap: S.md, marginBottom: S.xl }}>
@@ -1251,6 +1294,7 @@ export default function CockpitScreen() {
                 />
               ))}
             </View>
+            </ScrollView>
 
             <Touchable
               onPress={handleAddHabit}
@@ -1295,7 +1339,7 @@ export default function CockpitScreen() {
               {
                 backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface,
                 paddingBottom: Math.max(insets.bottom, S.xl),
-                maxHeight: screenHeight - insets.top - 16,
+                maxHeight: sheetMaxHeight(screenHeight, insets.top),
               },
             ]}
           >
@@ -1346,7 +1390,7 @@ export default function CockpitScreen() {
               onPress={() => {
                 setWeeklyGoal(planGoal);
                 setPlanVisible(false);
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                haptic.success();
               }}
               style={[styles.saveBtn, { backgroundColor: theme.primary }]}
             >

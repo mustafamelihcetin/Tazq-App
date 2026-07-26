@@ -4,9 +4,9 @@
  */
 import React, { useMemo, useRef, useEffect } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { R, B } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { haptic } from '@/shared/utils/haptics';
 
 interface WeightWheelPickerProps {
   value: number;
@@ -47,7 +47,7 @@ export function WeightWheelPicker({ value, onChange, min = 30, max = 220, theme,
     const index = Math.round(e.nativeEvent.contentOffset.y / itemHeight);
     if (index >= 0 && index < values.length) {
       const val = values[index];
-      if (val !== value) { Haptics.selectionAsync(); onChange(val); }
+      if (val !== value) { haptic.select(); onChange(val); }
     }
   };
 

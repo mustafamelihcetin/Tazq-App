@@ -4,7 +4,7 @@ import { StyleSheet, View, Text, Animated, Easing, useWindowDimensions } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing as REasing } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { MotiView } from 'moti';
 import { TourFeaturePreview } from '@/shared/components/TourFeaturePreview';
 import {
@@ -29,14 +29,9 @@ import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Touchable } from '@/shared/components/Touchable';
 import { S, R, F } from '@/shared/constants/tokens';
-import * as HapticsOriginal from 'expo-haptics';
-const Haptics = {
-  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
-  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
-  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
-  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
-  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
-};
+import { haptic } from '@/shared/utils/haptics';
+// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
+// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 
 type PageId = 'dashboard' | 'focus' | 'tasks' | 'modlar' | 'cockpit';
 type IconType = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
@@ -247,7 +242,7 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
   }, [isTourShown]);
 
   const finish = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     Animated.timing(enter, {
       toValue: 0,
       duration: 240,
@@ -261,7 +256,7 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
 
   const next = () => {
     if (currentStep < maxStep) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      haptic.surface();
       setDir(1);
       setCurrentStep((s) => s + 1);
     } else {
@@ -271,7 +266,7 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
 
   const back = () => {
     if (currentStep > 0) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      haptic.surface();
       setDir(-1);
       setCurrentStep((s) => s - 1);
     }
@@ -300,11 +295,7 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
   return (
     <Animated.View style={[StyleSheet.absoluteFill, styles.root, { opacity: enter }]} pointerEvents="auto">
       {/* Çok hafif cam efekti (iOS blur) + ince karartma — uygulama silik görünür, yazı okunur */}
-      <BlurView
-        intensity={18}
-        tint={isDark ? 'dark' : 'light'}
-        style={StyleSheet.absoluteFill}
-      />
+      <AppBlur material="thin" />
       <View
         style={[
           StyleSheet.absoluteFill,

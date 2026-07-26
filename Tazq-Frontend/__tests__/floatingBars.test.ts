@@ -203,7 +203,9 @@ describe('baslik cubugu ogeleri', () => {
    * Dokunma hedefi ayri ve her zaman 44pt.
    */
   it('oge olcusu cubuga nefes payi birakir', () => {
-    expect(TOP_ITEM_SIZE).toBe(30);
+    // 30 -> 32: cubuktaki kelime isareti kalkinca geriye iki KENAR ogesi kaldi
+    // (avatar ve durum rozeti) ve ikisi ayni olcuye getirildi. Bkz. TOP_AVATAR_SIZE.
+    expect(TOP_ITEM_SIZE).toBe(32);
     // Ust + alt toplam en az 12pt (her yanda >= 6pt).
     expect(TOP_BAR_HEIGHT - TOP_ITEM_SIZE).toBeGreaterThanOrEqual(12);
   });

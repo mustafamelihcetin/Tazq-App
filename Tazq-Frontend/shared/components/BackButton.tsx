@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleProp, ViewStyle, StyleSheet, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { ChevronLeft } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -53,7 +53,7 @@ export function BackButton({
       ]}
     >
       {Platform.OS !== 'android' && (
-        <BlurView intensity={isDark ? 40 : 60} tint={colorScheme} style={StyleSheet.absoluteFill} />
+        <AppBlur material="regular" />
       )}
       <ChevronLeft size={ICON.lg} color={theme.onSurface} />
     </Touchable>

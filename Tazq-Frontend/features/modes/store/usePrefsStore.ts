@@ -65,6 +65,16 @@ interface PrefsState {
   setEveningBrief: (value: boolean) => void;
   soundEffects: boolean;
   setSoundEffects: (value: boolean) => void;
+  /**
+   * TİTREŞİM GERİ BİLDİRİMİ — kullanıcı kapatabilir.
+   *
+   * Ses kapatılabiliyordu ama titreşim kapatılamıyordu; oysa uygulamada ~293
+   * titreşim çağrısı var (her 1.4 dokunmada bir). Titreşimden rahatsız olan veya
+   * pil tasarrufu isteyen kullanıcının hiçbir çıkışı yoktu. Cihaza özel — buluta
+   * eşitlenmez (telefon tercihi, hesap tercihi değil).
+   */
+  hapticFeedback: boolean;
+  setHapticFeedback: (value: boolean) => void;
   // Derin odak tercihleri — cihazda kalıcı (her seansda sıfırlanmasın diye). Cihaza özel.
   focusBreathMode: 'classic' | 'box' | 'calm' | 'off';
   setFocusBreathMode: (v: 'classic' | 'box' | 'calm' | 'off') => void;
@@ -245,6 +255,8 @@ export const usePrefsStore = create<PrefsState>()(
       setEveningBrief: (value) => set({ eveningBrief: value }),
       soundEffects: true,
       setSoundEffects: (value) => set({ soundEffects: value }),
+      hapticFeedback: true,
+      setHapticFeedback: (value) => set({ hapticFeedback: value }),
       // Derin odak: nefes varsayılanı 'off' (opt-in — odak ≠ nefes çalışması). Kullanıcı seçince kalıcı.
       focusBreathMode: 'off',
       setFocusBreathMode: (v) => set({ focusBreathMode: v }),

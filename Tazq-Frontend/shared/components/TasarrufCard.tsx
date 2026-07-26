@@ -6,14 +6,8 @@
  */
 import React, { useState } from 'react';
 import { View, Text, TextInput, Switch } from 'react-native';
-import * as HapticsOriginal from 'expo-haptics';
-const Haptics = {
-  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
-  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
-  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
-  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
-  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
-};
+// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
+// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
@@ -29,9 +23,10 @@ import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { buildTasarrufPlan, tasarrufTypeLabel, TASARRUF_COLOR } from '@/shared/utils/lifeModePlans';
-import { retirePlanTask } from '@/shared/utils/planTaskOps';
+import { retirePlanTask , retireModeTasksByTag} from '@/shared/utils/planTaskOps';
 import { Coins } from 'lucide-react-native';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
+import { haptic } from '@/shared/utils/haptics';
 
 const fmtMoney = (n: number) => n.toLocaleString('tr-TR');
 
@@ -156,7 +151,7 @@ export function TasarrufCard() {
 
   const apply = async () => {
     if (!configValid) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     const content = buildTasarrufPlan(budgetType);
     const habitIds: string[] = [];
     content.habits.forEach((h, i) => {
@@ -203,6 +198,12 @@ export function TasarrufCard() {
   const closePlan = () => {
     tasarrufPlanHabitIds.forEach(id => removeHabit(id));
     tasarrufPlanTaskIds.forEach(id => retirePlanTask(id, 'tasarruf'));
+    // ETIKET TABANLI SUPURME — id listesine bakmadan moda ait HER seyi kaldirir.
+    // Yukaridaki id-tabanli temizlik yalnizca 'bildigimiz' gorevleri siler; bir
+    // gorev o listeden dusmusse (offline tempId kaymasi, basarisiz silme) ekranda
+    // kaliyordu ve ancak bir sonraki UYGULAMA ACILISINDA siliniyordu. Kullanicinin
+    // gordugu: "modu kapattim ama gorevi hala duruyor".
+    retireModeTasksByTag('tasarruf');
     clearPlanIds('tasarruf');
     setSeasonalPref('tasarrufMode', false);
     setSeasonalPref('tasarrufName', '');
@@ -220,13 +221,13 @@ export function TasarrufCard() {
     }
     addEntry(v);
     setEntryInput(''); setShowEntry(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
   };
 
   const cardBorder = seasonal.tasarrufMode ? C + (isDark ? '40' : '30') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)');
 
   return (
-    <View style={{ backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: cardBorder, borderWidth: B.thin, borderRadius: R.lg, overflow: 'hidden' }}>
+    <View style={{ backgroundColor: theme.surfaceCard, borderColor: cardBorder, borderWidth: B.thin, borderRadius: R.lg, overflow: 'hidden' }}>
       {/* Başlık + toggle */}
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: applied || expanded ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
@@ -244,7 +245,7 @@ export function TasarrufCard() {
           <Switch
             value={seasonal.tasarrufMode}
             onValueChange={(v) => {
-              Haptics.selectionAsync();
+              haptic.select();
               if (v) { setSeasonalPref('tasarrufMode', true); setExpanded(true); }
               else if (applied) {
                 // Kapatma planı + tüm bütçe kayıtlarını siler → önce onay iste.
@@ -270,7 +271,7 @@ export function TasarrufCard() {
           <View style={{ borderRadius: R.md, borderWidth: B.thin, borderColor: C + '22', padding: S.md, gap: S.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{seasonal.tasarrufName}</Text>
-              <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(tr ? 'Hedefi Sil' : 'Delete Goal', tr ? 'Plan ve tüm bütçe kayıtların silinecek. Bu işlem geri alınamaz.' : 'Your plan and all budget entries will be deleted. This cannot be undone.', [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: closePlan }]); }}>
+              <Touchable onPress={() => { haptic.commit(); Alert.alert(tr ? 'Hedefi Sil' : 'Delete Goal', tr ? 'Plan ve tüm bütçe kayıtların silinecek. Bu işlem geri alınamaz.' : 'Your plan and all budget entries will be deleted. This cannot be undone.', [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: closePlan }]); }}>
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Kapat' : 'Close'}</Text>
               </Touchable>
             </View>
@@ -295,7 +296,7 @@ export function TasarrufCard() {
               <Touchable hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => { setShowEntry(false); setEntryInput(''); }} style={{ padding: S.xs }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'İptal' : 'Cancel'}</Text></Touchable>
             </View>
           ) : (
-            <Touchable disabled={!canLog} onPress={() => { if (canLog) { Haptics.selectionAsync(); setShowEntry(true); } }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: canLog ? C + '12' : 'transparent', borderWidth: canLog ? 0 : B.thin, borderColor: theme.onSurfaceVariant + '20' }}>
+            <Touchable disabled={!canLog} onPress={() => { if (canLog) { haptic.select(); setShowEntry(true); } }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: canLog ? C + '12' : 'transparent', borderWidth: canLog ? 0 : B.thin, borderColor: theme.onSurfaceVariant + '20' }}>
               {<Coins size={ICON.sm} color={canLog ? C : theme.onSurfaceVariant} />}
               <Text style={{ color: canLog ? C : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{canLog ? (tr ? 'Bu hafta bakiyeni gir' : 'Log this week\'s balance') : (tr ? 'Kaydedildi · sonraki hafta' : 'Logged · next week')}</Text>
             </Touchable>
@@ -311,7 +312,7 @@ export function TasarrufCard() {
             {TYPES.map(t => {
               const active = budgetType === t.key;
               return (
-                <Touchable key={t.key} onPress={() => { Haptics.selectionAsync(); setBudgetType(active ? '' : t.key); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                <Touchable key={t.key} onPress={() => { haptic.select(); setBudgetType(active ? '' : t.key); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                   {renderModeEmojiIcon(t.emoji, 14, active ? C : theme.onSurfaceVariant)}
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? C : theme.onSurfaceVariant }}>{tr ? t.tr : t.en}</Text>
                 </Touchable>
@@ -354,7 +355,7 @@ export function TasarrufCard() {
                 {[3, 6, 9, 12].map(m => {
                   const active = coverMonths === m;
                   return (
-                    <Touchable key={m} onPress={() => { Haptics.selectionAsync(); setCoverMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                    <Touchable key={m} onPress={() => { haptic.select(); setCoverMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                       <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? C : theme.onSurfaceVariant }}>{m} {tr ? 'ay' : 'mo'}</Text>
                     </Touchable>
                   );
@@ -370,7 +371,7 @@ export function TasarrufCard() {
             {DURATIONS.map(m => {
               const active = durationMonths === m;
               return (
-                <Touchable key={m} onPress={() => { Haptics.selectionAsync(); setDurationMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                <Touchable key={m} onPress={() => { haptic.select(); setDurationMonths(m); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '600', color: active ? C : theme.onSurfaceVariant }}>{m} {tr ? 'ay' : 'mo'}</Text>
                 </Touchable>
               );

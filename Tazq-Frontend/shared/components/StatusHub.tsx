@@ -6,7 +6,7 @@ import { useFocusStore } from '@/features/focus/store/useFocusStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { Gauge, Activity } from 'lucide-react-native';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { Touchable } from '@/shared/components/Touchable';
 
 /**
@@ -55,7 +55,7 @@ export const StatusHub = ({ onPress }: { onPress: () => void }) => {
         animate={{ scale: 1, opacity: 1 }}
         style={[styles.container, { borderColor: theme.outline }]}
       >
-        <BlurView intensity={isDark ? 25 : 15} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        <AppBlur material="thin" />
 
         <MotiView
           animate={{

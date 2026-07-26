@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard, FlatList, Alert } from 'react-native';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import Animated, { Layout, LinearTransition, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, withTiming } from 'react-native-reanimated';
@@ -22,14 +22,8 @@ import { useFocusStore } from '@/features/focus';
 import { usePrefsStore, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
-import * as HapticsOriginal from 'expo-haptics';
-const Haptics = {
-  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
-  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
-  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
-  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
-  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
-};
+// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
+// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
@@ -52,6 +46,7 @@ import { httpStatusOf, isNetworkError, errorMessage, httpDataOf } from '@/shared
 import { playSoundEffect } from '@/shared/utils/soundEffects';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
+import { haptic } from '@/shared/utils/haptics';
 
 const SWIPE_THRESHOLD = -80;
 const TAG_COLORS_PALETTE = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4','#F97316'];
@@ -663,7 +658,7 @@ export default function ActionCenter() {
     if (!task) return;
     const modeInfo = getModeInfoForTask(task, usePrefsStore.getState(), theme);
     if (modeInfo && (modeInfo as any).isLocked) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       Alert.alert(
         language === 'tr' ? 'Otomatik Plan Görevi' : 'Automated Plan Task',
         language === 'tr' 
@@ -736,7 +731,7 @@ export default function ActionCenter() {
     if (!task) return;
 
     if (isWeightEntryTask(task) && !task.isCompleted) {
-      Haptics.selectionAsync();
+      haptic.select();
       if (weightTaskAction() === 'log') {
         setWeightModalTaskId(task.id);
       } else {
@@ -816,7 +811,7 @@ export default function ActionCenter() {
             useAchievementStore.getState().trigger(ACHIEVEMENTS.first_task);
           }
         }
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        haptic.success();
         if (soundEffects && !allTasksDone) {
           playSoundEffect(require('../assets/sounds/success.mp3'), {
             context: 'tasks.taskCompleteSound',
@@ -944,13 +939,13 @@ export default function ActionCenter() {
 
   const handleToggleExpand = (id: number) => {
     setExpandedId(expandedId === id ? null : id);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
   };
 
   const pendingDeleteRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const handleDelete = (id: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    haptic.destructive();
     const snapshot = tasks.find((t) => t.id === id);
     if (!snapshot) return;
     removeTask(id);
@@ -1013,7 +1008,7 @@ export default function ActionCenter() {
   };
 
   const handleMoveTask = (index: number, direction: 'up' | 'down') => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     const newTasks = [...filteredTasks];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     
@@ -1137,7 +1132,7 @@ export default function ActionCenter() {
           syncTaskToCalendar({ id: created.id, ...payload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         }
       }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
     } catch (err: unknown) {
       if (errorMessage(err) === 'Validation failed') {
         throw err;
@@ -1340,7 +1335,7 @@ export default function ActionCenter() {
           }
           setSelectedIds(new Set());
           setIsBulkMode(false);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          haptic.success();
         }},
       ]
     );
@@ -1377,7 +1372,7 @@ export default function ActionCenter() {
     if (!isOnline) {
       const completedAt = new Date().toISOString();
       ids.forEach(id => enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt }));
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
       return;
     }
@@ -1402,7 +1397,7 @@ export default function ActionCenter() {
     if (failed.length > 0) {
       showToast(t.toastUpdateFailed, 'error');
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       if (skipped.length > 0) {
         showToast(language === 'tr' ? 'Tartım görevi atlandı — önce kilonu gir' : 'Weigh-in task skipped — log your weight first', 'info');
       }
@@ -1432,7 +1427,7 @@ export default function ActionCenter() {
               }
             }
           }
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          haptic.success();
         }},
       ]
     );
@@ -1451,7 +1446,7 @@ export default function ActionCenter() {
                 </Touchable>
             ) : (
                 // Sol: Sırala & Filtrele. Sağ: Ara (büyüteç). Back butonu YOK — alt navigasyondan gezilir.
-                <Touchable onPress={() => { setShowSortMenu(!showSortMenu); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
+                <Touchable onPress={() => { setShowSortMenu(!showSortMenu); import('expo-haptics').then(Haptics => haptic.surface()); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
                     <View>
                         <SlidersHorizontal size={ICON.lg} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
                         {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) && (
@@ -1474,7 +1469,7 @@ export default function ActionCenter() {
                     )}
                 </View>
             ) : (
-                <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
+                <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => haptic.surface()); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
                     <Search size={ICON.lg} color={showSearch ? theme.primary : theme.onSurface} />
                 </Touchable>
             )}
@@ -1499,7 +1494,7 @@ export default function ActionCenter() {
               >
                 {/* Hide Completed Toggle */}
                 <Touchable
-                    onPress={() => { setHideCompleted(v => !v); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }}
+                    onPress={() => { setHideCompleted(v => !v); import('expo-haptics').then(Haptics => haptic.surface()); }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
                 >
                     <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
@@ -1510,7 +1505,7 @@ export default function ActionCenter() {
 
                 {/* Show Future Manual Tasks Toggle */}
                 <Touchable
-                    onPress={() => { setShowFutureManualTasks(v => !v); import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); }}
+                    onPress={() => { setShowFutureManualTasks(v => !v); import('expo-haptics').then(Haptics => haptic.surface()); }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
                 >
                     <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
@@ -1538,7 +1533,7 @@ export default function ActionCenter() {
                 {([['creation', t.sortByCreation], ['priority', t.sortByPriority], ['date', t.sortByDate]] as const).map(([key, label]) => (
                   <Touchable
                     key={key}
-                    onPress={() => { setSortBy(key); setShowSortMenu(false); import('expo-haptics').then(Haptics => Haptics.selectionAsync()); }}
+                    onPress={() => { setSortBy(key); setShowSortMenu(false); import('expo-haptics').then(Haptics => haptic.select()); }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: key === 'date' ? 0 : StyleSheet.hairlineWidth }]}
                   >
                     <Text style={[{ color: sortBy === key ? theme.primary : theme.onSurface, fontSize: F.body, fontWeight: sortBy === key ? '700' : '400' }]}>
@@ -1578,11 +1573,7 @@ export default function ActionCenter() {
                   backgroundColor: Platform.OS === 'android' ? (isDark ? theme.surfaceContainerHighest : '#FFFFFF') : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.85)') 
                 }]}>
                 {Platform.OS !== 'android' && (
-                  <BlurView
-                      intensity={isDark ? 40 : 20}
-                      tint={isDark ? 'dark' : 'light'}
-                      style={StyleSheet.absoluteFill}
-                  />
+                  <AppBlur material="thin" />
                 )}
                 <Search size={ICON.md} color={theme.onSurfaceVariant} opacity={0.6} />
                 <TextInput
@@ -1634,7 +1625,7 @@ export default function ActionCenter() {
           {/* Stats Row */}
           <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.md, marginBottom: S.md }}>
             <Touchable
-              onPress={() => { setFilter(filter === 'done' ? 'all' : 'done'); Haptics.selectionAsync(); }}
+              onPress={() => { setFilter(filter === 'done' ? 'all' : 'done'); haptic.select(); }}
               style={{
                 flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm,
                 paddingVertical: S.sm + 2, paddingHorizontal: S.md, borderRadius: R.md,
@@ -1653,7 +1644,7 @@ export default function ActionCenter() {
               </Text>
             </Touchable>
             <Touchable
-              onPress={() => { setFilter('all'); Haptics.selectionAsync(); }}
+              onPress={() => { setFilter('all'); haptic.select(); }}
               style={{
                 flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm,
                 paddingVertical: S.sm + 2, paddingHorizontal: S.md, borderRadius: R.md,
@@ -1686,7 +1677,7 @@ export default function ActionCenter() {
               return (
                 <Touchable 
                   key={f} 
-                  onPress={() => { setFilter(f); Haptics.selectionAsync(); }}
+                  onPress={() => { setFilter(f); haptic.select(); }}
                   style={[
                       styles.filterChip, 
                       { 
@@ -1711,7 +1702,7 @@ export default function ActionCenter() {
           {allTags.length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: S.md }} contentContainerStyle={{ gap: S.sm }}>
               <Touchable 
-                onPress={() => { setTagFilter(null); Haptics.selectionAsync(); }}
+                onPress={() => { setTagFilter(null); haptic.select(); }}
                 style={[styles.filterChip, { borderColor: !tagFilter ? theme.secondary : theme.outline, borderWidth: B.thin, paddingVertical: S.xs, paddingHorizontal: S.md }]}
               >
                 <Text style={[styles.filterChipText, { color: !tagFilter ? theme.secondary : theme.onSurfaceVariant, fontSize: F.caption }]}>
@@ -1721,7 +1712,7 @@ export default function ActionCenter() {
               {allTags.map((tag) => (
                 <Touchable 
                   key={tag}
-                  onPress={() => { setTagFilter(tagFilter === tag ? null : tag); Haptics.selectionAsync(); }}
+                  onPress={() => { setTagFilter(tagFilter === tag ? null : tag); haptic.select(); }}
                   style={[styles.filterChip, { borderColor: tagFilter === tag ? theme.secondary : theme.outline, borderWidth: B.thin, paddingVertical: S.xs, paddingHorizontal: S.md }]}
                 >
                   <Text style={[styles.filterChipText, { color: tagFilter === tag ? theme.secondary : theme.onSurfaceVariant, fontSize: F.caption }]}>
@@ -1744,7 +1735,7 @@ export default function ActionCenter() {
                     {t.upcoming}
                 </Text>
                 <Touchable
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleClearCompleted(); }}
+                    onPress={() => { haptic.commit(); handleClearCompleted(); }}
                     accessibilityRole="button"
                     accessibilityLabel={language === 'tr' ? 'Tamamlanan görevleri temizle' : 'Clear completed tasks'}
                     style={{ padding: S.xs }}
@@ -1818,13 +1809,13 @@ export default function ActionCenter() {
                     onMoveDown={i < filteredTasks.length - 1 && sortBy === 'creation' ? () => handleMoveTask(i, 'down') : undefined}
                     handleLongPress={(id: number) => {
                         if (!isBulkMode) {
-                            import('expo-haptics').then(Haptics => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
+                            import('expo-haptics').then(Haptics => haptic.commit());
                             setIsBulkMode(true);
                             setSelectedIds(new Set([id]));
                         }
                     }}
                     handleBulkSelect={(id: number) => {
-                        import('expo-haptics').then(Haptics => Haptics.selectionAsync());
+                        import('expo-haptics').then(Haptics => haptic.select());
                         setSelectedIds(prev => {
                             const next = new Set(prev);
                             next.has(id) ? next.delete(id) : next.add(id);
@@ -1883,7 +1874,7 @@ export default function ActionCenter() {
             ]}
           >
             {Platform.OS !== 'android' && (
-              <BlurView intensity={isDark ? 30 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+              <AppBlur material="regular" />
             )}
             
             {/* Edit (only if 1 selected and not mode task) */}
@@ -1893,7 +1884,7 @@ export default function ActionCenter() {
                 const id = Array.from(selectedIds)[0];
                 const modeInfo = getModeInfoForTask(id, usePrefsStore.getState(), theme);
                 if (modeInfo) {
-                    import('expo-haptics').then(Haptics => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
+                    import('expo-haptics').then(Haptics => haptic.error());
                     Alert.alert(
                       language === 'tr' ? 'Otomatik Plan Görevi' : 'Automated Plan Task',
                       language === 'tr' 

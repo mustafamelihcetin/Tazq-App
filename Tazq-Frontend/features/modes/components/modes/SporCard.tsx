@@ -8,7 +8,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Switch, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
-import * as Haptics from 'expo-haptics';
 import { ChevronRight, CalendarDays, X, TrendingUp, TrendingDown, Target, AlertTriangle, XCircle, Dumbbell, Scale, Calendar } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -20,7 +19,7 @@ import { usePlanAdaptations } from '../../hooks/usePlanAdaptations';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
-import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf } from '@/shared/utils/planTaskOps';
+import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf , retireModeTasksByTag} from '@/shared/utils/planTaskOps';
 import { detectSporType, localizeSporGoal } from '../../utils/turkishModes';
 import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight } from '@/shared/utils/weightCheckin';
 import { WeightWheelPicker } from './WeightWheelPicker';
@@ -29,6 +28,8 @@ import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
+import { haptic } from '@/shared/utils/haptics';
+import { closeModeWithUndo } from '@/shared/utils/modeUndo';
 
 // Vurgu MERKEZİ PALETTEN, tema-duyarlı. Ham '#F97316' iki temada aynıydı ve açık
 // temada 2.80:1 veriyordu (WCAG'ın büyük-metin eşiği 3:1'in bile altı).
@@ -109,19 +110,19 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
     <View style={{ marginTop: S.xs }}>
       <Separator theme={theme} />
       {complete && !expanded ? (
-        <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: (past ? theme.error : SPOR) + '10', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.8}>
+        <Touchable onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: (past ? theme.error : SPOR) + '10', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.8}>
           <AppIcon Icon={Dumbbell} color={SPOR} size={24} radius={R.sm} iconSize={ICON.sm} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.caption }}>{stripEmojiPrefix(goal)}</Text>
             <Text style={{ color: past ? theme.error : SPOR, fontSize: F.caption, fontWeight: '500' }}>{past ? (tr ? 'Tarih geçti' : 'Date passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
           </View>
           <Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle ›' : 'Edit ›'}</Text>
-          <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(tr ? 'Hedefi Sil' : 'Delete Goal', tr ? `"${goal}" silinecek. Emin misin?` : `"${goal}" will be deleted. Are you sure?`, [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Sil' : 'Delete', style: 'destructive', onPress: del }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }} accessibilityRole="button" accessibilityLabel={tr ? 'Sil' : 'Delete'}>
+          <Touchable onPress={() => { haptic.commit(); Alert.alert(tr ? 'Hedefi Sil' : 'Delete Goal', tr ? `"${goal}" silinecek. Emin misin?` : `"${goal}" will be deleted. Are you sure?`, [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Sil' : 'Delete', style: 'destructive', onPress: del }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }} accessibilityRole="button" accessibilityLabel={tr ? 'Sil' : 'Delete'}>
             <X size={ICON.xs} color={theme.onSurfaceVariant} strokeWidth={2.5} />
           </Touchable>
         </Touchable>
       ) : !complete && !expanded ? (
-        <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
+        <Touchable onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm }} activeOpacity={0.7}>
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>＋</Text>
           <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, flex: 1 }}>{addLabel}</Text>
         </Touchable>
@@ -133,14 +134,14 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
             {sporGoalsForSlot(tr, goal, otherGoals).map((g) => {
               const active = goal === g.label;
               return (
-                <Touchable key={g.key} onPress={() => { Haptics.selectionAsync(); setSeasonalPref(goalKey, active ? '' : g.label); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? SPOR : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? SPOR + '18' : 'transparent' }} activeOpacity={0.7}>
+                <Touchable key={g.key} onPress={() => { haptic.select(); setSeasonalPref(goalKey, active ? '' : g.label); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? SPOR : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? SPOR + '18' : 'transparent' }} activeOpacity={0.7}>
                   {renderModeEmojiIcon(getEmojiFromLabel(g.label), 14, active ? SPOR : theme.onSurfaceVariant)}
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? SPOR : theme.onSurfaceVariant }}>{stripEmojiPrefix(g.label)}</Text>
                 </Touchable>
               );
             })}
           </View>
-          <Touchable hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => { Haptics.selectionAsync(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
+          <Touchable hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
             <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Hedef tarihi seç' : 'Select target date')}</Text>
             <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
           </Touchable>
@@ -149,7 +150,7 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
             <Touchable onPress={() => { if (goal || date) del(); setExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
             </Touchable>
-            {complete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><AppIcon Icon={Dumbbell} color={'#fff'} size={24} radius={R.sm} iconSize={ICON.sm} /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
+            {complete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><AppIcon Icon={Dumbbell} color={'#fff'} size={24} radius={R.sm} iconSize={ICON.sm} /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
           </View>
         </View>
       )}
@@ -247,7 +248,10 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
   const progPct = progTotal > 0 ? Math.round((progDone / progTotal) * 100) : 0;
 
   const closePlan = () => {
-    sporPlanHabitIds.forEach(id => removeHabit(id)); sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor')); clearPlanIds('spor');
+    // ETIKET TABANLI SUPURME — id listesine bakmadan moda ait HER seyi kaldirir.
+    // Id-tabanli temizlik yalnizca 'bildigimiz' gorevleri siler; listeden dusmus
+    // bir gorev ekranda kalip ancak bir sonraki acilista siliniyordu.
+    sporPlanHabitIds.forEach(id => removeHabit(id)); sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor')); retireModeTasksByTag('spor'); clearPlanIds('spor');
     // Clean up any remaining weight_entry tasks from the tasks store
     const { tasks: allTasks } = useTaskStore.getState();
     const remainingWeightTasks = allTasks.filter(t => !t.isCompleted && (t.tags?.includes('weight_entry') || t.title === 'Güncel kilonu gir' || t.title === 'Log current weight'));
@@ -265,7 +269,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
         return;
       }
       setWeightEntryInput(''); setShowWeightEntry(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       setTimeout(() => runAdaptations(true), 300);
     });
   };
@@ -288,7 +292,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
     }
     Alert.alert(tr ? 'Hedef Sonucu' : 'Goal Result', summary, [
       { text: tr ? 'Süreyi uzat (+4 hafta)' : 'Extend (+4 weeks)', onPress: () => { const d = new Date(); d.setDate(d.getDate() + 28); setSeasonalPref('sporDate', d.toISOString().split('T')[0]); reviewHandledRef.current = false; setTimeout(() => runAdaptations(true), 300); } },
-      { text: tr ? 'Hedefi Kapat' : 'Close Goal', style: 'destructive', onPress: closePlan },
+      { text: tr ? 'Hedefi Kapat' : 'Close Goal', style: 'destructive', onPress: () => closeModeWithUndo('spor', closePlan, tr ? 'Spor modu kapatıldı' : 'Fitness mode closed', tr ? 'Geri al' : 'Undo') },
     ]);
   }, [seasonal.sporMode, sporPlanHabitIds, sporPlanTaskIds, past, sporType, twNum, cwNum, kiloLatest, tr]);
 
@@ -299,7 +303,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
   const spor2Complete = (seasonal.spor2Goal || '').trim() !== '' && !!seasonal.spor2Date;
 
   return (
-    <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.sporMode && sporIsComplete ? (past ? theme.error + '40' : SPOR + '35') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
+    <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: theme.surfaceCard, borderColor: seasonal.sporMode && sporIsComplete ? (past ? theme.error + '40' : SPOR + '35') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.sporMode ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
           <AppIcon Icon={Dumbbell} color={SPOR} />
@@ -313,10 +317,10 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
           </View>
           <Switch value={seasonal.sporMode}
             onValueChange={(v) => {
-              Haptics.selectionAsync();
+              haptic.select();
               if (!v && seasonal.sporMode) {
                 if (!hasPlan) { closePlan(); return; }
-                Alert.alert(tr ? 'Spor Modu Kapatılıyor' : 'Turning off Sport Mode', tr ? 'Eklenen alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'Added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: closePlan }]);
+                Alert.alert(tr ? 'Spor Modu Kapatılıyor' : 'Turning off Sport Mode', tr ? 'Eklenen alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'Added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: () => closeModeWithUndo('spor', closePlan, tr ? 'Spor modu kapatıldı' : 'Fitness mode closed', tr ? 'Geri al' : 'Undo') }]);
               } else if (v) { setSeasonalPref('sporMode', true); setExpanded(true); }
             }}
             trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: SPOR + '80' }} thumbColor={seasonal.sporMode ? SPOR : (isDark ? '#636366' : '#fff')} />
@@ -327,7 +331,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
         <View style={{ paddingHorizontal: S.md, paddingBottom: S.md, gap: S.sm }}>
           <Separator theme={theme} />
           {!sporIsComplete && !expanded && (
-            <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
+            <Touchable onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
               <AppIcon Icon={Dumbbell} color={theme.onSurfaceVariant} size={24} radius={R.sm} iconSize={ICON.sm} />
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.body, flex: 1 }}>{tr ? 'Hedef ekle' : 'Add goal'}</Text>
               <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.4} />
@@ -342,11 +346,11 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                     {renderModeEmojiIcon(goalEmoji(sporType), 16, SPOR)}
                     <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{stripEmojiPrefix(goal)}</Text>
-                    <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onOpenPreview('spor'); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={hasPlan ? (tr ? 'Spor planı içgörü ve önizleme' : 'Fitness plan insight and preview') : (tr ? 'Spor planını seç' : 'Choose fitness plan')} style={{ backgroundColor: SPOR + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
+                    <Touchable onPress={() => { haptic.surface(); onOpenPreview('spor'); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={hasPlan ? (tr ? 'Spor planı içgörü ve önizleme' : 'Fitness plan insight and preview') : (tr ? 'Spor planını seç' : 'Choose fitness plan')} style={{ backgroundColor: SPOR + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
                       <Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
                     </Touchable>
                     <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
-                    <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={tr ? 'Spor hedefini düzenle' : 'Edit fitness goal'}>
+                    <Touchable onPress={() => { haptic.select(); setExpanded(true); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={tr ? 'Spor hedefini düzenle' : 'Edit fitness goal'}>
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                     </Touchable>
                   </View>
@@ -427,7 +431,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                       <Touchable hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} onPress={() => { setShowWeightEntry(false); setWeightEntryInput(''); }} style={{ padding: S.xs }} activeOpacity={0.7}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption }}>{tr ? 'İptal' : 'Cancel'}</Text></Touchable>
                     </View>
                   ) : (
-                    <Touchable disabled={!unlocked} onPress={() => { if (!unlocked) return; Haptics.selectionAsync(); setShowWeightEntry(true); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderTopWidth: HAIRLINE, borderTopColor: theme.separator, backgroundColor: unlocked ? SPOR + '08' : 'transparent' }} activeOpacity={0.7}>
+                    <Touchable disabled={!unlocked} onPress={() => { if (!unlocked) return; haptic.select(); setShowWeightEntry(true); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderTopWidth: HAIRLINE, borderTopColor: theme.separator, backgroundColor: unlocked ? SPOR + '08' : 'transparent' }} activeOpacity={0.7}>
                       <AppIcon Icon={Scale} color={unlocked ? SPOR : theme.onSurfaceVariant} size={24} radius={R.sm} iconSize={ICON.sm} />
                       <Text style={{ fontSize: F.caption, fontWeight: '600', color: unlocked ? SPOR : theme.onSurfaceVariant }}>{unlocked ? (tr ? 'Bu haftaki tartımı gir' : 'Log this week\'s weight') : (tr ? `Kaydedildi${lastKg ? ` · ${lastKg} kg` : ''} · ${nextLeft} gün sonra tekrar` : `Logged${lastKg ? ` · ${lastKg} kg` : ''} · again in ${nextLeft}d`)}</Text>
                     </Touchable>
@@ -451,13 +455,27 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                   const active = goal === g.label;
                   return (
                     <Touchable key={g.key} onPress={() => {
-                      Haptics.selectionAsync();
+                      haptic.select();
                       const val = active ? '' : g.label;
                       const newType = val ? detectSporType(val) : null;
                       const typeChanged = newType !== sporType && hasPlan;
-                      const apply = () => { setSeasonalPref('sporGoal', val); if (newType === 'kilo') { if (!currentWeight || parseFloat(currentWeight) <= 0) setCurrentWeight('75'); if (!targetWeight || parseFloat(targetWeight) <= 0) setTargetWeight('70'); } };
+                      const apply = () => {
+                        // KILO HEDEFI SECILINCE KILO UYDURULMAZ.
+                        //
+                        // Eskiden burada `setCurrentWeight('75')` / `setTargetWeight('70')`
+                        // vardi: kullanici "Kilo Yonetimi"ni secer secmez baslangic ve hedef
+                        // kilosu ONUN ADINA doldurulyordu. Bu sadece kozmetik degil —
+                        // `sporInputsComplete` alanlarin DOLU olmasina bakiyor, sahte deger
+                        // o guardi gecersiz kiliyordu. Sonuc: hic kilo girmemis bir kullanici
+                        // 75→70 varsayimi uzerine kurulmus bir plan aliyor; ilerleme yuzdesi,
+                        // hedef tarihi ve haftalik hiz hepsi uydurma sayilara dayaniyordu.
+                        //
+                        // Artik bos kalir; kullanici kendi degerini girene kadar plan
+                        // "tamamlanmis" sayilmaz (bkz. sporInputsComplete).
+                        setSeasonalPref('sporGoal', val);
+                      };
                       if (typeChanged) {
-                        Alert.alert(tr ? 'Hedef Türü Değişiyor' : 'Goal Type Changing', tr ? 'Mevcut plan alışkanlık ve görevleri kaldırılacak. Devam et?' : 'Existing plan habits and tasks will be removed. Continue?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Devam Et' : 'Continue', style: 'destructive', onPress: () => { sporPlanHabitIds.forEach(id => removeHabit(id)); sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor')); clearPlanIds('spor'); apply(); } }]);
+                        Alert.alert(tr ? 'Hedef Türü Değişiyor' : 'Goal Type Changing', tr ? 'Mevcut plan alışkanlık ve görevleri kaldırılacak. Devam et?' : 'Existing plan habits and tasks will be removed. Continue?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Devam Et' : 'Continue', style: 'destructive', onPress: () => { sporPlanHabitIds.forEach(id => removeHabit(id)); sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor')); retireModeTasksByTag('spor'); clearPlanIds('spor'); apply(); } }]);
                       } else apply();
                     }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? SPOR : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? SPOR + '18' : 'transparent' }} activeOpacity={0.7}>
                       {renderModeEmojiIcon(getEmojiFromLabel(g.label), 14, active ? SPOR : theme.onSurfaceVariant)}
@@ -549,7 +567,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant, marginTop: S.xxs }}>{tr ? 'Hedef mesafe' : 'Target distance'}</Text>
                   <View style={{ flexDirection: 'row', gap: S.xs }}>
                     {(['5K', '10K', 'Yarı', 'Tam'] as const).map(ev => (
-                      <Touchable key={ev} onPress={() => { Haptics.selectionAsync(); setTargetEvent(targetEvent === ev ? '' : ev); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: targetEvent === ev ? SPOR : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: targetEvent === ev ? SPOR + '18' : 'transparent' }} activeOpacity={0.7}>
+                      <Touchable key={ev} onPress={() => { haptic.select(); setTargetEvent(targetEvent === ev ? '' : ev); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, borderWidth: B.medium, borderColor: targetEvent === ev ? SPOR : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: targetEvent === ev ? SPOR + '18' : 'transparent' }} activeOpacity={0.7}>
                         <Text style={{ fontSize: F.caption, fontWeight: '500', color: targetEvent === ev ? SPOR : theme.onSurfaceVariant }}>{ev}</Text>
                       </Touchable>
                     ))}
@@ -562,7 +580,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: theme.onSurfaceVariant }}>{tr ? 'Haftada kaç gün antrenman?' : 'How many days/week?'}</Text>
                   <View style={{ flexDirection: 'row', gap: S.sm }}>
                     {([3, 4, 5] as const).map(d => (
-                      <Touchable key={d} onPress={() => { Haptics.selectionAsync(); setTrainingDays(trainingDays === d ? null : d); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.smd, borderRadius: R.md, borderWidth: B.medium, borderColor: trainingDays === d ? SPOR : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: trainingDays === d ? SPOR + '18' : 'transparent' }} activeOpacity={0.7}>
+                      <Touchable key={d} onPress={() => { haptic.select(); setTrainingDays(trainingDays === d ? null : d); }} style={{ flex: 1, alignItems: 'center', paddingVertical: S.smd, borderRadius: R.md, borderWidth: B.medium, borderColor: trainingDays === d ? SPOR : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: trainingDays === d ? SPOR + '18' : 'transparent' }} activeOpacity={0.7}>
                         <Text style={{ fontSize: F.body, fontWeight: '600', color: trainingDays === d ? SPOR : theme.onSurface }}>{d}</Text>
                         <Text style={{ fontSize: 10, fontWeight: '600', color: trainingDays === d ? SPOR : theme.onSurfaceVariant, opacity: 0.7, marginTop: S.xxs }}>{tr ? 'gün' : 'days'}</Text>
                       </Touchable>
@@ -580,7 +598,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                 )
               ) : (
                 <>
-                  <Touchable onPress={() => { Haptics.selectionAsync(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
+                  <Touchable onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
                     <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Hedef tarihi seç' : 'Select target date')}</Text>
                     <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
                   </Touchable>
@@ -592,7 +610,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                 <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
                 </Touchable>
-                {sporIsComplete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview('spor'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>{renderModeEmojiIcon(goalEmoji(sporType), 13, '#fff')}<Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
+                {sporIsComplete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview('spor'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>{renderModeEmojiIcon(goalEmoji(sporType), 13, '#fff')}<Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
               </View>
             </View>
           )}

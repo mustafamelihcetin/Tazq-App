@@ -6,7 +6,7 @@
 import React from 'react';
 import { Modal, View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { MotiView } from 'moti';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { S, R, F, SPRING } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
@@ -26,7 +26,7 @@ export function PeekMenu({ visible, onClose, items, title }: { visible: boolean;
     <Modal transparent visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.backdrop} onPress={onClose}>
         {Platform.OS === 'ios'
-          ? <BlurView intensity={28} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          ? <AppBlur material="regular" />
           : <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.35)' }]} />}
 
         <MotiView

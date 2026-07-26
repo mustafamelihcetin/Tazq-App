@@ -2,7 +2,6 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList } from 'react-native';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { BlurView } from 'expo-blur';
 import { MotiView, AnimatePresence } from 'moti';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookOpen, ChevronRight, CalendarDays, X, Info, BarChart3, Flame, Zap, Sparkles, Target, CheckCircle2, Dumbbell, Activity, FileText, Briefcase, PiggyBank, Ban } from 'lucide-react-native';
@@ -19,7 +18,6 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { useTaskStore } from '@/features/tasks';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
-import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   cancelExamCountdownNotifs,
@@ -57,6 +55,8 @@ import { TaskService } from '@/shared/services/api';
 import { usePlanAdaptations } from '@/features/modes';
 import { Touchable } from '@/shared/components/Touchable';
 import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText } from '@/shared/constants/Colors';
+import { retireModeTasksByTag } from '@/shared/utils/planTaskOps';
+import { haptic } from '@/shared/utils/haptics';
 
 const MarsIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -185,9 +185,15 @@ export default function ModlarScreen() {
   // Bir sınav preset'i belirlenince (yazarken/öneriden), o sınavın önerilen günlük
   // süresini saat seçicide otomatik önseç → kullanıcı tahmin etmesin, sadece onaylasın.
   // Tüm seçim noktalarını (input/öneri/submit) tek yerden kapsar.
-  useEffect(() => { if (selectedExamPreset) setExamDailyMinutes(selectedExamPreset.defaultDailyMinutes); }, [selectedExamPreset?.id]);
-  useEffect(() => { if (selectedExam2Preset) setExam2DailyMinutes(selectedExam2Preset.defaultDailyMinutes); }, [selectedExam2Preset?.id]);
-  useEffect(() => { if (selectedExam3Preset) setExam3DailyMinutes(selectedExam3Preset.defaultDailyMinutes); }, [selectedExam3Preset?.id]);
+  // KALDIRILDI — sessiz otomatik doldurma.
+  //
+  // Bu üç efekt, sınav adından türetilen preset'in varsayılan süresini kullanıcıya
+  // SORMADAN dolduruyordu. Sınav formu ExamCard'a taşındıktan sonra bu kopya
+  // güncellenmez oldu (setSelectedExamPreset hiçbir yerde çağrılmıyor) ama plan
+  // uygulanırken OKUNMAYA devam ediyordu — yani ExamCard'da kullanıcıdan açıkça
+  // alınan süre, buradaki bayat/uydurma değerle EZİLİYORDU.
+  //
+  // Tek kaynak artık kullanıcının sheet'te seçtiği şablon: `meta.dailyMinutes`.
 
   const [examDateInput, setExamDateInput] = useState(seasonal.examDate || '');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -266,7 +272,7 @@ export default function ModlarScreen() {
       }
       setWeightEntryInput('');
       setShowWeightEntry(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       // Kilo girişinden hemen sonra adaptasyon motorunu zorla çalıştır
       setTimeout(() => runAdaptations(true), 300);
     });
@@ -691,6 +697,7 @@ export default function ModlarScreen() {
     exam2PlanTaskIds.forEach(id => retirePlanTask(id, 'exam2'));
     exam3PlanHabitIds.forEach(id => removeHabit(id));
     exam3PlanTaskIds.forEach(id => retirePlanTask(id, 'exam3'));
+    retireModeTasksByTag('exam');
     clearPlanIds('exam'); clearPlanIds('exam2'); clearPlanIds('exam3');
     setExamNameInput(''); setExamDateInput('');
     setExam2NameInput(''); setExam2DateInput('');
@@ -700,7 +707,7 @@ export default function ModlarScreen() {
     setSeasonalPref('exam2Name', ''); setSeasonalPref('exam2Date', null);
     setSeasonalPref('exam3Name', ''); setSeasonalPref('exam3Date', null);
     setExamReviewShown(false);
-    showToast(language === 'tr' ? '🎓 Sınav modu kapatıldı' : '🎓 Exam mode closed', 'success');
+    showToast(language === 'tr' ? 'Sınav modu kapatıldı' : 'Exam mode closed', 'success');
   }, [examPlanHabitIds, examPlanTaskIds, exam2PlanHabitIds, exam2PlanTaskIds, exam3PlanHabitIds, exam3PlanTaskIds, language, retirePlanTask]);
 
   const seasonalRef = useRef(seasonal);
@@ -730,6 +737,7 @@ export default function ModlarScreen() {
     if (!stillActive) {
       ramazanPlanHabitIds.forEach(id => removeHabit(id));
       ramazanPlanTaskIds.forEach(id => retirePlanTask(id, 'ramazan'));
+      retireModeTasksByTag('ramazan');
       clearPlanIds('ramazan');
       setSeasonalPref('ramazan', false);
     }
@@ -764,7 +772,7 @@ export default function ModlarScreen() {
             {/* Sol: Modların Özeti (içgörü) sayfası. Back butonu YOK — alt navigasyondan gezilir. */}
             <TourTarget id="overview">
             <Touchable
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/mod-ozet'); }}
+              onPress={() => { router.push('/mod-ozet'); }}
               style={styles.headerIconBtn}
               accessibilityRole="button"
               accessibilityLabel={language === 'tr' ? 'Modların özeti' : 'Modes overview'}
@@ -783,7 +791,7 @@ export default function ModlarScreen() {
                çelişiyordu. Artık aynı içerik, öğelerin üstünde gösterilerek anlatılıyor. */}
            <Touchable
              onPress={() => {
-               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+               haptic.surface();
                usePrefsStore.getState().setTourCompleted('modlar', false);
              }}
              style={styles.headerIconBtn}
@@ -817,7 +825,7 @@ export default function ModlarScreen() {
                 animate={{ opacity: 1 }}
                 transition={{ type: 'timing', duration: 250 }}
                 style={[styles.modeCard, {
-                  backgroundColor: statusNearest ? (isDark ? statusNearest.color + '1A' : statusNearest.color + '12') : (isDark ? '#1C1C22' : theme.surfaceContainerLowest),
+                  backgroundColor: statusNearest ? (isDark ? statusNearest.color + '1A' : statusNearest.color + '12') : (theme.surfaceCard),
                   borderColor: statusNearest ? statusNearest.color + (isDark ? '40' : '30') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'),
                   padding: S.md,
                 }]}
@@ -897,13 +905,38 @@ export default function ModlarScreen() {
                 from={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ type: 'timing', duration: 250 }}
-                style={[styles.modeCard, { backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', padding: S.md }]}
+                style={[styles.modeCard, { backgroundColor: theme.surfaceCard, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)', padding: S.md }]}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                   <Sparkles size={ICON.md} color={theme.primary} />
                   <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Bir hedef seç, gerisini bize bırak' : 'Pick a goal, leave the rest to us'}</Text>
                 </View>
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '500', marginTop: S.sm, lineHeight: 18 }}>{language === 'tr' ? 'Sınav, tez, mülakat ya da spor — birini aç, hazır plan otomatik olarak Haftalık Merkez ve görevlerine düşsün.' : 'Exam, thesis, interview or fitness — turn one on and a ready plan flows into your Weekly Hub and tasks automatically.'}</Text>
+
+                {/* İLK AÇILIŞ YÖNLENDİRMESİ — "hangisini seçmeliyim?"
+                    Boş durum ne olduğunu anlatıyordu ama SEÇMEYE yardım etmiyordu:
+                    6 kart, 6 anahtar, hiçbir öncelik sinyali yok. Yeni kullanıcı
+                    kendi keşfetmek zorunda kalıyordu. Üç somut cevap veriyoruz. */}
+                <View style={{ marginTop: S.md, gap: S.sm }}>
+                  {[
+                    { tr: 'Bir tarihe yetişmen mi gerekiyor?', en: 'Racing a deadline?', pick: language === 'tr' ? 'Sınav ya da Tez' : 'Exam or Thesis' },
+                    { tr: 'Bedeninle ilgili bir hedefin mi var?', en: 'A goal for your body?', pick: language === 'tr' ? 'Spor & Fiziksel' : 'Fitness & Health' },
+                    { tr: 'Bir şeyi bırakmak mı istiyorsun?', en: 'Trying to quit something?', pick: language === 'tr' ? 'Bırakma' : 'Quit Habit' },
+                  ].map((row) => (
+                    <View key={row.en} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                      <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: theme.primary }} />
+                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, flex: 1 }} numberOfLines={1}>
+                        {language === 'tr' ? row.tr : row.en}
+                      </Text>
+                      <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }} numberOfLines={1}>
+                        {row.pick}
+                      </Text>
+                    </View>
+                  ))}
+                  <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>
+                    {language === 'tr' ? 'Tek seferde bir hedefle başlamanı öneririz — sonra ekleyebilirsin.' : 'We suggest starting with one goal — you can add more later.'}
+                  </Text>
+                </View>
               </MotiView>
             )}
             </TourTarget>
@@ -943,6 +976,7 @@ export default function ModlarScreen() {
                   Icon: Dumbbell,
                   color: sporColor,
                   textColor: sporTextColor,
+                  load: language === 'tr' ? '2-3 alışkanlık · günde 1-3 görev' : '2-3 habits · 1-3 tasks/day',
                   onActivate: () => { setSeasonalPref('sporMode', true); focusCard('spor'); },
                 },
                 {
@@ -954,6 +988,7 @@ export default function ModlarScreen() {
                   Icon: BookOpen,
                   color: urgencyColor,
                   textColor: urgencyTextColor,
+                  load: language === 'tr' ? '3-4 alışkanlık · günde 1-3 görev' : '3-4 habits · 1-3 tasks/day',
                   onActivate: () => { setSeasonalPref('examMode', true); focusCard('exam'); },
                 },
                 {
@@ -965,6 +1000,7 @@ export default function ModlarScreen() {
                   Icon: FileText,
                   color: tezUrgencyColor,
                   textColor: tezTextColor,
+                  load: language === 'tr' ? '2-3 alışkanlık · günde 1-2 görev' : '2-3 habits · 1-2 tasks/day',
                   onActivate: () => { setSeasonalPref('tezMode', true); focusCard('tez'); },
                 },
                 {
@@ -976,6 +1012,7 @@ export default function ModlarScreen() {
                   Icon: Briefcase,
                   color: mulakatUrgencyColor,
                   textColor: mulakatTextColor,
+                  load: language === 'tr' ? '2-3 alışkanlık · günde 1-2 görev' : '2-3 habits · 1-2 tasks/day',
                   onActivate: () => { setSeasonalPref('mulakatMode', true); focusCard('mulakat'); },
                 },
                 {
@@ -987,6 +1024,7 @@ export default function ModlarScreen() {
                   Icon: PiggyBank,
                   color: resolveModeAccent('tasarruf', isDark),
                   textColor: resolveModeAccentText('tasarruf', isDark),
+                  load: language === 'tr' ? '2-3 alışkanlık · haftalık takip' : '2-3 habits · weekly tracking',
                   onActivate: () => { setSeasonalPref('tasarrufMode', true); focusCard('tasarruf'); },
                 },
                 {
@@ -998,6 +1036,7 @@ export default function ModlarScreen() {
                   Icon: Ban,
                   color: resolveModeAccent('birakma', isDark),
                   textColor: resolveModeAccentText('birakma', isDark),
+                  load: language === 'tr' ? '3 alışkanlık · günlük check-in' : '3 habits · daily check-in',
                   onActivate: () => { setSeasonalPref('birakmaMode', true); focusCard('birakma'); },
                 },
               ].filter(item => !item.active);
@@ -1027,12 +1066,12 @@ export default function ModlarScreen() {
                         accessibilityLabel={`${item.title} — ${language === 'tr' ? 'kurulumu başlat' : 'start setup'}`}
                         accessibilityHint={item.desc}
                         onPress={() => {
-                          Haptics.selectionAsync();
+                          haptic.select();
                           item.onActivate();
                         }}
                         style={{
                           width: cardW,
-                          backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest,
+                          backgroundColor: theme.surfaceCard,
                           borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)',
                           borderWidth: B.thin,
                           borderRadius: R.lg,
@@ -1057,6 +1096,13 @@ export default function ModlarScreen() {
                         <View style={{ gap: S.xs, marginTop: S.sm }}>
                           <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{item.title}</Text>
                           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, lineHeight: 15 }} numberOfLines={2}>{item.desc}</Text>
+                          {/* GÜNLÜK YÜK — "bunu açarsam ne kadar iş gelecek?"
+                              Kullanıcı toplam yükü ancak plan uygulandıktan SONRA
+                              öğreniyordu; iki mod açınca görev listesi beklenmedik
+                              şekilde şişiyordu. Beklenti önden kuruluyor. */}
+                          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600', marginTop: S.xxs }} numberOfLines={1}>
+                            {item.load}
+                          </Text>
                         </View>
                       </Touchable>
                     ))}
@@ -1227,7 +1273,10 @@ export default function ModlarScreen() {
               const prevTasks  = slot === 'exam2' ? exam2PlanTaskIds  : slot === 'exam3' ? exam3PlanTaskIds  : examPlanTaskIds;
               setPlanIds(slot, [...new Set([...prevHabits, ...habitIds])], [...new Set([...prevTasks, ...taskIds])]);
               // Günlük plan motoru için spec: kullanıcının seçtiği saat öncelikli
-              const dm = (slot === 'exam2' ? exam2DailyMinutes : slot === 'exam3' ? exam3DailyMinutes : examDailyMinutes) ?? meta?.dailyMinutes;
+              // Günlük süre KULLANICININ SEÇTİĞİ ŞABLONDAN gelir. Eskiden önce bu
+              // ekranın kendi (sessizce doldurulmuş, artık güncellenmeyen) kopyasına
+              // bakıyordu; kullanıcının seçimi eziliyordu.
+              const dm = meta?.dailyMinutes;
               setPlanSpec(slot, { templateId: meta?.templateId, dailyMinutes: dm ?? undefined });
             } else if (t === 'tez') {
               setPlanIds('tez', [...new Set([...tezPlanHabitIds, ...habitIds])], [...new Set([...tezPlanTaskIds, ...taskIds])]);

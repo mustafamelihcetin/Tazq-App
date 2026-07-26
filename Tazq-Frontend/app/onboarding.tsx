@@ -19,7 +19,6 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { ChevronRight, Clock, Smartphone, Lock, Cloud, Ban, Coins, GraduationCap, Calendar, Zap, Bell, Flame, ListChecks } from 'lucide-react-native';
 import { CategoryColors } from '@/shared/constants/Colors';
-import * as Haptics from 'expo-haptics';
 import { Easing } from 'react-native-reanimated';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { Touchable } from '@/shared/components/Touchable';
@@ -27,6 +26,7 @@ import { track } from '@/shared/utils/analytics';
 import { usePrefsStore } from '@/features/modes';
 import { useAuthStore } from '@/features/user';
 import { swallow } from '@/shared/utils/swallow';
+import { haptic } from '@/shared/utils/haptics';
 
 const SLIDES = [
   {
@@ -113,7 +113,7 @@ export default function OnboardingScreen() {
     const index = Math.round(x / width);
     if (index !== currentIndex && index >= 0 && index < SLIDES.length) {
       setCurrentIndex(index);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      haptic.surface();
     }
   };
 
@@ -121,7 +121,7 @@ export default function OnboardingScreen() {
     if (currentIndex < SLIDES.length - 1) {
       scrollViewRef.current?.scrollTo({ x: (currentIndex + 1) * width, animated: true });
     } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      haptic.commit();
       try {
         await AsyncStorage.setItem('tazq-onboarding-done', 'true');
       } catch (e) {

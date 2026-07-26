@@ -12,14 +12,8 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
 import { useShallow } from 'zustand/react/shallow';
-import * as HapticsOriginal from 'expo-haptics';
-const Haptics = {
-  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
-  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
-  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
-  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
-  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
-};
+// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
+// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 import { FocusService } from '@/shared/services/api';
@@ -43,6 +37,7 @@ import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
+import { haptic } from '@/shared/utils/haptics';
 
 interface StarGroupProps {
   timerSize: number;
@@ -873,7 +868,7 @@ export default function FocusScreen() {
         // Katı mod: yalnız GERÇEKTEN ayrıldıysa (kısa blip değil) seansı iptal et ve ceza uygula
         if (active && isStrict && awayMs > STRICT_GRACE_MS) {
           useFocusStore.setState({ isActive: false, seconds: total, expectedFinishAt: null, lastActiveAt: null, focusPoints: Math.max(0, pts - 10) });
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          haptic.error();
           try {
             const { soundEffects } = usePrefsStore.getState();
             if (soundEffects) {
@@ -929,7 +924,7 @@ export default function FocusScreen() {
   useEffect(() => {
     if (atZero && totalSeconds > 0 && !completedRef.current) {
       completedRef.current = true;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       // Seans bitimi sesi — soundEffects toggle'ından bağımsız, her zaman çalar
       setTimeout(() => {
         playCompletionSound();
@@ -938,8 +933,8 @@ export default function FocusScreen() {
       const { pomodoroMode: isPomo, pomodoroPhase: phase, pomodoroRound: round } = useFocusStore.getState();
 
       if (isPomo) {
-        setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 250);
-        setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 500);
+        setTimeout(() => haptic.commit(), 250);
+        setTimeout(() => haptic.commit(), 500);
 
         if (phase === 'work') {
           const minutes = Math.round(totalSeconds / 60);
@@ -983,8 +978,8 @@ export default function FocusScreen() {
         setSummaryMinutes(minutes);
         setSummaryCompleted(true);
         setCompletionRitual(true);
-        setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 300);
-        setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy), 600);
+        setTimeout(() => haptic.commit(), 300);
+        setTimeout(() => haptic.commit(), 600);
         setTimeout(() => { setCompletionRitual(false); setSummaryVisible(true); }, 1800);
 
         InteractionManager.runAfterInteractions(() => {
@@ -1010,12 +1005,12 @@ export default function FocusScreen() {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const toggleTimer = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
     setIsActive(!isActive);
   };
 
   const resetTimer = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     const elapsed = getElapsed();
     if (elapsed > 0) {
       const minutesDone = Math.round(elapsed / 60);
@@ -1038,7 +1033,7 @@ export default function FocusScreen() {
   };
 
   const finishEarly = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     stopAmbientSound();
     setAmbientSound('off');
     setIsActive(false);
@@ -1066,11 +1061,11 @@ export default function FocusScreen() {
 
   const applyCustomDuration = () => {
     if (wheelValue >= 1 && wheelValue <= 180) {
-      Haptics.selectionAsync();
+      haptic.select();
       setDuration(wheelValue);
       setCustomVisible(false);
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
     }
   };
 
@@ -1241,7 +1236,7 @@ export default function FocusScreen() {
                         accessibilityRole="button"
                         accessibilityLabel={language === 'tr' ? 'Odak modları' : 'Focus modes'}
                         accessibilityState={{ expanded: modesSheetVisible }}
-                        onPress={() => { Haptics.selectionAsync(); setModesSheetVisible(true); }}
+                        onPress={() => { haptic.select(); setModesSheetVisible(true); }}
                         style={[styles.closeBtn, { backgroundColor: anyModeOn ? theme.primary + '20' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)') }]}
                       >
                         <SlidersHorizontal size={ICON.md} color={anyModeOn ? theme.primary : theme.onSurface} strokeWidth={2.4} />
@@ -1326,7 +1321,7 @@ export default function FocusScreen() {
                         return (
                           <Touchable
                             key={preset.key}
-                            onPress={() => { Haptics.selectionAsync(); setSelectedPreset(preset.key); setDuration(preset.workMins); }}
+                            onPress={() => { haptic.select(); setSelectedPreset(preset.key); setDuration(preset.workMins); }}
                           >
                             <MotiView
                               animate={{ backgroundColor: isSelected ? theme.primary : 'rgba(255,255,255,0.06)' }}
@@ -1346,7 +1341,7 @@ export default function FocusScreen() {
                       {(() => {
                         const isCustom = !PRESETS.some(p => p.workMins * 60 === totalSeconds) && totalSeconds > 0;
                         return (
-                          <Touchable onPress={() => { prepareCustom(); Haptics.selectionAsync(); setCustomVisible(true); }}>
+                          <Touchable onPress={() => { prepareCustom(); haptic.select(); setCustomVisible(true); }}>
                             <MotiView
                               animate={{ backgroundColor: isCustom ? theme.primary : 'rgba(255,255,255,0.06)' }}
                               transition={{ type: 'timing', duration: 220 }}
@@ -1567,11 +1562,11 @@ export default function FocusScreen() {
                   if (isActive && !reduceMotion) {
                     // Nefesi topla: aurora yavaşça (~1.8 sn) içe toplanıp parlar
                     holdBloom.value = withTiming(1, { duration: 1800, easing: ReEasing.out(ReEasing.ease) });
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    haptic.surface();
                     // Toplanma dolunca yumuşak "hazır" haptik (arc: dokun → topla → hazır → bırak)
                     if (chargeHapticRef.current) clearTimeout(chargeHapticRef.current);
                     chargeHapticRef.current = setTimeout(() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      haptic.commit();
                     }, 1800);
                   }
                 }}
@@ -1582,7 +1577,7 @@ export default function FocusScreen() {
                     holdBloom.value = withTiming(0, { duration: 1400, easing: ReEasing.inOut(ReEasing.ease) });
                     releaseRipple.value = 0;
                     releaseRipple.value = withTiming(1, { duration: 1100, easing: ReEasing.out(ReEasing.ease) });
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    haptic.surface();
                   } else {
                     holdBloom.value = 0;
                   }
@@ -1591,7 +1586,7 @@ export default function FocusScreen() {
                   if (!isActive) return;
                   // Uzun basış = topraklanma jesti → zen'i toggle ETME (sadece bloom yaşandı).
                   if (Date.now() - pressStartRef.current > 260) return;
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  haptic.surface();
                   userToggledZenRef.current = true; // elle dokunuldu → otomatik-zen zorlamasın
                   setZenMode(!zenMode);
                 }}
@@ -1819,7 +1814,7 @@ export default function FocusScreen() {
                     onPress={() => {
                       const next = active ? 'off' : type;
                       setAmbientSound(next);
-                      Haptics.selectionAsync();
+                      haptic.select();
                       if (!isActive) {
                         if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
                         if (next !== 'off') {
@@ -1866,7 +1861,7 @@ export default function FocusScreen() {
                     <Touchable
                       key={v}
                       hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
-                      onPress={() => { updateAmbientVolume(v); Haptics.selectionAsync(); }}
+                      onPress={() => { updateAmbientVolume(v); haptic.select(); }}
                       style={{ width: 34, height: 24, justifyContent: 'center', alignItems: 'center' }}
                       accessibilityLabel={`Ses seviyesi ${v * 100}`}
                     >
@@ -2057,7 +2052,7 @@ export default function FocusScreen() {
                   const idx = Math.round(e.nativeEvent.contentOffset.y / WHEEL_ITEM_H);
                   const val = Math.min(180, Math.max(1, idx + 1));
                   setWheelValue(val);
-                  Haptics.selectionAsync();
+                  haptic.select();
                 }}
               >
                 {WHEEL_MINS.map(m => (
@@ -2100,9 +2095,9 @@ export default function FocusScreen() {
             <Text style={[styles.sheetTitle, { color: theme.onSurface, textAlign: 'center' }]}>{language === 'tr' ? 'Odak Modları' : 'Focus Modes'}</Text>
             <Text style={[styles.sheetSub, { color: theme.onSurfaceMuted, textAlign: 'center', marginBottom: S.md }]}>{language === 'tr' ? 'Seansını nasıl geçireceğini seç' : 'Choose how your session runs'}</Text>
             {[
-              { key: 'breath', Ic: Wind, on: breathMode !== 'off', title: language === 'tr' ? 'Nefes' : 'Breathing', desc: language === 'tr' ? 'Ritmik nefes rehberi' : 'Guided breathing rhythm', chevron: true, onPress: () => { Haptics.selectionAsync(); setModesSheetVisible(false); setTimeout(() => setBreathPickerVisible(true), 260); } },
-              { key: 'pomo', Ic: Timer, on: pomodoroMode, title: 'Pomodoro', desc: language === 'tr' ? 'Çalış / mola döngüleri' : 'Work / break cycles', chevron: false, onPress: () => { Haptics.selectionAsync(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); } },
-              { key: 'strict', Ic: Shield, on: strictMode, title: language === 'tr' ? 'Katı Odak' : 'Strict Focus', desc: language === 'tr' ? 'Seans bitene dek çıkışı kilitler' : 'Locks the exit until done', chevron: false, onPress: () => { Haptics.selectionAsync(); setStrictMode(!strictMode); } },
+              { key: 'breath', Ic: Wind, on: breathMode !== 'off', title: language === 'tr' ? 'Nefes' : 'Breathing', desc: language === 'tr' ? 'Ritmik nefes rehberi' : 'Guided breathing rhythm', chevron: true, onPress: () => { haptic.select(); setModesSheetVisible(false); setTimeout(() => setBreathPickerVisible(true), 260); } },
+              { key: 'pomo', Ic: Timer, on: pomodoroMode, title: 'Pomodoro', desc: language === 'tr' ? 'Çalış / mola döngüleri' : 'Work / break cycles', chevron: false, onPress: () => { haptic.select(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); } },
+              { key: 'strict', Ic: Shield, on: strictMode, title: language === 'tr' ? 'Katı Odak' : 'Strict Focus', desc: language === 'tr' ? 'Seans bitene dek çıkışı kilitler' : 'Locks the exit until done', chevron: false, onPress: () => { haptic.select(); setStrictMode(!strictMode); } },
             ].map((row) => (
               <Touchable
                 key={row.key}
@@ -2184,7 +2179,7 @@ export default function FocusScreen() {
                     onPress={() => {
                       setBreathMode(mode);
                       setBreathPickerVisible(false);
-                      Haptics.selectionAsync();
+                      haptic.select();
                     }}
                     style={{
                       flexDirection: 'row',
@@ -2286,7 +2281,7 @@ export default function FocusScreen() {
                           key={num}
                           hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
                           onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            haptic.surface();
                             setUserRating(num);
                             track('ux_rating_submitted', { score: num, type: 'CES_focus' });
                             setRatingSubmitted(true);
@@ -2330,7 +2325,7 @@ export default function FocusScreen() {
 
             <Touchable
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                haptic.commit();
                 setSummaryVisible(false);
                 setUserRating(null);
                 setRatingSubmitted(false);

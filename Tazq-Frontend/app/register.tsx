@@ -18,7 +18,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
 import { Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, CheckSquare, Square, Sparkles } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '@/shared/services/api';
 import { useAuthStore } from '@/features/user';
@@ -32,6 +31,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { BackButton } from '@/shared/components/BackButton';
 import { validateRegister } from '@/shared/utils/validation';
 import { httpStatusOf, isNetworkError, errorMessage, errorCode, httpRawDataOf } from '@/shared/utils/errors';
+import { haptic } from '@/shared/utils/haptics';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -90,7 +90,7 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     setError(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
 
     try {
       await GoogleSignin.hasPlayServices();
@@ -103,11 +103,11 @@ export default function RegisterScreen() {
       const { token, refreshToken } = await AuthService.googleLogin(idToken);
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       router.replace('/');
     } catch (err: unknown) {
       console.warn('[Google Sign-In Error]', err);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       if (errorCode(err) === 'SIGN_IN_CANCELLED' || errorMessage(err).includes('Sign in cancelled')) {
         return;
       }
@@ -143,7 +143,7 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     setError(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
 
     try {
       const credential = await AppleAuthentication.signInAsync({
@@ -166,11 +166,11 @@ export default function RegisterScreen() {
 
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       router.replace('/');
     } catch (err: unknown) {
       console.warn('[Apple Sign-In Error]', err);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       if (errorCode(err) === 'ERR_REQUEST_CANCELED' || errorCode(err) === 'ERR_CANCELED') {
         return;
       }
@@ -201,14 +201,14 @@ export default function RegisterScreen() {
 
     setIsLoading(true);
     setError(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
 
     try {
       // 1) KAYIT adımı — hatası net bir sebep gösterir ("sebebi yok" olmaz).
       try {
         await AuthService.register({ name, email, password });
       } catch (err: unknown) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        haptic.error();
         if (isNetworkError(err)) { setError(t.login.networkError); return; }
         const status = httpStatusOf(err) ?? 0;
         // Ham gövde: bu uç JSON ya da düz metin dönebiliyor, iki dal da korunmalı.
@@ -234,7 +234,7 @@ export default function RegisterScreen() {
       }
 
       // 2) Kayıt BAŞARILI — kod e-postaya gönderildi. Doğrulama ekranına yönlendir.
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       router.push({ pathname: '/verify-email', params: { email } });
     } finally {
       setIsLoading(false);
@@ -352,7 +352,7 @@ export default function RegisterScreen() {
 
                     {/* Legal consent */}
                     <Touchable
-                      onPress={() => { Haptics.selectionAsync(); setConsentChecked(v => !v); }}
+                      onPress={() => { haptic.select(); setConsentChecked(v => !v); }}
                       accessibilityRole="checkbox"
                       accessibilityLabel={language === 'tr' ? 'Kullanım koşullarını, gizlilik politikasını ve KVKK aydınlatma metnini okudum, kabul ediyorum' : 'I have read and accept the terms, privacy policy and data notice'}
                       accessibilityState={{ checked: consentChecked }}

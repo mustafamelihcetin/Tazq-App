@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Calendar, Target, Bell, X, Sparkles, Mic, Timer, Repeat, Trash2, Plus, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { Touchable } from '@/shared/components/Touchable';
 import VoiceService from '@/shared/utils/voice';
@@ -12,6 +11,7 @@ import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { haptic } from '@/shared/utils/haptics';
 
 const SWIPE_THRESHOLD = -80;
 
@@ -288,7 +288,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       setIsListeningDesc(false);
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
     field === 'title' ? setIsListeningTitle(true) : setIsListeningDesc(true);
 
     await VoiceService.start({
@@ -351,7 +351,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
     today.setHours(0, 0, 0, 0);
     
     if (selected < today) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       setDateError(true);
       setTimeout(() => setDateError(false), 2500);
       return;
@@ -374,7 +374,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   const handleSave = async () => {
     if (!form.title.trim()) { 
       setTitleError(true); 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); 
+      haptic.error(); 
       Alert.alert(t.errorTitle, t.titleRequired);
       return; 
     }
@@ -666,7 +666,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                   ] as { key: Priority; label: string }[]).map((p) => (
                     <Touchable
                       key={p.key}
-                      onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, priority: p.key })); }}
+                      onPress={() => { haptic.select(); setForm(f => ({ ...f, priority: p.key })); }}
                       style={[styles.priorityTab, { backgroundColor: form.priority === p.key ? priorityColor(p.key) : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 48 }]}
                     >
                       <Text style={[
@@ -693,7 +693,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     <Touchable
                       key={r.key}
                       hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }}
-                      onPress={() => { Haptics.selectionAsync(); setForm(f => ({ ...f, recurrence: r.key })); }}
+                      onPress={() => { haptic.select(); setForm(f => ({ ...f, recurrence: r.key })); }}
                       style={[styles.priorityTab, { backgroundColor: form.recurrence === r.key ? theme.secondary : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 42 }]}
                     >
                       {r.key !== 'None' && <Repeat size={ICON.xs} color={form.recurrence === r.key ? 'white' : theme.onSurfaceVariant} />}
@@ -723,7 +723,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
               <View style={styles.section}>
                 <Touchable
                   onPress={() => {
-                    Haptics.selectionAsync();
+                    haptic.select();
                     setForm(f => {
                       const nextReminderEnabled = !f.reminderEnabled;
                       let nextDueTime = f.dueTime;
@@ -840,7 +840,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                         const subs = [...form.subtasks];
                         subs[i].done = !subs[i].done;
                         setForm(f => ({ ...f, subtasks: subs }));
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        haptic.surface();
                       }}
                       style={{ width: 24, height: 24, borderRadius: R.sm, borderWidth: 1.5, borderColor: sub.done ? theme.success : theme.outline, alignItems: 'center', justifyContent: 'center', backgroundColor: sub.done ? theme.success + '1A' : 'transparent' }}
                     >
@@ -853,7 +853,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       accessibilityRole="button"
                       accessibilityLabel={language === 'tr' ? 'Alt görevi sil' : 'Delete subtask'}
                       onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        haptic.commit();
                         setForm(f => ({ ...f, subtasks: f.subtasks.filter((_, idx) => idx !== i) }));
                       }}
                       style={{ padding: S.xs }}
@@ -918,7 +918,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       <Touchable
                         key={tagOption}
                         onPress={() => {
-                          Haptics.selectionAsync();
+                          haptic.select();
                           if (hasTag) setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tagOption) }));
                           else setForm(f => ({ ...f, tags: [...f.tags, tagOption] }));
                         }}
@@ -950,7 +950,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
               {task && onDelete && (
                 <Touchable
                   onPress={async () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                    haptic.commit();
                     setSaving(true);
                     try {
                       await onDelete(task.id);

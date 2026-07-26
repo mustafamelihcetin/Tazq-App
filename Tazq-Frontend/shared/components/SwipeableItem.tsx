@@ -12,16 +12,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Trash2 } from 'lucide-react-native';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import * as HapticsOriginal from 'expo-haptics';
-const Haptics = {
-  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
-  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
-  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
-  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
-  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
-};
+// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
+// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { ICON, S, R } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { haptic } from '@/shared/utils/haptics';
 
 interface Props {
   children: React.ReactNode;
@@ -32,7 +27,7 @@ interface Props {
 
 // Worklet-safe: called via runOnJS so haptics fires from JS thread
 function triggerLightHaptic() {
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  haptic.surface();
 }
 
 export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Props) => {

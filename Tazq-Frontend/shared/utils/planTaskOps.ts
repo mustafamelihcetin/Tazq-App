@@ -29,6 +29,47 @@ export function retirePlanTask(taskId: number, planMode?: string): void {
 }
 
 /**
+ * MOD BAŞINA GÖREV ETİKETLERİ — tek kaynak.
+ *
+ * Daha önce yalnızca `usePlanAdaptations.ts` içinde tanımlıydı ve orada UYGULAMA
+ * AÇILIŞINDA çalışan "orphan sweep" tarafından kullanılıyordu. Mod KAPATILDIĞI ANDA
+ * ise kartlar yalnız ID tabanlı temizlik yapıyordu (`planTaskIds.forEach(retire)`).
+ * Bir görev o listeden düşmüşse (offline tempId→realId kayması, başarısız silme,
+ * prefs sıfırlanması) ekranda kalıyor ve ancak bir sonraki açılışta siliniyordu.
+ * Kullanıcı için görüntü şu: "modu kapattım ama görevi hâlâ duruyor".
+ *
+ * NOT: 'weight_entry' bilinçli DIŞARIDA (kilo geçmişi korunur); 'daily' modlar arası
+ * ortak olduğundan tek başına kullanılmaz — slot etiketleri (exam/spor/…) günlük
+ * görevleri zaten kapsar.
+ */
+export const MODE_TASK_TAGS: Record<string, string[]> = {
+  exam: ['exam', 'exam2', 'exam3', 'yks', 'kpss', 'sinav_eve', 'sinav_week', 'sinav_sprint_start', 'sinav_60'],
+  tez: ['tez', 'tez_weekly', 'tez_final_2weeks', 'tez_sprint_30', 'tez_60'],
+  mulakat: ['mulakat', 'mulakat2', 'mulakat3', 'mulakat_day', 'mulakat_eve', 'mulakat_3days', 'mulakat_week', 'mulakat_2weeks'],
+  spor: ['spor', 'spor2', 'spor3', 'kilo', 'maraton', 'guc', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress'],
+  ramazan: ['ramazan', 'ramazan_kadir'],
+  tasarruf: ['tasarruf', 'budget_entry'],
+  birakma: ['birakma'],
+};
+
+/**
+ * Bir modun TÜM görevlerini etikete göre emekliye ayırır — id listesine bakmadan.
+ *
+ * Mod kapatılırken ÇAĞRILMALI. ID tabanlı temizlik "bildiğimiz" görevleri siler;
+ * bu ise "moda ait olan her şeyi" siler. Tamamlanmış görevler de dahildir —
+ * `retirePlanTask` onları önce completion journal'a işler, yani istatistik kaybolmaz,
+ * sadece aktif listeden kalkar.
+ */
+export function retireModeTasksByTag(mode: keyof typeof MODE_TASK_TAGS | string): void {
+  const tags = MODE_TASK_TAGS[mode];
+  if (!tags) return;
+  const tagSet = new Set(tags);
+  useTaskStore.getState().tasks
+    .filter(t => (t.tags ?? []).some(tag => tagSet.has(tag)))
+    .forEach(t => retirePlanTask(t.id, mode));
+}
+
+/**
  * Bir plan görevini bugüne erteler/aktarır (rollover): hem yerelde hem de
  * offline-first olarak sunucuda tarihini bugünün tarihi yapar.
  */

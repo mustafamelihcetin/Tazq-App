@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Platform, Linking } from 'react-native';
+import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Platform, Linking, KeyboardAvoidingView } from 'react-native';
 import { MotiView } from 'moti';
-import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Zap } from 'lucide-react-native';
 import { S, R, B, F } from '@/shared/constants/tokens';
 import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { haptic } from '@/shared/utils/haptics';
 
 /**
  * Uygulama değerlendirme / geri bildirim modalı.
@@ -61,14 +61,14 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
   };
 
   const handleLater = async () => {
-    Haptics.selectionAsync();
+    haptic.select();
     onClose();
     await markPrompted();
   };
 
   const handleSubmit = async () => {
     if (rating === null) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     await markPrompted();
 
     if (rating >= POSITIVE_RATING_THRESHOLD) {
@@ -107,7 +107,13 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: S.lg }}>
+      {/* Ortalanmış diyalog + TextInput: klavye açılınca kutu klavyenin ALTINDA
+          kalıyordu (iOS'ta ekran kaymaz, modal olduğu yerde durur). KAV içeriği
+          klavyenin üstüne taşır. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: S.lg }}
+      >
         <MotiView
           from={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -115,6 +121,9 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
           style={{
             width: '100%',
             maxWidth: 400,
+            // Klavye açıkken kalan alana KÜÇÜLEBİLSİN. Sabit yükseklikli bir kart,
+            // klavye alanı yiyince ortadan taşar ve üst/alt kırpılır.
+            flexShrink: 1,
             backgroundColor: theme.surface,
             borderColor: theme.outlineVariant,
             borderWidth: B.thin,
@@ -153,7 +162,7 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
                       accessibilityState={{ selected: active }}
                       accessibilityLabel={tr ? `${star} yıldız` : `${star} stars`}
                       onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        haptic.commit();
                         setRating(star);
                       }}
                       style={{ padding: S.xs }}
@@ -248,7 +257,7 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
             </MotiView>
           )}
         </MotiView>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

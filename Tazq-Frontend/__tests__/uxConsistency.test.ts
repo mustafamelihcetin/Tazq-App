@@ -219,3 +219,234 @@ describe('iki dillilik (TR/EN)', () => {
     expect(missing).toEqual([]);
   });
 });
+
+describe('ikon dili — ham emoji değil, flat glif', () => {
+  /**
+   * Uygulama flat ikon dili kullanır (AppIcon / lucide + `renderModeEmojiIcon`
+   * eşlemesi). Ham emoji üç sebeple yasak:
+   *   · platforma göre farklı çizilir (iOS/Android/Windows ayrı sanatçı),
+   *   · tema-duyarsızdır — koyu temada olduğu gibi kalır,
+   *   · palet ve kontrast disiplininin tamamen dışındadır.
+   *
+   * Bu tur ihlal edildi: mod kapatma toast'larına emoji önekleri eklendi
+   * (📚 Tez, 💼 Mülakat, 💪 Spor, 🌙 Ramazan). Toast zaten tipine göre kendi
+   * ikonunu çiziyor; emoji hem gereksiz hem dil dışıydı.
+   */
+  const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
+  const NOTIFY_FILES = [
+    'app/modlar.tsx',
+    'features/modes/components/modes/ExamCard.tsx',
+    'features/modes/components/modes/TezCard.tsx',
+    'features/modes/components/modes/MulakatCard.tsx',
+    'features/modes/components/modes/SporCard.tsx',
+    'features/modes/components/modes/RamazanCard.tsx',
+  ];
+
+  it('bildirim/toast metinleri emoji öneki taşımaz', () => {
+    const hits: string[] = [];
+    for (const f of NOTIFY_FILES) {
+      stripComments(read(f)).split('\n').forEach((line, i) => {
+        const m = line.match(/'([^']*(?:modu kapatıldı|mode closed)[^']*)'/);
+        if (m && EMOJI.test(m[1])) hits.push(`${f}:${i + 1}`);
+      });
+    }
+    expect(hits).toEqual([]);
+  });
+});
+
+describe('başlık çubuğu öğe ölçüleri', () => {
+  /**
+   * Avatar bir süre glif ikondan BÜYÜKTÜ (34 vs 30) ve o doğruydu: çubukta ÜÇ öğe
+   * vardı (avatar · TAZQ kelime işareti · durum rozeti) ve bir fotoğraf, aynı
+   * kutudaki tek renkli bir gliften optik olarak küçük okunur.
+   *
+   * Kelime işareti kalkınca gerekçe de düştü. Artık iki öğe var ve ikisi karşılıklı
+   * KENARDA; aralarında hiçbir şey yokken göz onları doğrudan karşılaştırır ve farklı
+   * çap "denge" değil "hata" gibi okunur. Optik telafi kaldırılmadı, yer değiştirdi:
+   * artık avatarın çevresindeki halka inceltilerek yapılıyor.
+   */
+  const tokens = read('shared/constants/tokens.ts');
+  const item = Number(tokens.match(/TOP_ITEM_SIZE = (\d+)/)?.[1]);
+
+  it('iki kenar öğesi AYNI ölçüde — takma ad, bir daha ayrışamaz', () => {
+    expect(tokens).toMatch(/TOP_AVATAR_SIZE = TOP_ITEM_SIZE/);
+  });
+
+  it('kenar öğeleri 44pt çubuğa nefes payıyla sığar', () => {
+    const bar = Number(tokens.match(/TOP_BAR_HEIGHT = (\d+)/)?.[1]);
+    expect(bar - item).toBeGreaterThanOrEqual(8); // üst+alt toplam >= 8pt
+  });
+
+  it('dashboard avatarı avatar ölçüsünü kullanır', () => {
+    const src = read('app/index.tsx');
+    expect(src).toMatch(/avatarContainer: \{ width: TOP_AVATAR_SIZE, height: TOP_AVATAR_SIZE/);
+  });
+
+  /**
+   * Halka, kişiselleştirme rengi seçilince 2.5pt DOLU bir çember oluyordu. Solda dolu
+   * bir fotoğraf + kalın renkli halka, sağda saydam zeminli ince bir glif vardı: çubuk
+   * gözle görülür biçimde sola ağırlık yapıyordu — üstelik yalnız renk seçen
+   * kullanıcılarda, yani tasarımı test edenin göremeyeceği bir durumda.
+   */
+  it('avatar halkası HER durumda hairline — kalınlık kişiselleştirmeye bağlı değil', () => {
+    const src = read('app/index.tsx');
+    const block = src.match(/hitSlop=\{touchSlop\(TOP_AVATAR_SIZE\)\}[\s\S]*?borderWidth: [^,\n]+/)?.[0] ?? '';
+    // Renk seçilince kalınlaşıyordu (2.5 → 1.5): dolu fotoğraf + kalın renkli halka,
+    // karşısındaki saydam zeminli glife göre gözle görülür biçimde ağır basıyordu.
+    // Üstelik yalnız renk SEÇEN kullanıcılarda — tasarımı test edenin göremeyeceği durum.
+    expect(block).toMatch(/borderWidth: B\.thin\s*$/);
+  });
+
+  /**
+   * Varsayılan halka `rgba(255,255,255,0.1)` yazılıydı: AÇIK TEMADA beyaz üstünde
+   * beyaz, yani hiç görünmüyordu. Koyu temada bakılıp doğru sanılmış bir renk.
+   */
+  it('varsayılan halka rengi tema jetonundan gelir — açık temada da görünür', () => {
+    const src = read('app/index.tsx');
+    const line = src.match(/borderColor: \(!avatarBorderColor.*/)?.[0] ?? '';
+    expect(line).toContain('theme.outlineVariant');
+    // Kod içinde (yorumlar hariç) o renk hiç kalmamalı: aynı hata başka kutulara
+    // kopyalanmıştı — kullanılmayan `quickDraftSheet` stili de aynısını taşıyordu.
+    const code = src
+      .split('\n')
+      .filter((l) => !l.trim().startsWith('//'))
+      .join('\n');
+    expect(code).not.toContain('rgba(255,255,255,0.1)');
+  });
+});
+
+/**
+ * ANA SAYFADA İKİ BAŞLIK SİSTEMİ SORUNU.
+ *
+ * Başlık çubuğunun ortasında hiç değişmeyen bir TAZQ kelime işareti, hemen altında
+ * ise 28pt'lik selamlama vardı. Kullanıcı aşağı kaydırınca selamlama gidiyor, yerine
+ * hiçbir şey gelmiyordu: geriye nerede olduğunu söylemeyen bir çubuk kalıyordu.
+ * iOS'ta bunlar TEK sistemdir — büyük başlık kaydıkça kompakt başlığa dönüşür.
+ */
+describe('ana sayfa başlığı — tek sistem', () => {
+  const src = read('app/index.tsx');
+  const header = read('shared/components/ScreenHeader.tsx');
+
+  /**
+   * Kelime işareti bir ara tamamen KALDIRILMIŞTI. Teşhis doğruydu (çubuk kaydırıldığında
+   * hiçbir şey söylemiyordu) ama tedavi yanlıştı: hiç şikâyet edilmemiş bir şeyi bozdu
+   * ve logo tıklanabilir olduğu için komut paletinin tek girişini de götürdü.
+   * Doğru çözüm ikisini AYNI yuvada sıraya koymak.
+   */
+  it('marka işareti duruyor ve tıklanabilir', () => {
+    expect(src).toContain('<TazqLogo height={24} />');
+    expect(src).toContain('onPress={handleLogoPress}');
+  });
+
+  it('logo ile başlık aynı yuvayı paylaşır — çapraz geçiş', () => {
+    expect(header).toContain('inverseProgress');
+    // İkisi de mutlak konumlu olmalı: akışta yer kapsalardı geçiş sırasında
+    // birbirlerini iterlerdi.
+    expect(header).toMatch(/centerOverlay: \{\s*position: 'absolute'/);
+  });
+
+  it('sönmüş logo dokunuşu yutmaz — görünmeyen tuzak olmasın', () => {
+    expect(header).toContain("pointerEvents={collapsed ? 'none' : 'box-none'}");
+  });
+
+  /**
+   * ÇUBUĞUN ZEMİNİ de kaydırmaya bağlı. iOS'ta büyük başlık gösterilirken nav bar
+   * görünmezdir; ayraç ancak içerik altına girince belirir. Bir ara yalnız başlık
+   * canlandırılmış, zemin hep açık bırakılmıştı: ortası boş ama çerçevesi çizili bir
+   * araç çubuğu çıkıyordu ve göz onu "bitmemiş" diye okuyordu.
+   */
+  it('çubuğun zemini ve ayracı da kaydırmayla belirir', () => {
+    expect(header).toContain('chromeOpacity');
+    // Ayraç sabit stilde KALMAMALI, yoksa hep görünür olur.
+    expect(header).not.toMatch(/bar: \{[^}]*borderBottomWidth/s);
+  });
+
+  it('başlık kaydırmaya bağlı — sabit bir eşik değil, ölçülen yükseklik', () => {
+    expect(src).toContain('scrollY={scrollY}');
+    expect(src).toContain('collapseAt={titleCollapseAt}');
+    // Eşik selamlamanın ÖLÇÜLEN yüksekliğinden türemeli: punto dar ekranda 22,
+    // geniş ekranda 28 ve uzun isim onu iki satıra taşırıyor. Sabit sayı bu üç
+    // durumdan yalnız birinde doğru olurdu.
+    expect(src).toContain('setHeroHeight(e.nativeEvent.layout.height)');
+    expect(src).toMatch(/heroHeight - S\.lg/);
+  });
+
+  it('kaydırma UI thread\'inde — her karede React render etmez', () => {
+    expect(src).toContain('useNativeDriver: true');
+    expect(src).toContain('<Animated.ScrollView');
+  });
+});
+
+/**
+ * Komut paletinin (görev arama + akıllı hızlı ekleme) girişi marka işaretine dokunmak.
+ * Logo bir ara kaldırıldığında bu özellik de sessizce erişilemez kalmıştı — bir daha
+ * olmasın diye giriş test altında.
+ */
+describe('komut paleti erişilebilir', () => {
+  const src = read('app/index.tsx');
+
+  it('logonun bir işi var — paleti açar', () => {
+    expect(src).toContain('const handleLogoPress = useCallback(');
+    expect(src).toContain('setCommandPortalVisible(true)');
+  });
+
+  it('paleti açan tek yol odur — gizli ikinci bir tetik yok', () => {
+    const opens = src.match(/setCommandPortalVisible\(true\)/g) ?? [];
+    expect(opens).toHaveLength(1);
+  });
+
+  it('panel BEKLEMEDEN açılır', () => {
+    // 220ms gecikme vardı (logo nabzı bitsin diye) — gözle görülür bir tepki
+    // gecikmesiydi. Animasyon paletin arkasında sürebilir, beklemek gerekmiyor.
+    const fn = src.match(/const handleLogoPress = useCallback\([\s\S]*?\n  \}, \[\]\);/)?.[0] ?? '';
+    expect(fn).not.toContain('setTimeout');
+    // Açılan yüzeyin karşılığı TEK `surface` — çift atış aynı olayı iki kez anlatıyordu.
+    expect(fn.match(/haptic\./g) ?? []).toHaveLength(1);
+    expect(fn).toContain('haptic.surface()');
+  });
+});
+
+/**
+ * APPLE'IN RENK KURALI — yüzeyler temiz, renk küçük ve doygun.
+ *
+ * İki dashboard kartının da üstünde köşegen bir renk yıkaması vardı: vurgu rengi kartın
+ * TAMAMINA %12–28 opaklıkla seriliyordu. "Dekoratif" diye meşru sayılmıştı ama iki şeyi
+ * birden bozuyordu — beyaz yüzeyi kirletiyor ve rengi anlam taşıyamayacak kadar
+ * soluklaştırıyordu. %12'ye inen bir kırmızı "acil" demez, sadece ortamı boyar.
+ *
+ * iOS'ta renk üç yerde görünür ve hep TAM doygunlukta: kontroller (düğme), semboller,
+ * veri görselleştirmesi (halka, grafik). Yüzeyin kendisi boyanmaz.
+ */
+describe('kart yüzeyleri temiz — renk veriye ait', () => {
+  const CARDS = [
+    'features/dashboard/components/TodayCard.tsx',
+    'features/dashboard/components/NextMissionCard.tsx',
+  ];
+
+  it.each(CARDS)('%s kartın tamamına renk sermiyor', (rel) => {
+    const src = read(rel);
+    // `absoluteFill` + gradyan = yüzey yıkaması. SVG içindeki gradyan (halkanın kendisi)
+    // ayrı bir şey: o veri görselleştirmesi, yüzey değil.
+    expect(src).not.toMatch(/<LinearGradient[\s\S]*?StyleSheet\.absoluteFill/);
+    expect(src).not.toContain("from 'expo-linear-gradient'");
+  });
+
+  /**
+   * Halka çapın %10'u kalınlığındaydı; o oranda çizilen şey "halka" değil "ince çember"
+   * gibi okunur. Yüzey yıkaması kalkınca sayfadaki tek canlı renk bu halka oldu —
+   * görülebilmesi gerekiyor. Apple'ın Fitness halkaları çapın ~%18'i.
+   */
+  it('ilerleme halkası yeterince kalın — rengi taşıyabilmeli', () => {
+    const src = read('features/dashboard/components/TodayCard.tsx');
+    const ring = Number(src.match(/const RING = (\d+);/)?.[1]);
+    const stroke = Number(src.match(/const RING_STROKE = (\d+);/)?.[1]);
+    expect(stroke / ring).toBeGreaterThanOrEqual(0.12);
+  });
+
+  it('halkanın boş kısmı AYNI rengin soluk hâli — nötr gri değil', () => {
+    // `theme.outline` ile çizilince halka "gri çember + renkli yay" yani iki ayrı nesne
+    // gibi okunuyordu. Apple'ın halkalarında boşluk, o metriğin dolmamış kısmıdır.
+    const src = read('features/dashboard/components/TodayCard.tsx');
+    expect(src).toMatch(/stroke=\{accent \+ '1A'\}/);
+  });
+});

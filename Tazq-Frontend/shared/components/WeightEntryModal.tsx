@@ -8,11 +8,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Modal, View, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, Keyboard,
+  Modal, View, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, Keyboard, ScrollView,
   KeyboardAvoidingView, Platform, Animated, StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 import { Activity } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -21,6 +20,7 @@ import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
 import { Touchable } from '@/shared/components/Touchable';
 import { recordWeeklyWeight, daysUntilNextWeight } from '@/shared/utils/weightCheckin';
+import { haptic } from '@/shared/utils/haptics';
 
 interface Props {
   visible: boolean;
@@ -65,7 +65,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
   const handleSave = async () => {
     const kg = parseFloat(input.replace(',', '.'));
     if (isNaN(kg) || kg < 20 || kg > 300) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       return;
     }
     setSaving(true);
@@ -74,13 +74,13 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
       // taskId geçiliyor → kullanıcının BASTIĞI görev öncelikli kapatılır.
       const ok = await recordWeeklyWeight(kg, tr ? 'tr' : 'en', taskId);
       if (!ok) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        haptic.error();
         const left = daysUntilNextWeight(useSporStore.getState().weightLog);
         setErr(tr ? `Kilo 7 günde bir girilir. ${left} gün sonra tekrar gir.` : `Weight is logged every 7 days. Try again in ${left} day(s).`);
         setSaving(false);
         return;
       }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       onSaved?.();
       onClose();
       // Adaptasyon motoru çalıştır
@@ -118,6 +118,8 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             paddingTop: S.sm,
             paddingBottom: insets.bottom > 0 ? insets.bottom : S.xl,
             paddingHorizontal: S.lg,
+            // Klavye açılınca KAV'ın iç alanı daralır; sheet küçülemezse taşar.
+            flexShrink: 1,
             transform: [{ translateY: slideAnim }],
           }}
         >
@@ -148,6 +150,14 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             </View>
           </View>
 
+          {/* Küçük ekranda klavye açıkken gövde taşabiliyordu (başlık + giriş +
+              fark + son 3 kayıt + uyarı). Kaydırılabilir gövde bunu yapısal
+              olarak imkânsız kılar; 'Kaydet' düğmesi sabit kalır. */}
+          <ScrollView
+            style={{ flexShrink: 1 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
           {/* Input row */}
           <View style={{
             flexDirection: 'row', alignItems: 'center', gap: S.sm,
@@ -198,6 +208,8 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
           {err ? (
             <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>{err}</Text>
           ) : null}
+
+          </ScrollView>
 
           {/* Save button */}
           <Touchable

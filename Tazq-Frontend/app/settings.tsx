@@ -8,7 +8,7 @@ import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -16,14 +16,8 @@ import { SupportModal } from '@/shared/components/SupportModal';
 import { useAuthStore, getAvatarSource, AVATAR_CONFIGS, AVATAR_MAP, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
-import * as HapticsOriginal from 'expo-haptics';
-const Haptics = {
-  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
-  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
-  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
-  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
-  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
-};
+// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
+// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
@@ -44,6 +38,7 @@ import { isNetworkError, httpDataOf } from '@/shared/utils/errors';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { SettingsCard, SettingItem, ToggleRow, RowDivider, settingsAccents } from '@/shared/components/SettingsRows';
 import { AppIcon } from '@/shared/components/AppIcon';
+import { haptic } from '@/shared/utils/haptics';
 
 /**
  * Ayarlar sayfası — profil'den AYRILDI. İçerik profile.tsx'ten BYTE-BYTE çıkarıldı;
@@ -94,7 +89,7 @@ export default function SettingsScreen() {
   const streakShields = useFocusStore(s => s.streakShields);
   const { habits, toggleDate } = useHabitStore();
   const { tasks } = useTaskStore();
-  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours } = usePrefsStore();
+  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, hapticFeedback, setHapticFeedback, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours } = usePrefsStore();
   const [sleepSupported] = useState(() => SleepHealth.isSupported());
   const { unlocked: unlockedAchievements } = useAchievementStore();
   const isDark = colorScheme === 'dark';
@@ -127,7 +122,7 @@ export default function SettingsScreen() {
   const canConfirmDelete = deleteConfirmText.trim().toLocaleUpperCase(language === 'tr' ? 'tr-TR' : 'en-US') === DELETE_WORD;
 
   const handleSleepToggle = async (v: boolean) => {
-    Haptics.selectionAsync();
+    haptic.select();
     if (v) {
       const ok = await SleepHealth.requestAuthorization();
       setSleepHealthOptIn(ok ? 'yes' : 'no');
@@ -140,10 +135,10 @@ export default function SettingsScreen() {
       setSleepHealthOptIn('no');
     }
   };
-  const cycleSleepGoal = () => { Haptics.selectionAsync(); setSleepGoalHours(sleepGoalHours >= 9 ? 6 : sleepGoalHours + 1); };
+  const cycleSleepGoal = () => { haptic.select(); setSleepGoalHours(sleepGoalHours >= 9 ? 6 : sleepGoalHours + 1); };
 
   const toggleNotifications = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     if (notifEnabled) {
       Alert.alert(t.notifications, t.notifDisableHint, [
         { text: t.cancel, style: 'cancel' },
@@ -163,7 +158,7 @@ export default function SettingsScreen() {
   };
 
   const toggleCalendarSync = async (val: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     if (val) {
       const granted = await requestCalendarPermissions();
       if (granted) {
@@ -223,13 +218,13 @@ export default function SettingsScreen() {
   };
 
   const openDeleteAccount = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
     setDeleteConfirmText('');
     setDeleteModalVisible(true);
   };
 
   const openChangePassword = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     setCurPw(''); setNewPw(''); setConfPw(''); setShowPw(false); setPwError(null);
     setPwModalVisible(true);
   };
@@ -243,12 +238,12 @@ export default function SettingsScreen() {
     setChangingPw(true);
     try {
       await AuthService.changePassword(curPw, newPw);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       Keyboard.dismiss();
       setPwModalVisible(false);
       showToast(language === 'tr' ? 'Şifren güncellendi.' : 'Password updated.', 'success');
     } catch (err: unknown) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       const msg = httpDataOf<{ message?: string }>(err).message;
       setPwError(msg || (language === 'tr' ? 'Şifre değiştirilemedi.' : 'Could not change password.'));
     } finally {
@@ -259,7 +254,7 @@ export default function SettingsScreen() {
   const performDeleteAccount = async () => {
     if (!canConfirmDelete || deleting) return;
     setDeleting(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    haptic.destructive();
     try { await AuthService.deleteAccount(); } catch (e) { swallow('profile.performDeleteAccount', e); }
     setDeleting(false);
     setDeleteModalVisible(false);
@@ -268,12 +263,12 @@ export default function SettingsScreen() {
   };
 
   const toggleLanguage = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     setLanguage(language === 'tr' ? 'en' : 'tr');
   };
 
   const toggleTheme = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.surface();
     const next = currentSetting === 'light' ? 'dark' : currentSetting === 'dark' ? 'system' : 'light';
     setTheme(next);
   };
@@ -299,7 +294,7 @@ export default function SettingsScreen() {
           habits.forEach(h => {
             if (!h.completedDates.includes(todayKey)) toggleDate(h.id, todayKey);
           });
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          haptic.success();
           if (soundEffects) {
             playSoundEffect(require('../assets/sounds/freeze.mp3'), {
               context: 'profile.streakFreezeSound',
@@ -319,7 +314,7 @@ export default function SettingsScreen() {
           kullanıyordu: alt sayfaya inince başlık BÜYÜYORDU (hiyerarşi ters). */}
       <ScreenHeader onBack={() => router.back()} title={catTitle} />
 
-      <ScrollView ref={scrollRef} onContentSizeChange={tryScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl }}>
+      <ScrollView ref={scrollRef} onContentSizeChange={tryScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}>
             {show('notify') && (<>
             {/* ── BİLDİRİMLER ── */}
             <SectionHeader onLayout={e => markSection('notify', e.nativeEvent.layout.y)} title={language === 'tr' ? 'BİLDİRİMLER' : 'NOTIFICATIONS'} theme={theme} tr={language === 'tr'} />
@@ -340,7 +335,7 @@ export default function SettingsScreen() {
                     title={language === 'tr' ? 'Sabah Özeti' : 'Morning Brief'}
                     subtitle={language === 'tr' ? 'Her sabah 08:00 — bugünkü görevler' : 'Daily at 08:00 — today\'s tasks'}
                     value={morningBrief}
-                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setMorningBrief(v); if (!v) cancelMorningBrief(); }}
+                    onValueChange={(v: boolean) => { haptic.select(); setMorningBrief(v); if (!v) cancelMorningBrief(); }}
                     theme={theme} isDark={isDark}
                 />
                 <RowDivider theme={theme} />
@@ -350,7 +345,7 @@ export default function SettingsScreen() {
                     title={language === 'tr' ? 'Akşam Özeti' : 'Evening Brief'}
                     subtitle={language === 'tr' ? 'Her gün 21:00 — günlük tamamlanma' : 'Daily at 21:00 — day completion'}
                     value={eveningBrief}
-                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setEveningBrief(v); if (!v) cancelEveningBrief(); }}
+                    onValueChange={(v: boolean) => { haptic.select(); setEveningBrief(v); if (!v) cancelEveningBrief(); }}
                     theme={theme} isDark={isDark}
                 />
                 <RowDivider theme={theme} />
@@ -360,7 +355,7 @@ export default function SettingsScreen() {
                     title={language === 'tr' ? 'Haftalık Özet' : 'Weekly Summary'}
                     subtitle={language === 'tr' ? 'Her Pazar akşamı momentum özeti' : 'Momentum recap every Sunday'}
                     value={weeklyNotification}
-                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setWeeklyNotification(v); if (!v) cancelWeeklySummary(); }}
+                    onValueChange={(v: boolean) => { haptic.select(); setWeeklyNotification(v); if (!v) cancelWeeklySummary(); }}
                     theme={theme} isDark={isDark}
                 />
                 <RowDivider theme={theme} />
@@ -404,7 +399,7 @@ export default function SettingsScreen() {
                     title={language === 'tr' ? 'Sade Mod' : 'Lite Mode'}
                     subtitle={language === 'tr' ? 'Oyunlaştırma ve modları gizler — sadece görevler' : 'Hides gamification & modes — tasks only'}
                     value={uiMode === 'lite'}
-                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
+                    onValueChange={(v: boolean) => { haptic.select(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
                     theme={theme} isDark={isDark}
                 />
             </SettingsCard>
@@ -418,7 +413,20 @@ export default function SettingsScreen() {
                     title={language === 'tr' ? 'Ses Efektleri' : 'Sound Effects'}
                     subtitle={language === 'tr' ? 'Görev & timer tamamlama sesleri' : 'Task & timer completion sounds'}
                     value={soundEffects}
-                    onValueChange={(v: boolean) => { Haptics.selectionAsync(); setSoundEffects(v); }}
+                    onValueChange={(v: boolean) => { haptic.select(); setSoundEffects(v); }}
+                    theme={theme} isDark={isDark}
+                />
+                <RowDivider theme={theme} />
+                {/* Ses kapatılabiliyordu ama TİTREŞİM kapatılamıyordu — oysa uygulamada
+                    ~293 titreşim çağrısı var (her 1.4 dokunmada bir). Titreşimden
+                    rahatsız olan kullanıcının hiçbir çıkışı yoktu. */}
+                <ToggleRow
+                    icon={<Vibrate size={ICON.md} color="#FFFFFF" />}
+                    bg={A.core}
+                    title={language === 'tr' ? 'Titreşim' : 'Haptics'}
+                    subtitle={language === 'tr' ? 'Dokunma ve işlem geri bildirimleri' : 'Tap and action feedback'}
+                    value={hapticFeedback}
+                    onValueChange={(v: boolean) => { setHapticFeedback(v); if (v) haptic.select(); }}
                     theme={theme} isDark={isDark}
                 />
                 <RowDivider theme={theme} />

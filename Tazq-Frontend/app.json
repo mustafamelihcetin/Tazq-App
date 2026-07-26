@@ -32,6 +32,7 @@
             "usesCleartextTraffic": true,
             "compileSdkVersion": 36,
             "targetSdkVersion": 35,
+            "minSdkVersion": 26,
             "buildToolsVersion": "36.0.0"
           }
         }

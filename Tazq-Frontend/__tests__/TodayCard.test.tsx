@@ -80,11 +80,31 @@ describe('TodayCard', () => {
     expect(() => setup({ completed: 0, goal: 0 })).not.toThrow();
   });
 
-  it('gün başında (0/N) mavi ve %0 gösterir', () => {
-    // Gerçek başlangıç durumu — hedef her zaman >= 1.
+  /**
+   * GÜN BAŞI AYRI BİR AN — "devam ediyor"un alt hâli değil.
+   *
+   * Kart bu anda aynı gerçeği üç kez söylüyordu: büyük `0`, yanında `/3`, sağda `%0`
+   * yazan boş bir halka. Üçü de olumsuz ve ikisi gereksiz. Boş çember ilerleme
+   * göstermez, ekranda delik gibi durur; "görev tamamlandı" cümlesi de 0'ın yanında
+   * "hiçbir şey tamamlamadın" diye okunur.
+   */
+  it('gün başında halkanın içi HEDEFİ gösterir — çift sıfır olmasın', () => {
+    const { queryByTestId, getByTestId } = setup({ completed: 0, goal: 3 });
+    // Solda zaten `0 /3` duruyor; halkada `%0` yazmak aynı gerçeğin ikinci kopyasıydı.
+    expect(queryByTestId('today-pct')).toBeNull();
+    // Halka KALDIRILMIYOR — kaldırılınca kartın sağ yanı boşalıp kart tek yana yatıyordu.
+    expect(getByTestId('today-goal')).toBeTruthy();
+  });
+
+  it('gün başında alt satır ileri bakar', () => {
     const { getByText, getByTestId } = setup({ completed: 0, goal: 3 });
     expect(styleOf(getByTestId('today-completed')).color).toBe(theme.onSurface);
-    expect(getByText('görev tamamlandı')).toBeTruthy();
+    expect(getByText('gün yeni başlıyor')).toBeTruthy();
+  });
+
+  it('ilk görev bitince halka geri gelir — artık gösterecek ilerleme var', () => {
+    const { getByTestId } = setup({ completed: 1, goal: 3 });
+    expect(getByTestId('today-pct')).toBeTruthy();
   });
 
   it('hedefe ulaşılmadan MAVİ kalır', () => {

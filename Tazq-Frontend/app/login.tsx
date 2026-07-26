@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
 import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, CheckCircle2, Sparkles, Ban } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '@/shared/services/api';
 import { useAuthStore } from '@/features/user';
@@ -14,12 +13,13 @@ import { GlassCard } from '@/shared/components/GlassCard';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { AnimatedBackground } from '@/shared/components/AnimatedBackground';
 import { TazqLogo } from '@/shared/components/TazqLogo';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { ICON, S, R, F, scale, verticalScale, moderateScale, B } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { validateLogin, isValidEmail } from '@/shared/utils/validation';
 import { httpStatusOf, isNetworkError, errorMessage, errorCode, httpDataOf } from '@/shared/utils/errors';
+import { haptic } from '@/shared/utils/haptics';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -99,7 +99,7 @@ export default function LoginScreen() {
     setIsLoading(true);
     setError(null);
     setBannedInfo(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
 
     try {
       await GoogleSignin.hasPlayServices();
@@ -112,12 +112,12 @@ export default function LoginScreen() {
       const { token, refreshToken, isNewUser, isReactivated } = await AuthService.googleLogin(idToken);
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken, isNewUser);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
       router.replace('/');
     } catch (err: unknown) {
       console.warn('[Google Sign-In Error]', err);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       if (errorCode(err) === 'SIGN_IN_CANCELLED' || errorMessage(err).includes('Sign in cancelled')) {
         return;
       }
@@ -155,7 +155,7 @@ export default function LoginScreen() {
     setIsLoading(true);
     setError(null);
     setBannedInfo(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
 
     try {
       const credential = await AppleAuthentication.signInAsync({
@@ -178,12 +178,12 @@ export default function LoginScreen() {
 
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken, isNewUser);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
       router.replace('/');
     } catch (err: unknown) {
       console.warn('[Apple Sign-In Error]', err);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       if (errorCode(err) === 'ERR_REQUEST_CANCELED' || errorCode(err) === 'ERR_CANCELED') {
         return;
       }
@@ -208,24 +208,24 @@ export default function LoginScreen() {
     setIsLoading(true);
     setError(null);
     setBannedInfo(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
 
     try {
       const res = await AuthService.login(email, password);
       // E-posta doğrulanmamış → doğrulama ekranına yönlendir (kod tekrar gönderildi)
       if (res?.needsVerification) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        haptic.destructive();
         router.push({ pathname: '/verify-email', params: { email } });
         return;
       }
       const { token, refreshToken, isReactivated } = res;
       const userData = await AuthService.getCurrentUser(token);
       setAuth(userData, token, refreshToken);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
       router.replace('/');
     } catch (err: unknown) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptic.error();
       const data = httpDataOf<{ banned?: boolean; reason?: string; bannedUntil?: string }>(err);
       if (isNetworkError(err)) {
         setError(t.login.networkError);
@@ -287,7 +287,7 @@ export default function LoginScreen() {
     try {
       await AuthService.forgotPassword(forgotEmail.trim());
       setForgotResendIn(45);
-      Haptics.selectionAsync();
+      haptic.select();
       useToastStore.getState().show(language === 'tr' ? 'Yeni bağlantı gönderildi' : 'New link sent', 'success');
     } catch {
       /* sessiz — güvenlik için hesap varlığını sızdırmayız */
@@ -584,7 +584,7 @@ export default function LoginScreen() {
           >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
-            <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+            <AppBlur material="regular" tint="dark" />
             <GlassCard style={styles.modalCard}>
               {forgotSuccess ? (
                 <View style={{ alignItems: 'center', gap: S.md, paddingVertical: S.sm }}>

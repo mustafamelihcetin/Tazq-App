@@ -6,9 +6,9 @@ import { Zap } from 'lucide-react-native';
 import { useFocusStore } from '../store/useFocusStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useRouter, usePathname } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
+import { haptic } from '@/shared/utils/haptics';
 
 export const FocusIsland = () => {
   const isActive = useFocusStore(s => s.isActive);
@@ -57,7 +57,6 @@ export const FocusIsland = () => {
         />
         <Touchable
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.push('/focus');
           }}
           style={styles.inner}

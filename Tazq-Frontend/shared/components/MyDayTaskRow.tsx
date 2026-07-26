@@ -109,8 +109,13 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
             <Text style={{
               fontSize: 9,
               fontWeight: '600',
-              color: isOverdue ? theme.error : theme.onSurfaceVariant,
-              opacity: 0.5,
+              // GECİKME BİR HATA DEĞİL, DURUM. `error` (kırmızı) ile çiziliyordu; kırmızı
+              // gerçekten bozulan şeyler için ayrılmalı, yoksa her yerde kırmızı gören
+              // kullanıcı onu okumayı bırakır. `warning` iki temada da AA geçiyor.
+              color: isOverdue ? theme.warning : theme.onSurfaceMuted,
+              // `opacity: 0.5` KALDIRILDI: palet rengini kullanım yerinde kısmak,
+              // ölçülmüş kontrastı çöpe atar (bkz. colorContrast.test.ts). Soluk görünüm
+              // artık ölçülmüş bir seviyeden geliyor, elle kısmadan.
               marginTop: S.xxs
             }}>
               {displayLabel}

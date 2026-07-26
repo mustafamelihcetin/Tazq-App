@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, useWindowDimensions, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
 import {
@@ -160,7 +160,7 @@ export default function PromoScreen() {
           <View style={{ position: 'absolute', top: '20%', right: '-34%', width: '96%', height: '50%', borderRadius: 999, backgroundColor: '#2DD4BF', opacity: 0.32 }} />
           <View style={{ position: 'absolute', bottom: '-14%', left: '-18%', width: '108%', height: '54%', borderRadius: 999, backgroundColor: '#7C3AED', opacity: 0.44 }} />
           <View style={{ position: 'absolute', bottom: '4%', right: '-22%', width: '70%', height: '38%', borderRadius: 999, backgroundColor: '#DB2777', opacity: 0.24 }} />
-          <BlurView intensity={75} tint="dark" style={StyleSheet.absoluteFill} />
+          <AppBlur material="thick" tint="dark" />
           <LinearGradient colors={['rgba(5,6,14,0.55)', 'rgba(5,6,14,0.18)', 'rgba(5,6,14,0.7)']} style={StyleSheet.absoluteFill} />
 
           {/* Üst etiket — ekranın ne olduğu net olsun */}

@@ -50,11 +50,12 @@ const CEILING: Record<string, number> = {
   // artık İKİ tam palet (accent + nötr çiftleri) taşıyor; renk tanımları doğal olarak ~ikiye
   // katlandı. Bilinçli yükseltme (bkz. tema toggle, ACCENTS/NEUTRAL). Bu satır yine yalnız küçülmeli.
   'app/promo.tsx': 57,
-  // 25 → 3: mod vurguları merkezi palete bağlandı (useModeAccent / ModeAccents +
-  // ModeAccentsText). Buradaki ham hex'ler paletin KONTRAST YETERSİZLİĞİ nedeniyle
-  // reddettiği tonlardı (#F97316 = 2.80:1, #10B981 = 2.54:1) ve iki temada aynıydı.
-  // Kalan 3: koyu tema kart zemini (#1C1C22) — yüzey tonu, mod kimliği değil.
-  'app/modlar.tsx': 3,
+  // modlar.tsx LİSTEDEN ÇIKTI (25 → 3 → 0):
+  //   25 → 3 : mod vurguları merkezi palete bağlandı (useModeAccent / ModeAccents).
+  //            Buradaki ham hex'ler paletin KONTRAST YETERSİZLİĞİ nedeniyle reddettiği
+  //            tonlardı (#F97316 = 2.80:1, #10B981 = 2.54:1) ve iki temada aynıydı.
+  //    3 → 0 : kalan koyu tema kart zemini (#1C1C22) `theme.surfaceCard` token'ına
+  //            bağlandı — 9 dosya bu hex'i elle yazıyordu.
   'app/cockpit.tsx': 23,
   // onboarding: temizlendi. 7 marka-dışı slayt rengi (Material #6200ee, #3367ff, #ff2d55…)
   // palet token'larına bağlandı (accentKey → theme/CategoryColors, tema-duyarlı); emoji
@@ -98,7 +99,10 @@ const CEILING: Record<string, number> = {
   'shared/components/TasarrufCard.tsx': 3,
   'shared/components/Toast.tsx': 3,
   'features/user/components/ReviewPromptModal.tsx': 2,
-  'shared/components/AnimatedSplash.tsx': 2,
+  // AnimatedSplash LİSTEDEN ÇIKTI (2 → 0): splash zemini elle yazılıydı
+  // (#F8F8F7 / #0A0A0A) ve uygulamanın zemininden FARKLIYDI (açıkta 4,4,2 RGB).
+  // Splash kaybolurken tüm ekranı kaplayan bir renk sıçraması oluyordu.
+  // Artık Colors.light/dark.background — sıçrama yapısal olarak imkânsız.
   'shared/utils/calendarSync.ts': 2,
   'shared/utils/lifeModePlans.ts': 2,
   // CustomAlert: temizlendi. Yıkıcı-eylem kırmızısı (#EF4444, iki temada da aynı; beyaz

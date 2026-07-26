@@ -15,10 +15,10 @@ import { useAuthStore } from '@/features/user';
 import { AdminService, AdminUser, AdminStats, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary } from '@/shared/services/api';
 import { sendAdminSupportNotification } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, MAX_W, HAIRLINE } from '@/shared/constants/tokens';
-import * as Haptics from 'expo-haptics';
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { swallow } from '@/shared/utils/swallow';
+import { haptic } from '@/shared/utils/haptics';
 
 type SortKey = 'name' | 'tasks' | 'focus' | 'recent';
 
@@ -139,7 +139,7 @@ export default function AdminScreen() {
   }, [tr]);
 
   const handleMarkRead = async (msg: SupportMessageItem) => {
-    Haptics.selectionAsync();
+    haptic.select();
     try {
       await SupportService.markAsRead(msg.id);
       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, isRead: true } : m));
@@ -148,7 +148,7 @@ export default function AdminScreen() {
   };
 
   const performDeleteMessage = async (msg: SupportMessageItem) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
     try {
       await SupportService.deleteMessage(msg.id);
       setMessages(prev => prev.filter(m => m.id !== msg.id));
@@ -173,7 +173,7 @@ export default function AdminScreen() {
     const text = (replyDrafts[msg.id] || '').trim();
     if (!text) return;
     setReplyingId(msg.id);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     try {
       await SupportService.replyMessage(msg.id, text);
       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, adminReply: text, repliedAt: new Date().toISOString(), isRead: true } : m));
@@ -235,7 +235,7 @@ export default function AdminScreen() {
       {
         text: tr ? 'Devam' : 'Proceed', style: 'destructive', onPress: async () => {
           setSysBusy(key);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          haptic.destructive();
           try {
             const r = await fn();
             Alert.alert(tr ? 'Tamam' : 'Done', r?.message || (tr ? 'İşlem tamamlandı.' : 'Operation completed.'));
@@ -267,7 +267,7 @@ export default function AdminScreen() {
 
   const handleExport = async (user: AdminUser) => {
     setExportingFor(user.id);
-    Haptics.selectionAsync();
+    haptic.select();
     try {
       const data = await AdminService.exportUser(user.id);
       await Share.share({
@@ -286,7 +286,7 @@ export default function AdminScreen() {
 
   const handleDelete = (user: AdminUser) => {
     // Yazarak onaylı modal — yıkıcı hard-delete için ekstra sürtünme
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    haptic.destructive();
     setDeleteConfirmText('');
     setDeleteTarget(user);
   };
@@ -300,7 +300,7 @@ export default function AdminScreen() {
       setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
       loadedCountRef.current = Math.max(0, loadedCountRef.current - 1);
       setTotal(t => Math.max(0, t - 1));
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      haptic.success();
       Keyboard.dismiss();
       setDeleteTarget(null);
     } catch {
@@ -312,7 +312,7 @@ export default function AdminScreen() {
 
   const handleToggleRole = (user: AdminUser) => {
     const newRole = user.role === 'Admin' ? 'User' : 'Admin';
-    Haptics.selectionAsync();
+    haptic.select();
     Alert.alert(
       tr ? 'Rol Değiştir' : 'Change Role',
       tr ? `${user.name} → ${newRole} yapılsın mı?` : `Promote ${user.name} to ${newRole}?`,
@@ -346,7 +346,7 @@ export default function AdminScreen() {
     setBanPickerFor(null);
     setBanReason(null);
     setBanReasonCustom('');
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     try {
       await AdminService.setBan(user.id, true, durationDays, reason);
       const bannedUntil = durationDays ? new Date(Date.now() + durationDays * 86400000).toISOString() : null;
@@ -358,7 +358,7 @@ export default function AdminScreen() {
   };
 
   const performUnban = (user: AdminUser) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.commit();
     Alert.alert(
       tr ? 'Banı Kaldır' : 'Unban User',
       tr ? `${user.name} tekrar giriş yapabilecek.` : `${user.name} will be able to log in again.`,
@@ -369,7 +369,7 @@ export default function AdminScreen() {
             await AdminService.setBan(user.id, false);
             setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isBanned: false, bannedUntil: null, banReason: null } : u));
             loadBanHistory(user.id);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            haptic.success();
           } catch {
             Alert.alert(tr ? 'Hata' : 'Error', tr ? 'İşlem başarısız.' : 'Action failed.');
           }
@@ -381,7 +381,7 @@ export default function AdminScreen() {
   const cycleSort = (key: SortKey) => {
     if (sortKey === key) setSortAsc(v => !v);
     else { setSortKey(key); setSortAsc(false); }
-    Haptics.selectionAsync();
+    haptic.select();
   };
 
   const formatLastSeen = (iso?: string) => {
@@ -422,7 +422,7 @@ export default function AdminScreen() {
           {tr ? 'Admin Paneli' : 'Admin Panel'}
         </Text>
         <Touchable
-          onPress={() => { Haptics.selectionAsync(); router.push('/promo'); }}
+          onPress={() => { router.push('/promo'); }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: '#10B98115', borderWidth: B.thin, borderColor: '#10B98140', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.sm }}
           accessibilityRole="button"
           accessibilityLabel={tr ? 'Tanıtım görselleri' : 'Promo images'}
@@ -466,7 +466,7 @@ export default function AdminScreen() {
               const active = activeTab === tb.key;
               const Icon = tb.icon;
               return (
-                <Touchable key={tb.key} onPress={() => { Haptics.selectionAsync(); setActiveTab(tb.key as any); }}
+                <Touchable key={tb.key} onPress={() => { haptic.select(); setActiveTab(tb.key as any); }}
                   style={{ flex: 1, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: active ? theme.primary : 'transparent', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.xs }}>
                   <Icon size={14} color={active ? '#FFF' : theme.onSurfaceVariant} />
                   <Text numberOfLines={1} style={{ color: active ? '#FFF' : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{tb.label}</Text>
@@ -624,7 +624,7 @@ export default function AdminScreen() {
               >
                 {/* Main row */}
                 <Touchable
-                  onPress={() => { const opening = !isExpanded; setExpandedUser(opening ? user.id : null); if (opening && banHistory[user.id] === undefined) loadBanHistory(user.id); if (opening && userDetail[user.id] === undefined) loadUserDetail(user.id); setBanPickerFor(null); Haptics.selectionAsync(); }}
+                  onPress={() => { const opening = !isExpanded; setExpandedUser(opening ? user.id : null); if (opening && banHistory[user.id] === undefined) loadBanHistory(user.id); if (opening && userDetail[user.id] === undefined) loadUserDetail(user.id); setBanPickerFor(null); haptic.select(); }}
                   style={{ flexDirection: 'row', alignItems: 'center', padding: S.md, gap: S.sm }}
                   activeOpacity={0.7}
                 >
@@ -813,7 +813,7 @@ export default function AdminScreen() {
 
                         <View style={{ flexDirection: 'row', gap: S.sm }}>
                           <Touchable
-                            onPress={() => { Haptics.selectionAsync(); if (isBanned) { performUnban(user); } else { const open = banPickerFor !== user.id; setBanPickerFor(open ? user.id : null); if (open) { setBanReason(null); setBanReasonCustom(''); } } }}
+                            onPress={() => { haptic.select(); if (isBanned) { performUnban(user); } else { const open = banPickerFor !== user.id; setBanPickerFor(open ? user.id : null); if (open) { setBanReason(null); setBanReasonCustom(''); } } }}
                             style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: isBanned ? '#10B98115' : (banPickerFor === user.id ? '#F59E0B22' : (isDark ? 'rgba(245,158,11,0.10)' : 'rgba(245,158,11,0.07)')), borderWidth: B.thin, borderColor: isBanned ? '#10B98140' : '#F59E0B40' }}
                           >
                             {isBanned ? <CheckSquare size={ICON.sm} color="#10B981" /> : <Ban size={ICON.sm} color="#F59E0B" />}
@@ -852,7 +852,7 @@ export default function AdminScreen() {
                                 return (
                                   <Touchable
                                     key={opt}
-                                    onPress={() => { Haptics.selectionAsync(); setBanReason(opt); }}
+                                    onPress={() => { haptic.select(); setBanReason(opt); }}
                                     style={{ paddingHorizontal: S.sm, paddingVertical: S.sm, borderRadius: R.full, backgroundColor: active ? theme.primary + '22' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'), borderWidth: B.thin, borderColor: active ? theme.primary + '55' : cardBorder }}
                                   >
                                     <Text style={{ fontSize: F.caption, fontWeight: '700', color: active ? theme.primary : theme.onSurfaceVariant }}>{opt}</Text>
@@ -1281,7 +1281,7 @@ export default function AdminScreen() {
                       <View key={ckey} style={{ borderTopWidth: idx > 0 ? B.thin : 0, borderTopColor: cardBorder, paddingTop: idx > 0 ? S.sm : 0, gap: S.xs }}>
                         <Touchable
                           activeOpacity={0.7}
-                          onPress={() => { Haptics.selectionAsync(); setExpandedCrashes(e => ({ ...e, [ckey]: !e[ckey] })); }}
+                          onPress={() => { haptic.select(); setExpandedCrashes(e => ({ ...e, [ckey]: !e[ckey] })); }}
                           style={{ gap: S.xs }}
                         >
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: S.sm }}>
@@ -1316,7 +1316,7 @@ export default function AdminScreen() {
                           {!crash.isResolved ? (
                             <Touchable
                               onPress={async () => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                haptic.surface();
                                 try {
                                   await SupportService.resolveCrash(crash.id);
                                   const cr = await SupportService.getCrashes(15).catch(() => ({ crashes: [] }));

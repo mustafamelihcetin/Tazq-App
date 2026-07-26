@@ -506,5 +506,17 @@ export const AiService = {
       tags: string[];
     }>;
   },
+
+  /**
+   * Bir plan fazı için çeşitli günlük görev varyantları (TR+EN).
+   *
+   * Plan+faz başına EN FAZLA BİR KEZ çağrılır; sonuç istemcide kalıcı olarak
+   * saklanır (usePlanPoolStore) ve günlük üretim yine çevrimdışı yapılır.
+   * Anahtar tanımlı değilse sunucu 503 döner — çağıran sessizce yok sayar.
+   */
+  planPool: async (req: { kind: string; phase: string; name?: string; count?: number }) => {
+    const response = await api.post('/api/ai/plan-pool', req);
+    return response.data as Array<{ tr: string; en: string }>;
+  },
 };
 

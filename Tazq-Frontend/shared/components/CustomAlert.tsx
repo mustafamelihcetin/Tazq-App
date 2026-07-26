@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, Animated, TouchableWithoutFeedback, Easing, Alert, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Touchable } from './Touchable';
 import { S, R, F } from '@/shared/constants/tokens';
@@ -114,13 +114,9 @@ export function CustomAlertModal() {
     <Modal transparent visible={true} animationType="none" onRequestClose={() => hide()}>
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
         <TouchableWithoutFeedback onPress={() => { /* disable tap to close by default */ }}>
-          <BlurView 
-            intensity={isDark ? 30 : 20} 
-            tint={isDark ? 'dark' : 'light'} 
-            style={StyleSheet.absoluteFill} 
-          >
+          <AppBlur material="thin">
             <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.2)' }]} />
-          </BlurView>
+          </AppBlur>
         </TouchableWithoutFeedback>
         
         <Animated.View style={[
@@ -134,7 +130,7 @@ export function CustomAlertModal() {
             ]
           }
         ]}>
-          <BlurView intensity={40} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          <AppBlur material="regular" />
           
           <View style={styles.content}>
             <View style={[styles.iconContainer, { backgroundColor: iconColor + '15' }]}>

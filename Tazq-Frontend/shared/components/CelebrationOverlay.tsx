@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableWithoutFeedback, useWindowDimensions, Platform, BackHandler } from 'react-native';
-import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { useAchievementStore } from '@/features/user/store/useAchievementStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { F, R, S, B } from '@/shared/constants/tokens';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
+import { haptic } from '@/shared/utils/haptics';
 
 const CONFETTI_COLORS = [
   '#6366F1', '#EC4899', '#F59E0B', '#10B981',
@@ -85,10 +85,10 @@ export const CelebrationOverlay: React.FC = () => {
     resetAll();
 
     // Premium haptic sequence
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    setTimeout(() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}); }, 120);
-    setTimeout(() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); }, 280);
-    setTimeout(() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); }, 500);
+    haptic.success();
+    setTimeout(() => { haptic.commit(); }, 120);
+    setTimeout(() => { haptic.commit(); }, 280);
+    setTimeout(() => { haptic.surface(); }, 500);
 
     // Overlay fade in
     Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
@@ -207,7 +207,7 @@ export const CelebrationOverlay: React.FC = () => {
   return (
     <TouchableWithoutFeedback onPress={dismiss}>
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: overlayOpacity, zIndex: 9999 }]}>
-        <BlurView intensity={isDark ? 60 : 48} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        <AppBlur material="thick" />
         <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.48)' : 'rgba(0,0,0,0.22)' }]} />
 
         {/* Confetti particles */}

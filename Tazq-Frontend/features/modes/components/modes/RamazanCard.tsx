@@ -5,7 +5,6 @@
  */
 import React from 'react';
 import { View, Text, Switch } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { ChevronRight, Moon } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -15,7 +14,7 @@ import { useTaskStore } from '@/features/tasks';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
-import { retirePlanTask } from '@/shared/utils/planTaskOps';
+import { retirePlanTask , retireModeTasksByTag} from '@/shared/utils/planTaskOps';
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
 import { RAMAZAN_HABIT_NAMES } from '../../utils/turkishModes';
 import { scheduleRamadanStartNotification, cancelRamadanStartNotification } from '@/shared/utils/notifications';
@@ -24,6 +23,8 @@ import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
+import { haptic } from '@/shared/utils/haptics';
+import { closeModeWithUndo } from '@/shared/utils/modeUndo';
 
 export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const { theme, isDark } = useAppTheme();
@@ -64,13 +65,19 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
     ramazanPlanHabitIds.forEach(id => removeHabit(id));
     habits.filter(h => RAMAZAN_HABIT_NAMES.some(n => n.toLowerCase() === h.name.toLowerCase())).forEach(h => removeHabit(h.id));
     ramazanPlanTaskIds.forEach(id => retirePlanTask(id, 'ramazan'));
-    clearPlanIds('ramazan');
+        // ETIKET TABANLI SUPURME — id listesine bakmadan moda ait HER seyi kaldirir.
+    // Yukaridaki id-tabanli temizlik yalnizca 'bildigimiz' gorevleri siler; bir
+    // gorev o listeden dusmusse (offline tempId kaymasi, basarisiz silme) ekranda
+    // kaliyordu ve ancak bir sonraki UYGULAMA ACILISINDA siliniyordu. Kullanicinin
+    // gordugu: "modu kapattim ama gorevi hala duruyor".
+    retireModeTasksByTag('ramazan');
+clearPlanIds('ramazan');
     setSeasonalPref('ramazan', false);
     cancelRamadanStartNotification();
   };
 
   return (
-    <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.ramazan ? (isDark ? 'rgba(99,102,241,0.30)' : 'rgba(99,102,241,0.20)') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
+    <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: theme.surfaceCard, borderColor: seasonal.ramazan ? (isDark ? 'rgba(99,102,241,0.30)' : 'rgba(99,102,241,0.20)') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.ramazan ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
           <AppIcon Icon={Moon} color={accent} />
@@ -91,11 +98,11 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
           <Switch
             value={seasonal.ramazan}
             onValueChange={(v) => {
-              Haptics.selectionAsync();
+              haptic.select();
               if (!v && seasonal.ramazan) {
                 const hasItems = ramazanPlanHabitIds.length > 0 || ramazanPlanTaskIds.length > 0;
                 if (!hasItems) { closePlan(); return; }
-                Alert.alert(tr ? 'Ramazan Modu Kapatılıyor' : 'Turning off Ramadan Mode', tr ? 'Eklenen tüm alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'All added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: closePlan }]);
+                Alert.alert(tr ? 'Ramazan Modu Kapatılıyor' : 'Turning off Ramadan Mode', tr ? 'Eklenen tüm alışkanlıklar ve görevler kaldırılacak. Emin misin?' : 'All added habits and tasks will be removed. Are you sure?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: () => closeModeWithUndo('ramazan', closePlan, tr ? 'Ramazan modu kapatıldı' : 'Ramadan mode closed', tr ? 'Geri al' : 'Undo') }]);
               } else {
                 setSeasonalPref('ramazan', v);
                 if (v) {

@@ -4,14 +4,8 @@
  */
 import React, { useState } from 'react';
 import { View, Text, TextInput, Switch } from 'react-native';
-import * as HapticsOriginal from 'expo-haptics';
-const Haptics = {
-  notificationAsync: (type: any) => HapticsOriginal.notificationAsync(type).catch(() => {}),
-  impactAsync: (style: any) => HapticsOriginal.impactAsync(style).catch(() => {}),
-  selectionAsync: () => HapticsOriginal.selectionAsync().catch(() => {}),
-  NotificationFeedbackType: HapticsOriginal.NotificationFeedbackType,
-  ImpactFeedbackStyle: HapticsOriginal.ImpactFeedbackStyle,
-};
+// Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
+// shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
@@ -27,10 +21,11 @@ import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '@/features/modes/utils/modeIcons';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { buildBirakmaPlan, birakmaTypeTasks, birakmaTypeLabel, BIRAKMA_COLOR } from '@/shared/utils/lifeModePlans';
-import { retirePlanTask } from '@/shared/utils/planTaskOps';
+import { retirePlanTask , retireModeTasksByTag} from '@/shared/utils/planTaskOps';
 import { swallow } from '@/shared/utils/swallow';
 import { Ban, Shield } from 'lucide-react-native';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
+import { haptic } from '@/shared/utils/haptics';
 
 export function BirakmaCard() {
   const { theme, isDark } = useAppTheme();
@@ -121,7 +116,7 @@ export function BirakmaCard() {
 
   const addSelected = async () => {
     if (!addValid) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     const { habitIds, taskIds } = await ensureBasePlan();
     // Yeni seçilen her tür için TİPE ÖZEL görevleri paylaşılan plana ekle.
     // (Tür çipleri zaten eklenmişse devre dışı → aynı türün görevleri tekrarlanmaz.)
@@ -152,6 +147,12 @@ export function BirakmaCard() {
   const closePlan = () => {
     birakmaPlanHabitIds.forEach(id => removeHabit(id));
     birakmaPlanTaskIds.forEach(id => retirePlanTask(id, 'birakma'));
+    // ETIKET TABANLI SUPURME — id listesine bakmadan moda ait HER seyi kaldirir.
+    // Yukaridaki id-tabanli temizlik yalnizca 'bildigimiz' gorevleri siler; bir
+    // gorev o listeden dusmusse (offline tempId kaymasi, basarisiz silme) ekranda
+    // kaliyordu ve ancak bir sonraki UYGULAMA ACILISINDA siliniyordu. Kullanicinin
+    // gordugu: "modu kapattim ama gorevi hala duruyor".
+    retireModeTasksByTag('birakma');
     clearPlanIds('birakma');
     setSeasonalPref('birakmaMode', false);
     setSeasonalPref('birakmaName', '');
@@ -172,7 +173,7 @@ export function BirakmaCard() {
       tr ? `"${name}" sayacı bugünden yeniden başlasın mı? Sorun değil — en uzun serin korunur.` : `Restart "${name}" from today? It's okay — your best streak is kept.`,
       [
         { text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' },
-        { text: tr ? 'Yeniden başla' : 'Restart', style: 'destructive', onPress: () => { recordRelapse(id); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } },
+        { text: tr ? 'Yeniden başla' : 'Restart', style: 'destructive', onPress: () => { recordRelapse(id); haptic.destructive(); } },
       ],
     );
   };
@@ -181,7 +182,7 @@ export function BirakmaCard() {
   const cardBorder = seasonal.birakmaMode ? C + (isDark ? '40' : '30') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)');
 
   return (
-    <View style={{ backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: cardBorder, borderWidth: B.thin, borderRadius: R.lg, overflow: 'hidden' }}>
+    <View style={{ backgroundColor: theme.surfaceCard, borderColor: cardBorder, borderWidth: B.thin, borderRadius: R.lg, overflow: 'hidden' }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: applied || expanded ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
           <View style={{ width: 34, height: 34, borderRadius: R.sm, backgroundColor: C + (seasonal.birakmaMode ? '22' : '15'), alignItems: 'center', justifyContent: 'center' }}>
@@ -198,7 +199,7 @@ export function BirakmaCard() {
           <Switch
             value={seasonal.birakmaMode}
             onValueChange={(v) => {
-              Haptics.selectionAsync();
+              haptic.select();
               if (v) { setSeasonalPref('birakmaMode', true); setExpanded(true); }
               else { applied ? closePlan() : (setSeasonalPref('birakmaMode', false), setExpanded(false)); }
             }}
@@ -231,14 +232,14 @@ export function BirakmaCard() {
                 </View>
                 <View style={{ gap: S.sm, marginLeft: S.xs }}>
                   <Touchable onPress={() => onRelapse(it.id, it.name)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.callout }}>↺</Text></Touchable>
-                  <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); removeOne(it.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={{ color: theme.onSurfaceMuted, fontSize: F.callout }}>✕</Text></Touchable>
+                  <Touchable onPress={() => { haptic.surface(); removeOne(it.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={{ color: theme.onSurfaceMuted, fontSize: F.callout }}>✕</Text></Touchable>
                 </View>
               </View>
             );
           })}
 
           <Touchable
-            onPress={() => { if (checkinHabit) { if (!doneToday) { require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(tr ? 'Günü Kurtardın!' : 'Day Saved!', tr ? 'Tebrikler, bugünü de temiz geçtin. 🛡️' : 'Congratulations on keeping today clean. 🛡️'); } Haptics.impactAsync(doneToday ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium); toggleDate(checkinHabit.id, todayKey); } }}
+            onPress={() => { if (checkinHabit) { if (!doneToday) { require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(tr ? 'Günü Kurtardın!' : 'Day Saved!', tr ? 'Tebrikler, bugünü de temiz geçtin. 🛡️' : 'Congratulations on keeping today clean. 🛡️'); } doneToday ? haptic.surface() : haptic.success(); toggleDate(checkinHabit.id, todayKey); } }}
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: doneToday ? C : C + '12', borderWidth: doneToday ? 0 : B.thin, borderColor: C + '30' }}
           >
             {<Shield size={ICON.sm} color={doneToday ? '#fff' : C} />}
@@ -246,8 +247,8 @@ export function BirakmaCard() {
           </Touchable>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(e => !e); }}><Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '700' }}>{expanded ? (tr ? 'Kapat' : 'Close') : (tr ? '＋ Başka bir şey bırak' : '＋ Quit something else')}</Text></Touchable>
-            <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(tr ? 'Tümünü Kapat' : 'Close All', tr ? 'Bırakma planı tamamen kapatılsın mı?' : 'Close the entire quit plan?', [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: closePlan }]); }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Tümünü kapat' : 'Close all'}</Text></Touchable>
+            <Touchable onPress={() => { haptic.select(); setExpanded(e => !e); }}><Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '700' }}>{expanded ? (tr ? 'Kapat' : 'Close') : (tr ? '＋ Başka bir şey bırak' : '＋ Quit something else')}</Text></Touchable>
+            <Touchable onPress={() => { haptic.commit(); Alert.alert(tr ? 'Tümünü Kapat' : 'Close All', tr ? 'Bırakma planı tamamen kapatılsın mı?' : 'Close the entire quit plan?', [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: closePlan }]); }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Tümünü kapat' : 'Close all'}</Text></Touchable>
           </View>
         </View>
       )}
@@ -261,7 +262,7 @@ export function BirakmaCard() {
               const active = !!sel[t.key];
               const already = items.some(i => i.type === t.key) && t.key !== 'ozel';
               return (
-                <Touchable key={t.key} disabled={already} onPress={() => { Haptics.selectionAsync(); setSel(s => ({ ...s, [t.key]: !s[t.key] })); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, opacity: already ? 0.4 : 1, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
+                <Touchable key={t.key} disabled={already} onPress={() => { haptic.select(); setSel(s => ({ ...s, [t.key]: !s[t.key] })); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, opacity: already ? 0.4 : 1, borderColor: active ? C : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? C + '18' : 'transparent' }}>
                   {renderModeEmojiIcon(t.emoji, 14, active ? C : theme.onSurfaceVariant)}
                   <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? C : theme.onSurfaceVariant }}>{tr ? t.tr : t.en}{already ? ' ✓' : ''}</Text>
                 </Touchable>

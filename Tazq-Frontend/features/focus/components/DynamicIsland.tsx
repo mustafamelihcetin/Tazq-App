@@ -1,19 +1,18 @@
 import React from 'react';
 import { F, S, ICON, R, B } from '@/shared/constants/tokens';
 import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import { Sparkles, Timer as TimerIcon, Play, Zap } from 'lucide-react-native';
 import { useColorScheme } from 'react-native';
 import { Colors } from '@/shared/constants/Colors';
 import { useRouter } from 'expo-router';
 import { useFocusStore } from '../store/useFocusStore';
-import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { Touchable } from '@/shared/components/Touchable';
+import { haptic } from '@/shared/utils/haptics';
 
 export const DynamicIsland = () => {
   const { width } = useWindowDimensions();
@@ -31,7 +30,6 @@ export const DynamicIsland = () => {
   };
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/focus');
   };
 

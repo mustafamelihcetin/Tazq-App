@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform, Keyboard } from 'react-native';
 import { LayoutGrid, CheckSquare, Sparkles, Layers, CalendarDays } from 'lucide-react-native';
 import { useRouter, usePathname } from 'expo-router';
-import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { S, HAIRLINE, MAX_W, NAV_BAR_HEIGHT, NAV_BAR_MIN_INSET, NAV_ICON_SIZE, NAV_LABEL_SIZE } from '@/shared/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +10,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { TourTarget } from '@/shared/components/TourContext';
+import { haptic } from '@/shared/utils/haptics';
 
 /**
  * Alt sekme çubuğu — ekranın dibine yapışık, TAM GENİŞLİKTE, standart desen.
@@ -93,7 +93,6 @@ export const BottomNavBar = () => {
 
   const handlePress = (path: string) => {
     if (pathname === path) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     router.replace(path as any);
   };
 
@@ -117,7 +116,7 @@ export const BottomNavBar = () => {
       ]}
     >
       {Platform.OS === 'ios' && (
-        <BlurView intensity={isDark ? 70 : 90} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        <AppBlur material="chrome" />
       )}
       {/* Geniş/foldable ekranda sekmeler sonsuza yayılmasın — içerikle aynı sütun. */}
       <View style={styles.column}>

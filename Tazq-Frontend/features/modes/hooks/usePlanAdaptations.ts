@@ -45,6 +45,8 @@ import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
 import { useQuitStore, type QuitType } from '@/shared/store/useQuitStore';
 import { buildTasarrufPlan, buildBirakmaPlan } from '@/shared/utils/lifeModePlans';
 import { isWeightEntryTask } from '@/shared/utils/weightCheckin';
+import { MODE_TASK_TAGS } from '@/shared/utils/planTaskOps';
+import { getExtraPool, ensureExtraPool } from '@/shared/utils/planPoolSync';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
 
@@ -66,20 +68,8 @@ function whenHydrated(store: any): Promise<void> {
 }
 const PLAN_TAGS = ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss', 'daily', 'tasarruf', 'birakma'];
 
-// Mod başına o moda ait TÜM görev etiketleri (günlük slotlar + adaptasyon görevleri).
-// Kapalı modlara ait artık görevleri tag ile süpürmek için kullanılır — id-takibi
-// (offline tempId→realId kayması vb.) bozulsa bile artık kalmamasını GARANTİ eder.
-// NOT: 'weight_entry' bilinçli dışarıda (kilo geçmişi korunur); 'daily' modlar arası
-// ortak olduğundan tek başına kullanılmaz (slot tag'leri daily görevleri zaten kapsar).
-const MODE_TASK_TAGS: Record<string, string[]> = {
-  exam: ['exam', 'exam2', 'exam3', 'yks', 'kpss', 'sinav_eve', 'sinav_week', 'sinav_sprint_start', 'sinav_60'],
-  tez: ['tez', 'tez_weekly', 'tez_final_2weeks', 'tez_sprint_30', 'tez_60'],
-  mulakat: ['mulakat', 'mulakat2', 'mulakat3', 'mulakat_day', 'mulakat_eve', 'mulakat_3days', 'mulakat_week', 'mulakat_2weeks'],
-  spor: ['spor', 'spor2', 'spor3', 'kilo', 'maraton', 'guc', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress'],
-  ramazan: ['ramazan', 'ramazan_kadir'],
-  tasarruf: ['tasarruf', 'budget_entry'],
-  birakma: ['birakma'],
-};
+// MODE_TASK_TAGS artik planTaskOps.ts'te (tek kaynak) — kapatma yollari da ayni
+// kumeyi kullansin diye oraya tasindi.
 
 function getLocalDateString(d: Date = new Date()): string {
   const adjusted = new Date(d);
@@ -1016,7 +1006,11 @@ export function usePlanAdaptations() {
     })();
     const subjectTodayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     for (const ds of dailySlots) {
-      const daily = buildDailyTasks({ ...ds.spec, adherence, isRamazan: inRamazanNow }, fresh, lang, today);
+      const spec = { ...ds.spec, adherence, isRamazan: inRamazanNow };
+      // Genişletilmiş havuz VARSA kullanılır; yoksa motor sabit havuzla çalışır.
+      // Eksikse arka planda doldurulur — beklenmez, bugünü etkilemez (bkz. planPoolSync).
+      const daily = buildDailyTasks({ ...spec, extraPool: getExtraPool(spec) }, fresh, lang, today);
+      ensureExtraPool(spec);
       await applyTasks(daily, ds.mode, ds.taskIds, ds.habitIds);
       // Konu çalışıldıysa ilerlemeyi işaretle → yarın rotasyon bir sonraki konuya geçer.
       if (daily.length > 0 && ds.subjectId) {

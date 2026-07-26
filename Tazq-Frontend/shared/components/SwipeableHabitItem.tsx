@@ -11,10 +11,10 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Trash2, Coffee } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { ICON, S, R } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { haptic } from '@/shared/utils/haptics';
 
 interface Props {
   children: React.ReactNode;
@@ -26,7 +26,7 @@ interface Props {
 }
 
 function triggerLightHaptic() {
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  haptic.surface();
 }
 
 export const SwipeableHabitItem = ({

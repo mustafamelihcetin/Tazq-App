@@ -8,6 +8,23 @@ export function renderModeEmojiIcon(emoji: string, size = 16, color?: string) {
     // Modes & Templates
     case '🌙':
       return <Lucide.Moon size={size} color={color} />;
+    // ── Alışkanlık seçicisi için ek glifler ──────────────────────────────
+    // Bu emojilerin eşlemesi yoktu; eşleme bulunmayınca ham emoji çiziliyor ve
+    // satırdaki diğer çizgisel ikonların yanında yamalı duruyor (AppIcon dili bozulur).
+    case '🚴':
+      return <Lucide.Bike size={size} color={color} />;
+    case '📷':
+      return <Lucide.Camera size={size} color={color} />;
+    case '☕':
+      return <Lucide.Coffee size={size} color={color} />;
+    case '👥':
+      return <Lucide.Users size={size} color={color} />;
+    case '⏱️':
+      return <Lucide.Timer size={size} color={color} />;
+    case '🧹':
+      return <Lucide.Sparkles size={size} color={color} />;
+    case '🗣️':
+      return <Lucide.Languages size={size} color={color} />;
     case '🌅':
       return <Lucide.Sunrise size={size} color={color} />;
     case '📚':
@@ -57,7 +74,9 @@ export function renderModeEmojiIcon(emoji: string, size = 16, color?: string) {
     case '💼':
       return <Lucide.Briefcase size={size} color={color} />;
     case '🏃':
-      return <Lucide.Activity size={size} color={color} />;
+      // Activity (kalp-atisi cizgisi) idi ve meditasyonla AYNI ikonu paylasiyordu.
+      // Kosu icin ayak izi hem ayirt edici hem anlami dogrudan tasiyor.
+      return <Lucide.Footprints size={size} color={color} />;
     case '⚖️':
       return <Lucide.Scale size={size} color={color} />;
     case '📝':
@@ -73,7 +92,7 @@ export function renderModeEmojiIcon(emoji: string, size = 16, color?: string) {
     case '⚠️':
       return <Lucide.AlertTriangle size={size} color={color} />;
     case '🙏':
-      return <Lucide.Heart size={size} color={color} fill={color} />;
+      return <Lucide.Heart size={size} color={color} />;
     case '🏆':
       return <Lucide.Trophy size={size} color={color} />;
     case '✨':
@@ -83,7 +102,9 @@ export function renderModeEmojiIcon(emoji: string, size = 16, color?: string) {
     case '💪':
       return <Lucide.Dumbbell size={size} color={color} />;
     case '🧘':
-      return <Lucide.Activity size={size} color={color} />;
+      // Kosuyla ayni Activity ikonunu paylasiyordu. Meditasyon icin sakin,
+      // nefes cagristiran bir glif.
+      return <Lucide.Wind size={size} color={color} />;
     case '🧠':
       return <Lucide.Brain size={size} color={color} />;
     case '💰':
@@ -159,9 +180,9 @@ export function renderModeEmojiIcon(emoji: string, size = 16, color?: string) {
     case '🪞':
       return <Lucide.User size={size} color={color} />;
     case '⭐':
-      return <Lucide.Star size={size} color={color} fill={color} />;
+      return <Lucide.Star size={size} color={color} />;
     case '🤲':
-      return <Lucide.Heart size={size} color={color} fill={color} />;
+      return <Lucide.Heart size={size} color={color} />;
     case '📖':
       return <Lucide.BookOpen size={size} color={color} />;
     case '⏰':
