@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Flame, Clock, CheckCircle2, Zap, Calendar } from 'lucide-react-native';
 import { MotiView } from 'moti';
@@ -10,7 +11,7 @@ import { usePrefsStore } from '@/features/modes';
 import { useMomentumStore } from '@/features/user';
 import { useHabitStore } from '@/features/habits';
 import { FocusService, UserStatsResponse } from '@/shared/services/api';
-import { ICON, S, R, F, B, TRACKING, MAX_W } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, TRACKING, MAX_W , topBarSpace} from '@/shared/constants/tokens';
 import { generateWeeklyTips, computeWeeklyMetrics, getCoachAction, ProductivityHour } from '@/shared/utils/insights';
 import { track } from '@/shared/utils/analytics';
 import type { AppTheme } from '@/shared/constants/Colors';
@@ -27,6 +28,7 @@ const toneColor = (theme: AppTheme, tone: string): string => ({
 }[tone] ?? theme.primary);
 
 export default function ReportScreen() {
+  const insets = useSafeAreaInsets();
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -90,14 +92,10 @@ export default function ReportScreen() {
 
   if (loading || error) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'}>
-            <ArrowLeft size={ICON.lg} color={theme.onSurface} />
-          </TouchableOpacity>
-          <Text style={[styles.title, { color: theme.onSurface }]}>{tr ? 'Haftalık Rapor' : 'Weekly Report'}</Text>
-          <View style={{ width: 40 }} />
-        </View>
+      <View style={{ flex: 1, backgroundColor: theme.background }}>
+        {/* Ortak başlık — ana ekranlarla aynı sistem (yapışık 44pt, hairline, 17pt). */}
+        <ScreenHeader onBack={() => router.back()} title={tr ? 'Haftalık Rapor' : 'Weekly Report'} />
+        <View style={{ height: topBarSpace(insets.top) }} />
         {loading ? (
           <View style={styles.center}><ActivityIndicator color={theme.primary} /></View>
         ) : (
@@ -108,19 +106,15 @@ export default function ReportScreen() {
             </TouchableOpacity>
           </View>
         )}
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
-      <View style={[styles.header, { justifyContent: 'flex-start', gap: S.md }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'}>
-          <ArrowLeft size={ICON.lg} color={theme.onSurface} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.onSurface }]}>{tr ? 'Haftalık Rapor' : 'Weekly Report'}</Text>
-      </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: S.xxl, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* Ortak başlık — ana ekranlarla aynı sistem (yapışık 44pt, hairline, 17pt). */}
+      <ScreenHeader onBack={() => router.back()} title={tr ? 'Haftalık Rapor' : 'Weekly Report'} />
+      <ScrollView contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xxl, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
           {/* Koç kartı — "şimdi ne yapmalıyım?" (kural-tabanlı, ücretsiz) */}
           {(() => {
             const c = toneColor(theme, coach.tone);
@@ -200,14 +194,11 @@ export default function ReportScreen() {
             })}
           </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.sm },
-  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: F.title3, fontWeight: '700', letterSpacing: TRACKING.title },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl },
   statCard: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: S.xxs },
   section: { borderRadius: R.lg, borderWidth: B.thin, padding: S.md },

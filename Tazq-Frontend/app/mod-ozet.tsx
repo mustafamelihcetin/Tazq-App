@@ -1,7 +1,8 @@
 import React, { useMemo, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, CalendarClock, Layers, Flame } from 'lucide-react-native';
 import { MotiView } from 'moti';
@@ -10,10 +11,11 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes';
 import { useHabitStore } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
-import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W , topBarSpace} from '@/shared/constants/tokens';
 import { track } from '@/shared/utils/analytics';
 import { renderModeEmojiIcon } from '@/features/modes';
 import { localizeSporGoal } from '@/features/modes';
+import { modeAccent, modeAccentText } from '@/shared/constants/Colors';
 
 // Bu haftanın (Pzt–Paz) 'YYYY-MM-DD' anahtarları.
 function thisWeekKeys(): Set<string> {
@@ -46,7 +48,10 @@ function daysLeftOf(dateStr: string | null): number | null {
 interface ModeEntry {
   key: string;
   label: string;
+  /** Dolgu/ikon/çubuk rengi (WCAG büyük-metin ≥3:1). */
   color: string;
+  /** Küçük yazı rengi (WCAG AA ≥4.5:1) — caption/etiketlerde bunu kullan. */
+  textColor: string;
   emoji: string;
   days: number | null; // null = süresiz, -1 = geçmiş
   habitIds: string[];
@@ -61,6 +66,19 @@ export default function ModOzetScreen() {
   const insets = useSafeAreaInsets();
 
   const prefs = usePrefsStore();
+
+  // Mod renkleri MERKEZİ PALETTEN (modlar.tsx ile aynı kaynak). Burada ham hex'lerin
+  // üçüncü bir kopyası duruyordu; iki ekran aynı modu farklı tonda gösterebiliyordu.
+  const MC = {
+    exam: modeAccent('exam', isDark), tez: modeAccent('tez', isDark),
+    mulakat: modeAccent('mulakat', isDark), spor: modeAccent('spor', isDark),
+    ramazan: modeAccent('ramazan', isDark),
+  };
+  const MCT = {
+    exam: modeAccentText('exam', isDark), tez: modeAccentText('tez', isDark),
+    mulakat: modeAccentText('mulakat', isDark), spor: modeAccentText('spor', isDark),
+    ramazan: modeAccentText('ramazan', isDark),
+  };
   const seasonal = prefs.seasonal;
   const habits = useHabitStore(s => s.habits);
   const tasks = useTaskStore(s => s.tasks);
@@ -81,22 +99,22 @@ export default function ModOzetScreen() {
   const mulLbl = tr ? 'Mülakat' : 'Interview';
   const sporLbl = tr ? 'Spor' : 'Fitness';
   if (seasonal.examMode) {
-    entries.push({ key: 'exam', label: seasonal.examName || examLbl, color: '#3B82F6', emoji: '🎯', days: daysLeftOf(seasonal.examDate), habitIds: prefs.examPlanHabitIds, taskIds: prefs.examPlanTaskIds });
-    if (seasonal.exam2Name) entries.push({ key: 'exam2', label: seasonal.exam2Name, color: '#3B82F6', emoji: '🎯', days: daysLeftOf(seasonal.exam2Date), habitIds: prefs.exam2PlanHabitIds, taskIds: prefs.exam2PlanTaskIds });
-    if (seasonal.exam3Name) entries.push({ key: 'exam3', label: seasonal.exam3Name, color: '#3B82F6', emoji: '🎯', days: daysLeftOf(seasonal.exam3Date), habitIds: prefs.exam3PlanHabitIds, taskIds: prefs.exam3PlanTaskIds });
+    entries.push({ key: 'exam', label: seasonal.examName || examLbl, color: MC.exam, textColor: MCT.exam, emoji: '🎯', days: daysLeftOf(seasonal.examDate), habitIds: prefs.examPlanHabitIds, taskIds: prefs.examPlanTaskIds });
+    if (seasonal.exam2Name) entries.push({ key: 'exam2', label: seasonal.exam2Name, color: MC.exam, textColor: MCT.exam, emoji: '🎯', days: daysLeftOf(seasonal.exam2Date), habitIds: prefs.exam2PlanHabitIds, taskIds: prefs.exam2PlanTaskIds });
+    if (seasonal.exam3Name) entries.push({ key: 'exam3', label: seasonal.exam3Name, color: MC.exam, textColor: MCT.exam, emoji: '🎯', days: daysLeftOf(seasonal.exam3Date), habitIds: prefs.exam3PlanHabitIds, taskIds: prefs.exam3PlanTaskIds });
   }
-  if (seasonal.tezMode) entries.push({ key: 'tez', label: seasonal.tezName || (tr ? 'Tez' : 'Thesis'), color: '#8B5CF6', emoji: '📚', days: daysLeftOf(seasonal.tezDate), habitIds: prefs.tezPlanHabitIds, taskIds: prefs.tezPlanTaskIds });
+  if (seasonal.tezMode) entries.push({ key: 'tez', label: seasonal.tezName || (tr ? 'Tez' : 'Thesis'), color: MC.tez, textColor: MCT.tez, emoji: '📚', days: daysLeftOf(seasonal.tezDate), habitIds: prefs.tezPlanHabitIds, taskIds: prefs.tezPlanTaskIds });
   if (seasonal.mulakatMode) {
-    entries.push({ key: 'mulakat', label: seasonal.mulakatName || mulLbl, color: '#10B981', emoji: '💼', days: daysLeftOf(seasonal.mulakatDate), habitIds: prefs.mulakatPlanHabitIds, taskIds: prefs.mulakatPlanTaskIds });
-    if (seasonal.mulakat2Name) entries.push({ key: 'mulakat2', label: seasonal.mulakat2Name, color: '#10B981', emoji: '💼', days: daysLeftOf(seasonal.mulakat2Date), habitIds: prefs.mulakat2PlanHabitIds, taskIds: prefs.mulakat2PlanTaskIds });
-    if (seasonal.mulakat3Name) entries.push({ key: 'mulakat3', label: seasonal.mulakat3Name, color: '#10B981', emoji: '💼', days: daysLeftOf(seasonal.mulakat3Date), habitIds: prefs.mulakat3PlanHabitIds, taskIds: prefs.mulakat3PlanTaskIds });
+    entries.push({ key: 'mulakat', label: seasonal.mulakatName || mulLbl, color: MC.mulakat, textColor: MCT.mulakat, emoji: '💼', days: daysLeftOf(seasonal.mulakatDate), habitIds: prefs.mulakatPlanHabitIds, taskIds: prefs.mulakatPlanTaskIds });
+    if (seasonal.mulakat2Name) entries.push({ key: 'mulakat2', label: seasonal.mulakat2Name, color: MC.mulakat, textColor: MCT.mulakat, emoji: '💼', days: daysLeftOf(seasonal.mulakat2Date), habitIds: prefs.mulakat2PlanHabitIds, taskIds: prefs.mulakat2PlanTaskIds });
+    if (seasonal.mulakat3Name) entries.push({ key: 'mulakat3', label: seasonal.mulakat3Name, color: MC.mulakat, textColor: MCT.mulakat, emoji: '💼', days: daysLeftOf(seasonal.mulakat3Date), habitIds: prefs.mulakat3PlanHabitIds, taskIds: prefs.mulakat3PlanTaskIds });
   }
   if (seasonal.sporMode) {
-    entries.push({ key: 'spor', label: localizeSporGoal(seasonal.sporGoal || '', tr) || sporLbl, color: '#F97316', emoji: '💪', days: daysLeftOf(seasonal.sporDate), habitIds: prefs.sporPlanHabitIds, taskIds: prefs.sporPlanTaskIds });
-    if (seasonal.spor2Goal) entries.push({ key: 'spor2', label: localizeSporGoal(seasonal.spor2Goal, tr), color: '#F97316', emoji: '💪', days: daysLeftOf(seasonal.spor2Date), habitIds: prefs.spor2PlanHabitIds, taskIds: prefs.spor2PlanTaskIds });
-    if (seasonal.spor3Goal) entries.push({ key: 'spor3', label: localizeSporGoal(seasonal.spor3Goal, tr), color: '#F97316', emoji: '💪', days: daysLeftOf(seasonal.spor3Date), habitIds: prefs.spor3PlanHabitIds, taskIds: prefs.spor3PlanTaskIds });
+    entries.push({ key: 'spor', label: localizeSporGoal(seasonal.sporGoal || '', tr) || sporLbl, color: MC.spor, textColor: MCT.spor, emoji: '💪', days: daysLeftOf(seasonal.sporDate), habitIds: prefs.sporPlanHabitIds, taskIds: prefs.sporPlanTaskIds });
+    if (seasonal.spor2Goal) entries.push({ key: 'spor2', label: localizeSporGoal(seasonal.spor2Goal, tr), color: MC.spor, textColor: MCT.spor, emoji: '💪', days: daysLeftOf(seasonal.spor2Date), habitIds: prefs.spor2PlanHabitIds, taskIds: prefs.spor2PlanTaskIds });
+    if (seasonal.spor3Goal) entries.push({ key: 'spor3', label: localizeSporGoal(seasonal.spor3Goal, tr), color: MC.spor, textColor: MCT.spor, emoji: '💪', days: daysLeftOf(seasonal.spor3Date), habitIds: prefs.spor3PlanHabitIds, taskIds: prefs.spor3PlanTaskIds });
   }
-  if (seasonal.ramazan) entries.push({ key: 'ramazan', label: tr ? 'Ramazan' : 'Ramadan', color: '#6366F1', emoji: '🌙', days: null, habitIds: prefs.ramazanPlanHabitIds, taskIds: prefs.ramazanPlanTaskIds });
+  if (seasonal.ramazan) entries.push({ key: 'ramazan', label: tr ? 'Ramazan' : 'Ramadan', color: MC.ramazan, textColor: MCT.ramazan, emoji: '🌙', days: null, habitIds: prefs.ramazanPlanHabitIds, taskIds: prefs.ramazanPlanTaskIds });
 
   // Her giriş için ölçütleri hesapla.
   const computed = entries.map(e => {
@@ -129,14 +147,7 @@ export default function ModOzetScreen() {
   })();
 
   // ── iOS HIG: büyük başlık çöküşü + buzlu cam header (her iki platform) ──
-  const HEADER_H = 52;
   const scrollY = useRef(new Animated.Value(0)).current;
-  const frostOpacity = scrollY.interpolate({ inputRange: [0, 40], outputRange: [0, 1], extrapolate: 'clamp' });
-  const compactOpacity = scrollY.interpolate({ inputRange: [44, 72], outputRange: [0, 1], extrapolate: 'clamp' });
-  const compactTranslate = scrollY.interpolate({ inputRange: [44, 72], outputRange: [8, 0], extrapolate: 'clamp' });
-  const largeOpacity = scrollY.interpolate({ inputRange: [0, 52], outputRange: [1, 0], extrapolate: 'clamp' });
-  const largeScale = scrollY.interpolate({ inputRange: [0, 52], outputRange: [1, 0.94], extrapolate: 'clamp' });
-  const largeTranslate = scrollY.interpolate({ inputRange: [0, 52], outputRange: [0, -6], extrapolate: 'clamp' });
   const onScroll = Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true });
   const navTitle = tr ? 'Modların Özeti' : 'Modes Overview';
 
@@ -149,27 +160,14 @@ export default function ModOzetScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['left', 'right']}>
-      {/* Buzlu cam header — tepede şeffaf, kaydırınca belirginleşir (iOS BlurView / Android opak). */}
-      <View style={[styles.headerAbs, { height: HEADER_H + insets.top }]}>
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: frostOpacity }]}>
-          {Platform.OS === 'ios'
-            ? <BlurView intensity={40} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-            : <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(18,18,22,0.94)' : 'rgba(255,255,255,0.96)' }]} />}
-          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: theme.outlineVariant }} />
-        </Animated.View>
-        <View style={[styles.headerRow, { paddingTop: insets.top }]}>
-          <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} accessibilityRole="button" accessibilityLabel={tr ? 'Geri' : 'Back'}>
-            <View style={styles.iconBtn}>
-              <ArrowLeft size={ICON.lg} color={theme.onSurface} />
-            </View>
-            <Text numberOfLines={1} style={{ fontSize: F.title3, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{navTitle}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* Ortak başlık. Burası uygulamadaki TEK çöken/buzlu başlıktı — kendi kopyası,
+          kendi 52pt yüksekliği ve ölçek dışı 30pt büyük başlığıyla. Tek örnek olması
+          onu "özel" değil TUTARSIZ yapıyordu; ana ekranlarla aynı sisteme alındı. */}
+      <ScreenHeader onBack={() => router.back()} title={navTitle} />
 
       {activeCount === 0 ? (
-        <View style={[styles.center, { paddingTop: HEADER_H + insets.top }]}>
+        <View style={[styles.center, { paddingTop: topBarSpace(insets.top) }]}>
           <Text style={{ fontSize: 40, marginBottom: S.md }}>🧭</Text>
           <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', textAlign: 'center', marginBottom: S.sm }}>{tr ? 'Henüz aktif mod yok' : 'No active modes yet'}</Text>
           <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, textAlign: 'center', lineHeight: 20, marginBottom: S.lg }}>{tr ? 'Bir hedef aç — buradan tüm modlarının gidişatını tek bakışta görürsün.' : 'Turn on a goal — track all your modes at a glance here.'}</Text>
@@ -179,7 +177,7 @@ export default function ModOzetScreen() {
         </View>
       ) : (
         <Animated.ScrollView
-          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: HEADER_H + insets.top + S.xs, paddingBottom: S.xxl, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: topBarSpace(insets.top) + S.md, paddingBottom: insets.bottom + S.xxl, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
           onScroll={onScroll}
@@ -196,7 +194,7 @@ export default function ModOzetScreen() {
 
           {/* Özet ölçütleri */}
           <View style={{ flexDirection: 'row', gap: S.sm }}>
-            <Stat icon={<Layers size={ICON.sm} color="#6366F1" />} value={`${activeCount}`} label={tr ? 'Aktif mod' : 'Active modes'} color="#6366F1" />
+            <Stat icon={<Layers size={ICON.sm} color={theme.onPrimary} />} value={`${activeCount}`} label={tr ? 'Aktif mod' : 'Active modes'} color={theme.primary} />
             <Stat icon={<CalendarClock size={ICON.sm} color="#FF9500" />} value={nearest ? `${nearest.days}${tr ? 'g' : 'd'}` : '∞'} label={tr ? 'En yakın hedef' : 'Nearest goal'} color="#FF9500" />
             <Stat icon={<Flame size={ICON.sm} color="#34C759" />} value={totalHabits > 0 ? `%${overallPct}` : '—'} label={tr ? 'Hafta istikrar' : 'Week consistency'} color="#34C759" />
           </View>
@@ -247,7 +245,7 @@ export default function ModOzetScreen() {
                   <View style={{ marginTop: S.sm }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: S.xs }}>
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bu hafta alışkanlık' : 'Habits this week'}</Text>
-                      <Text style={{ color: c.color, fontSize: F.caption, fontWeight: '700' }}>{c.weekActive}/{c.habitCount} · %{c.pct}</Text>
+                      <Text style={{ color: c.textColor, fontSize: F.caption, fontWeight: '700' }}>{c.weekActive}/{c.habitCount} · %{c.pct}</Text>
                     </View>
                     <View style={{ height: 5, borderRadius: R.xs, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
                       <View style={{ height: 5, borderRadius: R.xs, width: `${c.pct}%`, backgroundColor: c.color }} />
@@ -259,17 +257,12 @@ export default function ModOzetScreen() {
           </View>
         </Animated.ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md, paddingVertical: S.sm },
-  headerAbs: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
-  headerRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.md },
-  compactTitle: { flex: 1, textAlign: 'center', fontSize: F.subhead, fontWeight: '700', letterSpacing: TRACKING.subhead },
-  largeTitle: { fontSize: 30, fontWeight: '700', letterSpacing: TRACKING.hero, includeFontPadding: false },
-  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: F.title3, fontWeight: '700', letterSpacing: TRACKING.title },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl },
   statCard: { flex: 1, borderRadius: R.lg, borderWidth: B.thin, padding: S.md, gap: S.xxs },

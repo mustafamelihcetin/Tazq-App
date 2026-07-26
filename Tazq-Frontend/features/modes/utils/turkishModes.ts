@@ -2531,6 +2531,20 @@ export function getModePreview(type: ModeType, opts?: { examName?: string; examD
   return { ...KPSS_MODE(0), subtitleTr: `${date} öncesi aktif olacak`, subtitleEn: `Activates before ${date}` };
 }
 
+/**
+ * Otomatik sezon modu (YKS/KPSS) şu an aktif mi?
+ *
+ * Bu bilgi `modlar.tsx` içinde YKS/KPSS tarih tablolarının ELLE YAZILMIŞ birer
+ * kopyasıyla hesaplanıyordu ("bu sınav zaten otomatik aktif" uyarısı için).
+ * Tablonun ikinci kopyası, birincisi güncellendiğinde sessizce eskir — Ramazan'da
+ * yaşanan hatanın aynısı. Tek kaynak burası.
+ */
+export function isSeasonalExamActive(kind: 'yks' | 'kpss'): boolean {
+  const ranges = kind === 'yks' ? YKS : KPSS;
+  const lead = kind === 'yks' ? 35 : 45;
+  return ranges.some(r => isActive(r.start, r.end, lead) >= 0);
+}
+
 export function detectTurkishMode(): TurkishMode | null {
   for (const r of RAMAZAN) {
     // Active during Ramazan itself

@@ -6,8 +6,9 @@ import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ChevronLeft } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -27,7 +28,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ICON, S, R, F, B, W, MAX_W, MIN_TOUCH, trackingFor } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, W, MAX_W, MIN_TOUCH, trackingFor , topBarSpace} from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
@@ -314,16 +315,11 @@ export default function SettingsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <View style={{ paddingTop: insets.top + S.sm, paddingHorizontal: S.md, paddingBottom: S.sm, flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-        <Touchable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'} style={{ width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center', marginLeft: -S.sm }}>
-          <ChevronLeft size={ICON.lg} color={theme.onSurface} />
-        </Touchable>
-        <Text style={{ fontSize: F.title, fontWeight: W.bold, color: theme.onSurface, letterSpacing: trackingFor(F.title) }}>
-          {catTitle}
-        </Text>
-      </View>
+      {/* Ortak başlık — ana ekranlarla aynı sistem. Kendi satırı 22pt başlık
+          kullanıyordu: alt sayfaya inince başlık BÜYÜYORDU (hiyerarşi ters). */}
+      <ScreenHeader onBack={() => router.back()} title={catTitle} />
 
-      <ScrollView ref={scrollRef} onContentSizeChange={tryScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl }}>
+      <ScrollView ref={scrollRef} onContentSizeChange={tryScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl }}>
             {show('notify') && (<>
             {/* ── BİLDİRİMLER ── */}
             <SectionHeader onLayout={e => markSection('notify', e.nativeEvent.layout.y)} title={language === 'tr' ? 'BİLDİRİMLER' : 'NOTIFICATIONS'} theme={theme} tr={language === 'tr'} />

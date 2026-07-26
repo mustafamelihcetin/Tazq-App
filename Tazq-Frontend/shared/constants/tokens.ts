@@ -250,9 +250,41 @@ export const separatorInset = (leadingWidth: number, gap: number = S.smd) => lea
  * import edilebilmeli. BottomNavBar kendi stilini BU sabitlerden kurar — tersi değil.
  * Bkz. __tests__/navBarSpace.test.ts
  */
-export const NAV_BAR_HEIGHT = 68;
-export const NAV_BAR_LIFT = 4;        // barın ekran dibinden yükseltilmesi
-export const NAV_BAR_MIN_INSET = 16;  // home göstergesi yoksa taban boşluk
+/**
+ * Bar artık YÜZMÜYOR: ekranın dibine yapışık, tam genişlikte standart sekme çubuğu.
+ *
+ * Önceki hâl yüzen bir "pill"di (%92 genişlik, tam yuvarlak, 68pt) ve iki sorunu vardı:
+ * arkadaki hap/daire göstergesi ile yuvarlak kabuk görsel olarak yük bindiriyordu, ve
+ * 5 sekmeye düşen ~72pt'ye sekme ADI sığmıyordu — bar ya kalabalıklaşıyor ya isimsiz
+ * kalıyordu ("Layers" = Modlar mı? sorusu). Tam genişlikte ikon + etiket rahat sığar,
+ * gösterge şekline gerek kalmaz (aktif sekmeyi tint rengi söyler — iOS'un yaptığı).
+ *
+ * ÖLÇÜLER APPLE'IN KENDİ SPESİFİKASYONU: UIKit'te UITabBar içerik yüksekliği 49pt'dir
+ * ve güvenli alan (home göstergesi, 34pt) bunun ALTINA eklenir → iPhone'da toplam 83pt.
+ * Ekstra "nefes payı" eklenmez; Apple da eklemez. Etiket 10pt/semibold (bkz. F.tabLabel),
+ * ikon ~24-25pt, aktif sekmenin tek işareti tint rengidir.
+ */
+export const NAV_BAR_HEIGHT = 49;     // UIKit UITabBar standart yüksekliği
+export const NAV_BAR_LIFT = 0;        // dibe yapışık — yükselti yok
+export const NAV_BAR_MIN_INSET = 0;   // ekstra pay yok; alt boşluk güvenli alandan gelir
+
+/**
+ * SEKME ÇUBUĞU İÇERİĞİ — ÖLÇEKLENMEZ.
+ *
+ * Bunlar bilerek `moderateScale` DIŞINDA. Sebebi bir hata: çubuk yüksekliği ham 49
+ * iken ikon `ICON.lg` (moderateScale) ve etiket ölçekli yazılmıştı; ekran genişledikçe
+ * içerik büyüyor ama kap büyümüyordu. Ölçüldü — 430pt telefonda yığın 41.2pt, tablette
+ * 43.1pt oluyor ve 49pt'lik çubukta üst/alt pay 3pt'ye düşüyordu (sıkışık).
+ *
+ * Apple'da sekme çubuğunun ÜÇÜ DE sabittir: yükseklik 49, ikon ~25, etiket 10. Hiçbiri
+ * ekran genişliğiyle değişmez — yalnızca Dynamic Type ile. Sekme çubuğu içerik değil
+ * CHROME'dur; her cihazda aynı görünmesi beklenir.
+ *
+ * İkon 22: lucide çizgisel bir set ve 24pt'de SF Symbols'ten optik olarak DAHA AĞIR
+ * duruyor. 22, Apple'ın sembol yoğunluğuna denk düşer ve 6.3pt nefes payı bırakır.
+ */
+export const NAV_ICON_SIZE = 22;
+export const NAV_LABEL_SIZE = 10;
 
 export const navBarSpace = (insetBottom: number) =>
   Math.max(insetBottom, NAV_BAR_MIN_INSET) + NAV_BAR_LIFT + NAV_BAR_HEIGHT;
@@ -274,8 +306,41 @@ export const navBarSpace = (insetBottom: number) =>
 // Ölçeklenmez — NAV_BAR_HEIGHT gibi. İki yüzen bar aynı kuralla davranmalı: biri
 // ekranla büyüyüp diğeri sabit kalırsa üst/alt boşluk oranı cihaza göre kayar.
 // (Barın İÇİ ölçeklenir: avatar scale(34) geniş ekranda 42.5 → 54'lük bara sığar.)
-export const TOP_BAR_HEIGHT = 54; // StatusHub (38) + dikey iç boşluk (2×8)
-export const TOP_BAR_LIFT = 8;    // barın durum çubuğundan yükseltilmesi
+/**
+ * BAŞLIK ÇUBUĞU — sekme çubuğuyla AYNI SİSTEM.
+ *
+ * Eskiden yüzen bir "pill"di: 54pt, tam yuvarlak, 8pt havada, yanlardan boşluklu,
+ * gölgeli. Sekme çubuğu Apple ölçüsüne (dibe yapışık, tam genişlik, hairline) geçince
+ * ekranın iki ucu iki ayrı tasarım dili konuşur oldu. Apple bunu yapmaz: UINavigationBar
+ * da UITabBar gibi tam genişlikte, düz ve hairline ayraçlıdır.
+ *
+ * 54 sayısı ayrıca içerikten türetilmişti (StatusHub 38 + 2×8) — kaçınılmak istenen
+ * şeyin ta kendisi. UIKit'in standardı 44pt.
+ *
+ * ÖLÇEKLENMEZ: sekme çubuğunda olduğu gibi başlık da CHROME'dur; yükseklik, başlık ve
+ * alt satır her cihazda aynıdır (yalnız Dynamic Type ile değişir). Ölçekli punto +
+ * sabit yükseklik karışımı sekme çubuğunda sıkışmaya yol açmıştı, aynı hata burada
+ * tekrarlanmıyor.
+ */
+export const TOP_BAR_HEIGHT = 44; // UIKit UINavigationBar standart yüksekliği
+export const TOP_BAR_LIFT = 0;    // yüzmez — durum çubuğunun hemen altına yapışır
+export const TOP_TITLE_SIZE = 17;    // Apple nav bar başlığı: 17pt semibold
+export const TOP_SUBTITLE_SIZE = 11; // başlık altı yardımcı satır (ör. tarih aralığı)
+
+/**
+ * BAŞLIK ÇUBUĞUNDAKİ ÖĞE (avatar, logo, durum rozeti) — GÖRSEL boyut.
+ *
+ * Dokunma hedefi her zaman MIN_TOUCH (44); bu yalnız çizilen boyut. Apple'ın bar
+ * button item'ları ~24-30pt görseldir, çubuğun kendisi 44pt'dir — yani öğe çubuğu
+ * doldurmaz, içinde nefes alır.
+ *
+ * Neden sabit ve neden burada: bu öğeler 54pt'lik ESKİ çubuğa göre ölçülmüştü
+ * (logo 30 + 2×12 boşluk = 54.5pt, avatar scale(34) ≈ 40pt). Çubuk Apple ölçüsü olan
+ * 44pt'ye inince logo TAŞTI, avatar kenara 1.8pt kaldı — "sıkışmışlık" tam olarak
+ * buydu. Ayrıca `scale()` ile yazıldıkları için tablette daha da büyüyorlardı; chrome
+ * ölçeklenmez (bkz. NAV_ICON_SIZE).
+ */
+export const TOP_ITEM_SIZE = 30;
 
 /** Yüzen başlığın kapladığı toplam dikey alan. Sayfa üstü boşluğu bundan az olamaz. */
 export const topBarSpace = (insetTop: number) => insetTop + TOP_BAR_LIFT + TOP_BAR_HEIGHT;

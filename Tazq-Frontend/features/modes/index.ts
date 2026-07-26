@@ -10,6 +10,7 @@ export {
   RAMAZAN, 
   getModePreview,
   getAllKnownModePairs,
+  isSeasonalExamActive,
   type TurkishMode,
   type StudyTemplate,
   type ModeHabit,

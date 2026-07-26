@@ -353,6 +353,9 @@ export default function RegisterScreen() {
                     {/* Legal consent */}
                     <Touchable
                       onPress={() => { Haptics.selectionAsync(); setConsentChecked(v => !v); }}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={language === 'tr' ? 'Kullanım koşullarını, gizlilik politikasını ve KVKK aydınlatma metnini okudum, kabul ediyorum' : 'I have read and accept the terms, privacy policy and data notice'}
+                      accessibilityState={{ checked: consentChecked }}
                       activeOpacity={0.7}
                       style={[styles.consentRow, { marginVertical: isSmallScreen ? 2 : 4 }]}
                     >
@@ -392,6 +395,8 @@ export default function RegisterScreen() {
 
                     <Touchable
                       onPress={handleRegister}
+                      accessibilityRole="button"
+                      accessibilityLabel={language === 'tr' ? 'Hesap oluştur' : 'Create account'}
                       disabled={isLoading}
                       style={[styles.registerButton, { height: isSmallScreen ? 38 : 48 }]}
                     >
@@ -420,6 +425,8 @@ export default function RegisterScreen() {
                       <Touchable
                         style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, height: isSmallScreen ? 36 : 44 }]}
                         onPress={handleGoogleSignIn}
+                        accessibilityRole="button"
+                        accessibilityLabel={language === 'tr' ? 'Google ile kaydol' : 'Sign up with Google'}
                         activeOpacity={0.7}
                         disabled={isLoading}
                       >
@@ -430,6 +437,8 @@ export default function RegisterScreen() {
                         <Touchable
                           style={[styles.socialButton, { backgroundColor: theme.surfaceContainerHigh, borderColor: theme.outlineVariant, height: isSmallScreen ? 36 : 44 }]}
                           onPress={handleAppleSignIn}
+                          accessibilityRole="button"
+                          accessibilityLabel={language === 'tr' ? 'Apple ile kaydol' : 'Sign up with Apple'}
                           activeOpacity={0.7}
                           disabled={isLoading}
                         >
@@ -478,16 +487,17 @@ export default function RegisterScreen() {
                   <Text style={[styles.footerText, { color: theme.onSurfaceVariant }]}>
                     {t.login.alreadyHaveAccount} 
                   </Text>
-                  <Touchable onPress={() => router.push('/login')}>
+                  <Touchable onPress={() => router.push('/login')} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Zaten hesabın var mı? Giriş yap' : 'Already have an account? Sign in'}>
                     <Text style={[styles.link, { color: theme.secondary }]}> {t.login.title}</Text>
                   </Touchable>
                 </View>
 
                 <TouchableOpacity
                   onPress={() => router.push('/onboarding')}
+                  accessibilityRole="button"
+                  accessibilityLabel={language === 'tr' ? 'Uygulamayı keşfet' : 'Explore the app'}
                   activeOpacity={0.7}
                   style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: S.sm }}
-                  accessibilityRole="button"
                 >
                   <Sparkles size={ICON.sm} color={theme.secondary} strokeWidth={2.2} />
                   <Text style={{ fontSize: 13.5, fontWeight: '700', color: theme.secondary, letterSpacing: 0.2 }}>

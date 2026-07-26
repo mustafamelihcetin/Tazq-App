@@ -243,21 +243,62 @@ export type CategoryColor = typeof CategoryColors[keyof typeof CategoryColors];
  * Doğrulama: __tests__/colorContrast.test.ts — her mod, kendi temasının zemininde >= 3:1.
  */
 export const ModeAccents = {
-  ramazan: { light: '#6366F1', dark: '#A5B4FC' }, // Indigo
-  yks:     { light: '#3B82F6', dark: '#93C5FD' }, // Blue
-  exam:    { light: '#3B82F6', dark: '#93C5FD' }, // Blue — yks ile aynı aile (ikisi de sınav)
-  kpss:    { light: '#3B82F6', dark: '#93C5FD' }, // Blue
-  tez:     { light: '#8B5CF6', dark: '#C4B5FD' }, // Violet
-  mulakat: { light: '#059669', dark: '#6EE7B7' }, // Emerald — açıkta 600 (500 = 2.31:1 ✗)
-  spor:    { light: '#EA580C', dark: '#FCA5A1' }, // Orange — açıkta 600 (500 = 2.55:1 ✗)
-  default: { light: '#EC4899', dark: '#F9A8D4' }, // Pink
+  ramazan:  { light: '#6366F1', dark: '#A5B4FC' }, // Indigo
+  yks:      { light: '#3B82F6', dark: '#93C5FD' }, // Blue
+  exam:     { light: '#3B82F6', dark: '#93C5FD' }, // Blue — yks ile aynı aile (ikisi de sınav)
+  kpss:     { light: '#3B82F6', dark: '#93C5FD' }, // Blue
+  tez:      { light: '#8B5CF6', dark: '#C4B5FD' }, // Violet
+  mulakat:  { light: '#059669', dark: '#6EE7B7' }, // Emerald — açıkta 600 (500 = 2.31:1 ✗)
+  spor:     { light: '#EA580C', dark: '#FCA5A1' }, // Orange — açıkta 600 (500 = 2.55:1 ✗)
+  tasarruf: { light: '#0D9488', dark: '#5EEAD4' }, // Teal — mulakat yeşiliyle çakışmasın diye ayrı
+  birakma:  { light: '#EF4444', dark: '#FCA5A5' }, // Red
+  default:  { light: '#EC4899', dark: '#F9A8D4' }, // Pink
+} as const;
+
+/**
+ * MOD VURGUSUNUN METİN VARYANTI — küçük yazı için.
+ *
+ * `ModeAccents` dolgu/ikon/çubuk/büyük-rakam içindir; oradaki tonlar açık temada
+ * 3.5–4.5:1 bandında, yani WCAG'ın BÜYÜK metin eşiğini (3:1) geçer ama KÜÇÜK metin
+ * eşiğini (4.5:1) geçmez. Oysa mod renkleri caption boyutunda da kullanılıyor
+ * ("GÜN", "%40", "bugün 2/5"). Aynı tonu her iki işe koşmak, ya dolguyu soldurmak
+ * ya yazıyı okunmaz bırakmak demekti.
+ *
+ * Çözüm iki rol: aynı ton ailesinin bir adım koyusu yalnız METİN için. Kimlik
+ * korunur (aynı hue), okunabilirlik kazanılır. Koyu temada zaten açık tonlar
+ * 10:1+ verdiği için aynen kullanılır.
+ *
+ * Ölçüm (beyaz zemin): exam 5.17 · tez 5.70 · mulakat 5.48 · spor 5.18 ·
+ * ramazan 6.29 · tasarruf 5.47 · birakma 4.83 · default 4.60 — hepsi AA ✓.
+ * Doğrulama: __tests__/colorContrast.test.ts
+ */
+export const ModeAccentsText = {
+  ramazan:  { light: '#4F46E5', dark: '#A5B4FC' },
+  yks:      { light: '#2563EB', dark: '#93C5FD' },
+  exam:     { light: '#2563EB', dark: '#93C5FD' },
+  kpss:     { light: '#2563EB', dark: '#93C5FD' },
+  tez:      { light: '#7C3AED', dark: '#C4B5FD' },
+  mulakat:  { light: '#047857', dark: '#6EE7B7' },
+  spor:     { light: '#C2410C', dark: '#FCA5A1' },
+  tasarruf: { light: '#0F766E', dark: '#5EEAD4' },
+  birakma:  { light: '#DC2626', dark: '#FCA5A5' },
+  default:  { light: '#DB2777', dark: '#F9A8D4' },
 } as const;
 
 export type ModeAccentKey = keyof typeof ModeAccents;
 
-/** Modun vurgu rengini aktif temaya göre çözer. Bilinmeyen mod → default. */
+/**
+ * Modun vurgu rengini aktif temaya göre çözer — DOLGU/İKON/ÇUBUK/büyük rakam için.
+ * Küçük yazıda `modeAccentText` kullan (kontrast).
+ */
 export function modeAccent(type: string | undefined, isDark: boolean): string {
   const entry = (ModeAccents as Record<string, { light: string; dark: string }>)[type ?? ''] ?? ModeAccents.default;
+  return isDark ? entry.dark : entry.light;
+}
+
+/** Modun METİN rengi — caption/etiket gibi küçük yazılar için AA (4.5:1) garantili. */
+export function modeAccentText(type: string | undefined, isDark: boolean): string {
+  const entry = (ModeAccentsText as Record<string, { light: string; dark: string }>)[type ?? ''] ?? ModeAccentsText.default;
   return isDark ? entry.dark : entry.light;
 }
 

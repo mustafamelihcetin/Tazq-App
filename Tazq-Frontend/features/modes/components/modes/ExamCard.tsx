@@ -24,8 +24,10 @@ import { matchExamName, detectExamFromInput, HOURS_OPTIONS, type ExamPreset } fr
 import { ICON, S, R, F, B, HAIRLINE } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
+import { useModeAccent } from '@/shared/hooks/useModeAccent';
+import { ProgressRail } from '@/shared/components/ProgressRail';
 
-const ACCENT = '#3B82F6';
+// Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
 type Slot = 'exam' | 'exam2' | 'exam3';
 type PreviewPayload = { templateId?: string; examSlot: Slot; examTipTr?: string; examTipEn?: string; examName: string; examDate: string };
@@ -72,6 +74,7 @@ function PresetEditor({ name, onName, preset, onPreset, suggestions, onSuggestio
   suggestions: ExamPreset[]; onSuggestions: (s: ExamPreset[]) => void; dailyMinutes: number | null; onDailyMinutes: (m: number | null) => void;
   placeholder: string; withLevelLabels?: boolean;
 }) {
+  const { accent: ACCENT, accentText: ACCENT_TX } = useModeAccent('exam');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -126,6 +129,7 @@ function PresetEditor({ name, onName, preset, onPreset, suggestions, onSuggestio
 }
 
 function HoursSelector({ preset, dailyMinutes, onPick, withLevelLabels }: { preset: ExamPreset; dailyMinutes: number | null; onPick: (m: number | null) => void; withLevelLabels?: boolean }) {
+  const { accent: ACCENT, accentText: ACCENT_TX } = useModeAccent('exam');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -156,6 +160,7 @@ function HoursSelector({ preset, dailyMinutes, onPick, withLevelLabels }: { pres
 
 /** İkincil sınav (exam2 / exam3). */
 function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview }: { slot: Slot; nameKey: 'exam2Name' | 'exam3Name'; dateKey: 'exam2Date' | 'exam3Date'; placeholder: string; addLabel: string; onOpenPreview: (p: PreviewPayload) => void }) {
+  const { accent: ACCENT, accentText: ACCENT_TX } = useModeAccent('exam');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -215,7 +220,7 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.caption }}>{name}</Text>
             <Text style={{ color: past ? theme.error : ACCENT, fontSize: F.caption, fontWeight: '500' }}>{past ? (tr ? 'Tarih geçti' : 'Date passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
           </View>
-          <Text style={{ color: ACCENT, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle ›' : 'Edit ›'}</Text>
+          <Text style={{ color: ACCENT_TX, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle ›' : 'Edit ›'}</Text>
           <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(tr ? 'Sınavı Sil' : 'Delete Exam', tr ? `"${name}" silinecek. Emin misin?` : `"${name}" will be deleted. Are you sure?`, [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Sil' : 'Delete', style: 'destructive', onPress: del }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }} accessibilityRole="button" accessibilityLabel={tr ? 'Sil' : 'Delete'}>
             <X size={ICON.xs} color={theme.onSurfaceVariant} strokeWidth={2.5} />
           </Touchable>
@@ -239,7 +244,7 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
             <Touchable onPress={() => { if (name || date) del(); setExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
             </Touchable>
-            {complete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview({ templateId: levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes), examSlot: slot, examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color="#fff" /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></Touchable>)}
+            {complete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview({ templateId: levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes), examSlot: slot, examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color="#fff" /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
           </View>
         </View>
       )}
@@ -248,6 +253,7 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
 }
 
 export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload) => void }) {
+  const { accent: ACCENT, accentText: ACCENT_TX } = useModeAccent('exam');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -414,7 +420,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
                     <AppIcon Icon={Target} color={ACCENT} size={24} radius={R.sm} iconSize={ICON.sm} />
                     <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
                     <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onOpenPreview({ templateId: !hasPlan ? levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes ?? 90) : undefined, examSlot: 'exam', examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} activeOpacity={0.7} style={{ backgroundColor: ACCENT + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
-                      <Text style={{ color: ACCENT, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Plan Oluştur ›' : 'Create Plan ›')}</Text>
+                      <Text style={{ color: ACCENT_TX, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
                     </Touchable>
                     <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
                     <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} activeOpacity={0.7}>
@@ -450,11 +456,9 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
                           <View style={{ marginTop: S.sm, gap: S.xs }}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                               <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
-                              <Text style={{ color: ACCENT, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
+                              <Text style={{ color: ACCENT_TX, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
                             </View>
-                            <View style={{ height: 5, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                              <View style={{ height: 5, borderRadius: R.xs, backgroundColor: ACCENT, width: `${progPct}%` as any }} />
-                            </View>
+                            <ProgressRail variant="segments" value={progDone} total={progTotal} color={ACCENT} />
                           </View>
                         )}
                       </View>
@@ -484,7 +488,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
                 <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
                 </Touchable>
-                {isComplete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview({ templateId: levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes ?? 90), examSlot: 'exam', examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={ICON.sm} color="#fff" /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></Touchable>)}
+                {isComplete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview({ templateId: levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes ?? 90), examSlot: 'exam', examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}><BookOpen size={ICON.sm} color="#fff" /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
               </View>
             </View>
           )}

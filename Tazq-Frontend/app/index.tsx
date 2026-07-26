@@ -39,7 +39,7 @@ import { StatusHub } from '@/shared/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getSmartInsight, generateWeeklyTips } from '@/shared/utils/insights';
 import { computeMomentum } from '@/shared/utils/momentum';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, touchSlop } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, touchSlop } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey, useSleepHealthSync } from '@/features/habits';
@@ -1132,7 +1132,7 @@ export default function HomeScreen() {
               accessibilityLabel={language === 'tr' ? 'Profil' : 'Profile'}
               // Avatar 34pt çiziliyor ama dokunma hedefi 44pt olmalı (Apple HIG).
               // Görsel boyut ≠ erişilebilir alan.
-              hitSlop={touchSlop(scale(34))}
+              hitSlop={touchSlop(TOP_ITEM_SIZE)}
               style={[
                   styles.avatarContainer,
                   {
@@ -1153,7 +1153,10 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel={tr ? 'TAZQ' : 'TAZQ'}
               onPress={handleLogoPress}
-              style={{ padding: S.smd, justifyContent: 'center', alignItems: 'center' }}
+              // Dokunma hedefi 44pt (çubuğun tam boyu), GÖRSEL öğe 30pt: Apple'ın bar
+              // button item'ı gibi. Eskiden padding S.smd (12) ile toplam 54.5pt olup
+              // 44pt çubuğa taşıyordu — "sıkışmışlık" hissinin kaynağı buydu.
+              style={{ height: '100%', paddingHorizontal: S.sm, justifyContent: 'center', alignItems: 'center' }}
           >
               {/* Minimalist Focus Ripple Ring */}
               {logoTick > 0 && (
@@ -1164,8 +1167,8 @@ export default function HomeScreen() {
                   transition={{ type: 'timing', duration: 400 }}
                   style={{
                     position: 'absolute',
-                    width: 44,
-                    height: 24,
+                    width: 40,
+                    height: 20,
                     borderRadius: R.md,
                     borderWidth: 1.2,
                     borderColor: theme.primary,
@@ -1183,7 +1186,11 @@ export default function HomeScreen() {
                       duration: 200
                   }}
               >
-                  <TazqLogo height={30} />
+                  {/* Marka işareti, başlık YUVASINDA duruyor — yani diğer ekranlardaki 17pt
+                      başlığın yerinde. Optik olarak onunla aynı ağırlıkta okunmalı:
+                      TazqLogo'nun kendi varsayılanı 24pt ve 44pt çubukta 10pt nefes
+                      bırakıyor. (30 eski 54pt çubuğa göreydi; 0.72 çarpanı ise keyfiydi.) */}
+                  <TazqLogo height={24} />
               </MotiView>
           </Touchable>
         }
@@ -1878,7 +1885,9 @@ const styles = StyleSheet.create({
   // Yükseklik SABİT (bkz. TOP_BAR_HEIGHT): eskiden paddingVertical + en yüksek çocuk
   // belirliyordu, yani başlığa bir öğe eklendiğinde bar sessizce uzayıp sayfaların
   // hesabını bozuyordu. Öğeler artık barın içinde ortalanır.
-  avatarContainer: { width: scale(34), height: scale(34), borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.light.surfaceContainerLowest },
+  // Başlık çubuğu öğesi: SABİT 30pt (bkz. TOP_ITEM_SIZE). scale(34) hem 44pt'lik
+  // çubukta kenara 1.8pt bırakıyordu hem de tablette 42.5'e çıkıyordu — chrome ölçeklenmez.
+  avatarContainer: { width: TOP_ITEM_SIZE, height: TOP_ITEM_SIZE, borderRadius: R.full, overflow: 'hidden', borderWidth: B.thin, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.light.surfaceContainerLowest },
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
   // Üst ve alt boşluk EŞİT (simetrik blok). Üst boşluk paddingTop'tan değil buradan gelir.

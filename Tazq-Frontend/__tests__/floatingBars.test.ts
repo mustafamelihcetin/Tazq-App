@@ -5,9 +5,13 @@ import {
   NAV_BAR_HEIGHT,
   NAV_BAR_LIFT,
   NAV_BAR_MIN_INSET,
+  NAV_ICON_SIZE,
+  NAV_LABEL_SIZE,
   topBarSpace,
   TOP_BAR_HEIGHT,
   TOP_BAR_LIFT,
+  TOP_TITLE_SIZE,
+  TOP_ITEM_SIZE,
   S,
 } from '@/shared/constants/tokens';
 
@@ -27,29 +31,82 @@ import {
 
 const ROOT = path.resolve(__dirname, '..');
 
-describe('navBarSpace hesabı', () => {
-  it('navbar’ın kapladığı alanı doğru verir', () => {
-    // home göstergeli iPhone: 34 + 4 + 68 = 106
+describe('navBarSpace hesabi', () => {
+  /**
+   * Bar artik YUZMUYOR: ekranin dibine yapisik, tam genislikte standart sekme cubugu
+   * (yuzen pill + arkadaki kayan hap kaldirildi). Dolayisiyla kapladigi alan
+   * "icerik yuksekligi + guvenli alan" oldu; yukselti (LIFT) sifir.
+   *
+   * DEGISMEYEN GUVENCE: navBarSpace, barin GERCEKTEN kapladigi yuksekligi vermeli.
+   * Yanlissa son gorev barin arkasinda kalir ve kullanici ona ULASAMAZ — sessiz hata:
+   * kod calisir, tsc susar, test gecer.
+   */
+  it('navbar in kapladigi alani dogru verir — Apple olcusu', () => {
+    // UIKit UITabBar: icerik 49pt, guvenli alan (home gostergesi 34pt) ALTINA eklenir.
+    // iPhone'da toplam 83pt — Apple'in kendi sayisi.
     expect(navBarSpace(34)).toBe(34 + NAV_BAR_LIFT + NAV_BAR_HEIGHT);
-    expect(navBarSpace(34)).toBe(106);
+    expect(navBarSpace(34)).toBe(83);
   });
 
-  it('gösterge yokken taban boşluğa düşer', () => {
-    // inset 0 → max(0,16)=16 → 16 + 4 + 68 = 88. Bar ekranın dibine yapışmaz.
+  it('home gostergesi yoksa cubuk dibe tam yapisir', () => {
+    // inset 0 -> 0 + 0 + 49 = 49. Apple da ekstra pay EKLEMEZ (iPhone SE davranisi).
     expect(navBarSpace(0)).toBe(NAV_BAR_MIN_INSET + NAV_BAR_LIFT + NAV_BAR_HEIGHT);
-    expect(navBarSpace(0)).toBe(88);
+    expect(navBarSpace(0)).toBe(49);
   });
 
-  it('inset büyüdükçe boşluk büyür — asla küçülmez', () => {
+  it('Apple sekme cubugu olculeri korunur', () => {
+    // Bu uc sayi tasarim karari, tahmin degil. Degistirilirse bilincli olsun.
+    expect(NAV_BAR_HEIGHT).toBe(49);   // UITabBar standart icerik yuksekligi
+    expect(NAV_BAR_LIFT).toBe(0);      // yuzmez, dibe yapisik
+    expect(NAV_BAR_MIN_INSET).toBe(0); // ekstra nefes payi yok
+  });
+
+  it('cubuk icerigi OLCEKLENMEZ — kap sabitken icerik buyuyemez', () => {
+    /**
+     * Gercek bir hata: yukseklik ham 49 iken ikon ICON.lg (moderateScale) ve etiket
+     * olcekli yazilmisti. Ekran genisledikce icerik buyuyor, kap buyumuyordu:
+     * 430pt telefonda yigin 41.2pt, tablette 43.1pt -> ust/alt pay 3pt (sikisik).
+     * Apple'da sekme cubugunun ucu de sabittir; cubuk icerik degil CHROME'dur.
+     */
+    expect(NAV_ICON_SIZE).toBe(22);
+    expect(NAV_LABEL_SIZE).toBe(10);
+    // Yigin (ikon + 2pt bosluk + ~1.25em satir) cubuga nefes payiyla sigmali.
+    const stack = NAV_ICON_SIZE + 2 + NAV_LABEL_SIZE * 1.25;
+    expect(NAV_BAR_HEIGHT - stack).toBeGreaterThanOrEqual(8); // ust+alt toplam >= 8pt
+
+    const src = fs.readFileSync(path.join(ROOT, 'shared/components/BottomNavBar.tsx'), 'utf8');
+    expect(src).toContain('size={NAV_ICON_SIZE}');
+    expect(src).toContain('fontSize: NAV_LABEL_SIZE');
+    // Olcekli token'lar cubukta kullanilmamali.
+    expect(src).not.toMatch(/size=\{ICON\./);
+    expect(src).not.toMatch(/fontSize: F\./);
+  });
+
+  it('inset buyudukce bosluk buyur — asla kucumez', () => {
     expect(navBarSpace(50)).toBeGreaterThan(navBarSpace(34));
     expect(navBarSpace(0)).toBeLessThanOrEqual(navBarSpace(16));
   });
 
-  it('eski sabit (S.xxl ≈ 64) yetersizdi — regresyon kaydı', () => {
-    // Bu test hatayı BELGELİYOR: 64 yazmak her cihazda eksik kalıyordu.
-    // Sayı tekrar sabitlenirse aşağıdaki test kırılır; bu ise nedenini anlatır.
-    expect(navBarSpace(34)).toBeGreaterThan(64);
-    expect(navBarSpace(0)).toBeGreaterThan(64);
+  it('bar dibe yapisik: yukselti yok', () => {
+    // Yuzen tasarimin kalintisi geri gelirse burasi kirilir.
+    expect(NAV_BAR_LIFT).toBe(0);
+  });
+
+  it('bosluk her zaman barin icerik yuksekliginden buyuk', () => {
+    // Eski regresyon kaydi ("64 yetersizdi") yuzen tasarima ozeldi ve artik gecersiz;
+    // yerine olcekten bagimsiz gercek degismez: bosluk >= icerik + taban pay.
+    for (const inset of [0, 8, 20, 34, 50]) {
+      expect(navBarSpace(inset)).toBeGreaterThanOrEqual(NAV_BAR_HEIGHT + NAV_BAR_MIN_INSET);
+    }
+  });
+
+  it('bilesen kendi olcusunu tokenlardan kurar — sayfa ile ayrisamaz', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'shared/components/BottomNavBar.tsx'), 'utf8');
+    expect(src).toContain('NAV_BAR_HEIGHT');
+    expect(src).toContain('NAV_BAR_MIN_INSET');
+    // Dibe yapisik olmali: yan bosluk/yuvarlak kabuk yok, ust ayrac cizgisi var.
+    expect(src).toMatch(/bottom: 0/);
+    expect(src).toContain('borderTopWidth: HAIRLINE');
   });
 });
 
@@ -59,16 +116,62 @@ describe('topBarSpace hesabı', () => {
     expect(topBarSpace(59)).toBe(59 + TOP_BAR_LIFT + TOP_BAR_HEIGHT);
   });
 
-  it('eski sabit (S.xxl ≈ 64) payı 2pt’ye düşürüyordu — regresyon kaydı', () => {
-    // Başlık insets.top + 62 kaplarken sayfalar insets.top + 64 bırakıyordu.
-    // tasks/cockpit/modlar'da ilk öğe barın 2pt altındaydı, yani değiyordu.
-    // (index farkı görüp hero'ya elle marginTop eklemişti — yama, çözüm değil.)
-    // Ölçekten BAĞIMSIZ ifade: S.xxl geniş ekranda 64 değil 72 olur, o yüzden çıplak
-    // sayı yazmak testi cihaza bağlar. Bulgu şu: eski sabit, başlığın altında bir
-    // nefes payı (S.md) bile bırakmıyordu.
-    expect(S.xxl - topBarSpace(0)).toBeLessThan(S.md);
-    // Yeni değer o payı sağlıyor (sayfalar üstüne ayrıca S.lg ekliyor).
+  it('Apple nav bar olculeri korunur', () => {
+    /**
+     * Baslik cubugu da sekme cubugu gibi CHROME: dibe/ustune yapisik, tam genislikte,
+     * hairline ayracli. Eski hal 54pt yuzen bir pill'di ve 54 sayisi ICERIKTEN
+     * turetilmisti (StatusHub 38 + 2x8) — kacinilmak istenen seyin ta kendisi.
+     * UIKit standardi 44pt; baslik 17pt semibold.
+     *
+     * NOT: eski "S.xxl (64) yetersizdi" regresyon kaydi 54pt YUZEN cubuga ozeldi
+     * (o zaman bar insetTop + 62 kapliyordu, sayfalar 64 birakiyordu -> 2pt pay).
+     * 44pt yapisik cubukta o kosul artik gecerli degil; yerine olculer cakiliyor.
+     */
+    expect(TOP_BAR_HEIGHT).toBe(44);
+    expect(TOP_BAR_LIFT).toBe(0);        // yuzmez
+    expect(TOP_TITLE_SIZE).toBe(17);     // Apple nav bar basligi
     expect(topBarSpace(0)).toBe(TOP_BAR_LIFT + TOP_BAR_HEIGHT);
+  });
+
+  it('baslik OLCEKLENMEZ ve tipografi bilesende — ekranlar ayrisamaz', () => {
+    /**
+     * Ekranlar basligi kendi `center` yuvasina F.title3 + adjustsFontSizeToFit ile
+     * yaziyordu. Sonuc: ayni baslik dar ekranda ~14pt, genis ekranda ~20pt ciziliyordu
+     * — sabit yuksekligin sagladigi tutarliligi baslik boyutu geri bozuyordu.
+     */
+    // Yorumlardaki gerekce metni sayilmasin (eski yaklasimdan SOZ etmek serbest).
+    const strip = (src: string) =>
+      src
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .split('\n')
+        .filter((l) => !l.trim().startsWith('//'))
+        .join('\n');
+    const hdr = strip(fs.readFileSync(path.join(ROOT, 'shared/components/ScreenHeader.tsx'), 'utf8'));
+    expect(hdr).toContain('fontSize: TOP_TITLE_SIZE');
+    expect(hdr).not.toMatch(/adjustsFontSizeToFit/);
+    expect(hdr).toContain('borderBottomWidth: HAIRLINE');
+    // Golge yok: koyu temada eski golge `primary` renkliydi (mavi parilti).
+    expect(hdr).not.toMatch(/shadowOpacity/);
+
+    // Ekranlar artik `title=` kullanir, kendi Text'ini yazmaz.
+    // Sabit karakter penceresi kirilgandi (tasks'in `left` yuvasi tek basina 400+):
+    // ScreenHeader blogunu bastan kapanisina kadar cikar.
+    // `/>` ile kesmek YANLIŞTI: yuvaların içindeki her self-closing JSX (ör.
+    // `<X size={ICON.lg} />`) blogu erken bitiriyordu. Kapanış, KENDİ girintisinde
+    // tek başına duran `/>` satırıdır.
+    const headerBlock = (src: string) => {
+      const lines = src.split('\n');
+      const start = lines.findIndex((l) => l.includes('<ScreenHeader'));
+      if (start < 0) return '';
+      const end = lines.findIndex((l, i) => i > start && l.trim() === '/>');
+      return lines.slice(start, end < 0 ? undefined : end).join('\n');
+    };
+    for (const f of ['tasks.tsx', 'cockpit.tsx', 'modlar.tsx']) {
+      const block = headerBlock(fs.readFileSync(path.join(ROOT, 'app', f), 'utf8'));
+      expect({ file: f, usesTitle: /title=\{/.test(block) }).toEqual({ file: f, usesTitle: true });
+      // Baslik puntosu ekranda YAZILMAZ — bilesende.
+      expect({ file: f, ownTitleType: /adjustsFontSizeToFit/.test(block) }).toEqual({ file: f, ownTitleType: false });
+    }
   });
 
   it('durum çubuğu büyüdükçe boşluk büyür', () => {
@@ -89,9 +192,45 @@ const headerScreens = fs
     return src.includes('<ScreenHeader') || /topBarContent: \{/.test(src);
   });
 
+describe('baslik cubugu ogeleri', () => {
+  /**
+   * "Sikismislik" hissinin olculmus sebebi: baslik ogeleri 54pt'lik ESKI cubuga gore
+   * boyutlanmisti. Cubuk Apple olcusu 44pt'ye inince
+   *   · TAZQ logosu (30 + 2x12 bosluk = 54.5pt) cubuga TASTI,
+   *   · avatar scale(34) ≈ 40.4pt olup kenara 1.8pt birakti,
+   *   · StatusHub 38pt olup 3pt birakti.
+   * Apple'in bar button item'i ~24-30pt gorseldir; cubugu doldurmaz, icinde nefes alir.
+   * Dokunma hedefi ayri ve her zaman 44pt.
+   */
+  it('oge olcusu cubuga nefes payi birakir', () => {
+    expect(TOP_ITEM_SIZE).toBe(30);
+    // Ust + alt toplam en az 12pt (her yanda >= 6pt).
+    expect(TOP_BAR_HEIGHT - TOP_ITEM_SIZE).toBeGreaterThanOrEqual(12);
+  });
+
+  it('baslik ogeleri OLCEKLENMEZ — chrome her cihazda ayni', () => {
+    // Yorumlardaki gerekce metni sayilmasin (eski olcuden SOZ etmek serbest).
+    const strip = (src: string) =>
+      src
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .split('\n')
+        .filter((l) => !l.trim().startsWith('//'))
+        .join('\n');
+    const src = strip(fs.readFileSync(path.join(ROOT, 'app/index.tsx'), 'utf8'));
+    // scale(34) tablette 42.5'e cikiyordu; 44pt cubukta kabul edilemez.
+    expect(src).not.toMatch(/scale\(34\)/);
+    expect(src).toContain('TOP_ITEM_SIZE');
+    const hub = fs.readFileSync(path.join(ROOT, 'shared/components/StatusHub.tsx'), 'utf8');
+    expect(hub).toContain('const HUB = TOP_ITEM_SIZE;');
+  });
+});
+
 describe('sayfa üstü boşluğu', () => {
-  it('yüzen başlıklı sayfalar bulunmalı — tarama boşa düşmemeli', () => {
-    expect(headerScreens.length).toBe(4);
+  it('ortak başlıklı sayfalar bulunmalı — tarama boşa düşmemeli', () => {
+    // 4 -> 9: alt sayfalar da (settings/report/archive/legal/mod-ozet) ortak başlığa
+    // taşındı. Her biri kendi satırını çiziyordu ve başlık puntosu 14–30pt arasında
+    // dağılmıştı; ana ekranlar 17pt olunca alt sayfaya inince başlık BÜYÜYORDU.
+    expect(headerScreens.length).toBe(9);
   });
 
   it.each(headerScreens)('%s üstünü topBarSpace’ten türetmeli', (file) => {
@@ -108,11 +247,15 @@ describe('başlık kutusu', () => {
 
   const shared = appFiles.filter((f) => read(f).includes('<ScreenHeader'));
 
-  it('dört sayfa da ortak başlığı kullanmalı', () => {
-    // Başlık dört dosyada AYRI tanımlıydı; kopyalar ayrışıp boyları farklılaşmıştı
-    // (index 54pt, diğerleri ~40pt), çünkü yükseklik içerikten doğuyordu.
-    // Artık dördü tek bileşenden çiziyor: eşitlik yapısal, ayrışmaları imkânsız.
-    expect(shared.sort()).toEqual(['cockpit.tsx', 'index.tsx', 'modlar.tsx', 'tasks.tsx']);
+  it('başlığı olan HER sayfa ortak bileşeni kullanmalı', () => {
+    // Başlık önce dört dosyada AYRI tanımlıydı; kopyalar ayrışıp boyları farklılaşmıştı.
+    // Sonra alt sayfalar da katıldı: settings 22pt, archive 22pt, report 20pt,
+    // legal 14pt(!), mod-ozet kendi çöken 52pt başlığı + ölçek dışı 30pt.
+    // Artık dokuzu tek bileşenden çiziyor: eşitlik yapısal, ayrışma imkânsız.
+    expect(shared.sort()).toEqual([
+      'archive.tsx', 'cockpit.tsx', 'index.tsx', 'legal.tsx', 'mod-ozet.tsx',
+      'modlar.tsx', 'report.tsx', 'settings.tsx', 'tasks.tsx',
+    ]);
   });
 
   it('hiçbir sayfa kendi başlık kopyasını taşımamalı', () => {

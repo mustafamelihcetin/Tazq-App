@@ -536,20 +536,9 @@ export default function CockpitScreen() {
             </Touchable>
             </>
           }
-          center={
-            <>
-            <Text 
-              numberOfLines={1} 
-              adjustsFontSizeToFit
-              style={{ fontSize: F.title3, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
-            >
-                {tr ? 'Haftalık Merkez' : 'Weekly Hub'}
-            </Text>
-            <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary, letterSpacing: 0.5, marginTop: S.xxs }}>
-              {`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }).toUpperCase()}`}
-            </Text>
-            </>
-          }
+          title={tr ? 'Haftalık Merkez' : 'Weekly Hub'}
+          subtitle={`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }).toUpperCase()}`}
+          subtitleColor={theme.primary}
           right={
             <>
             <Touchable

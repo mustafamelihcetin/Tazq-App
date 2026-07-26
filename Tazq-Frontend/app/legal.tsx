@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { LEGAL_DOCS, type LegalDocKey } from '@/shared/constants/legal';
-import { ICON, S, F, HAIRLINE } from '@/shared/constants/tokens';
+import { ICON, S, F, HAIRLINE , topBarSpace} from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 
 export default function LegalScreen() {
@@ -24,46 +25,24 @@ export default function LegalScreen() {
   const body = tr ? legal.bodyTr : legal.bodyEn;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top', 'bottom']}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: theme.outlineVariant }]}>
-        <Touchable onPress={() => router.back()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'}>
-          <ArrowLeft size={ICON.lg} color={theme.onSurface} />
-        </Touchable>
-        <Text style={[styles.headerTitle, { color: theme.onSurface }]} numberOfLines={1}>
-          {title}
-        </Text>
-        <View style={{ width: 22 }} />
-      </View>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* Ortak başlık — kendi kopyası F.body (14pt) başlık kullanıyordu, yani ekran
+          başlığı gövde metniyle aynı boydaydı. Artık 17pt, diğerleriyle aynı. */}
+      <ScreenHeader onBack={() => router.back()} title={title} />
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + S.xl }]}
+        contentContainerStyle={[styles.content, { paddingTop: topBarSpace(insets.top) + S.md, paddingBottom: insets.bottom + S.xl }]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.body, { color: theme.onSurface }]}>
           {body}
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: S.lg,
-    paddingVertical: S.md,
-    borderBottomWidth: HAIRLINE,
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: F.body,
-    fontFamily: 'Jakarta-Bold',
-    marginHorizontal: S.md,
-  },
   content: {
     paddingHorizontal: S.lg,
     paddingTop: S.lg,

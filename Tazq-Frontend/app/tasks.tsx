@@ -1462,15 +1462,7 @@ export default function ActionCenter() {
             )}
             </>
           }
-          center={
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              style={{ fontSize: F.title3, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title }}
-            >
-              {isBulkMode ? (language === 'tr' ? 'Seçim' : 'Selection') : t.actionCenter}
-            </Text>
-          }
+          title={isBulkMode ? (language === 'tr' ? 'Seçim' : 'Selection') : t.actionCenter}
           right={
             <>
             {isBulkMode ? (
@@ -1956,9 +1948,10 @@ export default function ActionCenter() {
           isDark={isDark}
           theme={theme}
           style={{
+            // NOT: konum MagneticFAB'in kendi transform'undan gelir (güvenli bölge
+            // navBarSpace'ten türetilir). Buradaki `bottom/right` etkisiz ölü stildi —
+            // bileşen `left:0/top:0` + translate ile konumlanıyor. Kaldırıldı.
             position: 'absolute',
-            bottom: 44,
-            right: 24,
             zIndex: 100,
             backgroundColor: theme.primary,
             shadowColor: theme.primary,

@@ -1491,11 +1491,11 @@ export const TurkishModeBanner: React.FC<Props> = ({
                   {applying ? (
                     <ActivityIndicator color="#fff" size="small" />
                   ) : applied ? (
-                    <><Check size={ICON.sm} color="#fff" strokeWidth={2.5} /><Text style={styles.applyBtnText}>{tr ? 'Uygulandı! — Kapat' : 'Applied! — Close'}</Text></>
+                    <><Check size={ICON.sm} color="#fff" strokeWidth={2.5} /><Text style={styles.applyBtnText}>{tr ? 'Başladı! — Kapat' : 'Started! — Close'}</Text></>
                   ) : allDone ? (
                     <Text style={[styles.applyBtnText, { color: theme.onSurfaceVariant }]}>{tr ? 'Tümü zaten mevcut' : 'All already added'}</Text>
                   ) : (
-                    <><Zap size={ICON.sm} color="#fff" strokeWidth={2.5} /><Text style={styles.applyBtnText}>{tr ? `Uygula  (${newHabits.length + newTasks.length} öğe)` : `Apply  (${newHabits.length + newTasks.length} items)`}</Text></>
+                    <><Zap size={ICON.sm} color="#fff" strokeWidth={2.5} /><Text style={styles.applyBtnText}>{tr ? `Planı Başlat  (${newHabits.length + newTasks.length} öğe)` : `Start Plan  (${newHabits.length + newTasks.length} items)`}</Text></>
                   )}
                 </Touchable>
               </>

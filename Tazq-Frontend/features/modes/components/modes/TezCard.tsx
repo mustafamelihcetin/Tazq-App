@@ -21,11 +21,14 @@ import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf } from '@/shared
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
+import { useModeAccent } from '@/shared/hooks/useModeAccent';
+import { ProgressRail } from '@/shared/components/ProgressRail';
 
-const TEZ = '#8B5CF6';
+// Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
 
 export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
+  const { accent: TEZ, accentText: TEZ_TX } = useModeAccent('tez');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -125,7 +128,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
                   <AppIcon Icon={GraduationCap} color={accent} size={24} radius={R.sm} iconSize={ICON.sm} />
                   <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{name}</Text>
                   <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onOpenPreview(); }} activeOpacity={0.7} style={{ backgroundColor: accent + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
-                    <Text style={{ color: accent, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Plan Oluştur ›' : 'Create Plan ›')}</Text>
+                    <Text style={{ color: TEZ_TX, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
                   </Touchable>
                   <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
                   <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} activeOpacity={0.7}>
@@ -152,11 +155,9 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
                         <View style={{ marginTop: S.sm, gap: S.xs }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                             <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
-                            <Text style={{ color: accent, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
+                            <Text style={{ color: TEZ_TX, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
                           </View>
-                          <View style={{ height: 5, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                            <View style={{ height: 5, borderRadius: R.xs, backgroundColor: accent, width: `${progPct}%` as any }} />
-                          </View>
+                          <ProgressRail variant="segments" value={progDone} total={progTotal} color={accent} />
                         </View>
                       )}
                     </View>

@@ -50,16 +50,24 @@ const CEILING: Record<string, number> = {
   // artık İKİ tam palet (accent + nötr çiftleri) taşıyor; renk tanımları doğal olarak ~ikiye
   // katlandı. Bilinçli yükseltme (bkz. tema toggle, ACCENTS/NEUTRAL). Bu satır yine yalnız küçülmeli.
   'app/promo.tsx': 57,
-  'app/modlar.tsx': 25,
+  // 25 → 3: mod vurguları merkezi palete bağlandı (useModeAccent / ModeAccents +
+  // ModeAccentsText). Buradaki ham hex'ler paletin KONTRAST YETERSİZLİĞİ nedeniyle
+  // reddettiği tonlardı (#F97316 = 2.80:1, #10B981 = 2.54:1) ve iki temada aynıydı.
+  // Kalan 3: koyu tema kart zemini (#1C1C22) — yüzey tonu, mod kimliği değil.
+  'app/modlar.tsx': 3,
   'app/cockpit.tsx': 23,
   // onboarding: temizlendi. 7 marka-dışı slayt rengi (Material #6200ee, #3367ff, #ff2d55…)
   // palet token'larına bağlandı (accentKey → theme/CategoryColors, tema-duyarlı); emoji
   // etiketler lucide glife çevrildi. İlk-izlenim ekranı artık app'in paletiyle aynı.
-  'features/modes/components/TurkishModeBanner.tsx': 23,
+  'features/modes/components/TurkishModeBanner.tsx': 20,
   'shared/components/ProfileSetupModal.tsx': 22,  // kullanıcının seçtiği avatar renkleri
-  'features/modes/components/modes/SporCard.tsx': 21,
+  // 21 → 4: mod vurgusu palete, semantik renkler (#EF4444/#F59E0B/#10B981) tema
+  // token'larına (theme.error/warning/success) bağlandı. Kalan 4: yüzey/nötr tonlar.
+  'features/modes/components/modes/SporCard.tsx': 4,
   'app/focus.tsx': 18,  // derin odak — Skia shader, kendi görsel dili
-  'app/mod-ozet.tsx': 18,
+  // 18 → 5: mod renklerinin ÜÇÜNCÜ kopyası (modlar.tsx'in aynısı) merkezi palete
+  // bağlandı; iki ekran aynı modu farklı tonda gösterebiliyordu.
+  'app/mod-ozet.tsx': 5,
   'shared/utils/achievementIcons.tsx': 15,  // her başarımın kimlik rengi
   'features/modes/components/modes/RamazanCard.tsx': 12,
   'shared/components/CelebrationOverlay.tsx': 12,

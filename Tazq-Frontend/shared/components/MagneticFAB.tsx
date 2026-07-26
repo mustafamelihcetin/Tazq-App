@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
 import { TourTarget } from '@/shared/components/TourContext';
+import { S, navBarSpace, topBarSpace } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 
 interface MagneticFABProps {
@@ -39,6 +40,21 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
   const finalBorderRadius = borderRadius !== undefined ? borderRadius : buttonSize / 2;
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+
+  /**
+   * GÜVENLİ BÖLGE — çubuklardan TÜRETİLİR, elle yazılmaz.
+   *
+   * Eskiden ham sayılardı: `- 150` (varsayılan yer) ve `- 160` (sürükleme tabanı).
+   * Bu sayılar 106pt'lik YÜZEN navbar'a göre ayarlanmıştı. Navbar Apple ölçüsüne
+   * (83pt) inince FAB olduğu yerde kaldı: çubuğun 24pt üstünde durması gerekirken
+   * 47pt üstünde kaldı ve sürükleme tabanı 23pt yukarıda takıldı — altında
+   * kullanıcının FAB'i indiremediği ölü bir bant oluştu.
+   *
+   * Sayfalar alt boşluğu zaten `navBarSpace`'ten türetiyor; FAB de öyle yapmalı.
+   */
+  const restY = screenHeight - (navBarSpace(insets.bottom) + S.lg + buttonSize); // rahat duruş
+  const floorY = screenHeight - (navBarSpace(insets.bottom) + S.sm + buttonSize); // en aşağı
+  const ceilY = topBarSpace(insets.top) + S.sm;                                   // en yukarı
   
   const pan = useRef(new Animated.ValueXY()).current;
   const scale = useRef(new Animated.Value(1)).current;
@@ -53,7 +69,7 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
         const storedY = await AsyncStorage.getItem(`${storageKey}_y`);
 
         const defaultX = screenWidth - buttonSize - 16;
-        const defaultY = screenHeight - insets.bottom - 150;
+        const defaultY = restY;
 
         const initialX = storedX ? parseFloat(storedX) : defaultX;
         const initialY = storedY ? parseFloat(storedY) : defaultY;
@@ -126,8 +142,8 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
         const targetX = snapToRight ? snapRight : snapLeft;
 
         // Clamping Y to safe zone between top and bottom nav bars
-        const safeMinY = insets.top + 70;
-        const safeMaxY = screenHeight - insets.bottom - 160;
+        const safeMinY = ceilY;
+        const safeMaxY = floorY;
         const targetY = Math.max(safeMinY, Math.min(safeMaxY, currentY));
 
         // Spring animation to settled position

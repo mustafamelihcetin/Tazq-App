@@ -432,6 +432,9 @@ export default function OnboardingScreen() {
                     router.replace(nextPath as any);
                 }}
                 style={styles.skipBtn}
+                accessibilityRole="button"
+                accessibilityLabel={language === 'tr' ? 'Tanıtımı geç' : 'Skip intro'}
+                accessibilityHint={language === 'tr' ? 'Doğrudan giriş ekranına gider' : 'Goes straight to the sign-in screen'}
             >
                 <Text style={[styles.skipText, { color: theme.onSurfaceVariant }]}>{t.skip}</Text>
             </Touchable>
@@ -505,6 +508,9 @@ export default function OnboardingScreen() {
           <Touchable 
             onPress={nextSlide} 
             activeOpacity={0.8} 
+            accessibilityRole="button"
+            accessibilityLabel={currentIndex === SLIDES.length - 1 ? t.welcome.getStarted : t.next}
+            accessibilityHint={language === 'tr' ? `${currentIndex + 1} / ${SLIDES.length}. adım` : `Step ${currentIndex + 1} of ${SLIDES.length}`}
             style={[styles.nextBtn, { backgroundColor: theme.primary, height: isSmallDevice ? 56 : 64 }, !isDark && styles.clayShadow]}
           >
              <Text style={[styles.nextBtnText, { color: theme.onPrimary, fontSize: isSmallDevice ? 16 : 18 }]}>

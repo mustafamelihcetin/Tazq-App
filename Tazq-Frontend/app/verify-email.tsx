@@ -147,7 +147,13 @@ export default function VerifyEmailScreen() {
                 >
                   <GlassCard style={{ width: '100%', padding: isSmallScreen ? S.md : S.lg, gap: isSmallScreen ? S.md : S.lg }}>
                     {/* OTP kutuları */}
-                    <Pressable onPress={() => inputRef.current?.focus()} style={styles.otpRow}>
+                    <Pressable
+                      onPress={() => inputRef.current?.focus()}
+                      style={styles.otpRow}
+                      accessibilityRole="button"
+                      accessibilityLabel={language === 'tr' ? 'Doğrulama kodu alanı' : 'Verification code field'}
+                      accessibilityHint={language === 'tr' ? 'E-postana gelen 6 haneli kodu girmek için dokun' : 'Tap to enter the 6-digit code sent to your email'}
+                    >
                       {Array.from({ length: CODE_LEN }).map((_, i) => {
                         const ch = code[i];
                         const active = i === code.length;
@@ -203,6 +209,8 @@ export default function VerifyEmailScreen() {
                     {/* Doğrula butonu */}
                     <Touchable
                       onPress={() => verify()}
+                      accessibilityRole="button"
+                      accessibilityLabel={language === 'tr' ? 'Kodu doğrula' : 'Verify code'}
                       disabled={loading || code.length < CODE_LEN}
                       style={[styles.button, { opacity: code.length < CODE_LEN || loading ? 0.5 : 1 }]}
                     >
@@ -223,7 +231,7 @@ export default function VerifyEmailScreen() {
                       <Text style={[styles.resendText, { color: theme.onSurfaceVariant }]}>
                         {tr ? 'Kod gelmedi mi?' : "Didn't get the code?"}
                       </Text>
-                      <TouchableOpacity onPress={resend} disabled={resendIn > 0} activeOpacity={0.7} accessibilityRole="button">
+                      <TouchableOpacity onPress={resend} disabled={resendIn > 0} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Doğrulama kodunu tekrar gönder' : 'Resend verification code'} accessibilityState={{ disabled: resendIn > 0 }}>
                         <Text style={[styles.resendLink, { color: resendIn > 0 ? theme.onSurfaceVariant : theme.secondary }]}>
                           {resendIn > 0 ? `${resendIn}s` : tr ? ' Tekrar gönder' : ' Resend'}
                         </Text>

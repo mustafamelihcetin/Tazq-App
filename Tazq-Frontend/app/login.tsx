@@ -378,6 +378,8 @@ export default function LoginScreen() {
                       <TouchableOpacity
                         onPress={() => Linking.openURL(`mailto:destek@tazqapp.com?subject=${encodeURIComponent((language === 'tr' ? 'Ban itirazı - ' : 'Ban appeal - ') + email)}`)}
                         activeOpacity={0.7}
+                        accessibilityRole="link"
+                        accessibilityLabel={language === 'tr' ? 'Hesap kapatmaya itiraz et — destek e-postası aç' : 'Appeal the ban — open support email'}
                         style={[styles.bannedAppeal, { borderColor: theme.error + '30' }]}
                       >
                         <Mail size={ICON.xs} color={theme.error} />
@@ -439,7 +441,7 @@ export default function LoginScreen() {
                             : <Eye size={ICON.md} color={isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.45)'} />}
                         </Touchable>
                       </View>
-                      <Touchable onPress={() => setForgotVisible(true)} style={{ alignSelf: 'flex-end', marginTop: S.sm }}>
+                      <Touchable onPress={() => setForgotVisible(true)} style={{ alignSelf: 'flex-end', marginTop: S.sm }} accessibilityRole="button" accessibilityLabel={t.login.forgotPassword}>
                         <Text style={[styles.forgotText, { color: theme.primary }]}>{t.login.forgotPassword}</Text>
                       </Touchable>
                     </View>
@@ -447,6 +449,9 @@ export default function LoginScreen() {
                     <Touchable
                       onPress={handleLogin}
                       disabled={isLoading}
+                      accessibilityRole="button"
+                      accessibilityLabel={language === 'tr' ? 'Giriş yap' : 'Sign in'}
+                      accessibilityState={{ disabled: isLoading, busy: isLoading }}
                       style={[styles.loginButton, { height: isSmallScreen ? 42 : 52 }]}
                     >
                       <MotiView
@@ -478,6 +483,9 @@ export default function LoginScreen() {
                         onPress={handleGoogleSignIn}
                         activeOpacity={0.7}
                         disabled={isLoading}
+                        accessibilityRole="button"
+                        accessibilityLabel={language === 'tr' ? 'Google ile giriş yap' : 'Sign in with Google'}
+                        accessibilityState={{ disabled: isLoading }}
                       >
                         <GoogleIcon color={theme.onSurface} />
                         <Text style={[styles.socialText, { color: theme.onSurface }]}>Google</Text>
@@ -488,6 +496,9 @@ export default function LoginScreen() {
                           onPress={handleAppleSignIn}
                           activeOpacity={0.7}
                           disabled={isLoading}
+                          accessibilityRole="button"
+                          accessibilityLabel={language === 'tr' ? 'Apple ile giriş yap' : 'Sign in with Apple'}
+                          accessibilityState={{ disabled: isLoading }}
                         >
                           <AppleIcon color={theme.onSurface} />
                           <Text style={[styles.socialText, { color: theme.onSurface }]}>Apple</Text>
@@ -552,6 +563,8 @@ export default function LoginScreen() {
                   activeOpacity={0.7}
                   style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: S.sm }}
                   accessibilityRole="button"
+                  accessibilityLabel={language === 'tr' ? 'Uygulamayı keşfet' : 'Explore the app'}
+                  accessibilityHint={language === 'tr' ? 'Hesap açmadan tanıtım turunu başlatır' : 'Starts the intro tour without an account'}
                 >
                   <Sparkles size={ICON.sm} color={theme.primary} strokeWidth={2.2} />
                   <Text style={{ fontSize: 13.5, fontWeight: '700', color: theme.primary, letterSpacing: 0.2 }}>
@@ -588,6 +601,8 @@ export default function LoginScreen() {
                   </Text>
                   <Touchable 
                     onPress={closeForgotModal} 
+                    accessibilityRole="button"
+                    accessibilityLabel={language === 'tr' ? 'Tamam, kapat' : 'OK, close'}
                     style={{ 
                       backgroundColor: theme.primary, 
                       width: '100%', 
@@ -607,7 +622,7 @@ export default function LoginScreen() {
                     <Text style={{ fontSize: 12.5, color: theme.onSurfaceVariant, fontFamily: 'Jakarta-Medium' }}>
                       {language === 'tr' ? 'Ulaşmadı mı?' : "Didn't arrive?"}
                     </Text>
-                    <TouchableOpacity onPress={resendForgot} disabled={forgotResendIn > 0 || forgotLoading} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <TouchableOpacity onPress={resendForgot} disabled={forgotResendIn > 0 || forgotLoading} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sıfırlama e-postasını tekrar gönder' : 'Resend reset email'} accessibilityState={{ disabled: forgotResendIn > 0 || forgotLoading }}>
                       <Text style={{ fontSize: 12.5, fontWeight: '700', fontFamily: 'Jakarta-Bold', color: forgotResendIn > 0 ? theme.onSurfaceVariant : theme.primary }}>
                         {forgotResendIn > 0
                           ? (language === 'tr' ? `${forgotResendIn} sn sonra tekrar gönder` : `Resend in ${forgotResendIn}s`)
@@ -666,6 +681,8 @@ export default function LoginScreen() {
                   <View style={styles.modalActions}>
                     <Touchable 
                       onPress={closeForgotModal} 
+                      accessibilityRole="button"
+                      accessibilityLabel={language === 'tr' ? 'İptal' : 'Cancel'}
                       style={{ 
                         flex: 1, 
                         height: 44, 
@@ -680,6 +697,9 @@ export default function LoginScreen() {
                     <Touchable 
                       onPress={handleForgotPassword} 
                       disabled={forgotLoading} 
+                      accessibilityRole="button"
+                      accessibilityLabel={language === 'tr' ? 'Sıfırlama bağlantısı gönder' : 'Send reset link'}
+                      accessibilityState={{ disabled: forgotLoading, busy: forgotLoading }} 
                       style={{ 
                         flex: 2, 
                         height: 44, 

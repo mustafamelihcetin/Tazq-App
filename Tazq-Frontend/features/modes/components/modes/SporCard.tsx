@@ -27,8 +27,12 @@ import { WeightWheelPicker } from './WeightWheelPicker';
 import { ICON, S, R, F, B, HAIRLINE } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
+import { useModeAccent } from '@/shared/hooks/useModeAccent';
+import { ProgressRail } from '@/shared/components/ProgressRail';
 
-const SPOR = '#F97316';
+// Vurgu MERKEZİ PALETTEN, tema-duyarlı. Ham '#F97316' iki temada aynıydı ve açık
+// temada 2.80:1 veriyordu (WCAG'ın büyük-metin eşiği 3:1'in bile altı).
+// SPOR = dolgu/ikon/çubuk · SPOR_TX = küçük yazı (AA 4.5:1).
 const BASE_CALENDAR_WIDTH = 340;
 type Slot = 'spor' | 'spor2' | 'spor3';
 const SPOR_EMOJIS = ['🏃', '💪', '⚖️', '✨', '🏆'];
@@ -76,6 +80,7 @@ function SporDatePicker({ value, onPick, onClose }: { value: Date; onPick: (iso:
 
 /** İkincil spor hedefi (spor2 / spor3). */
 function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview }: { slot: Slot; goalKey: 'spor2Goal' | 'spor3Goal'; dateKey: 'spor2Date' | 'spor3Date'; otherGoals: string[]; addLabel: string; onOpenPreview: (s: Slot) => void }) {
+  const { accent: SPOR, accentText: SPOR_TX } = useModeAccent('spor');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -110,7 +115,7 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.caption }}>{stripEmojiPrefix(goal)}</Text>
             <Text style={{ color: past ? theme.error : SPOR, fontSize: F.caption, fontWeight: '500' }}>{past ? (tr ? 'Tarih geçti' : 'Date passed') : (tr ? `${daysLeft} gün kaldı` : `${daysLeft} days left`)}</Text>
           </View>
-          <Text style={{ color: SPOR, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle ›' : 'Edit ›'}</Text>
+          <Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle ›' : 'Edit ›'}</Text>
           <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(tr ? 'Hedefi Sil' : 'Delete Goal', tr ? `"${goal}" silinecek. Emin misin?` : `"${goal}" will be deleted. Are you sure?`, [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Sil' : 'Delete', style: 'destructive', onPress: del }]); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }} accessibilityRole="button" accessibilityLabel={tr ? 'Sil' : 'Delete'}>
             <X size={ICON.xs} color={theme.onSurfaceVariant} strokeWidth={2.5} />
           </Touchable>
@@ -144,7 +149,7 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
             <Touchable onPress={() => { if (goal || date) del(); setExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
             </Touchable>
-            {complete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><AppIcon Icon={Dumbbell} color={'#fff'} size={24} radius={R.sm} iconSize={ICON.sm} /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></Touchable>)}
+            {complete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview(slot); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><AppIcon Icon={Dumbbell} color={'#fff'} size={24} radius={R.sm} iconSize={ICON.sm} /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
           </View>
         </View>
       )}
@@ -153,6 +158,7 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
 }
 
 export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => void }) {
+  const { accent: SPOR, accentText: SPOR_TX } = useModeAccent('spor');
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -336,11 +342,11 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.sm }}>
                     {renderModeEmojiIcon(goalEmoji(sporType), 16, SPOR)}
                     <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body, flex: 1 }} numberOfLines={1}>{stripEmojiPrefix(goal)}</Text>
-                    <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onOpenPreview('spor'); }} activeOpacity={0.7} style={{ backgroundColor: SPOR + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
-                      <Text style={{ color: SPOR, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Plan Oluştur ›' : 'Create Plan ›')}</Text>
+                    <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onOpenPreview('spor'); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={hasPlan ? (tr ? 'Spor planı içgörü ve önizleme' : 'Fitness plan insight and preview') : (tr ? 'Spor planını seç' : 'Choose fitness plan')} style={{ backgroundColor: SPOR + (isDark ? '22' : '15'), paddingHorizontal: S.smd, paddingVertical: S.xs, borderRadius: R.full }}>
+                      <Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '700' }}>{hasPlan ? (tr ? 'İçgörü & Önizle ›' : 'Insight & Preview ›') : (tr ? 'Planı Seç ›' : 'Choose Plan ›')}</Text>
                     </Touchable>
                     <View style={{ width: 1, height: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', marginHorizontal: S.xs }} />
-                    <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} activeOpacity={0.7}>
+                    <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(true); }} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={tr ? 'Spor hedefini düzenle' : 'Edit fitness goal'}>
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Düzenle' : 'Edit'}</Text>
                     </Touchable>
                   </View>
@@ -352,8 +358,8 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.lg }}>
                       <View style={{ alignItems: 'center', minWidth: 52 }}>
-                        <Text style={{ color: SPOR, fontWeight: '600', fontSize: 40, lineHeight: 42, letterSpacing: -1 }}>{daysLeft}</Text>
-                        <Text style={{ color: SPOR, fontSize: 10, fontWeight: '600', opacity: 0.7, letterSpacing: 1 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
+                        <Text style={{ color: SPOR_TX, fontWeight: '700', fontSize: F.hero, lineHeight: F.hero + 2, letterSpacing: -1 }}>{daysLeft}</Text>
+                        <Text style={{ color: SPOR_TX, fontSize: F.caption2, fontWeight: '600', letterSpacing: 1 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
                       </View>
                       <View style={{ flex: 1, paddingTop: S.xxs }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
@@ -362,18 +368,18 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                         </View>
                         {sporType === 'kilo' && kiloGoalKg > 0 ? (
                           <View style={{ marginTop: S.sm, gap: S.xs }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Hedefe ilerleme' : 'Goal progress'}</Text><Text style={{ color: SPOR, fontSize: F.caption, fontWeight: '600' }}>{kiloDoneKg.toFixed(1)}/{kiloGoalKg.toFixed(1)} kg · {kiloPct}%</Text></View>
-                            <View style={{ height: 5, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}><View style={{ height: 5, borderRadius: R.xs, backgroundColor: SPOR, width: `${kiloPct}%` as any }} /></View>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Hedefe ilerleme' : 'Goal progress'}</Text><Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '600' }}>{kiloDoneKg.toFixed(1)}/{kiloGoalKg.toFixed(1)} kg · {kiloPct}%</Text></View>
+                            <ProgressRail variant="bar" value={kiloPct} color={SPOR} />
                           </View>
                         ) : (sporType === 'maraton' || sporType === 'guc' || sporType === 'genel') ? (
                           <View style={{ marginTop: S.sm, gap: S.xs }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? (sporType === 'maraton' ? 'Bu hafta koşu' : 'Bu hafta antrenman') : (sporType === 'maraton' ? 'Runs this week' : 'Workouts this week')}</Text><Text style={{ color: SPOR, fontSize: F.caption, fontWeight: '600' }}>{sporWeekDays}/{sporTrainTarget} · {sporTrainPct}%</Text></View>
-                            <View style={{ height: 5, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}><View style={{ height: 5, borderRadius: R.xs, backgroundColor: SPOR, width: `${sporTrainPct}%` as any }} /></View>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? (sporType === 'maraton' ? 'Bu hafta koşu' : 'Bu hafta antrenman') : (sporType === 'maraton' ? 'Runs this week' : 'Workouts this week')}</Text><Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '600' }}>{sporWeekDays}/{sporTrainTarget} · {sporTrainPct}%</Text></View>
+                            <ProgressRail variant="segments" value={sporWeekDays} total={sporTrainTarget} color={SPOR} />
                           </View>
                         ) : progTotal > 0 ? (
                           <View style={{ marginTop: S.sm, gap: S.xs }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text><Text style={{ color: SPOR, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text></View>
-                            <View style={{ height: 5, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}><View style={{ height: 5, borderRadius: R.xs, backgroundColor: SPOR, width: `${progPct}%` as any }} /></View>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text><Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text></View>
+                            <ProgressRail variant="segments" value={progDone} total={progTotal} color={SPOR} />
                           </View>
                         ) : null}
                       </View>
@@ -403,7 +409,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                     const prev = weightLog[idx + 1];
                     const diff = prev ? Math.round((entry.weight - prev.weight) * 10) / 10 : null;
                     const diffStr = diff === null ? (tr ? 'başlangıç' : 'start') : diff > 0 ? `+${diff}` : `${diff}`;
-                    const diffColor = diff === null ? theme.onSurfaceVariant : (twNum < cwNum ? (diff < 0 ? '#10B981' : '#EF4444') : (diff > 0 ? '#10B981' : '#EF4444'));
+                    const diffColor = diff === null ? theme.onSurfaceVariant : (twNum < cwNum ? (diff < 0 ? theme.success : theme.error) : (diff > 0 ? theme.success : theme.error));
                     const dateStr = new Date(entry.date).toLocaleDateString(tr ? 'tr-TR' : 'en-GB', { day: 'numeric', month: 'short' });
                     return (
                       <View key={entry.date} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: S.md, paddingVertical: S.sm, borderTopWidth: HAIRLINE, borderTopColor: theme.separator }}>
@@ -489,32 +495,32 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                   </View>
                   {cwNum > 0 && !kiloWeightValid && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      <XCircle size={ICON.sm} color="#EF4444" />
-                      <Text style={{ fontSize: F.caption2, color: '#EF4444', fontWeight: '500', flex: 1 }}>{tr ? 'Kilo değerleri 30–300 kg arasında olmalıdır.' : 'Weight values must be between 30–300 kg.'}</Text>
+                      <XCircle size={ICON.sm} color={theme.error} />
+                      <Text style={{ fontSize: F.caption2, color: theme.error, fontWeight: '500', flex: 1 }}>{tr ? 'Kilo değerleri 30–300 kg arasında olmalıdır.' : 'Weight values must be between 30–300 kg.'}</Text>
                     </View>
                   )}
                   {cwNum > 0 && twNum > 0 && kiloWeightValid && !kiloWeightRealistic && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      <XCircle size={ICON.sm} color="#EF4444" />
-                      <Text style={{ fontSize: F.caption2, color: '#EF4444', fontWeight: '500', flex: 1 }}>{tr ? 'Mevcut ve hedef kilo arasındaki fark 100 kg\'ı geçemez. Lütfen gerçekçi bir hedef girin.' : 'The difference between current and target weight cannot exceed 100 kg. Please set a realistic goal.'}</Text>
+                      <XCircle size={ICON.sm} color={theme.error} />
+                      <Text style={{ fontSize: F.caption2, color: theme.error, fontWeight: '500', flex: 1 }}>{tr ? 'Mevcut ve hedef kilo arasındaki fark 100 kg\'ı geçemez. Lütfen gerçekçi bir hedef girin.' : 'The difference between current and target weight cannot exceed 100 kg. Please set a realistic goal.'}</Text>
                     </View>
                   )}
                   {kiloBmiCurrentUnderweight && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      <AlertTriangle size={ICON.sm} color="#F59E0B" />
-                      <Text style={{ fontSize: F.caption2, color: '#F59E0B', fontWeight: '500', flex: 1 }}>{tr ? 'Mevcut kilonuz zaten sağlıklı aralığın altında (BMI < 18.5). Bir uzmana danışmanızı öneririz.' : 'Your current weight is already below the healthy range (BMI < 18.5). We recommend consulting a specialist.'}</Text>
+                      <AlertTriangle size={ICON.sm} color={theme.warning} />
+                      <Text style={{ fontSize: F.caption2, color: theme.warning, fontWeight: '500', flex: 1 }}>{tr ? 'Mevcut kilonuz zaten sağlıklı aralığın altında (BMI < 18.5). Bir uzmana danışmanızı öneririz.' : 'Your current weight is already below the healthy range (BMI < 18.5). We recommend consulting a specialist.'}</Text>
                     </View>
                   )}
                   {kiloBmiTargetTooLow && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      <XCircle size={ICON.sm} color="#EF4444" />
-                      <Text style={{ fontSize: F.caption2, color: '#EF4444', fontWeight: '500', flex: 1 }}>{tr ? `${twNum} kg, ${hnNum} cm boy için sağlıklı minimum kilonun (${minHealthyKg} kg, BMI 18.5) altında. Bu hedefi onaylamıyoruz.` : `${twNum} kg is below the minimum healthy weight (${minHealthyKg} kg, BMI 18.5) for ${hnNum} cm height. We cannot approve this goal.`}</Text>
+                      <XCircle size={ICON.sm} color={theme.error} />
+                      <Text style={{ fontSize: F.caption2, color: theme.error, fontWeight: '500', flex: 1 }}>{tr ? `${twNum} kg, ${hnNum} cm boy için sağlıklı minimum kilonun (${minHealthyKg} kg, BMI 18.5) altında. Bu hedefi onaylamıyoruz.` : `${twNum} kg is below the minimum healthy weight (${minHealthyKg} kg, BMI 18.5) for ${hnNum} cm height. We cannot approve this goal.`}</Text>
                     </View>
                   )}
                   {cwNum > 0 && twNum > 0 && cwNum === twNum && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      <Target size={ICON.sm} color="#10B981" />
-                      <Text style={{ fontSize: F.caption2, color: '#10B981', fontWeight: '500', flex: 1 }}>{tr ? 'Zaten hedef kilondasın! Koruma moduna geç.' : 'Already at your goal weight! Switch to maintenance mode.'}</Text>
+                      <Target size={ICON.sm} color={theme.success} />
+                      <Text style={{ fontSize: F.caption2, color: theme.success, fontWeight: '500', flex: 1 }}>{tr ? 'Zaten hedef kilondasın! Koruma moduna geç.' : 'Already at your goal weight! Switch to maintenance mode.'}</Text>
                     </View>
                   )}
                   {cwNum > 0 && twNum > 0 && cwNum !== twNum && kiloWeightValid && kiloWeightRealistic && kiloBmiValid && (
@@ -525,8 +531,8 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                   )}
                   {cwNum > 0 && twNum > 0 && kiloWeightValid && kiloWeightRealistic && kiloBmiValid && Math.abs(cwNum - twNum) > 30 && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      <AlertTriangle size={ICON.sm} color="#EF4444" />
-                      <Text style={{ fontSize: F.caption, color: '#EF4444', fontWeight: '500', flex: 1 }}>{tr ? '30 kg üzeri hedefler için bir doktor veya diyetisyen desteği önerilir.' : 'For goals over 30 kg, consulting a doctor or dietitian is recommended.'}</Text>
+                      <AlertTriangle size={ICON.sm} color={theme.error} />
+                      <Text style={{ fontSize: F.caption, color: theme.error, fontWeight: '500', flex: 1 }}>{tr ? '30 kg üzeri hedefler için bir doktor veya diyetisyen desteği önerilir.' : 'For goals over 30 kg, consulting a doctor or dietitian is recommended.'}</Text>
                     </View>
                   )}
                   {heightM > 0 && !kiloBmiTargetTooLow && twNum > 0 && (<Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, lineHeight: 15 }}>{tr ? `${hnNum} cm için sağlıklı aralık: ${minHealthyKg}–${maxHealthyKg} kg` : `Healthy range for ${hnNum} cm: ${minHealthyKg}–${maxHealthyKg} kg`}</Text>)}
@@ -569,7 +575,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                 kiloAutoDate && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderRadius: R.md, paddingHorizontal: S.md, height: 40, borderWidth: B.thin, backgroundColor: SPOR + '08', borderColor: SPOR + '30' }}>
                     {<Calendar size={ICON.sm} color={SPOR} />}
-                    <Text style={{ color: SPOR, fontSize: F.caption, fontWeight: '500', flex: 1 }}>{tr ? `Tahmini hedef: ${formatPlanDate(kiloAutoDate, tr)}` : `Estimated completion: ${formatPlanDate(kiloAutoDate, tr)}`}</Text>
+                    <Text style={{ color: SPOR_TX, fontSize: F.caption, fontWeight: '500', flex: 1 }}>{tr ? `Tahmini hedef: ${formatPlanDate(kiloAutoDate, tr)}` : `Estimated completion: ${formatPlanDate(kiloAutoDate, tr)}`}</Text>
                   </View>
                 )
               ) : (
@@ -586,7 +592,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                 <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
                 </Touchable>
-                {sporIsComplete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview('spor'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>{renderModeEmojiIcon(goalEmoji(sporType), 13, '#fff')}<Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Önizle & Uygula' : 'Preview & Apply Plan'}</Text></Touchable>)}
+                {sporIsComplete && (<Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setExpanded(false); onOpenPreview('spor'); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: SPOR, borderRadius: R.full, paddingVertical: S.sm + 2 }} activeOpacity={0.8}>{renderModeEmojiIcon(goalEmoji(sporType), 13, '#fff')}<Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
               </View>
             </View>
           )}

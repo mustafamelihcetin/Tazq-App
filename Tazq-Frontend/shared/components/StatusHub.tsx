@@ -1,5 +1,5 @@
 import React from 'react';
-import { S, ICON, R, B, MIN_TOUCH } from '@/shared/constants/tokens';
+import { S, ICON, R, B, MIN_TOUCH, TOP_ITEM_SIZE } from '@/shared/constants/tokens';
 import { StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
 import { useFocusStore } from '@/features/focus/store/useFocusStore';
@@ -80,7 +80,9 @@ export const StatusHub = ({ onPress }: { onPress: () => void }) => {
   );
 };
 
-const HUB = 38;
+// Başlık çubuğu öğesi — ortak ölçü (bkz. TOP_ITEM_SIZE). 38'di ve 54pt'lik eski
+// çubuğa göreydi; 44pt Apple çubuğunda üst/alt yalnız 3pt bırakıyordu.
+const HUB = TOP_ITEM_SIZE;
 
 const styles = StyleSheet.create({
   wrapper: {

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Colors, AppTheme, CategoryColors } from '@/shared/constants/Colors';
+import { Colors, AppTheme, CategoryColors, ModeAccents, ModeAccentsText } from '@/shared/constants/Colors';
 
 /**
  * Paletin WCAG AA uyumunu derleme/test zamanında koruyan bekçi.
@@ -233,6 +233,73 @@ describe('metin soluklaştırma', () => {
     }
     // Çözüm: opacity'yi stilden kaldır, kullanım yerinde bir seviye aşağı in
     // (onSurface → onSurfaceVariant → onSurfaceMuted). Hepsi ölçülü.
+    expect(hits).toEqual([]);
+  });
+});
+
+describe('mod vurguları', () => {
+  /**
+   * İKİ ROL, İKİ EŞİK:
+   *  - ModeAccents      → dolgu/ikon/çubuk/büyük rakam. WCAG UI + büyük metin: 3:1.
+   *  - ModeAccentsText  → caption/etiket gibi KÜÇÜK yazı. WCAG AA normal metin: 4.5:1.
+   *
+   * Bu ayrım olmadan tek bir ton iki işe birden koşuluyordu ve ekranlar paleti
+   * baypas edip ham hex yazınca (modlar.tsx #F97316 = 2.80:1, #10B981 = 2.54:1)
+   * kimse fark etmiyordu — hem büyük hem küçük metin eşiğinin ALTINDAYDI.
+   */
+  const LIGHT_BG = Colors.light.surfaceContainerLowest; // kartların zemini (beyaz)
+  const DARK_BG = Colors.dark.surface;
+
+  it('dolgu tonları her iki temada >= 3:1', () => {
+    const fails: string[] = [];
+    for (const [name, pair] of Object.entries(ModeAccents)) {
+      const l = contrastRatio(pair.light, LIGHT_BG);
+      const d = contrastRatio(pair.dark, DARK_BG);
+      if (l < 3) fails.push(`${name} açık ${l.toFixed(2)}:1`);
+      if (d < 3) fails.push(`${name} koyu ${d.toFixed(2)}:1`);
+    }
+    expect(fails).toEqual([]);
+  });
+
+  it('metin tonları her iki temada >= 4.5:1', () => {
+    const fails: string[] = [];
+    for (const [name, pair] of Object.entries(ModeAccentsText)) {
+      const l = contrastRatio(pair.light, LIGHT_BG);
+      const d = contrastRatio(pair.dark, DARK_BG);
+      if (l < 4.5) fails.push(`${name} açık ${l.toFixed(2)}:1`);
+      if (d < 4.5) fails.push(`${name} koyu ${d.toFixed(2)}:1`);
+    }
+    expect(fails).toEqual([]);
+  });
+
+  it('her mod için iki rol de tanımlı (biri eklenip diğeri unutulmasın)', () => {
+    expect(Object.keys(ModeAccentsText).sort()).toEqual(Object.keys(ModeAccents).sort());
+  });
+
+  it('mod ekranları paleti baypas edip ham mod rengi yazmamalı', () => {
+    // Asıl hata buydu: palet düzeltilmişti ama ekranlar ona BAKMIYORDU. Sayısal tavan
+    // testi (paletteDiscipline) bunu göremez — o ADEDİ sayar, DEĞERİ değil.
+    const RAW = /#(?:F97316|3B82F6|8B5CF6|10B981|6366F1|0D9488|EF4444|EA580C|059669)\b/i;
+    const FILES = [
+      'app/modlar.tsx',
+      'app/mod-ozet.tsx',
+      'features/modes/components/modes/SporCard.tsx',
+      'features/modes/components/modes/ExamCard.tsx',
+      'features/modes/components/modes/TezCard.tsx',
+      'features/modes/components/modes/MulakatCard.tsx',
+      'features/modes/components/modes/RamazanCard.tsx',
+    ];
+    const hits: string[] = [];
+    for (const rel of FILES) {
+      const src = fs.readFileSync(path.resolve(__dirname, '..', rel), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, ''); // blok yorumlarındaki gerekçe hex'leri sayılmasın
+      src.split('\n').forEach((line, i) => {
+        const t = line.trim();
+        if (t.startsWith('//') || t.startsWith('*')) return; // gerekçe yorumları serbest
+        if (RAW.test(line)) hits.push(`${rel}:${i + 1}`);
+      });
+    }
+    // Çözüm: useModeAccent('spor') → { accent, accentText }.
     expect(hits).toEqual([]);
   });
 });

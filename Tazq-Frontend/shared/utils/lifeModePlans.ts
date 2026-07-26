@@ -6,7 +6,12 @@
 import type { BudgetType } from '@/shared/store/useBudgetStore';
 import type { QuitType } from '@/shared/store/useQuitStore';
 
-export const TASARRUF_COLOR = '#06B6D4';
+// ALIŞKANLIK KAYDINA YAZILAN renkler — kalıcı veri olduğu için tema-bağımsız
+// (CategoryColors ile aynı gerekçe). Kart YÜZEYİNDEKİ vurgu bunlardan DEĞİL,
+// tema-duyarlı `useModeAccent`'ten gelir.
+// tasarruf: cyan #06B6D4 idi; modlar ekranı ve ModeAccents teal kullanıyordu →
+// aynı mod iki farklı renkle görünüyordu. Palete hizalandı.
+export const TASARRUF_COLOR = '#0D9488';
 export const BIRAKMA_COLOR = '#EF4444';
 
 export interface ModeDraftHabit { name: string; nameEn: string; emoji: string; color: string; }

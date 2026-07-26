@@ -31,6 +31,7 @@ import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { buildTasarrufPlan, tasarrufTypeLabel, TASARRUF_COLOR } from '@/shared/utils/lifeModePlans';
 import { retirePlanTask } from '@/shared/utils/planTaskOps';
 import { Coins } from 'lucide-react-native';
+import { useModeAccent } from '@/shared/hooks/useModeAccent';
 
 const fmtMoney = (n: number) => n.toLocaleString('tr-TR');
 
@@ -38,7 +39,8 @@ export function TasarrufCard() {
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
-  const C = TASARRUF_COLOR;
+  // Yüzey vurgusu tema-duyarlı palet + AA geçen metin tonu.
+  const { accent: C, accentText: C_TX } = useModeAccent('tasarruf');
 
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
@@ -234,7 +236,7 @@ export function TasarrufCard() {
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Tasarruf / Bütçe' : 'Savings / Budget'}</Text>
             {applied && !datePast ? (
-              <Text style={{ color: C, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{daysLeft} {tr ? 'gün kaldı' : 'days left'}</Text>
+              <Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{daysLeft} {tr ? 'gün kaldı' : 'days left'}</Text>
             ) : (
               <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{tr ? 'Para hedefine ulaşma planı' : 'Plan to reach a money goal'}</Text>
             )}
@@ -274,7 +276,7 @@ export function TasarrufCard() {
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Hedefe ilerleme' : 'Goal progress'}</Text>
-              <Text style={{ color: C, fontSize: F.caption, fontWeight: '700' }}>₺{fmtMoney(doneAmt)}/₺{fmtMoney(goalAmt)} · {pct}%</Text>
+              <Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '700' }}>₺{fmtMoney(doneAmt)}/₺{fmtMoney(goalAmt)} · {pct}%</Text>
             </View>
             <View style={{ height: 6, borderRadius: R.xs, backgroundColor: theme.onSurfaceVariant + '20', overflow: 'hidden' }}>
               <View style={{ height: 6, borderRadius: R.xs, width: `${pct}%`, backgroundColor: C }} />
@@ -359,7 +361,7 @@ export function TasarrufCard() {
                 })}
               </View>
               {monthlyExp > 0 && (
-                <Text style={{ color: C, fontSize: F.caption, fontWeight: '700' }}>{tr ? `🎯 Hedef: ₺${fmtMoney(computedTarget)}` : `🎯 Target: ₺${fmtMoney(computedTarget)}`}</Text>
+                <Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '700' }}>{tr ? `🎯 Hedef: ₺${fmtMoney(computedTarget)}` : `🎯 Target: ₺${fmtMoney(computedTarget)}`}</Text>
               )}
             </View>
           )}

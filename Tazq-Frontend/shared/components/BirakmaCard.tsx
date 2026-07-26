@@ -30,12 +30,14 @@ import { buildBirakmaPlan, birakmaTypeTasks, birakmaTypeLabel, BIRAKMA_COLOR } f
 import { retirePlanTask } from '@/shared/utils/planTaskOps';
 import { swallow } from '@/shared/utils/swallow';
 import { Ban, Shield } from 'lucide-react-native';
+import { useModeAccent } from '@/shared/hooks/useModeAccent';
 
 export function BirakmaCard() {
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
-  const C = BIRAKMA_COLOR;
+  // Yüzey vurgusu tema-duyarlı palet + AA geçen metin tonu.
+  const { accent: C, accentText: C_TX } = useModeAccent('birakma');
 
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
@@ -188,7 +190,7 @@ export function BirakmaCard() {
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Bırakma' : 'Quit'}</Text>
             {applied ? (
-              <Text style={{ color: C, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{items.length} {tr ? 'aktif takip' : 'active'}</Text>
+              <Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '500', marginTop: S.xxs }}>{items.length} {tr ? 'aktif takip' : 'active'}</Text>
             ) : (
               <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xxs }}>{tr ? 'Bir veya daha fazla şeyi bırak' : 'Quit one or more things'}</Text>
             )}
@@ -244,7 +246,7 @@ export function BirakmaCard() {
           </Touchable>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(e => !e); }}><Text style={{ color: C, fontSize: F.caption, fontWeight: '700' }}>{expanded ? (tr ? 'Kapat' : 'Close') : (tr ? '＋ Başka bir şey bırak' : '＋ Quit something else')}</Text></Touchable>
+            <Touchable onPress={() => { Haptics.selectionAsync(); setExpanded(e => !e); }}><Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '700' }}>{expanded ? (tr ? 'Kapat' : 'Close') : (tr ? '＋ Başka bir şey bırak' : '＋ Quit something else')}</Text></Touchable>
             <Touchable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert(tr ? 'Tümünü Kapat' : 'Close All', tr ? 'Bırakma planı tamamen kapatılsın mı?' : 'Close the entire quit plan?', [{ text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' }, { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: closePlan }]); }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Tümünü kapat' : 'Close all'}</Text></Touchable>
           </View>
         </View>

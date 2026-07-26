@@ -1,23 +1,56 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, useWindowDimensions, Animated, Platform, Keyboard } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Platform, Keyboard } from 'react-native';
 import { LayoutGrid, CheckSquare, Sparkles, Layers, CalendarDays } from 'lucide-react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { BlurView } from 'expo-blur';
-import { MotiView } from 'moti';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { Colors } from '@/shared/constants/Colors';
-import { R, B, MAX_W, NAV_BAR_HEIGHT, NAV_BAR_LIFT, NAV_BAR_MIN_INSET, ICON } from '@/shared/constants/tokens';
+import { S, HAIRLINE, MAX_W, NAV_BAR_HEIGHT, NAV_BAR_MIN_INSET, NAV_ICON_SIZE, NAV_LABEL_SIZE } from '@/shared/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { TourTarget } from '@/shared/components/TourContext';
 
+/**
+ * Alt sekme çubuğu — ekranın dibine yapışık, TAM GENİŞLİKTE, standart desen.
+ *
+ * NEDEN YÜZEN "PILL" DEĞİL: önceki hâl %92 genişlikte, tam yuvarlak, 68pt yüksekliğinde
+ * yüzen bir kabuktu ve aktif sekmenin arkasında kayan bir hap/daire taşıyordu. İki
+ * sorun birden üretiyordu:
+ *   1. Yuvarlak kabuk + içindeki ayrı şekil = üst üste binen iki form dili, görsel yük.
+ *   2. Beş sekmeye ~72pt düşüyordu; sekme ADI oraya sığmıyordu. Sonuç ya isimsiz bar
+ *      (ikon-only: "Layers" ne demek? "Sparkles" ne demek?) ya da sıkışık, ucuz duran
+ *      etiketler oluyordu. İkisi de denendi, ikisi de tutmadı.
+ *
+ * ÖLÇÜLER APPLE'IN SPESİFİKASYONU (UIKit UITabBar):
+ *   · içerik yüksekliği 49pt, güvenli alan ALTINA eklenir (iPhone'da toplam 83pt)
+ *   · etiket 10pt / semibold, harf aralığı açılmaz
+ *   · ikon 22pt (lucide çizgisel set SF Symbols'ten optik ağır; 22 denk düşüyor)
+ *   · yükseklik, ikon ve etiket ÖLÇEKLENMEZ — sekme çubuğu içerik değil chrome'dur
+ *   · aktif sekmenin TEK işareti tint rengi — arkada şekil, büyüme, kalınlaşma yok
+ *   · yarı saydam zemin (blur) + üstte tek hairline ayraç
+ *
+ * Geometri tokens.ts'te (NAV_BAR_HEIGHT / navBarSpace) — sayfalar alt boşluğu oradan
+ * türetir, bu bileşen de stilini oradan kurar. Bkz. __tests__/floatingBars.test.ts
+ */
+
 // Lite modda gösterilecek sekmeler (sade to-do deneyimi). Pro'da hepsi görünür.
 const LITE_TAB_IDS = ['home', 'tasks', 'focus'];
 
-// Ekran okuyucu (VoiceOver/TalkBack) için sekme etiketleri
+/**
+ * BARDA yazan kısa ad. Sekme çubuğunda tek kelime konvansiyondur; tam genişlikte
+ * bile "Haftalık Merkez" iki satıra düşer.
+ */
+const TAB_SHORT: Record<string, { tr: string; en: string }> = {
+  home: { tr: 'Ana Sayfa', en: 'Home' },
+  tasks: { tr: 'Görevler', en: 'Tasks' },
+  focus: { tr: 'Odak', en: 'Focus' },
+  cockpit: { tr: 'Haftalık', en: 'Weekly' },
+  modlar: { tr: 'Modlar', en: 'Modes' },
+};
+
+// Ekran okuyucu (VoiceOver/TalkBack) için TAM sekme adı — kısaltma yalnız görsel.
 const TAB_LABELS: Record<string, { tr: string; en: string }> = {
   home: { tr: 'Ana Sayfa', en: 'Home' },
   tasks: { tr: 'Görevler', en: 'Tasks' },
@@ -27,7 +60,6 @@ const TAB_LABELS: Record<string, { tr: string; en: string }> = {
 };
 
 export const BottomNavBar = () => {
-  const { width } = useWindowDimensions();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -49,8 +81,6 @@ export const BottomNavBar = () => {
     };
   }, []);
 
-
-
   const allTabs = [
     { id: 'home', path: '/', icon: LayoutGrid },
     { id: 'tasks', path: '/tasks', icon: CheckSquare },
@@ -61,35 +91,9 @@ export const BottomNavBar = () => {
   // Lite modda sade sekme seti; Pro'da hepsi.
   const tabs = uiMode === 'lite' ? allTabs.filter(t => LITE_TAB_IDS.includes(t.id)) : allTabs;
 
-  const activeIndex = tabs.findIndex(
-    tab => pathname === tab.path || (tab.path === '/' && pathname === '/index')
-  );
-
-  const barWidth = Math.min(width * 0.92, MAX_W);
-  const segW = barWidth / tabs.length;
-
-  const indicatorSlide = useRef(new Animated.Value(activeIndex >= 0 ? activeIndex : 0)).current;
-
-  useEffect(() => {
-    if (activeIndex >= 0) {
-      Animated.spring(indicatorSlide, {
-        toValue: activeIndex,
-        useNativeDriver: true,
-        damping: 20,
-        stiffness: 220,
-      } as any).start();
-    }
-  }, [activeIndex]);
-
-  // Sekme sayısına göre dinamik gösterge konumu (Lite/Pro sekme sayısı değişebilir)
-  const indicatorTranslateX = indicatorSlide.interpolate({
-    inputRange: tabs.map((_, i) => i),
-    outputRange: tabs.map((_, i) => segW * i),
-  });
-
   const handlePress = (path: string) => {
     if (pathname === path) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     router.replace(path as any);
   };
 
@@ -98,61 +102,58 @@ export const BottomNavBar = () => {
   }
 
   return (
-    <View style={[styles.container, { bottom: Math.max(insets.bottom, NAV_BAR_MIN_INSET) + NAV_BAR_LIFT }]}>
-      <View
-        style={[
-          styles.bar,
-          {
-            width: barWidth,
-            // Palete bağlı. Eskiden elle yazılıyordu ve başlık kabuğuyla ayrışıyordu —
-            // aynı işi yapan iki yüzen kabuk, iki ayrı renk tanımı.
-            backgroundColor: theme.surfaceFloating,
-            borderColor: theme.outline,
-            // Android'de shadow* prop'ları ETKİSİZDİR; gölge yalnızca elevation ile
-            // çizilir. `elevation: 0` yazılıydı, yani bar iOS'ta yüzüyor, Android'de
-            // düz yapıştırılmış duruyordu. Aynı bileşen iki platformda iki farklı şey.
-            ...(Platform.OS === 'ios'
-              ? { shadowColor: Colors.light.onSurface, shadowOpacity: isDark ? 0.4 : 0.1 }
-              : { elevation: 8 }),
-          }
-        ]}
-      >
-        {Platform.OS === 'ios' && (
-          <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-        )}
+    <View
+      style={[
+        styles.container,
+        {
+          // Dibe yapışık: güvenli alan çubuğun ALTINA eklenir, içerik home
+          // göstergesinin üstünde kalır.
+          paddingBottom: Math.max(insets.bottom, NAV_BAR_MIN_INSET),
+          // iOS'ta sekme çubuğu yarı saydamdır (içerik altından geçerken belli olur);
+          // zemini BlurView verir. Android'de blur zayıf → opak yüzey.
+          backgroundColor: Platform.OS === 'ios' ? 'transparent' : theme.surfaceFloating,
+          borderTopColor: theme.outlineVariant,
+        },
+      ]}
+    >
+      {Platform.OS === 'ios' && (
+        <BlurView intensity={isDark ? 70 : 90} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+      )}
+      {/* Geniş/foldable ekranda sekmeler sonsuza yayılmasın — içerikle aynı sütun. */}
+      <View style={styles.column}>
         <View style={styles.tabsContainer} accessibilityRole="tablist">
-          {/* Sliding active indicator */}
-          {activeIndex >= 0 && (
-            <Animated.View
-              style={[
-                styles.activeIndicator,
-                {
-                  backgroundColor: theme.primary + '18',
-                  position: 'absolute',
-                  // Each tab is flex:1 → exactly segW wide. Center = segW/2. Half indicator = 24.
-                  left: segW / 2 - 24,
-                  top: '50%',
-                  marginTop: -24,
-                  transform: [{ translateX: indicatorTranslateX }],
-                }
-              ]}
-            />
-          )}
           {tabs.map((tab) => {
             const isActive = pathname === tab.path || (tab.path === '/' && pathname === '/index');
             const Icon = tab.icon;
-            
+
             const content = (
-              // Aktif durum İKİ sinyalle bildiriliyor: renk + arkada kayan hap.
-              // Eskiden ÜÇ vardı — bir de ikonun altında 4pt'lik nokta. Apple bunu TEK
-              // sinyalle yapar (tint rengi). Aynı şeyi üç kez söylemek "premium" değil,
-              // güvensizliktir; üstelik 4pt nokta zaten görünmüyordu.
-              // Kayan hap kalıyor: o bir süs değil, sekmeler arası GEÇİŞİ anlatıyor.
-              <Icon
-                size={ICON.lg}
-                color={isActive ? theme.primary : theme.onSurfaceVariant}
-                strokeWidth={isActive ? 2.5 : 1.8}
-              />
+              // Aktif durum TEK sinyalle: TINT RENGİ — ikon ve etiket birlikte boyanır.
+              // UIKit'in UITabBar'ı tam olarak bunu yapar; arkada şekil gezdirmez,
+              // ikonu büyütmez, yazıyı kalınlaştırmaz. Tek değişken renktir.
+              //
+              // Tek uyarlama: SF Symbols seçiliyken dolu (.fill) varyanta geçer, bizim
+              // ikon setimiz (lucide) çizgisel. Doluya geçirmek CalendarDays gibi
+              // glifleri lekeye çeviriyor; onun yerine çizgi kalınlığı bir tık artıyor.
+              // Aynı ikon, biraz daha "orada" — farklı bir ikon değil.
+              <View style={styles.tabInner}>
+                <Icon
+                  // ÖLÇEKLENMEZ: çubuk yüksekliği sabit 49 olduğu için içerik de sabit
+                  // olmalı. Ölçekli ikon büyük ekranda kabı taşırıyordu (bkz. tokens).
+                  size={NAV_ICON_SIZE}
+                  color={isActive ? theme.primary : theme.onSurfaceVariant}
+                  strokeWidth={isActive ? 2.1 : 1.8}
+                />
+                <Text
+                  numberOfLines={1}
+                  // Sekme adı ekran okuyucuya accessibilityLabel ile TAM hâliyle
+                  // veriliyor; buradaki kısa metin ikinci kez duyurulmasın.
+                  accessibilityElementsHidden
+                  importantForAccessibility="no"
+                  style={[styles.tabLabel, { color: isActive ? theme.primary : theme.onSurfaceVariant }]}
+                >
+                  {tr ? TAB_SHORT[tab.id].tr : TAB_SHORT[tab.id].en}
+                </Text>
+              </View>
             );
 
             return (
@@ -186,34 +187,40 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    alignItems: 'center',
+    bottom: 0,
     zIndex: 1000,
+    // Tek ince çizgi: çubuğun nerede başladığını söyler. Yüzen kabuğun gölgesi ve
+    // çerçevesi yerine iOS'un standart ayracı.
+    borderTopWidth: HAIRLINE,
   },
-  bar: {
-    height: NAV_BAR_HEIGHT,
-    borderRadius: R.full,
-    borderWidth: B.thin,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 28,
-    elevation: 0,
+  column: {
+    width: '100%',
+    maxWidth: MAX_W,
+    alignSelf: 'center',
   },
   tabsContainer: {
-    flex: 1,
+    height: NAV_BAR_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
   },
   tab: {
     flex: 1,
-    // Hedef barın TAM boyu (68). Eskiden 48'di: 44pt sınırını geçiyordu ama barın
-    // üst/alt 10'ar pt'si ölü alandı — bara basıp hiçbir şey olmuyordu.
+    // Dokunma hedefi sekmenin TAM boyu — üst/alt ölü alan bırakılmaz.
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activeIndicator: {
-    width: 48,
-    height: 48,
-    borderRadius: R.full,
+  tabInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Apple'ın ikon–etiket aralığı ~2pt; yığın 49pt'lik çubukta dikey ortalanır.
+    gap: S.xxs,
+  },
+  tabLabel: {
+    // Apple sekme etiketi: 10pt / semibold, ÖLÇEKLENMEZ (bkz. NAV_LABEL_SIZE).
+    fontSize: NAV_LABEL_SIZE,
+    fontWeight: '600',
+    // UIKit sekme etiketinde harf aralığı AÇILMAZ; 10pt'de açmak kelimeyi dağıtır.
+    letterSpacing: 0,
   },
 });

@@ -13,7 +13,7 @@ import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
-import { usePrefsStore, getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, localizeSporGoal, RAMAZAN, renderModeEmojiIcon, deriveDateSlot } from '@/features/modes';
+import { usePrefsStore, getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, localizeSporGoal, RAMAZAN, renderModeEmojiIcon, deriveDateSlot, isSeasonalExamActive } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -56,7 +56,7 @@ import { SporCard } from '@/features/modes/components/modes/SporCard';
 import { TaskService } from '@/shared/services/api';
 import { usePlanAdaptations } from '@/features/modes';
 import { Touchable } from '@/shared/components/Touchable';
-import { modeAccent as resolveModeAccent } from '@/shared/constants/Colors';
+import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText } from '@/shared/constants/Colors';
 
 const MarsIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -340,14 +340,11 @@ export default function ModlarScreen() {
   const TARGET_EVENTS = ['5K', '10K', 'Yarı', 'Tam'] as const;
 
   // YKS / KPSS auto-mode active check — warn if user enters same exam in custom exam mode
-  const yksAutoActive = useMemo(() => {
-    const YKS_DATES = [{ start: '2025-06-14', end: '2025-06-15' }, { start: '2026-06-13', end: '2026-06-14' }, { start: '2027-06-12', end: '2027-06-13' }];
-    return YKS_DATES.some(r => { const s = new Date(r.start); s.setDate(s.getDate() - 35); return Date.now() >= s.getTime() && Date.now() <= new Date(r.end).setHours(23,59,59,999); });
-  }, []);
-  const kpssAutoActive = useMemo(() => {
-    const KPSS_DATES = [{ start: '2025-10-26', end: '2025-10-26' }, { start: '2026-10-25', end: '2026-10-25' }, { start: '2027-10-24', end: '2027-10-24' }];
-    return KPSS_DATES.some(r => { const s = new Date(r.start); s.setDate(s.getDate() - 45); return Date.now() >= s.getTime() && Date.now() <= new Date(r.end).setHours(23,59,59,999); });
-  }, []);
+  // Sınav tarihleri TEK KAYNAKTAN (turkishModes). Burada YKS/KPSS tablolarının
+  // elle yazılmış birer kopyası daha duruyordu — Ramazan'da düzeltilen hatanın aynısı:
+  // tablo güncellenince bu kopya sessizce eskiyor ve çakışma uyarısı yanlış çalışıyordu.
+  const yksAutoActive = useMemo(() => isSeasonalExamActive('yks'), []);
+  const kpssAutoActive = useMemo(() => isSeasonalExamActive('kpss'), []);
   const examNameConflict = useMemo(() => {
     const n = examNameInput.toUpperCase();
     if (yksAutoActive && ['YKS', 'TYT', 'AYT'].some(k => n.includes(k))) return language === 'tr' ? '⚠️ YKS modu zaten otomatik aktif — bu plan onunla çakışabilir' : '⚠️ YKS mode is already auto-active — this plan may overlap';
@@ -356,7 +353,12 @@ export default function ModlarScreen() {
   }, [examNameInput, yksAutoActive, kpssAutoActive, language]);
   const sporDatePast = effectiveSporDate ? new Date(effectiveSporDate).setHours(23, 59, 59, 999) < Date.now() : false;
   const sporDaysLeft = effectiveSporDate && !sporDatePast ? Math.max(0, Math.ceil((new Date(effectiveSporDate).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
-  const sporColor = '#F97316';
+  // Mod renkleri MERKEZİ PALETTEN. Eskiden bu dosya #F97316/#10B981 gibi ham hex'ler
+  // yazıyordu — üstelik paletin kontrast yetersizliği yüzünden REDDETTİĞİ tonları
+  // (spor #F97316 = 2.80:1, mulakat #10B981 = 2.54:1 — büyük metin eşiğinin bile
+  // altı) ve iki temada aynı değeri. `…Accent` dolgu/ikon, `…Text` küçük yazı için.
+  const sporColor = resolveModeAccent('spor', isDark);
+  const sporTextColor = resolveModeAccentText('spor', isDark);
   // Tarih türevleri tek kaynaktan (deriveDateSlot) — slot başına kopyalanan gün-sonu/
   // geçti-mi/kaç-gün/dateObj matematiği yerine. Değişken adları korunur (JSX'e dokunulmaz).
   const spor2Slot = deriveDateSlot(spor2GoalInput, spor2DateInput, 60);
@@ -391,19 +393,30 @@ export default function ModlarScreen() {
   // onLayout y'si gap-container'a göre; offset 0'da ilk kart header altına denk geldiğinden
   // scrollTo(y=cardY) açılan kartı tam o konuma getirir.
   const cardY = useRef<Record<string, number>>({});
+  // Kart açıldığında ona kaydır. Eskiden AYNI kaydırma 100/300/600 ms'de ÜÇ KEZ
+  // tetikleniyordu (kart yerleşimi geç oturuyor diye); kullanıcı bu arada elle
+  // kaydırıyorsa ekran ondan iki kez geri çekiliyordu. Artık tek sefer: kartın
+  // onLayout'u ile ölçüm hazır olana kadar kısa aralıkla YOKLA, bulunca kaydır ve dur.
+  const focusTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const clearFocusTimers = useCallback(() => {
+    focusTimersRef.current.forEach(clearTimeout);
+    focusTimersRef.current = [];
+  }, []);
   const focusCard = useCallback((key: string) => {
-    const scroll = () => {
+    clearFocusTimers();
+    let tries = 0;
+    const attempt = () => {
       const y = cardY.current[key];
       if (y != null) {
         scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
-      } else {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+        return; // bulundu → bir daha deneme
       }
+      if (++tries < 8) focusTimersRef.current.push(setTimeout(attempt, 80));
     };
-    setTimeout(scroll, 100);
-    setTimeout(scroll, 300);
-    setTimeout(scroll, 600);
-  }, []);
+    focusTimersRef.current.push(setTimeout(attempt, 80));
+  }, [clearFocusTimers]);
+  // Ekrandan çıkarken bekleyen kaydırmayı iptal et (unmount sonrası setState/scroll yok).
+  useEffect(() => clearFocusTimers, [clearFocusTimers]);
 
   const formatExamDate = (iso: string) => {
     if (!iso) return '';
@@ -436,36 +449,39 @@ export default function ModlarScreen() {
   const ramazanWeekPct = ramazanPlanHabits.length > 0 ? Math.round(ramazanHabitsActiveThisWeek / ramazanPlanHabits.length * 100) : 0;
 
   const examDaysLeft = examSlot.daysLeft;
-  const urgencyColor = '#3B82F6';
+  const urgencyColor = resolveModeAccent('exam', isDark);
+  const urgencyTextColor = resolveModeAccentText('exam', isDark);
 
   const exam2IsComplete = exam2Slot.isComplete;
   const exam2DatePast = exam2Slot.datePast;
   const exam2DaysLeft = exam2Slot.daysLeft;
-  const exam2UrgencyColor = '#3B82F6';
+  const exam2UrgencyColor = urgencyColor;
 
   const exam3IsComplete = exam3Slot.isComplete;
   const exam3DatePast = exam3Slot.datePast;
   const exam3DaysLeft = exam3Slot.daysLeft;
-  const exam3UrgencyColor = '#3B82F6';
+  const exam3UrgencyColor = urgencyColor;
 
   const tezIsComplete = tezSlot.isComplete;
   const tezDatePast = tezSlot.datePast;
   const tezDaysLeft = tezSlot.daysLeft;
-  const tezUrgencyColor = '#8B5CF6';
+  const tezUrgencyColor = resolveModeAccent('tez', isDark);
+  const tezTextColor = resolveModeAccentText('tez', isDark);
 
   const mulakatIsComplete = mulakatSlot.isComplete;
   const mulakatDatePast = mulakatSlot.datePast;
   const mulakatDaysLeft = mulakatSlot.daysLeft;
-  const mulakatUrgencyColor = '#10B981';
+  const mulakatUrgencyColor = resolveModeAccent('mulakat', isDark);
+  const mulakatTextColor = resolveModeAccentText('mulakat', isDark);
   const mulakat2IsComplete = mulakat2Slot.isComplete;
   const mulakat2DatePast = mulakat2Slot.datePast;
   const mulakat2DaysLeft = mulakat2Slot.daysLeft;
-  const mulakat2UrgencyColor = '#10B981';
+  const mulakat2UrgencyColor = mulakatUrgencyColor;
   const mulakat2DateObj = mulakat2Slot.dateObj;
   const mulakat3IsComplete = mulakat3Slot.isComplete;
   const mulakat3DatePast = mulakat3Slot.datePast;
   const mulakat3DaysLeft = mulakat3Slot.daysLeft;
-  const mulakat3UrgencyColor = '#10B981';
+  const mulakat3UrgencyColor = mulakatUrgencyColor;
   const mulakat3DateObj = mulakat3Slot.dateObj;
 
   const tezPlanHabits = useMemo(() => habits.filter(h => tezPlanHabitIds.includes(h.id)), [habits, tezPlanHabitIds]);
@@ -547,6 +563,10 @@ export default function ModlarScreen() {
   const spor2Applied = applied(spor2PlanHabitIds, spor2PlanTaskIds);
   const spor3Applied = applied(spor3PlanHabitIds, spor3PlanTaskIds);
   const ramazanApplied = applied(ramazanPlanHabitIds, ramazanPlanTaskIds);
+  // Tasarruf/Bırakma plan id'leri bu ekranda destructure edilmiyordu (kartlar kendi
+  // store'larından okuyor); bölüm sınıflandırması için doğrudan store'dan alınır.
+  const tasarrufApplied = applied(usePrefsStore.getState().tasarrufPlanHabitIds, usePrefsStore.getState().tasarrufPlanTaskIds);
+  const birakmaApplied = applied(usePrefsStore.getState().birakmaPlanHabitIds, usePrefsStore.getState().birakmaPlanTaskIds);
 
   const statusActiveCount = [
     seasonal.examMode && (examApplied || exam2Applied || exam3Applied),
@@ -571,24 +591,27 @@ export default function ModlarScreen() {
     .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
     .replace(/\s+/g, ' ')
     .trim();
-  const statusCands: Array<{ days: number; label: string; color: string; emoji: string }> = [];
+  // Her aday hem DOLGU rengini (color) hem KÜÇÜK YAZI rengini (textColor) taşır —
+  // geri sayım rakamı dolgu tonuyla, 'gün kaldı'/'N mod' etiketleri AA geçen
+  // metin tonuyla çizilir.
+  const statusCands: Array<{ days: number; label: string; color: string; textColor: string; emoji: string }> = [];
   // Decouple: tarih/ad LOCAL input yerine KALICI `seasonal`'dan okunur (mod çıkarımının
   // önünü açar; past/days dateStr'den içeride hesaplanır). Yalnız uygulanmış modlar sayılır.
   const dPast = (d?: string | null) => !!d && new Date(d).setHours(23, 59, 59, 999) < Date.now();
   const dLeft = (d?: string | null) => (d && !dPast(d)) ? Math.max(0, Math.ceil((new Date(d).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
-  const pushCand = (on: boolean, dateStr: string | null, label: string, color: string, emoji: string) => {
-    if (on && dateStr && !dPast(dateStr)) statusCands.push({ days: dLeft(dateStr), label: stripEmoji(label) || label, color, emoji });
+  const pushCand = (on: boolean, dateStr: string | null, label: string, color: string, textColor: string, emoji: string) => {
+    if (on && dateStr && !dPast(dateStr)) statusCands.push({ days: dLeft(dateStr), label: stripEmoji(label) || label, color, textColor, emoji });
   };
-  pushCand(seasonal.examMode && examApplied, seasonal.examDate, seasonal.examName || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, '🎯');
-  pushCand(seasonal.examMode && exam2Applied, seasonal.exam2Date, seasonal.exam2Name || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, '🎯');
-  pushCand(seasonal.examMode && exam3Applied, seasonal.exam3Date, seasonal.exam3Name || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, '🎯');
-  pushCand(seasonal.tezMode && tezApplied, seasonal.tezDate, seasonal.tezName || (language === 'tr' ? 'Tez' : 'Thesis'), tezUrgencyColor, '📚');
-  pushCand(seasonal.mulakatMode && mulakatApplied, seasonal.mulakatDate, seasonal.mulakatName || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, '💼');
-  pushCand(seasonal.mulakatMode && mulakat2Applied, seasonal.mulakat2Date, seasonal.mulakat2Name || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, '💼');
-  pushCand(seasonal.mulakatMode && mulakat3Applied, seasonal.mulakat3Date, seasonal.mulakat3Name || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, '💼');
-  pushCand(seasonal.sporMode && sporApplied, seasonal.sporDate, localizeSporGoal(seasonal.sporGoal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, '💪');
-  pushCand(seasonal.sporMode && spor2Applied, seasonal.spor2Date, localizeSporGoal(seasonal.spor2Goal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, '💪');
-  pushCand(seasonal.sporMode && spor3Applied, seasonal.spor3Date, localizeSporGoal(seasonal.spor3Goal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, '💪');
+  pushCand(seasonal.examMode && examApplied, seasonal.examDate, seasonal.examName || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, urgencyTextColor, '🎯');
+  pushCand(seasonal.examMode && exam2Applied, seasonal.exam2Date, seasonal.exam2Name || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, urgencyTextColor, '🎯');
+  pushCand(seasonal.examMode && exam3Applied, seasonal.exam3Date, seasonal.exam3Name || (language === 'tr' ? 'Sınav' : 'Exam'), urgencyColor, urgencyTextColor, '🎯');
+  pushCand(seasonal.tezMode && tezApplied, seasonal.tezDate, seasonal.tezName || (language === 'tr' ? 'Tez' : 'Thesis'), tezUrgencyColor, tezTextColor, '📚');
+  pushCand(seasonal.mulakatMode && mulakatApplied, seasonal.mulakatDate, seasonal.mulakatName || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, mulakatTextColor, '💼');
+  pushCand(seasonal.mulakatMode && mulakat2Applied, seasonal.mulakat2Date, seasonal.mulakat2Name || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, mulakatTextColor, '💼');
+  pushCand(seasonal.mulakatMode && mulakat3Applied, seasonal.mulakat3Date, seasonal.mulakat3Name || (language === 'tr' ? 'Mülakat' : 'Interview'), mulakatUrgencyColor, mulakatTextColor, '💼');
+  pushCand(seasonal.sporMode && sporApplied, seasonal.sporDate, localizeSporGoal(seasonal.sporGoal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, sporTextColor, '💪');
+  pushCand(seasonal.sporMode && spor2Applied, seasonal.spor2Date, localizeSporGoal(seasonal.spor2Goal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, sporTextColor, '💪');
+  pushCand(seasonal.sporMode && spor3Applied, seasonal.spor3Date, localizeSporGoal(seasonal.spor3Goal || '', language === 'tr') || (language === 'tr' ? 'Spor' : 'Fitness'), sporColor, sporTextColor, '💪');
   const statusNearest = statusCands.length ? statusCands.reduce((a, b) => (b.days < a.days ? b : a)) : null;
   const statusNow = new Date();
   const statusIsToday = (d?: string | null) => { if (!d) return false; const x = new Date(d); return x.getFullYear() === statusNow.getFullYear() && x.getMonth() === statusNow.getMonth() && x.getDate() === statusNow.getDate(); };
@@ -597,16 +620,68 @@ export default function ModlarScreen() {
   const statusTodayDone = statusTodayTasks.filter(t => t.isCompleted).length;
   const statusTodayPct = statusTodayTotal > 0 ? Math.round(statusTodayDone / statusTodayTotal * 100) : 0;
   const statusGreetingObj = statusTodayTotal === 0
-    ? { text: language === 'tr' ? 'Planın hazır' : 'Your plan is ready', icon: <CheckCircle2 size={ICON.md} color="#10B981" /> }
-    : statusTodayPct >= 80 ? { text: language === 'tr' ? 'Harika gidiyorsun!' : 'Crushing it!', icon: <Flame size={ICON.md} color="#F97316" /> }
-    : statusTodayPct >= 40 ? { text: language === 'tr' ? 'İyi gidiyorsun' : "You're doing great", icon: <Dumbbell size={ICON.md} color="#3B82F6" /> }
-    : { text: language === 'tr' ? 'Bugün biraz hızlanalım' : "Let's pick up the pace", icon: <Zap size={ICON.md} color="#F59E0B" /> };
+    ? { text: language === 'tr' ? 'Planın hazır' : 'Your plan is ready', icon: <CheckCircle2 size={ICON.md} color={theme.success} /> }
+    : statusTodayPct >= 80 ? { text: language === 'tr' ? 'Harika gidiyorsun!' : 'Crushing it!', icon: <Flame size={ICON.md} color={sporColor} /> }
+    : statusTodayPct >= 40 ? { text: language === 'tr' ? 'İyi gidiyorsun' : "You're doing great", icon: <Dumbbell size={ICON.md} color={urgencyColor} /> }
+    : { text: language === 'tr' ? 'Bugün biraz hızlanalım' : "Let's pick up the pace", icon: <Zap size={ICON.md} color={theme.warning} /> };
   const statusMotiv = !statusNearest ? ''
     : statusNearest.days <= 3
       ? (language === 'tr' ? `Son düzlük! "${statusNearest.label}" çok yakın — bugün her şey sayar.` : `Final stretch! "${statusNearest.label}" is close — today counts.`)
     : statusNearest.days <= 14
       ? (language === 'tr' ? `"${statusNearest.label}" için her gün bir adım — sonunda fark olur.` : `One step a day toward "${statusNearest.label}" — it adds up.`)
       : (language === 'tr' ? `Erken başlamak en büyük avantajın — "${statusNearest.label}" yolundasın.` : `Starting early is your edge — you're on track for "${statusNearest.label}".`);
+
+  // ── BÖLÜM MODELİ ────────────────────────────────────────────────────────
+  // Bir mod kartı üç durumdan birinde olur ve kullanıcıya farklı şey söyler:
+  //   applied  → plan çalışıyor        → "Aktif Hedeflerim"
+  //   pending  → anahtar açık, plan yok → "Kurulumu Tamamla" (eylem bekliyor!)
+  //   upcoming → takvim önerisi (Ramazan yaklaşıyor) → "Yaklaşan Dönem"
+  // Eskiden üçü de tek başlık altındaydı; yarım kalmış kurulum "aktif" görünüp
+  // sessizce unutuluyordu.
+  const modeCards = [
+    { id: 'tasarruf', on: seasonal.tasarrufMode, applied: tasarrufApplied, node: <TasarrufCard /> },
+    { id: 'birakma', on: seasonal.birakmaMode, applied: birakmaApplied, node: <BirakmaCard /> },
+    { id: 'exam', on: seasonal.examMode, applied: examApplied || exam2Applied || exam3Applied, node: <ExamCard onOpenPreview={(p) => setModePreview({ type: 'exam', key: Date.now(), ...p })} /> },
+    { id: 'tez', on: seasonal.tezMode, applied: tezApplied, node: <TezCard onOpenPreview={() => setModePreview({ type: 'tez', key: Date.now() })} /> },
+    { id: 'mulakat', on: seasonal.mulakatMode, applied: mulakatApplied || mulakat2Applied || mulakat3Applied, node: <MulakatCard onOpenPreview={(slot) => setModePreview({ type: 'mulakat', key: Date.now(), mulakatSlot: slot })} /> },
+    { id: 'spor', on: seasonal.sporMode, applied: sporApplied || spor2Applied || spor3Applied, node: <SporCard onOpenPreview={(slot) => setModePreview({ type: 'spor', key: Date.now(), sporSlot: slot })} /> },
+  ].filter(m => m.on);
+
+  // Ramazan kartı kendi görünürlüğünü takvimden belirler (RamazanCard içinde `return null`).
+  // Kullanıcı açmadıysa bu bir ÖNERİdir, aktif hedef değil.
+  const ramazanCard = { id: 'ramazan', applied: ramazanApplied, node: <RamazanCard onOpenPreview={() => setModePreview({ type: 'ramazan', key: Date.now() })} /> };
+
+  const wrapCard = (m: { id: string; node: React.ReactNode }) => (
+    <View key={m.id} onLayout={(e) => { cardY.current[m.id] = e.nativeEvent.layout.y; }}>{m.node}</View>
+  );
+
+  const appliedCards = [...modeCards.filter(m => m.applied), ...(seasonal.ramazan && ramazanApplied ? [ramazanCard] : [])].map(wrapCard);
+  const pendingCards = modeCards.filter(m => !m.applied).map(wrapCard);
+  const upcomingCards = (!seasonal.ramazan || !ramazanApplied) ? [wrapCard(ramazanCard)] : [];
+
+  const sectionsToRender: Array<{ id: string; title: string; hint?: string; color: string; Icon: any; cards: React.ReactNode }> = [];
+  if (appliedCards.length > 0) {
+    sectionsToRender.push({
+      id: 'applied', Icon: Flame, color: sporColor,
+      title: language === 'tr' ? 'Aktif Hedeflerim' : 'Active Goals',
+      cards: appliedCards,
+    });
+  }
+  if (pendingCards.length > 0) {
+    sectionsToRender.push({
+      id: 'pending', Icon: Zap, color: theme.warning,
+      title: language === 'tr' ? 'Kurulumu Tamamla' : 'Finish Setup',
+      hint: language === 'tr' ? '· plan henüz başlamadı' : '· plan not started yet',
+      cards: pendingCards,
+    });
+  }
+  if (upcomingCards.length > 0) {
+    sectionsToRender.push({
+      id: 'upcoming', Icon: CalendarDays, color: ramazanAccent,
+      title: language === 'tr' ? 'Yaklaşan Dönem' : 'Upcoming Season',
+      cards: upcomingCards,
+    });
+  }
 
   const closeExamModeWithReview = useCallback(() => {
     cancelExamCountdownNotifs();
@@ -699,29 +774,22 @@ export default function ModlarScreen() {
             </TourTarget>
             </>
           }
-          center={
-            <>
-            <Text 
-              numberOfLines={1} 
-              adjustsFontSizeToFit
-              style={{ fontSize: F.title3, fontWeight: '600', color: theme.onSurface, letterSpacing: TRACKING.title, textAlign: 'center' }}
-            >
-                {language === 'tr' ? 'Dönemsel Modlar' : 'Seasonal Modes'}
-            </Text>
-            </>
-          }
+          title={language === 'tr' ? 'Dönemsel Modlar' : 'Seasonal Modes'}
           right={
             <>
-           <Touchable 
-             onPress={() => Alert.alert(
-                language === 'tr' ? 'Modlar Hakkında' : 'About Seasonal Modes',
-                language === 'tr'
-                  ? 'Dönemsel modlar belirli bir hedef veya dönem için hazırlanmış alışkanlık ve görev paketleridir. Aktif ettiğinde ilgili plan otomatik olarak Haftalık Merkez\'e ve görevlerine eklenir. Mod kapatıldığında eklenen içerikler kaldırılır.'
-                  : 'Seasonal modes are curated bundles of tasks and habits for a specific goal or period. When activated, the plan is automatically added to your Weekly Hub. Deactivating the mode removes the added content.'
-             )}
+           {/* Bilgi düğmesi TURU YENİDEN AÇAR. Eskiden bloke eden bir Alert içinde
+               tek paragraf metin gösteriyordu: okunmadan kapatılıyor, hiçbir şey
+               öğretmiyor ve sayfada zaten var olan adım adım tur sistemiyle
+               çelişiyordu. Artık aynı içerik, öğelerin üstünde gösterilerek anlatılıyor. */}
+           <Touchable
+             onPress={() => {
+               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+               usePrefsStore.getState().setTourCompleted('modlar', false);
+             }}
              style={styles.headerIconBtn}
              accessibilityRole="button"
-             accessibilityLabel={language === 'tr' ? 'Modlar hakkında bilgi' : 'About modes'}
+             accessibilityLabel={language === 'tr' ? 'Modları tanıt' : 'Show modes walkthrough'}
+             accessibilityHint={language === 'tr' ? 'Dönemsel modların nasıl çalıştığını adım adım gösterir' : 'Walks you through how seasonal modes work'}
            >
                <Info size={ICON.lg} color={theme.onSurfaceVariant} />
            </Touchable>
@@ -753,6 +821,23 @@ export default function ModlarScreen() {
                   borderColor: statusNearest ? statusNearest.color + (isDark ? '40' : '30') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)'),
                   padding: S.md,
                 }]}
+                // Bileşik kart: ekran okuyucu bunu 6-8 kopuk parça olarak okuyordu
+                // (selamlama, "3 mod", emoji, sayı, "gün kaldı", noktalar, "2/5"…).
+                // Tek bir anlamlı cümle olarak duyurulur.
+                accessible
+                accessibilityRole="summary"
+                accessibilityLabel={[
+                  statusGreetingObj.text,
+                  `${statusActiveCount} ${language === 'tr' ? 'aktif mod' : 'active modes'}`,
+                  statusNearest
+                    ? (language === 'tr'
+                        ? `en yakın hedef ${statusNearest.label}, ${statusNearest.days === 0 ? 'bugün' : `${statusNearest.days} gün kaldı`}`
+                        : `nearest goal ${statusNearest.label}, ${statusNearest.days === 0 ? 'today' : `${statusNearest.days} days left`}`)
+                    : (language === 'tr' ? 'tarihli hedef yok' : 'no dated goal'),
+                  statusTodayTotal > 0
+                    ? (language === 'tr' ? `bugün ${statusTodayDone} / ${statusTodayTotal} tamamlandı` : `today ${statusTodayDone} of ${statusTodayTotal} done`)
+                    : (language === 'tr' ? 'bugün planlı iş yok' : 'nothing planned today'),
+                ].join('. ')}
               >
                 {/* üst satır: selam + aktif mod çipi */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -761,7 +846,7 @@ export default function ModlarScreen() {
                     <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{statusGreetingObj.text}</Text>
                   </View>
                   <View style={{ backgroundColor: (statusNearest?.color ?? urgencyColor) + (isDark ? '26' : '1A'), paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-                    <Text style={{ color: statusNearest?.color ?? urgencyColor, fontSize: F.caption, fontWeight: '700' }}>{statusActiveCount} {language === 'tr' ? 'mod' : 'modes'}</Text>
+                    <Text style={{ color: statusNearest?.textColor ?? urgencyTextColor, fontSize: F.caption, fontWeight: '700' }}>{statusActiveCount} {language === 'tr' ? 'mod' : 'modes'}</Text>
                   </View>
                 </View>
 
@@ -774,8 +859,8 @@ export default function ModlarScreen() {
                     <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }} numberOfLines={1}>{statusNearest?.label ?? (language === 'tr' ? 'Süresiz hedef' : 'Open-ended goal')}</Text>
                     {statusNearest ? (
                       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs, marginTop: S.xxs }}>
-                        <Text style={{ color: statusNearest.color, fontWeight: '700', fontSize: F.title, letterSpacing: -0.5 }}>{statusNearest.days}</Text>
-                        <Text style={{ color: statusNearest.color, fontWeight: '600', fontSize: F.caption }}>{language === 'tr' ? (statusNearest.days === 0 ? 'bugün!' : 'gün kaldı') : (statusNearest.days === 0 ? 'today!' : 'days left')}</Text>
+                        <Text style={{ color: statusNearest.textColor, fontWeight: '700', fontSize: F.title, letterSpacing: -0.5 }}>{statusNearest.days}</Text>
+                        <Text style={{ color: statusNearest.textColor, fontWeight: '600', fontSize: F.caption }}>{language === 'tr' ? (statusNearest.days === 0 ? 'bugün!' : 'gün kaldı') : (statusNearest.days === 0 ? 'today!' : 'days left')}</Text>
                       </View>
                     ) : (
                       <Text style={{ color: theme.onSurfaceVariant, fontWeight: '600', fontSize: F.caption, marginTop: S.xxs }}>{language === 'tr' ? 'tarih yok — kendi tempon' : 'no deadline — your pace'}</Text>
@@ -796,8 +881,8 @@ export default function ModlarScreen() {
                         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600', marginTop: S.sm }}>{language === 'tr' ? `bugün ${statusTodayDone}/${statusTodayTotal}` : `today ${statusTodayDone}/${statusTodayTotal}`}</Text>
                       </>
                     ) : (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: '#10B981' + (isDark ? '22' : '15'), paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-                        <Text style={{ color: '#10B981', fontSize: F.caption2, fontWeight: '700' }}>✓ {language === 'tr' ? 'bugün boş' : 'clear'}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, backgroundColor: theme.success + (isDark ? '22' : '15'), paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
+                        <Text style={{ color: theme.success, fontSize: F.caption2, fontWeight: '700' }}>✓ {language === 'tr' ? 'bugün boş' : 'clear'}</Text>
                       </View>
                     )}
                   </View>
@@ -822,25 +907,29 @@ export default function ModlarScreen() {
               </MotiView>
             )}
             </TourTarget>
-            {/* ── KATMAN 1: AKTİF HEDEFLERİM ── */}
+            {/* ── KATMAN 1: AKTİF HEDEFLERİM / KURULUMU TAMAMLA ──
+                Tek bir "Aktif Hedeflerim" başlığı vardı ve koşulu yalnızca ANAHTARIN
+                açık olmasıydı. Sonuç: planı uygulamadan çıkan kullanıcının yarım kartı
+                da, Ramazan'a 7 gün kala kendini gösteren ÖNERİ kartı da "aktif hedef"
+                gibi listeleniyordu. Artık üç ayrı bölüm: uygulanmış planlar, yarım
+                kalmış kurulumlar ve takvimin önerdiği dönem. */}
             <TourTarget id="contents">
-            {(statusActiveCount > 0 || hasAnyActiveMode) && (
-              <View style={{ gap: S.md, marginTop: S.sm }}>
+            {sectionsToRender.map(section => (
+              <View key={section.id} style={{ gap: S.md, marginTop: S.sm }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginLeft: S.xs }}>
-                  <Flame size={ICON.sm} color="#F97316" />
+                  <section.Icon size={ICON.sm} color={section.color} />
                   <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>
-                    {language === 'tr' ? 'Aktif Hedeflerim' : 'Active Goals'}
+                    {section.title}
                   </Text>
+                  {section.hint ? (
+                    <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '500', flex: 1 }} numberOfLines={1}>
+                      {section.hint}
+                    </Text>
+                  ) : null}
                 </View>
-                {seasonal.tasarrufMode && <View onLayout={(e) => { cardY.current.tasarruf = e.nativeEvent.layout.y; }}><TasarrufCard /></View>}
-                {seasonal.birakmaMode && <View onLayout={(e) => { cardY.current.birakma = e.nativeEvent.layout.y; }}><BirakmaCard /></View>}
-                <View onLayout={(e) => { cardY.current.ramazan = e.nativeEvent.layout.y; }}><RamazanCard onOpenPreview={() => setModePreview({ type: 'ramazan', key: Date.now() })} /></View>
-                {seasonal.examMode && <View onLayout={(e) => { cardY.current.exam = e.nativeEvent.layout.y; }}><ExamCard onOpenPreview={(p) => setModePreview({ type: 'exam', key: Date.now(), ...p })} /></View>}
-                {seasonal.tezMode && <View onLayout={(e) => { cardY.current.tez = e.nativeEvent.layout.y; }}><TezCard onOpenPreview={() => setModePreview({ type: 'tez', key: Date.now() })} /></View>}
-                {seasonal.mulakatMode && <View onLayout={(e) => { cardY.current.mulakat = e.nativeEvent.layout.y; }}><MulakatCard onOpenPreview={(slot) => setModePreview({ type: 'mulakat', key: Date.now(), mulakatSlot: slot })} /></View>}
-                {seasonal.sporMode && <View onLayout={(e) => { cardY.current.spor = e.nativeEvent.layout.y; }}><SporCard onOpenPreview={(slot) => setModePreview({ type: 'spor', key: Date.now(), sporSlot: slot })} /></View>}
+                {section.cards}
               </View>
-            )}
+            ))}
 
             {/* ── KATMAN 2: 2 SÜTUNLU KEŞİF IZGARASI (PASİF HEDEFLER) ── */}
             {(() => {
@@ -852,7 +941,8 @@ export default function ModlarScreen() {
                   desc: language === 'tr' ? 'Kilo, koşu veya antrenman takibi' : 'Weight, running or workouts',
                   icon: '🏋️',
                   Icon: Dumbbell,
-                  color: '#F97316',
+                  color: sporColor,
+                  textColor: sporTextColor,
                   onActivate: () => { setSeasonalPref('sporMode', true); focusCard('spor'); },
                 },
                 {
@@ -862,7 +952,8 @@ export default function ModlarScreen() {
                   desc: language === 'tr' ? 'YKS, KPSS, ALES çalışma planı' : 'Study plan for any exam',
                   icon: '📖',
                   Icon: BookOpen,
-                  color: '#3B82F6',
+                  color: urgencyColor,
+                  textColor: urgencyTextColor,
                   onActivate: () => { setSeasonalPref('examMode', true); focusCard('exam'); },
                 },
                 {
@@ -872,7 +963,8 @@ export default function ModlarScreen() {
                   desc: language === 'tr' ? 'Deadline odaklı bitirme akışı' : 'Deadline-driven project plan',
                   icon: '📝',
                   Icon: FileText,
-                  color: '#8B5CF6',
+                  color: tezUrgencyColor,
+                  textColor: tezTextColor,
                   onActivate: () => { setSeasonalPref('tezMode', true); focusCard('tez'); },
                 },
                 {
@@ -882,7 +974,8 @@ export default function ModlarScreen() {
                   desc: language === 'tr' ? 'Mülakat gününe hazırlık akışı' : 'Preparation until interview',
                   icon: '💼',
                   Icon: Briefcase,
-                  color: '#10B981',
+                  color: mulakatUrgencyColor,
+                  textColor: mulakatTextColor,
                   onActivate: () => { setSeasonalPref('mulakatMode', true); focusCard('mulakat'); },
                 },
                 {
@@ -892,7 +985,8 @@ export default function ModlarScreen() {
                   desc: language === 'tr' ? 'Para hedefine ulaşma planı' : 'Steps to reach money goal',
                   icon: '💰',
                   Icon: PiggyBank,
-                  color: '#0D9488',
+                  color: resolveModeAccent('tasarruf', isDark),
+                  textColor: resolveModeAccentText('tasarruf', isDark),
                   onActivate: () => { setSeasonalPref('tasarrufMode', true); focusCard('tasarruf'); },
                 },
                 {
@@ -902,7 +996,8 @@ export default function ModlarScreen() {
                   desc: language === 'tr' ? 'Kötü alışkanlıklardan adım adım kurtul' : 'Quit bad habits step by step',
                   icon: '🚫',
                   Icon: Ban,
-                  color: '#EF4444',
+                  color: resolveModeAccent('birakma', isDark),
+                  textColor: resolveModeAccentText('birakma', isDark),
                   onActivate: () => { setSeasonalPref('birakmaMode', true); focusCard('birakma'); },
                 },
               ].filter(item => !item.active);
@@ -915,7 +1010,7 @@ export default function ModlarScreen() {
                 <View style={{ gap: S.md, marginTop: statusActiveCount > 0 ? S.lg : S.sm }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: S.xs }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      <Sparkles size={ICON.sm} color="#8B5CF6" />
+                      <Sparkles size={ICON.sm} color={tezUrgencyColor} />
                       <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>
                         {language === 'tr' ? 'Yeni Hedef Keşfet' : 'Discover New Goals'}
                       </Text>
@@ -928,6 +1023,9 @@ export default function ModlarScreen() {
                     {discoveryItems.map((item) => (
                       <Touchable
                         key={item.key}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${item.title} — ${language === 'tr' ? 'kurulumu başlat' : 'start setup'}`}
+                        accessibilityHint={item.desc}
                         onPress={() => {
                           Haptics.selectionAsync();
                           item.onActivate();
@@ -947,8 +1045,13 @@ export default function ModlarScreen() {
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                           <AppIcon Icon={item.Icon} color={item.color} size={42} radius={R.md} iconSize={ICON.md} />
-                          <View style={{ backgroundColor: item.color + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-                            <Text style={{ color: item.color, fontSize: F.caption, fontWeight: '700' }}>{language === 'tr' ? '+ Ekle' : '+ Add'}</Text>
+                          {/* "+ Ekle" YANLIŞ VAATTİ: dokunmak hiçbir şey eklemiyor, sadece
+                              bir anahtarı açıp kurulum formuna götürüyor. Kullanıcı "ekledim"
+                              sanıp çıkınca elinde yarım, plansız bir mod kalıyordu. Fiil
+                              artık akışın tamamıyla aynı: Kur → Planı Seç → Başlat. */}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, backgroundColor: item.color + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
+                            <Text style={{ color: item.textColor, fontSize: F.caption, fontWeight: '700' }}>{language === 'tr' ? 'Kur' : 'Set up'}</Text>
+                            <ChevronRight size={ICON.xs} color={item.textColor} strokeWidth={2.5} />
                           </View>
                         </View>
                         <View style={{ gap: S.xs, marginTop: S.sm }}>

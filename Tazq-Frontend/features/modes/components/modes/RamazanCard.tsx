@@ -22,12 +22,15 @@ import { scheduleRamadanStartNotification, cancelRamadanStartNotification } from
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
+import { useModeAccent } from '@/shared/hooks/useModeAccent';
+import { ProgressRail } from '@/shared/components/ProgressRail';
 
 export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
-  const accent = isDark ? '#A5B4FC' : '#6366F1';
+  // Merkezi palet — elle yazılmış tema ternary'si yerine (bkz. Colors.ModeAccents).
+  const { accent, accentText } = useModeAccent('ramazan');
 
   const seasonal = usePrefsStore(s => s.seasonal);
   const setSeasonalPref = usePrefsStore(s => s.setSeasonalPref);
@@ -41,7 +44,12 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const ramadanStatus = React.useMemo(() => getCurrentRamadanStatus(), []);
 
   // Görünürlük: takvim-tetiklemeli.
-  if (!(seasonal.ramazan || ramadanStatus.daysUntilStart <= 7 || ramadanStatus.isActive)) return null;
+  // `period` KONTROLÜ ŞART: tarih tablosu tükendiğinde getCurrentRamadanStatus
+  // `{ period: null, daysUntilStart: 0 }` döner ve `0 <= 7` doğru olduğu için kart
+  // SONSUZA KADAR boş/bozuk halde ekranda kalıyordu. Artık yalnız gerçek bir dönem
+  // varken (ya da kullanıcı bilerek açtıysa) görünür.
+  const calendarSuggests = !!ramadanStatus.period && (ramadanStatus.isActive || ramadanStatus.daysUntilStart <= 7);
+  if (!(seasonal.ramazan || calendarSuggests)) return null;
 
   // Bugünkü ilerleme.
   const todayKey = fmtDateKey();
@@ -65,7 +73,7 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
     <View style={{ borderRadius: R.lg, borderWidth: B.thin, overflow: 'hidden', backgroundColor: isDark ? '#1C1C22' : theme.surfaceContainerLowest, borderColor: seasonal.ramazan ? (isDark ? 'rgba(99,102,241,0.30)' : 'rgba(99,102,241,0.20)') : (isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)') }}>
       <View style={{ paddingHorizontal: S.md, paddingTop: S.md, paddingBottom: seasonal.ramazan ? S.sm : S.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-          <AppIcon Icon={Moon} color="#6366F1" />
+          <AppIcon Icon={Moon} color={accent} />
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.onSurface, fontWeight: '500', fontSize: F.body }}>{tr ? 'Ramazan Modu' : 'Ramadan Mode'}</Text>
             <Text style={{ fontSize: F.caption, fontWeight: '500', marginTop: S.xxs, color: ramadanStatus.isActive ? accent : seasonal.ramazan && ramadanStatus.period ? accent : theme.onSurfaceVariant, opacity: ramadanStatus.isActive ? 0.9 : seasonal.ramazan && ramadanStatus.period ? 0.75 : 0.55 }}>
@@ -96,8 +104,8 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
                 }
               }
             }}
-            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: '#6366F180' }}
-            thumbColor={seasonal.ramazan ? '#6366F1' : (isDark ? '#636366' : '#fff')}
+            trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: accent + '80' }}
+            thumbColor={seasonal.ramazan ? accent : (isDark ? '#636366' : '#fff')}
           />
         </View>
       </View>
@@ -107,23 +115,21 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
           {!ramadanStatus.isActive && ramadanStatus.period ? (
             <Touchable onPress={onOpenPreview} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
               <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: accent }} />
-              <Text style={{ color: accent, fontSize: F.caption, fontWeight: '600', flex: 1 }}>{tr ? 'Planı şimdiden hazırla' : 'Set up your plan in advance'}</Text>
+              <Text style={{ color: accentText, fontSize: F.caption, fontWeight: '600', flex: 1 }}>{tr ? 'Planı şimdiden hazırla' : 'Set up your plan in advance'}</Text>
               <ChevronRight size={ICON.xs} color={accent} />
             </Touchable>
           ) : progTotal > 0 ? (
             <View style={{ gap: S.sm }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bugün' : 'Today'}</Text>
-                <Text style={{ color: accent, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
+                <Text style={{ color: accentText, fontSize: F.caption, fontWeight: '600' }}>{progDone}/{progTotal} · {progPct}%</Text>
               </View>
-              <View style={{ height: 5, borderRadius: R.xs, backgroundColor: isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.10)', overflow: 'hidden' }}>
-                <View style={{ height: 5, borderRadius: R.xs, backgroundColor: accent, width: `${progPct}%` as any }} />
-              </View>
+              <ProgressRail variant="segments" value={progDone} total={progTotal} color={accent} />
             </View>
           ) : (
             <Touchable onPress={onOpenPreview} style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }} activeOpacity={0.7}>
               <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: accent }} />
-              <Text style={{ color: accent, fontSize: F.caption, fontWeight: '500', flex: 1 }}>{tr ? 'Plan henüz oluşturulmadı — Oluştur' : 'No plan yet — Create one'}</Text>
+              <Text style={{ color: accentText, fontSize: F.caption, fontWeight: '500', flex: 1 }}>{tr ? 'Plan henüz oluşturulmadı — Oluştur' : 'No plan yet — Create one'}</Text>
               <ChevronRight size={ICON.xs} color={accent} />
             </Touchable>
           )}

@@ -5,8 +5,9 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { ICON, S, F, R, B, MAX_W } from '@/shared/constants/tokens';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '@/shared/components/ScreenHeader';
+import { ICON, S, F, R, B, MAX_W, topBarSpace } from '@/shared/constants/tokens';
 import { TaskService } from '@/shared/services/api';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -15,6 +16,7 @@ import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { isNetworkError } from '@/shared/utils/errors';
 
 export default function ArchiveScreen() {
+    const insets = useSafeAreaInsets();
     const { theme, isDark } = useAppTheme();
     const { language } = useLanguageStore();
     const router = useRouter();
@@ -73,22 +75,19 @@ export default function ArchiveScreen() {
     };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-            {/* Header */}
-            <View style={[styles.header, { borderBottomColor: theme.outline }]}>
-                <Touchable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Geri' : 'Back'}>
-                    <ArrowLeft size={ICON.lg} color={theme.onBackground} />
-                </Touchable>
-                <Text style={[styles.headerTitle, { color: theme.onBackground }]}>
-                    {language === 'tr' ? 'Arşiv' : 'Archive'}
-                </Text>
-                <View style={{ width: 40 }} />
-            </View>
+        <View style={{ flex: 1, backgroundColor: theme.background }}>
+            {/* Ortak başlık: yapışık 44pt, hairline ayraç, 17pt başlık — ana ekranlarla
+                aynı sistem. Eskiden satır içi kendi kopyasıydı ve başlığı 22pt'ydi;
+                yani alt sayfaya inince başlık BÜYÜYORDU (hiyerarşi ters). */}
+            <ScreenHeader
+                onBack={() => router.back()}
+                title={language === 'tr' ? 'Arşiv' : 'Archive'}
+            />
 
             <FlatList
                 data={archivedTasks}
                 keyExtractor={item => item.id.toString()}
-                contentContainerStyle={{ padding: S.md, gap: S.sm, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+                contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.md, paddingBottom: insets.bottom + S.xl, gap: S.sm, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
                 ListEmptyComponent={() => (
                     <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: S.xxl }}>
                         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body }}>
@@ -119,30 +118,11 @@ export default function ArchiveScreen() {
                     </View>
                 )}
             />
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: S.md,
-        paddingVertical: S.sm,
-        borderBottomWidth: B.thin,
-    },
-    backBtn: {
-        width: 40,
-        height: 40,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    headerTitle: {
-        flex: 1,
-        textAlign: 'center',
-        fontSize: F.title,
-        fontWeight: '700',
-    },
     taskCard: {
         flexDirection: 'row',
         padding: S.md,
