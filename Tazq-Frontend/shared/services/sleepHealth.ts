@@ -39,11 +39,67 @@ function recentSleepWindow(): { from: Date; to: Date } {
   const from = new Date(to.getTime() - 26 * 60 * 60 * 1000);
   return { from, to };
 }
-function minutesBetween(a: any, b: any): number {
+
+/** İki uyku bloğu arasındaki bu süreden büyük boşluk → AYRI oturum (ör. gece uykusu vs. şekerleme). */
+const SESSION_GAP_MIN = 90;
+/** Tek oturumda makul üst sınır. Aşılırsa veri güvenilmez sayılır (sessiz no-op). */
+const MAX_PLAUSIBLE_SLEEP_MIN = 16 * 60;
+
+type Interval = { start: number; end: number };
+
+function toInterval(a: any, b: any): Interval | null {
   const s = new Date(a).getTime();
   const e = new Date(b).getTime();
-  if (!isFinite(s) || !isFinite(e) || e <= s) return 0;
-  return (e - s) / 60000;
+  if (!isFinite(s) || !isFinite(e) || e <= s) return null;
+  return { start: s, end: e };
+}
+
+/**
+ * Örtüşen/bitişik aralıkları BİRLEŞTİRİR (union) ve yalnız EN SON oturumun
+ * dakikasını döndürür.
+ *
+ * Neden union: HealthKit/Health Connect'te aynı gece BİRDEN FAZLA kaynak tarafından
+ * yazılır (iPhone Uyku Odağı `asleepUnspecified` + Apple Watch `core/deep/REM`,
+ * ya da üçüncü parti uyku uygulamaları). Süreleri düz toplamak aynı geceyi iki kez
+ * sayar → 7 saatlik uyku "14 saat" görünür. Union bu çift saymayı yapısal olarak
+ * imkânsız kılar.
+ *
+ * Neden yalnız son oturum: 26 saatlik pencereye gece uykusu + öğle şekerlemesi
+ * (hatta akşam açıldığında iki ayrı gece) birlikte düşebiliyordu ve hepsi toplanıyordu.
+ * SESSION_GAP_MIN'den büyük boşluk yeni oturum sayılır; "son uyku" = en son oturum.
+ *
+ * @returns dakika, ya da veri anlamsız/güvenilmezse null.
+ */
+function lastSessionMinutes(raw: (Interval | null)[]): number | null {
+  const items = raw.filter((x): x is Interval => x != null).sort((a, b) => a.start - b.start);
+  if (items.length === 0) return null;
+
+  // 1) Union: örtüşen ya da bitişik aralıkları tek bloğa indir.
+  const merged: Interval[] = [];
+  for (const it of items) {
+    const last = merged[merged.length - 1];
+    if (last && it.start <= last.end) {
+      if (it.end > last.end) last.end = it.end;
+    } else {
+      merged.push({ ...it });
+    }
+  }
+
+  // 2) Bloklar arası boşluk SESSION_GAP_MIN'i aşmıyorsa aynı oturum (gece içi kısa uyanmalar).
+  //    Süre olarak blokların KENDİ toplamı alınır (span değil) → arada uyanık geçen
+  //    dakikalar uyku süresine yazılmaz.
+  const gapMs = SESSION_GAP_MIN * 60000;
+  let total = merged[merged.length - 1].end - merged[merged.length - 1].start;
+  let sessionStart = merged[merged.length - 1].start;
+  for (let i = merged.length - 2; i >= 0; i--) {
+    if (sessionStart - merged[i].end > gapMs) break;
+    total += merged[i].end - merged[i].start;
+    sessionStart = merged[i].start;
+  }
+
+  const mins = Math.round(total / 60000);
+  if (mins <= 0 || mins > MAX_PLAUSIBLE_SLEEP_MIN) return null; // şüpheli veri → sessiz geç
+  return mins;
 }
 
 export const SleepHealth = {
@@ -112,15 +168,18 @@ export const SleepHealth = {
           limit: 0,
         })) ?? [];
         if (!Array.isArray(samples) || samples.length === 0) return null;
-        let asleep = 0, inBed = 0;
+        // Aralık olarak topla; SÜRELERİ TOPLAMA (çok kaynaklı çift sayımı önlemek için union şart).
+        const asleep: (Interval | null)[] = [];
+        const inBed: (Interval | null)[] = [];
         for (const s of samples) {
           const v = typeof s.value === 'number' ? s.value : Number(s.value);
-          const mins = minutesBetween(s.startDate ?? s.startdate ?? s.start, s.endDate ?? s.enddate ?? s.end);
-          if (ASLEEP_VALUES.has(v)) asleep += mins;
-          else if (v === IN_BED_VALUE) inBed += mins;
+          const iv = toInterval(s.startDate ?? s.startdate ?? s.start, s.endDate ?? s.enddate ?? s.end);
+          if (!iv) continue;
+          if (ASLEEP_VALUES.has(v)) asleep.push(iv);
+          else if (v === IN_BED_VALUE) inBed.push(iv);
         }
-        const total = Math.round(asleep > 0 ? asleep : inBed);
-        return total > 0 ? total : null;
+        // "Uykuda" kaydı varsa onu kullan; yoksa "yatakta"ya düş (eski/basit kaynaklar).
+        return lastSessionMinutes(asleep.length > 0 ? asleep : inBed);
       } catch { return null; }
     }
 
@@ -134,22 +193,23 @@ export const SleepHealth = {
         });
         const records: any[] = res?.records ?? res ?? [];
         if (!Array.isArray(records) || records.length === 0) return null;
-        let total = 0;
+        // iOS'taki ile aynı kural: aralıkları topla, union'ı lastSessionMinutes alsın.
+        // Health Connect'te de birden fazla uygulama aynı geceyi yazabiliyor (çift sayım riski).
+        const intervals: (Interval | null)[] = [];
         for (const r of records) {
-          // Evre verisi varsa awake dışını topla; yoksa oturum süresini al.
+          // Evre verisi varsa awake dışını al; yoksa oturumun tamamını al.
           const stages: any[] = Array.isArray(r.stages) ? r.stages : [];
           if (stages.length > 0) {
             for (const st of stages) {
               const stage = String(st.stage ?? '').toUpperCase();
               if (stage.includes('AWAKE')) continue;
-              total += minutesBetween(st.startTime, st.endTime);
+              intervals.push(toInterval(st.startTime, st.endTime));
             }
           } else {
-            total += minutesBetween(r.startTime, r.endTime);
+            intervals.push(toInterval(r.startTime, r.endTime));
           }
         }
-        const rounded = Math.round(total);
-        return rounded > 0 ? rounded : null;
+        return lastSessionMinutes(intervals);
       } catch { return null; }
     }
 
@@ -163,6 +223,14 @@ export const SleepHealth = {
     return mins != null ? 'ready' : 'needs-permission';
   },
 };
+
+/**
+ * Saf yardımcı (test edilebilir): ISO/Date çiftlerinden EN SON uyku oturumunun
+ * dakikasını hesaplar. Union + oturum ayrımı + akla yatkınlık sınırı uygular.
+ */
+export function lastSleepSessionMinutes(blocks: { start: any; end: any }[]): number | null {
+  return lastSessionMinutes(blocks.map(b => toInterval(b.start, b.end)));
+}
 
 /** Dakikayı "7s 10dk" gibi biçimle. */
 export function formatSleepDuration(minutes: number, lang: 'tr' | 'en'): string {

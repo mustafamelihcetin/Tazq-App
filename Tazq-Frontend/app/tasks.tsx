@@ -12,6 +12,7 @@ import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { WeightEntryModal } from '@/shared/components/WeightEntryModal';
+import { weightTaskAction, completeTaskOfflineFirst, isWeightEntryTask } from '@/shared/utils/weightCheckin';
 import { TaskFormModal } from '@/shared/components/TaskFormModal';
 import { useTaskStore, parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
@@ -143,7 +144,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                         onPress={() => {
                             if (isBulkMode) {
                                 handleBulkSelect(task.id);
-                            } else if (task.tags?.includes('weight_entry')) {
+                            } else if (isWeightEntryTask(task) && !task.isCompleted) {
                                 handleToggle(task.id);
                             } else {
                                 handleToggleExpand(task.id);
@@ -178,7 +179,7 @@ const MemoizedTaskItem = React.memo((props: any) => {
                                             {getLocalizedTaskTitle(task, language === 'tr')}
                                         </Text>
                                     </MotiView>
-                                    {task.tags && task.tags.includes('weight_entry') && (
+                                    {isWeightEntryTask(task) && (
                                         <View style={{ backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xxs, borderRadius: R.xs }}>
                                             <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary }}>{language === 'tr' ? 'KİLO' : 'WEIGHT'}</Text>
                                         </View>
@@ -734,9 +735,16 @@ export default function ActionCenter() {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
 
-    if (task.tags?.includes('weight_entry')) {
+    if (isWeightEntryTask(task) && !task.isCompleted) {
       Haptics.selectionAsync();
-      setWeightModalTaskId(task.id);
+      if (weightTaskAction() === 'log') {
+        setWeightModalTaskId(task.id);
+      } else {
+        // Kilo bu dönem zaten girilmiş → modal "7 günde bir girilir" diyerek reddeder
+        // ve görev kapatılamaz kalırdı. Görevin amacı yerine geldiği için doğrudan kapat.
+        completeTaskOfflineFirst(task.id);
+        showToast(language === 'tr' ? 'Tartım zaten kayıtlı — görev tamamlandı' : 'Weigh-in already logged — task completed', 'success');
+      }
       return;
     }
 
@@ -1339,14 +1347,40 @@ export default function ActionCenter() {
   };
 
   const handleBulkComplete = async () => {
-    const ids = Array.from(selectedIds);
-    // Optimistic update
-    ids.forEach(id => toggleTaskCompletion(id));
-    
+    const all = Array.from(selectedIds);
 
+    // Tartım görevleri kilo girilmeden tamamlanamaz — toplu tamamlama bu kuralı
+    // atlıyordu. Kilo zaten girilmişse ('complete') sorun yok; girilmemişse
+    // ('log') görev seçimden ÇIKARILIR ve kullanıcı bilgilendirilir.
+    const canCompleteWeight = weightTaskAction() === 'complete';
+    const skipped = canCompleteWeight
+      ? []
+      : all.filter(id => { const tk = tasks.find(x => x.id === id); return !!tk && isWeightEntryTask(tk); });
+    const skippedSet = new Set(skipped);
+    const ids = all.filter(id => !skippedSet.has(id));
 
     setSelectedIds(new Set());
     setIsBulkMode(false);
+
+    if (ids.length === 0) {
+      if (skipped.length > 0) {
+        showToast(language === 'tr' ? 'Tartım görevi için önce kilonu gir' : 'Log your weight first for the weigh-in task', 'info');
+      }
+      return;
+    }
+
+    // Optimistic update
+    ids.forEach(id => toggleTaskCompletion(id));
+
+    // Çevrimdışıyken sunucuya yazmayı deneyip geri almak yerine kuyruğa al
+    // (uygulamanın geri kalanı offline-first; burası tek istisnaydı).
+    if (!isOnline) {
+      const completedAt = new Date().toISOString();
+      ids.forEach(id => enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt }));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+      return;
+    }
 
     const failed: number[] = [];
     for (const id of ids) {
@@ -1354,9 +1388,14 @@ export default function ActionCenter() {
       if (!task) continue;
       try {
         await TaskService.updateTask(id, { ...task, priority: task.priority, isCompleted: true });
-      } catch {
-        failed.push(id);
-        toggleTaskCompletion(id); // revert
+      } catch (err: any) {
+        // Ağ hatası (yanıt yok) → kuyruğa al, geri ALMA. Sunucu hatası → geri al.
+        if (!err?.response) {
+          enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
+        } else {
+          failed.push(id);
+          toggleTaskCompletion(id); // revert
+        }
       }
     }
 
@@ -1364,6 +1403,9 @@ export default function ActionCenter() {
       showToast(t.toastUpdateFailed, 'error');
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (skipped.length > 0) {
+        showToast(language === 'tr' ? 'Tartım görevi atlandı — önce kilonu gir' : 'Weigh-in task skipped — log your weight first', 'info');
+      }
     }
   };
 

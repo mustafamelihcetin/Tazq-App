@@ -45,10 +45,33 @@ export function daysUntilNextWeight(log: { date: string }[]): number {
   return Math.max(0, 7 - d);
 }
 
+/** Görev listesindeki TÜM açık (tamamlanmamış) weight_entry görevleri. */
+export function findOpenWeightTasks(): number[] {
+  return useTaskStore.getState().tasks.filter(x => !x.isCompleted && isWeightEntryTask(x)).map(x => x.id);
+}
+
 /** Görev listesindeki açık (tamamlanmamış) weight_entry görevini bulur. */
 function findOpenWeightTask(): number | null {
-  const t = useTaskStore.getState().tasks.find(x => !x.isCompleted && isWeightEntryTask(x));
-  return t?.id ?? null;
+  return findOpenWeightTasks()[0] ?? null;
+}
+
+/**
+ * Bir görevi tamamlanmış işaretler (offline-first). Kilo görevleri normal toggle
+ * yolundan geçmediği için (tasks ekranı onları modal'a yönlendiriyor) tek noktada
+ * toplandı — hem modal hem toplu-tamamlama aynı davranışı kullansın.
+ */
+export function completeTaskOfflineFirst(taskId: number): void {
+  const cur = useTaskStore.getState().tasks.find(t => t.id === taskId);
+  if (!cur || cur.isCompleted) return;
+  useTaskStore.getState().toggleTaskCompletion(taskId);
+  const completedAt = new Date().toISOString();
+  if (!useNetworkStore.getState().isOnline) {
+    useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt });
+  } else {
+    TaskService.updateTask(taskId, { isCompleted: true }).catch(err => {
+      if (!err?.response) useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt });
+    });
+  }
 }
 
 /**
@@ -86,28 +109,30 @@ export async function ensureWeeklyWeightTask(dueDate: Date, language: 'tr' | 'en
 }
 
 /**
- * Haftalık tartımı kaydeder: kilo geçmişine ekler, açık görevi tamamlar ve
- * bir sonraki haftalık görevi (+7 gün) planlar. Her yerden çağrılabilir.
+ * Haftalık tartımı kaydeder: kilo geçmişine ekler, AÇIK OLAN TÜM tartım görevlerini
+ * tamamlar ve bir sonraki haftalık görevi (+7 gün) planlar. Her yerden çağrılabilir.
+ *
+ * Neden "tüm açık görevler": tartım bir kez yapıldığında bekleyen her tartım
+ * hatırlatıcısının amacı yerine gelmiştir. Eskiden yalnız listedeki İLK açık görev
+ * kapatılıyordu; birden fazla açık tartım görevi varsa kullanıcının bastığı görev
+ * açık kalıp 7 gün boyunca kapatılamaz hale geliyordu ("kilo kaydedildi ama görev
+ * işaretlenmedi" hatası).
+ *
+ * @param taskId Kullanıcının bastığı görev (varsa) — önce o kapatılır.
  * @returns true = kaydedildi, false = 7 gün dolmadığı için reddedildi.
  */
-export async function recordWeeklyWeight(kg: number, language: 'tr' | 'en' = 'tr'): Promise<boolean> {
+export async function recordWeeklyWeight(kg: number, language: 'tr' | 'en' = 'tr', taskId?: number | null): Promise<boolean> {
   const log = useSporStore.getState().weightLog;
   if (!canLogWeight(log)) return false;
 
   useSporStore.getState().addWeightEntry(kg);
 
-  // Açık weight_entry görevini tamamla (offline-first).
-  const openId = findOpenWeightTask();
-  if (openId != null) {
-    useTaskStore.getState().toggleTaskCompletion(openId);
-    if (!useNetworkStore.getState().isOnline) {
-      useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: openId, isCompleted: true, completedAt: new Date().toISOString() });
-    } else {
-      TaskService.updateTask(openId, { isCompleted: true }).catch(err => {
-        if (!err?.response) useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: openId, isCompleted: true, completedAt: new Date().toISOString() });
-      });
-    }
-  }
+  // Açık weight_entry görevlerinin HEPSİNİ tamamla (offline-first); önce basılan görev.
+  const openIds = findOpenWeightTasks();
+  const ordered = taskId != null && openIds.includes(taskId)
+    ? [taskId, ...openIds.filter(id => id !== taskId)]
+    : openIds;
+  ordered.forEach(completeTaskOfflineFirst);
 
   // Bir sonraki tartım: +7 gün (sabah 08:00).
   const next = new Date();
@@ -115,6 +140,19 @@ export async function recordWeeklyWeight(kg: number, language: 'tr' | 'en' = 'tr
   next.setHours(8, 0, 0, 0);
   await ensureWeeklyWeightTask(next, language);
   return true;
+}
+
+/**
+ * Tartım görevine basıldığında ne yapılmalı?
+ *  - 'log'      → tartım vakti geldi, kilo giriş modalını aç.
+ *  - 'complete' → kilo bu dönem ZATEN girilmiş; görev bir artık. Doğrudan tamamla.
+ *
+ * Eskiden ikinci durumda da modal açılıyordu ve modal "7 günde bir girilir" diyerek
+ * reddediyordu → görev hiçbir yoldan kapatılamıyordu. Görevin amacı (kilo kaydı)
+ * zaten yerine geldiği için artık doğrudan kapatılıyor.
+ */
+export function weightTaskAction(): 'log' | 'complete' {
+  return canLogWeight(useSporStore.getState().weightLog) ? 'log' : 'complete';
 }
 
 export { getLocalDateString };

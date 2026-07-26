@@ -44,6 +44,7 @@ import { useSubjectStore } from '@/shared/store/useSubjectStore';
 import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
 import { useQuitStore, type QuitType } from '@/shared/store/useQuitStore';
 import { buildTasarrufPlan, buildBirakmaPlan } from '@/shared/utils/lifeModePlans';
+import { isWeightEntryTask } from '@/shared/utils/weightCheckin';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
 
@@ -768,7 +769,9 @@ export function usePlanAdaptations() {
         ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss'].includes(tag)
       ));
       
-      const isWeightEntry = t.tags?.includes('weight_entry');
+      // Tartım görevleri geçmiş-temizliğinden MUAF (kilo geçmişi/kadans korunur).
+      // Etiketsiz eski görevler de tanınsın diye ortak yardımcı kullanılıyor.
+      const isWeightEntry = isWeightEntryTask(t);
 
       return isPlanTask && !isWeightEntry;
     });
@@ -794,6 +797,36 @@ export function usePlanAdaptations() {
     // Refresh existing list after cleanup to avoid duplication downstream
     existing = useTaskStore.getState().tasks;
 
+    // ── TARTIM GÖREVİ GÜVENLİK DUVARI ────────────────────────────────────────
+    // ÖNEMLİ: Bu blok ÜRETİM KAPISININ ÖNÜNDE olmalı. Eskiden run()'ın en sonundaydı;
+    // günde 1 kez çalışan kapı yüzünden günün ikinci açılışında hiç ulaşılmıyor,
+    // mükerrer/yetim tartım görevleri temizlenmeden kalıyordu.
+    {
+      const wSeasonal = usePrefsStore.getState().seasonal;
+      const isKiloActive = !!wSeasonal.sporMode && !!(
+        wSeasonal.sporGoal?.toLocaleLowerCase('tr').includes('kilo') ||
+        wSeasonal.sporGoal?.toLowerCase().includes('weight')
+      );
+      const openWeightTasks = useTaskStore.getState().tasks.filter(t => !t.isCompleted && isWeightEntryTask(t));
+
+      if (!isKiloActive) {
+        // Kilo modu kapalı → yetim kalan tüm açık tartım görevlerini süpür.
+        openWeightTasks.forEach(t => retirePlanTask(t.id, 'spor'));
+      } else if (openWeightTasks.length > 1) {
+        // Yalnız 1 açık tartım görevi kalsın. "En güncel" = önce gerçek (pozitif) sunucu
+        // id'leri, sonra en büyük id. Düz `b.id - a.id` sıralaması, offline geçici
+        // id'ler NEGATİF olduğu için yeni offline görevi eski sunucu görevine
+        // kurban ediyordu.
+        const sorted = [...openWeightTasks].sort((a, b) => {
+          const aReal = a.id > 0, bReal = b.id > 0;
+          if (aReal !== bReal) return aReal ? -1 : 1;
+          return b.id - a.id;
+        });
+        sorted.slice(1).forEach(t => retirePlanTask(t.id, 'spor'));
+      }
+      existing = useTaskStore.getState().tasks;
+    }
+
     // ── ÜRETIM KAPISI ─────────────────────────────────────────────────────────
     // Temizlik/dedupe yukarıda her açılışta çalıştı; görev üretimi ise günde 1 kez.
     if (!force && !(await shouldRunToday())) return;
@@ -807,7 +840,9 @@ export function usePlanAdaptations() {
         const cw = parseFloat(currentWeight) || 0;
         const tw = parseFloat(targetWeight) || 0;
         if (cw > 0 && tw > 0 && weightLog.length > 0) {
-          const analysis = analyzeKiloProgress(weightLog, cw, tw);
+          // Hedef hız kullanıcının GERÇEK tarihine göre hesaplansın (sabit varsayım değil).
+          const kiloDaysLeft = activeSeasonal.sporDate ? daysUntil(activeSeasonal.sporDate) : undefined;
+          const analysis = analyzeKiloProgress(weightLog, cw, tw, kiloDaysLeft);
           const newTasks = buildKiloAdaptationTasks(analysis, cw, tw, existing, lang);
           await applyTasks(newTasks, 'spor', sporPlanTaskIds, sporPlanHabitIds);
         }
@@ -969,9 +1004,19 @@ export function usePlanAdaptations() {
 
     // Adaptif zorluk sinyali (tüm planlar için ortak) — günlük üretimi modüle eder.
     const adherence = computeAdherenceSignal();
+    // Ramazan içerik varyantı YALNIZCA gerçekten Ramazan'dayken uygulanır.
+    // Eskiden `seasonal.ramazan` (mod anahtarı) doğrudan bayrak olarak veriliyordu;
+    // mod Ramazan'dan 7 gün ÖNCE açılabildiği için kilo/spor görevleri oruç
+    // başlamadan "İftar sonrası…" metinlerine dönüyordu. Ramazan'ın kendi slotu
+    // zaten gerçek tarih aralığını kontrol ediyordu — asimetri giderildi.
+    const inRamazanNow = (() => {
+      if (!activeSeasonal.ramazan) return false;
+      const k = getLocalDateString(today);
+      return RAMAZAN.some(r => k >= r.start && k <= r.end);
+    })();
     const subjectTodayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     for (const ds of dailySlots) {
-      const daily = buildDailyTasks({ ...ds.spec, adherence, isRamazan: seasonal.ramazan }, fresh, lang, today);
+      const daily = buildDailyTasks({ ...ds.spec, adherence, isRamazan: inRamazanNow }, fresh, lang, today);
       await applyTasks(daily, ds.mode, ds.taskIds, ds.habitIds);
       // Konu çalışıldıysa ilerlemeyi işaretle → yarın rotasyon bir sonraki konuya geçer.
       if (daily.length > 0 && ds.subjectId) {
@@ -979,27 +1024,8 @@ export function usePlanAdaptations() {
       }
     }
 
-    // ── GÜVENLİK DUVARI & KENDİ KENDİNİ İYİLEŞTİRME MEKANİZMASI (Active Guardrails Engine) ──
-    const latestTasks = useTaskStore.getState().tasks;
-    const isKiloActive = seasonal.sporMode && (seasonal.sporGoal?.toLowerCase().includes('kilo') || seasonal.sporGoal?.toLowerCase().includes('weight'));
-    const openWeightTasks = latestTasks.filter(t => !t.isCompleted && (t.tags?.includes('weight_entry') || t.title === 'Güncel kilonu gir' || t.title === 'Log current weight'));
-
-    if (!isKiloActive) {
-      // Spor/kilo modu kapalıysa, yetim kalan tüm açık tartım görevlerini süpür
-      if (openWeightTasks.length > 0) {
-        openWeightTasks.forEach(t => {
-          retirePlanTask(t.id, 'spor');
-        });
-      }
-    } else {
-      // Kilo modu aktifse, mükerrer görevleri engelle ve sadece 1 tane en güncel olanı tut
-      if (openWeightTasks.length > 1) {
-        const sorted = [...openWeightTasks].sort((a, b) => b.id - a.id);
-        for (let i = 1; i < sorted.length; i++) {
-          retirePlanTask(sorted[i].id, 'spor');
-        }
-      }
-    }
+    // NOT: Tartım görevi güvenlik duvarı ÜRETİM KAPISININ ÖNÜNE taşındı (yukarı) —
+    // her açılışta çalışması gerekiyor, günde bir değil.
 
     await markRanToday();
   }, [

@@ -25,13 +25,22 @@ export function detectSporTypeLocal(goalLabel: string): SporTypeLocal {
 
 // ─── Tarih yardımcıları ─────────────────────────────────────────────────────
 
+/**
+ * Hedefe kalan gün. GEÇMİŞ tarihlerde NEGATİF döner.
+ *
+ * Eskiden `Math.max(0, …)` ile kırpılıyordu; bu yüzden çağıranlardaki
+ * "tarih geçmiş" korumaları (`daysLeft < 0`) hiçbir zaman tetiklenmiyordu —
+ * süresi dolmuş bir spor planı `getPhase(0)`='sprint' ile sonsuza kadar
+ * günlük görev üretmeye devam ediyordu. Artık işaret korunuyor ve o korumalar
+ * gerçekten çalışıyor.
+ */
 export function daysUntil(dateStr: string): number {
   const adjustedNow = new Date();
   adjustedNow.setHours(adjustedNow.getHours() - 3);
   adjustedNow.setHours(0, 0, 0, 0);
   const d = new Date(dateStr);
   d.setHours(0, 0, 0, 0);
-  return Math.max(0, Math.ceil((d.getTime() - adjustedNow.getTime()) / 86400000));
+  return Math.ceil((d.getTime() - adjustedNow.getTime()) / 86400000);
 }
 
 export function daysAgo(dateStr: string): number {
@@ -53,7 +62,18 @@ function daysFromNow(n: number): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Mevcut task listesinde tag ve başlık benzerliğine göre duplicate var mı? */
+/**
+ * Mevcut task listesinde bu tag'den yakın zamanda üretilmiş bir görev var mı?
+ *
+ * İki kural:
+ *  1) AÇIK (tamamlanmamış) aynı tag'li görev varsa → HER ZAMAN duplicate. Tarihine
+ *     bakılmaz. Eskiden yalnız `dueDate > now-lookback` olanlar sayılıyordu; bu yüzden
+ *     lookback'ten daha çok gecikmiş açık bir görev "yok" sayılıp üstüne ikincisi
+ *     üretiliyordu (mükerrer tartım görevlerinin kaynağı). Kullanıcı ilkini henüz
+ *     yapmadıysa ikinci hatırlatıcının anlamı yok.
+ *  2) Tamamlanmış görevler yalnız `ignoreCompletion` ile ve lookback penceresinde sayılır
+ *     (periyodik görevin kadansını korumak için).
+ */
 export function hasDuplicateAdaptation(
   tasks: { title: string; tags?: string[] | null; isCompleted: boolean; dueDate?: string | null }[],
   tag: string,
@@ -62,11 +82,12 @@ export function hasDuplicateAdaptation(
 ): boolean {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - lookbackDays);
-  return tasks.some(t =>
-    (ignoreCompletion ? true : !t.isCompleted) &&
-    (t.tags ?? []).includes(tag) &&
-    t.dueDate && new Date(t.dueDate) > cutoff
-  );
+  return tasks.some(t => {
+    if (!(t.tags ?? []).includes(tag)) return false;
+    if (!t.isCompleted) return true;
+    if (!ignoreCompletion) return false;
+    return !!t.dueDate && new Date(t.dueDate) > cutoff;
+  });
 }
 
 // ─── KILO MODU ─────────────────────────────────────────────────────────────
@@ -77,13 +98,20 @@ export interface KiloAnalysis {
   status: 'on_track' | 'behind' | 'ahead' | 'gaining_while_losing' | 'not_enough_data';
   weeksElapsed: number;
   totalLost: number;            // negative = gained
-  progressPct: number;          // 0–100
+  progressPct: number;          // 0–100 (yanlış yönde ilerleme = 0)
 }
 
+/**
+ * @param startWeight Planın BAŞLANGIÇ kilosu (kullanıcının kurulumda girdiği).
+ * @param daysLeft    Hedef tarihe kalan gün. Verilirse hedef hız kullanıcının GERÇEK
+ *                    takvimine göre hesaplanır. Verilmezse güvenli varsayılan
+ *                    (0,5 kg/hafta verme · 0,25 kg/hafta alma) kullanılır.
+ */
 export function analyzeKiloProgress(
   weightLog: WeightEntry[],
   startWeight: number,
   targetWeight: number,
+  daysLeft?: number,
 ): KiloAnalysis {
   if (weightLog.length < 2) {
     return { actualRatePerWeek: 0, targetRatePerWeek: 0, status: 'not_enough_data', weeksElapsed: 0, totalLost: 0, progressPct: 0 };
@@ -95,18 +123,30 @@ export function analyzeKiloProgress(
   const daysDiff = daysAgo(oldest.date) - daysAgo(newest.date);
   const weeksElapsed = Math.max(daysDiff / 7, 0.14);
 
-  const totalChange = newest.weight - oldest.weight; // negative = lost
+  // Gerçek hız, ilerleme ile AYNI referanstan ölçülür: plan başlangıç kilosu.
+  // Eskiden hız log'un en eski kaydından, ilerleme ise startWeight'ten hesaplanıyordu;
+  // ikisi farklıysa analiz kendi içinde tutarsız kalıyordu.
+  const baseline = startWeight > 0 ? startWeight : oldest.weight;
+  const totalChange = newest.weight - baseline; // negative = lost
   const actualRatePerWeek = totalChange / weeksElapsed;
 
-  const totalNeeded = targetWeight - startWeight; // negative = need to lose
-  const totalWeeksNeeded = Math.abs(totalNeeded) / (totalNeeded < 0 ? 0.5 : 0.25);
+  const totalNeeded = targetWeight - baseline; // negative = need to lose
+  // Sağlıklı tavan: verme 0,5 kg/hafta · alma 0,25 kg/hafta. Kullanıcının tarihi
+  // bundan daha uzun süre bırakıyorsa gerçek takvim kullanılır (daha yumuşak hedef);
+  // daha kısaysa sağlıklı tavanda kalınır (agresif hedefe zorlamayız).
+  const safeWeeksNeeded = Math.abs(totalNeeded) / (totalNeeded < 0 ? 0.5 : 0.25);
+  const plannedWeeks = daysLeft != null && daysLeft > 0 ? daysLeft / 7 : 0;
+  const totalWeeksNeeded = Math.max(safeWeeksNeeded, plannedWeeks) || 1;
   const targetRatePerWeek = totalNeeded / totalWeeksNeeded;
 
-  const totalLost = startWeight - newest.weight; // positive = lost, negative = gained
-  const totalGoal = Math.abs(startWeight - targetWeight);
-  const progressPct = totalGoal > 0 ? Math.min(100, (Math.abs(totalLost) / totalGoal) * 100) : 0;
+  const totalLost = baseline - newest.weight; // positive = lost, negative = gained
+  const totalGoal = Math.abs(baseline - targetWeight);
+  // İŞARETLİ ilerleme: hedefin TERSİ yönde gitmek ilerleme değildir. Eskiden
+  // Math.abs kullanıldığı için 3 kg almak da 3 kg vermek de "%30" görünüyordu.
+  const signedProgress = targetWeight < baseline ? totalLost : -totalLost;
+  const progressPct = totalGoal > 0 ? Math.min(100, Math.max(0, (signedProgress / totalGoal) * 100)) : 0;
 
-  const losing = targetWeight < startWeight;
+  const losing = targetWeight < baseline;
   let status: KiloAnalysis['status'] = 'on_track';
 
   // Mutlak değer üzerinden karşılaştır — negatif işaret kafa karıştırmasın
@@ -195,25 +235,15 @@ export function buildKiloAdaptationTasks(
     }
   }
 
-  // Her 2. hafta tartı hatırlatması
-  const week = Math.floor(analysis.weeksElapsed);
-  if (week > 0 && week % 2 === 0 && !hasDuplicateAdaptation(existingTasks, 'weight_entry', 7, true)) {
-    tasks.push({
-      title: tr ? `Haftalık tartım zamanı` : `Weekly weigh-in time`,
-      description: JSON.stringify({ 
-        tr: `Haftalık tartım zamanı`, 
-        en: `Weekly weigh-in time`,
-        descTr: `Hafta ${week} tartısı: Sabah aç karna tartılın ve güncel kilonuzu sisteme kaydedin.`,
-        descEn: `Week ${week} weigh-in: Weigh yourself in the morning fasted and log your weight.`
-      }),
-      priority: 'High',
-      dueDate: daysFromNow(0),
-      isCompleted: false,
-      tags: ['weight_entry'],
-    });
-  }
+  // NOT: Haftalık tartım görevi BURADA ÜRETİLMEZ. Tek kaynak `weightCheckin.ts`
+  // (ensureWeeklyWeightTask) — 7 günlük kadansı, tek-açık-görev kuralını ve görev
+  // tamamlamayı o yönetir. Burada ikinci bir `weight_entry` görevi üretiliyordu:
+  // farklı başlık + eksik 'spor' etiketi yüzünden dedupe/temizlik taramalarına
+  // yakalanmıyor, iki açık tartım görevi oluşuyor ve kullanıcının bastığı görev
+  // kapanmadan açık kalıyordu. Kaldırıldı.
 
   // Her 4. hafta vücut ölçüsü hatırlatması
+  const week = Math.floor(analysis.weeksElapsed);
   if (week > 0 && week % 4 === 0 && !hasDuplicateAdaptation(existingTasks, 'kilo_measure', 7, true)) {
     tasks.push({
       title: tr ? `${week}. hafta: Bel ölçüsü` : `Week ${week}: Waist measurement`,
@@ -249,6 +279,7 @@ export function buildMaratonAdaptationTasks(
 ): CreateTaskPayload[] {
   const tasks: CreateTaskPayload[] = [];
   const tr = lang === 'tr';
+  if (daysToRace < 0) return tasks; // yarış tarihi geçmiş → yeni görev üretme
   const peak = PEAK_KM[targetEvent] ?? 50;
   const weeksLeft = Math.ceil(daysToRace / 7);
   const minWeeks = MIN_WEEKS[targetEvent] ?? 8;
@@ -366,6 +397,7 @@ export function buildSinavAdaptationTasks(
   const tasks: CreateTaskPayload[] = [];
   const tr = lang === 'tr';
   const name = examName || (tr ? 'Sınav' : 'Exam');
+  if (daysLeft < 0) return tasks; // sınav tarihi geçmiş
 
   if (daysLeft <= 1 && daysLeft >= 0 && !hasDuplicateAdaptation(existingTasks, 'sinav_eve', 7, true)) {
     const timing = daysLeft === 0
@@ -474,6 +506,7 @@ export function buildTezAdaptationTasks(
   const tasks: CreateTaskPayload[] = [];
   const tr = lang === 'tr';
   const name = tezName || (tr ? 'Tez/Proje' : 'Thesis/Project');
+  if (daysLeft < 0) return tasks; // teslim tarihi geçmiş
 
   // Haftalık ilerleme değerlendirmesi: bu haftadan bir tez_weekly görevi yoksa oluştur
   // (Pazartesi'ye bağlı değil — o gün app açılmamışsa görev hiç oluşmaz)

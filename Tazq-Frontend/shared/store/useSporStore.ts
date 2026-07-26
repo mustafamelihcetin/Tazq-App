@@ -79,10 +79,18 @@ export const useSporStore = create<SporState>()(
   )
 );
 
+/**
+ * Bu tartım döneminde girilmiş kayıt (varsa).
+ *
+ * "Hafta" tanımı, kaydın kabul edilme kuralıyla (weightCheckin.canLogWeight) AYNI
+ * olmalı: YUVARLANAN 7 GÜN. Eskiden burası takvim haftası (Pazartesi) kullanıyordu;
+ * modal "Bu hafta kaydedildi" derken kayıt kabul edilebiliyor ya da tersi olabiliyordu.
+ * Ayrıca 'YYYY-MM-DD' UTC olarak parse ediliyordu → negatif UTC ofsetli ülkelerde
+ * kayıt bir gün geriye kayıyordu; artık yerel parse ediliyor.
+ */
 export function getThisWeekEntry(log: WeightEntry[]): WeightEntry | null {
-  const now = new Date();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  monday.setHours(0, 0, 0, 0);
-  return log.find(e => new Date(e.date) >= monday) ?? null;
+  if (!log?.length) return null;
+  const cutoff = Date.now() - 7 * 86400000;
+  const newest = log.reduce((a, b) => (a.date > b.date ? a : b));
+  return new Date(newest.date + 'T00:00:00').getTime() > cutoff ? newest : null;
 }

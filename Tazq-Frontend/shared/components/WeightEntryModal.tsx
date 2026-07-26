@@ -71,7 +71,8 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
     setSaving(true);
     try {
       // Tek kaynak: 7-gün kadansı + görevi tamamla + bir sonraki haftalık görevi planla.
-      const ok = await recordWeeklyWeight(kg, tr ? 'tr' : 'en');
+      // taskId geçiliyor → kullanıcının BASTIĞI görev öncelikli kapatılır.
+      const ok = await recordWeeklyWeight(kg, tr ? 'tr' : 'en', taskId);
       if (!ok) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         const left = daysUntilNextWeight(useSporStore.getState().weightLog);
@@ -184,7 +185,9 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
                 <View key={e.date} style={{ flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.sm, paddingVertical: S.xs, alignItems: 'center' }}>
                   <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption }}>{e.weight} kg</Text>
                   <Text style={{ color: theme.onSurfaceMuted, fontSize: 10, marginTop: S.xxs }}>
-                    {new Date(e.date).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-GB', { day: 'numeric', month: 'short' })}
+                    {/* 'YYYY-MM-DD' düz verilirse UTC gece yarısı parse edilir ve negatif
+                        UTC ofsetli ülkelerde bir gün geri kayar; 'T00:00:00' ile yerel parse. */}
+                    {new Date(e.date + 'T00:00:00').toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-GB', { day: 'numeric', month: 'short' })}
                   </Text>
                 </View>
               ))}

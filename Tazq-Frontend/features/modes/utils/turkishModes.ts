@@ -1,4 +1,5 @@
 import { CategoryColors } from '@/shared/constants/Colors';
+import { getRamadanRanges, parseLocalDate } from '@/shared/utils/ramadanDates';
 export type ModeType = 'ramazan' | 'yks' | 'kpss' | 'exam' | 'tez' | 'mulakat' | 'spor';
 
 export interface ModeHabit {
@@ -49,12 +50,10 @@ export interface TurkishMode {
 
 // ── Date ranges ──────────────────────────────────────────────────────────────
 
-export const RAMAZAN: { start: string; end: string }[] = [
-  { start: '2025-03-01', end: '2025-03-30' },
-  { start: '2026-02-18', end: '2026-03-19' },
-  { start: '2027-02-07', end: '2027-03-08' },
-  { start: '2028-01-28', end: '2028-02-25' },
-];
+// Ramazan tarihleri TEK KAYNAKTAN gelir: shared/utils/ramadanDates.ts.
+// Buradaki ikinci tablo o kaynakla çelişiyordu (2025/2027/2028'de birer gün fark)
+// ve mod aktivasyonu ile kart/banner UI'ı farklı tablolara bakıyordu → kaldırıldı.
+export const RAMAZAN: { start: string; end: string }[] = getRamadanRanges();
 
 const YKS: { start: string; end: string }[] = [
   { start: '2025-06-14', end: '2025-06-15' },
@@ -70,8 +69,13 @@ const KPSS: { start: string; end: string }[] = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// 'YYYY-MM-DD' değerleri YEREL gün olarak yorumlanmalı. `new Date('2026-02-18')`
+// UTC gece yarısıdır; negatif UTC ofsetli ülkelerde bir gün geriye kayar ve
+// sezon modları bir gün erken açılırdı.
+const asLocalDay = (s: string) => (/^\d{4}-\d{2}-\d{2}$/.test(s) ? parseLocalDate(s) : new Date(s));
+
 function daysUntilEnd(endStr: string): number {
-  const end = new Date(endStr);
+  const end = asLocalDay(endStr);
   end.setHours(23, 59, 59, 999);
   return Math.ceil((end.getTime() - Date.now()) / 86400000);
 }
@@ -110,10 +114,10 @@ function daysFromNow(n: number): string {
 }
 
 function isActive(start: string, end: string, leadDays = 0): number {
-  const s = new Date(start);
+  const s = asLocalDay(start);
   s.setDate(s.getDate() - leadDays);
   s.setHours(0, 0, 0, 0);
-  const e = new Date(end);
+  const e = asLocalDay(end);
   e.setHours(23, 59, 59, 999);
   const now = Date.now();
   if (now >= s.getTime() && now <= e.getTime()) return daysUntilEnd(end);
@@ -2467,16 +2471,32 @@ export function getCustomExamMode(examName: string, examDate: string, examTipTr?
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-function nextDate(ranges: { start: string }[]): string {
-  const today = new Date().toISOString().split('T')[0];
-  const future = ranges.find(r => r.start >= today);
-  return future?.start ?? ranges[ranges.length - 1].start;
+/**
+ * Sıradaki (bugün veya sonrası) dönem başlangıcı. Tablo tükendiyse null.
+ *
+ * Eskiden tablonun SON (geçmiş) tarihini döndürüyordu; sonuç olarak tarih tabloları
+ * bittiğinde ekranda sonsuza kadar "28 Ocak'ten itibaren aktif" gibi geçmiş bir
+ * tarih yazıyor, mod ise hiç açılmıyordu — sessiz bozulma. Artık null dönüyor ve
+ * çağıranlar dürüst bir metin gösteriyor.
+ */
+function nextDate(ranges: { start: string }[]): string | null {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return ranges.find(r => r.start >= today)?.start ?? null;
 }
 
 export function getModePreview(type: ModeType, opts?: { examName?: string; examDate?: string; examTipTr?: string; examTipEn?: string; tezName?: string; tezDate?: string; mulakatName?: string; mulakatDate?: string; sporGoal?: string; sporDate?: string; sporInputs?: SporInputs }): TurkishMode {
   if (type === 'ramazan') {
     const next = nextDate(RAMAZAN);
-    const nextDate_ = new Date(next);
+    if (!next) {
+      // Tarih tablosu tükendi → uydurma tarih gösterme, durumu dürüstçe söyle.
+      return {
+        ...RAMAZAN_MODE(0),
+        subtitleTr: 'Ramazan tarihleri güncellenmeli · Uygulamayı güncelle',
+        subtitleEn: 'Ramadan dates need updating · Please update the app',
+      };
+    }
+    const nextDate_ = asLocalDay(next);
     const daysUntil = Math.max(0, Math.ceil((nextDate_.getTime() - Date.now()) / 86400000));
     const dateLabel = nextDate_.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
     const subtitleTr = daysUntil > 0
@@ -2501,11 +2521,13 @@ export function getModePreview(type: ModeType, opts?: { examName?: string; examD
   }
   if (type === 'yks') {
     const next = nextDate(YKS);
-    const date = new Date(next).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+    if (!next) return { ...YKS_MODE(0), subtitleTr: 'Sınav tarihleri güncellenmeli · Uygulamayı güncelle', subtitleEn: 'Exam dates need updating · Please update the app' };
+    const date = asLocalDay(next).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
     return { ...YKS_MODE(0), subtitleTr: `${date} öncesi aktif olacak`, subtitleEn: `Activates before ${date}` };
   }
   const next = nextDate(KPSS);
-  const date = new Date(next).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+  if (!next) return { ...KPSS_MODE(0), subtitleTr: 'Sınav tarihleri güncellenmeli · Uygulamayı güncelle', subtitleEn: 'Exam dates need updating · Please update the app' };
+  const date = asLocalDay(next).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
   return { ...KPSS_MODE(0), subtitleTr: `${date} öncesi aktif olacak`, subtitleEn: `Activates before ${date}` };
 }
 
