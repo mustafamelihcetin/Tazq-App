@@ -46,6 +46,18 @@ module.exports = {
     extra: {
       ...base.extra,
       apiUrl: 'https://api.tazqapp.com',
+      /**
+       * Çalışma anında okunabilen sürüm bilgisi.
+       *
+       * `process.env.APP_VARIANT` uygulama paketinde OKUNAMAZ — Expo yalnız
+       * `EXPO_PUBLIC_*` önekli değişkenleri gömer. Bu yüzden değeri derleme anında
+       * buraya yazıyoruz; uygulama `Constants.expoConfig.extra.appVariant` ile alıyor.
+       *
+       * Kullanımı: her API isteğine `X-App-Variant` başlığı olarak gidiyor ki sunucu
+       * geliştirme hatalarını canlı hatalardan ayırabilsin (bkz. shared/services/api.ts
+       * ve Tazq-Backend/Services/LogSourceContext.cs).
+       */
+      appVariant: IS_DEV ? 'dev' : 'prod',
     },
     plugins: [
       ...(base.plugins || []),

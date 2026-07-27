@@ -53,8 +53,17 @@ namespace Tazq_App.Controllers
                 uptimeSeconds = (long)uptime.TotalSeconds,
                 latestMigration = health.LatestMigration,
                 pendingMigrations = health.PendingMigrations,
+                // Toplam — her şeyi görmek isteyen için.
                 warnings = _logStore.CountByLevel("Warning"),
                 errors = _logStore.CountByLevel("Error") + _logStore.CountByLevel("Critical"),
+                // YAYIN-ONLY sayaçlar: sağlık rozetinin geliştirme gürültüsüyle kızarmaması
+                // için. Geliştirme sürümü de bu API'ye bağlanıyor; kod yazarken çıkan her
+                // hata "canlı sistemde 14 hata var" gibi görünüyordu ve rozet anlamını
+                // yitiriyordu — sürekli kırmızı olan bir gösterge okunmayı bırakır.
+                warningsLive = _logStore.CountByLevel("Warning", LogSource.Production),
+                errorsLive = _logStore.CountByLevel("Error", LogSource.Production)
+                           + _logStore.CountByLevel("Critical", LogSource.Production),
+                logSources = _logStore.CountBySource(),
             });
         }
 
@@ -73,10 +82,158 @@ namespace Tazq_App.Controllers
             });
         }
 
+        /// <summary>
+        /// Sunucu logları — SAYFALANMIŞ ve KAYNAĞA GÖRE FİLTRELENEBİLİR.
+        ///
+        /// Eskiden `?lines=200` ile baştan N kayıt dönüyordu; gerisine ulaşmanın yolu
+        /// yoktu. Tampon 500 kayıt tutuyor, panel 60'ını çiziyordu — kayıtların çoğu
+        /// vardı ama görülemiyordu.
+        ///
+        /// `source`: geliştirme sürümü de production API'ye bağlandığı için geliştirme
+        /// hataları canlı havuza karışıyordu. `source=Production` ile yalnız gerçek
+        /// kullanıcı hataları görülebilir. Varsayılan filtresizdir — hiçbir şey
+        /// gizlemiyoruz, ayırmayı istemciye bırakıyoruz.
+        /// </summary>
         [HttpGet("logs")]
-        public IActionResult Logs([FromQuery] int lines = 200, [FromQuery] string? level = null)
+        public IActionResult Logs(
+            [FromQuery] int limit = 50,
+            [FromQuery] int offset = 0,
+            [FromQuery] string? level = null,
+            [FromQuery] string? source = null,
+            [FromQuery] int? lines = null)
         {
-            return Ok(new { logs = _logStore.Recent(lines, level) });
+            // `lines` eski istemciler için: yeni alan gelmezse onu limit say.
+            var take = lines ?? limit;
+
+            LogSource? src = null;
+            if (!string.IsNullOrWhiteSpace(source) && Enum.TryParse<LogSource>(source, true, out var parsed))
+                src = parsed;
+
+            var page = _logStore.Page(take, offset, level, src);
+
+            return Ok(new
+            {
+                logs = page.Items,
+                total = page.Total,
+                offset = page.Offset,
+                limit = page.Limit,
+                hasMore = page.Offset + page.Items.Count < page.Total,
+                // Filtre düğmelerinin yanında sayı gösterebilmek için — kullanıcı
+                // "geliştirmeyi gizlersem ne kalır?" sorusunu tıklamadan görsün.
+                counts = _logStore.CountBySource(),
+            });
+        }
+
+        /// <summary>
+        /// YAPAY ZEKÂ DURUMU — anahtar, model ve gerçek bağlantı.
+        ///
+        /// Bu uç noktaya kadar AI tarafının çalışıp çalışmadığını anlamanın tek yolu
+        /// sunucuya SSH ile girip `.env` okumak ya da uygulamada bir plan açıp logda
+        /// hata var mı diye bakmaktı. İkisi de "önce kırılsın, sonra fark edeyim"
+        /// yöntemi. Panelden görülebilir olması, sessizce ölmüş bir entegrasyonu
+        /// kullanıcı şikâyet etmeden yakalamayı sağlar.
+        ///
+        /// ANAHTAR ASLA TAM DÖNMEZ — yalnız maskeli. Bir admin panelinden okunabilen
+        /// sır, artık sır değildir: paneli açan herkes (omuz üstünden bakan dahil)
+        /// onu ele geçirebilir. Doğrulamak için görmeye gerek yok; `test` uç noktası
+        /// zaten canlı cevap veriyor.
+        /// </summary>
+        [HttpGet("ai")]
+        public IActionResult AiStatus()
+        {
+            var key = Environment.GetEnvironmentVariable("GROQ_API_KEY");
+            var model = Environment.GetEnvironmentVariable("GROQ_MODEL");
+            var configured = !string.IsNullOrWhiteSpace(key);
+
+            return Ok(new
+            {
+                configured,
+                // Maskeli: doğru anahtarın yüklü olduğunu doğrulamaya yeter, ele
+                // geçirmeye yetmez.
+                keyMasked = configured && key!.Length > 8
+                    ? $"{key[..4]}…{key[^4..]}"
+                    : (configured ? "…" : null),
+                keyLength = configured ? key!.Length : 0,
+                model = string.IsNullOrWhiteSpace(model) ? "llama-3.3-70b-versatile (varsayılan)" : model.Trim(),
+                modelFromEnv = !string.IsNullOrWhiteSpace(model),
+            });
+        }
+
+        /// <summary>
+        /// AI bağlantısını GERÇEKTEN dener — sağlayıcıya canlı istek atar.
+        ///
+        /// "Anahtar tanımlı" ile "anahtar çalışıyor" farklı şeyler: anahtar iptal
+        /// edilmiş, kotası dolmuş ya da model listeden kalkmış olabilir. Üçü de
+        /// yapılandırmaya bakarak anlaşılmaz. Bu yüzden burada tahmin yok, çağrı var.
+        /// </summary>
+        [HttpPost("ai/test")]
+        public async Task<IActionResult> AiTest()
+        {
+            var key = Environment.GetEnvironmentVariable("GROQ_API_KEY");
+            if (string.IsNullOrWhiteSpace(key))
+                return Ok(new { ok = false, stage = "config", message = "GROQ_API_KEY tanımlı değil." });
+
+            var model = Environment.GetEnvironmentVariable("GROQ_MODEL");
+            model = string.IsNullOrWhiteSpace(model) ? "llama-3.3-70b-versatile" : model.Trim();
+
+            try
+            {
+                var client = _httpFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(15);
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {key}");
+
+                // 1) Anahtar geçerli mi + model hâlâ listede mi?
+                var listResp = await client.GetAsync("https://api.groq.com/openai/v1/models");
+                if (!listResp.IsSuccessStatusCode)
+                    return Ok(new
+                    {
+                        ok = false,
+                        stage = "auth",
+                        status = (int)listResp.StatusCode,
+                        message = listResp.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                            ? "Anahtar reddedildi (401) — iptal edilmiş veya yanlış."
+                            : $"Sağlayıcı {(int)listResp.StatusCode} döndü.",
+                    });
+
+                var listJson = await listResp.Content.ReadAsStringAsync();
+                var modelAvailable = listJson.Contains($"\"{model}\"", StringComparison.Ordinal);
+
+                // 2) Model gerçekten üretiyor mu? Liste "var" dese bile üretim
+                //    kotaya/erişime takılabilir; tek kesin kanıt bir yanıttır.
+                var sw = Stopwatch.StartNew();
+                var genResp = await client.PostAsync(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    new StringContent(
+                        System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            model,
+                            messages = new[] { new { role = "user", content = "Reply with exactly: OK" } },
+                            max_tokens = 5,
+                        }),
+                        System.Text.Encoding.UTF8, "application/json"));
+                sw.Stop();
+
+                var ok = genResp.IsSuccessStatusCode;
+                return Ok(new
+                {
+                    ok,
+                    stage = ok ? "ready" : "generation",
+                    status = (int)genResp.StatusCode,
+                    model,
+                    modelAvailable,
+                    latencyMs = sw.ElapsedMilliseconds,
+                    message = ok
+                        ? "Bağlantı ve üretim çalışıyor."
+                        : modelAvailable
+                            ? $"Model listede ama üretim {(int)genResp.StatusCode} döndü (kota/erişim?)."
+                            : $"'{model}' modeli sağlayıcı listesinde YOK — GROQ_MODEL güncellenmeli.",
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("AI test failed: {Error}", ex.Message);
+                return Ok(new { ok = false, stage = "network", message = ex.Message });
+            }
         }
 
         [HttpGet("sentry")]

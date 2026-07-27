@@ -296,6 +296,12 @@ forwardedOptions.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetw
     System.Net.IPAddress.Parse("172.0.0.0"), 8));
 app.UseForwardedHeaders(forwardedOptions);
 
+// İsteğin KAYNAĞINI (yayın / geliştirme) bağlama yaz — boru hattının en başında.
+// Erken olmalı: imza ve kimlik doğrulama katmanlarının ürettiği hatalar da etiketlensin,
+// çünkü admin panelde en çok merak edilen hatalar tam olarak onlar.
+// Bkz. Services/LogSourceContext.cs
+app.UseMiddleware<Tazq_App.Services.LogSourceMiddleware>();
+
 // ── Public web pages: landing + legal (privacy, terms, KVKK, consent) ────────
 // Served from wwwroot BEFORE the X-App-Signature gate below, so ordinary
 // browsers — App Store review, end users, search engines — can open them

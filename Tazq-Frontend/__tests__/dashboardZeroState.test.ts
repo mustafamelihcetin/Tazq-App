@@ -72,7 +72,10 @@ describe('kırmızı yalnız gerçekten bozulan şeyler için', () => {
       .split('\n')
       .filter((l) => !l.trim().startsWith('//'))
       .join('\n');
-    const label = code.match(/color: isOverdue \? theme\.warning[\s\S]{0,300}?\}\}>/)?.[0] ?? '';
+    // Stil bloğunun kapanışına göre değil, etiketin ETRAFINA bakıyoruz: blok yapısı
+    // değişince (mod adı ikincil satıra taşındı) eski desen tutmuyordu ve test
+    // "eşleşme yok" diye yeşil yanmaya bir adım kalmıştı.
+    const label = code.match(/color: isOverdue \? theme\.warning[\s\S]{0,300}/)?.[0] ?? '';
     expect(label).not.toBe('');
     expect(label).not.toMatch(/opacity: 0\.\d/);
   });
@@ -125,5 +128,92 @@ describe('bugün kartı — sıfırken susar', () => {
   it('alt satır sıfırda ileri bakar', () => {
     expect(src).toContain("'gün yeni başlıyor'");
     expect(src).toContain("'the day is just starting'");
+  });
+});
+
+/**
+ * GÜNÜ TAMAMLAMA ANI — kullanıcıyı geri getiren tek an.
+ *
+ * Günün %100'ünü bitirmenin karşılığı 90pt'lik bir halkanın yeşile dönmesi ve 11pt'lik
+ * bir satırdı. Sayfa RAPOR veriyordu, ödül vermiyordu. Kutlama katmanı zaten vardı ama
+ * yalnız başarımlara bağlıydı — yani ömürde bir kez.
+ */
+describe('günü tamamlama kutlaması', () => {
+  const store = read('features/user/store/useAchievementStore.ts');
+  const src = read('app/index.tsx');
+
+  it('geçici kutlama hiçbir şeyi kalıcı yapmaz', () => {
+    // `trigger` id başına tek seferlik ve doğrusu bu. Tekrarlanan anlar için ayrı yol
+    // gerekiyordu; tarihli id (`daily_2026_07_27`) kullanmak `unlocked` dizisini her gün
+    // şişirir, buluta senkronlar ve profildeki rozet ızgarasını çöple doldururdu.
+    const body = (store.match(/celebrate: \(achievement\) => \{[\s\S]*?\n      \},/)?.[0] ?? '')
+      // Yorumlar sayılmaz — neden `unlocked`a YAZMADIĞINI anlatmak serbest.
+      .split('\n')
+      .filter((l) => !l.trim().startsWith('//'))
+      .join('\n');
+    expect(body).not.toBe('');
+    expect(body).not.toContain('unlocked');
+    expect(body).not.toContain('pushCloud');
+  });
+
+  it('üç kapı da yerinde — yanlış kutlama olmasın', () => {
+    const eff = src.match(/const dayCompleteRef[\s\S]*?\}, \[todayCompleted, dailyGoal\]\);/)?.[0] ?? '';
+    expect(eff).not.toBe('');
+    // 1. yalnız geçiş anı: gün zaten bitmişken uygulamayı açmak kutlama değildir
+    expect(eff).toContain('if (prev !== false || !done) return;');
+    // 2. günde bir: yeniden kurulum / son görevi geri alıp tekrar işaretleme
+    expect(eff).toContain('@day_celebrated_');
+    // 3. ilk mükemmel günde rozet kendi kutlamasını yapıyor — üst üste binmesin
+    expect(eff).toContain("hasUnlocked('daily_perfect')");
+  });
+});
+
+/**
+ * EMOJİ YOK — uygulama flat ikon (lucide) kullanıyor.
+ *
+ * Emoji üç sebeple yanlış: tek bir emoji sistemi bozar; cihaza göre farklı çizilir,
+ * yani tasarım bizim kontrolümüzde değildir; ve rengini kendi taşıdığı için paletle
+ * konuşmaz. En çok da BAŞARI anında zarar veriyordu — "premium" hissetmesi gereken
+ * yerde ekrana bir emoji çıkıyordu.
+ */
+describe('dashboard metinlerinde emoji yok', () => {
+  const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+  const FILES = [
+    'app/index.tsx',
+    'app/tasks.tsx',
+    'features/dashboard/components/TodayCard.tsx',
+    'features/dashboard/components/NextMissionCard.tsx',
+  ];
+
+  it.each(FILES)('%s', (rel) => {
+    const offenders = read(rel)
+      .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, '')   // yorumda eski emojiden SÖZ etmek serbest
+      .split('\n')
+      .filter((l) => {
+        const t = l.trim();
+        if (t.startsWith('//') || t.startsWith('*')) return false;
+        // `emoji: '📚'` bir ANAHTAR, ekrana çıkan metin değil: renderModeEmojiIcon onu
+        // Lucide glifine çeviriyor (bkz. features/modes/utils/modeIcons.tsx). Kuralın
+        // hedefi kullanıcıya GÖSTERİLEN emoji.
+        if (/^emoji: '/.test(t)) return false;
+        return EMOJI.test(l);
+      })
+      .map((l) => l.trim().slice(0, 80));
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('alışkanlık baloncuğu — etiket sığmalı', () => {
+  it('yuva baloncuktan belirgin geniş', () => {
+    // 268 addan 218'i 18 karakterden uzun ve bu veri hatası değil ("Kavram Haritası
+    // Çıkarma" doğal uzunlukta). Sorun 62pt'lik kutuydu: satır başına ~13 karakter.
+    const src = read('features/dashboard/components/MyDayHabits.tsx');
+    const slot = Number(src.match(/const SLOT = (\d+);/)?.[1]);
+    const bubble = Number(src.match(/const BUBBLE = (\d+);/)?.[1]);
+    expect(slot).toBeGreaterThanOrEqual(bubble + 24);
+  });
+
+  it('etiket iki satır — tek satırda adların neredeyse hepsi kesiliyordu', () => {
+    expect(read('shared/components/HabitBubble.tsx')).toContain('numberOfLines={2}');
   });
 });

@@ -14,6 +14,12 @@ import { S, navBarSpace, topBarSpace } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
 
+/**
+ * Kenar boşluğu — yükleme ve sürükleme AYNI sayıyı kullanmalı. 16 iki yerde ayrı ayrı
+ * yazılıydı; biri değişirse FAB yüklendiği yerden farklı bir yere yapışırdı.
+ */
+const EDGE_MARGIN = S.md;
+
 interface MagneticFABProps {
   onPress: () => void;
   storageKey: string;
@@ -68,11 +74,38 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
         const storedX = await AsyncStorage.getItem(`${storageKey}_x`);
         const storedY = await AsyncStorage.getItem(`${storageKey}_y`);
 
-        const defaultX = screenWidth - buttonSize - 16;
+        const defaultX = screenWidth - buttonSize - EDGE_MARGIN;
         const defaultY = restY;
 
-        const initialX = storedX ? parseFloat(storedX) : defaultX;
-        const initialY = storedY ? parseFloat(storedY) : defaultY;
+        const storedNumX = storedX ? parseFloat(storedX) : NaN;
+        const storedNumY = storedY ? parseFloat(storedY) : NaN;
+
+        /**
+         * KAYITLI KONUM GEÇERLİ Mİ — geri yüklerken de sınırla.
+         *
+         * Sürüklerken konum güvenli bölgeye kıstırılıyordu ama GERİ YÜKLERKEN
+         * kıstırılmıyordu: depodaki sayı ne ise doğrudan uygulanıyordu. Oysa o sayı
+         * bugünün ekranına ait olmayabilir —
+         *
+         *   · navbar 106pt'den 83pt'ye indi (bkz. yukarıdaki not); o dönemde kaydedilen
+         *     konumlar artık yanlış yerde,
+         *   · katlanabilir cihaz açılıp kapanınca ekran genişliği değişiyor,
+         *   · tablet ve telefon aynı hesapta aynı anahtarı paylaşıyor,
+         *   · ekran döndüğünde yükseklik/genişlik yer değiştiriyor.
+         *
+         * Bunların hepsinde FAB ekranın dışında ya da erişilemeyecek bir yerde
+         * kalabiliyordu. Sayı bozuksa (NaN) da aynı sorun: `parseFloat` başarısız
+         * olduğunda kontrolsüz bir değer geçiyordu.
+         *
+         * X her zaman bir KENARA oturuyor: sürükleme zaten öyle bırakıyor, ama ekran
+         * genişliği değişmişse eski kenar artık ortada kalır.
+         */
+        const initialX = Number.isFinite(storedNumX)
+          ? (storedNumX > (screenWidth - buttonSize) / 2 ? screenWidth - buttonSize - EDGE_MARGIN : EDGE_MARGIN)
+          : defaultX;
+        const initialY = Number.isFinite(storedNumY)
+          ? Math.max(ceilY, Math.min(floorY, storedNumY))
+          : defaultY;
 
         pan.setValue({ x: initialX, y: initialY });
       } catch (err) {
@@ -131,7 +164,7 @@ export const MagneticFAB: React.FC<MagneticFABProps> = ({
         }
 
         // Snap mechanics
-        const margin = 16;
+        const margin = EDGE_MARGIN;
         const currentX = (pan.x as any)._value;
         const currentY = (pan.y as any)._value;
 

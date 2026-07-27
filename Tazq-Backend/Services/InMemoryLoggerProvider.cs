@@ -43,7 +43,9 @@ namespace Tazq_App.Services
                 if (exception != null) message += $" | {exception.GetType().Name}: {exception.Message}";
                 // Kategori adını kısalt (son segment) — okunabilirlik.
                 var shortCat = _category.Contains('.') ? _category[(_category.LastIndexOf('.') + 1)..] : _category;
-                _store.Add(new LogEntry(DateTime.UtcNow, logLevel.ToString(), shortCat, message));
+                // Kaynak, isteği karşılayan middleware tarafından yazıldı (bkz. LogSourceContext).
+                // İstek dışı bir iş (zamanlanmış görev, başlangıç logu) ise Unknown kalır.
+                _store.Add(new LogEntry(DateTime.UtcNow, logLevel.ToString(), shortCat, message, LogSourceContext.Current));
             }
         }
     }

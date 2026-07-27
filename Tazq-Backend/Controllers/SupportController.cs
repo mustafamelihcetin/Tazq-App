@@ -74,10 +74,20 @@ namespace Tazq_App.Controllers
 		// GET: api/support/admin/crashes (Sadece Admin)
 		[HttpGet("admin/crashes")]
 		[Authorize(Roles = "Admin")]
-		public async Task<IActionResult> GetCrashes([FromQuery] int limit = 50)
+		public async Task<IActionResult> GetCrashes(
+			[FromQuery] int limit = 20,
+			[FromQuery] int offset = 0,
+			[FromQuery] bool unresolvedOnly = false)
 		{
-			var crashes = await _support.GetCrashesAsync(limit);
-			return Ok(new { crashes });
+			var (items, total) = await _support.GetCrashesPageAsync(limit, offset, unresolvedOnly);
+			return Ok(new
+			{
+				crashes = items,
+				total,
+				offset,
+				limit,
+				hasMore = offset + items.Count < total,
+			});
 		}
 
 		// PATCH: api/support/admin/crashes/{id}/resolve (Sadece Admin)

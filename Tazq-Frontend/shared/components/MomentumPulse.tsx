@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { MotiView } from 'moti';
-import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame, Shield } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame, Shield, Info } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { ICON, S, F, R, METRIC, LH, trackingFor } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { useMomentumStore } from '@/features/user/store/useMomentumStore';
 import { swallow } from '@/shared/utils/swallow';
 import { Separator } from '@/shared/components/Separator';
+import { BentoCard } from '@/shared/components/BentoCard';
 import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
 import { useSettledValue } from '@/shared/hooks/useSettledValue';
 import { haptic } from '@/shared/utils/haptics';
@@ -93,7 +94,23 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
   return (
     <>
-    <View style={{ marginHorizontal: S.lg, flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.lg }}>
+    {/*
+      KART İÇİNDE — sayfadaki TEK kartsız öğe olmaktan çıktı.
+
+      Bu blok çıplak bir `View`di ve etrafındaki her şey BentoCard'dı. Gruplanmış-inset
+      düzende (iOS Ayarlar deseni) kapsayıcısı olmayan bir öğe "sisteme ait değil" diye
+      okunur — göz onu içerik değil artık sayar. Selamlama ile ilk kartın arasında
+      duruyordu, yani en görünür yerde.
+
+      Kural basit: gruplanmış bir sayfada her öğe bir gruba aittir. Ya bir gruba katılır
+      ya da kendisi grup olur. Bu blok artık kendisi bir grup.
+
+      Dolgu kartın varsayılanından (S.lg) küçük: içerik tek satır yüksekliğinde, tam
+      dolgu kartı boş gösterirdi.
+    */}
+    <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
+    <BentoCard index={0} style={{ padding: S.md }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
 
       {/* Score + info */}
       <View>
@@ -130,22 +147,40 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           }}
         />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: -2 }}>
-          <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: accentColor, opacity: 0.5 }}>
+          {/*
+            ETİKET NÖTR, SAYI RENKLİ. Etiket de skor rengini alıp `opacity: 0.5` ile
+            kısılıyordu; iki ayrı hata: (a) rengi kullanım yerinde kısmak ölçülen
+            kontrastı geçersiz kılar (bkz. colorContrast.test.ts), (b) hem sayı hem
+            etiket renkliyken renk "durum" demeyi bırakır, dekora döner. Renk TEK yerde
+            konuşsun: sayıda. `fontSize: 9` da ölçek dışıydı — F.caption ölçekten gelir.
+          */}
+          <Text style={{ fontSize: F.caption, fontWeight: '700', letterSpacing: 1.2, color: theme.onSurfaceMuted }}>
             MOMENTUM
           </Text>
+          {/*
+            `ⓘ` bir METİN karakteriydi — yazı tipine göre farklı çizilir ve satır
+            hizasına oturmaz. Uygulamanın her yerinde lucide glifleri var; tek bir metin
+            sembolü sistemi bozuyordu. Daire zemin de kalktı: Apple bar içi yardım
+            glifini çıplak çizer.
+          */}
           <Touchable
             hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
             onPress={() => { haptic.surface(); setInfoVisible(true); }}
-            style={{ width: 16, height: 16, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', backgroundColor: accentColor + '22' }}
+            accessibilityRole="button"
+            accessibilityLabel={tr ? 'Momentum nedir?' : 'What is momentum?'}
           >
-            <Text style={{ fontSize: 9, fontWeight: '700', color: accentColor }}>ⓘ</Text>
+            <Info size={ICON.xs} color={theme.onSurfaceVariant} strokeWidth={2.5} />
           </Touchable>
         </View>
       </MotiView>
       </View>
 
-      {/* Divider */}
-      <View style={{ width: 1, height: 36, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)' }} />
+      {/*
+        DİKEY AYIRAÇ KALDIRILDI. Uygulamada başka hiçbir yerde dikey saç teli çizgi yok;
+        bu bir "widget" deseni, iOS deseni değil. Rengi de ham `rgba()` ile tema başına
+        elle yazılıydı, yani paletin dışındaydı. Kart kenarı ve aradaki boşluk ayırma
+        işini zaten yapıyor — çizgi yalnız gürültü ekliyordu.
+      */}
 
       {/* Sparkline */}
       <View style={{ flex: 1, gap: S.xs }}>
@@ -154,8 +189,10 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             const has = day.score >= 0;
             const isToday = i === 6;
             const h = has ? Math.max(3, Math.round((day.score / 100) * 24)) : 3;
+            // Veri olmayan gün PALET jetonuyla çiziliyor; ham `rgba()` ile tema başına
+            // elle yazılıydı ve palet değişince sessizce eskiyordu.
             const barColor = !has
-              ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)')
+              ? theme.outlineVariant
               : day.score >= 75 ? theme.tertiary
               : day.score >= 40 ? theme.streak
               : theme.onSurfaceVariant;
@@ -165,11 +202,18 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
                 from={{ height: 0 }}
                 animate={{ height: h }}
                 transition={{ type: 'spring', damping: 16, delay: i * 35 }}
+                /*
+                  `opacity: isToday ? 1 : 0.45` KALDIRILDI. Geçmiş günleri %45'e kısmak
+                  iki şeyi bozuyordu: renk skoru kodluyor (yeşil/turuncu/gri) ve kısılınca
+                  o kodlama okunamaz hâle geliyordu; ayrıca ölçülen kontrast geçersiz
+                  kalıyordu. Bugünü ayırt etmek için vurguya da gerek yok — grafiğin SON
+                  çubuğu zaten bugün, konum bunu söylüyor. Apple'ın grafikleri de geçmiş
+                  değerleri soluklaştırmaz.
+                */
                 style={{
                   flex: 1,
                   borderRadius: R.xs,
                   backgroundColor: barColor,
-                  opacity: isToday ? 1 : 0.45,
                 }}
               />
             );
@@ -182,7 +226,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           yok" diye okuyordu. Veri yetersizken grafik boş değil, HENÜZ DOLMAMIŞTIR —
           altyazı bunu söyleyince aynı görüntü suçlama olmaktan çıkıp beklenti oluyor.
         */}
-        <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3 }}>
+        <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted, letterSpacing: 0.3 }}>
           {buildingUp
             ? (tr ? `${daysWithData}. gün · grafik doluyor` : `day ${daysWithData} · chart filling up`)
             : (tr ? 'son 7 gün' : 'last 7 days')}
@@ -212,6 +256,8 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           </Text>
         </MotiView>
       )}
+    </View>
+    </BentoCard>
     </View>
 
     {/* Momentum formula info modal */}
@@ -293,10 +339,10 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
                 </View>
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceMuted }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted }}>
                     {tr ? `Motor Sıcaklığı: %${roundedHeat}` : `Thruster Temperature: ${roundedHeat}%`}
                   </Text>
-                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceMuted }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted }}>
                     {isOverheated 
                       ? (tr ? 'Soğuyor... (ivme devredışı)' : 'Cooling... (propulsion disabled)') 
                       : (tr ? 'Güvenli limit altında' : 'Safe limits')}
@@ -386,14 +432,14 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
               {/* Progress to next charge */}
               {shieldCharges < 3 ? (
-                <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceMuted }}>
+                <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted }}>
                   {tr 
                     ? `Yeni şarj için: ${60 - focusMinutesForNextCharge}dk odak / ${5 - tasksCompletedForNextCharge} görev`
                     : `${60 - focusMinutesForNextCharge}m focus / ${5 - tasksCompletedForNextCharge} tasks next`
                   }
                 </Text>
               ) : (
-                <Text style={{ fontSize: 9, fontWeight: '700', color: theme.tertiary }}>
+                <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.tertiary }}>
                   {tr ? 'Maksimum Şarj' : 'Maximum Charged'}
                 </Text>
               )}

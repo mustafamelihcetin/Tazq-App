@@ -450,3 +450,121 @@ describe('kart yüzeyleri temiz — renk veriye ait', () => {
     expect(src).toMatch(/stroke=\{accent \+ '1A'\}/);
   });
 });
+
+/**
+ * İLERLEME HALKASI TEK HUE — marka rengi başka bir renge kaymaz.
+ *
+ * Yay `primary (#0B6BCB, hue 210) → secondary (#7C3AED, hue 262)` gradyanıyla
+ * çiziliyordu. 52 derecelik bu sıçrama bir ton farkı değil, başka bir renktir: ekranda
+ * ilerleme mavi değil MOR okunuyordu. Halka inceyken (9pt) görünmüyordu, kalınlaşınca
+ * mor uç baskın oldu.
+ *
+ * Daha ağırı: Colors.ts'te marka mavisinin hue 221'den 210'a ÇEKİLDİĞİ yazılı, gerekçesi
+ * de "221 indigo/mor tarafına bakıyor" ve "sert lacivert" şikayeti. Uygulamanın en
+ * görünür veri görselleştirmesi o düzeltmeyi geri alıyordu.
+ */
+describe('ilerleme halkası — renk tek şey söyler', () => {
+  const src = read('features/dashboard/components/TodayCard.tsx');
+
+  it('halka çapraz-hue gradyan kullanmaz', () => {
+    expect(src).not.toContain('ringGrad');
+    expect(src).not.toContain('theme.secondary');
+  });
+
+  it('yay doğrudan durum rengiyle çizilir', () => {
+    // mavi = devam ediyor, yeşil = bitti. Hedefe ulaşınca zaten iki durak da tertiary
+    // olduğu için halka TEK renk oluyordu; "devam ediyor" kuralın dışındaki tek durumdu.
+    expect(src).toContain('stroke={accent}');
+  });
+});
+
+/**
+ * Yuvayı 78pt'ye çıkarmak ve iki satıra almak gerekliydi ama yetmedi: adların bir kısmı
+ * ad + koçluk detayı taşıyor ve detay tek başına iki satırı dolduruyor.
+ * Ölçüm: 268 addan 27'si sığmıyordu → kırpma sonrası 13.
+ */
+describe('alışkanlık etiketi kompakt gösterimde kırpılır', () => {
+  it('baloncuk ham başlığı değil kompakt etiketi çizer', () => {
+    const src = read('shared/components/HabitBubble.tsx');
+    expect(src).toContain('{compactHabitLabel(item.title)}');
+    // Yorumlar hariç — gerekçede eski koddan SÖZ etmek serbest.
+    expect(stripComments(src)).not.toContain('{item.title}');
+  });
+});
+
+/**
+ * MOMENTUM BLOĞU — sayfadaki tek "kartsız" öğe olmaktan çıktı.
+ *
+ * Gruplanmış-inset düzende (iOS Ayarlar deseni) kapsayıcısı olmayan bir öğe "sisteme
+ * ait değil" diye okunur; göz onu içerik değil ARTIK sayar. Bu blok tam da selamlama
+ * ile ilk kartın arasında, yani en görünür yerde duruyordu ve altı ayrı kural ihlalini
+ * bir arada taşıyordu.
+ */
+describe('momentum bloğu sisteme ait', () => {
+  const src = read('shared/components/MomentumPulse.tsx');
+  const code = stripComments(src);
+
+  it('bir kart içinde', () => {
+    expect(code).toContain('<BentoCard');
+  });
+
+  it('dikey saç teli ayraç yok — uygulamanın hiçbir yerinde olmayan bir desendi', () => {
+    expect(code).not.toMatch(/width: 1, height: 36/);
+  });
+
+  it('ham rgba() rengi kalmadı — paletin dışına çıkmasın', () => {
+    // Boş çubuk rengi ve ayraç tema başına elle yazılıydı; palet değişince
+    // sessizce eskiyorlardı.
+    const chart = code.slice(code.indexOf('const barColor'), code.indexOf('Trend'));
+    expect(chart).not.toMatch(/rgba\(/);
+  });
+
+  it('renk kullanım yerinde KISILMIYOR', () => {
+    // `opacity: 0.5` (etiket) ve `opacity: isToday ? 1 : 0.45` (çubuklar) vardı.
+    // Çubuklarda renk skoru kodluyor; kısılınca kodlama okunamaz hâle geliyordu.
+    expect(code).not.toContain('opacity: isToday');
+    const label = code.match(/MOMENTUM[\s\S]{0,200}/)?.[0] ?? '';
+    expect(label).not.toMatch(/opacity: 0\.\d/);
+  });
+
+  it('metin sembolü değil flat glif', () => {
+    // `ⓘ` bir METİN karakteriydi: yazı tipine göre farklı çizilir, satır hizasına
+    // oturmaz ve rengi paletle konuşmaz.
+    expect(code).not.toContain('ⓘ');
+    expect(code).toContain('<Info size={ICON.xs}');
+  });
+
+  it('punto ölçekten gelir — elle yazılmış 9pt yok', () => {
+    expect(code).not.toMatch(/fontSize: 9,/);
+  });
+});
+
+/**
+ * YÜZEN EYLEM DÜĞMESİ — kayıtlı konum bugünün ekranına ait olmayabilir.
+ *
+ * Sürüklerken konum güvenli bölgeye kıstırılıyordu ama GERİ YÜKLERKEN kıstırılmıyordu;
+ * depodaki sayı ne ise doğrudan uygulanıyordu. O sayı şu durumlarda geçersiz olur:
+ * navbar yüksekliği değişti (106pt → 83pt, dosyanın kendi notu), katlanabilir cihaz
+ * açıldı, tablet ile telefon aynı hesabı paylaşıyor, ekran döndü. Hepsinde düğme
+ * erişilemeyecek bir yerde ya da ekran dışında kalabiliyordu.
+ */
+describe('yüzen eylem düğmesi konumu', () => {
+  const src = read('shared/components/MagneticFAB.tsx');
+
+  it('geri yüklenen konum güvenli bölgeye kıstırılır', () => {
+    expect(src).toMatch(/Math\.max\(ceilY, Math\.min\(floorY, storedNumY\)\)/);
+  });
+
+  it('bozuk kayıt sessizce geçmez', () => {
+    // `parseFloat` başarısız olunca NaN dönüyor ve kontrolsüz geçiyordu.
+    expect(src).toContain('Number.isFinite(storedNumX)');
+    expect(src).toContain('Number.isFinite(storedNumY)');
+  });
+
+  it('kenar boşluğu TEK sabitten — yükleme ve sürükleme ayrışamaz', () => {
+    // 16 iki yerde ayrı yazılıydı; biri değişirse düğme yüklendiği yerden farklı bir
+    // yere yapışırdı.
+    expect(src).toContain('const EDGE_MARGIN = S.md;');
+    expect(stripComments(src)).not.toMatch(/const margin = 16;/);
+  });
+});

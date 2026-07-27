@@ -267,14 +267,20 @@ namespace Tazq_App.Services
             return new UserExport(user, tasks, sessions, support, bans);
         }
 
-        public async Task<List<AdminAuditLog>> GetAuditLogAsync(int take)
+        public async Task<(List<AdminAuditLog> Items, int Total)> GetAuditLogPageAsync(int limit, int offset)
         {
-            if (take < 1 || take > 500) take = 100;
-            return await _context.AdminAuditLogs
+            limit = Math.Clamp(limit, 1, 200);
+            offset = Math.Max(offset, 0);
+
+            var q = _context.AdminAuditLogs.AsNoTracking();
+            var total = await q.CountAsync();
+            var items = await q
                 .OrderByDescending(a => a.CreatedAt)
-                .Take(take)
-                .AsNoTracking()
+                .Skip(offset)
+                .Take(limit)
                 .ToListAsync();
+
+            return (items, total);
         }
     }
 }

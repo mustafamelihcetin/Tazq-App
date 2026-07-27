@@ -289,6 +289,26 @@ export const NAV_LABEL_SIZE = 10;
 export const navBarSpace = (insetBottom: number) =>
   Math.max(insetBottom, NAV_BAR_MIN_INSET) + NAV_BAR_LIFT + NAV_BAR_HEIGHT;
 
+/** Yüzen eylem düğmesinin çapı (bkz. MagneticFAB). */
+export const FAB_SIZE = 54;
+
+/**
+ * FAB'Lİ SAYFALARIN DİP BOŞLUĞU.
+ *
+ * `navBarSpace` yalnız sekme çubuğunu hesaba katıyor. Ama FAB'li ekranlarda düğme
+ * çubuğun ÜSTÜNDE duruyor ve en dibe inildiğinde son satırı örtüyordu: kullanıcı
+ * listenin sonuna geldiğinde son görevin üstünde mavi bir daire duruyor.
+ *
+ * Sürüklenebilir olduğu için düğme her yere gidebilir — ama VARSAYILAN yeri burası ve
+ * kullanıcıların çoğu onu hiç taşımıyor. Varsayılan konumda içeriği örtmemesi, "her
+ * ihtimale karşı boşluk" değil, karşılanması gereken asgari şart.
+ *
+ * Düğmenin dinlenme yeri MagneticFAB'de `navBarSpace + S.lg + buttonSize` olarak
+ * hesaplanıyor; buradaki pay aynı formülden türüyor ki ikisi ayrışamasın.
+ */
+export const fabSafeBottom = (insetBottom: number) =>
+  navBarSpace(insetBottom) + S.lg + FAB_SIZE;
+
 /**
  * Üstteki yüzen başlık (TopBar) — aynı hikâye, aynı çözüm.
  *

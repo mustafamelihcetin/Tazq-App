@@ -38,7 +38,11 @@ namespace Tazq_App.Services
         Task<List<FocusSession>> GetRecentSessionsAsync(int userId, int take);
         Task<List<RefreshToken>> GetRecentDevicesAsync(int userId, int take);
         Task<UserExport?> ExportUserAsync(int id, AdminIdentity admin);
-        Task<List<AdminAuditLog>> GetAuditLogAsync(int take);
+        /// <summary>
+        /// Denetim gunlugu — SAYFALANMIS. Panel 100 cekip 40'ini ciziyordu: 60 kayit
+        /// aga gidiyor, kullaniciya hic gosterilmiyordu.
+        /// </summary>
+        Task<(List<AdminAuditLog> Items, int Total)> GetAuditLogPageAsync(int limit, int offset);
     }
 
     public record UserExport(

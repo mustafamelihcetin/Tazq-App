@@ -7,7 +7,15 @@ namespace Tazq_App.Services
     public interface ISupportService
     {
         Task<ClientCrash> ReportCrashAsync(ClientCrash crash, int? userId);
-        Task<List<ClientCrash>> GetCrashesAsync(int limit);
+        /// <summary>
+        /// Kilitlenmeler — SAYFALANMIS.
+        ///
+        /// Eskiden yalniz `limit` vardi: ilk N kayit doner, gerisine ulasmanin yolu
+        /// bulunmazdi. Panel 15 istiyordu; 16. kilitlenme veritabaninda duruyor ama
+        /// gorulemiyordu. Toplam sayi da doner — onsuz "sonraki sayfa var mi?"
+        /// sorusu cevaplanamaz.
+        /// </summary>
+        Task<(List<ClientCrash> Items, int Total)> GetCrashesPageAsync(int limit, int offset, bool unresolvedOnly);
         Task<bool> ResolveCrashAsync(int id);
 
         /// <summary>Kullanıcı bulunamazsa null döner.</summary>

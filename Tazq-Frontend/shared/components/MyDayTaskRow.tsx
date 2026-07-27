@@ -31,7 +31,11 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
         paddingLeft: S.md,
         // Zemin tonu TAM GENİŞLİK kalır — iOS satırın tamamını boyar, girintiyi
         // yalnızca ayırıcıya uygular.
-        backgroundColor: modeInfo ? (isDark ? modeInfo.color + '0B' : modeInfo.color + '04') : 'transparent'
+        // SATIR ZEMİNİ YIKAMASI KALDIRILDI — kartlarda kaldırdığımız desenin aynısı.
+        // Mod rengi satırın tamamına %4 (koyu temada %7) opaklıkla seriliyordu: o
+        // yoğunlukta renk bilgi taşımıyor, yalnız beyazı kirletiyor. Mod kimliğini
+        // soldaki nokta ve ikincil satırdaki ad zaten taşıyor.
+        backgroundColor: 'transparent'
       }}
     >
       <View style={{ width: 7, height: 7, borderRadius: R.full, backgroundColor: modeInfo ? modeInfo.color : priorityColor(item.priority), marginRight: S.md }} />
@@ -58,68 +62,85 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
           }} numberOfLines={1}>
             {getLocalizedTaskTitle(item.original || item, tr)}
           </Text>
-          {modeInfo && (
-            <View style={{
-              backgroundColor: modeInfo.color + (isDark ? '24' : '15'),
-              borderRadius: R.sm,
-              paddingHorizontal: S.xs,
-              paddingVertical: S.xxs,
-              borderWidth: 0.5,
-              borderColor: modeInfo.color + '40'
-            }}>
-              <Text style={{
-                fontSize: 7.5,
-                fontWeight: '700',
-                color: modeInfo.color,
-                letterSpacing: 0.4
-              }}>
-                {(tr ? modeInfo.labelTr : modeInfo.labelEn).toUpperCase()}
-              </Text>
-            </View>
-          )}
+          {/*
+            MOD ROZETİ BAŞLIĞIN YANINDAN ALINDI — aşağıdaki ikincil satıra taşındı.
+
+            Burada 7.5pt büyük harf yazı, renkli zemin ve 0.5pt çerçeveden oluşan bir
+            hap duruyordu. Üç ayrı sorun:
+
+             · 7.5pt, F.caption'ın (11) çok altında ve o ölçek dosyada "okunabilirliğin
+               ALT SINIRI" diye tanımlı. Yani okunmak için değil, var olmak için yazılmış.
+             · BAŞLIĞIN GENİŞLİĞİNİ YİYORDU. Başlık `numberOfLines={1}`; hapın kapladığı
+               her piksel, görev adından kesiliyordu.
+             · AYNI BİLGİ ÜÇÜNCÜ KEZ. Satırın solundaki nokta zaten mod rengini taşıyor,
+               satır zemini de %4 mod rengiyle yıkanmıştı (o da kaldırıldı).
+
+            Apple'ın Hatırlatıcılar deseni: başlık üstte tam genişlikte, ait olduğu liste
+            ikincil satırda. Kategori bilgisi ikincil satırın işidir.
+          */}
         </View>
         {(() => {
+          /*
+            İKİNCİL SATIR: [mod adı] · [geri sayım]
+
+            Mod adı buraya taşındı (bkz. yukarıdaki not). Renk mod kimliğini taşımaya
+            devam ediyor ama artık hap/çerçeve yok — Apple ikincil satırda düz renkli
+            metin kullanır, kutu değil.
+
+            Puntolar 9pt ve 7.5pt idi; ikisi de F.caption'ın (11) altında ve o değer
+            dosyada "okunabilirliğin ALT SINIRI" diye tanımlı. Ölçeğin altına inen yazı
+            tasarım tercihi değil, okunamayan yazıdır.
+          */
+          const modeLabel = modeInfo ? (tr ? modeInfo.labelTr : modeInfo.labelEn) : null;
+          const modeColor = modeInfo?.color;
+
           const isQuitMode = modeInfo && (modeInfo.unit === 'clean_day');
-          if (isQuitMode) {
-            return (
-              <Text style={{
-                fontSize: 9,
-                fontWeight: '600',
-                color: theme.onSurfaceMuted,
-                marginTop: S.xxs
-              }}>
-                {modeInfo.daysLeft === 0
-                  ? (tr ? '1. Gün' : 'Day 1')
-                  : (tr ? `Temiz: ${modeInfo.daysLeft} gün` : `Clean: ${modeInfo.daysLeft} ${modeInfo.daysLeft === 1 ? 'day' : 'days'}`)}
-              </Text>
-            );
-          }
+          const taskCountdown = isQuitMode
+            ? (modeInfo!.daysLeft === 0
+                ? (tr ? '1. Gün' : 'Day 1')
+                : (tr ? `Temiz: ${modeInfo!.daysLeft} gün` : `Clean: ${modeInfo!.daysLeft} ${modeInfo!.daysLeft === 1 ? 'day' : 'days'}`))
+            : getTaskRemainingTime(item.original?.dueDate, item.original?.dueTime, item.original?.isCompleted, tr);
 
-          const taskCountdown = getTaskRemainingTime(item.original?.dueDate, item.original?.dueTime, item.original?.isCompleted, tr);
-          if (!taskCountdown) return null;
-
-          const planCountdown = modeInfo && modeInfo.daysLeft !== undefined && modeInfo.unit === 'day'
+          const planCountdown = !isQuitMode && modeInfo && modeInfo.daysLeft !== undefined && modeInfo.unit === 'day'
             ? (tr ? `Hedef: ${modeInfo.daysLeft} gün` : `Goal: ${modeInfo.daysLeft} days`)
             : null;
 
-          const displayLabel = planCountdown ? `${planCountdown} · ${taskCountdown}` : taskCountdown;
+          const tail = [planCountdown, taskCountdown].filter(Boolean).join(' · ');
+          // Mod adı varken geri sayım yoksa satır yine çizilmeli: eskiden `!taskCountdown`
+          // erken dönüyordu ve mod bilgisi hiç görünmüyordu.
+          if (!modeLabel && !tail) return null;
+
           const isOverdue = taskCountdown === 'Süresi geçti' || taskCountdown === 'Overdue';
 
           return (
-            <Text style={{
-              fontSize: 9,
-              fontWeight: '600',
-              // GECİKME BİR HATA DEĞİL, DURUM. `error` (kırmızı) ile çiziliyordu; kırmızı
-              // gerçekten bozulan şeyler için ayrılmalı, yoksa her yerde kırmızı gören
-              // kullanıcı onu okumayı bırakır. `warning` iki temada da AA geçiyor.
-              color: isOverdue ? theme.warning : theme.onSurfaceMuted,
-              // `opacity: 0.5` KALDIRILDI: palet rengini kullanım yerinde kısmak,
-              // ölçülmüş kontrastı çöpe atar (bkz. colorContrast.test.ts). Soluk görünüm
-              // artık ölçülmüş bir seviyeden geliyor, elle kısmadan.
-              marginTop: S.xxs
-            }}>
-              {displayLabel}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: S.xxs, gap: S.xs }}>
+              {modeLabel && (
+                <Text
+                  numberOfLines={1}
+                  style={{ fontSize: F.caption, fontWeight: '700', color: modeColor, flexShrink: 1 }}
+                >
+                  {modeLabel}
+                </Text>
+              )}
+              {!!tail && (
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: F.caption,
+                    fontWeight: '600',
+                    // GECİKME BİR HATA DEĞİL, DURUM. `error` (kırmızı) ile çiziliyordu;
+                    // kırmızı gerçekten bozulan şeyler için ayrılmalı, yoksa her yerde
+                    // kırmızı gören kullanıcı onu okumayı bırakır.
+                    color: isOverdue ? theme.warning : theme.onSurfaceMuted,
+                    // `opacity: 0.5` KALDIRILDI: palet rengini kullanım yerinde kısmak
+                    // ölçülmüş kontrastı geçersiz kılar (bkz. colorContrast.test.ts).
+                    flexShrink: 1,
+                  }}
+                >
+                  {modeLabel ? `· ${tail}` : tail}
+                </Text>
+              )}
+            </View>
           );
         })()}
       </View>

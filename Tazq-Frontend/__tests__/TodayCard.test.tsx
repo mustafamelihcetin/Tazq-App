@@ -125,9 +125,15 @@ describe('TodayCard', () => {
     expect(styleOf(getByTestId('today-pct')).color).toBe(theme.tertiary);
   });
 
-  it('tamamlandığında kutlama metni gösterir', () => {
-    const { getByText, getByTestId } = setup({ completed: 5, goal: 5 });
-    expect(getByText('Tümü tamamlandı 🎉')).toBeTruthy();
+  /**
+   * Metin "Tümü tamamlandı 🎉" idi. Emoji üç sebeple yanlış: uygulamanın geri kalanı
+   * lucide glifleri kullanıyor (tek emoji sistemi bozar), emoji cihaza göre farklı
+   * çizilir (yani tasarım bizim kontrolümüzde değil) ve rengini kendi taşır (paletle
+   * konuşmaz). Yerine vurgu rengini alan flat bir onay işareti kondu.
+   */
+  it('tamamlandığında kutlama metni gösterir — EMOJİSİZ', () => {
+    const { getByText } = setup({ completed: 5, goal: 5 });
+    expect(getByText('Tümü tamamlandı')).toBeTruthy();
   });
 
   it('kolay yumurta açıkken sürpriz metnini vurgu rengiyle gösterir', () => {
@@ -145,9 +151,18 @@ describe('TodayCard', () => {
     expect(s.opacity).toBeUndefined();
   });
 
-  it('odak dakikasını gösterir', () => {
-    expect(setup().getByText('20dk')).toBeTruthy();
-    expect(setup({ tr: false }).getByText('20m')).toBeTruthy();
+  /**
+   * PAYDA GEREKLİ. Yalnız `20dk` yazıyordu; yanındaki çubugun neye göre dolduğunu
+   * açıklayan hiçbir şey yoktu. Sıfırdayken de sayfadaki ÜÇÜNCÜ çıplak sıfır oluyordu
+   * (`0/5` ve `%0`ın yanında `0dk`). `0/60` bir eksiklik değil, bir başlangıç noktasıdır.
+   */
+  it('odak dakikasını HEDEFİYLE birlikte gösterir', () => {
+    expect(setup().getByText('20/60dk')).toBeTruthy();
+    expect(setup({ tr: false }).getByText('20/60m')).toBeTruthy();
+  });
+
+  it('odak sıfırken de payda görünür', () => {
+    expect(setup({ focusMinutes: 0 }).getByText('0/60dk')).toBeTruthy();
   });
 
   it('dokunmayı iletir — çift dokunma kolay yumurtası buna bağlı', () => {

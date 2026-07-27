@@ -2,16 +2,40 @@ import axios from 'axios';
 import { useAuthStore } from '@/features/user/store/useAuthStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { reportApiError } from '@/shared/utils/sentry';
 import { swallow } from '@/shared/utils/swallow';
 
 const BASE_URL = 'https://api.tazqapp.com';
+
+/**
+ * UYGULAMA HANGİ SÜRÜM — her isteğe yazılıyor.
+ *
+ * NEDEN GEREKLİ: geliştirme sürümü de AYNI production API'ye bağlanıyor (üstteki
+ * BASE_URL her iki varyantta da bu). Yani kod yazarken çıkan her hata, sunucunun canlı
+ * log havuzuna düşüyordu ve admin panelde "gerçek kullanıcıda ne kırıldı?" sorusu
+ * cevaplanamaz hâle geliyordu — 14 hatanın 12'si geliştiricinin kendi denemesi.
+ *
+ * Sunucu bu başlığı okuyup kaydı etiketliyor (bkz. LogSourceContext.cs). Ayırma
+ * filtrelemenin işi: geliştirme hataları da saklanıyor, sadece karışmıyor.
+ *
+ * Değer `app.config.js`'in `extra` bloğundan geliyor. `process.env.APP_VARIANT`
+ * KULLANILAMAZ: Expo yalnız `EXPO_PUBLIC_*` önekli değişkenleri pakete gömer, bu
+ * yüzden çalışma anında `undefined` olurdu ve her şey sessizce "prod" etiketlenirdi —
+ * yani hatanın kendisi görünmez biçimde geri gelirdi.
+ *
+ * Bilinmeyen/eksik değerde `prod` DEĞİL, olduğu gibi gönderiliyor; sunucu tanımadığı
+ * değeri `Unknown` sayıyor. Etiketsiz isteği canlı saymak, ayrımın amacını bozardı.
+ */
+const APP_VARIANT: string =
+  (Constants.expoConfig?.extra as { appVariant?: string } | undefined)?.appVariant ?? 'unknown';
 
 export const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
   headers: {
     'X-App-Signature': 'tazq-expo-frontend',
+    'X-App-Variant': APP_VARIANT,
     'Content-Type': 'application/json',
   },
 });
@@ -368,9 +392,16 @@ export const AdminService = {
     const r = await api.get(`/api/admin/users/${id}/export`);
     return r.data;
   },
-  getAuditLog: async (take = 100): Promise<AdminAuditItem[]> => {
-    const r = await api.get('/api/admin/audit', { params: { take } });
-    return r.data;
+  /**
+   * Denetim gunlugu — SAYFALANMIS.
+   * Eskiden 100 kayit cekilip 40'i ciziliyordu: 60 kayit aga gidip cope atiliyordu.
+   */
+  getAuditLog: async (opts: { limit?: number; offset?: number } = {}): Promise<Paged<AdminAuditItem>> => {
+    const r = await api.get('/api/admin/audit', {
+      params: { limit: opts.limit ?? 40, offset: opts.offset ?? 0 },
+    });
+    const items = r.data.logs ?? [];
+    return { items, ...pageMeta(r.data, items, opts.limit ?? 40) };
   },
 };
 
@@ -439,9 +470,16 @@ export const SupportService = {
     const r = await api.post('/api/support/report-crash', payload);
     return r.data;
   },
-  getCrashes: async (limit = 50): Promise<{ crashes: any[] }> => {
-    const r = await api.get('/api/support/admin/crashes', { params: { limit } });
-    return r.data;
+  /**
+   * Kilitlenmeler — SAYFALANMIS + cozulmemis filtresi.
+   * Panel 15 istiyordu; 16. kilitlenme veritabaninda duruyor ama gorulemiyordu.
+   */
+  getCrashes: async (opts: { limit?: number; offset?: number; unresolvedOnly?: boolean } = {}): Promise<Paged<any> & { crashes: any[] }> => {
+    const r = await api.get('/api/support/admin/crashes', {
+      params: { limit: opts.limit ?? 20, offset: opts.offset ?? 0, unresolvedOnly: opts.unresolvedOnly ?? false },
+    });
+    const items = r.data.crashes ?? [];
+    return { crashes: items, items, ...pageMeta(r.data, items, opts.limit ?? 20) };
   },
   resolveCrash: async (id: number): Promise<void> => {
     await api.patch(`/api/support/admin/crashes/${id}/resolve`);
@@ -455,16 +493,94 @@ export interface SystemHealth {
   latestMigration: string | null; pendingMigrations: number;
   warnings: number; errors: number;
 }
-export interface SystemLogEntry { timestamp: string; level: string; category: string; message: string; }
+/** Kaydı üreten istemci — geliştirme hataları canlı hatalardan ayrılabilsin diye. */
+export type LogSource = 'Unknown' | 'Production' | 'Development';
+
+/**
+ * Sayfalanmis liste.
+ *
+ * `total` -1 olabilir: SUNUCU BILDIRMEDI demek. Bu, eski bir surumle konusurken
+ * gercekten oluyor ve sessizce `items.length` varsaymak kotu bir cozum — sayfalama
+ * denetimi "tek sayfa" sanip KENDINI GIZLIYOR, yani ozellik hic yokmus gibi gorunuyor.
+ * Bilinmeyeni bilinmeyen olarak tasimak, yanlis bir sayi uydurmaktan iyidir.
+ */
+export interface Paged<T> { items: T[]; total: number; hasMore: boolean; }
+
+/**
+ * Sunucu cevabindan sayfa ust verisini cikarir; alanlar yoksa ELDEKI VERIDEN cikarim yapar.
+ * Tam dolu bir sayfa geldiyse muhtemelen devami vardir — bu tahmin, ozelligi
+ * gormeden kaybetmekten iyidir.
+ */
+function pageMeta(data: any, items: unknown[], limit: number): { total: number; hasMore: boolean } {
+  if (typeof data?.total === 'number') {
+    return { total: data.total, hasMore: data.hasMore ?? false };
+  }
+  const full = items.length >= limit;
+  return { total: full ? -1 : items.length, hasMore: full };
+}
+
+export interface SystemLogEntry {
+  timestamp: string; level: string; category: string; message: string;
+  /** Eski sunucular bu alanı göndermez; o durumda 'Unknown' sayılır. */
+  source?: LogSource;
+}
+
+export interface SystemLogPage {
+  logs: SystemLogEntry[];
+  total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  /** Kaynak başına kayıt sayısı — filtre düğmelerinin yanında gösterilir. */
+  counts: Partial<Record<LogSource, number>>;
+}
 export interface SystemStats { users: number; tasks: number; focusSessions: number; supportMessages: number; supportUnread: number; contentDocuments: number; }
 export interface SentryIssue { title: string; count: string | null; level: string | null; lastSeen: string | null; permalink: string | null; }
 export interface SentrySummary { configured: boolean; ok?: boolean; count?: number; issues?: SentryIssue[]; dashboard?: string; message?: string; error?: string; status?: number; }
 
+export interface AiStatus {
+  configured: boolean;
+  keyMasked: string | null;
+  keyLength: number;
+  model: string;
+  modelFromEnv: boolean;
+}
+
+export interface AiTestResult {
+  ok: boolean;
+  /** config | auth | generation | network | ready — nerede takıldığını söyler. */
+  stage: string;
+  status?: number;
+  model?: string;
+  modelAvailable?: boolean;
+  latencyMs?: number;
+  message: string;
+}
+
 export const AdminSystemService = {
   health: async (): Promise<SystemHealth> => (await api.get('/api/admin/system/health')).data,
   stats: async (): Promise<SystemStats> => (await api.get('/api/admin/system/stats')).data,
-  logs: async (lines = 200, level?: string): Promise<{ logs: SystemLogEntry[] }> =>
-    (await api.get('/api/admin/system/logs', { params: { lines, ...(level ? { level } : {}) } })).data,
+  /**
+   * Sayfalanmış sunucu logları.
+   *
+   * Eskiden `lines=200` ile baştan N kayıt geliyordu ve gerisine ulaşmanın yolu yoktu;
+   * sunucu 500 kayıt tutarken panel 60'ını çiziyordu. `offset` ile hepsi gezilebilir.
+   * `source` ile geliştirme gürültüsü ayrılır (bkz. X-App-Variant başlığı).
+   */
+  logs: async (opts: { limit?: number; offset?: number; level?: string; source?: LogSource } = {}): Promise<SystemLogPage> =>
+    (await api.get('/api/admin/system/logs', {
+      params: {
+        limit: opts.limit ?? 50,
+        offset: opts.offset ?? 0,
+        ...(opts.level ? { level: opts.level } : {}),
+        ...(opts.source ? { source: opts.source } : {}),
+      },
+    })).data,
+
+  /** Yapay zekâ yapılandırması — anahtar MASKELİ döner, asla tam hâliyle değil. */
+  aiStatus: async (): Promise<AiStatus> => (await api.get('/api/admin/system/ai')).data,
+  /** Sağlayıcıya CANLI istek atar: "tanımlı" ile "çalışıyor" farklı şeylerdir. */
+  aiTest: async (): Promise<AiTestResult> => (await api.post('/api/admin/system/ai/test')).data,
   sentry: async (): Promise<SentrySummary> => (await api.get('/api/admin/system/sentry')).data,
   migrate: async (): Promise<{ success: boolean; applied: string[]; message?: string }> =>
     (await api.post('/api/admin/system/migrate')).data,

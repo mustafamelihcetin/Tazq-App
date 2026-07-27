@@ -135,12 +135,16 @@ describe('yoğunluk', () => {
     /**
      * Borç tavanı. 296 → 291 (ölü gezinme titreşimleri) → 293: "Geri al" özelliği
      * iki MEŞRU titreşim ekledi (yıkıcı işlem bildirimi + geri alma başarısı).
+     * → 297: günü tamamlama kutlaması (1) + admin AI testinin SONUÇ bildirimi (2:
+     * başarı/hata, çalışma anında yalnız biri ateşlenir). Basma anındaki titreşim
+     * bilinçli olarak EKLENMEDİ — düğme zaten soluklaşıp yazısını değiştiriyor,
+     * görülebilen bir şeyi titretmek gürültüdür.
      * Bilinçli ve gerekçeli yükseltme; kural hâlâ "yeni titreşim eklerken düşün".
      *
      * DÜRÜST NOT: hedef oran ~1/3, bugünkü ölçüm ~1/1.4. Yani yoğunluk HÂLÂ YÜKSEK.
      * Bunu düşürmek 50+ çağrı yerinde tek tek "bu titreşim ne anlatıyor?" sorusunu
      * yanıtlamayı gerektirir — ayrı ve bilinçli bir tur işi.
      */
-    expect(hap).toBeLessThanOrEqual(294);
+    expect(hap).toBeLessThanOrEqual(297);
   });
 });

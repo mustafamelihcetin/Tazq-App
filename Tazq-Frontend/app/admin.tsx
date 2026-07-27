@@ -7,12 +7,14 @@ import {
   ChevronLeft, Users, CheckSquare, Clock, Trash2, Shield, ShieldOff,
   Search, TrendingUp, Zap, Activity, ChevronDown, ChevronUp, Ban, MessageSquare, Check, Mail, Send, CornerDownRight,
   Server, RefreshCw, Power, Database, AlertTriangle, FileText, ExternalLink, BarChart3, AlertCircle,
-  Download, ScrollText, Smartphone, History, Megaphone
+  Download, ScrollText, Smartphone, History, Megaphone,
+  Sparkles, CheckCircle2,
 } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { Pager } from '@/shared/components/Pager';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAuthStore } from '@/features/user';
-import { AdminService, AdminUser, AdminStats, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary } from '@/shared/services/api';
+import { AdminService, AdminUser, AdminStats, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult } from '@/shared/services/api';
 import { sendAdminSupportNotification } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, MAX_W, HAIRLINE } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
@@ -43,6 +45,15 @@ const logLevelStyle = (lvl: string) => {
   return { color: '#6B7280', label: 'INFO' };
 };
 
+/**
+ * Sayfa başına log sayısı. Tampon 500 kayıt tutuyor; 50'lik sayfalar hem ekrana
+ * sığıyor hem 10 sayfada tamamını gezdiriyor.
+ */
+const LOG_PAGE_SIZE = 50;
+/** Kilitlenme kartlari uzun (yigin izi dahil) — sayfa basina daha az. */
+const CRASH_PAGE_SIZE = 20;
+const AUDIT_PAGE_SIZE = 40;
+
 export default function AdminScreen() {
   const { theme, colorScheme } = useAppTheme();
   const { language } = useLanguageStore();
@@ -58,6 +69,26 @@ export default function AdminScreen() {
   const [sysLogs, setSysLogs] = useState<SystemLogEntry[]>([]);
   const [sysSentry, setSysSentry] = useState<SentrySummary | null>(null);
   const [sysLogLevel, setSysLogLevel] = useState<string | null>(null);
+  /**
+   * KAYNAK FİLTRESİ — varsayılan 'Production'.
+   *
+   * Geliştirme sürümü de canlı API'ye bağlandığı için, kod yazarken çıkan hatalar aynı
+   * havuza düşüyordu. Panelin ilk açılışta cevaplaması gereken soru "gerçek kullanıcıda
+   * ne kırıldı?" — o yüzden varsayılan canlı. Geliştirme kayıtları SİLİNMİYOR, tek
+   * dokunuşla geri geliyor.
+   */
+  const [sysLogSource, setSysLogSource] = useState<LogSource | null>('Production');
+  const [sysLogPage, setSysLogPage] = useState(0);
+  const [crashPage, setCrashPage] = useState(0);
+  const [crashMeta, setCrashMeta] = useState<{ total: number; hasMore: boolean }>({ total: 0, hasMore: false });
+  /** Cozulmus kilitlenmeleri gizle — panelin ilk sorusu "hala kirik olan ne?". */
+  const [crashUnresolvedOnly, setCrashUnresolvedOnly] = useState(false);
+  const [auditPage, setAuditPage] = useState(0);
+  const [auditMeta, setAuditMeta] = useState<{ total: number; hasMore: boolean }>({ total: 0, hasMore: false });
+  const [sysLogMeta, setSysLogMeta] = useState<{ total: number; hasMore: boolean; counts: Partial<Record<LogSource, number>> }>({ total: 0, hasMore: false, counts: {} });
+  const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
+  const [aiTest, setAiTest] = useState<AiTestResult | null>(null);
+  const [aiTesting, setAiTesting] = useState(false);
   const [crashes, setCrashes] = useState<any[]>([]);
   const [sysLoading, setSysLoading] = useState(false);
   const [sysBusy, setSysBusy] = useState<string | null>(null);
@@ -198,34 +229,45 @@ export default function AdminScreen() {
   const loadAudit = useCallback(async () => {
     setAuditLoading(true);
     try {
-      const logs = await AdminService.getAuditLog(100);
-      setAuditLogs(logs);
+      const page = await AdminService.getAuditLog({ limit: AUDIT_PAGE_SIZE, offset: auditPage * AUDIT_PAGE_SIZE });
+      setAuditLogs(page.items);
+      setAuditMeta({ total: page.total, hasMore: page.hasMore });
     } catch {
       setAuditLogs([]);
     } finally {
       setAuditLoading(false);
     }
-  }, []);
+  }, [auditPage]);
 
   const loadSystem = useCallback(async () => {
     setSysLoading(true);
     try {
-      const [h, s, l, se, cr] = await Promise.all([
+      const [h, s, l, se, cr, ai] = await Promise.all([
         AdminSystemService.health().catch(() => null),
         AdminSystemService.stats().catch(() => null),
-        AdminSystemService.logs(200, sysLogLevel || undefined).catch(() => ({ logs: [] as SystemLogEntry[] })),
+        AdminSystemService.logs({ limit: LOG_PAGE_SIZE, offset: sysLogPage * LOG_PAGE_SIZE, level: sysLogLevel || undefined, source: sysLogSource || undefined })
+          .catch(() => ({ logs: [] as SystemLogEntry[], total: 0, offset: 0, limit: LOG_PAGE_SIZE, hasMore: false, counts: {} })),
         AdminSystemService.sentry().catch(() => null),
-        SupportService.getCrashes(15).catch(() => ({ crashes: [] })),
+        SupportService.getCrashes({ limit: CRASH_PAGE_SIZE, offset: crashPage * CRASH_PAGE_SIZE, unresolvedOnly: crashUnresolvedOnly }).catch(() => ({ crashes: [], items: [], total: 0, hasMore: false })),
+        AdminSystemService.aiStatus().catch(() => null),
       ]);
       setSysHealth(h);
       setSysStats(s);
       setSysLogs(l.logs || []);
+      setSysLogMeta({ total: l.total ?? 0, hasMore: l.hasMore ?? false, counts: l.counts ?? {} });
       setSysSentry(se);
       setCrashes(cr?.crashes || []);
+      setCrashMeta({ total: cr?.total ?? 0, hasMore: cr?.hasMore ?? false });
+      setAiStatus(ai);
     } finally {
       setSysLoading(false);
     }
-  }, [sysLogLevel]);
+  }, [sysLogLevel, sysLogSource, sysLogPage, crashPage, crashUnresolvedOnly]);
+
+  // Filtre değişince sayfa başa dönmeli: 4. sayfadayken filtreyi daraltınca sonuç
+  // 2 sayfaya düşüyor ve kullanıcı boş bir sayfaya bakıyordu.
+  useEffect(() => { setSysLogPage(0); }, [sysLogLevel, sysLogSource]);
+  useEffect(() => { setCrashPage(0); }, [crashUnresolvedOnly]);
 
   useEffect(() => { if (activeTab === 'system') { loadSystem(); loadAudit(); } }, [activeTab, loadSystem, loadAudit]);
 
@@ -1097,7 +1139,9 @@ export default function AdminScreen() {
                   <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'Kayıt yok' : 'No records'}</Text>
                 ) : (
                   <View>
-                    {auditLogs.slice(0, 40).map((a, i) => {
+                    {/* `.slice(0, 40)` KALDIRILDI: sunucu artik sayfaliyor. Once 100
+                        kayit cekilip 40'i ciziliyordu — 60'i aga gidip cope atiliyordu. */}
+                    {auditLogs.map((a, i) => {
                       const actionMeta: Record<string, { c: string; l: string }> = {
                         ban: { c: theme.error, l: 'BAN' },
                         unban: { c: '#10B981', l: tr ? 'KALDIR' : 'UNBAN' },
@@ -1125,6 +1169,15 @@ export default function AdminScreen() {
                     })}
                   </View>
                 )}
+
+                <Pager
+                  page={auditPage}
+                  pageSize={AUDIT_PAGE_SIZE}
+                  total={auditMeta.total}
+                  hasMore={auditMeta.hasMore}
+                  onChange={setAuditPage}
+                  tr={tr}
+                />
               </View>
 
               {/* Sağlık kartı */}
@@ -1262,11 +1315,24 @@ export default function AdminScreen() {
                       <Text style={{ color: theme.onSurfaceMuted, fontSize: 10 }}>{tr ? 'son çökmeler' : 'recent reports'}</Text>
                     </View>
                   </View>
-                  <View style={{ backgroundColor: crashes.filter(c => !c.isResolved).length > 0 ? '#EF444420' : '#10B98120', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}>
-                    <Text style={{ color: crashes.filter(c => !c.isResolved).length > 0 ? '#EF4444' : '#10B981', fontSize: 10, fontWeight: '700' }}>
-                      {crashes.filter(c => !c.isResolved).length} {tr ? 'ÇÖZÜLMEMİŞ' : 'UNRESOLVED'}
+                  {/*
+                    Filtre dugmesi. Rozet degil DUGME: "3 cozulmemis" yazisi bilgi verir
+                    ama ise yaramaz; asil istenen "yalniz onlari goster".
+                    Sayi artik SUNUCUDAN geliyor. Eskiden `crashes.filter(...)` ile yalniz
+                    ELDEKI sayfa sayiliyordu: 200 kayitli sistemde "3 COZULMEMIS" yaziyordu,
+                    cunku istemciye 15 kayit gelmisti. Yanlis sayi, sayi olmamasindan kotudur.
+                  */}
+                  <Touchable
+                    onPress={() => setCrashUnresolvedOnly(v => !v)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: crashUnresolvedOnly }}
+                    accessibilityLabel={tr ? 'Yalnizca cozulmemisleri goster' : 'Show unresolved only'}
+                    style={{ backgroundColor: crashUnresolvedOnly ? '#EF4444' : '#EF444420', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full }}
+                  >
+                    <Text style={{ color: crashUnresolvedOnly ? '#FFF' : '#EF4444', fontSize: F.caption, fontWeight: '700' }}>
+                      {crashUnresolvedOnly ? (tr ? 'ÇÖZÜLMEMİŞ' : 'UNRESOLVED') : (tr ? 'TÜMÜ' : 'ALL')} · {crashMeta.total}
                     </Text>
-                  </View>
+                  </Touchable>
                 </View>
 
                 {crashes.length === 0 ? (
@@ -1319,7 +1385,7 @@ export default function AdminScreen() {
                                 haptic.surface();
                                 try {
                                   await SupportService.resolveCrash(crash.id);
-                                  const cr = await SupportService.getCrashes(15).catch(() => ({ crashes: [] }));
+                                  const cr = await SupportService.getCrashes({ limit: CRASH_PAGE_SIZE, offset: crashPage * CRASH_PAGE_SIZE, unresolvedOnly: crashUnresolvedOnly }).catch(() => ({ crashes: [], items: [], total: 0, hasMore: false }));
                                   setCrashes(cr.crashes || []);
                                 } catch (e) { swallow('admin.resolveCrashAndRefresh', e, { capture: true }); }
                               }}
@@ -1330,13 +1396,22 @@ export default function AdminScreen() {
                               </Text>
                             </Touchable>
                           ) : (
-                            <Text style={{ color: '#10B981', fontSize: 9, fontWeight: '700' }}>✓ {tr ? 'Çözüldü' : 'Resolved'}</Text>
+                            <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Çözüldü' : 'Resolved'}</Text>
                           )}
                         </View>
                       </View>
                       ); })}
                   </View>
                 )}
+
+                <Pager
+                  page={crashPage}
+                  pageSize={CRASH_PAGE_SIZE}
+                  total={crashMeta.total}
+                  hasMore={crashMeta.hasMore}
+                  onChange={setCrashPage}
+                  tr={tr}
+                />
               </View>
 
               {/* Loglar */}
@@ -1348,7 +1423,14 @@ export default function AdminScreen() {
                     </View>
                     <View>
                       <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Loglar' : 'Logs'}</Text>
-                      {sysHealth && <Text style={{ color: theme.onSurfaceMuted, fontSize: 10 }}>{sysHealth.warnings} {tr ? 'uyarı' : 'warn'} · {sysHealth.errors} {tr ? 'hata' : 'err'}</Text>}
+                      {/* Toplam değil CANLI sayaç: geliştirme gürültüsü rozeti sürekli
+                          kırmızı tutuyordu ve sürekli kırmızı olan gösterge okunmaz. */}
+                      {sysHealth && (
+                        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
+                          {sysLogMeta.total} {tr ? 'kayıt' : 'records'}
+                          {sysLogSource === 'Production' ? (tr ? ' · canlı' : ' · live') : ''}
+                        </Text>
+                      )}
                     </View>
                   </View>
                   <View style={{ flexDirection: 'row', gap: S.xs }}>
@@ -1360,13 +1442,37 @@ export default function AdminScreen() {
                     ))}
                   </View>
                 </View>
+
+                {/*
+                  KAYNAK FİLTRESİ. Geliştirme sürümü de canlı API'ye bağlandığı için kod
+                  yazarken çıkan hatalar aynı havuza düşüyor. Varsayılan "Canlı": panelin
+                  cevaplaması gereken ilk soru "gerçek kullanıcıda ne kırıldı?".
+                  Kayıtlar silinmiyor — tek dokunuşla geri geliyor.
+                */}
+                <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap' }}>
+                  {([['Production', tr ? 'Canlı' : 'Live'], ['Development', tr ? 'Geliştirme' : 'Dev'], [null, tr ? 'Tümü' : 'All']] as const).map(([src, label]) => {
+                    const active = sysLogSource === src;
+                    const n = src ? (sysLogMeta.counts[src as LogSource] ?? 0) : Object.values(sysLogMeta.counts).reduce((a, b) => a + (b ?? 0), 0);
+                    return (
+                      <Touchable key={label} onPress={() => setSysLogSource(src as LogSource | null)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: active ? theme.primary : theme.surfaceContainerHigh }}>
+                        <Text style={{ color: active ? '#FFF' : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>{label}</Text>
+                        {/* Sayı filtreye BASMADAN "burada ne var?" sorusunu cevaplıyor. */}
+                        <Text style={{ color: active ? '#FFF' : theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{n}</Text>
+                      </Touchable>
+                    );
+                  })}
+                </View>
+
                 {sysLogs.length === 0 ? (
                   <View style={{ alignItems: 'center', paddingVertical: S.md }}>
                     <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'Kayıt yok' : 'No logs'}</Text>
                   </View>
                 ) : (
                   <View>
-                    {sysLogs.slice(0, 60).map((lg, i) => {
+                    {/* `.slice(0, 60)` KALDIRILDI: sunucu artık sayfalıyor, istemcinin
+                        ikinci kez kırpması kayıtları görünmez yapıyordu. */}
+                    {sysLogs.map((lg, i) => {
                       const st = logLevelStyle(lg.level);
                       return (
                         <View key={i} style={{ gap: S.xs, borderTopWidth: i > 0 ? B.thin : 0, borderTopColor: cardBorder, paddingVertical: S.sm }}>
@@ -1375,12 +1481,117 @@ export default function AdminScreen() {
                               <Text style={{ color: st.color, fontSize: 9, fontWeight: '700' }}>{st.label}</Text>
                             </View>
                             <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: 10, fontWeight: '700', flex: 1 }}>{lg.category}</Text>
-                            <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>{new Date(lg.timestamp).toLocaleTimeString(tr ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</Text>
+                            {/* Kaynak rozeti YALNIZ karışık listede: tek kaynağa
+                                filtrelenmişken her satıra aynı etiketi basmak gürültü. */}
+                            {!sysLogSource && lg.source === 'Development' && (
+                              <View style={{ backgroundColor: theme.onSurfaceMuted + '1A', borderRadius: R.xs, paddingHorizontal: S.xs }}>
+                                <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '700' }}>{tr ? 'DEV' : 'DEV'}</Text>
+                              </View>
+                            )}
+                            <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{new Date(lg.timestamp).toLocaleTimeString(tr ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</Text>
                           </View>
                           <Text numberOfLines={3} style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 16 }}>{lg.message}</Text>
                         </View>
                       );
                     })}
+                  </View>
+                )}
+
+                <Pager
+                  page={sysLogPage}
+                  pageSize={LOG_PAGE_SIZE}
+                  total={sysLogMeta.total}
+                  hasMore={sysLogMeta.hasMore}
+                  onChange={setSysLogPage}
+                  tr={tr}
+                />
+              </View>
+
+              {/*
+                YAPAY ZEKA. Buraya kadar AI'in calisip calismadigini anlamanin tek yolu
+                sunucuya SSH ile girip .env okumak ya da uygulamada plan acip logda hata
+                aramakti — ikisi de "once kirilsin, sonra fark edeyim" yontemi.
+
+                Anahtar MASKELI gosteriliyor: panelden okunabilen bir sir artik sir
+                degildir. Dogrulamak icin gormeye gerek yok — test dugmesi saglayiciya
+                canli istek atiyor, cunku "tanimli" ile "calisiyor" farkli seyler
+                (anahtar iptal edilmis, kota dolmus ya da model listeden kalkmis olabilir).
+              */}
+              <View style={{ backgroundColor: cardBg, borderRadius: R.lg, borderWidth: B.thin, borderColor: cardBorder, padding: S.md, gap: S.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
+                  <View style={{ width: 28, height: 28, borderRadius: R.sm, backgroundColor: theme.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' }}>
+                    <Sparkles size={ICON.sm} color={aiStatus?.configured ? theme.primary : theme.onSurfaceVariant} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Yapay Zeka' : 'AI'}</Text>
+                    <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
+                      {aiStatus
+                        ? (aiStatus.configured
+                            ? aiStatus.keyMasked + ' - ' + aiStatus.keyLength + (tr ? ' karakter' : ' chars')
+                            : (tr ? 'Anahtar tanimli degil' : 'No API key'))
+                        : (tr ? 'Yukleniyor...' : 'Loading...')}
+                    </Text>
+                  </View>
+                </View>
+
+                {aiStatus && (
+                  <View style={{ gap: S.xxs }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>Model</Text>
+                      <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }}>{aiStatus.model}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{tr ? 'Kaynak' : 'Source'}</Text>
+                      <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600' }}>
+                        {aiStatus.modelFromEnv ? 'GROQ_MODEL' : (tr ? 'varsayilan' : 'default')}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                <Touchable
+                  disabled={aiTesting}
+                  onPress={async () => {
+                    setAiTesting(true);
+                    // Basma anında titreşim YOK: düğme zaten soluklaşıyor ve yazısı
+                    // "Deneniyor…"e dönüyor. Görülebilen bir şeyi ayrıca titretmek,
+                    // titreşimi bilgi taşımaktan çıkarıp gürültüye çevirir. Titreşimi
+                    // SONUCA sakladık — tahmin edilemeyen kısım o.
+                    try {
+                      const r = await AdminSystemService.aiTest();
+                      setAiTest(r);
+                      if (r.ok) { haptic.success(); } else { haptic.error(); }
+                    } catch {
+                      setAiTest({ ok: false, stage: 'network', message: tr ? 'Istek basarisiz' : 'Request failed' });
+                      haptic.error();
+                    } finally {
+                      setAiTesting(false);
+                    }
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={tr ? 'Yapay zeka baglantisini test et' : 'Test AI connection'}
+                  style={{ alignItems: 'center', paddingVertical: S.sm, borderRadius: R.md, backgroundColor: theme.surfaceContainerHigh, opacity: aiTesting ? 0.6 : 1 }}
+                >
+                  <Text style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700' }}>
+                    {aiTesting ? (tr ? 'Deneniyor...' : 'Testing...') : (tr ? 'Baglantiyi Test Et' : 'Test Connection')}
+                  </Text>
+                </Touchable>
+
+                {aiTest && (
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: S.xs, backgroundColor: (aiTest.ok ? theme.tertiary : theme.warning) + '14', borderRadius: R.sm, padding: S.sm }}>
+                    {aiTest.ok
+                      ? <CheckCircle2 size={ICON.sm} color={theme.tertiary} />
+                      : <AlertTriangle size={ICON.sm} color={theme.warning} />}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: aiTest.ok ? theme.tertiary : theme.warning, fontSize: F.caption, fontWeight: '700' }}>
+                        {aiTest.message}
+                      </Text>
+                      {/* Gecikme de bilgi: 200ms ile 9sn arasindaki fark, kullanicinin
+                          "takildi mi?" diye sorup sormayacagini belirler. */}
+                      {aiTest.ok && aiTest.latencyMs != null && (
+                        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{aiTest.latencyMs} ms</Text>
+                      )}
+                    </View>
                   </View>
                 )}
               </View>

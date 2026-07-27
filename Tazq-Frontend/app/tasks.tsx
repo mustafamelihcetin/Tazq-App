@@ -36,7 +36,7 @@ import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
 import { syncTaskToCalendar, deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
 import VoiceService from '@/shared/utils/voice';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -766,7 +766,7 @@ export default function ActionCenter() {
         if (isFirstWin) {
           require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
             language === 'tr' ? 'İlk Başarı!' : 'First Victory!',
-            language === 'tr' ? 'Tebrikler, TAZQ\'daki ilk görevini tamamladın! 🎉' : 'Congratulations on completing your first task on TAZQ! 🎉',
+            language === 'tr' ? 'Tebrikler, TAZQ\'daki ilk görevini tamamladın!' : 'Congratulations on completing your first task on TAZQ!',
             'high',
             'levelup'
           );
@@ -774,7 +774,7 @@ export default function ActionCenter() {
         } else if (allTasksDone) {
           require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
             language === 'tr' ? 'Günü Temizledin!' : 'Day Cleared!',
-            language === 'tr' ? 'Bugünün tüm görevlerini başarıyla tamamladın! 🏆' : 'You completed all of today\'s tasks successfully! 🏆',
+            language === 'tr' ? 'Bugünün tüm görevlerini başarıyla tamamladın!' : 'You completed all of today\'s tasks successfully!',
             'high',
             'day_cleared'
           );
@@ -1614,7 +1614,7 @@ export default function ActionCenter() {
             maxToRenderPerBatch={10}
             windowSize={5}
             removeClippedSubviews={false} // Must be false for itemLayoutAnimation to work when items jump large distances
-            contentContainerStyle={{ gap: S.sm, paddingBottom: navBarSpace(insets.bottom) + S.md, paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+            contentContainerStyle={{ gap: S.sm, paddingBottom: fabSafeBottom(insets.bottom), paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
             extraData={{ highlightedId, isBulkMode, selectedIds, completingIds, language, expandedId }}
             ListHeaderComponent={() => (
         <React.Fragment>
@@ -1754,12 +1754,12 @@ export default function ActionCenter() {
                 const titleText = isSearch
                   ? t.noResults
                   : hasCompletedTasks
-                  ? (language === 'tr' ? 'Bugün Dünyayı Kurtardın! ✨' : 'You Saved the Day! ✨')
-                  : (language === 'tr' ? 'Huzurlu bir boşluk 🌿' : 'Peaceful Canvas 🌿');
+                  ? (language === 'tr' ? 'Bugün Dünyayı Kurtardın!' : 'You Saved the Day!')
+                  : (language === 'tr' ? 'Huzurlu bir boşluk' : 'Peaceful Canvas');
                 const bodyText = isSearch
                   ? (language === 'tr' ? `"${searchQuery}" için sonuç bulunamadı` : `No results for "${searchQuery}"`)
                   : hasCompletedTasks
-                  ? (language === 'tr' ? 'Tüm görevleri tertemiz bitirdin. Şimdi en sevdiğin kahveyi koy ve hiçbir şey düşünmeden dinlen ☕' : 'All cleared up! Time to grab your favorite coffee and relax your mind ☕')
+                  ? (language === 'tr' ? 'Tüm görevleri tertemiz bitirdin. Şimdi en sevdiğin kahveyi koy ve hiçbir şey düşünmeden dinlen' : 'All cleared up! Time to grab your favorite coffee and relax your mind')
                   : (language === 'tr' ? 'Henüz planlanmış bir işin yok. Aklına gelen bir fikri sesle veya yazarak ekleyebilirsin.' : 'No tasks scheduled yet. Tap + or use your voice to capture your thoughts.');
 
                 return (
@@ -1935,7 +1935,11 @@ export default function ActionCenter() {
       {!isBulkMode && (
         <MagneticFAB
           onPress={handleAddBtnPress}
-          storageKey={`@fab_tasks_${user?.id ?? 'guest'}`}
+          // TEK ANAHTAR — düğme her ekranda AYNI yerde dursun.
+        // İki ekran ayrı konum saklıyordu: kullanıcı dashboard'da sola taşıyıp Görevler'e
+        // geçince düğme sağda kalıyordu. Kalıcı bir eylem düğmesinin tek gerekçesi kas
+        // hafızasıdır; ekrana göre yer değiştirmesi o gerekçeyi çürütüyordu.
+        storageKey={`@fab_${user?.id ?? 'guest'}`}
           isDark={isDark}
           theme={theme}
           style={{

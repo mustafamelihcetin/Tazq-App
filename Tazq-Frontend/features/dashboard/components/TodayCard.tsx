@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
 import Svg, { Circle, G, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
-import { Zap } from 'lucide-react-native';
+import { Zap, CheckCircle2 } from 'lucide-react-native';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, S, R, W, ICON, METRIC, LH, trackingFor } from '@/shared/constants/tokens';
@@ -150,6 +150,18 @@ export const TodayCard = React.memo<TodayCardProps>(
                     — palet rengini kullanım yerinde kısmak ölçülen kontrastı çöpe atar
                     (bkz. colorContrast.test.ts). Artık iki AYRI seviye.
                   */}
+                  <View style={styles.subRow}>
+                  {/*
+                    BAŞARI İŞARETİ FLAT İKON — emoji değil.
+                    Metin "Tümü tamamlandı 🎉" idi. Emoji üç sebeple yanlış: (1) uygulamanın
+                    geri kalanı lucide glifleri kullanıyor, tek bir emoji sistemi bozuyor;
+                    (2) emoji cihaza göre farklı çizilir, yani tasarım kontrolümüzde değil;
+                    (3) rengi kendi taşır ve paletle konuşmaz. Buradaki onay işareti
+                    vurgu rengini alıyor — hedefe ulaşınca yeşile dönen AYNI renk.
+                  */}
+                  {reached && !highlight && (
+                    <CheckCircle2 size={ICON.xs} color={accent} strokeWidth={2.5} />
+                  )}
                   <Text testID="today-sub" style={[styles.sub, { color: highlight ? accent : theme.onSurfaceMuted }]}>
                     {highlight
                       ? surprise
@@ -159,7 +171,7 @@ export const TodayCard = React.memo<TodayCardProps>(
                         // bir şey bitirdiğinde gelen alkışın anlamını da düşürür.
                         ? (tr ? 'Bugün için planın boş' : 'Nothing planned today')
                         : reached
-                          ? (tr ? 'Tümü tamamlandı 🎉' : 'All done 🎉')
+                          ? (tr ? 'Tümü tamamlandı' : 'All done')
                           : notStarted
                             // "görev tamamlandı" cümlesi 0'ın yanında "hiçbir görev
                             // tamamlamadın" diye okunuyordu — doğru ama sayfanın işi
@@ -167,6 +179,7 @@ export const TodayCard = React.memo<TodayCardProps>(
                             ? (tr ? 'gün yeni başlıyor' : 'the day is just starting')
                             : (tr ? 'görev tamamlandı' : 'tasks completed')}
                   </Text>
+                  </View>
                 </MotiView>
 
                 {/* Odak dakikası — ikincil metrik, ince çubuk. */}
@@ -179,21 +192,46 @@ export const TodayCard = React.memo<TodayCardProps>(
                       style={[styles.fill, { backgroundColor: theme.primary }]}
                     />
                   </View>
+                  {/*
+                    PAYDA GÖSTERİLİYOR — "0dk" yerine "0/60dk".
+
+                    Yalnız `20dk` yazıyordu ve yanındaki çubuğun ne kadarının dolu
+                    olduğunu açıklayan hiçbir şey yoktu: 20 dakika çok mu az mı, çubuk
+                    neye göre doluyor, belli değildi. Sıfırdayken ise sayfadaki ÜÇÜNCÜ
+                    çıplak sıfır oluyordu (`0/5` ve `%0`ın yanında `0dk`).
+
+                    Payda ikisini birden çözüyor: çubuk okunur hâle geliyor ve sıfır
+                    artık bir eksiklik değil, bir başlangıç noktası — "0/60", "henüz
+                    başlamadın" değil "60'ın 0'ındasın" der. Kartın ana satırındaki
+                    `1 /5` deseniyle de aynı dili konuşuyor.
+                  */}
                   <Text style={[styles.focusText, { color: theme.onSurfaceMuted }]}>
-                    {focusMinutes}{tr ? 'dk' : 'm'}
+                    {focusMinutes}/{focusGoalMinutes}{tr ? 'dk' : 'm'}
                   </Text>
                 </View>
               </View>
 
               {/* Sağ: ilerleme halkası */}
               <View style={styles.ringBox}>
+                {/*
+                  HALKA TEK RENK — gradyan KALDIRILDI.
+
+                  Yay `primary (#0B6BCB, hue 210) → secondary (#7C3AED, hue 262)` diye
+                  geçiyordu. 52 derecelik bu sıçrama bir TON farkı değil, başka bir renk:
+                  ekranda ilerleme mavi değil MOR okunuyordu.
+
+                  Üstelik bu, paletin bilinçli bir kararını tersine çeviriyordu. Colors.ts'te
+                  yazılı: marka mavisi hue 221'den 210'a çekilmiş, çünkü 221 "indigo/mor
+                  tarafına bakıyor" ve "sert lacivert" şikayetinin ölçülen sebebi buymuş.
+                  Uygulamanın en görünür veri görselleştirmesi o düzeltmeyi geri alıyordu.
+                  Halka inceyken (9pt) fark edilmiyordu; kalınlaşınca mor uç baskın oldu.
+
+                  Tutarsızlık da vardı: hedefe ULAŞILINCA iki durak da `tertiary` olduğu
+                  için halka zaten TEK renk (yeşil) oluyordu. Yani "devam ediyor" hâli
+                  kuralın dışındaki tek durumdu. Artık renk tek şey söylüyor:
+                  mavi = devam ediyor, yeşil = bitti.
+                */}
                 <Svg width={RING} height={RING}>
-                  <Defs>
-                    <SvgLinearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-                      <Stop offset="0%" stopColor={accent} stopOpacity="1" />
-                      <Stop offset="100%" stopColor={reached ? theme.tertiary : theme.secondary} stopOpacity="1" />
-                    </SvgLinearGradient>
-                  </Defs>
                   {/* -90°: dolum saat 12'den başlasın — saat 3'ten başlayan halka
                       "ilerleme" değil "rastgele yay" gibi okunur. */}
                   <G rotation="-90" origin={`${RING_C},${RING_C}`}>
@@ -211,7 +249,7 @@ export const TodayCard = React.memo<TodayCardProps>(
                     />
                     <Circle
                       cx={RING_C} cy={RING_C} r={RING_R} fill="none"
-                      stroke="url(#ringGrad)"
+                      stroke={accent}
                       strokeWidth={RING_STROKE}
                       strokeLinecap="round"
                       strokeDasharray={`${RING_LEN}`}
@@ -270,6 +308,9 @@ const styles = StyleSheet.create({
   metricRow: { flexDirection: 'row', alignItems: 'baseline', gap: S.xs },
   metric: { fontWeight: W.semibold, includeFontPadding: false },
   goal: { fontSize: F.subhead, fontWeight: W.semibold, letterSpacing: trackingFor(F.subhead) },
+  // İkon ve metin AYNI satırda, taban hizasında değil ORTA hizada: 11pt bir yazının
+  // yanındaki 12pt glif taban hizasında bir tık aşağı düşer.
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
   sub: { fontSize: F.caption, fontWeight: W.semibold, letterSpacing: 0.3 },
   focusRow: { flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.xxs },
   track: { flex: 1, height: 3, borderRadius: R.xs, overflow: 'hidden' },

@@ -136,11 +136,12 @@ namespace Tazq_App.Controllers
 
         // Global denetim günlüğü
         [HttpGet("audit")]
-        public async Task<IActionResult> GetAuditLog(int take = 100)
+        public async Task<IActionResult> GetAuditLog([FromQuery] int limit = 40, [FromQuery] int offset = 0, [FromQuery] int? take = null)
         {
-            var logs = (await _admin.GetAuditLogAsync(take))
-                .Select(a => new { a.Id, a.AdminName, a.Action, a.TargetType, a.TargetUserId, a.TargetName, a.Details, a.CreatedAt });
-            return Ok(logs);
+            // `take` eski istemciler icin: yeni alan gelmezse onu limit say.
+            var (items, total) = await _admin.GetAuditLogPageAsync(take ?? limit, offset);
+            var logs = items.Select(a => new { a.Id, a.AdminName, a.Action, a.TargetType, a.TargetUserId, a.TargetName, a.Details, a.CreatedAt });
+            return Ok(new { logs, total, offset, limit = take ?? limit, hasMore = offset + items.Count < total });
         }
 
         public class SetRoleRequest

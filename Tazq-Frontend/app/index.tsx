@@ -33,7 +33,7 @@ import { StatusHub } from '@/shared/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getSmartInsight, generateWeeklyTips } from '@/shared/utils/insights';
 import { computeMomentum } from '@/shared/utils/momentum';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey, useSleepHealthSync } from '@/features/habits';
@@ -975,7 +975,7 @@ export default function HomeScreen() {
     if (isFirstWin) {
       require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
         language === 'tr' ? 'İlk Başarı!' : 'First Victory!',
-        language === 'tr' ? 'Tebrikler, TAZQ\'daki ilk görevini tamamladın! 🎉' : 'Congratulations on completing your first task on TAZQ! 🎉',
+        language === 'tr' ? 'Tebrikler, TAZQ\'daki ilk görevini tamamladın!' : 'Congratulations on completing your first task on TAZQ!',
         'high',
         'levelup'
       );
@@ -984,7 +984,7 @@ export default function HomeScreen() {
     } else if (allTasksDone) {
       require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
         language === 'tr' ? 'Günü Temizledin!' : 'Day Cleared!',
-        language === 'tr' ? 'Bugünün tüm görevlerini başarıyla tamamladın! 🏆' : 'You completed all of today\'s tasks successfully! 🏆',
+        language === 'tr' ? 'Bugünün tüm görevlerini başarıyla tamamladın!' : 'You completed all of today\'s tasks successfully!',
         'high',
         'day_cleared'
       );
@@ -1048,37 +1048,18 @@ export default function HomeScreen() {
 
   const momentumLabel = momentum >= 75 ? t.momentumHigh : momentum >= 40 ? t.momentumMid : t.momentumLow;
 
-  const getStreakSurprise = useCallback(() => {
-    const n = streak || 0;
-    if (n === 0)  return { icon: '🌱', label: tr ? 'HADI BAŞLA!'    : 'START TODAY!',    tier: 'nudge'     } as const;
-    if (n <= 3)   return { icon: '🔥', label: tr ? 'ISINIYORSUN!'   : 'WARMING UP!',     tier: 'celebrate' } as const;
-    if (n <= 7)   return { icon: '⚡', label: tr ? 'GEL-İYOR!'      : 'GETTING HOT!',    tier: 'celebrate' } as const;
-    if (n <= 14)  return { icon: '🔥', label: tr ? 'YAKIYORSUN!'    : 'ON FIRE!',        tier: 'celebrate' } as const;
-    if (n <= 30)  return { icon: '🏆', label: tr ? 'HARIKA SERİ!'   : 'GREAT STREAK!',   tier: 'celebrate' } as const;
-    return              { icon: '👑', label: tr ? 'EFSANE SERİ!'   : 'LEGENDARY!',      tier: 'celebrate' } as const;
-  }, [streak, tr]);
-
-  const getFocusSurprise = useCallback(() => {
-    if (weeklyMinutes === 0)  return { icon: '💤', label: tr ? 'BUGÜN BAŞLA!'    : 'START TODAY!',   tier: 'nudge'     } as const;
-    if (weeklyMinutes < 60)   return { icon: '🌱', label: tr ? 'ISINIYOR!'       : 'WARMING UP!',    tier: 'celebrate' } as const;
-    if (weeklyMinutes < 120)  return { icon: '⚡', label: tr ? 'ODAKLISIN!'      : 'FOCUSED!',       tier: 'celebrate' } as const;
-    if (weeklyMinutes < 240)  return { icon: '🔥', label: tr ? 'KONSANTRESSİN!' : 'DIALED IN!',     tier: 'celebrate' } as const;
-    return                          { icon: '🚀', label: tr ? 'SÜPER ODAK!'     : 'SUPER FOCUS!',   tier: 'celebrate' } as const;
-  }, [weeklyMinutes, tr]);
-
-
   const todaySurprise = (() => {
-    if (todayCompleted >= dailyGoal) return language === 'tr' ? '🏆 MÜKEMMEL GÜN!' : '🏆 PERFECT DAY!';
+    if (todayCompleted >= dailyGoal) return language === 'tr' ? 'MÜKEMMEL GÜN!' : 'PERFECT DAY!';
     const pct = todayCompleted / Math.max(dailyGoal, 1);
-    if (pct >= 0.5) return language === 'tr' ? '📈 YARIYA GELDİN!' : '📈 HALFWAY THERE!';
-    if (todayCompleted === 0) return language === 'tr' ? '💪 HAYDI BAKALIM!' : '💪 LET\'S GO!';
-    return language === 'tr' ? '⚡ DEVAM ET!' : '⚡ KEEP GOING!';
+    if (pct >= 0.5) return language === 'tr' ? 'YARIYA GELDİN!' : 'HALFWAY THERE!';
+    if (todayCompleted === 0) return language === 'tr' ? 'HAYDI BAKALIM!' : 'LET\'S GO!';
+    return language === 'tr' ? 'DEVAM ET!' : 'KEEP GOING!';
   })();
 
   const momentumSurprise = (() => {
-    if (momentum >= 75) return language === 'tr' ? '🚀 MUHTEŞEM!' : '🚀 INCREDIBLE!';
-    if (momentum >= 40) return language === 'tr' ? '📈 İVME KAZANIYORSUN!' : '📈 GAINING SPEED!';
-    return language === 'tr' ? '💡 HER GÜN BİR ADIM!' : '💡 ONE STEP AT A TIME!';
+    if (momentum >= 75) return language === 'tr' ? 'MUHTEŞEM!' : 'INCREDIBLE!';
+    if (momentum >= 40) return language === 'tr' ? 'İVME KAZANIYORSUN!' : 'GAINING SPEED!';
+    return language === 'tr' ? 'HER GÜN BİR ADIM!' : 'ONE STEP AT A TIME!';
   })();
 
   const getGreeting = () => {
@@ -1096,7 +1077,7 @@ export default function HomeScreen() {
     // görevler sayıldığı için yazı "statik/bozuk" görünüyordu.
     const incomplete = todayTasksIncomplete.length + undatedTasksIncomplete.length;
     if (isActive) {
-      return tr ? 'Harika! Odak seansın devam ediyor. 🔥' : "You're crushing it! Focus session in progress. 🔥";
+      return tr ? 'Harika! Odak seansın devam ediyor.' : "You're crushing it! Focus session in progress.";
     }
     if (incomplete === 0) {
       return tr ? 'Temiz sayfa — yeni bir hedef eklemek ister misin?' : 'Clean slate — want to add a new goal?';
@@ -1135,6 +1116,46 @@ export default function HomeScreen() {
       />
     );
   };
+
+  /**
+   * GÜNÜ TAMAMLAMA ANI — kullanıcıyı uygulamaya bağlayan tek an.
+   *
+   * ÖLÇÜLEN SORUN: kullanıcı günün hedefinin %100'ünü bitirdiğinde karşılığı şuydu —
+   * 90pt'lik halka yeşile döner ve 11pt'lik bir satırda "Tümü tamamlandı" yazar. Hepsi
+   * bu. Sayfa bir RAPOR veriyordu, ödül vermiyordu; oysa insanı geri getiren şey metrik
+   * değil, bitirme ANIdır (Apple Fitness'ta halka kapanınca ekranı kaplayan kutlama).
+   *
+   * Kutlama katmanı zaten vardı (bkz. CelebrationOverlay, _layout'ta global) ama yalnız
+   * BAŞARIMLARA bağlıydı — yani ömürde bir kez. Günü tamamlamak ise her gün olabilen bir
+   * şey, o yüzden `celebrate` kullanılıyor: aynı katmanı açar, hiçbir şeyi kalıcı yapmaz.
+   *
+   * ÜÇ KAPI, üçü de ayrı bir yanlış kutlamayı engelliyor:
+   *  1. GEÇİŞ — yalnız "tamamlanmadı → tamamlandı" anında. `null` başlangıç değeriyle
+   *     ilk render atlanıyor: gün zaten bitmişken uygulamayı açmak kutlama değildir.
+   *  2. GÜNDE BİR — tarih anahtarı kalıcı. Uygulama kapanıp açılırsa, bileşen yeniden
+   *     kurulursa ya da son görev geri alınıp tekrar işaretlenirse tekrar patlamaz.
+   *  3. İLK KEZ DEĞİLSE — ilk mükemmel günde `daily_perfect` ROZETİ zaten açılıyor ve
+   *     kendi kutlamasını yapıyor; ikisi üst üste binmesin.
+   */
+  const dayCompleteRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const done = dailyGoal > 0 && todayCompleted >= dailyGoal;
+    const prev = dayCompleteRef.current;
+    dayCompleteRef.current = done;
+    if (prev !== false || !done) return;
+
+    const key = `@day_celebrated_${fmtDateKey()}`;
+    (async () => {
+      try {
+        if (await AsyncStorage.getItem(key)) return;
+        await AsyncStorage.setItem(key, '1');
+        const store = useAchievementStore.getState();
+        if (!store.hasUnlocked('daily_perfect')) return;
+        haptic.celebrate();
+        store.celebrate(ACHIEVEMENTS.daily_perfect);
+      } catch (e) { swallow('index.dailyCelebration', e); }
+    })();
+  }, [todayCompleted, dailyGoal]);
 
   const priorityColor = (p: string) => {
     if (p === 'High') return theme.priorityHigh;
@@ -1318,7 +1339,7 @@ export default function HomeScreen() {
             // Dip boşluğu navbar'ın GERÇEK yüksekliğinden gelir (bkz. navBarSpace).
             // Sabit S.xxl yazıyordu: navbar 106pt kaplarken 64pt bırakıyordu, yani son
             // 42pt barın arkasında kalıyor ve kullanıcı en alta inemiyordu.
-            contentContainerStyle={[styles.scrollContent, { paddingTop: topBarSpace(insets.top) + S.lg, paddingBottom: navBarSpace(insets.bottom) + S.md, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }]}
+            contentContainerStyle={[styles.scrollContent, { paddingTop: topBarSpace(insets.top) + S.lg, paddingBottom: fabSafeBottom(insets.bottom), width: '100%', maxWidth: MAX_W, alignSelf: 'center' }]}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surfaceContainer} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
@@ -1414,7 +1435,7 @@ export default function HomeScreen() {
                             if (allHabitsDone) {
                               require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
                                 language === 'tr' ? 'Alışkanlıklar Tamam!' : 'All Habits Done!',
-                                language === 'tr' ? 'Bugünkü tüm alışkanlık hedeflerini tamamladın. Harika istikrar! 🌟' : 'You completed all habit targets for today. Great consistency! 🌟',
+                                language === 'tr' ? 'Bugünkü tüm alışkanlık hedeflerini tamamladın. Harika istikrar!' : 'You completed all habit targets for today. Great consistency!',
                                 'medium',
                                 'day_cleared'
                               );
@@ -1455,7 +1476,7 @@ export default function HomeScreen() {
                       return (
                         <View style={{ padding: S.md, alignItems: 'center' }}>
                           <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>
-                            {tr ? 'Bugün için bekleyen görevin kalmadı 🎉' : 'No pending tasks for today 🎉'}
+                            {tr ? 'Bugün için bekleyen görevin kalmadı' : 'No pending tasks for today'}
                           </Text>
                         </View>
                       );
@@ -1544,7 +1565,7 @@ export default function HomeScreen() {
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <BentoCard index={1} style={{ padding: isSmallScreen ? S.md : S.lg, gap: S.sm }}>
                     <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.3, marginBottom: S.xs }}>
-                        {tr ? 'Hoş geldin 👋 Nereden başlamak istersin?' : 'Welcome 👋 Where would you like to start?'}
+                        {tr ? 'Hoş geldin! Nereden başlamak istersin?' : 'Welcome! Where would you like to start?'}
                     </Text>
                     {[
                         { icon: <Plus size={ICON.md} color={theme.primary} />, label: tr ? 'İlk görevini ekle' : 'Add your first task', sub: tr ? 'Aklındakini yaz, gerisini TAZQ halletsin' : 'Jot it down, TAZQ handles the rest', onPress: () => router.push('/tasks') },
@@ -1614,7 +1635,7 @@ export default function HomeScreen() {
               <Touchable onPress={headerTap.onTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
                 <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
                   <Text style={{ fontSize: 9, fontWeight: '600', letterSpacing: 1.8, color: theme.onSurfaceVariant }}>
-                    {language === 'tr' ? '✦ İYİ GİDİYOR' : '✦ LOOKING GOOD'}
+                    {language === 'tr' ? 'İYİ GİDİYOR' : 'LOOKING GOOD'}
                   </Text>
                   <Text style={{ fontSize: 9, fontWeight: '600', color: theme.primary }}>
                     {language === 'tr' ? 'devam et →' : 'keep going →'}
@@ -1654,7 +1675,11 @@ export default function HomeScreen() {
       {/* Hızlı taslak — görev listesine tek dokunuşla not düşer. */}
       <MagneticFAB
         onPress={() => setQuickDraftVisible(true)}
-        storageKey={`@fab_dashboard_${user?.id ?? 'guest'}`}
+        // TEK ANAHTAR — düğme her ekranda AYNI yerde dursun.
+        // İki ekran ayrı konum saklıyordu: kullanıcı dashboard'da sola taşıyıp Görevler'e
+        // geçince düğme sağda kalıyordu. Kalıcı bir eylem düğmesinin tek gerekçesi kas
+        // hafızasıdır; ekrana göre yer değiştirmesi o gerekçeyi çürütüyordu.
+        storageKey={`@fab_${user?.id ?? 'guest'}`}
         isDark={isDark}
         theme={theme}
         style={{

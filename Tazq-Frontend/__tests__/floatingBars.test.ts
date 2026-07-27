@@ -311,7 +311,40 @@ describe('sayfa dibi boşluğu', () => {
 
     // Sayfanın ANA scroll'u: contentContainerStyle içinde paddingBottom.
     // Yatay filtre şeritleri gibi iç scroll'lar navbar'a değmez — onlar hariç,
-    // bu yüzden yalnızca navBarSpace'in HİÇ geçmediği durumu hata sayıyoruz.
-    expect(src).toMatch(/paddingBottom:\s*navBarSpace\(/);
+    // bu yüzden yalnızca türetilmiş boşluğun HİÇ geçmediği durumu hata sayıyoruz.
+    //
+    // `fabSafeBottom` de kabul: kendisi `navBarSpace` üstüne kuruluyor (bkz. tokens.ts)
+    // ve FAB'li ekranlarda düğmenin dinlenme yerini de hesaba katıyor. Kuralın amacı
+    // "sabit sayı yazma, çubuktan türet" — o amaç ikisinde de karşılanıyor.
+    expect(src).toMatch(/paddingBottom:\s*(navBarSpace|fabSafeBottom)\(/);
+  });
+
+  /**
+   * FAB ÇİZEN EKRANLAR DAHA FAZLA PAY BIRAKMALI.
+   *
+   * `navBarSpace` yalnız sekme çubuğunu sayıyor; FAB onun ÜSTÜNDE duruyor ve en dibe
+   * inildiğinde son satırı örtüyordu — listenin sonundaki görevin üstünde mavi bir daire.
+   */
+  it('FAB’li ekranlar düğmenin yerini de ayırır', () => {
+    const withFab = ['index.tsx', 'tasks.tsx'];
+    const missing = withFab.filter((f) => {
+      const src = fs.readFileSync(path.join(ROOT, 'app', f), 'utf8');
+      return !/paddingBottom:\s*fabSafeBottom\(/.test(src);
+    });
+    expect(missing).toEqual([]);
+  });
+
+  /**
+   * Aynı eylem her ekranda AYNI yerde durmalı — kalıcı bir eylem düğmesinin tek
+   * gerekçesi kas hafızasıdır. İki ekran ayrı konum saklıyordu: kullanıcı dashboard'da
+   * düğmeyi sola taşıyıp Görevler'e geçince düğme sağda kalıyordu.
+   */
+  it('FAB konumu TEK anahtarda saklanır', () => {
+    const keys = ['index.tsx', 'tasks.tsx'].map((f) => {
+      const src = fs.readFileSync(path.join(ROOT, 'app', f), 'utf8');
+      return src.match(/storageKey=\{`([^`]+)`\}/)?.[1];
+    });
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[0]).toBeTruthy();
   });
 });

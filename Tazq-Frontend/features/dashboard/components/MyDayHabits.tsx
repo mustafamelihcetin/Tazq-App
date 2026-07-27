@@ -21,7 +21,23 @@ import type { AppTheme } from '@/shared/constants/Colors';
  */
 
 /** Baloncuk yuvası — HabitBubble'ın kendi genişliğiyle hizalı. */
-const SLOT = 62;
+/**
+ * YUVA GENİŞLİĞİ — baloncuktan GENİŞ, çünkü etiketi o taşıyor.
+ *
+ * 62pt'ydi ve etiketler kesiliyordu. Önce iki satıra çıkarıldı, yetmedi. Sebebini
+ * ölçünce çıktı: 268 alışkanlık/görev adının 218'i 18 karakterden uzun ve bu bir veri
+ * hatası DEĞİL — "Kavram Haritası Çıkarma", "Günlük Yazım Oturumu" gibi adlar doğal
+ * uzunlukta. Parantezli açıklamaları ayıklamak da yalnız 53'ünü kurtarıyordu.
+ *
+ * Yani sorun addaydı değil, KUTUDAYDI: 62pt'ye 9.5pt yazıyla satır başına ~13 karakter
+ * sığıyor. 78pt'de ~17 karakter, iki satırda ~34 — adların neredeyse tamamı sığıyor.
+ *
+ * Baloncuk 50pt kalıyor: büyütülmesi gereken şey görsel değil, ETİKET ALANI. iOS ana
+ * ekranı da böyledir — ikon 60pt, altındaki ad daha geniş bir alana yazılır. Yan yana
+ * görünen baloncuk sayısı 5'ten ~4'e iniyor; bu bir kayıp değil, kaydırılabilir olduğunu
+ * da daha iyi gösteriyor.
+ */
+const SLOT = 78;
 const BUBBLE = 50;
 
 export interface MyDayHabitsProps {

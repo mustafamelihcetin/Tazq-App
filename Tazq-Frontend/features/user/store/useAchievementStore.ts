@@ -35,6 +35,19 @@ interface AchievementState {
 
   hasUnlocked: (id: string) => boolean;
   trigger: (achievement: Achievement) => void;
+  /**
+   * GEÇİCİ KUTLAMA — kutlama katmanını açar ama HİÇBİR ŞEY KALICI YAPMAZ.
+   *
+   * `trigger` id başına tek seferliktir (`unlocked` listesine yazar) ve doğrusu budur:
+   * bir başarım iki kez kazanılmaz. Ama TEKRARLANAN anlar da var — "bugünün hedefini
+   * tamamladın" her gün olmalı. Bunu `trigger` ile yapmanın tek yolu id'ye tarih
+   * eklemekti (`daily_2026_07_27`); o da `unlocked` dizisini her gün bir eleman
+   * şişirir, buluta senkronlar ve profildeki başarım ızgarasını çöple doldururdu.
+   *
+   * Ayrım kalıcılıkta: `trigger` = kazanılan rozet, `celebrate` = yaşanan an.
+   * Tekrarın engellenmesi çağıran tarafın işi (bkz. index.tsx günlük kutlama kapısı).
+   */
+  celebrate: (achievement: Achievement) => void;
   baseline: (earnedIds: string[]) => void;
   applyCloud: (data: { unlocked?: string[]; baselined?: boolean }) => void;
   clearPending: () => void;
@@ -60,6 +73,14 @@ export const useAchievementStore = create<AchievementState>()(
       _hasHydrated: false,
 
       hasUnlocked: (id) => get().unlocked.includes(id),
+
+      celebrate: (achievement) => {
+        // `unlocked`a YAZMAZ, buluta push ETMEZ — yalnız katmanı açar.
+        // Gösterimdeki bir kutlama varsa sıraya girer: ikisi üst üste binmesin.
+        const { pending, queue } = get();
+        if (pending) set({ queue: [...queue, achievement] });
+        else set({ pending: achievement });
+      },
 
       trigger: (achievement) => {
         const { unlocked, pending } = get();

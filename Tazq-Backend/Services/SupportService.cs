@@ -28,12 +28,22 @@ namespace Tazq_App.Services
             return crash;
         }
 
-        public async Task<List<ClientCrash>> GetCrashesAsync(int limit)
-            => await _context.ClientCrashes
+        public async Task<(List<ClientCrash> Items, int Total)> GetCrashesPageAsync(int limit, int offset, bool unresolvedOnly)
+        {
+            // Filtre SAYIMDAN ONCE uygulanir: "cozulmemis" secilince toplam da
+            // cozulmemislerin sayisi olmali, yoksa sayfalama bos sayfalara tiklatir.
+            var q = _context.ClientCrashes.AsNoTracking().AsQueryable();
+            if (unresolvedOnly) q = q.Where(c => !c.IsResolved);
+
+            var total = await q.CountAsync();
+            var items = await q
                 .OrderByDescending(c => c.CreatedAt)
-                .Take(limit)
-                .AsNoTracking()
+                .Skip(Math.Max(offset, 0))
+                .Take(Math.Clamp(limit, 1, 200))
                 .ToListAsync();
+
+            return (items, total);
+        }
 
         public async Task<bool> ResolveCrashAsync(int id)
         {
