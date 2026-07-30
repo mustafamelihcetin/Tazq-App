@@ -14,14 +14,14 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
-import { useSporStore } from '@/shared/store/useSporStore';
+import { useSporStore } from '@/features/modes/store/useSporStore';
 import { usePlanAdaptations } from '../../hooks/usePlanAdaptations';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
-import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf , retireModeTasksByTag} from '@/shared/utils/planTaskOps';
+import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { detectSporType, localizeSporGoal } from '../../utils/turkishModes';
-import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight } from '@/shared/utils/weightCheckin';
+import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight } from '@/features/modes/utils/weightCheckin';
 import { WeightWheelPicker } from './WeightWheelPicker';
 import { ICON, S, R, F, B, HAIRLINE } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
@@ -29,7 +29,7 @@ import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
 import { haptic } from '@/shared/utils/haptics';
-import { closeModeWithUndo } from '@/shared/utils/modeUndo';
+import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 
 // Vurgu MERKEZİ PALETTEN, tema-duyarlı. Ham '#F97316' iki temada aynıydı ve açık
 // temada 2.80:1 veriyordu (WCAG'ın büyük-metin eşiği 3:1'in bile altı).

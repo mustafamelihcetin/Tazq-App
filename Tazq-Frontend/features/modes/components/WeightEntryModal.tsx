@@ -15,11 +15,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Activity } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { useSporStore, getThisWeekEntry } from '@/shared/store/useSporStore';
+import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporStore';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
 import { Touchable } from '@/shared/components/Touchable';
-import { recordWeeklyWeight, daysUntilNextWeight } from '@/shared/utils/weightCheckin';
+import { recordWeeklyWeight, daysUntilNextWeight } from '@/features/modes/utils/weightCheckin';
 import { haptic } from '@/shared/utils/haptics';
 
 interface Props {

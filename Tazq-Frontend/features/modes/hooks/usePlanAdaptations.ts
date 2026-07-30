@@ -14,7 +14,7 @@ import { swallow } from '@/shared/utils/swallow';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePrefsStore } from '../store/usePrefsStore';
-import { useSporStore } from '@/shared/store/useSporStore';
+import { useSporStore } from '@/features/modes/store/useSporStore';
 import { useTaskStore } from '@/features/tasks';
 import { useAuthStore } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -31,22 +31,22 @@ import {
   detectSporTypeLocal,
   daysUntil,
   Language,
-} from '@/shared/utils/planAdaptations';
+} from '@/features/modes/utils/planAdaptations';
 import { RAMAZAN, getModePreview } from '../utils/turkishModes';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useHabitStore } from '@/features/habits';
-import { buildDailyTasks, DailyPlanSpec, PlanKind } from '@/shared/utils/dailyPlanEngine';
-import { runPlanMigrationOnce } from '@/shared/utils/planMigration';
+import { buildDailyTasks, DailyPlanSpec, PlanKind } from '@/features/modes/utils/dailyPlanEngine';
+import { runPlanMigrationOnce } from '@/features/modes/utils/planMigration';
 import { findExamCurriculum, pickSubject, subjectExamLabel } from '@/shared/utils/curriculum';
 import { useSubjectStore } from '@/shared/store/useSubjectStore';
 import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
 import { useQuitStore, type QuitType } from '@/shared/store/useQuitStore';
 import { buildTasarrufPlan, buildBirakmaPlan } from '@/shared/utils/lifeModePlans';
-import { isWeightEntryTask } from '@/shared/utils/weightCheckin';
-import { MODE_TASK_TAGS } from '@/shared/utils/planTaskOps';
-import { getExtraPool, ensureExtraPool } from '@/shared/utils/planPoolSync';
+import { isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
+import { MODE_TASK_TAGS } from '@/features/modes/utils/planTaskOps';
+import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSync';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
 

@@ -10,7 +10,7 @@
  *   2. Havuz VARSA sabit görevler korunur, üretilenler ÜSTÜNE eklenir.
  *   3. Çeşitlilik gerçekten artmalı (tekrar aralığı uzamalı).
  */
-import { buildDailyTasks, planPoolKeyFor, type DailyPlanSpec } from '@/shared/utils/dailyPlanEngine';
+import { buildDailyTasks, planPoolKeyFor, type DailyPlanSpec } from '@/features/modes/utils/dailyPlanEngine';
 
 const EMPTY: any[] = [];
 

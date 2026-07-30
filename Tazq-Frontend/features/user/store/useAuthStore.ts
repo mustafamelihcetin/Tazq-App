@@ -88,7 +88,7 @@ function clearLocalUserData() {
   safe(() => require('@/features/modes/store/usePrefsStore').usePrefsStore.getState().resetUserData());
   safe(() => require('@/shared/store/useBudgetStore').useBudgetStore.getState().reset());
   safe(() => require('@/shared/store/useQuitStore').useQuitStore.getState().reset());
-  safe(() => require('@/shared/store/useSporStore').useSporStore.getState().resetInputs());
+  safe(() => require('@/features/modes/store/useSporStore').useSporStore.getState().resetInputs());
   safe(() => require('@/shared/store/useSubjectStore').useSubjectStore.getState().reset());
   safe(() => require('@/shared/store/useOfflineQueue').useOfflineQueue.getState().clear());
   safe(() => require('@/shared/store/useCompletionStore').useCompletionStore.setState({ events: [] }));

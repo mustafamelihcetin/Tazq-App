@@ -5,7 +5,7 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { TaskService } from '@/shared/services/api';
-import { MODE_TASK_TAGS } from '@/shared/utils/planTaskOps';
+import { MODE_TASK_TAGS } from '@/features/modes/utils/planTaskOps';
 import { haptic } from '@/shared/utils/haptics';
 import { swallow } from '@/shared/utils/swallow';
 

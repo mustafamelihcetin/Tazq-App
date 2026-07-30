@@ -174,9 +174,9 @@ describe('iki dillilik (TR/EN)', () => {
     'features/modes/components/modes/RamazanCard.tsx',
     'features/modes/components/TurkishModeBanner.tsx',
     'shared/components/BottomNavBar.tsx',
-    'shared/components/WeightEntryModal.tsx',
-    'shared/components/TasarrufCard.tsx',
-    'shared/components/BirakmaCard.tsx',
+    'features/modes/components/WeightEntryModal.tsx',
+    'features/modes/components/modes/TasarrufCard.tsx',
+    'features/modes/components/modes/BirakmaCard.tsx',
   ];
 
   it('erişilebilirlik etiketleri iki dilli yazılır', () => {
@@ -485,7 +485,7 @@ describe('ilerleme halkası — renk tek şey söyler', () => {
  */
 describe('alışkanlık etiketi kompakt gösterimde kırpılır', () => {
   it('baloncuk ham başlığı değil kompakt etiketi çizer', () => {
-    const src = read('shared/components/HabitBubble.tsx');
+    const src = read('features/habits/components/HabitBubble.tsx');
     expect(src).toContain('{compactHabitLabel(item.title)}');
     // Yorumlar hariç — gerekçede eski koddan SÖZ etmek serbest.
     expect(stripComments(src)).not.toContain('{item.title}');
@@ -501,7 +501,7 @@ describe('alışkanlık etiketi kompakt gösterimde kırpılır', () => {
  * bir arada taşıyordu.
  */
 describe('momentum bloğu sisteme ait', () => {
-  const src = read('shared/components/MomentumPulse.tsx');
+  const src = read('features/user/components/MomentumPulse.tsx');
   const code = stripComments(src);
 
   it('bir kart içinde', () => {

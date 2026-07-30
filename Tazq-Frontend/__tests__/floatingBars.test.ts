@@ -222,7 +222,7 @@ describe('baslik cubugu ogeleri', () => {
     // scale(34) tablette 42.5'e cikiyordu; 44pt cubukta kabul edilemez.
     expect(src).not.toMatch(/scale\(34\)/);
     expect(src).toContain('TOP_ITEM_SIZE');
-    const hub = fs.readFileSync(path.join(ROOT, 'shared/components/StatusHub.tsx'), 'utf8');
+    const hub = fs.readFileSync(path.join(ROOT, 'features/dashboard/components/StatusHub.tsx'), 'utf8');
     expect(hub).toContain('const HUB = TOP_ITEM_SIZE;');
   });
 });

@@ -73,7 +73,7 @@ describe('havuz ucu — istemci ve sunucu ayni faz kumesini konusmali', () => {
   });
 
   it('istemcinin urettigi TUM faz degerleri sunucunun kumesinde', () => {
-    const fe = read('shared/utils/dailyPlanEngine.ts');
+    const fe = read('features/modes/utils/dailyPlanEngine.ts');
     const be = read('../Tazq-Backend/Services/GroqService.cs');
     const allowed = be.match(/AllowedPhases = new\(\)\s*\{([\s\S]*?)\};/)?.[1] ?? '';
     // Sinav/tez fazlari
@@ -151,7 +151,7 @@ describe('klavye güvenliği — metin girişi olan alt sayfalar', () => {
    */
   const FILES = [
     'app/cockpit.tsx',
-    'shared/components/WeightEntryModal.tsx',
+    'features/modes/components/WeightEntryModal.tsx',
     'features/user/components/ReviewPromptModal.tsx',
   ];
 
@@ -188,8 +188,8 @@ describe('mod kapatma — artık görev bırakmaz', () => {
     'features/modes/components/modes/MulakatCard.tsx',
     'features/modes/components/modes/SporCard.tsx',
     'features/modes/components/modes/RamazanCard.tsx',
-    'shared/components/TasarrufCard.tsx',
-    'shared/components/BirakmaCard.tsx',
+    'features/modes/components/modes/TasarrufCard.tsx',
+    'features/modes/components/modes/BirakmaCard.tsx',
   ];
 
   it.each(CLOSERS)('%s kapanırken etiket tabanlı süpürme yapar', (f) => {
@@ -197,17 +197,17 @@ describe('mod kapatma — artık görev bırakmaz', () => {
   });
 
   it('etiket tablosu TEK kaynakta — ikinci kopya yok', () => {
-    const ops = read('shared/utils/planTaskOps.ts');
+    const ops = read('features/modes/utils/planTaskOps.ts');
     expect(ops).toContain('export const MODE_TASK_TAGS');
     // usePlanAdaptations kendi kopyasini tutmamali, paylasilani ithal etmeli.
     const hook = read('features/modes/hooks/usePlanAdaptations.ts');
     expect(hook).not.toMatch(/const MODE_TASK_TAGS: Record<string, string\[\]> = \{/);
-    expect(hook).toMatch(/MODE_TASK_TAGS.*from '@\/shared\/utils\/planTaskOps'/);
+    expect(hook).toMatch(/MODE_TASK_TAGS.*from '@\/features\/modes\/utils\/planTaskOps'/);
   });
 
   it('süpürme TAMAMLANMIŞ görevleri de kaldırır', () => {
     // Bildirilen gorev "yapildi" durumundaydi; `!isCompleted` filtresi olmamali.
-    const ops = read('shared/utils/planTaskOps.ts');
+    const ops = read('features/modes/utils/planTaskOps.ts');
     const fn = ops.match(/export function retireModeTasksByTag[\s\S]*?\n\}/)?.[0] ?? '';
     expect(fn).not.toMatch(/isCompleted/);
     // Istatistik kaybolmasin: retirePlanTask tamamlanani once journal'a isler.
@@ -215,7 +215,7 @@ describe('mod kapatma — artık görev bırakmaz', () => {
   });
 
   it('kilo geçmişi süpürmeden MUAF kalır', () => {
-    const ops = read('shared/utils/planTaskOps.ts');
+    const ops = read('features/modes/utils/planTaskOps.ts');
     const table = ops.match(/export const MODE_TASK_TAGS[\s\S]*?\n\};/)?.[0] ?? '';
     expect(table).not.toContain('weight_entry');
   });

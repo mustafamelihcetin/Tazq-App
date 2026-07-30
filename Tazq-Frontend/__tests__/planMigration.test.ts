@@ -17,7 +17,7 @@ jest.mock('@/features/modes/store/usePrefsStore', () => ({
   usePrefsStore: { getState: () => ({ ...mockPrefsState, setPlanIds: mockSetPlanIds }) },
 }));
 
-import { runPlanMigrationOnce } from '@/shared/utils/planMigration';
+import { runPlanMigrationOnce } from '@/features/modes/utils/planMigration';
 
 const iso = (daysFromNow: number) => {
   const d = new Date();

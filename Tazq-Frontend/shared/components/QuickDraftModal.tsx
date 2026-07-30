@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, Animated, TextInput, StyleSheet, ActivityIndicator, Platform, Keyboard } from 'react-native';
 import { Zap } from 'lucide-react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
+import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { Touchable } from '@/shared/components/Touchable';
 import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
@@ -27,27 +28,12 @@ export const QuickDraftModal: React.FC<QuickDraftModalProps> = ({
 }) => {
   const [draftTitle, setDraftTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // Aynı dinleyici üç dosyada kopyalanmıştı; ortak hook'a taşındı (bkz. useKeyboardHeight).
+  const keyboardHeight = useKeyboardHeight();
 
   const { panResponder, animatedStyle, prepare, slideIn } = useSwipeToDismiss({
     onDismiss: onClose,
   });
-
-  // Track keyboard state
-  useEffect(() => {
-    const show = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
 
   // Prepare position and reset title when modal is opened
   useEffect(() => {

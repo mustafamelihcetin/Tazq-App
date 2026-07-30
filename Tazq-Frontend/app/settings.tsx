@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, TouchableWithoutFeedback } from 'react-native';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
@@ -26,7 +27,7 @@ import { ICON, S, R, F, B, W, MAX_W, MIN_TOUCH, trackingFor , topBarSpace} from 
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
-import { useSporStore } from '@/shared/store/useSporStore';
+import { useSporStore } from '@/features/modes/store/useSporStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
@@ -97,7 +98,8 @@ export default function SettingsScreen() {
   const [supportModalVisible, setSupportModalVisible] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [calendarSync, setCalendarSync] = useState(false);
-  const [kbHeight, setKbHeight] = useState(0);
+  // Ortak hook (bkz. useKeyboardHeight).
+  const kbHeight = useKeyboardHeight();
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -110,12 +112,7 @@ export default function SettingsScreen() {
   const [pwError, setPwError] = useState<string | null>(null);
 
   useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvent, (e) => setKbHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener(hideEvent, () => setKbHeight(0));
     checkStreakFreezeReset();
-    return () => { show.remove(); hide.remove(); };
   }, []);
 
   const DELETE_WORD = language === 'tr' ? 'SİL' : 'DELETE';

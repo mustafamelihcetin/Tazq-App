@@ -196,7 +196,7 @@ describe('ölçek disiplini', () => {
     const FONT_EXEMPT = new Set([
       'app/onboarding.tsx',          // sinematik intro: `isSmallDevice ? A : B` elle adaptif
       'shared/components/TourFeaturePreview.tsx', // tur önizleme mock'u — küçültülmüş temsil
-      'shared/components/MomentumPulse.tsx',      // yoğun mini görselleştirme
+      'features/user/components/MomentumPulse.tsx',      // yoğun mini görselleştirme
     ]);
     const rx = /fontSize:\s*(\d+)(?![.\d])/g;
     const hits: string[] = [];

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
-import { HabitBubble } from '@/shared/components/HabitBubble';
+import { HabitBubble } from '@/features/habits/components/HabitBubble';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, S, R, W, ICON, B, MIN_TOUCH } from '@/shared/constants/tokens';

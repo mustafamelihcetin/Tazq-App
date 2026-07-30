@@ -1,4 +1,4 @@
-import { getAllDailyPlanPairs } from './dailyPlanEngine';
+import { getAllDailyPlanPairs } from '@/features/modes/utils/dailyPlanEngine';
 import { getAllKnownModePairs } from '@/features/modes/utils/turkishModes';
 import { getAllLifeModePairs } from './lifeModePlans';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';

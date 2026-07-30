@@ -1,7 +1,7 @@
 import { AiService } from '@/shared/services/api';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
-import { usePlanPoolStore, poolKey, type PoolVariant } from '@/shared/store/usePlanPoolStore';
-import { planPoolKeyFor, type DailyPlanSpec } from '@/shared/utils/dailyPlanEngine';
+import { usePlanPoolStore, poolKey, type PoolVariant } from '@/features/modes/store/usePlanPoolStore';
+import { planPoolKeyFor, type DailyPlanSpec } from '@/features/modes/utils/dailyPlanEngine';
 import { swallow } from '@/shared/utils/swallow';
 
 /**

@@ -5,8 +5,21 @@ import { WifiOff } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { F, S, ICON, R } from '@/shared/constants/tokens';
+import { F, S, ICON, R, topBarSpace } from '@/shared/constants/tokens';
 
+/**
+ * BAĞLANTI YOK GÖSTERGESİ — küresel durum, tekil işlem bildirimi DEĞİL.
+ *
+ * NEDEN AYRI BİR ŞEY: uygulama çevrimdışı işlemleri kuyruğa alıyor ve bazı yerlerde
+ * "Çevrimdışı kaydedildi" diyor. Ama bazı yollar (ör. modlar.tsx'te görev silme)
+ * SESSİZCE kuyruğa alıyor. Kullanıcı hiçbir şey görmediği için "kaydedildi mi?" diye
+ * duraksıyor ya da daha kötüsü, senkronun bozuk olduğunu sanıyor.
+ *
+ * Tekil bildirim "bu işlem ne oldu" der; bu bant "sistem şu an hangi durumda" der.
+ * İkisi birbirinin yerine geçmez — bant, kullanıcı bir şey YAPMADAN önce bilgilendirir.
+ *
+ * `pointerEvents="none"`: hiçbir dokunuşu yutmaz, yalnız haber verir.
+ */
 export const OfflineBanner = () => {
   const { isOnline } = useNetworkStore();
   const { language } = useLanguageStore();
@@ -21,7 +34,12 @@ export const OfflineBanner = () => {
           animate={{ translateY: 0, opacity: 1 }}
           exit={{ translateY: -16, opacity: 0 }}
           transition={{ type: 'spring', damping: 18 }}
-          style={[styles.wrapper, { top: insets.top + 8 }]}
+          /*
+            BAŞLIK ÇUBUĞUNUN ALTINDA. `insets.top + 8` idi — o, 44pt'lik başlık
+            çubuğunun tam üstüne denk geliyor ve avatarı/başlığı örtüyordu.
+            `topBarSpace` çubuğun gerçek yüksekliğinden türer, elle yazılmaz.
+          */
+          style={[styles.wrapper, { top: topBarSpace(insets.top) + S.sm }]}
         >
           <View style={styles.banner}>
             <WifiOff size={ICON.sm} color="#fff" />

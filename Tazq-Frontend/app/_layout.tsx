@@ -72,6 +72,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { AnimatedSplash } from '@/shared/components/AnimatedSplash';
 import { Toast } from '@/shared/components/Toast';
 import { CelebrationOverlay } from '@/shared/components/CelebrationOverlay';
+import { OfflineBanner } from '@/shared/components/OfflineBanner';
 import { ConfettiOverlay } from '@/shared/components/ConfettiOverlay';
 import { CustomAlertModal } from '@/shared/components/CustomAlert';
 import { RocketFeedback } from '@/shared/components/RocketFeedback';
@@ -556,6 +557,14 @@ export default function RootLayout() {
 
         <FocusIsland />
         <Toast />
+        {/*
+          Bağlantı kesildi bandı — KÜRESEL, her ekranın üstünde. Bileşen yazılmış ama
+          hiçbir yere bağlanmamıştı: uygulama çevrimdışı işlemleri kuyruğa alıyor,
+          bazı yollar sessizce alıyor, kullanıcı ise neden senkron olmadığını
+          bilmiyordu. Tek yerde durması gerekiyor — her ekrana ayrı koymak
+          kaçınılmaz olarak birinde unutulur.
+        */}
+        <OfflineBanner />
         <CelebrationOverlay />
         <ConfettiOverlay />
         <RocketFeedback />

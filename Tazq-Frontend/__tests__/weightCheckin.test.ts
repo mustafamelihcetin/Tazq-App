@@ -25,9 +25,9 @@ import {
   weightTaskAction,
   recordWeeklyWeight,
   completeTaskOfflineFirst,
-} from '@/shared/utils/weightCheckin';
+} from '@/features/modes/utils/weightCheckin';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
-import { useSporStore } from '@/shared/store/useSporStore';
+import { useSporStore } from '@/features/modes/store/useSporStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 

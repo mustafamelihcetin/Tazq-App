@@ -27,9 +27,9 @@ import {
   BarChart3,
   ChevronRight,
 } from 'lucide-react-native';
-import { MomentumPulse } from '@/shared/components/MomentumPulse';
-import { HabitBubble } from '@/shared/components/HabitBubble';
-import { MyDayTaskRow } from '@/shared/components/MyDayTaskRow';
+import { MomentumPulse } from '@/features/user/components/MomentumPulse';
+import { HabitBubble } from '@/features/habits/components/HabitBubble';
+import { MyDayTaskRow } from '@/features/dashboard/components/MyDayTaskRow';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { S, ICON, R } from '@/shared/constants/tokens';
 import { AppIcon } from '@/shared/components/AppIcon';

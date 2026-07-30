@@ -12,6 +12,7 @@ import {
 } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Pager } from '@/shared/components/Pager';
+import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAuthStore } from '@/features/user';
 import { AdminService, AdminUser, AdminStats, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult } from '@/shared/services/api';
@@ -59,6 +60,13 @@ export default function AdminScreen() {
   const { language } = useLanguageStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  /*
+    Yanıt kutusu uzun bir listenin DERİNİNDE duruyor; klavye açılınca altında kalıyordu.
+    Dip dolgusuna klavye yüksekliği eklenince kutu görünür alana çıkıyor.
+    Not: `KeyboardAvoidingView` burada çözüm değil — ekranın tamamını iterek üstteki
+    sekme çubuğunu da kaydırırdı; sorun yalnız kaydırma alanının dibinde.
+  */
+  const keyboardHeight = useKeyboardHeight();
   const isDark = colorScheme === 'dark';
   const tr = language === 'tr';
   const myId = useAuthStore(s => s.user?.id);
@@ -493,9 +501,16 @@ export default function AdminScreen() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: S.md, paddingBottom: insets.bottom + S.xl, gap: S.md, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingHorizontal: S.md, paddingBottom: insets.bottom + S.xl + keyboardHeight, gap: S.md, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); loadUsers(true); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}
           showsVerticalScrollIndicator={false}
+          /*
+            KLAVYE AÇIKKEN DE DOKUNULABİLSİN.
+            Varsayılan davranış ("never") klavye açıkken ilk dokunuşu KLAVYEYİ KAPATMAK
+            için yutar; kullanıcı "Gönder"e basar, bir şey olmaz, tekrar basar. Destek
+            yanıt kutusu tam da bunu yaşatıyordu.
+          */
+          keyboardShouldPersistTaps="handled"
         >
           {/* Tab Switcher (4 sekme) */}
           <View style={{ flexDirection: 'row', backgroundColor: cardBg, borderRadius: R.full, padding: S.xs, borderWidth: B.thin, borderColor: cardBorder }}>

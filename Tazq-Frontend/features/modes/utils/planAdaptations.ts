@@ -9,7 +9,7 @@
  */
 
 import { CreateTaskPayload } from '@/shared/services/api';
-import { WeightEntry } from '@/shared/store/useSporStore';
+import { WeightEntry } from '@/features/modes/store/useSporStore';
 
 export type Language = 'tr' | 'en';
 

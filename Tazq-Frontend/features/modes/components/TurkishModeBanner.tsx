@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet,
+  View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, Platform,
   ActivityIndicator, Animated, useWindowDimensions, Alert, TextInput
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MotiView } from 'moti';
 import { X, ChevronRight, Check, Zap, ArrowLeft, Flame, Target, RefreshCw, Trash2, TrendingUp, CheckCircle2, Circle, Star, Shield, Lightbulb, Pencil, Sparkles } from 'lucide-react-native';
+import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -223,6 +224,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
     }
   }, [sheetVisible]);
 
+  const keyboardHeight = useKeyboardHeight();
   const { panResponder, animatedStyle, prepare: prepareSheet, slideIn } = useSwipeToDismiss({
     onDismiss: () => setSheetVisible(false),
   });
@@ -1283,7 +1285,23 @@ export const TurkishModeBanner: React.FC<Props> = ({
             style={[
               animatedStyle,
               styles.sheet,
-              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant, maxHeight: sheetMaxHeight(screenHeight, insets.top), paddingBottom: Math.max(insets.bottom, S.lg) + S.md },
+              {
+                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                borderColor: theme.outlineVariant,
+                maxHeight: sheetMaxHeight(screenHeight, insets.top),
+                paddingBottom: Math.max(insets.bottom, S.lg) + S.md,
+                /*
+                  KLAVYE PAYI. Bu sayfa alta yapisik (`justifyContent: 'flex-end'`) ve
+                  icinde dort metin girisi var (plan anlatimi, hedef, tarih, kilo).
+                  iOS'ta klavye acilinca sayfa OLDUGU YERDE kaliyordu; kullanici
+                  yazdigini goremiyordu.
+
+                  Android'de deger UYGULANMIYOR cunku uygulama
+                  `softwareKeyboardLayoutMode: "resize"` ile calisiyor (bkz. app.json):
+                  pencere zaten kuculuyor, ikinci kez itmek sayfayi ekrandan tasirirdi.
+                */
+                marginBottom: Platform.OS === 'ios' ? keyboardHeight : 0,
+              },
             ]}
           >
             <View {...panResponder.panHandlers} style={styles.dragHandle}>

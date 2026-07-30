@@ -1,4 +1,4 @@
-import { compactHabitLabel } from '@/shared/components/HabitBubble';
+import { compactHabitLabel } from '@/features/habits/components/HabitBubble';
 
 /**
  * BALONCUK ETİKETİ — 78pt'lik yuvaya adın ADI sığar, açıklaması sığmaz.

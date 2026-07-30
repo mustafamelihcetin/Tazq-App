@@ -14,7 +14,7 @@ import { useTaskStore } from '@/features/tasks';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
-import { retirePlanTask , retireModeTasksByTag} from '@/shared/utils/planTaskOps';
+import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
 import { RAMAZAN_HABIT_NAMES } from '../../utils/turkishModes';
 import { scheduleRamadanStartNotification, cancelRamadanStartNotification } from '@/shared/utils/notifications';
@@ -24,7 +24,7 @@ import { AppIcon } from '@/shared/components/AppIcon';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
 import { haptic } from '@/shared/utils/haptics';
-import { closeModeWithUndo } from '@/shared/utils/modeUndo';
+import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 
 export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   const { theme, isDark } = useAppTheme();

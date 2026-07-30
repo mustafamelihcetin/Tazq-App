@@ -11,7 +11,7 @@
  */
 
 import { CreateTaskPayload } from '@/shared/services/api';
-import { getPhase, StudyPhase, matchExamName } from './examPresets';
+import { getPhase, StudyPhase, matchExamName } from '@/shared/utils/examPresets';
 
 export type Language = 'tr' | 'en';
 

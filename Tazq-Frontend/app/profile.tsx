@@ -25,7 +25,7 @@ import { ICON, S, R, F, B, MAX_W , sheetMaxHeight} from '@/shared/constants/toke
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
-import { useSporStore } from '@/shared/store/useSporStore';
+import { useSporStore } from '@/features/modes/store/useSporStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';

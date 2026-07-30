@@ -17,8 +17,8 @@ import {
   buildTezAdaptationTasks,
   buildMulakatAdaptationTasks,
   buildMaratonAdaptationTasks,
-} from '@/shared/utils/planAdaptations';
-import { buildDailyTasks } from '@/shared/utils/dailyPlanEngine';
+} from '@/features/modes/utils/planAdaptations';
+import { buildDailyTasks } from '@/features/modes/utils/dailyPlanEngine';
 
 const ymd = (offsetDays: number) => {
   const d = new Date();

@@ -27,10 +27,10 @@ import {
 } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
-import { useSporStore, getThisWeekEntry } from '@/shared/store/useSporStore';
+import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporStore';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { HelpTourModal } from '@/shared/components/HelpTourModal';
-import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/shared/utils/weightCheckin';
+import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/features/modes/utils/weightCheckin';
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
 import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '@/shared/utils/examPresets';
 
@@ -44,8 +44,8 @@ function levelTemplateIdFromMinutes(min?: number): string {
   return 'level-ileri';                 // 2+ saat
 }
 import { TurkishModeBanner } from '@/features/modes';
-import { TasarrufCard } from '@/shared/components/TasarrufCard';
-import { BirakmaCard } from '@/shared/components/BirakmaCard';
+import { TasarrufCard } from '@/features/modes/components/modes/TasarrufCard';
+import { BirakmaCard } from '@/features/modes/components/modes/BirakmaCard';
 import { TezCard } from '@/features/modes/components/modes/TezCard';
 import { MulakatCard } from '@/features/modes/components/modes/MulakatCard';
 import { RamazanCard } from '@/features/modes/components/modes/RamazanCard';
@@ -55,7 +55,7 @@ import { TaskService } from '@/shared/services/api';
 import { usePlanAdaptations } from '@/features/modes';
 import { Touchable } from '@/shared/components/Touchable';
 import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText } from '@/shared/constants/Colors';
-import { retireModeTasksByTag } from '@/shared/utils/planTaskOps';
+import { retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
 import { haptic } from '@/shared/utils/haptics';
 
 const MarsIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (

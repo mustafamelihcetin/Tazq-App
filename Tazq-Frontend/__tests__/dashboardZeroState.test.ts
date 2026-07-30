@@ -60,7 +60,7 @@ describe('kırmızı yalnız gerçekten bozulan şeyler için', () => {
   });
 
   it('görev satırındaki "Süresi geçti" de uyarı tonunda', () => {
-    const src = read('shared/components/MyDayTaskRow.tsx');
+    const src = read('features/dashboard/components/MyDayTaskRow.tsx');
     expect(src).toContain('isOverdue ? theme.warning');
   });
 
@@ -68,7 +68,7 @@ describe('kırmızı yalnız gerçekten bozulan şeyler için', () => {
     // `opacity: 0.5` palet rengini kullanım yerinde kısıyordu; ölçülmüş kontrastı
     // geçersiz kılar (bkz. colorContrast.test.ts).
     // Yorumlar sayılmaz — eski değerden SÖZ etmek serbest, yazmak değil.
-    const code = read('shared/components/MyDayTaskRow.tsx')
+    const code = read('features/dashboard/components/MyDayTaskRow.tsx')
       .split('\n')
       .filter((l) => !l.trim().startsWith('//'))
       .join('\n');
@@ -91,7 +91,7 @@ describe('kırmızı yalnız gerçekten bozulan şeyler için', () => {
  * Halbuki söylenmesi gereken "grafik henüz dolmadı"ydı.
  */
 describe('momentum — gizlenmez, doğru cümleyi kurar', () => {
-  const src = read('shared/components/MomentumPulse.tsx');
+  const src = read('features/user/components/MomentumPulse.tsx');
 
   it('veri yetersiz diye blok kaldırılmaz', () => {
     expect(src).not.toContain('if (daysWithData < 3) return null;');
@@ -214,6 +214,6 @@ describe('alışkanlık baloncuğu — etiket sığmalı', () => {
   });
 
   it('etiket iki satır — tek satırda adların neredeyse hepsi kesiliyordu', () => {
-    expect(read('shared/components/HabitBubble.tsx')).toContain('numberOfLines={2}');
+    expect(read('features/habits/components/HabitBubble.tsx')).toContain('numberOfLines={2}');
   });
 });

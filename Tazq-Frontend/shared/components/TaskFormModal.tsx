@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platfor
 import { Calendar, Target, Bell, X, Sparkles, Mic, Timer, Repeat, Trash2, Plus, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
+import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { Touchable } from '@/shared/components/Touchable';
 import VoiceService from '@/shared/utils/voice';
 import { parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS } from '@/features/tasks';
@@ -124,27 +125,13 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   const [pickerDate, setPickerDate] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, day: new Date().getDate() });
   const [pickerTime, setPickerTime] = useState({ hour: 9, minute: 0 });
   const [newSubtaskText, setNewSubtaskText] = useState('');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // Ortak hook (bkz. useKeyboardHeight) — dinleyici uc dosyada kopyalanmisti.
+  const keyboardHeight = useKeyboardHeight();
 
   const { panResponder, animatedStyle: taskSlide, prepare: prepareTask, slideIn: taskSlideIn } = useSwipeToDismiss({
     onDismiss: () => !saving && onClose(),
   });
 
-  // Track keyboard height
-  useEffect(() => {
-    const show = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => setKeyboardHeight(e.endCoordinates.height)
-    );
-    const hide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
-    );
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
 
   // Stop voice recognition when modal is hidden
   useEffect(() => {

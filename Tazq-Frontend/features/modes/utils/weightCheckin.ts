@@ -10,7 +10,7 @@
  * Bu yardımcı; inline kart girişi (modlar), görev-tıklama (tasks) ve plan kurulumu
  * tarafından ortak kullanılır → davranış her yerde tutarlı.
  */
-import { useSporStore, getLocalDateString } from '@/shared/store/useSporStore';
+import { useSporStore, getLocalDateString } from '@/features/modes/store/useSporStore';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';

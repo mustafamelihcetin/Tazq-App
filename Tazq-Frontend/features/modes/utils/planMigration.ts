@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { TaskService } from '@/shared/services/api';
-import { swallow } from './swallow';
+import { swallow } from '@/shared/utils/swallow';
 
 const MIGRATION_KEY = 'plan_migration_v2_done';
 

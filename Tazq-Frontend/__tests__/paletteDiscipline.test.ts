@@ -76,10 +76,10 @@ const CEILING: Record<string, number> = {
   'shared/components/TourFeaturePreview.tsx': 12,
   'app/tasks.tsx': 10,
   // 10 → 7: trend/nokta/değerlendirme yeşilleri theme.success'e bağlandı (tema-kör #10B981'di)
-  'shared/components/StatusHubModal.tsx': 7,
+  'features/dashboard/components/StatusHubModal.tsx': 7,
   // 8 → 1: kilo artış/azalış + kaydet butonu + aktivite aksanı semantik theme.success/error'a
   // bağlandı (buton bg'de beyaz-üstü kontrast da düzeldi — #10B981 2.5:1'di)
-  'shared/components/WeightEntryModal.tsx': 1,
+  'features/modes/components/WeightEntryModal.tsx': 1,
   'app/report.tsx': 7,
   'features/modes/utils/modeHelpers.ts': 7,
   'shared/components/QuickDraftModal.tsx': 7,
@@ -93,10 +93,10 @@ const CEILING: Record<string, number> = {
   'app/register.tsx': 4,
   'features/focus/components/DynamicIsland.tsx': 4,
   'shared/components/ErrorBoundary.tsx': 4,
-  'shared/components/HabitBubble.tsx': 4,
-  'shared/components/BirakmaCard.tsx': 3,
-  'shared/components/SwipeableHabitItem.tsx': 3,
-  'shared/components/TasarrufCard.tsx': 3,
+  'features/habits/components/HabitBubble.tsx': 4,
+  'features/modes/components/modes/BirakmaCard.tsx': 3,
+  'features/habits/components/SwipeableHabitItem.tsx': 3,
+  'features/modes/components/modes/TasarrufCard.tsx': 3,
   'shared/components/Toast.tsx': 3,
   'features/user/components/ReviewPromptModal.tsx': 2,
   // AnimatedSplash LİSTEDEN ÇIKTI (2 → 0): splash zemini elle yazılıydı
@@ -110,7 +110,7 @@ const CEILING: Record<string, number> = {
   'features/focus/components/FocusIsland.tsx': 1,
   'features/habits/store/useHabitStore.ts': 1,
   'shared/components/GlassCard.tsx': 1,
-  'shared/components/MomentumPulse.tsx': 1,
+  'features/user/components/MomentumPulse.tsx': 1,
   // MyDayTaskRow: temizlendi. Tek sabit rengi #10B981 idi ve iki temada da aynıydı —
   // yani koyu temada yanlıştı. theme.success'e bağlandı (açık #047857 / koyu #34D399).
   'shared/components/PeekMenu.tsx': 1,

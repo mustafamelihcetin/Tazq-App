@@ -24,7 +24,7 @@ import { FocusService } from '@/shared/services/api';
 import { ICON, S, R, F, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight} from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
-import { SwipeableHabitItem } from '@/shared/components/SwipeableHabitItem';
+import { SwipeableHabitItem } from '@/features/habits/components/SwipeableHabitItem';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
