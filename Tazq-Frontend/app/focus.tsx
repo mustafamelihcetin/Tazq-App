@@ -650,7 +650,10 @@ export default function FocusScreen() {
       ocean:     require('../assets/sounds/ocean.mp3'),
       fireplace: require('../assets/sounds/fireplace.mp3'),
       relaxing:  require('../assets/sounds/relaxing.mp3'),
-      binaural:  require('../assets/sounds/binaural.wav'),
+      // WAV -> MP3: 30 saniyelik sikistirilmamis PCM 5.3 MB tutuyordu, mp3 470 KB.
+      // 128 kbps ve joint-stereo KAPALI kodlandi — binaural etki iki kulak arasindaki
+      // frekans farkina dayanir, kanallari birlestiren kodlama etkiyi yok ederdi.
+      binaural:  require('../assets/sounds/binaural.mp3'),
     };
     return sources[type];
   };

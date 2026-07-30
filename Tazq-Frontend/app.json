@@ -33,7 +33,9 @@
             "compileSdkVersion": 36,
             "targetSdkVersion": 35,
             "minSdkVersion": 26,
-            "buildToolsVersion": "36.0.0"
+            "buildToolsVersion": "36.0.0",
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
           }
         }
       ],
@@ -79,7 +81,9 @@
         "NSPhotoLibraryUsageDescription": "TAZQ needs access to your photo library if you want to attach images to your tasks.",
         "NSCameraUsageDescription": "TAZQ needs access to your camera if you want to take photos for your tasks.",
         "NSHealthShareUsageDescription": "TAZQ reads your sleep data from Health to help you track your sleep habit.",
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -89,7 +93,9 @@
         "backgroundColor": "#0B0E1C"
       },
       "package": "com.tazqapp.tazq",
-      "permissions": ["android.permission.health.READ_SLEEP"],
+      "permissions": [
+        "android.permission.health.READ_SLEEP"
+      ],
       "backgroundColor": "#000000",
       "softwareKeyboardLayoutMode": "resize",
       "navigationBar": {

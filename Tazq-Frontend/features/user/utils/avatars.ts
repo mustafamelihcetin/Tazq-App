@@ -1,16 +1,26 @@
+/**
+ * Avatar gorselleri — 384px JPEG.
+ *
+ * Eskiden 1024x1024 PNG'ydi ve 12 dosya toplam 9.5 MB tutuyordu. Ekrandaki EN BUYUK
+ * gosterim profil sayfasinda 110pt; 3x yogunluklu bir ekranda 330px eder. Yani
+ * kullanicinin hicbir zaman gormedigi 7 kat fazla piksel tasiniyordu.
+ *
+ * JPEG cunku bu gorsellerde alfa kanali yok ve dairesel kirpma zaten kapsayicida
+ * yapiliyor; PNG fotografik icerikte kotu sikisir. Sonuc: 9.5 MB -> 0.25 MB.
+ */
 export const AVATAR_MAP: Record<string, any> = {
-  m1: require('../../../assets/avatars/m1.png'),
-  m2: require('../../../assets/avatars/m2.png'),
-  m3: require('../../../assets/avatars/m3.png'),
-  m4: require('../../../assets/avatars/m4.png'),
-  m5: require('../../../assets/avatars/m5.png'),
-  m6: require('../../../assets/avatars/m6.png'),
-  f1: require('../../../assets/avatars/f1.png'),
-  f2: require('../../../assets/avatars/f2.png'),
-  f3: require('../../../assets/avatars/f3.png'),
-  f4: require('../../../assets/avatars/f4.png'),
-  f5: require('../../../assets/avatars/f5.png'),
-  f6: require('../../../assets/avatars/f6.png'),
+  m1: require('../../../assets/avatars/m1.jpg'),
+  m2: require('../../../assets/avatars/m2.jpg'),
+  m3: require('../../../assets/avatars/m3.jpg'),
+  m4: require('../../../assets/avatars/m4.jpg'),
+  m5: require('../../../assets/avatars/m5.jpg'),
+  m6: require('../../../assets/avatars/m6.jpg'),
+  f1: require('../../../assets/avatars/f1.jpg'),
+  f2: require('../../../assets/avatars/f2.jpg'),
+  f3: require('../../../assets/avatars/f3.jpg'),
+  f4: require('../../../assets/avatars/f4.jpg'),
+  f5: require('../../../assets/avatars/f5.jpg'),
+  f6: require('../../../assets/avatars/f6.jpg'),
 };
 
 export const AVATAR_CONFIGS = [
