@@ -692,7 +692,7 @@ export default function FocusScreen() {
         soundRef.current = player;
       }
     } catch (e) {
-      console.warn('Ambient sound error:', e);
+      swallow('focus.ambientSound', e);
     }
   };
 
@@ -916,7 +916,7 @@ export default function FocusScreen() {
         } catch (e) { swallow('focus.doneChimeRelease', e); }
       }, 8000);
     } catch (e) {
-      console.warn('[Focus Chime Play Error]', e);
+      swallow('focus.chimePlay', e);
     }
   };
 

@@ -612,16 +612,6 @@ export const ContentService = {
 };
 
 export const AiService = {
-  parseTasks: async (text: string) => {
-    const response = await api.post('/api/ai/parse-tasks', { text });
-    return response.data as Array<{
-      title: string;
-      description: string;
-      priority: 'Low' | 'Medium' | 'High';
-      dueDate?: string;
-      tags: string[];
-    }>;
-  },
 
   /**
    * Bir plan fazı için çeşitli günlük görev varyantları (TR+EN).

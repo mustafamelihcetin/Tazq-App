@@ -100,7 +100,6 @@
       "app/**/*.{ts,tsx}",
       "features/**/*.{ts,tsx}",
       "shared/**/*.{ts,tsx}",
-      "modules/**/*.{ts,tsx}",
       "!**/*.d.ts",
       "!**/__tests__/**",
       "!**/__mocks__/**",

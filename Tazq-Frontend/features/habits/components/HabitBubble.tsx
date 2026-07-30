@@ -4,7 +4,7 @@ import { Coffee, Flame, CheckCircle2 } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '@/features/modes';
 import type { AppTheme } from '@/shared/constants/Colors';
-import { S, ICON, R } from '@/shared/constants/tokens';
+import { F, S, ICON, R } from '@/shared/constants/tokens';
 
 /**
  * Etiket satır yüksekliği. 9.5pt yazının doğal satır aralığından biraz açık: iki satır
@@ -116,7 +116,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
             borderColor: isDark ? '#1C1C1E' : '#FFFFFF',
           }}>
             <Flame size={ICON.xs} color="#FFFFFF" fill="#FFFFFF" />
-            <Text style={{ fontSize: 7.5, fontWeight: '700', color: '#FFFFFF', marginLeft: S.xxs }}>{streakVal}</Text>
+            <Text style={{ fontSize: F.caption, fontWeight: '700', color: '#FFFFFF', marginLeft: S.xxs }}>{streakVal}</Text>
           </View>
         )}
 
@@ -156,7 +156,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
       */}
       <Text
         style={{
-          fontSize: 9.5,
+          fontSize: F.caption,
           lineHeight: LABEL_LINE,
           height: LABEL_LINE * 2,
           fontWeight: '700',

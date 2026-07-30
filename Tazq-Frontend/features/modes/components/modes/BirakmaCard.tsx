@@ -228,7 +228,7 @@ export function BirakmaCard() {
                 </View>
                 <View style={{ alignItems: 'center', minWidth: 44 }}>
                   <Text style={{ color: C, fontWeight: '700', fontSize: 26, lineHeight: 28, letterSpacing: -0.5 }}>{days}</Text>
-                  <Text style={{ color: C, fontSize: 9, fontWeight: '700', opacity: 0.8, letterSpacing: 0.5 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
+                  <Text style={{ color: C, fontSize: F.caption, fontWeight: '700', opacity: 0.8, letterSpacing: 0.5 }}>{tr ? 'GÜN' : 'DAYS'}</Text>
                 </View>
                 <View style={{ gap: S.sm, marginLeft: S.xs }}>
                   <Touchable onPress={() => onRelapse(it.id, it.name)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={{ color: theme.onSurfaceVariant, fontSize: F.callout }}>↺</Text></Touchable>

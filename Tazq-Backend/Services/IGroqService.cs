@@ -2,7 +2,6 @@ namespace Tazq_App.Services
 {
     public interface IGroqService
     {
-        Task<List<ParsedTask>> ParseTasksFromTextAsync(string userText);
 
         /// <summary>
         /// Bir plan fazı için ÇEŞİTLİ günlük görev varyantları üretir (TR + EN).

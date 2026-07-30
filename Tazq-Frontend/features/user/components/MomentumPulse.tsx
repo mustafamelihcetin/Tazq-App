@@ -152,7 +152,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             kısılıyordu; iki ayrı hata: (a) rengi kullanım yerinde kısmak ölçülen
             kontrastı geçersiz kılar (bkz. colorContrast.test.ts), (b) hem sayı hem
             etiket renkliyken renk "durum" demeyi bırakır, dekora döner. Renk TEK yerde
-            konuşsun: sayıda. `fontSize: 9` da ölçek dışıydı — F.caption ölçekten gelir.
+            konuşsun: sayıda. `fontSize: F.caption` da ölçek dışıydı — F.caption ölçekten gelir.
           */}
           <Text style={{ fontSize: F.caption, fontWeight: '700', letterSpacing: 1.2, color: theme.onSurfaceMuted }}>
             MOMENTUM

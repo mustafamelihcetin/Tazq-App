@@ -276,7 +276,7 @@ export const useFocusStore = create<FocusState>()(
           const { useMomentumStore } = require('../../user/store/useMomentumStore');
           useMomentumStore.getState().addFocusMinutes(mins);
         } catch (e) {
-          console.warn("Could not register focus minutes in Momentum Store:", e);
+          swallow('focusStore.registerMinutes', e);
         }
       },
 

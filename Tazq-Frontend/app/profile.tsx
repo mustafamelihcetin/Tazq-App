@@ -135,7 +135,7 @@ export default function ProfileScreen() {
       updateBestStreak(active);
     }).catch((e) => {
         if (e.response?.status !== 401) {
-          console.warn('getStats error:', e.message);
+          swallow('profile.getStats', e);
           setStatsError(true);
         }
     }).finally(() => setStatsLoading(false));
@@ -697,7 +697,7 @@ export default function ProfileScreen() {
                               />
                             </View>
                             <Text style={{
-                              fontSize: 9, fontWeight: '700', letterSpacing: 0.3,
+                              fontSize: F.caption, fontWeight: '700', letterSpacing: 0.3,
                               color: isSelected ? theme.primary : theme.onSurfaceVariant,
                               opacity: isSelected ? 1 : 0.5,
                             }}>
@@ -834,7 +834,7 @@ export default function ProfileScreen() {
                           >
                             {opt.icon(itemColor)}
                             <Text style={{ fontSize: 10, fontWeight: '700', color: itemColor }}>{language === 'tr' ? opt.labelTr : opt.labelEn}</Text>
-                            <Text style={{ fontSize: 9, color: theme.onSurfaceMuted }}>{opt.hint}</Text>
+                            <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>{opt.hint}</Text>
                           </Touchable>
                         );
                       })}

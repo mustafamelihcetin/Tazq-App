@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    fontSize: 9,
+    fontSize: F.caption,
     letterSpacing: 1,
     marginBottom: S.xxs,
     fontFamily: 'Jakarta-ExtraBold',

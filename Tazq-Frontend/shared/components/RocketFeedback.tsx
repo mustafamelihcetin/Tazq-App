@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
   },
   badgeText: {
-    fontSize: 8,
+    fontSize: F.caption,
     fontWeight: '700',
   },
   body: {

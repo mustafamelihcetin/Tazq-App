@@ -66,7 +66,7 @@ export function useOfflineSync() {
             useOfflineQueue.getState().dequeue(1);
             processed++;
           } else {
-            console.error(`[Offline Sync] Sync paused at item ${i} (will retry later)`, err);
+            swallow(`offlineSync.pausedAtItem${i}`, err, { capture: true });
             break; // Geçici hata (sunucu/ağ) — dur, bir sonraki çevrimiçi olayında tekrar dene
           }
         }

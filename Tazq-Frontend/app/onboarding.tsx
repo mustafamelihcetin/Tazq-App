@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { S, ICON, R, B } from '@/shared/constants/tokens';
+import { F, S, ICON, R, B } from '@/shared/constants/tokens';
 import {
   View,
   Text,
@@ -125,7 +125,7 @@ export default function OnboardingScreen() {
       try {
         await AsyncStorage.setItem('tazq-onboarding-done', 'true');
       } catch (e) {
-        console.warn('Failed to save onboarding status');
+        swallow('onboarding.saveStatus', new Error('Failed to save onboarding status'));
       }
       usePrefsStore.getState().setOnboardingCompleted(true);
       track('onboarding_completed', { skipped: false, lastStep: currentIndex });
@@ -223,7 +223,7 @@ export default function OnboardingScreen() {
                     style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, backgroundColor: row.color + '22', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm }}
                   >
                     <row.Ic size={ICON.xs} color={row.color} strokeWidth={2.5} />
-                    <Text style={{ fontSize: 9, fontWeight: '700', color: row.color }}>{row.badge}</Text>
+                    <Text style={{ fontSize: F.caption, fontWeight: '700', color: row.color }}>{row.badge}</Text>
                   </MotiView>
                 </MotiView>
               ))}
@@ -243,7 +243,7 @@ export default function OnboardingScreen() {
                   style={{ alignItems: 'center', gap: S.xs, width: 60 }}
                 >
                   <Smartphone size={ICON.lg} color={theme.onSurface} />
-                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'Cihazınız' : 'Your Device'}</Text>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'Cihazınız' : 'Your Device'}</Text>
                 </MotiView>
 
                 {/* Animated Line with Data Packet */}
@@ -281,7 +281,7 @@ export default function OnboardingScreen() {
                   style={{ alignItems: 'center', gap: S.xs, width: 60 }}
                 >
                   <Cloud size={ICON.lg} color={theme.onSurface} />
-                  <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'Sunucu' : 'Server'}</Text>
+                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'Sunucu' : 'Server'}</Text>
                 </MotiView>
 
               </View>
@@ -397,7 +397,7 @@ export default function OnboardingScreen() {
                       transition={{ delay: 400 + i * 60, type: 'spring' }}
                       style={{ flex: 1, alignItems: 'center', backgroundColor: i === 4 ? accent : theme.surfaceContainerHighest, borderRadius: R.sm, paddingVertical: S.sm }}
                     >
-                      <Text style={{ fontSize: 9, fontWeight: '700', color: i === 4 ? '#fff' : theme.onSurfaceVariant }}>{d}</Text>
+                      <Text style={{ fontSize: F.caption, fontWeight: '700', color: i === 4 ? '#fff' : theme.onSurfaceVariant }}>{d}</Text>
                     </MotiView>
                   ))}
                 </View>

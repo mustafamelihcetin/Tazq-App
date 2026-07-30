@@ -146,7 +146,7 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
           isOverheated = momentumStore.isOverheated;
           momentumStore.triggerRocketFeedback(t.title, isPerfect);
         } catch (e) {
-          console.warn("Could not register task completion in Momentum Store:", e);
+          swallow('taskStore.registerCompletion', e);
         }
 
         try {
@@ -170,7 +170,7 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
             momentumStore.undoCompletedTask();
           }
         } catch (e) {
-          console.warn("Could not register task un-completion in Momentum Store:", e);
+          swallow('taskStore.registerUncompletion', e);
         }
         return { ...t, isCompleted: false, completedAt: null, ignoreMomentum: false };
       }

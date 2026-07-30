@@ -158,7 +158,7 @@ export const ConfettiOverlay: React.FC = () => {
           }, 15000);
         }
       } catch (err) {
-        console.warn('[Confetti Audio Play Error]', err);
+        swallow('confetti.audioPlay', err);
       }
     }
 

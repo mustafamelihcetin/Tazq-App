@@ -46,6 +46,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
         deviceName,
         platform,
         appVersion
+      /*
+        BURADA BİLEREK `swallow()` YOK.
+        `swallow` hatayı Sentry'ye yazıyor; burası ise çökme raporlayıcısının KENDİ
+        hatası. Sentry'nin kendisi bozuksa aynı yola tekrar girmek özyineleme üretir
+        ve gerçek çökme kaydını da kaybettirebilir. Son çare olarak konsol kalıyor.
+      */
       }).catch((e) => console.warn('[ErrorBoundary reportCrash failed]', e));
     } catch (e) {
       console.warn('[ErrorBoundary failed to gather crash metadata]', e);

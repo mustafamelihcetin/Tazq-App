@@ -529,7 +529,7 @@ export default function AdminScreen() {
                   <Text numberOfLines={1} style={{ color: active ? '#FFF' : theme.onSurfaceVariant, fontWeight: '700', fontSize: F.caption }}>{tb.label}</Text>
                   {'badge' in tb && (tb as any).badge > 0 && (
                     <View style={{ backgroundColor: '#EF4444', borderRadius: R.sm, paddingHorizontal: S.xs, paddingVertical: S.xxs }}>
-                      <Text style={{ color: '#FFF', fontSize: 8, fontWeight: '700' }}>{(tb as any).badge}</Text>
+                      <Text style={{ color: '#FFF', fontSize: F.caption, fontWeight: '700' }}>{(tb as any).badge}</Text>
                     </View>
                   )}
                   {'dot' in tb && (tb as any).dot && <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: '#EF4444' }} />}
@@ -621,7 +621,7 @@ export default function AdminScreen() {
                           transition={{ type: 'timing', duration: 600, delay: i * 60 }}
                           style={{ width: '100%', backgroundColor: d.minutes > 0 ? theme.primary : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'), borderRadius: R.xs }}
                         />
-                        <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceMuted }}>{d.day}</Text>
+                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted }}>{d.day}</Text>
                       </View>
                     ))}
                   </View>
@@ -697,17 +697,17 @@ export default function AdminScreen() {
                       <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface }} numberOfLines={1}>{user.name}</Text>
                       {isAdmin && (
                         <View style={{ backgroundColor: '#6366F115', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xxs }}>
-                          <Text style={{ fontSize: 9, fontWeight: '700', color: '#6366F1' }}>ADMIN</Text>
+                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: '#6366F1' }}>ADMIN</Text>
                         </View>
                       )}
                       {isBanned && (
                         <View style={{ backgroundColor: theme.error + '20', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xxs }}>
-                          <Text style={{ fontSize: 9, fontWeight: '700', color: theme.error }}>{tempBanActive ? (tr ? 'SÜRELİ BAN' : 'TEMP BAN') : (tr ? 'BANLI' : 'BANNED')}</Text>
+                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.error }}>{tempBanActive ? (tr ? 'SÜRELİ BAN' : 'TEMP BAN') : (tr ? 'BANLI' : 'BANNED')}</Text>
                         </View>
                       )}
                       {isDeleted && (
                         <View style={{ backgroundColor: theme.onSurfaceVariant + '25', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xxs }}>
-                          <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'SİLİNMİŞ' : 'DELETED'}</Text>
+                          <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>{tr ? 'SİLİNMİŞ' : 'DELETED'}</Text>
                         </View>
                       )}
                     </View>
@@ -737,7 +737,7 @@ export default function AdminScreen() {
                       ].map(s => (
                         <View key={s.label} style={{ flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.sm, padding: S.sm, alignItems: 'center', gap: S.xxs }}>
                           <Text style={{ fontSize: F.subhead, fontWeight: '700', color: s.color }}>{s.value}</Text>
-                          <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{s.label}</Text>
+                          <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant, textAlign: 'center' }}>{s.label}</Text>
                         </View>
                       ))}
                     </View>
@@ -791,7 +791,7 @@ export default function AdminScreen() {
                           )}
                           {userDetail[user.id]!.recentTasks.length > 0 && (
                             <View style={{ gap: S.xxs }}>
-                              <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceMuted }}>{tr ? 'SON GÖREVLER' : 'RECENT TASKS'}</Text>
+                              <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted }}>{tr ? 'SON GÖREVLER' : 'RECENT TASKS'}</Text>
                               {userDetail[user.id]!.recentTasks.slice(0, 5).map(t => (
                                 <Text key={t.id} numberOfLines={1} style={{ fontSize: 10, color: theme.onSurface }}>
                                   {t.isCompleted ? '✓' : '○'} {t.title || (tr ? '(başlıksız)' : '(untitled)')}
@@ -801,7 +801,7 @@ export default function AdminScreen() {
                           )}
                           {userDetail[user.id]!.recentSessions.length > 0 && (
                             <View style={{ gap: S.xxs }}>
-                              <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceMuted }}>{tr ? 'SON ODAK SEANSLARI' : 'RECENT FOCUS'}</Text>
+                              <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceMuted }}>{tr ? 'SON ODAK SEANSLARI' : 'RECENT FOCUS'}</Text>
                               {userDetail[user.id]!.recentSessions.slice(0, 5).map(s => (
                                 <Text key={s.id} numberOfLines={1} style={{ fontSize: 10, color: theme.onSurface }}>
                                   {s.durationMinutes}{tr ? 'dk' : 'm'} · {new Date(s.startedAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short' })} · {s.taskName}
@@ -969,13 +969,13 @@ export default function AdminScreen() {
                           return (
                             <View key={h.id} style={{ flexDirection: 'row', gap: S.sm, alignItems: 'flex-start' }}>
                               <View style={{ backgroundColor: (isBan ? theme.error : '#10B981') + '18', borderRadius: R.xs, paddingHorizontal: S.sm, paddingVertical: S.xxs, marginTop: S.xxs }}>
-                                <Text style={{ fontSize: 8, fontWeight: '700', color: isBan ? theme.error : '#10B981' }}>{isBan ? 'BAN' : (tr ? 'KALDIR' : 'UNBAN')}</Text>
+                                <Text style={{ fontSize: F.caption, fontWeight: '700', color: isBan ? theme.error : '#10B981' }}>{isBan ? 'BAN' : (tr ? 'KALDIR' : 'UNBAN')}</Text>
                               </View>
                               <View style={{ flex: 1 }}>
                                 <Text style={{ fontSize: F.caption, color: theme.onSurface, fontWeight: '600' }}>
                                   {isBan ? `${h.reason || '—'} · ${dur}` : (tr ? 'Ban kaldırıldı' : 'Ban lifted')}
                                 </Text>
-                                <Text style={{ fontSize: 9, color: theme.onSurfaceMuted }}>
+                                <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>
                                   {new Date(h.createdAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}{h.adminName ? ` · ${h.adminName}` : ''}
                                 </Text>
                               </View>
@@ -1039,7 +1039,7 @@ export default function AdminScreen() {
                           <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{m.userName}</Text>
                           {!m.isRead && (
                             <View style={{ backgroundColor: '#3B82F6', borderRadius: R.xs, paddingHorizontal: S.sm, paddingVertical: S.xxs }}>
-                              <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '700' }}>{tr ? 'YENİ' : 'NEW'}</Text>
+                              <Text style={{ color: '#FFF', fontSize: F.caption, fontWeight: '700' }}>{tr ? 'YENİ' : 'NEW'}</Text>
                             </View>
                           )}
                         </View>
@@ -1080,7 +1080,7 @@ export default function AdminScreen() {
                         <Text style={{ color: '#10B981', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>{tr ? '✓ YANITIN' : '✓ YOUR REPLY'}</Text>
                         <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>{m.adminReply}</Text>
                         {m.repliedAt && (
-                          <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>
+                          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
                             {new Date(m.repliedAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </Text>
                         )}
@@ -1169,13 +1169,13 @@ export default function AdminScreen() {
                       return (
                         <View key={a.id} style={{ flexDirection: 'row', gap: S.sm, paddingVertical: S.sm, borderTopWidth: i > 0 ? B.thin : 0, borderTopColor: cardBorder }}>
                           <View style={{ backgroundColor: meta.c + '1A', borderRadius: R.xs, paddingHorizontal: S.xs, paddingVertical: S.xxs, alignSelf: 'flex-start', marginTop: S.xxs }}>
-                            <Text style={{ color: meta.c, fontSize: 8, fontWeight: '700' }}>{meta.l}</Text>
+                            <Text style={{ color: meta.c, fontSize: F.caption, fontWeight: '700' }}>{meta.l}</Text>
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text numberOfLines={2} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '600', lineHeight: 15 }}>
                               {a.targetName ? `${a.targetName} — ` : ''}{a.details || '—'}
                             </Text>
-                            <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>
+                            <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
                               {a.adminName || '—'} · {new Date(a.createdAt).toLocaleDateString(tr ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             </Text>
                           </View>
@@ -1295,7 +1295,7 @@ export default function AdminScreen() {
                           <Touchable key={i} onPress={() => iss.permalink && Linking.openURL(iss.permalink)}
                             style={{ flexDirection: 'row', gap: S.sm, paddingVertical: S.sm, borderTopWidth: i > 0 ? B.thin : 0, borderTopColor: cardBorder }}>
                             <View style={{ backgroundColor: st.color + '1A', borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: S.xxs, alignSelf: 'flex-start', marginTop: S.xxs }}>
-                              <Text style={{ color: st.color, fontSize: 9, fontWeight: '700' }}>{st.label}</Text>
+                              <Text style={{ color: st.color, fontSize: F.caption, fontWeight: '700' }}>{st.label}</Text>
                             </View>
                             <View style={{ flex: 1, gap: S.xs }}>
                               <Text numberOfLines={2} style={{ color: theme.onSurface, fontSize: F.caption, fontWeight: '700', lineHeight: 16 }}>{iss.title}</Text>
@@ -1369,7 +1369,7 @@ export default function AdminScreen() {
                             <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.caption, flex: 1 }} numberOfLines={open ? undefined : 1}>
                               {crash.errorMessage}
                             </Text>
-                            <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>
+                            <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
                               {crash.createdAt ? new Date(crash.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                             </Text>
                           </View>
@@ -1385,13 +1385,13 @@ export default function AdminScreen() {
                               {crash.stackTrace}
                             </Text>
                           )}
-                          <Text style={{ color: theme.primary, fontSize: 9, fontWeight: '700' }}>
+                          <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>
                             {open ? (tr ? 'Daha az' : 'Show less') : (tr ? 'Detayı gör' : 'View detail')}
                           </Text>
                         </Touchable>
 
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: S.xxs }}>
-                          <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>
+                          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
                             {crash.platform} · {crash.deviceName} · v{crash.appVersion} {crash.userEmail ? `(${crash.userEmail})` : ''}
                           </Text>
                           {!crash.isResolved ? (
@@ -1406,7 +1406,7 @@ export default function AdminScreen() {
                               }}
                               style={{ backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm }}
                             >
-                              <Text style={{ color: theme.primary, fontSize: 9, fontWeight: '700' }}>
+                              <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>
                                 {tr ? 'Çözüldü İşaretle' : 'Mark Resolved'}
                               </Text>
                             </Touchable>
@@ -1493,7 +1493,7 @@ export default function AdminScreen() {
                         <View key={i} style={{ gap: S.xs, borderTopWidth: i > 0 ? B.thin : 0, borderTopColor: cardBorder, paddingVertical: S.sm }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
                             <View style={{ backgroundColor: st.color + '1A', borderRadius: R.xs, paddingHorizontal: S.xs, paddingVertical: S.xxs }}>
-                              <Text style={{ color: st.color, fontSize: 9, fontWeight: '700' }}>{st.label}</Text>
+                              <Text style={{ color: st.color, fontSize: F.caption, fontWeight: '700' }}>{st.label}</Text>
                             </View>
                             <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: 10, fontWeight: '700', flex: 1 }}>{lg.category}</Text>
                             {/* Kaynak rozeti YALNIZ karışık listede: tek kaynağa

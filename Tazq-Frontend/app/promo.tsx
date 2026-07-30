@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, useWindowDimensions, StyleSheet, StatusBar } from 'react-native';
+import { F } from '@/shared/constants/tokens';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppBlur } from '@/shared/components/AppBlur';
@@ -114,7 +115,7 @@ export default function PromoScreen() {
     const gap = Math.round(u * 1.5);               // 12
     const rad = Math.round(u * 2);                 // 16
     const CARD = { backgroundColor: M.card, borderWidth: 1, borderColor: M.border, borderRadius: rad } as const;
-    const LAB = { color: M.muted, fontWeight: '800' as const, letterSpacing: 1.2, fontSize: 9.5 * S };
+    const LAB = { color: M.muted, fontWeight: '800' as const, letterSpacing: 1.2, fontSize: F.caption * S };
     // Tip ölçeği (φ adımlı): cap · body · h1 · big
     const T = { cap: 10.5 * S, body: 12.5 * S, sub: 11 * S, h1: 20 * S, big: 30 * S };
     // Solid AppIcon imzası: dolu renkli kutu + beyaz glif (uygulamanın güncel ikon dili).
@@ -128,7 +129,7 @@ export default function PromoScreen() {
       <View style={{ flex: 1, backgroundColor: M.screen }}>
         {/* Durum çubuğu — çentiğin iki yanına saat ve sistem göstergeleri */}
         <View style={{ height: u * 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: pad + u * 0.5 }}>
-          <Text style={{ color: M.text, fontSize: 9.5 * S, fontWeight: '800', letterSpacing: 0.2 }}>9:41</Text>
+          <Text style={{ color: M.text, fontSize: F.caption * S, fontWeight: '800', letterSpacing: 0.2 }}>9:41</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 * S }}>
             <SignalHigh size={11 * S} color={M.text} strokeWidth={2.4} />
             <Wifi size={11 * S} color={M.text} strokeWidth={2.4} />
@@ -282,7 +283,7 @@ export default function PromoScreen() {
               {bars.map((v, i) => (
                 <View key={i} style={{ flex: 1, alignItems: 'center', gap: 5 * S }}>
                   <View style={{ width: '100%', height: 54 * S * v, backgroundColor: i === 5 ? A.emerald : A.emerald + '59', borderRadius: 4 }} />
-                  <Text style={{ color: M.muted, fontSize: 8 * S, fontWeight: '700' }}>{days[i]}</Text>
+                  <Text style={{ color: M.muted, fontSize: F.caption * S, fontWeight: '700' }}>{days[i]}</Text>
                 </View>
               ))}
             </View>
@@ -342,7 +343,7 @@ export default function PromoScreen() {
             <View key={l} style={[CARD, { flex: 1, padding: pad, alignItems: 'center', gap: u * 0.75 }]}>
               <View style={chip(c, 34 * S)}><Ic size={17 * S} color="#FFFFFF" /></View>
               <Text style={{ color: M.text, fontSize: T.body + 2.5, fontWeight: '800', letterSpacing: -0.3 }}>{v}</Text>
-              <Text style={{ color: M.sub, fontSize: 9.5 * S, fontWeight: '700' }}>{l}</Text>
+              <Text style={{ color: M.sub, fontSize: F.caption * S, fontWeight: '700' }}>{l}</Text>
             </View>
           ))}
         </View>

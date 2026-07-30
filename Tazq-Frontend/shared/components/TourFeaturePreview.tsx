@@ -31,7 +31,7 @@ import { MomentumPulse } from '@/features/user/components/MomentumPulse';
 import { HabitBubble } from '@/features/habits/components/HabitBubble';
 import { MyDayTaskRow } from '@/features/dashboard/components/MyDayTaskRow';
 import type { AppTheme } from '@/shared/constants/Colors';
-import { S, ICON, R } from '@/shared/constants/tokens';
+import { F, S, ICON, R } from '@/shared/constants/tokens';
 import { AppIcon } from '@/shared/components/AppIcon';
 
 interface Props {
@@ -224,7 +224,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
     padding: S.md,
   };
 
-  const sectionLabel = { fontSize: 9, fontWeight: '700', letterSpacing: 1, opacity: 0.6 } as const;
+  const sectionLabel = { fontSize: F.caption, fontWeight: '700', letterSpacing: 1, opacity: 0.6 } as const;
 
   switch (key) {
     // ───────────────── DASHBOARD (gerçek bileşenler) ─────────────────
@@ -259,7 +259,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 12, fontWeight: '700', color: theme.onSurface }}>{tr ? 'İvme Kalkanı' : 'Momentum Shield'}</Text>
-                  <Text style={{ fontSize: 9.5, fontWeight: '600', color: toggle ? theme.streak : theme.onSurfaceVariant, opacity: toggle ? 1 : 0.5 }}>{toggle ? (tr ? 'Aktif · skor donduruldu' : 'Active · score frozen') : (tr ? 'Devre dışı' : 'Inactive')}</Text>
+                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: toggle ? theme.streak : theme.onSurfaceVariant, opacity: toggle ? 1 : 0.5 }}>{toggle ? (tr ? 'Aktif · skor donduruldu' : 'Active · score frozen') : (tr ? 'Devre dışı' : 'Inactive')}</Text>
                 </View>
                 <MotiView animate={{ backgroundColor: toggle ? theme.streak : (isDark ? '#3a3a3c' : '#e5e5ea') }} transition={{ type: 'timing', duration: 260 }} style={{ width: 34, height: 20, borderRadius: R.sm, padding: S.xxs, justifyContent: 'center' }}>
                   <MotiView animate={{ translateX: toggle ? 14 : 0 }} transition={{ type: 'spring', damping: 16 }} style={{ width: 16, height: 16, borderRadius: R.full, backgroundColor: '#fff' }} />
@@ -279,10 +279,10 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       return (
         <ScaledScreen innerW={frameW} tap={{ x: 123, y: 66, k: toggle, color: theme.primary }}>
           <View style={{ paddingHorizontal: S.md }}>
-            <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: theme.onSurfaceVariant }}>
+            <Text style={{ fontSize: F.caption, fontWeight: '700', letterSpacing: 1.5, color: theme.onSurfaceVariant }}>
               {tr ? 'BUGÜNKÜ ALIŞKANLIKLARIM' : 'MY DAILY HABITS'}
             </Text>
-            <Text style={{ fontSize: 8.5, color: theme.onSurfaceMuted, marginTop: S.xxs }}>
+            <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, marginTop: S.xxs }}>
               {tr ? 'Alışkanlığı tamamlamak için bas' : 'Tap habit to complete'}
             </Text>
             <View style={{ flexDirection: 'row', gap: S.md, paddingVertical: S.md }}>
@@ -304,7 +304,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
       return (
         <ScaledScreen innerW={frameW} tap={{ x: frameW - 30, y: 46, k: toggle, color: theme.primary }}>
           <View style={{ paddingHorizontal: S.md }}>
-            <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: theme.onSurfaceVariant, marginBottom: S.xs }}>
+            <Text style={{ fontSize: F.caption, fontWeight: '700', letterSpacing: 1.5, color: theme.onSurfaceVariant, marginBottom: S.xs }}>
               {tr ? 'GÜNLÜK GÖREVLERİM' : 'MY DAILY TASKS'}
             </Text>
             {tasks.map((t, i) => (
@@ -571,7 +571,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                 </View>
               </View>
               <Text style={{ fontSize: 26, fontWeight: '300', letterSpacing: 1, color: '#fff' }}>{mmss(timerSecs)}</Text>
-              <Text style={{ fontSize: 8, fontWeight: '700', letterSpacing: 3, color: 'rgba(0,229,255,0.85)', marginTop: S.xxs }}>ZEN</Text>
+              <Text style={{ fontSize: F.caption, fontWeight: '700', letterSpacing: 3, color: 'rgba(0,229,255,0.85)', marginTop: S.xxs }}>ZEN</Text>
             </View>
           </MotiView>
         </View>
@@ -604,7 +604,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                       <View key={i} style={{ width: 7, height: 7, borderRadius: R.full, backgroundColor: i < 3 ? theme.primary : theme.onSurfaceVariant + '30' }} />
                     ))}
                   </View>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant }}>{tr ? 'bugün 3/4' : 'today 3/4'}</Text>
+                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>{tr ? 'bugün 3/4' : 'today 3/4'}</Text>
                 </View>
               </View>
               <Text style={{ color: theme.onSurfaceVariant, fontSize: 11, fontWeight: '500', marginTop: S.smd, lineHeight: 16 }}>
@@ -698,7 +698,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                       transition={{ type: 'timing', duration: 220 }}
                       style={{ alignItems: 'center', width: 28, paddingVertical: S.sm, borderRadius: R.sm, borderWidth: 1, gap: S.xs }}
                     >
-                      <Text style={{ fontSize: 9, fontWeight: '700', color: today ? theme.primary : theme.onSurfaceVariant, opacity: i < 2 && !today ? 0.4 : 1 }}>{a}</Text>
+                      <Text style={{ fontSize: F.caption, fontWeight: '700', color: today ? theme.primary : theme.onSurfaceVariant, opacity: i < 2 && !today ? 0.4 : 1 }}>{a}</Text>
                       <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: today || sel ? theme.primary : theme.onSurfaceVariant + '40' }} />
                     </MotiView>
                   );
@@ -750,7 +750,7 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
                 <View key={i} style={{ flex: 1, alignItems: 'center', gap: S.xs, paddingVertical: S.smd, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}>
                   <s.Ic size={15} color={s.c} strokeWidth={2.5} />
                   <Text style={{ fontSize: 15, fontWeight: '700', color: s.c }}>{s.val}</Text>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceVariant }}>{s.lbl}</Text>
+                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceVariant }}>{s.lbl}</Text>
                 </View>
               ))}
             </View>

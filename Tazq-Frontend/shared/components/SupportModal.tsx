@@ -228,7 +228,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
                         <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>
                           {mm.message}
                         </Text>
-                        <Text style={{ color: theme.onSurfaceMuted, fontSize: 9 }}>
+                        <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
                           {new Date(mm.createdAt).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', {
                             day: 'numeric',
                             month: 'short',
@@ -247,7 +247,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({
                               gap: S.xxs,
                             }}
                           >
-                            <Text style={{ color: '#10B981', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>
+                            <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5 }}>
                               {language === 'tr' ? '✓ DESTEK YANITI' : '✓ SUPPORT REPLY'}
                             </Text>
                             <Text style={{ color: theme.onSurface, fontSize: F.caption, lineHeight: 18 }}>

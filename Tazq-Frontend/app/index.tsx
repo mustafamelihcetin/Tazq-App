@@ -116,7 +116,7 @@ export default function HomeScreen() {
         measureAll();
       }, 350);
     } catch (e) {
-      console.error('[Dashboard] Error during tour step scroll:', e);
+      swallow('dashboard.tourStepScroll', e);
     }
   };
 
@@ -166,7 +166,7 @@ export default function HomeScreen() {
         'success'
       );
     } catch (err) {
-      console.error('[Profile Setup Save Error]', err);
+      swallow('dashboard.profileSetupSave', err, { capture: true });
       throw err;
     }
   };
@@ -1634,10 +1634,10 @@ export default function HomeScreen() {
             {headerHighlight && (
               <Touchable onPress={headerTap.onTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
                 <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
-                  <Text style={{ fontSize: 9, fontWeight: '600', letterSpacing: 1.8, color: theme.onSurfaceVariant }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '600', letterSpacing: 1.8, color: theme.onSurfaceVariant }}>
                     {language === 'tr' ? 'İYİ GİDİYOR' : 'LOOKING GOOD'}
                   </Text>
-                  <Text style={{ fontSize: 9, fontWeight: '600', color: theme.primary }}>
+                  <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.primary }}>
                     {language === 'tr' ? 'devam et →' : 'keep going →'}
                   </Text>
                 </Animated.View>
@@ -1910,7 +1910,7 @@ export default function HomeScreen() {
                         <Text style={{ fontSize: F.caption2, fontWeight: '700', color: theme.primary }} numberOfLines={1}>
                           {language === 'tr' ? `"${portalSearch}" görevini ekle` : `Add task "${portalSearch}"`}
                         </Text>
-                        <Text style={{ fontSize: 9, fontWeight: '600', color: theme.onSurfaceMuted }}>
+                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted }}>
                           {language === 'tr' ? 'Otomatik zaman ve öncelik tespiti ile ekler' : 'Adds with automatic time & priority parsing'}
                         </Text>
                       </View>

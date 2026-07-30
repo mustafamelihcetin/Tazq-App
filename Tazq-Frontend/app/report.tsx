@@ -170,7 +170,7 @@ export default function ReportScreen() {
                       transition={{ type: 'timing', duration: 500, delay: i * 60 }}
                       style={{ width: '70%', borderRadius: R.xs, backgroundColor: isBest ? theme.primary : theme.primary + '55' }}
                     />
-                    <Text style={{ fontSize: 9, color: theme.onSurfaceMuted }}>{weeklyFocus[i]?.day?.slice(0, 2) ?? i + 1}</Text>
+                    <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>{weeklyFocus[i]?.day?.slice(0, 2) ?? i + 1}</Text>
                   </View>
                 );
               })}

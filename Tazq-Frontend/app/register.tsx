@@ -32,6 +32,7 @@ import { BackButton } from '@/shared/components/BackButton';
 import { validateRegister } from '@/shared/utils/validation';
 import { httpStatusOf, isNetworkError, errorMessage, errorCode, httpRawDataOf } from '@/shared/utils/errors';
 import { haptic } from '@/shared/utils/haptics';
+import { swallow } from '@/shared/utils/swallow';
 
 const GoogleIcon = ({ color }: { color: string }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -84,7 +85,7 @@ export default function RegisterScreen() {
     try {
       GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
     } catch (e) {
-      console.warn('[Google Sign-In] Failed to require package:', e);
+      swallow('register.googleSignInRequire', e);
       return;
     }
 
@@ -106,7 +107,7 @@ export default function RegisterScreen() {
       haptic.success();
       router.replace('/');
     } catch (err: unknown) {
-      console.warn('[Google Sign-In Error]', err);
+      swallow('register.googleSignIn', err, { capture: true });
       haptic.error();
       if (errorCode(err) === 'SIGN_IN_CANCELLED' || errorMessage(err).includes('Sign in cancelled')) {
         return;
@@ -169,7 +170,7 @@ export default function RegisterScreen() {
       haptic.success();
       router.replace('/');
     } catch (err: unknown) {
-      console.warn('[Apple Sign-In Error]', err);
+      swallow('register.appleSignIn', err, { capture: true });
       haptic.error();
       if (errorCode(err) === 'ERR_REQUEST_CANCELED' || errorCode(err) === 'ERR_CANCELED') {
         return;

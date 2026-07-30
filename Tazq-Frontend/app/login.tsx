@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, useWindowDimensions, KeyboardAvoidingView, Platform, ActivityIndicator, TouchableWithoutFeedback, Keyboard, Modal, ScrollView, Linking } from 'react-native';
+import { swallow } from '@/shared/utils/swallow';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MotiView, MotiText } from 'moti';
 import { useRouter } from 'expo-router';
@@ -92,7 +93,7 @@ export default function LoginScreen() {
     try {
       GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
     } catch (e) {
-      console.warn('[Google Sign-In] Failed to require package:', e);
+      swallow('login.googleSignInRequire', e);
       return;
     }
 
@@ -116,7 +117,7 @@ export default function LoginScreen() {
       if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
       router.replace('/');
     } catch (err: unknown) {
-      console.warn('[Google Sign-In Error]', err);
+      swallow('login.googleSignIn', err, { capture: true });
       haptic.error();
       if (errorCode(err) === 'SIGN_IN_CANCELLED' || errorMessage(err).includes('Sign in cancelled')) {
         return;
@@ -182,7 +183,7 @@ export default function LoginScreen() {
       if (isReactivated) useToastStore.getState().show(language === 'tr' ? 'Tekrar hoş geldin! Hesabın ve tüm verilerin geri geldi.' : 'Welcome back! Your account and data have been restored.', 'success');
       router.replace('/');
     } catch (err: unknown) {
-      console.warn('[Apple Sign-In Error]', err);
+      swallow('login.appleSignIn', err, { capture: true });
       haptic.error();
       if (errorCode(err) === 'ERR_REQUEST_CANCELED' || errorCode(err) === 'ERR_CANCELED') {
         return;

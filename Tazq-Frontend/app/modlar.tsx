@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList } from 'react-native';
+import { swallow } from '@/shared/utils/swallow';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { MotiView, AnimatePresence } from 'moti';
@@ -144,7 +145,7 @@ export default function ModlarScreen() {
         measureAll();
       }, 350);
     } catch (e) {
-      console.error('[Modes] error during step scroll:', e);
+      swallow('modes.tourStepScroll', e);
     }
   };
   const { habits, removeHabit } = useHabitStore();

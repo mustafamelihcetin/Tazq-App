@@ -247,7 +247,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                       }]}
                     >
                       {colorOpt.color === 'transparent' && (
-                        <Text style={{ fontSize: 9, fontWeight: '700', color: theme.onSurfaceVariant }}>
+                        <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.onSurfaceVariant }}>
                           {language === 'tr' ? 'Yok' : 'None'}
                         </Text>
                       )}

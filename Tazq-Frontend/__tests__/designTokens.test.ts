@@ -251,3 +251,47 @@ describe('iOS kart deseni', () => {
     expect(code).not.toMatch(/shadowOpacity|shadowRadius|elevation:/);
   });
 });
+
+/**
+ * OKUNABİLİRLİK TABANI — 10pt'nin altında yazı yok.
+ *
+ * `F.caption` (11) dosyada "okunabilirliğin ALT SINIRI" diye tanımlı; buna rağmen
+ * kod tabanında 175 adet 11pt altı punto vardı ve 25'i 8.5pt'nin de altındaydı
+ * (en küçüğü 6.5pt). Bunlar sadece küçük değil, GÖRÜNMÜYORLARDI — yaşı 40+ bir
+ * kullanıcı için yok hükmünde.
+ *
+ * NEDEN ESİK 11 DEĞİL 10: 10pt meşru bir chrome ölçüsü. Apple'ın sekme çubuğu
+ * etiketi 10pt ve bizim `NAV_LABEL_SIZE` da bilinçli olarak 10. Onları da yasaklamak,
+ * verilmiş bir tasarım kararını bozardı. Kural: 10 ve üstü serbest, altı yasak.
+ */
+describe('okunabilirlik tabanı', () => {
+  const SKIP = ['node_modules', '.expo', 'android', 'ios', 'dist', '.git', '__tests__', '__mocks__'];
+
+  const walk = (dir: string): string[] => {
+    const abs = path.join(ROOT, dir);
+    if (!fs.existsSync(abs)) return [];
+    return fs.readdirSync(abs, { withFileTypes: true }).flatMap((e) => {
+      if (SKIP.includes(e.name)) return [];
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) return walk(rel);
+      return e.name.endsWith('.tsx') ? [rel] : [];
+    });
+  };
+
+  it('hiçbir yerde 10pt altı sabit punto yok', () => {
+    const offenders: string[] = [];
+    for (const f of ['app', 'shared', 'features'].flatMap(walk)) {
+      const code = fs
+        .readFileSync(path.join(ROOT, f), 'utf8')
+        .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, '')
+        .split('\n')
+        .filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*'));
+
+      code.forEach((line, i) => {
+        const m = line.match(/fontSize: (\d+(?:\.\d+)?)/);
+        if (m && parseFloat(m[1]) < 10) offenders.push(`${f}:${i + 1} → ${m[1]}pt`);
+      });
+    }
+    expect(offenders).toEqual([]);
+  });
+});

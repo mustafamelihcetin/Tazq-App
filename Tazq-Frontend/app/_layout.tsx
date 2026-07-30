@@ -12,10 +12,14 @@ try {
       offlineAccess: true,
     });
   } else {
-    console.warn('[Google Sign-In] Native module "RNGoogleSignin" not found. Google Sign-In is disabled.');
+    // GELİŞTİRİCİ UYARISI — kullanıcı hatası değil, kurulum eksikliği.
+    // `__DEV__` kapısı: release'de konsolu kimse okumaz, çıktı boşa gider; ayrıca bu
+    // durum Expo Go'da NORMALDİR (native modül yok) ve her açılışta uyarı basmak
+    // gerçek uyarıları gözden düşürür.
+    if (__DEV__) console.warn('[Google Sign-In] Native module "RNGoogleSignin" not found. Google Sign-In is disabled.');
   }
 } catch (e) {
-  console.warn('[Google Sign-In] Error initializing Google Sign-In:', e);
+  swallow('layout.googleSignInInit', e);
 }
 
 // Initialize crash reporting as early as possible — before any other imports
@@ -185,7 +189,7 @@ export default function RootLayout() {
         ]);
         setAssetsLoaded(true);
       } catch (e) {
-        console.warn('Asset preloading failed:', e);
+        swallow('layout.assetPreload', e);
         setAssetsLoaded(true); // Proceed anyway
       }
     }
@@ -401,7 +405,7 @@ export default function RootLayout() {
         }
         setIsInitialized(true);
       } catch (e) {
-        console.warn('Auth guard check failed:', e);
+        swallow('layout.authGuard', e, { capture: true });
       }
     }, 50);
 

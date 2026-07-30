@@ -137,7 +137,7 @@ export default function CockpitScreen() {
         measureAll();
       }, 350);
     } catch (e) {
-      console.error('[Cockpit] error during step scroll:', e);
+      swallow('cockpit.tourStepScroll', e);
     }
   };
 
@@ -796,7 +796,7 @@ export default function CockpitScreen() {
               <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
                 {tr ? 'ALIŞKANLIKLAR' : 'HABITS'}
               </Text>
-              <Text style={{ fontSize: 9.5, color: theme.onSurfaceMuted, marginTop: S.xxs }}>
+              <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, marginTop: S.xxs }}>
                 {tr ? 'Mola için butona basılı tut' : 'Hold check button to take break'}
               </Text>
             </View>

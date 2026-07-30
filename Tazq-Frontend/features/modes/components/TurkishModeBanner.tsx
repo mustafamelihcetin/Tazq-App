@@ -26,6 +26,7 @@ import { usePrefsStore, PlanMode, PlanSpec, SeasonalPrefs } from '../store/usePr
 import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
 import { modeAccent as resolveModeAccent } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
+import { swallow } from '@/shared/utils/swallow';
 
 interface Props {
   mode: TurkishMode;
@@ -318,7 +319,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
       await AsyncStorage.setItem(ratingKey, score.toString());
       onRatingChange?.(score);
     } catch (e) {
-      console.warn('Failed to save daily rating', e);
+      swallow('modeBanner.saveDailyRating', e);
     }
   };
 
@@ -616,7 +617,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.xs }}>
           <Zap size={ICON.xs} color={modeAccent} fill={modeAccent} strokeWidth={0} />
-          <Text style={{ fontSize: 9.5, fontWeight: '700', color: modeAccent, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+          <Text style={{ fontSize: F.caption, fontWeight: '700', color: modeAccent, letterSpacing: 0.5, textTransform: 'uppercase' }}>
             {tr ? 'Akıllı Sistem Mantığı' : 'Smart Engine Logic'}
           </Text>
         </View>
@@ -1564,7 +1565,7 @@ const styles = StyleSheet.create({
   },
   progressStat: { flex: 1, alignItems: 'center', gap: S.xxs },
   progressNum: { fontSize: F.title, fontWeight: '600' },
-  progressLabel: { fontSize: 9, fontWeight: '600', letterSpacing: 0.3, textAlign: 'center' },
+  progressLabel: { fontSize: F.caption, fontWeight: '600', letterSpacing: 0.3, textAlign: 'center' },
   progressDivider: { width: 1, height: 32 },
   // Plan view rows
   planViewRow: {
@@ -1579,7 +1580,7 @@ const styles = StyleSheet.create({
   streakText: { fontSize: F.caption, fontWeight: '600' },
   doneBadge: { width: 26, height: 26, borderRadius: R.full, borderWidth: B.thin, alignItems: 'center', justifyContent: 'center' },
   priorityChip: { borderRadius: R.sm, paddingHorizontal: S.xs + 1, paddingVertical: S.xxs },
-  priorityChipText: { fontSize: 9, fontWeight: '600', letterSpacing: 0.3 },
+  priorityChipText: { fontSize: F.caption, fontWeight: '600', letterSpacing: 0.3 },
   emptyPlan: { alignItems: 'center', paddingVertical: S.xl },
   emptyPlanText: { fontSize: F.body, textAlign: 'center' },
   // Plan view actions

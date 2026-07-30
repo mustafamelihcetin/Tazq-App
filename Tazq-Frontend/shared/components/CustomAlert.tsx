@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, Animated, TouchableWithoutFeedback, Easing, Alert, Platform } from 'react-native';
+import { swallow } from '@/shared/utils/swallow';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Touchable } from './Touchable';
@@ -17,7 +18,9 @@ export const CustomAlert = {
     } else if (alertRef) {
       alertRef.show(title, message, buttons, options);
     } else {
-      console.warn('CustomAlertModal not mounted, using fallback');
+      // GELİŞTİRİCİ UYARISI: bileşen ağaca eklenmemiş. Kullanıcı için sonuç yok —
+      // sistem uyarısına düşülüyor. Release'de bastırılıyor (bkz. _layout.tsx).
+      if (__DEV__) console.warn('CustomAlertModal not mounted, using fallback');
       Alert.alert(title, message, buttons, options);
     }
   }
@@ -92,7 +95,7 @@ export function CustomAlertModal() {
       // bile overlay kapanır ve uygulama kilitlenmez (dokunuş bloklanmaz).
       if (callback) {
         setTimeout(() => {
-          try { callback(); } catch (e) { console.warn('[CustomAlert] onPress error', e); }
+          try { callback(); } catch (e) { swallow('customAlert.onPress', e); }
         }, 0);
       }
     });
