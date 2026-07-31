@@ -37,6 +37,7 @@ import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W,
 import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey, useSleepHealthSync } from '@/features/habits';
+import { useActivityHealthSync } from '@/features/modes/hooks/useActivityHealthSync';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { MomentumPulse } from '@/features/user/components/MomentumPulse';
 import { WeightEntryModal } from '@/features/modes/components/WeightEntryModal';
@@ -194,6 +195,9 @@ export default function HomeScreen() {
   const habits = useHabitStore(s => s.habits);
   // Uyku sağlık senkronu — onaylı asistan (iOS HealthKit; desteklenmeyen yerde sessiz no-op).
   useSleepHealthSync();
+  // Hareket görevleri (yürüyüş/koşu/antrenman) — uyku senkronuyla aynı sözleşme:
+  // kullanıcı açıkça bağlamadıkça hiçbir şey okunmaz, işaretlenen her şey geri alınabilir.
+  useActivityHealthSync();
   const toggleHabitDate = useHabitStore(s => s.toggleDate);
   const toggleHabitSkipDate = useHabitStore(s => s.toggleSkipDate);
   const getHabitStreak = useHabitStore(s => s.getStreak);

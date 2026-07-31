@@ -147,11 +147,14 @@ describe('yoğunluk', () => {
      * Dışa aktarma uzun sürüyor ve sonunda sistem paylaşım sayfası açılıyor; kullanıcı
      * o an ekrana bakmıyor olabilir. Titreşim burada "bitti" demenin tek yolu.
      * Bilinçli ve gerekçeli yükseltme; kural hâlâ "yeni titreşim eklerken düşün".
+     * → 301: "Hareket ve Antrenman" sağlık anahtarı. Yanındaki uyku anahtarıyla AYNI
+     * satır düzeninde duruyor; biri titreşip öteki susarsa kullanıcı ikisinin farklı
+     * çalıştığını sanır. Tutarlılık burada yeni bir borç değil, mevcut desenin bedeli.
      *
      * DÜRÜST NOT: hedef oran ~1/3, bugünkü ölçüm ~1/1.4. Yani yoğunluk HÂLÂ YÜKSEK.
      * Bunu düşürmek 50+ çağrı yerinde tek tek "bu titreşim ne anlatıyor?" sorusunu
      * yanıtlamayı gerektirir — ayrı ve bilinçli bir tur işi.
      */
-    expect(hap).toBeLessThanOrEqual(300);
+    expect(hap).toBeLessThanOrEqual(301);
   });
 });

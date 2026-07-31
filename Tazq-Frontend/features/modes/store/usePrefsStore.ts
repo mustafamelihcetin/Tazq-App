@@ -105,6 +105,18 @@ interface PrefsState {
   setSleepLastCheckDate: (v: string) => void;
   sleepGoalHours: number;     // hedef uyku (saat) — kutlama mesajı için
   setSleepGoalHours: (v: number) => void;
+  /**
+   * Hareket sağlık entegrasyonu — UYKUDAN AYRI tutuluyor.
+   *
+   * Tek bir "sağlık" anahtarı olsaydı, uykusunu paylaşmaya razı olan kullanıcı
+   * koşularını da paylaşmak zorunda kalırdı. İki veri farklı hassasiyette ve platformlar
+   * da izinleri ayrı ayrı veriyor; tercih de aynı ayrımı korumalı.
+   */
+  activityHealthOptIn: 'unset' | 'yes' | 'no';
+  setActivityHealthOptIn: (v: 'unset' | 'yes' | 'no') => void;
+  /** 'YYYY-MM-DD' — hareket verisi günde bir kez sorulur (uykudakiyle aynı desen). */
+  activityLastCheckDate: string;
+  setActivityLastCheckDate: (v: string) => void;
   examPlanHabitIds: string[];
   examPlanTaskIds: number[];
   exam2PlanHabitIds: string[];
@@ -288,6 +300,10 @@ export const usePrefsStore = create<PrefsState>()(
       setSleepLastCheckDate: (v) => set({ sleepLastCheckDate: v }),
       sleepGoalHours: 7,
       setSleepGoalHours: (v) => set({ sleepGoalHours: v }),
+      activityHealthOptIn: 'unset',
+      setActivityHealthOptIn: (v) => set({ activityHealthOptIn: v }),
+      activityLastCheckDate: '',
+      setActivityLastCheckDate: (v) => set({ activityLastCheckDate: v }),
       examPlanHabitIds: [],
       examPlanTaskIds: [],
       exam2PlanHabitIds: [],

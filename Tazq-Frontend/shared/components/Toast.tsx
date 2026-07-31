@@ -1,25 +1,60 @@
 import React from 'react';
-import { Text, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Text, StyleSheet, View } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
-import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react-native';
+import { CheckCircle2, AlertCircle, Info } from 'lucide-react-native';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
-import { F, S, ICON, R } from '@/shared/constants/tokens';
+import { F, S, ICON, R, B, W, LH } from '@/shared/constants/tokens';
 
-const COLORS = {
-  error: { bg: '#ff3b30', icon: AlertCircle },
-  success: { bg: '#34c759', icon: CheckCircle2 },
-  info: { bg: '#007AFF', icon: Info },
-};
+/**
+ * TOAST — geçici bildirim kapsülü.
+ *
+ * ── ESKİ TASARIM NEDEN ÇALIŞMIYORDU ─────────────────────────────────────────────
+ * Bildirim, ekranı boydan boya kesen DOLU ve DOYGUN bir renk şeridiydi (#34c759 yeşil,
+ * #ff3b30 kırmızı). Beş ayrı sorun tek görüntüde toplanıyordu:
+ *
+ *  1. RENK BLOĞU BAĞIRIYORDU. "1 dakikadan kısa seanslar kaydedilmez" gibi sıradan bir
+ *     bilgi, ekranın en dikkat çekici öğesi hâline geliyordu. Apple'ın dili bu değil:
+ *     iOS bildirimleri NÖTR bir yüzey kullanır ve rengi yalnızca İKONDA taşır. Renk
+ *     böylece hâlâ anlam taşır (yeşil/kırmızı/mavi) ama okumayı zorlaştırmaz.
+ *  2. RENKLER PALETİN DIŞINDAYDI. Üç ham hex elle yazılıydı; tema değişince tepki
+ *     vermiyor, ölçülmüş kontrast değerlerinin hiçbirine dahil olmuyorlardı.
+ *  3. CÜMLENİN TAMAMI BOLD'DU. Tek ağırlıkta uzun bir cümle hiyerarşi kurmaz, yalnız
+ *     yüksek sesle konuşur.
+ *  4. HEM AKSİYON HEM ÇARPI VARDI. Dar bir şeritte üç dokunma hedefi. Üstelik çarpı
+ *     gereksizdi: bildirim zaten 4 saniyede kendiliğinden kapanıyor.
+ *  5. TAM GENİŞLİK ŞERİTTİ. Üç kelimelik bir mesaj için ekranı boydan boya kaplamak,
+ *     mesajın önemini olduğundan büyük gösterir.
+ *
+ * ── YENİ TASARIM ────────────────────────────────────────────────────────────────
+ * İçeriğe göre daralan, ortalanmış bir kapsül: yüzen yüzey rengi (uygulamanın diğer
+ * yüzen öğeleriyle aynı jeton), saç teli çerçeve, yumuşak gölge. Renk yalnız ikonda.
+ * Metin normal ağırlıkta ve tema renginde. Çarpı yok — kapsülün her yeri kapatır.
+ *
+ * "Kaliteli" hissi burada bulanıklık ya da parlaklıktan değil, ÖLÇÜDEN geliyor: doğru
+ * form, doğru hiyerarşi, doğru hareket. Az olan daha pahalı görünür.
+ */
 
 export const Toast = () => {
   const { visible, message, type, hide, actionLabel, onAction } = useToastStore();
   const { language } = useLanguageStore();
+  const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const config = COLORS[type];
-  const Icon = config.icon;
+
+  // Renk artık PALETTEN. Anlam korunuyor (başarı/hata/bilgi) ama yalnız ikonu boyuyor.
+  const ACCENT = {
+    error: theme.error,
+    success: theme.tertiary,
+    info: theme.primary,
+  } as const;
+
+  const ICONS = { error: AlertCircle, success: CheckCircle2, info: Info } as const;
+
+  const accent = ACCENT[type];
+  const Icon = ICONS[type];
 
   const handleAction = () => {
     onAction?.();
@@ -30,26 +65,63 @@ export const Toast = () => {
     <AnimatePresence>
       {visible && (
         <MotiView
-          from={{ translateY: 120, opacity: 0 }}
-          animate={{ translateY: 0, opacity: 1 }}
-          exit={{ translateY: 120, opacity: 0 }}
-          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-          style={[styles.container, { backgroundColor: config.bg, bottom: insets.bottom + 100 }]}
+          from={{ translateY: 28, opacity: 0, scale: 0.94 }}
+          animate={{ translateY: 0, opacity: 1, scale: 1 }}
+          exit={{ translateY: 20, opacity: 0, scale: 0.96 }}
+          /*
+            Hafif ölçek, yalnız kayan bir şeritten daha "yerine oturmuş" hissettirir —
+            bildirim ekrana itilmiş gibi değil, oradan çıkmış gibi görünür. Kalite
+            hissinin geldiği yer burası; renk değil.
+          */
+          transition={{ type: 'spring', damping: 22, stiffness: 320, mass: 0.9 }}
+          style={[styles.wrap, { bottom: insets.bottom + 100 }]}
+          pointerEvents="box-none"
         >
-          <Icon size={18} color="#fff" />
-          <Text style={styles.text} numberOfLines={2}>{message}</Text>
-          {actionLabel && onAction && (
-            <Touchable onPress={handleAction} style={styles.actionBtn}>
-              <Text style={styles.actionText}>{actionLabel}</Text>
-            </Touchable>
-          )}
           <Touchable
+            onPress={hide}
+            activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={language === 'tr' ? 'Bildirimi kapat' : 'Dismiss notification'}
-            onPress={hide}
-            style={styles.close}
+            style={[
+              styles.capsule,
+              {
+                backgroundColor: theme.surfaceFloating,
+                borderColor: theme.outline,
+              },
+            ]}
           >
-            <X size={ICON.sm} color="rgba(255,255,255,0.8)" />
+            <Icon size={ICON.sm} color={accent} strokeWidth={2.4} />
+
+            {/*
+              `flexShrink` var ama `flex: 1` YOK: kapsül içeriği kadar geniş olsun,
+              kısa mesajda ekranı boydan boya kaplamasın. Uzun mesajda ise metin
+              daralıp iki satıra sarabilsin.
+            */}
+            <Text
+              style={[styles.text, { color: theme.onSurface }]}
+              numberOfLines={2}
+            >
+              {message}
+            </Text>
+
+            {actionLabel && onAction && (
+              <>
+                {/*
+                  Aksiyon DOLU BİR HAP DEĞİL, metin düğmesi. Dolgu, bildirimin içinde
+                  ikinci bir renk bloğu daha kurardı; saç teli ayıraç aynı ayrımı
+                  gürültüsüz yapıyor — iOS'un uyarı düğmelerinde kullandığı yöntem.
+                */}
+                <View style={[styles.divider, { backgroundColor: theme.outline }]} />
+                <Touchable
+                  onPress={handleAction}
+                  hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={actionLabel}
+                >
+                  <Text style={[styles.action, { color: accent }]}>{actionLabel}</Text>
+                </Touchable>
+              </>
+            )}
           </Touchable>
         </MotiView>
       )}
@@ -58,41 +130,45 @@ export const Toast = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  wrap: {
     position: 'absolute',
-    left: 16,
-    right: 16,
+    left: S.md,
+    right: S.md,
+    alignItems: 'center',
+    zIndex: 9997,
+  },
+  capsule: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: S.smd,
-    borderRadius: R.lg,
-    paddingVertical: S.md,
+    // Tam yuvarlak: kapsül formu "geçici" der. Köşeli bir kutu kalıcı içerik gibi durur.
+    borderRadius: R.full,
+    borderWidth: B.thin,
+    paddingVertical: S.smd,
     paddingHorizontal: S.md,
-    zIndex: 9997,
+    maxWidth: '100%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
+    // Eski gölge 0.2/20 idi ve dolu renkli şeridin altında bulanık bir leke gibi
+    // duruyordu. Daha geniş ve daha soluk gölge, yüzeyi ezmeden yükseklik verir.
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    elevation: 8,
   },
   text: {
-    color: '#fff',
-    fontSize: F.body,
-    fontWeight: '700',
-    flex: 1,
+    fontSize: F.subhead,
+    // Eskiden '700' idi — cümlenin tamamı bold. Normal ağırlık okunur, bold bağırır.
+    fontWeight: W.medium,
+    lineHeight: F.subhead * LH.normal,
+    flexShrink: 1,
   },
-  actionBtn: {
-    paddingHorizontal: S.smd,
-    paddingVertical: S.xs,
-    borderRadius: R.sm,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+  divider: {
+    width: B.thin,
+    alignSelf: 'stretch',
+    marginVertical: S.xxs,
   },
-  actionText: {
-    color: '#fff',
+  action: {
     fontSize: F.footnote,
-    fontWeight: '700',
-  },
-  close: {
-    padding: S.xs,
+    fontWeight: W.bold,
   },
 });

@@ -12,6 +12,7 @@ import { ChevronRight, CalendarDays, X, TrendingUp, TrendingDown, Target, AlertT
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
+import { DailyStepsRow } from '../DailyStepsRow';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { useSporStore } from '@/features/modes/store/useSporStore';
@@ -391,6 +392,18 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                   )}
                 </View>
               </View>
+
+              {/*
+                GÜNLÜK ADIM — hedef özetinin hemen altında.
+
+                Buraya konmasının sebebi bağlam: üstte "hedefe kaç gün kaldı" ve haftalık
+                ilerleme var, bu satır da "peki bugün ne oldu" sorusunu cevaplıyor. Ayrı
+                bir yere konsaydı iki sayı birbirini beslemezdi.
+
+                Bileşen kendi kapılarını kendisi tutuyor (izin yok / reddedildi / veri yok
+                → hiç çizilmez), o yüzden burada koşul yok: kart yalnız "göster" der.
+              */}
+              <DailyStepsRow accent={SPOR} tr={tr} />
 
               {/* Weight log (kilo) */}
               {sporType === 'kilo' && !past && (

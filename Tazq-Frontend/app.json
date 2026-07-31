@@ -80,7 +80,7 @@
         "NSSpeechRecognitionUsageDescription": "TAZQ needs access to speech recognition to convert your voice to text.",
         "NSPhotoLibraryUsageDescription": "TAZQ needs access to your photo library if you want to attach images to your tasks.",
         "NSCameraUsageDescription": "TAZQ needs access to your camera if you want to take photos for your tasks.",
-        "NSHealthShareUsageDescription": "TAZQ reads your sleep data from Health to help you track your sleep habit.",
+        "NSHealthShareUsageDescription": "TAZQ reads your sleep, steps, distance and workout data from Health so it can automatically tick off your sleep habit and your walking, running and training tasks. This data stays on your device.",
         "UIBackgroundModes": [
           "audio"
         ]
@@ -94,7 +94,10 @@
       },
       "package": "com.tazqapp.tazq",
       "permissions": [
-        "android.permission.health.READ_SLEEP"
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_DISTANCE",
+        "android.permission.health.READ_EXERCISE"
       ],
       "backgroundColor": "#000000",
       "softwareKeyboardLayoutMode": "resize",

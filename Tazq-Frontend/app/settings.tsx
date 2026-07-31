@@ -9,10 +9,11 @@ import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate, Footprints } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
+import { ActivityHealth } from '@/shared/services/activityHealth';
 import { SupportModal } from '@/shared/components/SupportModal';
 import { useAuthStore, getAvatarSource, AVATAR_CONFIGS, AVATAR_MAP, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -90,7 +91,7 @@ export default function SettingsScreen() {
   const streakShields = useFocusStore(s => s.streakShields);
   const { habits, toggleDate } = useHabitStore();
   const { tasks } = useTaskStore();
-  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, hapticFeedback, setHapticFeedback, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours, hideNotificationContent, setHideNotificationContent } = usePrefsStore();
+  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, hapticFeedback, setHapticFeedback, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours, hideNotificationContent, setHideNotificationContent, activityHealthOptIn, setActivityHealthOptIn } = usePrefsStore();
   const [sleepSupported] = useState(() => SleepHealth.isSupported());
   const { unlocked: unlockedAchievements } = useAchievementStore();
   const isDark = colorScheme === 'dark';
@@ -133,6 +134,28 @@ export default function SettingsScreen() {
       setSleepHealthOptIn('no');
     }
   };
+  /**
+   * Hareket izni UYKUDAN AYRI isteniyor.
+   *
+   * Tek anahtar olsaydı, uykusunu paylaşmaya razı olan kullanıcı koşularını da paylaşmak
+   * zorunda kalırdı. Platformlar da izinleri ayrı veriyor: burada "hayır" demek uykuyu
+   * bozmaz, tersi de geçerli.
+   */
+  const handleActivityToggle = async (v: boolean) => {
+    haptic.select();
+    if (v) {
+      const ok = await ActivityHealth.requestAuthorization();
+      setActivityHealthOptIn(ok ? 'yes' : 'no');
+      showToast(
+        ok ? (language === 'tr' ? 'Hareket takibi açık — yürüyüş ve koşu görevlerin otomatik işaretlenir' : 'Activity tracking on — walking and running tasks auto-complete')
+           : (language === 'tr' ? 'Sağlık izni verilmedi' : 'Health permission not granted'),
+        ok ? 'success' : 'info'
+      );
+    } else {
+      setActivityHealthOptIn('no');
+    }
+  };
+
   const cycleSleepGoal = () => { haptic.select(); setSleepGoalHours(sleepGoalHours >= 9 ? 6 : sleepGoalHours + 1); };
 
   const toggleNotifications = async () => {
@@ -486,7 +509,7 @@ export default function SettingsScreen() {
             {/* ── UYKU (Apple Sağlık) — yalnız desteklenen cihazda ── */}
             {sleepSupported && (
               <>
-                <SectionHeader onLayout={e => markSection('health', e.nativeEvent.layout.y)} title={language === 'tr' ? 'UYKU' : 'SLEEP'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
+                <SectionHeader onLayout={e => markSection('health', e.nativeEvent.layout.y)} title={language === 'tr' ? 'SAĞLIK' : 'HEALTH'} theme={theme} tr={language === 'tr'} style={{ marginTop: S.lg }} />
                 <SettingsCard theme={theme} isDark={isDark}>
                     <ToggleRow
                         icon={<Moon size={ICON.md} color="#FFFFFF" />}
@@ -513,6 +536,26 @@ export default function SettingsScreen() {
                         />
                       </>
                     )}
+
+                    {/*
+                      HAREKET — uykuyla AYNI kartta ama AYRI anahtar.
+
+                      Aynı kartta çünkü ikisi de "telefonun zaten bildiği şeyi bir daha
+                      sorma" vaadinin parçası; kullanıcı kafasında bunlar tek bir konu.
+                      Ayrı anahtar çünkü hassasiyetleri farklı: uykusunu paylaşan biri
+                      koşu rotalarını paylaşmak istemeyebilir ve platformlar da izinleri
+                      zaten ayrı veriyor.
+                    */}
+                    <RowDivider theme={theme} />
+                    <ToggleRow
+                        icon={<Footprints size={ICON.md} color="#FFFFFF" />}
+                        bg={A.health}
+                        title={language === 'tr' ? 'Hareket ve Antrenman' : 'Activity & Workouts'}
+                        subtitle={language === 'tr' ? 'Yürüyüş, koşu ve antrenman görevlerin otomatik işaretlenir' : 'Walking, running and training tasks auto-complete'}
+                        value={activityHealthOptIn === 'yes'}
+                        onValueChange={handleActivityToggle}
+                        theme={theme} isDark={isDark}
+                    />
                 </SettingsCard>
               </>
             )}
