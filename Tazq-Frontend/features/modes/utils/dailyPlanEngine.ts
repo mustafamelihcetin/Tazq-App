@@ -12,6 +12,7 @@
 
 import { CreateTaskPayload } from '@/shared/services/api';
 import { getPhase, StudyPhase, matchExamName } from '@/shared/utils/examPresets';
+import type { RecoveryState } from '@/shared/utils/recovery';
 
 export type Language = 'tr' | 'en';
 
@@ -29,6 +30,11 @@ export interface DailyPlanSpec {
    * sayı kullanılır. Detay: {@link adaptiveTaskCount}.
    */
   adherence?: { activeDays7: number; total14: number };
+  /**
+   * Uykudan türeyen toparlanma durumu (bkz. recovery.ts). Verilmezse 'unknown' —
+   * yani sağlık verisi yoksa motor bugünkü gibi çalışır, hiçbir şey değişmez.
+   */
+  recovery?: RecoveryState;
   /**
    * Slot kimliği (exam/exam2/exam3/spor/spor2/…). Görev etiketi ve günlük
    * dedupe ANAHTARI bu değerdir. Verilmezse `kind`'e düşer.
@@ -67,10 +73,29 @@ function taskCountFor(dailyMinutes?: number): number {
  * - son 7 günde plan tamamlanan gün ≤ 2 ise (zorlanıyor) → sayı 1 azaltılır (min 1).
  * - aksi halde → temel sayı.
  */
-export function adaptiveTaskCount(base: number, signal?: { activeDays7: number; total14: number }): number {
-  if (!signal || signal.total14 < 4) return base;
-  if (signal.activeDays7 <= 2) return Math.max(1, base - 1);
-  return base;
+export function adaptiveTaskCount(
+  base: number,
+  signal?: { activeDays7: number; total14: number },
+  recovery: RecoveryState = 'unknown',
+): number {
+  /*
+    TOPARLANMA DA HAFİFLETİR — uyum gibi, ama bağımsız olarak.
+
+    Motor bugüne kadar yalnızca UYUMU biliyordu: "dün görevlerini yaptı mı?". Bilmediği
+    şey daha önemliydi: "bugün yapabilir mi?". Üst üste kötü uyumuş bir kullanıcıya
+    dünküyle aynı yükü vermek, planı gerçeğe değil takvime bağlar.
+
+    İki sinyal AYRI AYRI düşürüyor ve üst üste binebiliyor: hem zorlanan hem dinlenmemiş
+    birine iki kademe hafiflik verilir. Ama taban 1'in altına inmez — plan görünmez
+    olursa uygulama da amacını kaybeder; az bir şey her zaman hiçbir şeyden iyidir.
+
+    Sözleşme korunuyor: yalnızca HAFİFLETİR. İyi uyudu diye yük artırılmaz (gerekçe
+    için bkz. recovery.ts).
+  */
+  let count = base;
+  if (signal && signal.total14 >= 4 && signal.activeDays7 <= 2) count -= 1;
+  if (recovery === 'low') count -= 1;
+  return Math.max(1, count);
 }
 
 // Bugün 09:00 (yerel) ISO — günlük görevler güne tarihlenir
@@ -379,7 +404,7 @@ export function buildDailyTasks(
   const pool = effectivePool(spec);
   if (!pool.length) return [];
 
-  const count = Math.min(adaptiveTaskCount(taskCountFor(spec.dailyMinutes), spec.adherence), pool.length);
+  const count = Math.min(adaptiveTaskCount(taskCountFor(spec.dailyMinutes), spec.adherence, spec.recovery), pool.length);
   const offset = dayIndex(today);
   const due = todayAt9(today);
   const name = spec.name?.trim() || (tr ? 'Hedefin' : 'Your goal');

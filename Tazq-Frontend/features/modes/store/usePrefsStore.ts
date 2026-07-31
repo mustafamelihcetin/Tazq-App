@@ -137,6 +137,19 @@ interface PrefsState {
   setTaskHideCompleted: (v: boolean) => void;
   taskShowFutureManual: boolean;
   setTaskShowFutureManual: (v: boolean) => void;
+  /**
+   * UYKUDAN TÜREYEN TOPARLANMA — plan motorunun okuduğu tek sağlık sinyali.
+   *
+   * Neden burada saklanıyor: plan üretimi SENKRON çalışıyor (bkz. dailyPlanEngine),
+   * sağlık verisi okumak ise asenkron ve izne bağlı. Motorun her görev üretiminde
+   * platformdan veri beklemesi hem yavaşlatır hem izin yokken belirsiz bırakırdı.
+   *
+   * Bunun yerine uyku senkronu — zaten günlük dökümü okuyor — sonucu buraya yazıyor;
+   * motor da hazır değeri okuyor. Veri hiç yoksa 'unknown' kalır ve motor bugünkü gibi
+   * davranır: sağlık entegrasyonu kapalı olan kullanıcı için HİÇBİR ŞEY değişmez.
+   */
+  recoveryState: 'unknown' | 'low' | 'normal';
+  setRecoveryState: (v: 'unknown' | 'low' | 'normal') => void;
   examPlanHabitIds: string[];
   examPlanTaskIds: number[];
   exam2PlanHabitIds: string[];
@@ -332,6 +345,8 @@ export const usePrefsStore = create<PrefsState>()(
       setTaskHideCompleted: (v) => set({ taskHideCompleted: v }),
       taskShowFutureManual: true,
       setTaskShowFutureManual: (v) => set({ taskShowFutureManual: v }),
+      recoveryState: 'unknown',
+      setRecoveryState: (v) => set({ recoveryState: v }),
       examPlanHabitIds: [],
       examPlanTaskIds: [],
       exam2PlanHabitIds: [],

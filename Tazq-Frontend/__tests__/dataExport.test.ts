@@ -88,7 +88,7 @@ describe('özellik adlandırması tek', () => {
   const FILES = [
     'app/modlar.tsx',
     'app/promo.tsx',
-    'shared/components/HelpTourModal.tsx',
+    'features/onboarding/components/HelpTourModal.tsx',
     'shared/components/BottomNavBar.tsx',
   ];
 

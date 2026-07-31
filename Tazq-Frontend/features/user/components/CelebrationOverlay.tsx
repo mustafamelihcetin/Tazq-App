@@ -1,3 +1,13 @@
+/*
+ * KATMAN DÜZELTMESİ: bu dosya `shared/components` altındaydı.
+ *
+ * Başarım kutlaması — `useAchievementStore`a dayanıyor.
+ *
+ * `shared` en alt katman: yukarıdaki hiçbir şeyi bilmemeli. Buradaki her `features`
+ * içe aktarımı, alt katmanın üst katmandan bilgi çekmesi demekti — modülerliği
+ * bozar ve dosyayı tek başına test edilemez kılar. Taşınmasıyla yön düzeldi;
+ * MANTIK HİÇ DEĞİŞMEDİ, yalnız yeri değişti.
+ */
 import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableWithoutFeedback, useWindowDimensions, Platform, BackHandler } from 'react-native';
 import { AppBlur } from '@/shared/components/AppBlur';

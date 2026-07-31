@@ -5,6 +5,7 @@ import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { SleepHealth, formatSleepDuration } from '@/shared/services/sleepHealth';
+import { recoveryFromSleep } from '@/shared/utils/recovery';
 
 /**
  * Uyku sağlık senkronu — hedef-bazlı, "onaylı asistan" (iOS HealthKit / Android Health Connect).
@@ -156,6 +157,18 @@ export function useSleepHealthSync() {
       */
       const goalHours = usePrefsStore.getState().sleepGoalHours || 7;
       const byDay = await SleepHealth.getSleepMinutesByDay(BACKFILL_DAYS);
+
+      /*
+        TOPARLANMA SİNYALİ BURADA ÜRETİLİYOR — veri zaten elimizde.
+
+        Günlük uyku dökümü geriye doldurma için okunuyordu; aynı veriden plan motorunun
+        ihtiyacı olan tek sağlık sinyali de çıkıyor. Ayrı bir okuma yapmak, platformdan
+        aynı veriyi ikinci kez istemek olurdu.
+
+        Sinyal kullanıcıya GÖSTERİLMİYOR: "az uyudun" demiyoruz, yalnız o günün plan
+        yükünü sessizce hafifletiyoruz (bkz. recovery.ts — sağlık tavsiyesi sınırı).
+      */
+      usePrefsStore.getState().setRecoveryState(recoveryFromSleep(byDay, goalHours));
 
       for (const h of sleepHabits) {
         for (let back = 1; back <= BACKFILL_DAYS; back++) {

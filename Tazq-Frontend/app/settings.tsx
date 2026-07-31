@@ -8,7 +8,7 @@ import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
-import { useCollapsibleHeader } from '@/shared/components/LargeTitle';
+import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { MotiView } from 'moti';
 import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate, Footprints } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';

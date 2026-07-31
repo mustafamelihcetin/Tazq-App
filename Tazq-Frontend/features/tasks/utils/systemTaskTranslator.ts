@@ -1,6 +1,16 @@
+/*
+ * KATMAN DÜZELTMESİ: bu dosya `shared` altındaydı.
+ *
+ * SİSTEM GÖREV METİNLERİNİ çeviriyor: mod havuzlarını, alışkanlık adlarını ve görev
+ * etiketlerini okuyor. Beş ayrı `features` modülüne dayanıyordu — genel bir yardımcı
+ * değil, görev/mod alanının parçası.
+ *
+ * `shared` en alt katman: yukarıdaki hiçbir şeyi bilmemeli. Taşıma yalnız YERİ
+ * değiştirdi; mantık aynen korundu.
+ */
 import { getAllDailyPlanPairs } from '@/features/modes/utils/dailyPlanEngine';
 import { getAllKnownModePairs } from '@/features/modes/utils/turkishModes';
-import { getAllLifeModePairs } from './lifeModePlans';
+import { getAllLifeModePairs } from '@/shared/utils/lifeModePlans';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { useHabitStore } from '@/features/habits/store/useHabitStore';
 import { translateTag } from '@/features/tasks';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { useTaskStore } from '@/features/tasks';
-import { useCollapsibleHeader } from '@/shared/components/LargeTitle';
+import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react-native';

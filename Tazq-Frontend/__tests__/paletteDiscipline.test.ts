@@ -45,7 +45,7 @@ const CEILING: Record<string, number> = {
   // sökülünce) profil tavanı düşecek. Modal renkleri ayrı bir temizlik işi.
   // 8 → 7: "Bildirimler Açık" yeşili theme.success'e bağlandı (kapalı hâli zaten tema-token'dı)
   'app/settings.tsx': 7,
-  'shared/components/RocketFeedback.tsx': 49,  // kendi durum renk dili (cyan/mor/turuncu/kırmızı)
+  'features/user/components/RocketFeedback.tsx': 49,  // kendi durum renk dili (cyan/mor/turuncu/kırmızı)
   // 42 → 57: pazarlama sayfası, kendi görsel dili. Aydınlık/koyu tema seçimi eklendi →
   // artık İKİ tam palet (accent + nötr çiftleri) taşıyor; renk tanımları doğal olarak ~ikiye
   // katlandı. Bilinçli yükseltme (bkz. tema toggle, ACCENTS/NEUTRAL). Bu satır yine yalnız küçülmeli.
@@ -61,7 +61,7 @@ const CEILING: Record<string, number> = {
   // palet token'larına bağlandı (accentKey → theme/CategoryColors, tema-duyarlı); emoji
   // etiketler lucide glife çevrildi. İlk-izlenim ekranı artık app'in paletiyle aynı.
   'features/modes/components/TurkishModeBanner.tsx': 20,
-  'shared/components/ProfileSetupModal.tsx': 22,  // kullanıcının seçtiği avatar renkleri
+  'features/user/components/ProfileSetupModal.tsx': 22,  // kullanıcının seçtiği avatar renkleri
   // 21 → 4: mod vurgusu palete, semantik renkler (#EF4444/#F59E0B/#10B981) tema
   // token'larına (theme.error/warning/success) bağlandı. Kalan 4: yüzey/nötr tonlar.
   'features/modes/components/modes/SporCard.tsx': 4,
@@ -71,9 +71,9 @@ const CEILING: Record<string, number> = {
   'app/mod-ozet.tsx': 5,
   'shared/utils/achievementIcons.tsx': 15,  // her başarımın kimlik rengi
   'features/modes/components/modes/RamazanCard.tsx': 12,
-  'shared/components/CelebrationOverlay.tsx': 12,
+  'features/user/components/CelebrationOverlay.tsx': 12,
   'shared/components/ConfettiOverlay.tsx': 12,
-  'shared/components/TourFeaturePreview.tsx': 12,
+  'features/onboarding/components/TourFeaturePreview.tsx': 12,
   'app/tasks.tsx': 10,
   // 10 → 7: trend/nokta/değerlendirme yeşilleri theme.success'e bağlandı (tema-kör #10B981'di)
   'features/dashboard/components/StatusHubModal.tsx': 7,
@@ -85,7 +85,7 @@ const CEILING: Record<string, number> = {
   'shared/components/QuickDraftModal.tsx': 7,
   'features/modes/components/modes/ExamCard.tsx': 6,
   // 6 → 3: alt-görev "yapıldı" tik/çerçeve/zemin semantik theme.success'e bağlandı
-  'shared/components/TaskFormModal.tsx': 3,
+  'features/tasks/components/TaskFormModal.tsx': 3,
   'features/modes/components/modes/MulakatCard.tsx': 5,
   'features/modes/components/modes/TezCard.tsx': 5,
   'shared/components/SupportModal.tsx': 5,

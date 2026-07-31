@@ -9,6 +9,7 @@
  */
 
 import { CreateTaskPayload } from '@/shared/services/api';
+import type { RecoveryState } from '@/shared/utils/recovery';
 import { WeightEntry } from '@/features/modes/store/useSporStore';
 
 export type Language = 'tr' | 'en';
@@ -333,6 +334,11 @@ export function buildMaratonAdaptationTasks(
   habitCompletionRate: number | null,
   existingTasks: { title: string; tags?: string[] | null; isCompleted: boolean; dueDate?: string | null }[],
   lang: Language,
+  /**
+   * Uykudan türeyen toparlanma (bkz. recovery.ts). Hacim artırma kararını kapılar.
+   * SON SIRADA ve varsayılanlı: sağlık verisi olmayan çağrılar bugünkü gibi çalışsın.
+   */
+  recovery: RecoveryState = 'unknown',
 ): CreateTaskPayload[] {
   const tasks: CreateTaskPayload[] = [];
   const tr = lang === 'tr';
@@ -423,7 +429,25 @@ export function buildMaratonAdaptationTasks(
       isCompleted: false,
       tags: ['maraton_missed', 'fitness'],
     });
-  } else if (habitCompletionRate != null && habitCompletionRate >= 0.8 && weeklyKm < peak && !hasDuplicateAdaptation(existingTasks, 'maraton_progress', 7, true)) {
+  } else if (
+    habitCompletionRate != null && habitCompletionRate >= 0.8 && weeklyKm < peak
+    /*
+      DİNLENMEMİŞKEN HACİM ARTIRILMAZ.
+
+      Uyum yüksek olsa bile — hatta ÖZELLİKLE öyleyken. Haftanın her antrenmanını
+      yapmış ama üst üste kötü uyumuş bir kullanıcı, tam da yüklenmenin en pahalıya
+      patlayacağı yerdedir: performans düşmeden önce toparlanma düşer.
+
+      Öneri iptal edilmiyor, ERTELENİYOR. `hasDuplicateAdaptation` zaten 7 günlük bir
+      kapı tutuyor; toparlanma normale döndüğünde artırma önerisi kendiliğinden gelir.
+      Yani kullanıcı bir şey kaybetmiyor, yalnız yanlış hafta yüklenmiyor.
+
+      Burada kullanıcıya "az uyudun" DENMİYOR. Sağlık tavsiyesi vermiyoruz; yalnız
+      kendi önerimizi geri çekiyoruz — aradaki fark hem etik hem hukuki.
+    */
+    && recovery !== 'low'
+    && !hasDuplicateAdaptation(existingTasks, 'maraton_progress', 7, true)
+  ) {
     const nextKm = Math.min(Math.round(weeklyKm * 1.1), peak);
     tasks.push({
       title: tr ? `Antrenman hacmini artır` : `Increase training volume`,

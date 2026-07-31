@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
 import i18n, { Language, translations, TranslationKeys } from '@/shared/constants/i18n';
-import { syncTasksAndHabitsLanguage } from '@/shared/utils/systemTaskTranslator';
+import { syncTasksAndHabitsLanguage } from '@/features/tasks/utils/systemTaskTranslator';
 
 interface LanguageState {
   language: Language;

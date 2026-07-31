@@ -889,7 +889,11 @@ export function usePlanAdaptations() {
         */
         const trainTarget = sporState.trainingDays ?? 3;
         const adherence = weeklyTrainingAdherence(existing, sporPlanTaskIds, trainTarget, weeksIn);
-        const newTasks = buildMaratonAdaptationTasks(wkm, targetEvent, daysLeft, weeksIn, adherence, existing, lang);
+        const newTasks = buildMaratonAdaptationTasks(
+          wkm, targetEvent, daysLeft, weeksIn, adherence, existing, lang,
+          // Dinlenmemişken hacim artırma önerisi ERTELENİR (bkz. planAdaptations).
+          usePrefsStore.getState().recoveryState,
+        );
         await applyTasks(newTasks, 'spor', sporPlanTaskIds, sporPlanHabitIds);
       } else if ((sporType === 'guc' || sporType === 'genel') && activeSeasonal.sporDate) {
         // Geçen hafta sayısını GERÇEK plan başlangıcından hesapla (planStartDate).
@@ -1049,7 +1053,16 @@ export function usePlanAdaptations() {
     })();
     const subjectTodayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     for (const ds of dailySlots) {
-      const spec = { ...ds.spec, adherence, isRamazan: inRamazanNow };
+      /*
+        TOPARLANMA SİNYALİ SPEC'E GİRİYOR.
+
+        Uyku senkronu bu değeri tercihlere yazıyor (bkz. useSleepHealthSync); motor da
+        burada okuyor. Sağlık entegrasyonu kapalıysa 'unknown' kalır ve üretim bugünkü
+        gibi çalışır — yani özellik kimseyi zorlamıyor, yalnız veri verene daha iyi
+        hizmet ediyor.
+      */
+      const recovery = usePrefsStore.getState().recoveryState;
+      const spec = { ...ds.spec, adherence, recovery, isRamazan: inRamazanNow };
       // Genişletilmiş havuz VARSA kullanılır; yoksa motor sabit havuzla çalışır.
       // Eksikse arka planda doldurulur — beklenmez, bugünü etkilemez (bkz. planPoolSync).
       const daily = buildDailyTasks({ ...spec, extraPool: getExtraPool(spec) }, fresh, lang, today);

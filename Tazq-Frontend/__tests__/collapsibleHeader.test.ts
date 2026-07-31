@@ -74,17 +74,37 @@ describe('çöken başlık bağlanan ekranlarda eksiksiz', () => {
   it('içerikte büyük başlık VARSA eşik ölçülür', () => {
     // O durumda sabit sayı yanlış anda çökmeye yol açardı: başlık hâlâ ekrandayken
     // çubuk da belirir ve aynı yazı iki yerde görünür.
-    const src = read('shared/components/LargeTitle.tsx');
+    const src = read('shared/hooks/useCollapsibleHeader.ts');
     expect(src).toContain('e.nativeEvent.layout.height');
     expect(src).toMatch(/titleHeight > 0/);
   });
 
-  it('kaydırma değeri NATIVE sürücüyle beslenmez', () => {
-    // `ScreenHeader` bu değeri renk/zemin opaklığına bağlıyor; native sürücü yalnız
-    // dönüşüm ve opaklığı destekler. `true` verilirse çubuk kaydırmaya hiç tepki
-    // vermez VE hata da alınmaz — sessizce çalışmayan bir animasyon kalır.
-    const src = read('shared/components/LargeTitle.tsx');
-    expect(src).toContain('useNativeDriver: false');
+  it('kaydırma animasyonu UI thread üzerinde koşar', () => {
+    /*
+      Bir ara burada `useNativeDriver: false` yazılıydı ve gerekçesi yanlıştı:
+      "ScreenHeader değeri renk ve düzen ölçülerine bağlıyor" diye varsayılmıştı.
+      Bağlamıyor — kaydırmaya bağlı tek şey opaklıklar ve 6pt'lik bir translateY.
+      Dördü de native sürücünün desteklediği özellikler.
+
+      Fark ölçülebilir: `false` ile her kaydırma karesi JS iş parçacığından geçer ve
+      uzun listede düşük donanımlı cihazda çubuk kareler geriden gelir. `true` ile
+      kaydırma boyunca JS'e hiç uğranmaz.
+
+      Ana sayfa aynı `ScreenHeader`i zaten `true` ile kullanıyor; bu test ikisinin
+      ayrışmasını engelliyor.
+    */
+    const src = read('shared/hooks/useCollapsibleHeader.ts');
+    expect(src).toContain('useNativeDriver: true');
+    expect(src).not.toContain('useNativeDriver: false');
+  });
+
+  it('ScreenHeader kaydırmaya YALNIZCA opaklık/dönüşüm bağlar', () => {
+    // Native sürücünün geçerli kalmasının şartı bu. Zemin RENGİ animasyona
+    // bağlanırsa (ör. `backgroundColor: scrollY.interpolate(...)`) sürücü sessizce
+    // çalışmayı bırakır — hata da vermez, sadece çubuk kıpırdamaz.
+    const src = read('shared/components/ScreenHeader.tsx');
+    expect(src).not.toMatch(/backgroundColor:\s*\w+\.interpolate/);
+    expect(src).not.toMatch(/borderBottomColor:\s*\w+\.interpolate/);
   });
 
   it('modlar ekranının MEVCUT kaydırma davranışı korunmuş', () => {

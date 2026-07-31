@@ -51,7 +51,7 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
     let lookupSystemString: any = null;
     try {
       lang = require('@/shared/store/useLanguageStore').useLanguageStore.getState().language;
-      lookupSystemString = require('@/shared/utils/systemTaskTranslator').lookupSystemString;
+      lookupSystemString = require('@/features/tasks/utils/systemTaskTranslator').lookupSystemString;
     } catch (e) { swallow('taskStore.resolveLanguageForMerge', e); }
 
     const merged = tasks.map(t => {

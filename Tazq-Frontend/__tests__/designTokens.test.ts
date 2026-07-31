@@ -47,7 +47,7 @@ const FILES = walk(ROOT).filter((f) => !EXEMPT[rel(f)]);
 /** Punto kurallarından muaf dosyalar — İKİ punto testi de bunu kullanıyor. */
 const FONT_EXEMPT = new Set([
   'app/onboarding.tsx',          // sinematik intro: `isSmallDevice ? A : B` elle adaptif
-  'shared/components/TourFeaturePreview.tsx', // tur önizleme mock'u — küçültülmüş temsil
+  'features/onboarding/components/TourFeaturePreview.tsx', // tur önizleme mock'u — küçültülmüş temsil
   'features/user/components/MomentumPulse.tsx',      // yoğun mini görselleştirme
 ]);
 

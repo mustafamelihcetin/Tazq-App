@@ -1,3 +1,13 @@
+/*
+ * KATMAN DÜZELTMESİ: bu dosya `shared/components` altındaydı.
+ *
+ * Kullanıcı profili kurulumu — avatar yapılandırması `features/user`dan geliyor.
+ *
+ * `shared` en alt katman: yukarıdaki hiçbir şeyi bilmemeli. Buradaki her `features`
+ * içe aktarımı, alt katmanın üst katmandan bilgi çekmesi demekti — modülerliği
+ * bozar ve dosyayı tek başına test edilemez kılar. Taşınmasıyla yön düzeldi;
+ * MANTIK HİÇ DEĞİŞMEDİ, yalnız yeri değişti.
+ */
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TextInput, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Image, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { AppBlur } from '@/shared/components/AppBlur';

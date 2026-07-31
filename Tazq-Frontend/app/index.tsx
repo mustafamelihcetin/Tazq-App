@@ -42,13 +42,13 @@ import { isWeightEntryTask, weightTaskAction, completeTaskOfflineFirst } from '@
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { MomentumPulse } from '@/features/user/components/MomentumPulse';
 import { WeightEntryModal } from '@/features/modes/components/WeightEntryModal';
-import { HelpTourModal } from '@/shared/components/HelpTourModal';
+import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
 import { StatusHubModal } from '@/features/dashboard/components/StatusHubModal';
 import { QuickDraftModal } from '@/shared/components/QuickDraftModal';
-import { ProfileSetupModal } from '@/shared/components/ProfileSetupModal';
+import { ProfileSetupModal } from '@/features/user/components/ProfileSetupModal';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';

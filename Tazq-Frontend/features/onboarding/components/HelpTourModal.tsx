@@ -1,3 +1,12 @@
+/*
+ * KATMAN DÜZELTMESİ: bu dosya `shared` altındaydı.
+ *
+ * Tanıtım turu modalı — tur ilerlemesini tercihlerde tutuyor ve özellik önizlemesini
+ * çiziyor. `features/onboarding` bunun doğal yeri.
+ *
+ * `shared` en alt katman: yukarıdaki hiçbir şeyi bilmemeli. Taşıma yalnız YERİ
+ * değiştirdi; mantık aynen korundu.
+ */
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, Animated, Easing, useWindowDimensions } from 'react-native';
@@ -6,7 +15,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing as REasing } from 'react-native-reanimated';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { MotiView } from 'moti';
-import { TourFeaturePreview } from '@/shared/components/TourFeaturePreview';
+import { TourFeaturePreview } from '@/features/onboarding/components/TourFeaturePreview';
 import {
   Rocket,
   Flame,

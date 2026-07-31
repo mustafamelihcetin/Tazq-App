@@ -1,3 +1,14 @@
+/*
+ * KATMAN DÜZELTMESİ: bu dosya `shared/components` altındaydı.
+ *
+ * Tanıtım turunun ÖZELLİK önizlemesi — momentum, alışkanlık ve görev satırı
+ * bileşenlerini birlikte çiziyor. Doğası gereği özelliklere bağlı.
+ *
+ * `shared` en alt katman: yukarıdaki hiçbir şeyi bilmemeli. Buradaki her `features`
+ * içe aktarımı, alt katmanın üst katmandan bilgi çekmesi demekti — modülerliği
+ * bozar ve dosyayı tek başına test edilemez kılar. Taşınmasıyla yön düzeldi;
+ * MANTIK HİÇ DEĞİŞMEDİ, yalnız yeri değişti.
+ */
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';

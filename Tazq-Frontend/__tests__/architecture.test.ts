@@ -34,6 +34,15 @@ const importsOf = (rel: string) => [...read(rel).matchAll(/from '@\/(\w+)\//g)].
  * enjeksiyonuyla çözülür ve ayrı bir tur işidir; bu yüzden sıfır değil, TAVAN
  * çiviliyoruz — tavan yalnız DÜŞEBİLİR.
  */
+/**
+ * `shared → features` borç tavanı — İKİ test de bunu okur.
+ *
+ * Ayrı ayrı yazıldığında biri düşürülüp öteki unutuluyordu: tavan 7'ye indirildiğinde
+ * bayatlama koruması hâlâ eski 20'ye göre hesap yapıyordu ve testi kırdı. Tek sabit,
+ * ikisinin ayrışmasını imkânsız kılıyor.
+ */
+const LAYER_CEILING = 7;
+
 describe('katman yönü', () => {
   const sharedFiles = walk('shared');
 
@@ -49,25 +58,50 @@ describe('katman yönü', () => {
   });
 
   /**
-   * BORÇ TAVANI. 41 → bugün. Yeni ihlal eklemek testi kırar; azaltmak serbest
-   * (azaltınca bu sayı da düşürülmeli — bkz. aşağıdaki bayatlama testi).
+   * BORÇ TAVANI. 41 → 20 → 7.
+   *
+   * ── 20'DEN 7'YE NASIL İNDİ ──────────────────────────────────────────────────
+   * İhlallerin çoğu bir bağımlılık sorunu değil, YANLIŞ KLASÖRLEME'ydi: `shared`
+   * altında duran altı dosya aslında birer özellik parçasıydı — bir GÖREV formu,
+   * kullanıcı profili modalı, başarım kutlaması, momentum geri bildirimi, tanıtım
+   * turu ve sistem görev metinleri çevirmeni. Hiçbiri genel değildi; hepsi
+   * `features`'a taşındı. Mantık hiç değişmedi, yalnız yerleri düzeldi.
+   *
+   * ── KALAN 7 NEDEN KALDI ─────────────────────────────────────────────────────
+   * Geriye kalanlar ALTYAPININ durum okuması ve tek tek bakıldığında hepsi meşru bir
+   * ihtiyaçtan doğuyor:
+   *   · api.ts → oturum jetonunu okuyor
+   *   · useOfflineSync → kuyruğu boşaltırken görev ve tercih store'unu yazıyor
+   *   · usePrefsSync → kullanıcı kimliği ve tercihleri eşitliyor
+   *   · BottomNavBar → sade/pro moduna göre sekmeleri belirliyor
+   *   · useLanguageStore → dil değişince sistem görev metinlerini çeviriyor
+   *
+   * Bunları kaldırmanın yolu store'ları `shared`'a taşımak DEĞİL: denendi ve ölçüldü,
+   * `useAuthStore` çıkışta her özellik store'unu sıfırladığı için taşıma 2 ihlali
+   * kaldırıp 5 yenisini doğuruyordu — yani borcu artırıyordu.
+   *
+   * Doğru çözüm bağımlılığın YÖNÜNÜ çevirmek (jeton sağlayıcı, sıfırlama kaydı gibi
+   * ters bağımlılıklar). Bu, oturum ve eşitleme yollarına dokunan ayrı ve dikkatli bir
+   * tur işi; yayın öncesi aceleye getirilecek bir şey değil. Bu yüzden sıfır değil,
+   * ölçülmüş bir tavan çiviliyoruz — tavan yalnız DÜŞEBİLİR.
    */
   it('shared → features bağımlılığı tavanın altında', () => {
     const count = sharedFiles.reduce(
       (n, f) => n + importsOf(f).filter((m) => m === 'features').length,
       0,
     );
-    expect(count).toBeLessThanOrEqual(20);
+    expect(count).toBeLessThanOrEqual(LAYER_CEILING);
   });
 
   it('tavan bayatlamamalı — düşen borç listede kalmasın', () => {
     // Tavan gerçek sayının çok üstünde kalırsa koruma işlevini yitirir: yeni ihlaller
-    // sessizce sığar. Bu test tavanı gerçeğe yakın tutmaya zorlar.
+    // sessizce sığar. Bu test tavanı gerçeğe YAKIN tutmaya zorlar — borç düştüğünde
+    // tavanı da düşürmek zorunlu hale gelir.
     const count = sharedFiles.reduce(
       (n, f) => n + importsOf(f).filter((m) => m === 'features').length,
       0,
     );
-    expect(count).toBeGreaterThan(20 - 8);
+    expect(count).toBeGreaterThan(LAYER_CEILING - 3);
   });
 });
 

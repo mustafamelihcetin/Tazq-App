@@ -28,7 +28,7 @@ import { Colors } from '@/shared/constants/Colors';
 import { getRandomQuote } from '@/shared/constants/Quotes';
 import { ICON, S, R, F, B, SPRING_SOFT } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
-import { HelpTourModal } from '@/shared/components/HelpTourModal';
+import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { Easing as RNEasing } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, useDerivedValue, withRepeat, withTiming, withDelay, cancelAnimation, Easing as ReEasing, type SharedValue } from 'react-native-reanimated';

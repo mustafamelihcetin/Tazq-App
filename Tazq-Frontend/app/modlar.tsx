@@ -11,7 +11,7 @@ import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
-import { useCollapsibleHeader } from '@/shared/components/LargeTitle';
+import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { usePrefsStore, getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, localizeSporGoal, RAMAZAN, renderModeEmojiIcon, deriveDateSlot, isSeasonalExamActive } from '@/features/modes';
@@ -31,7 +31,7 @@ import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W, sideInset, navBarSpace, topB
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporStore';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
-import { HelpTourModal } from '@/shared/components/HelpTourModal';
+import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/features/modes/utils/weightCheckin';
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
 import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '@/shared/utils/examPresets';

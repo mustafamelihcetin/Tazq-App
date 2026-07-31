@@ -1,3 +1,14 @@
+/*
+ * KATMAN DÜZELTMESİ: bu dosya `shared/components` altındaydı.
+ *
+ * Bir GÖREV formu — genel bir bileşen değil. `features/tasks` yardımcılarına
+ * (etiket ayrıştırma, ipucu çıkarma) doğrudan dayanıyor.
+ *
+ * `shared` en alt katman: yukarıdaki hiçbir şeyi bilmemeli. Buradaki her `features`
+ * içe aktarımı, alt katmanın üst katmandan bilgi çekmesi demekti — modülerliği
+ * bozar ve dosyayı tek başına test edilemez kılar. Taşınmasıyla yön düzeldi;
+ * MANTIK HİÇ DEĞİŞMEDİ, yalnız yeri değişti.
+ */
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Animated as RNAnimated, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Calendar, Target, Bell, X, Sparkles, Mic, Timer, Repeat, Trash2, Plus, Check } from 'lucide-react-native';
