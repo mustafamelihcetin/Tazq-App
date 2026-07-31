@@ -117,6 +117,26 @@ interface PrefsState {
   /** 'YYYY-MM-DD' — hareket verisi günde bir kez sorulur (uykudakiyle aynı desen). */
   activityLastCheckDate: string;
   setActivityLastCheckDate: (v: string) => void;
+  /**
+   * GÖREVLER EKRANI GÖRÜNÜM TERCİHLERİ — kalıcı olmaları gerekiyor.
+   *
+   * Bunlar `useState` ile tutuluyordu, yani uygulama her kapandığında sıfırlanıyordu.
+   * "Tamamlananları gizle" gibi bir tercihi her açılışta yeniden kurmak zorunda kalmak,
+   * ayarı hiç sunmamaktan daha sinir bozucu: kullanıcı bir karar veriyor, uygulama onu
+   * unutuyor.
+   *
+   * `tagFilter` bilinçli olarak DIŞARIDA: o bir arama hamlesi, kalıcı bir tercih değil.
+   * Etiket filtresiyle kapatılan uygulamanın ertesi gün aynı daraltmayla açılması,
+   * kullanıcıya "görevlerim kayboldu" dedirtirdi.
+   */
+  taskFilter: 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done';
+  setTaskFilter: (v: 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done') => void;
+  taskSortBy: 'priority' | 'date' | 'creation';
+  setTaskSortBy: (v: 'priority' | 'date' | 'creation') => void;
+  taskHideCompleted: boolean;
+  setTaskHideCompleted: (v: boolean) => void;
+  taskShowFutureManual: boolean;
+  setTaskShowFutureManual: (v: boolean) => void;
   examPlanHabitIds: string[];
   examPlanTaskIds: number[];
   exam2PlanHabitIds: string[];
@@ -304,6 +324,14 @@ export const usePrefsStore = create<PrefsState>()(
       setActivityHealthOptIn: (v) => set({ activityHealthOptIn: v }),
       activityLastCheckDate: '',
       setActivityLastCheckDate: (v) => set({ activityLastCheckDate: v }),
+      taskFilter: 'all',
+      setTaskFilter: (v) => set({ taskFilter: v }),
+      taskSortBy: 'creation',
+      setTaskSortBy: (v) => set({ taskSortBy: v }),
+      taskHideCompleted: false,
+      setTaskHideCompleted: (v) => set({ taskHideCompleted: v }),
+      taskShowFutureManual: true,
+      setTaskShowFutureManual: (v) => set({ taskShowFutureManual: v }),
       examPlanHabitIds: [],
       examPlanTaskIds: [],
       exam2PlanHabitIds: [],

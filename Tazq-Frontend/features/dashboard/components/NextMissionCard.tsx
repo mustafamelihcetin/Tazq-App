@@ -14,9 +14,11 @@ import type { AppTheme } from '@/shared/constants/Colors';
  * "şimdi şunu yap" der. Ekranda tek dolu buton bunun olması bilinçli — iOS'ta da
  * bir ekranda tek birincil eylem vardır; ikisi olunca ikisi de birincil olmaz.
  *
- * Öncelik rengi kartın kimliği: aciliyet gradyanda, rozette ve rozet yazısında AYNI
- * kaynaktan gelir (bkz. accent). Eskiden iki yerde ayrı ayrı hesaplanıyordu —
- * biri değişse kart kendi içinde çelişirdi.
+ * RENK YALNIZ DURUMDA. Öncelik rengi tek kaynaktan gelir (`accent` → priorityColor) ama
+ * yalnızca ACİL etiketini boyar. Üstteki "SIRADAKİ" nötrdür: o bir yapı etiketi, kartın
+ * ne olduğunu söyler — ve kartın kendisi hiçbir zaman acil değildir, görev acildir.
+ * İkisi de renkliyken aynı kırmızı yan yana iki kez görünüyor, tekrarlandığı için de
+ * vurgu olmaktan çıkıyordu.
  */
 
 export interface NextMissionCardProps {
@@ -38,7 +40,6 @@ export interface NextMissionCardProps {
   /** Önceliği renge çeviren TEK kaynak. */
   priorityColor: (p: string) => string;
   isSmallScreen: boolean;
-  isDark: boolean;
   theme: AppTheme;
   padding: number;
 }
@@ -46,7 +47,7 @@ export interface NextMissionCardProps {
 export const NextMissionCard = React.memo<NextMissionCardProps>(
   ({
     task, title, subtitle, badgeLabel, showUrgent, urgentLabel, primaryLabel, seeAllLabel,
-    onOpenTask, onSeeAll, priorityColor, isSmallScreen, isDark, theme, padding,
+    onOpenTask, onSeeAll, priorityColor, isSmallScreen, theme, padding,
   }) => {
     // TEK kaynak: gradyan, rozet ve rozet yazısı hep bunu kullanır. Eskiden gradyan
     // önceliği kendi if/else'iyle renge çeviriyordu, rozet ise priorityColor() ile —
@@ -76,16 +77,40 @@ export const NextMissionCard = React.memo<NextMissionCardProps>(
               Renk kaldırılmadı, hak ettiği yere çekildi — aşağıdaki rozet ve dolu mavi
               düğme zaten taşıyor.
             */}
+            {/*
+              DOLGULU HAPLAR KALDIRILDI — aksiyon merkezindeki son kalıntıydı.
+
+              Burada iki renkli kapsül vardı (zemin: vurgu %18-25, hata %20). Sorun tek
+              tek görünüşleri değil, ekranın GERİ KALANIYLA ÇELİŞMELERİYDİ: hemen
+              altlarındaki görev satırlarında aynı desen zaten kaldırılmış, mod adı düz
+              renkli metne çevrilmişti; bildirim kapsülünde de renk yalnız ikona
+              çekilmişti. Yani aksiyon merkezinde iki ayrı tasarım dili yan yana
+              duruyordu ve göz bunu "biri buraya sonradan yapıştırılmış" diye okur.
+
+              ── YAPI NÖTR, DURUM RENKLİ ────────────────────────────────────────────
+              İkinci ve daha önemli düzeltme renkte. Eskiden İKİ etiket de renkliydi ve
+              renkleri aynı kaynaktan geliyordu: `accent` önceliğe göre hesaplanıyor,
+              `showUrgent` ise zaten yalnız YÜKSEK öncelikte açılıyor. Sonuç: yüksek
+              öncelikli bir görevde iki kırmızı etiket yan yana, aynı şeyi iki kez
+              söylüyordu — renk tekrarlandığı için de vurgu olmaktan çıkıyordu.
+
+              Artık "SIRADAKİ" nötr: o bir YAPI etiketi, kartın ne olduğunu söyler ve
+              kartın kendisi hiçbir zaman "acil" değildir. Renk yalnız gerçekten durum
+              bildiren "ACİL"e kaldı. Bir şey vurgulanacaksa tek şey vurgulanmalı.
+            */}
             <View style={styles.header}>
-              <View style={[styles.badge, { backgroundColor: accent + (isDark ? '25' : '18') }]}>
-                <Rocket size={ICON.xs} color={accent} />
-                <Text style={[styles.badgeText, { color: accent }]}>{badgeLabel}</Text>
+              <View style={styles.label}>
+                <Rocket size={ICON.xs} color={theme.onSurfaceMuted} />
+                <Text style={[styles.labelText, { color: theme.onSurfaceMuted }]}>{badgeLabel}</Text>
               </View>
 
               {showUrgent && (
-                <View style={[styles.badge, { backgroundColor: theme.error + '20' }]}>
-                  <Zap size={ICON.xs} color={theme.error} fill={theme.error} />
-                  <Text style={[styles.badgeText, { color: theme.error }]}>{urgentLabel}</Text>
+                <View style={styles.label}>
+                  {/* Ayıraç: iki etiketi hap kutusu olmadan ayırır. iOS'un ikincil
+                      satırlarında kullandığı yöntem — kutu değil, nokta. */}
+                  <Text style={[styles.labelText, { color: theme.outline }]}>·</Text>
+                  <Zap size={ICON.xs} color={accent} fill={accent} />
+                  <Text style={[styles.labelText, { color: accent }]}>{urgentLabel}</Text>
                 </View>
               )}
             </View>
@@ -154,16 +179,18 @@ NextMissionCard.displayName = 'NextMissionCard';
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: S.lg, marginBottom: S.lg },
   card: { justifyContent: 'space-between', overflow: 'hidden' },
-  header: { flexDirection: 'row', gap: S.sm },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: S.xs,
-    paddingHorizontal: S.sm,
-    paddingVertical: S.xs,
-    borderRadius: R.full,
-  },
-  badgeText: { fontSize: F.caption, fontWeight: W.medium, letterSpacing: 0.5 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
+  /*
+    Kutu yok: dolgu, çerçeve ve yuvarlaklık gitti. Geriye ikon + yazı kaldı — görev
+    satırlarının ikincil satırıyla ve bildirim kapsülüyle aynı dil.
+  */
+  label: { flexDirection: 'row', alignItems: 'center', gap: S.xs },
+  /*
+    Ağırlık `medium`dan `bold`a çıktı. Dolgulu zemin varken etiketi zeminin kendisi
+    ayırıyordu; zemin kalkınca ayrımı ağırlık ve harf aralığı taşımalı. Bu, görev
+    satırlarındaki mod adının (F.caption / '700') birebir aynısı — aynı iş, aynı biçim.
+  */
+  labelText: { fontSize: F.caption, fontWeight: W.bold, letterSpacing: 0.5 },
   content: { marginTop: S.xxs },
   title: {
     fontSize: F.subhead,

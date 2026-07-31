@@ -38,6 +38,7 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey, useSleepHealthSync } from '@/features/habits';
 import { useActivityHealthSync } from '@/features/modes/hooks/useActivityHealthSync';
+import { isWeightEntryTask, weightTaskAction, completeTaskOfflineFirst } from '@/features/modes/utils/weightCheckin';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { MomentumPulse } from '@/features/user/components/MomentumPulse';
 import { WeightEntryModal } from '@/features/modes/components/WeightEntryModal';
@@ -963,9 +964,31 @@ export default function HomeScreen() {
   const handleCheckTask = async (taskId: number) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    if (task.tags?.includes('weight_entry')) {
+    /*
+      KİLO GÖREVİ — Görevler ekranıyla AYNI kural.
+
+      Burada iki ayrı sapma vardı ve ikisi de aynı kökten geliyordu: bu ekran kendi
+      kontrolünü elle yazmış, `weightCheckin`teki ortak yardımcıları kullanmamıştı.
+
+      1) `tags.includes('weight_entry')` yazılıydı; ortak `isWeightEntryTask` ise BAŞLIĞA
+         da bakıyor ("Güncel kilonu gir"). Etiketsiz eski kilo görevleri bu yüzden
+         dashboard'da sıradan görev sayılıyor, modal hiç açılmadan TAMAMLANIYOR ve
+         kullanıcının kilosu hiç kaydedilmiyordu.
+
+      2) `canLogWeight` kontrolü yoktu. Tartım o hafta zaten girilmişse modal yine de
+         açılıyor, `recordWeeklyWeight` sessizce `false` dönüyor ve görev KAPANMIYORDU —
+         yani aksiyon merkezinde asla temizlenemeyen bir görev kalıyordu. Görevler
+         ekranı bu durumu zaten doğru ele alıyordu; iki ekran birbirinden kopmuştu.
+    */
+    if (isWeightEntryTask(task) && !task.isCompleted) {
       haptic.select();
-      setWeightModalTaskId(task.id);
+      if (weightTaskAction() === 'log') {
+        setWeightModalTaskId(task.id);
+      } else {
+        // Tartım bu dönem zaten kayıtlı → görevin amacı yerine gelmiş, doğrudan kapat.
+        completeTaskOfflineFirst(task.id);
+        showToast(language === 'tr' ? 'Tartım zaten kayıtlı — görev tamamlandı' : 'Weigh-in already logged — task completed', 'success');
+      }
       return;
     }
     if (task.isCompleted) return; // aksiyon merkezi sadece tamamlar, hiç geri almaz
@@ -1205,7 +1228,6 @@ export default function HomeScreen() {
       onSeeAll={() => router.push('/tasks')}
       priorityColor={priorityColor}
       isSmallScreen={isSmallScreen}
-      isDark={isDark}
       theme={theme}
       padding={isSmallScreen ? S.md : S.lg}
     />

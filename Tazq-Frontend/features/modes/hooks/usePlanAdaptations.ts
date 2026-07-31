@@ -23,6 +23,7 @@ import {
   analyzeKiloProgress,
   buildKiloAdaptationTasks,
   buildMaratonAdaptationTasks,
+  weeklyTrainingAdherence,
   buildSinavAdaptationTasks,
   buildTezAdaptationTasks,
   buildMulakatAdaptationTasks,
@@ -876,7 +877,19 @@ export function usePlanAdaptations() {
         const weeksIn = mStart
           ? Math.max(0, Math.floor((Date.now() - new Date(mStart).getTime()) / (7 * 86400000)))
           : 0;
-        const newTasks = buildMaratonAdaptationTasks(wkm, targetEvent, daysLeft, weeksIn, 0.7, existing, lang);
+        /*
+          UYUM ORANI ARTIK GERÇEK. Buraya sabit `0.7` yazılıydı ve fonksiyonun karar
+          eşikleri `< 0.5` ile `>= 0.8` olduğu için iki dal da hiç çalışmıyordu: maraton
+          planı, kullanıcı o hafta hiç koşmasa da her şeyi yapsa da aynı kalıyordu.
+
+          Ölçü, kullanıcının spor kartında GÖRDÜĞÜ sayının aynısı (son 7 günde antrenman
+          yapılan ayrı gün sayısı / haftalık hedef). Hareket senkronu bu görevleri sağlık
+          verisinden otomatik kapattığı için, gerçek koşu ve yürüyüşler artık doğrudan
+          plana yansıyor — veri yalnızca ekranda durmuyor, kararı besliyor.
+        */
+        const trainTarget = sporState.trainingDays ?? 3;
+        const adherence = weeklyTrainingAdherence(existing, sporPlanTaskIds, trainTarget, weeksIn);
+        const newTasks = buildMaratonAdaptationTasks(wkm, targetEvent, daysLeft, weeksIn, adherence, existing, lang);
         await applyTasks(newTasks, 'spor', sporPlanTaskIds, sporPlanHabitIds);
       } else if ((sporType === 'guc' || sporType === 'genel') && activeSeasonal.sporDate) {
         // Geçen hafta sayısını GERÇEK plan başlangıcından hesapla (planStartDate).

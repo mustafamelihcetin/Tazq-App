@@ -429,5 +429,18 @@ export function getAllDailyPlanPairs(): Array<{ tr: string; en: string }> {
   addRecord(TEZ_POOLS);
   addRecord(MULAKAT_POOLS);
   pairs.push(...KILO_POOL, ...MARATON_POOL, ...GUC_POOL, ...GENEL_POOL, ...RAMAZAN_POOL);
+  /**
+   * RAMAZAN VARYANTLARI DA — eskiden unutulmuşlardı.
+   *
+   * Bu liste `systemTaskTranslator`ı besliyor: kullanıcı dili değiştirdiğinde sistemin
+   * ürettiği görev başlıkları buradaki eşleşmelerden çevriliyor. Ramazan havuzları
+   * listede olmadığı için, Ramazan modu açıkken dil değiştiren bir kullanıcının günlük
+   * görevleri ESKİ DİLDE kalıyordu — üstelik tam da içerik farkının en görünür olduğu
+   * modda (iftar/sahur'a göre yazılmış özel metinler).
+   *
+   * Sessiz bir hataydı: bir şey çökmüyor, yalnızca çeviri sözlüğünde karşılık
+   * bulunamıyor ve metin olduğu gibi bırakılıyordu.
+   */
+  pairs.push(...KILO_POOL_RAMAZAN, ...MARATON_POOL_RAMAZAN, ...GUC_POOL_RAMAZAN, ...GENEL_POOL_RAMAZAN);
   return pairs;
 }

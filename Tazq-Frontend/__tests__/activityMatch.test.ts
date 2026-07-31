@@ -114,6 +114,10 @@ describe('classifyMovementTask — hangi görev veriyle kanıtlanabilir', () => 
     expect(matched.map((m) => `${m.kind}: ${m.tr}`).sort()).toEqual([
       'move: Bugün 30+ dk hareket et (tempolu yürüyüş veya antrenman)',
       'move: Bugün en az 30 dk aktif ol',
+      // Ramazan varyantları: havuz listesine sonradan eklendiler (çeviri sözlüğünde
+      // eksiktiler). İkisi de gerçek hareket görevi — otomatik tamamlanmaları doğru.
+      'move: İftar sonrası 30+ dk hafif tempolu yürüyüş veya hareket et',
+      'move: İftar sonrası en az 30 dk hafif aktif ol (mobilite/esneme)',
       'run: Bugünkü koşunu planına göre tamamla',
       'workout: Bugünkü antrenman bölünmeni (split) tamamla',
     ]);

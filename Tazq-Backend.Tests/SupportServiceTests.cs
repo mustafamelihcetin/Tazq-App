@@ -62,9 +62,11 @@ namespace Tazq_Backend.Tests
             }
             await _context.SaveChangesAsync();
 
-            var crashes = await _service.GetCrashesAsync(2);
+            // İmza sayfalamaya geçti: (limit, offset, unresolvedOnly) → (Items, Total).
+            var (crashes, total) = await _service.GetCrashesPageAsync(2, 0, false);
 
             Assert.Equal(2, crashes.Count);
+            Assert.Equal(5, total); // sayfa 2 satır, TOPLAM 5 — sayfalayıcı bunu gösterir
             Assert.Equal("e4", crashes[0].ErrorMessage);
             Assert.Equal("e3", crashes[1].ErrorMessage);
         }

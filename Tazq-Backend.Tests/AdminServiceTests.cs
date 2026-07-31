@@ -328,9 +328,15 @@ namespace Tazq_Backend.Tests
             await _service.SetRoleAsync(2, "Admin", _admin);
             await _service.SetRoleAsync(3, "Admin", _admin);
 
-            var logs = await _service.GetAuditLogAsync(0); // geçersiz → varsayılana çekilir
+            // Sayfalamaya geçince kırpma sınırı değişti: limit artık [1, 200] aralığına
+            // çekiliyor, yani 0 → 1. Eski API geçersiz değeri varsayılana çekiyordu.
+            var (clamped, clampedTotal) = await _service.GetAuditLogPageAsync(0, 0);
+            Assert.Single(clamped);
+            Assert.Equal(2, clampedTotal); // sayfa 1 satır ama TOPLAM 2 — sayfalayıcı bunu gösterir
 
+            var (logs, total) = await _service.GetAuditLogPageAsync(2, 0);
             Assert.Equal(2, logs.Count);
+            Assert.Equal(2, total);
             Assert.True(logs[0].CreatedAt >= logs[1].CreatedAt);
         }
     }

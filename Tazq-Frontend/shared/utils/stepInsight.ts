@@ -60,6 +60,28 @@ const NOTES: Record<StepBand, { tr: string; en: string }> = {
   great: { tr: 'Harika bir gün', en: 'A great day' },
 };
 
+/** Gün sürerken, henüz hüküm verilemeyecek bantlarda kullanılan nötr ifade. */
+const IN_PROGRESS = { tr: 'Gün sürüyor', en: 'Day in progress' };
+
+/**
+ * GÜNÜN NE KADARI GEÇTİĞİNDE HÜKÜM VERİLEBİLİR.
+ *
+ * Adım BUGÜNÜ gösteriyor (dünü değil): dünün sayısı tarihtir, değiştirilemez; bu
+ * uygulama ise bugün üzerine kurulu. Apple'ın kendi deseni de bu — Fitness halkaları
+ * ve Sağlık adım kartı hep bugünü gösterir, gün ilerledikçe dolar. Kullanıcının
+ * saatinde 8.000 yazarken burada dünün 3.000'ini görmesi güveni bozardı.
+ *
+ * Ama yarım bir sayı HÜKÜM gibi okunmamalı. Sabah 09:00'da 800 adımla "Hafif bir gün"
+ * demek yanlıştır — gün daha başlamamıştır, kullanıcı tembel değildir.
+ *
+ * ── KURAL: ÖVGÜ ERKEN KAZANILABİLİR, YARGI KAZANILAMAZ ──────────────────────────
+ * Asimetri kasıtlı. Öğlen 11.000 adıma ulaşmışsan "Harika bir gün" ŞU AN doğrudur ve
+ * akşam daha da doğru olacaktır — övgüyü saklamak için sebep yok. Ama "Hafif bir gün"
+ * öğlen doğru görünüp akşam yanlış çıkabilir. Bu yüzden alt bantlar günün büyük kısmı
+ * geçene kadar susuyor, üst bantlar her an konuşabiliyor.
+ */
+const VERDICT_HOUR = 18;
+
 /**
  * Binlik ayraçlı sayı — `toLocaleString` KULLANILMIYOR.
  *
@@ -82,12 +104,26 @@ export function formatDistance(meters: number, lang: 'tr' | 'en'): string | null
   return lang === 'tr' ? `${s.replace('.', ',')} km` : `${s} km`;
 }
 
-export function stepSummary(steps: number, distanceMeters: number, lang: 'tr' | 'en'): StepSummary {
+/**
+ * @param hour Günün saati (0-23). Alt bantlarda erken saatte hüküm verilmesini engeller.
+ */
+export function stepSummary(
+  steps: number,
+  distanceMeters: number,
+  lang: 'tr' | 'en',
+  hour: number = new Date().getHours(),
+): StepSummary {
   const band = bandOf(steps);
+
+  // Üst bantlar her an konuşabilir (kazanılmış övgü geri alınmaz); alt bantlar
+  // günün büyük kısmı geçene kadar nötr kalır. `none` de nötr kalmaz — "veri yok"
+  // bir yargı değil, durum bildirimidir.
+  const tooEarlyToJudge = hour < VERDICT_HOUR && (band === 'light' || band === 'moving');
+
   return {
     band,
     steps: formatSteps(steps, lang),
     distance: formatDistance(distanceMeters, lang),
-    note: NOTES[band][lang],
+    note: tooEarlyToJudge ? IN_PROGRESS[lang] : NOTES[band][lang],
   };
 }

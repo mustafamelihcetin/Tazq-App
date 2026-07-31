@@ -281,7 +281,10 @@ export const TaskService = {
     const response = await api.post('/api/tasks', payload);
     return response.data;
   },
-  updateTask: async (id: number, payload: Partial<CreateTaskPayload> & { isCompleted?: boolean }) => {
+  // `isArchived`: arşivleme normal görev alanlarından biri değil (CreateTaskPayload'da
+  // yok, çünkü görev arşivli DOĞMAZ) ama güncellenebilir olmalı. Tip burada açıkça
+  // genişletiliyor — `as any` ile kaçmak, yanlış alan adını derlemede yakalanmaz kılardı.
+  updateTask: async (id: number, payload: Partial<CreateTaskPayload> & { isCompleted?: boolean; isArchived?: boolean }) => {
     const response = await api.put(`/api/tasks/${id}`, payload);
     return response.data;
   },

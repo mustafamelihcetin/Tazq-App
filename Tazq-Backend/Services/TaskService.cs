@@ -78,9 +78,41 @@ namespace Tazq_App.Services
             };
 
             var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-            foreach (var item in items) DecryptTask(item, key);
-            
-            return (items, totalCount);
+
+            /*
+              OKUNAMAYAN KAYITLAR KULLANICIYA GÖSTERİLMEZ.
+
+              Önceden bunlar "⚠️ Bu görev okunamıyor — silebilirsin" başlığıyla listede
+              duruyordu. Kullanıcı açısından bu satırın hiçbir değeri yok: içeriğini
+              göremiyor, ne olduğunu hatırlayamıyor, yapabileceği tek şey silmek. Yani
+              uygulamanın iç sorununu kullanıcının ekranına taşıyan bir satırdı.
+
+              Daha kötüsü: görünür olduğu için ETKİLEŞİME giriyordu ve o etkileşim veriyi
+              yok ediyordu (bkz. UpdateTaskAsync — yer tutucu geri gönderilip gerçek
+              başlık olarak kaydediliyordu).
+
+              Artık listeden çıkarılıyor ama VERİTABANINDAN SİLİNMİYOR: kayıt yerinde
+              duruyor ve bir gün eski bir sır ENCRYPTION_KEY_LEGACY'ye eklenirse geri
+              okunabilir. Sorunun tek izi log — teşhis için yeterli, kullanıcı için gürültü.
+            */
+            var readable = new List<TaskItem>(items.Count);
+            var unreadable = 0;
+            foreach (var item in items)
+            {
+                if (DecryptTask(item, key)) readable.Add(item);
+                else unreadable++;
+            }
+
+            if (unreadable > 0)
+            {
+                _logger.LogWarning(
+                    "User {UserId}: {Count} görev çözülemedi ve listeden GİZLENDİ (veri silinmedi).",
+                    userId, unreadable);
+            }
+
+            // Toplam da düşülüyor: sayfada gösterilmeyen satır sayıya dahil edilirse
+            // sayfalayıcı olmayan bir kayda yer ayırır.
+            return (readable, Math.Max(0, totalCount - unreadable));
         }
 
 
@@ -91,7 +123,13 @@ namespace Tazq_App.Services
                 return null;
 
             var key = _cryptoService.GetKeyForUser(userId)!;
-            DecryptTask(task, key);
+            // Okunamayan kayıt "yok" sayılır: yer tutucu bir görev döndürmek, istemciye
+            // düzenleyebileceği bir şey varmış izlenimi verirdi.
+            if (!DecryptTask(task, key))
+            {
+                _logger.LogWarning("Task {TaskId} çözülemedi — tekil istekte gizlendi.", task.Id);
+                return null;
+            }
             return task;
         }
 
@@ -219,9 +257,40 @@ namespace Tazq_App.Services
 
             var wasCompleted = task.IsCompleted;
 
+            /*
+              GÖSTERİM YER TUTUCUSU GERİ YAZILAMAZ — sessiz veri kaybının kaynağıydı.
+
+              Zincir şuydu: başlık çözülemeyince istemciye "⚠️ Bu görev okunamıyor"
+              gönderiliyor, istemci bunu görevin BAŞLIĞI sanıyor ve saklıyor. Kullanıcı o
+              görevi tamamladığında (ya da herhangi bir güncelleme yaptığında) istemci tüm
+              görevi geri gönderiyor — yer tutucu dahil. Burası da onu gerçek başlık kabul
+              edip ŞİFRELEYİP KAYDEDİYORDU.
+
+              Sonuç: orijinal şifreli metin kalıcı olarak siliniyor. Görev artık sorunsuz
+              çözülüyor (çünkü içinde gerçekten o cümle yazıyor), bu yüzden bir daha
+              "Decrypt failed" uyarısı da basılmıyor — hata kendi izini siliyordu.
+
+              Kural: yer tutucu bir GÖRÜNTÜdür, veri değildir. Geldiğinde ŞİFRELİ ALANLAR
+              OLDUĞU GİBİ KORUNUR; kayıt kurtarılabilir kalır (ör. eski bir sır
+              ENCRYPTION_KEY_LEGACY'ye eklenirse geri okunur).
+
+              AMA ÜST VERİ GÜNCELLENİR: kullanıcı okuyamadığı bir görevi yine de
+              tamamlayabilmeli, tarihini değiştirebilmeli. Donduran şey yalnız içerik.
+            */
+            var titleIsPlaceholder = updatedTask.Title == UnreadableTitlePlaceholder;
+
+            // Özgün ŞİFRELİ değerler — `EncryptTask` sonrası geri konacak.
+            // Not: burada `task.*` alanları henüz ŞİFRELİ (bu metotta çözülmüyorlar).
+            var keepTitle = task.Title;
+            var keepDescription = task.Description;
+            var keepTagsJson = task.TagsJson;
+            var keepSubtasksJson = task.SubtasksJson;
+            var keepTitleBlind = task.TitleBlindIndex;
+            var keepTagsBlind = task.TagsBlindIndex;
+
             task.Title = updatedTask.Title;
             task.Description = updatedTask.Description;
-            
+
             // Ensure UTC for Postgres timestamptz compatibility
             var finalDueDate = updatedTask.DueDate;
             if (finalDueDate.HasValue && finalDueDate.Value.Kind == DateTimeKind.Unspecified)
@@ -241,6 +310,32 @@ namespace Tazq_App.Services
             task.SortOrder = updatedTask.SortOrder;
 
             EncryptTask(task, key);
+
+            if (titleIsPlaceholder)
+            {
+                /*
+                  ÇİFT ŞİFRELEME TUZAĞI: `EncryptTask` koşulsuz şifreliyor. Başlığı hiç
+                  yazmayıp bırakmak yetmezdi — o durumda alanda zaten ŞİFRELİ metin
+                  duruyor olurdu ve bir kez daha şifrelenirdi. İki kat şifrelenen veri
+                  doğru anahtarla bile tek geçişte çözülemez; yani "kurtarmak için"
+                  yazılan kod veriyi büsbütün gömerdi.
+
+                  Bu yüzden şifreleme normal akışta çalışıyor, ardından içerik alanları
+                  özgün hâline geri konuyor. Kör indeksler de geri alınıyor: yer
+                  tutucudan üretilmiş bir arama indeksi, görevi "okunamıyor" kelimesiyle
+                  aranır yapardı.
+                */
+                task.Title = keepTitle;
+                task.Description = keepDescription;
+                task.TagsJson = keepTagsJson;
+                task.SubtasksJson = keepSubtasksJson;
+                task.TitleBlindIndex = keepTitleBlind;
+                task.TagsBlindIndex = keepTagsBlind;
+
+                _logger.LogWarning(
+                    "Task {TaskId}: yer tutucu başlık geri gönderildi — içerik YAZILMADI, özgün şifreli veri korundu.",
+                    task.Id);
+            }
 
             _context.Tasks.Update(task);
             await _context.SaveChangesAsync();
@@ -360,9 +455,28 @@ namespace Tazq_App.Services
         {
             if (string.IsNullOrEmpty(cipher)) return string.Empty;
 
-            // Geriye dönük uyumluluk: Eğer veri zaten şifrelenmemiş düz metin/JSON ise (örn: '[]' veya
-            // şifre çözmeyi atlayıp doğrudan verinin kendisini dönelim.
-            if ((cipher.StartsWith('[') && cipher.EndsWith(']')) || !IsBase64String(cipher))
+            /*
+              DÜZ METİN Mİ ŞİFRELİ Mİ — uzunluk kesin cevap veriyor.
+
+              Eski kontrol yalnızca "base64'e benziyor mu" diye bakıyordu ve bu YETERSİZ:
+              kısa, ASCII, uzunluğu 4'ün katı bir düz metin başlık ("Yoga", "Ders", "Plan")
+              base64 kurallarına uyar. Böyle bir başlık şifreli sanılıp çözülmeye
+              çalışılıyor, hiçbir anahtar tutmuyor ve kullanıcıya "⚠️ Bu görev okunamıyor"
+              diye dönüyordu — halbuki başlık orada, sapasağlam duruyordu.
+
+              Kesin ayrım biçimden geliyor: Encrypt çıktısı IV(12) + veri + TAG(16), yani
+              BOŞ metin bile en az 28 bayt → 40 karakterlik base64 üretir. Demek ki 40
+              karakterden kısa bir dize bu sistemin şifreli çıktısı OLAMAZ; düz metindir.
+
+              Bu bir tahmin değil, çıktı biçiminin doğrudan sonucu. Yanlış tarafa düşme
+              riski de yok: 40 karakterden uzun gerçek düz metinler zaten neredeyse her
+              zaman boşluk ya da base64 dışı karakter içerir ve ilk kapıdan geçer.
+            */
+            const int MinCipherBase64Length = 40; // ceil((12 + 0 + 16) / 3) * 4
+
+            if ((cipher.StartsWith('[') && cipher.EndsWith(']'))
+                || !IsBase64String(cipher)
+                || cipher.Length < MinCipherBase64Length)
             {
                 return cipher;
             }
@@ -376,11 +490,16 @@ namespace Tazq_App.Services
                 // Geçerli anahtar tutmadı — eski sırları dene.
             }
 
-            for (int i = 0; i < legacyKeys.Count; i++)
+            // Null'a dayanıklı: bu metodun tüm amacı "tek bozuk satır bütün listeyi
+            // 500'e düşürmesin". Eski anahtar listesinin kendisi eksik gelirse de aynı
+            // güvence geçerli olmalı — burada çökmek, korumaya çalıştığı şeyi bozardı.
+            var legacy = legacyKeys ?? (IReadOnlyList<byte[]>)Array.Empty<byte[]>();
+
+            for (int i = 0; i < legacy.Count; i++)
             {
                 try
                 {
-                    var plain = _cryptoService.Decrypt(cipher, legacyKeys[i]);
+                    var plain = _cryptoService.Decrypt(cipher, legacy[i]);
                     // SESSİZ GEÇMİYORUZ: bu kayıt eski bir anahtarla yazılmış ve hâlâ öyle
                     // duruyor. Okunuyor ama borç: eski sır yapılandırmadan çıkarıldığı gün
                     // ölür. Log, yeniden şifreleme ihtiyacının tek görünür izi.
@@ -394,7 +513,7 @@ namespace Tazq_App.Services
 
             _logger.LogWarning(
                 "Decrypt failed for Task {TaskId} field {Field}: geçerli ve {Count} eski anahtarın hiçbiri tutmadı.",
-                taskId, field, legacyKeys.Count);
+                taskId, field, legacy.Count);
             return null;
         }
 
@@ -413,7 +532,17 @@ namespace Tazq_App.Services
             }
         }
 
-        private void DecryptTask(TaskItem task, byte[] key)
+        /// <summary>
+        /// Çözülemeyen başlık için GÖSTERİM yer tutucusu — asla kaydedilmez.
+        ///
+        /// Sabit olması şart: `UpdateTaskAsync` gelen başlığı bununla karşılaştırıp
+        /// reddediyor. İki yerde ayrı ayrı yazılsaydı biri değiştiğinde karşılaştırma
+        /// sessizce tutmaz ve aşağıda anlatılan veri kaybı geri dönerdi.
+        /// </summary>
+        public const string UnreadableTitlePlaceholder = "⚠️ Bu görev okunamıyor — silebilirsin";
+
+        /// <returns>Başlık çözülebildiyse <c>true</c>. <c>false</c> ise kayıt bozuk — listeye girmemeli.</returns>
+        private bool DecryptTask(TaskItem task, byte[] key)
         {
             // Eski sırlar tanımlıysa onlarla da denenir — anahtar döndürüldüğünde veri ölmesin.
             var legacy = _cryptoService.GetLegacyKeysForUser(task.UserId);
@@ -422,8 +551,9 @@ namespace Tazq_App.Services
             // Metin KULLANICI diliyle: "(çözülemeyen başlık)" bir geliştirici cümlesiydi ve
             // kullanıcıya iç hatayı sızdırıyordu. Kullanıcının yapabileceği tek şey silmek;
             // o yüzden cümle onu söylüyor.
-            task.Title = SafeDecrypt(task.Title, key, legacy, task.Id, "Title")
-                ?? "⚠️ Bu görev okunamıyor — silebilirsin";
+            var decryptedTitle = SafeDecrypt(task.Title, key, legacy, task.Id, "Title");
+            var readable = decryptedTitle != null;
+            task.Title = decryptedTitle ?? UnreadableTitlePlaceholder;
             task.Description = SafeDecrypt(task.Description, key, legacy, task.Id, "Description") ?? string.Empty;
 
             var decryptedTags = SafeDecrypt(task.TagsJson, key, legacy, task.Id, "Tags");
@@ -431,6 +561,8 @@ namespace Tazq_App.Services
 
             var decryptedSubs = SafeDecrypt(task.SubtasksJson, key, legacy, task.Id, "Subtasks");
             task.Subtasks = TryDeserialize<List<SubtaskItem>>(decryptedSubs) ?? new List<SubtaskItem>();
+
+            return readable;
         }
 
         private T? TryDeserialize<T>(string? json) where T : class

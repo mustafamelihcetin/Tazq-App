@@ -41,11 +41,26 @@ function getHC(): any {
   return _hc;
 }
 
-/** Okunan izinler — üçü de SALT OKUNUR, hiçbir şey yazılmıyor. */
-const HK_STEPS = 'stepCount';
-const HK_DISTANCE = 'distanceWalkingRunning';
+/**
+ * OKUNAN TİPLER — hepsi SALT OKUNUR, hiçbir şey yazılmıyor.
+ *
+ * TAM HealthKit tanımlayıcıları yazılmak ZORUNDA. Burada bir hata yapıldı ve cihazda
+ * ortaya çıktı: kısa adlar ('stepCount', 'appleExerciseTime') yazılmıştı. HealthKit bu
+ * dizeleri tanımıyor, `requestAuthorization` hata fırlatıyor ve ayarlardaki anahtar
+ * "Sağlık izni verilmedi" diyerek geri dönüyordu — yani özellik hiç açılmıyordu.
+ *
+ * NEDEN DERLEYİCİ YAKALAMADI: `getHK()` tembel `require` yaptığı için `any` dönüyor.
+ * Kütüphanenin `QuantityTypeIdentifier` birleşim tipi bu dizeleri anında reddederdi ama
+ * `any` o kapıyı kapatıyor. Bu, `typeSafety.test.ts`te anlatılan hatanın birebir aynısı:
+ * `any`, derleyicinin yakalayacağı bir hatayı cihazda bulunan bir hataya çeviriyor.
+ * Aşağıdaki değerler artık `healthIdentifiers.test.ts` ile korunuyor.
+ */
+const HK_STEPS = 'HKQuantityTypeIdentifierStepCount';
+const HK_DISTANCE = 'HKQuantityTypeIdentifierDistanceWalkingRunning';
 /** iOS'un "tempolu hareket" saydığı dakika — `move` görevleri için en doğrudan ölçü. */
-const HK_EXERCISE = 'appleExerciseTime';
+const HK_EXERCISE = 'HKQuantityTypeIdentifierAppleExerciseTime';
+/** Antrenman örnekleri ayrı bir tip; nicelik değil, `HKWorkoutType`. */
+const HK_WORKOUT = 'HKWorkoutTypeIdentifier';
 
 /**
  * ANTRENMAN TÜRÜ KODLARI.
@@ -160,8 +175,12 @@ export const ActivityHealth = {
       if (!hk || typeof hk.requestAuthorization !== 'function') return false;
       try {
         // v14 (Nitro) TEK nesne bekler: { toRead: [...] }. Yanlış imza NATIVE CRASH yapar.
-        await hk.requestAuthorization({ toRead: [HK_STEPS, HK_DISTANCE, HK_EXERCISE, 'workoutType'] });
-        return true;
+        const res = await hk.requestAuthorization({ toRead: [HK_STEPS, HK_DISTANCE, HK_EXERCISE, HK_WORKOUT] });
+        // iOS, OKUMA izninin verilip verilmediğini bilerek GİZLER (kullanıcı "hayır"
+        // dediğinde uygulama bunu anlayamasın diye — mahremiyet kararı). Yani buradaki
+        // `true` "izin verildi" demek değil, "izin ekranı hatasız gösterildi" demek.
+        // Gerçek cevap ilk okumada belli olur: veri gelmezse satır çizilmez.
+        return typeof res === 'boolean' ? res : true;
       } catch { return false; }
     }
     if (Platform.OS === 'android') {

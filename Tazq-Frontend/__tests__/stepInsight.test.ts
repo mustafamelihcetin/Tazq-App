@@ -48,30 +48,30 @@ describe('formatDistance', () => {
 
 describe('stepSummary — bantlar ve ton', () => {
   it('veri yokken bant "none"', () => {
-    const s = stepSummary(0, 0, 'tr');
+    const s = stepSummary(0, 0, 'tr', 20);
     expect(s.band).toBe('none');
     expect(s.distance).toBeNull();
   });
 
   it('bantlar eşiklere göre ilerler', () => {
-    expect(stepSummary(1200, 0, 'tr').band).toBe('light');
-    expect(stepSummary(4500, 0, 'tr').band).toBe('moving');
-    expect(stepSummary(8200, 0, 'tr').band).toBe('good');
-    expect(stepSummary(11000, 0, 'tr').band).toBe('great');
+    expect(stepSummary(1200, 0, 'tr', 20).band).toBe('light');
+    expect(stepSummary(4500, 0, 'tr', 20).band).toBe('moving');
+    expect(stepSummary(8200, 0, 'tr', 20).band).toBe('good');
+    expect(stepSummary(11000, 0, 'tr', 20).band).toBe('great');
   });
 
   it('eşik sınırları doğru tarafta', () => {
-    expect(stepSummary(2999, 0, 'tr').band).toBe('light');
-    expect(stepSummary(3000, 0, 'tr').band).toBe('moving');
-    expect(stepSummary(6999, 0, 'tr').band).toBe('moving');
-    expect(stepSummary(7000, 0, 'tr').band).toBe('good');
-    expect(stepSummary(9999, 0, 'tr').band).toBe('good');
-    expect(stepSummary(10000, 0, 'tr').band).toBe('great');
+    expect(stepSummary(2999, 0, 'tr', 20).band).toBe('light');
+    expect(stepSummary(3000, 0, 'tr', 20).band).toBe('moving');
+    expect(stepSummary(6999, 0, 'tr', 20).band).toBe('moving');
+    expect(stepSummary(7000, 0, 'tr', 20).band).toBe('good');
+    expect(stepSummary(9999, 0, 'tr', 20).band).toBe('good');
+    expect(stepSummary(10000, 0, 'tr', 20).band).toBe('great');
   });
 
   it('mesafe GERÇEK veriden gelir, adımdan türetilmez', () => {
     // Adım çok, mesafe az olabilir (koşu bandı, dar alan). Uydurmak yerine olduğu gibi.
-    const s = stepSummary(9000, 300, 'tr');
+    const s = stepSummary(9000, 300, 'tr', 20);
     expect(s.distance).toBe('0,3 km');
   });
 
@@ -81,8 +81,8 @@ describe('stepSummary — bantlar ve ton', () => {
       // Bilmediği şey hakkında hüküm veren bir arayüz kapatılmayı hak eder.
       const forbidden = /az |yetersiz|düşük|kötü|başarısız|low|poor|not enough|failed/i;
       for (const steps of [0, 500, 2000, 5000, 8000, 15000]) {
-        expect(stepSummary(steps, 0, 'tr').note).not.toMatch(forbidden);
-        expect(stepSummary(steps, 0, 'en').note).not.toMatch(forbidden);
+        expect(stepSummary(steps, 0, 'tr', 20).note).not.toMatch(forbidden);
+        expect(stepSummary(steps, 0, 'en', 20).note).not.toMatch(forbidden);
       }
     });
 
@@ -92,16 +92,61 @@ describe('stepSummary — bantlar ve ton', () => {
       // uygulama mağazalarında ayrı bir inceleme kategorisi.
       const coaching = /kalori|calorie|hedef|goal|malısın|meli\b|should|must|try to|tempo|nabız/i;
       for (const steps of [0, 2000, 8000, 15000]) {
-        expect(stepSummary(steps, 4000, 'tr').note).not.toMatch(coaching);
-        expect(stepSummary(steps, 4000, 'en').note).not.toMatch(coaching);
+        expect(stepSummary(steps, 4000, 'tr', 20).note).not.toMatch(coaching);
+        expect(stepSummary(steps, 4000, 'en', 20).note).not.toMatch(coaching);
       }
     });
 
     it('her bantta iki dilde de bir not var', () => {
       for (const steps of [0, 2000, 5000, 8000, 12000]) {
-        expect(stepSummary(steps, 0, 'tr').note.length).toBeGreaterThan(3);
-        expect(stepSummary(steps, 0, 'en').note.length).toBeGreaterThan(3);
+        expect(stepSummary(steps, 0, 'tr', 20).note.length).toBeGreaterThan(3);
+        expect(stepSummary(steps, 0, 'en', 20).note.length).toBeGreaterThan(3);
       }
     });
+  });
+});
+
+/**
+ * GÜN SÜRERKEN HÜKÜM VERİLMEZ — ama övgü saklanmaz.
+ *
+ * Adım sayısı BUGÜNÜ gösteriyor (dünü değil): dünün sayısı tarihtir ve değiştirilemez,
+ * bu uygulama ise bugün üzerine kurulu. Apple'ın deseni de bu. Ama yarım bir sayı hüküm
+ * gibi okunmamalı: sabah 09:00'da 800 adımla "Hafif bir gün" demek yanlıştır — gün daha
+ * başlamamıştır.
+ *
+ * Asimetri kasıtlı: öğlen 11.000 adıma ulaşan biri için "Harika bir gün" ŞU AN doğrudur
+ * ve akşam daha da doğru olacaktır. Alt bantlar ise akşam yanlış çıkabilir, o yüzden
+ * susarlar.
+ */
+describe('günün saati — erken hüküm koruması', () => {
+  it('sabah düşük adımda YARGI YOK, nötr ifade', () => {
+    expect(stepSummary(800, 0, 'tr', 9).note).toBe('Gün sürüyor');
+    expect(stepSummary(800, 0, 'en', 9).note).toBe('Day in progress');
+  });
+
+  it('sabah orta bantta da nötr', () => {
+    expect(stepSummary(4200, 0, 'tr', 11).note).toBe('Gün sürüyor');
+  });
+
+  it('ÖVGÜ erken de verilir — kazanılmış', () => {
+    // Öğlen 11 bin adıma ulaşmışsan bu akşam daha da doğru olacak; saklamanın anlamı yok.
+    expect(stepSummary(11000, 0, 'tr', 12).note).toBe('Harika bir gün');
+    expect(stepSummary(8500, 0, 'tr', 13).note).toBe('Güzel bir gün');
+  });
+
+  it('akşam olunca alt bantlar da konuşur', () => {
+    expect(stepSummary(800, 0, 'tr', 20).note).toBe('Hafif bir gün');
+    expect(stepSummary(4200, 0, 'tr', 21).note).toBe('Hareket var');
+  });
+
+  it('bant DEĞİŞMEZ — yalnız not değişir', () => {
+    // Eşik mantığı saatten bağımsız kalmalı; saat yalnızca ne SÖYLEYECEĞİMİZİ etkiler.
+    expect(stepSummary(800, 0, 'tr', 9).band).toBe('light');
+    expect(stepSummary(800, 0, 'tr', 20).band).toBe('light');
+  });
+
+  it('veri yokken saat fark etmez — durum bildirimi, yargı değil', () => {
+    expect(stepSummary(0, 0, 'tr', 9).note).toBe('Henüz veri yok');
+    expect(stepSummary(0, 0, 'tr', 22).note).toBe('Henüz veri yok');
   });
 });

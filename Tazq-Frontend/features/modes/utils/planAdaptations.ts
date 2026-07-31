@@ -268,12 +268,69 @@ export function buildKiloAdaptationTasks(
 const PEAK_KM: Record<string, number> = { '5K': 30, '10K': 50, 'Yarı': 65, 'Tam': 80 };
 const MIN_WEEKS: Record<string, number> = { '5K': 6, '10K': 8, 'Yarı': 12, 'Tam': 16 };
 
+/**
+ * HAFTALIK ANTRENMAN UYUMU — planın kendini ayarlamak için baktığı GERÇEK sayı.
+ *
+ * ── NEDEN VAR: BURADA SABİT 0.7 YAZILIYDI ───────────────────────────────────────
+ * `buildMaratonAdaptationTasks`e uyum oranı olarak sabit `0.7` geçiliyordu. Fonksiyonun
+ * karar eşikleri ise `< 0.5` (haftayı tekrarla) ve `>= 0.8` (hacmi artır). Yani 0.7 tam
+ * ölü bandın ortasındaydı: İKİ DAL DA HİÇBİR ZAMAN ÇALIŞMADI. Maraton planı, kullanıcı
+ * o hafta hiç koşmasa da her şeyi eksiksiz yapsa da aynı kalıyordu — uyum sağlıyormuş
+ * gibi görünen ama hiç uyum sağlamayan bir sistem.
+ *
+ * ── ÖLÇÜ NEDEN "GÜN SAYISI" ─────────────────────────────────────────────────────
+ * Tamamlanan görev sayısı değil, tamamlama yapılan AYRI GÜN sayısı sayılıyor. Antrenman
+ * planlarında önemli olan hacmin güne yayılması: tek günde üç görevi kapatmak, üç ayrı
+ * gün antrenman yapmakla aynı şey değildir. Bu ölçü aynı zamanda kullanıcının spor
+ * kartında GÖRDÜĞÜ sayının aynısı (`sporWeekDays`) — gördüğü sayı ile planın karar
+ * verdiği sayı farklı olsaydı, uygulama kendi gösterdiği veriyle çelişirdi.
+ *
+ * ── NEDEN `null` DÖNEBİLİYOR ────────────────────────────────────────────────────
+ * Plan daha bir haftasını doldurmadıysa oran düşük çıkar — ama bu başarısızlık değil,
+ * haftanın henüz bitmemiş olmasıdır. İkinci günde "haftayı tekrarla" demek hem yanlış
+ * hem moral bozucu olurdu. Bilmiyorsak `null` döner ve çağıran taraf o hafta hiç karar
+ * vermez; sabit bir sayı uydurmak (eski 0.7 gibi) tam olarak bu hatanın kaynağıydı.
+ */
+export function weeklyTrainingAdherence(
+  tasks: { id: number; isCompleted: boolean; completedAt?: string | null }[],
+  planTaskIds: number[],
+  trainingTarget: number,
+  weeksInPlan: number,
+  now: Date = new Date(),
+): number | null {
+  if (weeksInPlan < 1) return null;      // hafta dolmadı → hüküm yok
+  if (trainingTarget <= 0) return null;  // hedef tanımsız → oran anlamsız
+
+  const key = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  const window = new Set<string>();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    window.add(key(d));
+  }
+
+  const ids = new Set(planTaskIds);
+  const days = new Set<string>();
+  for (const t of tasks) {
+    if (!t.isCompleted || !ids.has(t.id)) continue;
+    // '0001-01-01' sunucunun "tarih yok" değeri — gerçek bir tamamlama değil.
+    if (!t.completedAt || t.completedAt.startsWith('0001')) continue;
+    const d = new Date(t.completedAt);
+    if (Number.isNaN(d.getTime())) continue;
+    const k = key(d);
+    if (window.has(k)) days.add(k);
+  }
+
+  return Math.min(1, days.size / trainingTarget);
+}
+
 export function buildMaratonAdaptationTasks(
   weeklyKm: number,
   targetEvent: string,
   daysToRace: number,
   weeksInPlan: number,
-  habitCompletionRate: number, // 0–1, this week
+  /** 0–1 arası gerçek uyum; `null` = henüz hüküm verilemez (bkz. weeklyTrainingAdherence). */
+  habitCompletionRate: number | null,
   existingTasks: { title: string; tags?: string[] | null; isCompleted: boolean; dueDate?: string | null }[],
   lang: Language,
 ): CreateTaskPayload[] {
@@ -352,7 +409,7 @@ export function buildMaratonAdaptationTasks(
   }
 
   // Haftalık ilerleme: düşük tamamlama oranı
-  if (habitCompletionRate < 0.5 && !hasDuplicateAdaptation(existingTasks, 'maraton_missed', 7, true)) {
+  if (habitCompletionRate != null && habitCompletionRate < 0.5 && !hasDuplicateAdaptation(existingTasks, 'maraton_missed', 7, true)) {
     tasks.push({
       title: tr ? `Koşu haftasını tekrar et` : `Repeat running week`,
       description: JSON.stringify({ 
@@ -366,7 +423,7 @@ export function buildMaratonAdaptationTasks(
       isCompleted: false,
       tags: ['maraton_missed', 'fitness'],
     });
-  } else if (habitCompletionRate >= 0.8 && weeklyKm < peak && !hasDuplicateAdaptation(existingTasks, 'maraton_progress', 7, true)) {
+  } else if (habitCompletionRate != null && habitCompletionRate >= 0.8 && weeklyKm < peak && !hasDuplicateAdaptation(existingTasks, 'maraton_progress', 7, true)) {
     const nextKm = Math.min(Math.round(weeklyKm * 1.1), peak);
     tasks.push({
       title: tr ? `Antrenman hacmini artır` : `Increase training volume`,

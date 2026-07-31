@@ -108,3 +108,33 @@ describe('findOpenMovementTasks — kapsam', () => {
     ]);
   });
 });
+
+/**
+ * RAMAZAN GÖREVLERİ ÇEVİRİ SÖZLÜĞÜNDE.
+ *
+ * `getAllDailyPlanPairs`, dil değiştirildiğinde sistem görev başlıklarını çeviren
+ * sözlüğü besliyor (bkz. systemTaskTranslator). Ramazan havuzları listede olmadığı için
+ * Ramazan modu açıkken dil değiştiren kullanıcının günlük görevleri ESKİ DİLDE kalıyordu.
+ *
+ * Sessiz bir hataydı — bir şey çökmüyor, yalnızca karşılık bulunamıyor. Bu yüzden
+ * gözle fark edilmesi zor, testle sabitlenmesi kolay.
+ */
+describe('günlük plan çiftleri — Ramazan varyantları dahil', () => {
+  const { getAllDailyPlanPairs } = require('@/features/modes/utils/dailyPlanEngine');
+  const pairs: Array<{ tr: string; en: string }> = getAllDailyPlanPairs();
+  const allTr = pairs.map((p) => p.tr);
+
+  it.each([
+    'İftar sonrası 30+ dk hafif tempolu yürüyüş veya hareket et',
+    'Bugünkü koşunu iftar sonrasına veya sahur öncesine planla',
+    'Ağır antrenmanını iftar sonrasına planla ve splitini tamamla',
+    'İftar sonrası en az 30 dk hafif aktif ol (mobilite/esneme)',
+  ])('%s — çeviri sözlüğüne giriyor', (title) => {
+    expect(allTr).toContain(title);
+  });
+
+  it('her çiftin iki dili de dolu — yarım kayıt çeviriyi sessizce bozar', () => {
+    const broken = pairs.filter((p) => !p.tr?.trim() || !p.en?.trim());
+    expect(broken).toEqual([]);
+  });
+});

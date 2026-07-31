@@ -6,7 +6,7 @@ import { AppBlur } from '@/shared/components/AppBlur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import Animated, { Layout, LinearTransition, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { Check, Timer, Plus, X, Pencil, Sparkles, TrendingUp, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, Search, SlidersHorizontal, CheckSquare, Scale, Target, Archive, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { Check, Timer, Plus, X, Pencil, Sparkles, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, Search, SlidersHorizontal, CheckSquare, Scale, Target, Archive, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { SubtaskProgressRing } from '@/shared/components/SubtaskProgressRing';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
@@ -36,7 +36,7 @@ import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
 import { syncTaskToCalendar, deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, MIN_TOUCH } from '@/shared/constants/tokens';
 import VoiceService from '@/shared/utils/voice';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -47,6 +47,7 @@ import { playSoundEffect } from '@/shared/utils/soundEffects';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
 import { haptic } from '@/shared/utils/haptics';
+import { matchesTaskFilter, type TaskFilter } from '@/features/tasks/utils/taskFilter';
 
 const SWIPE_THRESHOLD = -80;
 const TAG_COLORS_PALETTE = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4','#F97316'];
@@ -74,7 +75,7 @@ const VoiceWave = ({ active, theme }: { active: boolean; theme: AppTheme }) => (
 );
 
 
-type FilterType = 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done';
+type FilterType = TaskFilter;
 
 const RECURRENCE_OPTIONS: { key: RecurrenceType; labelKey: string }[] = [
   { key: 'None', labelKey: 'recurrenceNone' },
@@ -518,7 +519,19 @@ export default function ActionCenter() {
 
   // isSmallDevice / isShortDevice removed — design tokens used instead
 
-  const [filter, setFilter] = useState<FilterType>('all');
+  /*
+    GÖRÜNÜM TERCİHLERİ ARTIK KALICI (bkz. usePrefsStore).
+
+    Bunlar `useState` idi, yani uygulama her kapandığında sıfırlanıyordu. Kullanıcı
+    "tamamlananları gizle" diyor, ertesi açılışta hepsi geri geliyordu — bir tercihi
+    sorup unutmak, hiç sormamaktan daha sinir bozucu.
+
+    `tagFilter` bilinçli olarak yerel kalıyor: o bir arama hamlesi, tercih değil.
+    Etiketle daraltılmış hâlde kapatılan uygulamanın ertesi gün aynı daraltmayla
+    açılması "görevlerim kayboldu" hissi verirdi.
+  */
+  const filter = usePrefsStore(s => s.taskFilter) as FilterType;
+  const setFilter = usePrefsStore(s => s.setTaskFilter);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -530,10 +543,13 @@ export default function ActionCenter() {
       }, 150);
     }
   }, [showSearch]);
-  const [sortBy, setSortBy] = useState<'priority' | 'date' | 'creation'>('creation');
+  const sortBy = usePrefsStore(s => s.taskSortBy);
+  const setSortBy = usePrefsStore(s => s.setTaskSortBy);
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [hideCompleted, setHideCompleted] = useState(false);
-  const [showFutureManualTasks, setShowFutureManualTasks] = useState(true);
+  const hideCompleted = usePrefsStore(s => s.taskHideCompleted);
+  const setHideCompleted = usePrefsStore(s => s.setTaskHideCompleted);
+  const showFutureManualTasks = usePrefsStore(s => s.taskShowFutureManual);
+  const setShowFutureManualTasks = usePrefsStore(s => s.setTaskShowFutureManual);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -562,11 +578,11 @@ export default function ActionCenter() {
   const subtaskSaveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   // Collect unique tags from all tasks for tag filter — içsel/sistem etiketleri hariç
-  const allTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    tasks.forEach(t => visibleTextTags(t.tags).forEach(tag => tagSet.add(tag)));
-    return Array.from(tagSet);
-  }, [tasks]);
+  /*
+    `allTags` KALDIRILDI — kalıcı etiket şeridiyle birlikte. Her görev değişiminde tüm
+    görevleri gezip etiket kümesi kuruyordu; artık okuyan kimse yok. Etiketle daraltma
+    aramadan yapılabiliyor (arama yüklemi etiketlere de bakıyor).
+  */
 
 
 
@@ -1266,17 +1282,9 @@ export default function ActionCenter() {
         }
       }
 
-      if (filter === 'done') { if (!task.isCompleted) return false; }
-      else if (filter === 'today') {
-        if (task.isCompleted) return false;
-        if (!task.dueDate || task.dueDate.startsWith('0001')) return false;
-        const d = new Date(task.dueDate);
-        const now = new Date();
-        const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
-        if (d < todayStart || d > todayEnd) return false;
-      }
-      else if (filter !== 'all') { if (task.priority !== filter || task.isCompleted) return false; }
+      // Yüklem ORTAK: çipin yanındaki sayı da aynı fonksiyondan geçiyor, böylece
+      // "12 bekleyen" yazıp 30 görev listelemek gibi bir tutarsızlık imkânsız.
+      if (!matchesTaskFilter(task, filter)) return false;
       // dateFilter from cockpit "+N more" button (YYYY-MM-DD)
       if (dateFilter && task.dueDate) {
         const taskDay = task.dueDate.slice(0, 10);
@@ -1308,7 +1316,6 @@ export default function ActionCenter() {
   const filteredTasks = filteredAndSortedTasks;
   const visibleTasks = useMemo(() => filteredTasks.slice(0, visibleCount), [filteredTasks, visibleCount]);
   const remainingCount = filteredTasks.length - visibleCount;
-  const filters: FilterType[] = ['all', 'today', 'High', 'Medium', 'Low', 'done'];
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -1338,6 +1345,61 @@ export default function ActionCenter() {
           haptic.success();
         }},
       ]
+    );
+  };
+
+  /**
+   * Seçim düzenlenebilir mi: TEK görev ve mod tarafından yönetilmiyor.
+   *
+   * Bu koşul üç ayrı yerde (onPress, stil, ikon rengi) yeniden yazılıyordu. Üçü aynı
+   * cümleyi kurduğu sürece sorun yok — ama biri değiştiğinde düğme "aktif görünüp iş
+   * yapmayan" bir hâle düşerdi. Tek yerde hesaplanıyor.
+   */
+  const canEditSelection = selectedIds.size === 1
+    && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme);
+
+  /**
+   * ARŞİVLE — daha önce HİÇBİR yerde yoktu.
+   *
+   * `app/archive.tsx` ekranı `isArchived` görevleri listeliyor ve arşivden çıkarabiliyordu,
+   * ama tüm kod tabanında `isArchived: true` yapan tek bir satır bile yoktu. Yani arşiv
+   * ekranı yapısal olarak HER ZAMAN boştu — menüde duran, açılan, ama dolması imkânsız
+   * bir özellik.
+   *
+   * Arşiv silmeden ayrıdır ve bu ayrım önemli: silmek geri dönüşsüz, arşivlemek "şimdi
+   * gözümün önünde olmasın" demek. Tamamlanmamış ama artık peşine düşmediğin bir işi
+   * silmek zorunda kalmak, kullanıcıyı ya çöp biriktirmeye ya da veri kaybetmeye zorlar.
+   */
+  const handleBulkArchive = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    setSelectedIds(new Set());
+    setIsBulkMode(false);
+
+    // İyimser: ekranda hemen kaybolsun.
+    ids.forEach(id => updateTask(id, { isArchived: true }));
+    haptic.success();
+
+    if (!isOnline) {
+      ids.forEach(id => enqueueOffline({ type: 'update-task', id, payload: { isArchived: true } }));
+      showToast(language === 'tr' ? 'Çevrimdışı arşivlendi' : 'Archived offline', 'success');
+      return;
+    }
+
+    await Promise.all(ids.map(id =>
+      TaskService.updateTask(id, { isArchived: true }).catch((err: unknown) => {
+        // Sunucu yanıt verdiyse istek ulaşmıştır; yalnız ağ kesintisi kuyruğa alınır.
+        const hasResponse = !!(err as { response?: unknown } | null)?.response;
+        if (!hasResponse) enqueueOffline({ type: 'update-task', id, payload: { isArchived: true } });
+      })
+    ));
+
+    showToast(
+      language === 'tr'
+        ? (ids.length === 1 ? 'Arşive taşındı' : `${ids.length} görev arşive taşındı`)
+        : (ids.length === 1 ? 'Moved to archive' : `${ids.length} tasks moved to archive`),
+      'success',
     );
   };
 
@@ -1492,9 +1554,45 @@ export default function ActionCenter() {
                 exit={{ opacity: 0, translateY: -8, scale: 0.95 }}
                 style={[styles.sortMenu, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderColor: theme.outline, top: insets.top + 70, left: S.lg }]}
               >
+                {/*
+                  ALTI FİLTRE SATIRI TEK TOGGLE'A İNDİ.
+
+                  Menüye "Tümü / Bugün / Yüksek / Orta / Düşük / Tamamlanan" diye altı
+                  satır eklemiştim ve menü on üç satıra çıktı — şeridi ekrandan kaldırıp
+                  aynı kalabalığı menüye taşımak, sorunu çözmek değil yer değiştirmekti.
+
+                  Doğru soru "bu satırlar nereye sığar" değil, "bu satırlara gerek var
+                  mı"ydı. Altısından beşi, menüde ZATEN VAR OLAN yeteneklerin kopyasıydı:
+
+                   · YÜKSEK / ORTA / DÜŞÜK → "Öncelik" SIRALAMASI zaten var
+                     (PRIORITY_ORDER: High 0, Medium 1, Low 2). Sıralamak filtrelemekten
+                     iyidir: hiçbir şeyi gizlemeden önemliyi üste alır, yani bağlam
+                     kaybolmaz. Öncelik filtresi "geri kalanı sakla" der; oysa kullanıcı
+                     düşük öncelikli işini silmedi, sadece sonraya bıraktı.
+                   · TAMAMLANAN → "Tamamlananları Gizle" anahtarının tersi; ayrıca
+                     bitmiş işler için Arşiv klasörü zaten burada duruyor.
+                   · TÜMÜ → varsayılan durumun kendisi. Hiçbir şey seçili değilken zaten
+                     her şey görünüyor; buna ayrı bir satır ayırmak, "kapalı" durumu
+                     düğmeleştirmektir.
+
+                  Geriye gerçekten ayrı bir yetenek olan tek şey kaldı: bugüne daralmak.
+                  O da diğer görünüm anahtarlarıyla aynı biçimde, tek satır.
+                */}
+                <Touchable
+                    onPress={() => { setFilter(filter === 'today' ? 'all' : 'today'); haptic.surface(); }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: filter === 'today' }}
+                    style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
+                >
+                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
+                        {language === 'tr' ? 'Sadece Bugün' : 'Today Only'}
+                    </Text>
+                    {filter === 'today' && <Check size={ICON.md} color={theme.primary} />}
+                </Touchable>
+
                 {/* Hide Completed Toggle */}
                 <Touchable
-                    onPress={() => { setHideCompleted(v => !v); import('expo-haptics').then(Haptics => haptic.surface()); }}
+                    onPress={() => { setHideCompleted(!hideCompleted); import('expo-haptics').then(Haptics => haptic.surface()); }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
                 >
                     <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
@@ -1505,7 +1603,7 @@ export default function ActionCenter() {
 
                 {/* Show Future Manual Tasks Toggle */}
                 <Touchable
-                    onPress={() => { setShowFutureManualTasks(v => !v); import('expo-haptics').then(Haptics => haptic.surface()); }}
+                    onPress={() => { setShowFutureManualTasks(!showFutureManualTasks); import('expo-haptics').then(Haptics => haptic.surface()); }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
                 >
                     <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
@@ -1622,105 +1720,57 @@ export default function ActionCenter() {
             <View style={{ paddingBottom: S.md }}>
 <Text style={[styles.subHeadline, { color: theme.onSurfaceMuted }]}>{t.allTasksReady}</Text>
 
-          {/* Stats Row */}
-          <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.md, marginBottom: S.md }}>
-            <Touchable
-              onPress={() => { setFilter(filter === 'done' ? 'all' : 'done'); haptic.select(); }}
-              style={{
-                flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm,
-                paddingVertical: S.sm + 2, paddingHorizontal: S.md, borderRadius: R.md,
-                backgroundColor: filter === 'done' ? theme.tertiary + '15' : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                borderWidth: B.thin,
-                borderColor: filter === 'done' ? theme.tertiary + '35' : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-              }}
-              activeOpacity={0.7}
-            >
-              <TrendingUp size={ICON.xs} color={filter === 'done' ? theme.tertiary : theme.onSurfaceVariant} opacity={0.7} />
-              <Text style={{ fontSize: F.subhead, fontWeight: '600', color: filter === 'done' ? theme.tertiary : theme.onSurface }}>
-                {tasks.filter(tk => tk.isCompleted).length}
-              </Text>
-              <Text style={{ fontSize: F.caption, fontWeight: '600', color: filter === 'done' ? theme.tertiary : theme.onSurfaceVariant, opacity: 0.75, flex: 1 }} numberOfLines={1}>
-                {t.completedTasks}
-              </Text>
-            </Touchable>
-            <Touchable
-              onPress={() => { setFilter('all'); haptic.select(); }}
-              style={{
-                flex: 1, flexDirection: 'row', alignItems: 'center', gap: S.sm,
-                paddingVertical: S.sm + 2, paddingHorizontal: S.md, borderRadius: R.md,
-                backgroundColor: filter === 'all' ? theme.primary + '12' : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                borderWidth: B.thin,
-                borderColor: filter === 'all' ? theme.primary + '30' : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-              }}
-              activeOpacity={0.7}
-            >
-              <Clock size={ICON.xs} color={filter === 'all' ? theme.primary : theme.onSurfaceVariant} opacity={0.7} />
-              <Text style={{ fontSize: F.subhead, fontWeight: '600', color: filter === 'all' ? theme.primary : theme.onSurface }}>
-                {tasks.filter(tk => !tk.isCompleted).length}
-              </Text>
-              <Text style={{ fontSize: F.caption, fontWeight: '600', color: filter === 'all' ? theme.primary : theme.onSurfaceVariant, opacity: 0.75, flex: 1 }} numberOfLines={1}>
-                {t.pendingTasks}
-              </Text>
-            </Touchable>
-          </View>
+          {/*
+            FİLTRE ŞERİTLERİ EKRANDAN KALDIRILDI — ODAK GÖREVLERDE.
 
-          {/* Filter Pills */}
-          <TourTarget id="filters">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ gap: S.sm }}>
-            {filters.map((f) => {
-              const label = f === 'all' ? t.filterAll :
-                            f === 'today' ? t.filterToday :
-                            f === 'High' ? t.filterHigh :
-                            f === 'Medium' ? t.filterMedium :
-                            f === 'Low' ? t.filterLow :
-                            f === 'done' ? t.filterDone : f;
-              return (
-                <Touchable 
-                  key={f} 
-                  onPress={() => { setFilter(f); haptic.select(); }}
-                  style={[
-                      styles.filterChip, 
-                      { 
-                          backgroundColor: filter === f ? (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)') : (Platform.OS === 'android' ? (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)') : 'transparent'),
-                          borderColor: filter === f ? theme.primary : theme.outline,
-                          borderWidth: B.thin,
-                          paddingVertical: S.xs,
-                          paddingHorizontal: S.md
-                      }
-                  ]}
-                >
-                  <Text style={[styles.filterChipText, { color: filter === f ? theme.primary : theme.onSurfaceVariant, fontSize: F.body, fontWeight: filter === f ? '700' : '600' }]}>
-                    {label}
-                  </Text>
-                </Touchable>
-              );
-            })}
-          </ScrollView>
-          </TourTarget>
+            Burada üst üste üç sıra hap vardı: iki istatistik kartı, altı filtre çipi ve
+            etiket çipleri. Sorun tek tek görünüşleri değil, EKRANIN NEYE AİT OLDUĞUYDU.
+            Görevler ekranına giren biri görevlerini görmek ister; listeye ulaşmadan önce
+            on beş kontrolün arasından geçiyordu. Kontroller içeriğin önüne geçmişti.
 
-          {/* Tag Filter Pills */}
-          {allTags.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: S.md }} contentContainerStyle={{ gap: S.sm }}>
-              <Touchable 
-                onPress={() => { setTagFilter(null); haptic.select(); }}
-                style={[styles.filterChip, { borderColor: !tagFilter ? theme.secondary : theme.outline, borderWidth: B.thin, paddingVertical: S.xs, paddingHorizontal: S.md }]}
-              >
-                <Text style={[styles.filterChipText, { color: !tagFilter ? theme.secondary : theme.onSurfaceVariant, fontSize: F.caption }]}>
-                  {t.allTags}
-                </Text>
-              </Touchable>
-              {allTags.map((tag) => (
-                <Touchable 
-                  key={tag}
-                  onPress={() => { setTagFilter(tagFilter === tag ? null : tag); haptic.select(); }}
-                  style={[styles.filterChip, { borderColor: tagFilter === tag ? theme.secondary : theme.outline, borderWidth: B.thin, paddingVertical: S.xs, paddingHorizontal: S.md }]}
-                >
-                  <Text style={[styles.filterChipText, { color: tagFilter === tag ? theme.secondary : theme.onSurfaceVariant, fontSize: F.caption }]}>
-                    #{translateTag(tag, language as 'tr' | 'en')}
-                  </Text>
-                </Touchable>
-              ))}
-            </ScrollView>
+            İstatistik kartları ayrıca birer tekrardı: "Tamamlanan" `filter='done'`,
+            "Bekleyen" `filter='all'` yapıyordu — yani altlarındaki çiplerle aynı iş.
+            Üstelik "Bekleyen" TAMAMLANMAMIŞ görevleri sayıp basınca hepsini listeliyordu;
+            sayı ile liste birbirini yalanlıyordu.
+
+            Filtreler yok olmadı, ZATEN VAR OLAN menüye taşındı (sağ üstteki kaydırıcı
+            düğmesi — sıralama, gizleme ve arşiv hep oradaydı). iOS'un deseni bu: Mail ve
+            Hatırlatıcılar'da kalıcı filtre şeridi yoktur, filtre araç çubuğu düğmesinin
+            arkasındadır ve etkinken sessiz bir satır bunu hatırlatır (aşağıya bkz.).
+
+            Etiketle filtreleme ayrıca ARAMADAN da yapılabiliyor: arama yüklemi etiketlere
+            de bakıyor. Yani kalıcı bir etiket şeridi tutmak, üçüncü bir yol açmaktı.
+          */}
+
+          {/*
+            ETKİN FİLTRE SATIRI — filtre açıkken görünen TEK iz.
+
+            Sessiz olması bilinçli: renkli bir hap olsaydı kaldırdığımız şeyin aynısını
+            geri koymuş olurduk. Burada iş, "listede neden her şey yok" sorusunu
+            cevaplamak ve tek dokunuşla temizlemek. Filtre kapalıyken satır hiç çizilmez —
+            yani varsayılan görünümde başlıkla liste arasında hiçbir şey yoktur.
+          */}
+          {(filter !== 'all' || !!tagFilter) && (
+            <Touchable
+              onPress={() => { setFilter('all'); setTagFilter(null); haptic.select(); }}
+              accessibilityRole="button"
+              accessibilityLabel={language === 'tr' ? 'Filtreyi temizle' : 'Clear filter'}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingBottom: S.md }}
+            >
+              <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted, flexShrink: 1 }} numberOfLines={1}>
+                {[
+                  filter !== 'all'
+                    ? (filter === 'today' ? t.filterToday
+                      : filter === 'High' ? t.filterHigh
+                      : filter === 'Medium' ? t.filterMedium
+                      : filter === 'Low' ? t.filterLow
+                      : t.filterDone)
+                    : null,
+                  tagFilter ? `#${translateTag(tagFilter, language as 'tr' | 'en')}` : null,
+                ].filter(Boolean).join(' · ')}
+              </Text>
+              <X size={ICON.xs} color={theme.onSurfaceMuted} />
+            </Touchable>
           )}
 
           {/* Task List */}
@@ -1861,14 +1911,20 @@ export default function ActionCenter() {
                 paddingHorizontal: S.lg,
                 paddingVertical: S.md,
                 borderRadius: R.full,
-                backgroundColor: isDark ? 'rgba(30,30,30,0.85)' : 'rgba(255,255,255,0.85)',
-                borderWidth: 1,
-                borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                /*
+                  PALET JETONLARI — tema başına elle yazılmış `rgba()` tonları kalktı.
+                  Bildirim kapsülüyle (Toast) aynı yüzen-yüzey dili: opak yüzey, saç teli
+                  çerçeve, geniş ve soluk gölge. Ham renkler paletin dışındaydı, yani
+                  ölçülen kontrast değerlerine dahil değillerdi.
+                */
+                backgroundColor: theme.surfaceFloating,
+                borderWidth: B.thin,
+                borderColor: theme.outline,
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.15,
-                shadowRadius: 20,
-                elevation: 10,
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.16,
+                shadowRadius: 24,
+                elevation: 8,
                 zIndex: 100
               }
             ]}
@@ -1877,7 +1933,11 @@ export default function ActionCenter() {
               <AppBlur material="regular" />
             )}
             
-            {/* Edit (only if 1 selected and not mode task) */}
+            {/*
+              Tek seçim + mod görevi değil → düzenlenebilir. Bu koşul eskiden ÜÇ ayrı
+              yerde (onPress, style, ikon rengi) yeniden yazılıyordu; biri değişse
+              düğme "aktif görünüp iş yapmayan" bir hâle düşerdi.
+            */}
             <Touchable
               onPress={() => {
                 if (selectedIds.size !== 1) return;
@@ -1900,9 +1960,15 @@ export default function ActionCenter() {
               accessibilityRole="button"
               accessibilityLabel={language === 'tr' ? 'Seçili görevi düzenle' : 'Edit selected task'}
               accessibilityState={{ disabled: selectedIds.size !== 1 }}
-              style={{ width: 44, height: 44, borderRadius: R.full, backgroundColor: selectedIds.size === 1 && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme) ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
+              style={styles.bulkAction}
             >
-              <Pencil size={ICON.md} color={selectedIds.size === 1 && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme) ? theme.onSurface : theme.onSurfaceVariant + '40'} />
+              {/*
+                PASİF DURUM RENGİ SEVİYEDEN GELİYOR. Eskiden `onSurfaceVariant + '40'`
+                yazılıydı: palet rengine kullanım yerinde alfa eklemek, o rengin ölçülmüş
+                kontrastını geçersiz kılar (aynı desen uygulamanın her yerinden kaldırıldı).
+                `onSurfaceMuted` zaten "ikincil ama okunur" seviyesi.
+              */}
+              <Pencil size={ICON.md} color={canEditSelection ? theme.onSurface : theme.onSurfaceMuted} />
             </Touchable>
 
             {/* Complete */}
@@ -1912,9 +1978,32 @@ export default function ActionCenter() {
               accessibilityRole="button"
               accessibilityLabel={language === 'tr' ? `Seçili ${selectedIds.size} görevi tamamla` : `Complete ${selectedIds.size} selected tasks`}
               accessibilityState={{ disabled: selectedIds.size === 0 }}
-              style={{ width: 44, height: 44, borderRadius: R.full, backgroundColor: selectedIds.size > 0 ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
+              style={styles.bulkAction}
             >
-              <CheckCircle2 size={ICON.lg} color={selectedIds.size > 0 ? theme.success : theme.onSurfaceVariant + '40'} />
+              {/* Boyut ICON.md — diğer ikonlar da öyle. Eskiden tek başına ICON.lg idi
+                  ve çubuğun ortasında sebepsiz büyük duruyordu. */}
+              <CheckCircle2 size={ICON.md} color={selectedIds.size > 0 ? theme.success : theme.onSurfaceMuted} />
+            </Touchable>
+
+            {/*
+              ARŞİVLE — sil ile tamamla arasındaki boşluğu dolduruyor.
+
+              Bu düğme yoktu ve arşiv ekranı bu yüzden yapısal olarak HER ZAMAN boştu:
+              kod tabanında `isArchived: true` yapan tek bir satır bile yoktu.
+
+              Silmenin yanında durması bilinçli: ikisi de "listemden çıksın" der ama
+              biri geri dönüşsüzdür. Peşine düşmediğin bir işi silmek zorunda kalmak,
+              kullanıcıyı ya çöp biriktirmeye ya da veri kaybetmeye zorlar.
+            */}
+            <Touchable
+              onPress={handleBulkArchive}
+              disabled={selectedIds.size === 0}
+              accessibilityRole="button"
+              accessibilityLabel={language === 'tr' ? `Seçili ${selectedIds.size} görevi arşivle` : `Archive ${selectedIds.size} selected tasks`}
+              accessibilityState={{ disabled: selectedIds.size === 0 }}
+              style={styles.bulkAction}
+            >
+              <Archive size={ICON.md} color={selectedIds.size > 0 ? theme.onSurface : theme.onSurfaceMuted} />
             </Touchable>
 
             {/* Delete */}
@@ -1924,9 +2013,12 @@ export default function ActionCenter() {
               accessibilityRole="button"
               accessibilityLabel={language === 'tr' ? `Seçili ${selectedIds.size} görevi sil` : `Delete ${selectedIds.size} selected tasks`}
               accessibilityState={{ disabled: selectedIds.size === 0 }}
-              style={{ width: 44, height: 44, borderRadius: R.full, backgroundColor: selectedIds.size > 0 ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent', alignItems: 'center', justifyContent: 'center' }}
+              style={styles.bulkAction}
             >
-              <Trash2 size={ICON.md} color={selectedIds.size > 0 ? theme.priorityHigh : theme.onSurfaceVariant + '40'} />
+              {/* `error`, `priorityHigh` DEĞİL. Silme yıkıcı bir eylemdir; öncelik rengi
+                  ise görevin aciliyetini anlatır. İkisi tesadüfen benzer olabilir ama
+                  aynı şeyi söylemezler — palet değişince bu satır sessizce yanlış olurdu. */}
+              <Trash2 size={ICON.md} color={selectedIds.size > 0 ? theme.error : theme.onSurfaceMuted} />
             </Touchable>
           </MotiView>
         )}
@@ -2019,8 +2111,13 @@ const styles = StyleSheet.create({
   trendBadge: { padding: S.xs, borderRadius: R.sm },
   statSub: { fontWeight: '600' },
   filterScroll: { marginBottom: S.lg },
-  filterChip: { borderRadius: R.full },
-  filterChipText: { fontWeight: '600' },
+  /*
+    TOPLU EYLEM DÜĞMESİ — üçü de aynı. Eskiden her biri kendi satır içi stilini taşıyordu
+    ve içlerinde tema başına elle yazılmış `rgba()` dolgular vardı: seçim varken hafif
+    gri bir daire, yokken şeffaf. O dolgu hiçbir şey söylemiyordu — pasiflik zaten ikon
+    renginden okunuyor. Kaldırınca çubuk hem sadeleşti hem paletin içine girdi.
+  */
+  bulkAction: { width: MIN_TOUCH, height: MIN_TOUCH, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
   listSection: { flex: 1 },
   sectionTitle: { fontWeight: '600', marginBottom: S.md },
   taskCard: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', borderWidth: 0 },

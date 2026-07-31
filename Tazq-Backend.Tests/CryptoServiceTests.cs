@@ -216,5 +216,36 @@ namespace Tazq_Backend.Tests
             Assert.ThrowsAny<Exception>(() => svc.Decrypt(sifreli, svc.GetKeyForUser(2)));
             Assert.ThrowsAny<Exception>(() => svc.Decrypt(sifreli, svc.GetLegacyKeysForUser(2)[0]));
         }
+
+        /// <summary>
+        /// ŞİFRELİ ÇIKTI HER ZAMAN EN AZ 40 KARAKTER — bir sabiti gerçeğe bağlıyor.
+        ///
+        /// `TaskService.SafeDecrypt` düz metni şifreliden ayırmak için bu alt sınıra
+        /// dayanıyor: IV(12) + veri + TAG(16), yani BOŞ metin bile 28 bayt → 40 karakter
+        /// base64 üretir. Bundan kısa bir dize bu sistemin şifreli çıktısı olamaz, düz
+        /// metindir (ör. "Yoga" başlığı — eskiden şifreli sanılıp "okunamıyor"a dönüyordu).
+        ///
+        /// Bu test o sabiti biçimin kendisine bağlıyor: Encrypt'in çıktı düzeni bir gün
+        /// değişirse burası kırılır ve eşiği güncellemeyi unutmak imkânsız olur. Aksi
+        /// halde sessizce yanlış tarafa düşen bir kontrol kalırdı.
+        /// </summary>
+        [Theory]
+        [InlineData("")]
+        [InlineData("a")]
+        [InlineData("Yoga")]
+        public void Encrypt_Output_IsAlwaysAtLeastMinimumCipherLength(string plain)
+        {
+            const int MinCipherBase64Length = 40; // TaskService.SafeDecrypt ile AYNI değer
+
+            var service = new CryptoService("test-secret-for-length-check", Array.Empty<string>());
+            var key = service.GetKeyForUser(1)!;
+
+            var cipher = service.Encrypt(plain, key);
+
+            Assert.True(
+                cipher.Length >= MinCipherBase64Length,
+                $"Şifreli çıktı {cipher.Length} karakter; eşik {MinCipherBase64Length}. " +
+                "SafeDecrypt'teki düz metin ayrımı bu alt sınıra dayanıyor.");
+        }
     }
 }

@@ -29,7 +29,6 @@ const setup = (over: Partial<React.ComponentProps<typeof NextMissionCard>> = {})
       onSeeAll={jest.fn()}
       priorityColor={priorityColor}
       isSmallScreen={false}
-      isDark={false}
       theme={theme}
       padding={24}
       {...over}
@@ -62,7 +61,7 @@ describe('NextMissionCard', () => {
     // Stilde `color: 'white'` sabiti vardı. Kullanım yeri onu eziyordu, ama ezmeyen
     // biri koyu temada beyaz alırdı — oysa koyu temada onPrimary KOYU'dur (Colors.ts).
     // Sessiz bekleyen bir tuzaktı; artık renk her zaman kullanım yerinden geliyor.
-    const { getByText } = setup({ theme: Colors.dark, isDark: true });
+    const { getByText } = setup({ theme: Colors.dark });
     expect(styleOf(getByText('GÖREVE GİT')).color).toBe(Colors.dark.onPrimary);
     expect(styleOf(getByText('GÖREVE GİT')).color).not.toBe('white');
   });
@@ -72,21 +71,55 @@ describe('NextMissionCard', () => {
     expect(styleOf(getByText('GÖREV EKLE')).color).toBe(theme.onSurface);
   });
 
-  it('öncelik rengi TEK kaynaktan — rozet ve yazı aynı', () => {
-    // Eskiden gradyan kendi if/else'iyle, rozet priorityColor() ile hesaplıyordu:
-    // aynı eşleme iki yerde. Biri değişse kart kendi içinde çelişirdi.
+  /**
+   * YAPI NÖTR, DURUM RENKLİ.
+   *
+   * Bu üç test eskiden "SIRADAKİ" etiketinin ÖNCELİK RENGİNDE olmasını doğruluyordu.
+   * Beklenti bilinçli olarak değişti: o etiket kartın NE OLDUĞUNU söyleyen yapısal bir
+   * başlık ve kartın kendisi hiçbir zaman "acil" değildir.
+   *
+   * Asıl sorun tekrardı: `showUrgent` zaten yalnız YÜKSEK öncelikte açılıyor ve `accent`
+   * de önceliğe göre hesaplanıyor. Yani yüksek öncelikli bir görevde yan yana iki
+   * kırmızı etiket beliriyor, aynı şeyi iki kez söylüyordu — renk tekrarlandığı için de
+   * vurgu olmaktan çıkıyordu. Bir şey vurgulanacaksa tek şey vurgulanır.
+   *
+   * "Tek kaynak" ilkesi kaybolmadı, doğru etikete taşındı: renk artık yalnız aciliyet
+   * etiketinde ve hâlâ `priorityColor()`tan geliyor.
+   */
+  it('yapısal etiket NÖTR — kart "acil" değildir, görev acildir', () => {
     const { getByText } = setup({ task: { id: 1, priority: 'High' } });
-    expect(styleOf(getByText('AKTİF GÖREV')).color).toBe(theme.priorityHigh);
+    expect(styleOf(getByText('AKTİF GÖREV')).color).toBe(theme.onSurfaceMuted);
   });
 
-  it('öncelik değişince renk de değişir', () => {
+  it('yapısal etiketin rengi ÖNCELİKLE DEĞİŞMEZ', () => {
+    // Aynı yapısal başlığın önceliğe göre renk değiştirmesi, okuyucuya "bu başlık bir
+    // durum bildiriyor" der — bildirmiyor.
+    const high = setup({ task: { id: 1, priority: 'High' } });
     const low = setup({ task: { id: 1, priority: 'Low' } });
-    expect(styleOf(low.getByText('AKTİF GÖREV')).color).toBe(theme.priorityLow);
+    expect(styleOf(high.getByText('AKTİF GÖREV')).color)
+      .toBe(styleOf(low.getByText('AKTİF GÖREV')).color);
   });
 
-  it('görev yokken rozet nötr gri — öncelik yok çünkü görev yok', () => {
+  it('ACİL etiketi öncelik rengini TEK kaynaktan alır', () => {
+    const { getByText } = setup({ task: { id: 1, priority: 'High' }, showUrgent: true });
+    expect(styleOf(getByText('ACİL')).color).toBe(theme.priorityHigh);
+  });
+
+  it('görev yokken yapısal etiket yine nötr kalır', () => {
     const { getByText } = setup({ task: null });
-    expect(styleOf(getByText('AKTİF GÖREV')).color).toBe(theme.onSurfaceVariant);
+    expect(styleOf(getByText('AKTİF GÖREV')).color).toBe(theme.onSurfaceMuted);
+  });
+
+  it('etiketlerde DOLGULU zemin yok — görev satırlarıyla aynı dil', () => {
+    // Aksiyon merkezindeki son dolgulu hap desendi. Alttaki görev satırlarında ve
+    // bildirim kapsülünde zaten kaldırılmıştı; burada kalması iki ayrı tasarım dilini
+    // yan yana bırakıyordu.
+    const { getByText } = setup({ showUrgent: true });
+    for (const label of ['AKTİF GÖREV', 'ACİL']) {
+      const parent = getByText(label).parent;
+      const style = styleOf(parent);
+      expect(style.backgroundColor).toBeUndefined();
+    }
   });
 
   it('aciliyet rozetini yalnızca istendiğinde gösterir', () => {
