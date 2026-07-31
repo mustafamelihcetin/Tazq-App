@@ -2378,6 +2378,134 @@ const EXAM_CONTENT: Record<string, ExamContent> = {
       { titleTr: 'Zayıf alan (şekil/sayısal/sözel) odak pratiği', titleEn: 'Focus practice on your weakest area (visual/numerical/verbal)', priority: 'High' },
     ],
   },
+  katiplik: {
+    emoji: '⌨️',
+    temelHabits: [
+      { name: 'Klavye Pratik', nameTr: 'F/Q Klavye vuruş pratiği (15 dk)', emoji: '⌨️', color: CategoryColors.blue },
+      { name: 'Adalet Mevzuat', nameTr: 'Adalet örgütü mevzuatı okuma', emoji: '📜', color: CategoryColors.amber },
+    ],
+    ortaHabits: [
+      { name: '3 Dk Klavye', nameTr: '3 dakikada kelime simülasyonu', emoji: '⏱️', color: CategoryColors.green },
+      { name: 'Mevzuat Soru', nameTr: 'Mevzuat & Türkçe soru çözümü', emoji: '⚖️', color: CategoryColors.blue },
+      { name: 'Hata Kartı', nameTr: 'Yanlış yazılan kelimeleri tekrar et', emoji: '❌', color: CategoryColors.red },
+    ],
+    ileriHabits: [
+      { name: 'Zamanlı Klavye', nameTr: 'Günlük 10 x 3 dk klavye maratonu (90+ kelime)', emoji: '⚡', color: CategoryColors.red },
+      { name: 'Katiplik Mevzuat', nameTr: 'Anayasa + HMK + İnfaz mevzuatı', emoji: '⚖️', color: CategoryColors.amber },
+      { name: 'Deneme Metni', nameTr: 'Çıkmış katiplik sınav metinleri pratiği', emoji: '📄', color: CategoryColors.violet },
+      { name: 'Hata Analizi', nameTr: 'Klavye vuruş ve vuruş-hata analizi', emoji: '📊', color: CategoryColors.blue },
+    ],
+    setupTasks: [
+      { titleTr: 'Adalet Bakanlığı Zabıt Katipliği sınav kılavuzunu incele', titleEn: 'Review the Ministry of Justice Court Clerk exam guide', priority: 'High' },
+      { titleTr: 'Son 3 yılda çıkmış sınav metinlerini temin et', titleEn: 'Get past exam texts from the last 3 years', priority: 'High' },
+      { titleTr: '3 dakikalık klavye sayacı ve simülatörü hazırla', titleEn: 'Set up a 3-minute typing timer and simulator', priority: 'High' },
+    ],
+    sprintTasks: [
+      { titleTr: 'Günde en az 5 farklı metinde 3 dakikalık klavye testi yap', titleEn: 'Complete 3-minute typing tests on 5 different texts daily', priority: 'High' },
+      { titleTr: 'Mevzuat soru bankasından karma test çöz', titleEn: 'Solve mixed tests from the legislation question bank', priority: 'High' },
+    ],
+  },
+  kaymakamlik: {
+    emoji: '🏛️',
+    temelHabits: [
+      { name: 'Anayasa Hukuku', nameTr: 'Anayasa Hukuku madde okuması', emoji: '⚖️', color: CategoryColors.blue },
+      { name: 'İdare Hukuku', nameTr: 'İdare Hukuku temel konular', emoji: '📚', color: CategoryColors.amber },
+    ],
+    ortaHabits: [
+      { name: 'Anayasa-İdare', nameTr: 'Anayasa & İdare Hukuku yoğun', emoji: '⚖️', color: CategoryColors.blue },
+      { name: 'TR İktisadı', nameTr: 'Türkiye İktisat Yapısı & İktisat', emoji: '📊', color: CategoryColors.green },
+      { name: 'İnsan Hakları', nameTr: 'İnsan Hakları mevzuatı', emoji: '🕊️', color: CategoryColors.violet },
+    ],
+    ileriHabits: [
+      { name: 'Derin Mevzuat', nameTr: 'Cumhurbaşkanlığı kararnameleri & mevzuat', emoji: '📜', color: CategoryColors.red },
+      { name: 'İktisat & İdare', nameTr: 'İktisat + İdare soru bankası (60+)', emoji: '📊', color: CategoryColors.blue },
+      { name: 'Çıkmış Sorular', nameTr: 'Çıkmış Kaymakamlık soruları analizi', emoji: '📝', color: CategoryColors.amber },
+      { name: 'Hata Kartı', nameTr: 'Hukuk maddeleri Ebbinghaus tekrarı', emoji: '❌', color: CategoryColors.violet },
+    ],
+    setupTasks: [
+      { titleTr: 'Kaymakam adaylığı sınavı ders ağırlıklarını ve soru dağılımını listele', titleEn: 'List District Governor candidate exam subject weights and question distribution', priority: 'High' },
+      { titleTr: 'Güncel Cumhurbaşkanlığı kararnameleri mevzuat derlemesini temin et', titleEn: 'Get updated Presidential decrees compilation', priority: 'High' },
+    ],
+    sprintTasks: [
+      { titleTr: 'Günde 2 tam mevzuat ve iktisat soru seti çöz', titleEn: 'Solve 2 full legislation and economics question sets daily', priority: 'High' },
+      { titleTr: 'Zayıf olunan hukuk branşında nokta atışı tekrar yap', titleEn: 'Do targeted review on your weakest law subject', priority: 'High' },
+    ],
+  },
+  icra: {
+    emoji: '⚖️',
+    temelHabits: [
+      { name: 'İcra-İflas', nameTr: 'İcra-İflas Kanunu maddeleri', emoji: '📜', color: CategoryColors.blue },
+      { name: 'HMK Giriş', nameTr: 'Hukuk Muhakemeleri Kanunu', emoji: '⚖️', color: CategoryColors.amber },
+    ],
+    ortaHabits: [
+      { name: 'İcra-İflas', nameTr: 'İcra-İflas Hukuku soru çözümü', emoji: '📜', color: CategoryColors.blue },
+      { name: 'HMK & Borçlar', nameTr: 'HMK & Borçlar Hukuku', emoji: '⚖️', color: CategoryColors.amber },
+      { name: 'Ticaret Hukuku', nameTr: 'Ticaret Hukuku özeti', emoji: '🏢', color: CategoryColors.green },
+    ],
+    ileriHabits: [
+      { name: 'İcra Yoğun', nameTr: 'İcra-İflas & Takip Hukuku (60 dk)', emoji: '📜', color: CategoryColors.red },
+      { name: 'HMK + Borçlar', nameTr: 'HMK + Borçlar Genel soru seti', emoji: '⚖️', color: CategoryColors.blue },
+      { name: 'Harçlar & Damga', nameTr: 'Harçlar & Damga Vergisi Kanunu', emoji: '💰', color: CategoryColors.green },
+      { name: 'Çıkmış Sorular', nameTr: 'Çıkmış İcra Müdürlüğü soruları', emoji: '📝', color: CategoryColors.violet },
+    ],
+    setupTasks: [
+      { titleTr: 'İcra Müdürlüğü ve Müdür Yardımcılığı sınav konularını ve mevzuatı indir', titleEn: 'Download Enforcement Director exam topics and relevant legislation', priority: 'High' },
+      { titleTr: 'İcra-İflas Kanunu ve HMK mevzuat kitapçığı hazırlat', titleEn: 'Prepare Enforcement-Bankruptcy Law and HMK code booklets', priority: 'High' },
+    ],
+    sprintTasks: [
+      { titleTr: 'Her gün 100 İcra-İflas ve HMK sorusu çöz', titleEn: 'Solve 100 Enforcement-Bankruptcy and HMK questions daily', priority: 'High' },
+    ],
+  },
+  smmm: {
+    emoji: '🧮',
+    temelHabits: [
+      { name: 'Finansal Muhasebe', nameTr: 'Finansal Muhasebe temel hesaplar', emoji: '📒', color: CategoryColors.blue },
+      { name: 'Vergi Hukuku', nameTr: 'Vergi mevzuatı & KDV/Kurumlar', emoji: '⚖️', color: CategoryColors.amber },
+    ],
+    ortaHabits: [
+      { name: 'Muhasebe Tekdüzen', nameTr: 'Tekdüzen hesap planı & kayıtlar', emoji: '📒', color: CategoryColors.blue },
+      { name: 'Vergi & Borçlar', nameTr: 'Vergi Hukuku + Borçlar Hukuku', emoji: '⚖️', color: CategoryColors.amber },
+      { name: 'Maliyet Muhasebesi', nameTr: 'Maliyet Muhasebesi problemleri', emoji: '📈', color: CategoryColors.green },
+    ],
+    ileriHabits: [
+      { name: 'Monografi Çözümü', nameTr: 'Günlük karma monografi çözümü', emoji: '📒', color: CategoryColors.red },
+      { name: 'Vergi & Denetim', nameTr: 'Vergi Hukuku + Bağımsız Denetim', emoji: '⚖️', color: CategoryColors.blue },
+      { name: 'Mali Analiz', nameTr: 'Mali Tablolar Analizi & Rasyolar', emoji: '📈', color: CategoryColors.green },
+      { name: 'Çıkmış SMMM', nameTr: 'Çıkmış SMMM Staja Başlama testleri', emoji: '📝', color: CategoryColors.violet },
+    ],
+    setupTasks: [
+      { titleTr: 'SMMM Staja Başlama / Yeterlilik sınav ders dağılımını incele', titleEn: 'Review SMMM Internship Entrance / Qualification subject breakdown', priority: 'High' },
+      { titleTr: 'Tekdüzen Hesap Planı ve mali tablolar şablonunu temin et', titleEn: 'Get Uniform Chart of Accounts and financial statements template', priority: 'High' },
+    ],
+    sprintTasks: [
+      { titleTr: 'Her gün 1 tam SMMM monografi veya test seti çöz', titleEn: 'Solve 1 full SMMM monograph or test set daily', priority: 'High' },
+    ],
+  },
+  bekcilik: {
+    emoji: '🛡️',
+    temelHabits: [
+      { name: 'Genel Kültür', nameTr: 'Genel Kültür & Tarih okuması', emoji: '🌍', color: CategoryColors.blue },
+      { name: 'Türkçe Paragraf', nameTr: 'Türkçe paragraf (15 soru)', emoji: '📖', color: CategoryColors.green },
+    ],
+    ortaHabits: [
+      { name: 'Bekçilik Mevzuatı', nameTr: 'Polis ve Bekçilik mevzuatı', emoji: '📜', color: CategoryColors.amber },
+      { name: 'Genel Kültür', nameTr: 'Tarih + Coğrafya + Anayasa', emoji: '🌍', color: CategoryColors.blue },
+      { name: 'Türkçe Soru', nameTr: 'Türkçe & Mantık soruları', emoji: '📝', color: CategoryColors.green },
+    ],
+    ileriHabits: [
+      { name: 'Mevzuat & Hukuk', nameTr: 'Bekçilik mevzuatı & Anayasa (40 dk)', emoji: '📜', color: CategoryColors.red },
+      { name: 'Genel Kültür Seti', nameTr: 'Genel Kültür + Tarih soru bankası', emoji: '🌍', color: CategoryColors.blue },
+      { name: 'Mantık & Türkçe', nameTr: 'Sözel mantık & Türkçe paragraf', emoji: '📝', color: CategoryColors.green },
+      { name: 'Çıkmış Sorular', nameTr: 'Çıkmış Bekçilik sınav soruları', emoji: '📊', color: CategoryColors.violet },
+    ],
+    setupTasks: [
+      { titleTr: 'Emniyet Genel Müdürlüğü Bekçilik sınav konularını ve kılavuzunu incele', titleEn: 'Review EGM Guard exam topics and official guide', priority: 'High' },
+      { titleTr: 'Çarşı ve Mahalle Bekçileri Kanunu mevzuat metnini temin et', titleEn: 'Get the Town and Neighborhood Guards Law text', priority: 'High' },
+    ],
+    sprintTasks: [
+      { titleTr: 'Her gün 1 tam Bekçilik denemesi çöz ve analiz et', titleEn: 'Solve and analyze a full Guard mock exam daily', priority: 'High' },
+    ],
+  },
 };
 
 // Maps detected exam name to content key
@@ -2400,6 +2528,11 @@ function detectExamContentKey(upperName: string): string | null {
   if (['AOF', 'AÖF', 'AUZEF', 'AÇIKÖG'].some(k => upperName.includes(k))) return 'aof';
   if (upperName.includes('PTE')) return 'pte';
   if (['BİLSEM', 'BILSEM'].some(k => upperName.includes(k))) return 'bilsem';
+  if (['KATİPLİK', 'KATIPLIK', 'ZABIT', 'ZABITKATİPLİĞİ', 'ZABITKATIPLIGI', 'MÜBARİZ', 'MUBARIZ'].some(k => upperName.includes(k))) return 'katiplik';
+  if (['KAYMAKAM', 'KAYMAKAMIK', 'KAYMAKAMLIK'].some(k => upperName.includes(k))) return 'kaymakamlik';
+  if (['İCRA', 'ICRA'].some(k => upperName.includes(k))) return 'icra';
+  if (['SMMM', 'YMM', 'MALİ MÜŞAVİR', 'MALI MUSAVIR'].some(k => upperName.includes(k))) return 'smmm';
+  if (['BEKÇİ', 'BEKCI', 'BEKÇİLİK', 'BEKCILIK'].some(k => upperName.includes(k))) return 'bekcilik';
   return null;
 }
 

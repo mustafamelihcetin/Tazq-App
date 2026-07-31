@@ -26,6 +26,7 @@ import { buildTasarrufPlan, tasarrufTypeLabel, TASARRUF_COLOR } from '@/shared/u
 import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { Coins } from 'lucide-react-native';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
+import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { haptic } from '@/shared/utils/haptics';
 
 const fmtMoney = (n: number) => n.toLocaleString('tr-TR');
@@ -160,10 +161,18 @@ export function TasarrufCard() {
       habitIds.push(id);
     });
     const taskIds: number[] = [];
+    const tasarrufLabel = tasarrufTypeLabel(budgetType, tr);
     for (const t of content.tasks) {
+      let taskTitleTr = t.title;
+      let taskTitleEn = t.titleEn;
+      if (tasarrufLabel) {
+        const lLower = tasarrufLabel.toLowerCase();
+        if (!taskTitleTr.toLowerCase().includes(lLower)) taskTitleTr = `${tasarrufLabel}: ${taskTitleTr}`;
+        if (!taskTitleEn.toLowerCase().includes(lLower)) taskTitleEn = `${tasarrufLabel}: ${taskTitleEn}`;
+      }
       const id = await createPlanTask({
-        title: tr ? t.title : t.titleEn,
-        description: JSON.stringify({ tr: t.title, en: t.titleEn, descTr: t.desc, descEn: t.descEn }),
+        title: tr ? taskTitleTr : taskTitleEn,
+        description: JSON.stringify({ tr: taskTitleTr, en: taskTitleEn, descTr: t.desc, descEn: t.descEn }),
         priority: t.priority,
         isCompleted: false,
         tags: t.tags
@@ -203,7 +212,7 @@ export function TasarrufCard() {
     // gorev o listeden dusmusse (offline tempId kaymasi, basarisiz silme) ekranda
     // kaliyordu ve ancak bir sonraki UYGULAMA ACILISINDA siliniyordu. Kullanicinin
     // gordugu: "modu kapattim ama gorevi hala duruyor".
-    retireModeTasksByTag('tasarruf');
+    retireModeTasksByTag('tasarruf', seasonal.tasarrufName);
     clearPlanIds('tasarruf');
     setSeasonalPref('tasarrufMode', false);
     setSeasonalPref('tasarrufName', '');
@@ -250,11 +259,11 @@ export function TasarrufCard() {
               else if (applied) {
                 // Kapatma planı + tüm bütçe kayıtlarını siler → önce onay iste.
                 Alert.alert(
-                  tr ? 'Tasarruf planını kapat?' : 'Close savings plan?',
-                  tr ? 'Plan ve tüm bütçe kayıtların silinecek. Bu işlem geri alınamaz.' : 'Your plan and all budget entries will be deleted. This cannot be undone.',
+                  tr ? 'Tasarruf Modu Kapatılıyor' : 'Turning off Savings Mode',
+                  tr ? 'Eklenen tüm bütçe kayıtları ve görevler kaldırılacak. Emin misin?' : 'All added budget entries and tasks will be removed. Are you sure?',
                   [
-                    { text: tr ? 'Vazgeç' : 'Cancel', style: 'cancel' },
-                    { text: tr ? 'Kapat' : 'Close', style: 'destructive', onPress: () => { closePlan(); } },
+                    { text: tr ? 'İptal' : 'Cancel', style: 'cancel' },
+                    { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: () => closeModeWithUndo('tasarruf', closePlan, tr ? 'Tasarruf modu kapatıldı' : 'Savings mode closed', tr ? 'Geri al' : 'Undo') },
                   ],
                 );
               } else { setSeasonalPref('tasarrufMode', false); setExpanded(false); }

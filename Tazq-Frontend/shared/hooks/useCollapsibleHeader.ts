@@ -39,8 +39,22 @@ import { S } from '@/shared/constants/tokens';
 export function useCollapsibleHeader({
   defaultCollapseAt = 56,
   listener,
+  nativeDriver = true,
 }: {
   defaultCollapseAt?: number;
+  /**
+   * Kaydırma animasyonu UI thread'de mi koşsun (varsayılan: evet).
+   *
+   * `false` YALNIZCA kaydırma kabı RN'in `Animated` bileşeni OLAMADIĞINDA verilir.
+   * RN'in native sürücüsü, olayı bağlayacağı bileşenin `Animated.createAnimatedComponent`
+   * ile sarılmış olmasını ŞART koşar; sarılı değilse uygulama açılışta çöker:
+   *   "Components based on VirtualizedList must be wrapped with
+   *    Animated.createAnimatedComponent to support native onScroll events"
+   *
+   * Bu, Reanimated'ın `Animated.FlatList`i gibi BAŞKA bir animasyon kütüphanesine ait
+   * listelerde olur — iki kütüphane birbirinin animated bileşenini tanımaz.
+   */
+  nativeDriver?: boolean;
   /**
    * Ekranın KENDİ kaydırma işi (ör. ofseti bir ref'e yazmak). `Animated.event`in
    * `listener` seçeneğine bağlanır: animasyon değeri beslenirken eski davranış da
@@ -82,10 +96,10 @@ export function useCollapsibleHeader({
           `listener` bununla birlikte çalışmaya devam eder (ekranın kendi işi için);
           yalnız o geri çağrı JS'te koşar, animasyonun kendisi koşmaz.
         */
-        useNativeDriver: true,
+        useNativeDriver: nativeDriver,
         listener,
       }),
-    [scrollY, listener],
+    [scrollY, listener, nativeDriver],
   );
 
   /**

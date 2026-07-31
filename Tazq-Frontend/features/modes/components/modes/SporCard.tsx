@@ -74,7 +74,7 @@ function SporDatePicker({ value, onPick, onClose }: { value: Date; onPick: (iso:
     <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
       <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : undefined}>
         <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={value} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })()}
-          onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') onClose(); if (event.type === 'dismissed') { onClose(); return; } if (date) { onPick(date.toISOString().split('T')[0]); if (Platform.OS === 'ios') onClose(); } }} />
+          onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') onClose(); if (event.type === 'dismissed') { onClose(); return; } if (date) { onPick(date.toISOString().split('T')[0]); } }} />
       </View>
     </View>
   );
@@ -103,7 +103,10 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
   const [showPicker, setShowPicker] = useState(false);
 
   const del = () => {
-    planHabitIds.forEach(id => removeHabit(id)); planTaskIds.forEach(id => retirePlanTask(id, slot)); clearPlanIds(slot);
+    planHabitIds.forEach(id => removeHabit(id)); planTaskIds.forEach(id => retirePlanTask(id, slot));
+    retireModeTasksByTag(slot, goal);
+    retireModeTasksByTag('spor', goal);
+    clearPlanIds(slot);
     setSeasonalPref(goalKey, ''); setSeasonalPref(dateKey, null); setExpanded(false);
   };
 
@@ -252,7 +255,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
     // ETIKET TABANLI SUPURME — id listesine bakmadan moda ait HER seyi kaldirir.
     // Id-tabanli temizlik yalnizca 'bildigimiz' gorevleri siler; listeden dusmus
     // bir gorev ekranda kalip ancak bir sonraki acilista siliniyordu.
-    sporPlanHabitIds.forEach(id => removeHabit(id)); sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor')); retireModeTasksByTag('spor'); clearPlanIds('spor');
+    sporPlanHabitIds.forEach(id => removeHabit(id)); sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor')); retireModeTasksByTag('spor', seasonal.sporGoal); clearPlanIds('spor');
     // Clean up any remaining weight_entry tasks from the tasks store
     const { tasks: allTasks } = useTaskStore.getState();
     const remainingWeightTasks = allTasks.filter(t => !t.isCompleted && (t.tags?.includes('weight_entry') || t.title === 'Güncel kilonu gir' || t.title === 'Log current weight'));

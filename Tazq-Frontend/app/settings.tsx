@@ -337,7 +337,7 @@ export default function SettingsScreen() {
           kullanıyordu: alt sayfaya inince başlık BÜYÜYORDU (hiyerarşi ters). */}
       <ScreenHeader onBack={() => router.back()} title={catTitle} scrollY={scrollY} />
 
-      <ScrollView ref={scrollRef} onScroll={onScroll} scrollEventThrottle={16} onContentSizeChange={tryScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}>
+      <Animated.ScrollView ref={scrollRef} onScroll={onScroll} scrollEventThrottle={16} onContentSizeChange={tryScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}>
             {show('notify') && (<>
             {/* ── BİLDİRİMLER ── */}
             <SectionHeader onLayout={e => markSection('notify', e.nativeEvent.layout.y)} title={language === 'tr' ? 'BİLDİRİMLER' : 'NOTIFICATIONS'} theme={theme} tr={language === 'tr'} />
@@ -713,7 +713,7 @@ export default function SettingsScreen() {
                 <Text style={[styles.logoutText, { color: theme.error, fontSize: F.caption }]}>{t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account')}</Text>
             </Touchable>
             </>)}
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Ayarlar bir SEKME değil (profilden push edilir, 2 kademe derin) → alt tab-bar
           "hiçbir sekme aktif değil" halinde görünüyordu. iOS deseni: geri butonu + tam ekran. */}

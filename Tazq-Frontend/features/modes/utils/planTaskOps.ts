@@ -42,14 +42,27 @@ export function retirePlanTask(taskId: number, planMode?: string): void {
  * ortak olduğundan tek başına kullanılmaz — slot etiketleri (exam/spor/…) günlük
  * görevleri zaten kapsar.
  */
+const ALL_EXAM_TAGS = [
+  'exam', 'exam2', 'exam3', 'sınav', 'sınav2', 'sınav3', 'yks', 'kpss', 'ales', 'lgs', 'dgs', 'yds',
+  'yökdil', 'yokdil', 'ielts', 'toefl', 'tus', 'dus', 'usmle', 'gre', 'gmat', 'msü', 'msu', 'pmyo',
+  'oabt', 'öabt', 'aof', 'aöf', 'pte', 'bilsem', 'katiplik', 'kaymakamlik', 'kaymakamlık', 'icra',
+  'smmm', 'bekcilik', 'bekçilik', 'sinav_eve', 'sinav_week', 'sinav_sprint_start', 'sinav_60'
+];
+
 export const MODE_TASK_TAGS: Record<string, string[]> = {
-  exam: ['exam', 'exam2', 'exam3', 'yks', 'kpss', 'sinav_eve', 'sinav_week', 'sinav_sprint_start', 'sinav_60'],
+  exam: ALL_EXAM_TAGS,
+  exam2: ALL_EXAM_TAGS,
+  exam3: ALL_EXAM_TAGS,
   tez: ['tez', 'tez_weekly', 'tez_final_2weeks', 'tez_sprint_30', 'tez_60'],
-  mulakat: ['mulakat', 'mulakat2', 'mulakat3', 'mulakat_day', 'mulakat_eve', 'mulakat_3days', 'mulakat_week', 'mulakat_2weeks'],
-  spor: ['spor', 'spor2', 'spor3', 'kilo', 'maraton', 'guc', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress'],
+  mulakat: ['mulakat', 'mülakat', 'mulakat2', 'mülakat2', 'mulakat3', 'mülakat3', 'mulakat_day', 'mulakat_eve', 'mulakat_3days', 'mulakat_week', 'mulakat_2weeks'],
+  mulakat2: ['mulakat2', 'mülakat2', 'mulakat', 'mülakat', 'mulakat3', 'mülakat3', 'mulakat_day', 'mulakat_eve', 'mulakat_3days', 'mulakat_week', 'mulakat_2weeks'],
+  mulakat3: ['mulakat3', 'mülakat3', 'mulakat', 'mülakat', 'mulakat2', 'mülakat2', 'mulakat_day', 'mulakat_eve', 'mulakat_3days', 'mulakat_week', 'mulakat_2weeks'],
+  spor: ['spor', 'spor2', 'spor3', 'kilo', 'maraton', 'guc', 'güç', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress'],
+  spor2: ['spor2', 'spor', 'spor3', 'kilo', 'maraton', 'guc', 'güç', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress'],
+  spor3: ['spor3', 'spor', 'spor2', 'kilo', 'maraton', 'guc', 'güç', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress'],
   ramazan: ['ramazan', 'ramazan_kadir'],
   tasarruf: ['tasarruf', 'budget_entry'],
-  birakma: ['birakma'],
+  birakma: ['birakma', 'bırakma'],
 };
 
 /**
@@ -60,12 +73,22 @@ export const MODE_TASK_TAGS: Record<string, string[]> = {
  * `retirePlanTask` onları önce completion journal'a işler, yani istatistik kaybolmaz,
  * sadece aktif listeden kalkar.
  */
-export function retireModeTasksByTag(mode: keyof typeof MODE_TASK_TAGS | string): void {
-  const tags = MODE_TASK_TAGS[mode];
-  if (!tags) return;
+export function retireModeTasksByTag(mode: keyof typeof MODE_TASK_TAGS | string, extraName?: string | null): void {
+  const tags = MODE_TASK_TAGS[mode] ?? [mode];
   const tagSet = new Set(tags);
+  const nameLower = extraName?.trim().toLowerCase();
+
   useTaskStore.getState().tasks
-    .filter(t => (t.tags ?? []).some(tag => tagSet.has(tag)))
+    .filter(t => {
+      if ((t.tags ?? []).some(tag => tagSet.has(tag))) return true;
+      if (nameLower && nameLower.length >= 2) {
+        const titleLower = t.title?.trim().toLowerCase() || '';
+        if (titleLower.startsWith(nameLower + ':') || titleLower.startsWith(nameLower + ' ') || titleLower.includes(nameLower)) {
+          return true;
+        }
+      }
+      return false;
+    })
     .forEach(t => retirePlanTask(t.id, mode));
 }
 

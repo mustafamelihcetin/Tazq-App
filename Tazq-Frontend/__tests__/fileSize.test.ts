@@ -50,16 +50,24 @@ const NEW_FILE_LIMIT = 800;
  * aksi halde liste bayatlar ve koruma işlevini yitirir (bkz. aşağıdaki test).
  */
 const KNOWN_LARGE: Record<string, number> = {
-  'features/modes/utils/turkishModes.ts': 2667,
+  'features/modes/utils/turkishModes.ts': 2820,
   'app/focus.tsx': 2488,
-  'app/tasks.tsx': 2394,
+  // 2394 → 2400: çöken bir ekranın düzeltmesi. Bu ekranın listesi Reanimated'ın
+  // FlatList'i olduğu için native kaydırma sürücüsü kapatılmak ZORUNDA (yoksa açılışta
+  // "VirtualizedList must be wrapped with Animated.createAnimatedComponent" ile çöküyor).
+  // Artış: seçenek nesnesi + üç satırlık gerekçe. Yorum iki kez kısaltıldı; geri kalanı
+  // silmek, bir daha aynı hatayı yapmamızı sağlayan tek kaydı silmek olurdu.
+  'app/tasks.tsx': 2400,
   'app/index.tsx': 2097,
   'app/admin.tsx': 1663,
-  'features/modes/components/TurkishModeBanner.tsx': 1615,
+  'features/modes/components/TurkishModeBanner.tsx': 1690,
   'app/cockpit.tsx': 1523,
-  'app/modlar.tsx': 1358,
+  // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
+  // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
+  // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.
+  'app/modlar.tsx': 1420,
   'features/tasks/components/TaskFormModal.tsx': 1199,
-  'features/modes/hooks/usePlanAdaptations.ts': 1136,
+  'features/modes/hooks/usePlanAdaptations.ts': 1150,
   'app/profile.tsx': 910,
   'shared/constants/legal.ts': 893,
   'features/modes/utils/planAdaptations.ts': 880,

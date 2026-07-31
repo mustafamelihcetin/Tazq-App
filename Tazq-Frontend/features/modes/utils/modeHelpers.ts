@@ -163,63 +163,75 @@ const getModeInfoForTaskRaw = (task: TaskLike | number, prefsStoreState: any) =>
     : task;
   const tags: string[] = taskObj?.tags ?? [];
   const has = (...ts: string[]) => ts.some(t => tags.includes(t));
+  const titleStr = taskObj?.title?.trim().toLowerCase() || '';
+  const titleMatches = (name?: string | null) => {
+    if (!name?.trim() || !titleStr) return false;
+    return titleStr.startsWith(name.trim().toLowerCase());
+  };
+
+  const ALL_EXAM_TAGS = [
+    'exam', 'exam2', 'exam3', 'sınav', 'sınav2', 'sınav3', 'yks', 'kpss', 'ales', 'lgs', 'dgs', 'yds',
+    'yökdil', 'yokdil', 'ielts', 'toefl', 'tus', 'dus', 'usmle', 'gre', 'gmat', 'msü', 'msu', 'pmyo',
+    'oabt', 'öabt', 'aof', 'aöf', 'pte', 'bilsem', 'katiplik', 'kaymakamlik', 'kaymakamlık', 'icra',
+    'smmm', 'bekcilik', 'bekçilik', 'sinav_eve', 'sinav_week', 'sinav_sprint_start', 'sinav_60'
+  ];
 
   // ── SINAV (exam) ──
-  if (p.exam2PlanTaskIds?.includes(taskId) || has('exam2')) {
+  if (p.exam2PlanTaskIds?.includes(taskId) || has('exam2', 'sınav2') || (p.seasonal?.exam2Name && titleMatches(p.seasonal.exam2Name))) {
     const dl = getDaysLeft(p.seasonal?.exam2Date);
     return { color: MODE_COLORS.exam, labelTr: p.seasonal?.exam2Name || 'Sınav Planı 2', labelEn: p.seasonal?.exam2Name || 'Exam Plan 2', daysLeft: dl, unit: 'day' };
   }
-  if (p.exam3PlanTaskIds?.includes(taskId) || has('exam3')) {
+  if (p.exam3PlanTaskIds?.includes(taskId) || has('exam3', 'sınav3') || (p.seasonal?.exam3Name && titleMatches(p.seasonal.exam3Name))) {
     const dl = getDaysLeft(p.seasonal?.exam3Date);
     return { color: MODE_COLORS.exam, labelTr: p.seasonal?.exam3Name || 'Sınav Planı 3', labelEn: p.seasonal?.exam3Name || 'Exam Plan 3', daysLeft: dl, unit: 'day' };
   }
-  if (p.examPlanTaskIds?.includes(taskId) || has('exam', 'yks', 'kpss', 'sinav_eve', 'sinav_week', 'sinav_60', 'sinav_sprint_start')) {
+  if (p.examPlanTaskIds?.includes(taskId) || has(...ALL_EXAM_TAGS) || (p.seasonal?.examName && titleMatches(p.seasonal.examName))) {
     const dl = getDaysLeft(p.seasonal?.examDate);
     return { color: MODE_COLORS.exam, labelTr: p.seasonal?.examName || 'Sınav Planı', labelEn: p.seasonal?.examName || 'Exam Plan', daysLeft: dl, unit: 'day' };
   }
 
   // ── TEZ / PROJE ──
-  if (p.tezPlanTaskIds?.includes(taskId) || has('tez', 'tez_weekly', 'tez_final_2weeks', 'tez_sprint_30', 'tez_60')) {
+  if (p.tezPlanTaskIds?.includes(taskId) || has('tez', 'tez_weekly', 'tez_final_2weeks', 'tez_sprint_30', 'tez_60') || (p.seasonal?.tezName && titleMatches(p.seasonal.tezName))) {
     const dl = getDaysLeft(p.seasonal?.tezDate);
     return { color: MODE_COLORS.tez, labelTr: p.seasonal?.tezName || 'Tez/Proje', labelEn: p.seasonal?.tezName || 'Thesis', daysLeft: dl, unit: 'day' };
   }
 
   // ── MÜLAKAT ──
-  if (p.mulakat2PlanTaskIds?.includes(taskId) || has('mulakat2')) {
+  if (p.mulakat2PlanTaskIds?.includes(taskId) || has('mulakat2', 'mülakat2') || (p.seasonal?.mulakat2Name && titleMatches(p.seasonal.mulakat2Name))) {
     const dl = getDaysLeft(p.seasonal?.mulakat2Date);
     return { color: MODE_COLORS.mulakat, labelTr: p.seasonal?.mulakat2Name || 'Mülakat Planı 2', labelEn: p.seasonal?.mulakat2Name || 'Interview Plan 2', daysLeft: dl, unit: 'day' };
   }
-  if (p.mulakat3PlanTaskIds?.includes(taskId) || has('mulakat3')) {
+  if (p.mulakat3PlanTaskIds?.includes(taskId) || has('mulakat3', 'mülakat3') || (p.seasonal?.mulakat3Name && titleMatches(p.seasonal.mulakat3Name))) {
     const dl = getDaysLeft(p.seasonal?.mulakat3Date);
     return { color: MODE_COLORS.mulakat, labelTr: p.seasonal?.mulakat3Name || 'Mülakat Planı 3', labelEn: p.seasonal?.mulakat3Name || 'Interview Plan 3', daysLeft: dl, unit: 'day' };
   }
-  if (p.mulakatPlanTaskIds?.includes(taskId) || has('mulakat', 'mulakat_day', 'mulakat_eve', 'mulakat_3days', 'mulakat_week', 'mulakat_2weeks')) {
+  if (p.mulakatPlanTaskIds?.includes(taskId) || has('mulakat', 'mülakat', 'mulakat_day', 'mulakat_eve', 'mulakat_3days', 'mulakat_week', 'mulakat_2weeks') || (p.seasonal?.mulakatName && titleMatches(p.seasonal.mulakatName))) {
     const dl = getDaysLeft(p.seasonal?.mulakatDate);
     return { color: MODE_COLORS.mulakat, labelTr: p.seasonal?.mulakatName || 'Mülakat Planı', labelEn: p.seasonal?.mulakatName || 'Interview Plan', daysLeft: dl, unit: 'day' };
   }
 
   // ── SPOR ──
-  if (p.spor2PlanTaskIds?.includes(taskId) || has('spor2')) {
+  if (p.spor2PlanTaskIds?.includes(taskId) || has('spor2') || (p.seasonal?.spor2Goal && titleMatches(p.seasonal.spor2Goal))) {
     const dl = getDaysLeft(p.seasonal?.spor2Date);
     return { color: MODE_COLORS.spor, labelTr: localizeSporGoal(p.seasonal?.spor2Goal || 'Spor Planı 2', true), labelEn: localizeSporGoal(p.seasonal?.spor2Goal || 'Workout Plan 2', false), daysLeft: dl, unit: 'day' };
   }
-  if (p.spor3PlanTaskIds?.includes(taskId) || has('spor3')) {
+  if (p.spor3PlanTaskIds?.includes(taskId) || has('spor3') || (p.seasonal?.spor3Goal && titleMatches(p.seasonal.spor3Goal))) {
     const dl = getDaysLeft(p.seasonal?.spor3Date);
     return { color: MODE_COLORS.spor, labelTr: localizeSporGoal(p.seasonal?.spor3Goal || 'Spor Planı 3', true), labelEn: localizeSporGoal(p.seasonal?.spor3Goal || 'Workout Plan 3', false), daysLeft: dl, unit: 'day' };
   }
-  if (p.sporPlanTaskIds?.includes(taskId) || has('spor', 'kilo', 'maraton', 'guc', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress', 'weight_entry')) {
+  if (p.sporPlanTaskIds?.includes(taskId) || has('spor', 'kilo', 'maraton', 'guc', 'güç', 'genel', 'kilo_adapt', 'kilo_measure', 'maraton_taper', 'maraton_race_week', 'maraton_warn', 'maraton_missed', 'maraton_progress', 'guc_deload', 'guc_progress', 'weight_entry') || (p.seasonal?.sporGoal && titleMatches(p.seasonal.sporGoal))) {
     const dl = getDaysLeft(p.seasonal?.sporDate);
     return { color: MODE_COLORS.spor, labelTr: localizeSporGoal(p.seasonal?.sporGoal || 'Spor Planı', true), labelEn: localizeSporGoal(p.seasonal?.sporGoal || 'Workout Plan', false), daysLeft: dl, unit: 'day' };
   }
 
   // ── TASARRUF / BÜTÇE ──
-  if (p.tasarrufPlanTaskIds?.includes(taskId) || has('tasarruf', 'budget_entry')) {
+  if (p.tasarrufPlanTaskIds?.includes(taskId) || has('tasarruf', 'budget_entry') || (p.seasonal?.tasarrufName && titleMatches(p.seasonal.tasarrufName))) {
     const dl = getDaysLeft(p.seasonal?.tasarrufDate);
     return { color: '#06B6D4', labelTr: p.seasonal?.tasarrufName || 'Tasarruf', labelEn: p.seasonal?.tasarrufName || 'Savings', daysLeft: dl, unit: 'day' };
   }
 
   // ── BIRAKMA ──
-  if (p.birakmaPlanTaskIds?.includes(taskId) || has('birakma')) {
+  if (p.birakmaPlanTaskIds?.includes(taskId) || has('birakma', 'bırakma')) {
     let daysClean = 0;
     try {
       const qStore = require('@/shared/store/useQuitStore').useQuitStore.getState();

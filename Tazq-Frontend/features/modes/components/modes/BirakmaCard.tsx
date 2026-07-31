@@ -25,6 +25,7 @@ import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/pla
 import { swallow } from '@/shared/utils/swallow';
 import { Ban, Shield } from 'lucide-react-native';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
+import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { haptic } from '@/shared/utils/haptics';
 
 export function BirakmaCard() {
@@ -95,10 +96,18 @@ export function BirakmaCard() {
       habitIds.push(id);
     });
     const taskIds: number[] = [];
+    const birakmaLabel = tr ? 'Bırakma' : 'Quit';
     for (const t of content.tasks) {
+      let taskTitleTr = t.title;
+      let taskTitleEn = t.titleEn;
+      if (birakmaLabel) {
+        const bLower = birakmaLabel.toLowerCase();
+        if (!taskTitleTr.toLowerCase().includes(bLower)) taskTitleTr = `${birakmaLabel}: ${taskTitleTr}`;
+        if (!taskTitleEn.toLowerCase().includes(bLower)) taskTitleEn = `${birakmaLabel}: ${taskTitleEn}`;
+      }
       const id = await createPlanTask({
-        title: tr ? t.title : t.titleEn,
-        description: JSON.stringify({ tr: t.title, en: t.titleEn, descTr: t.desc, descEn: t.descEn }),
+        title: tr ? taskTitleTr : taskTitleEn,
+        description: JSON.stringify({ tr: taskTitleTr, en: taskTitleEn, descTr: t.desc, descEn: t.descEn }),
         priority: t.priority,
         isCompleted: false,
         tags: t.tags
@@ -152,7 +161,7 @@ export function BirakmaCard() {
     // gorev o listeden dusmusse (offline tempId kaymasi, basarisiz silme) ekranda
     // kaliyordu ve ancak bir sonraki UYGULAMA ACILISINDA siliniyordu. Kullanicinin
     // gordugu: "modu kapattim ama gorevi hala duruyor".
-    retireModeTasksByTag('birakma');
+    retireModeTasksByTag('birakma', seasonal.birakmaName);
     clearPlanIds('birakma');
     setSeasonalPref('birakmaMode', false);
     setSeasonalPref('birakmaName', '');
@@ -201,7 +210,18 @@ export function BirakmaCard() {
             onValueChange={(v) => {
               haptic.select();
               if (v) { setSeasonalPref('birakmaMode', true); setExpanded(true); }
-              else { applied ? closePlan() : (setSeasonalPref('birakmaMode', false), setExpanded(false)); }
+              else if (seasonal.birakmaMode) {
+                const hasItems = birakmaPlanHabitIds.length > 0 || birakmaPlanTaskIds.length > 0 || items.length > 0;
+                if (!hasItems) { closePlan(); return; }
+                Alert.alert(
+                  tr ? 'Bırakma Modu Kapatılıyor' : 'Turning off Quit Mode',
+                  tr ? 'Eklenen tüm takip alışkanlıkları ve görevler kaldırılacak. Emin misin?' : 'All added tracking habits and tasks will be removed. Are you sure?',
+                  [
+                    { text: tr ? 'İptal' : 'Cancel', style: 'cancel' },
+                    { text: tr ? 'Kapat ve Temizle' : 'Turn Off & Remove', style: 'destructive', onPress: () => closeModeWithUndo('birakma', closePlan, tr ? 'Bırakma modu kapatıldı' : 'Quit mode closed', tr ? 'Geri al' : 'Undo') },
+                  ]
+                );
+              }
             }}
             trackColor={{ false: isDark ? '#3A3A3C' : '#E5E5EA', true: C }}
             thumbColor="#fff"
@@ -238,13 +258,16 @@ export function BirakmaCard() {
             );
           })}
 
-          <Touchable
-            onPress={() => { if (checkinHabit) { if (!doneToday) { require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(tr ? 'Günü Kurtardın!' : 'Day Saved!', tr ? 'Tebrikler, bugünü de temiz geçtin. 🛡️' : 'Congratulations on keeping today clean. 🛡️'); } doneToday ? haptic.surface() : haptic.success(); toggleDate(checkinHabit.id, todayKey); } }}
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.sm + 2, borderRadius: R.md, backgroundColor: doneToday ? C : C + '12', borderWidth: doneToday ? 0 : B.thin, borderColor: C + '30' }}
+          <View
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, paddingVertical: S.xs + 2, paddingHorizontal: S.md, borderRadius: R.md, backgroundColor: doneToday ? C + '15' : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'), borderWidth: B.thin, borderColor: doneToday ? C + '40' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') }}
           >
-            {<Shield size={ICON.sm} color={doneToday ? '#fff' : C} />}
-            <Text style={{ color: doneToday ? '#fff' : C, fontSize: F.caption, fontWeight: '700' }}>{doneToday ? (tr ? 'Bugün temiz ✓' : 'Clean today ✓') : (tr ? 'Bugünü temiz işaretle' : 'Mark today clean')}</Text>
-          </Touchable>
+            <Shield size={ICON.xs} color={doneToday ? C : theme.onSurfaceVariant} />
+            <Text style={{ color: doneToday ? C : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>
+              {doneToday 
+                ? (tr ? 'Bugün Temiz ✓ (Aksiyondan senkronize)' : 'Clean Today ✓ (Synced from Action Center)') 
+                : (tr ? 'Sayaç otomatik ilerler · Takip Aksiyon Merkezi\'nde' : 'Auto-counter active · Managed in Action Center')}
+            </Text>
+          </View>
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Touchable onPress={() => { haptic.select(); setExpanded(e => !e); }}><Text style={{ color: C_TX, fontSize: F.caption, fontWeight: '700' }}>{expanded ? (tr ? 'Kapat' : 'Close') : (tr ? '＋ Başka bir şey bırak' : '＋ Quit something else')}</Text></Touchable>

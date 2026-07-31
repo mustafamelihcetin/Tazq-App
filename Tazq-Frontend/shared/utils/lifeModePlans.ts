@@ -80,12 +80,12 @@ const TASARRUF_TYPE_TASKS: Record<Exclude<BudgetType, ''>, ModeDraftTask[]> = {
   ],
   borc: [
     { 
-      title: 'Borç ödeme planı çıkar', 
-      titleEn: 'Make a payoff plan', 
+      title: 'Borç tutarlarını ve faizlerini listele', 
+      titleEn: 'List all debt balances and interest rates', 
       priority: 'High', 
       tags: ['tasarruf'],
-      desc: 'Tüm borçlarınızı listeleyin; kartopu (küçük borçtan başlama) veya çığ (yüksek faizliden başlama) yöntemlerinden birini seçin.',
-      descEn: 'List all your debts and choose a payoff strategy like the debt snowball or debt avalanche.'
+      desc: 'Tüm borçlarınızı tutar, son ödeme günü ve faiz oranlarıyla listeleyin; kartopu veya çığ ödeme stratejisini seçin.',
+      descEn: 'List all your debts with amounts, due dates, and interest rates, and pick a payoff strategy like snowball or avalanche.'
     },
     { 
       title: 'En yüksek faizli borcu önceliklendir', 
@@ -98,12 +98,12 @@ const TASARRUF_TYPE_TASKS: Record<Exclude<BudgetType, ''>, ModeDraftTask[]> = {
   ],
   acilfon: [
     { 
-      title: 'Acil fon hedefini belirle', 
-      titleEn: 'Set emergency fund target', 
+      title: '3 aylık acil fon tutarını hesapla', 
+      titleEn: 'Calculate 3-month emergency fund amount', 
       priority: 'High', 
       tags: ['tasarruf'],
-      desc: 'Beklenmedik durumlara karşı 3 ila 6 aylık temel giderlerinizi karşılayacak bir acil durum fonu hedefi belirleyin.',
-      descEn: 'Calculate your basic living expenses for 3 to 6 months and set this as your emergency fund target.'
+      desc: 'Beklenmedik durumlara karşı 3 ila 6 aylık temel giderlerinizi karşılayacak net acil durum fonu tutarını hesaplayın.',
+      descEn: 'Calculate your exact basic living expenses for 3 to 6 months and set this as your emergency fund target.'
     },
     { 
       title: 'Acil fon için ayrı bir hesap aç', 
@@ -146,12 +146,12 @@ const BIRAKMA_BASE_TASKS: ModeDraftTask[] = [
     descEn: 'Identify and write down situations, emotions, or social groups that trigger your habit.'
   },
   { 
-    title: 'İlk 3 günün planını yap', 
-    titleEn: 'Plan your first 3 days', 
+    title: 'İlk 72 saat kriz ikame aktivitesini belirle', 
+    titleEn: 'Set your 72-hour distraction protocol', 
     priority: 'High', 
     tags: ['birakma'],
-    desc: 'En zor geçecek ilk 72 saati atlatmak için kriz anlarında yapacağınız aktiviteleri (yürüyüş, su içme, hobi) planlayın.',
-    descEn: 'Prepare specific distraction activities (walks, drinking water, hobbies) to get through the critical first 72 hours.'
+    desc: 'Bırakma sürecinin en zor geçecek ilk 72 saatinde kriz anlarında yapacağın ikame aktiviteyi (1 bardak soğuk su içme, 10 derin nefes, yürüyüş) hazırla.',
+    descEn: 'Set specific distraction activities (cold water, 10 deep breaths, a walk) to deploy during craving spikes in the first 72 hours.'
   },
   { 
     title: 'Destek olacak birine durumunu söyle', 
@@ -162,8 +162,8 @@ const BIRAKMA_BASE_TASKS: ModeDraftTask[] = [
     descEn: 'Share your commitment with a trusted friend or family member who can offer encouragement and accountability.'
   },
   { 
-    title: 'Kendine bir ödül belirle', 
-    titleEn: 'Choose a reward for yourself', 
+    title: 'Milestone ödülünü seç ve kaydet', 
+    titleEn: 'Select milestone reward', 
     priority: 'Low', 
     tags: ['birakma'],
     desc: 'Bu alışkanlığı bıraktığınızda tasarruf edeceğiniz zaman veya para ile kendinize vereceğiniz bir motivasyon ödülü seçin.',

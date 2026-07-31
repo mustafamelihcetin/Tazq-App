@@ -53,11 +53,11 @@ import { MulakatCard } from '@/features/modes/components/modes/MulakatCard';
 import { RamazanCard } from '@/features/modes/components/modes/RamazanCard';
 import { ExamCard } from '@/features/modes/components/modes/ExamCard';
 import { SporCard } from '@/features/modes/components/modes/SporCard';
+import { retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
 import { TaskService } from '@/shared/services/api';
 import { usePlanAdaptations } from '@/features/modes';
 import { Touchable } from '@/shared/components/Touchable';
 import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText } from '@/shared/constants/Colors';
-import { retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
 import { haptic } from '@/shared/utils/haptics';
 
 const MarsIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (
@@ -172,7 +172,14 @@ export default function ModlarScreen() {
   }, [removeTask, recordCompletion]);
 
   const [modePreview, setModePreview] = useState<{ type: ModeType; key: number; templateId?: string; examTipTr?: string; examTipEn?: string; examName?: string; examDate?: string; examSlot?: 'exam' | 'exam2' | 'exam3'; mulakatSlot?: 'mulakat' | 'mulakat2' | 'mulakat3'; sporSlot?: 'spor' | 'spor2' | 'spor3' } | null>(null);
-  const [examNameInput, setExamNameInput] = useState(seasonal.examName || '');
+  /*
+    SINAV ADI TERCİHTEN TÜRETİLİYOR — mount'ta alınan kopya eskiyordu.
+
+    `useState(seasonal.examName)` adı YALNIZCA ekran ilk açıldığında kopyalıyordu.
+    Kullanıcı ekrandayken sınavı girdiğinde bu kopya boş kalmaya devam ediyor ve plan
+    önizlemesine boş ad gidebiliyordu. Türetilmiş değer her zaman güncel.
+  */
+  const examNameInput = seasonal.examName || '';
   const [examSuggestions, setExamSuggestions] = useState<ExamPreset[]>([]);
   const [selectedExamPreset, setSelectedExamPreset] = useState<ExamPreset | null>(() => detectExamFromInput(seasonal.examName || ''));
   const [examDailyMinutes, setExamDailyMinutes] = useState<number | null>(null);
@@ -422,6 +429,9 @@ export default function ModlarScreen() {
   // onLayout y'si gap-container'a göre; offset 0'da ilk kart header altına denk geldiğinden
   // scrollTo(y=cardY) açılan kartı tam o konuma getirir.
   const cardY = useRef<Record<string, number>>({});
+  // Kart hangi bölümde ve o bölüm sayfanın neresinde — ikisi toplanarak mutlak konum bulunur.
+  const cardSection = useRef<Record<string, string>>({});
+  const sectionY = useRef<Record<string, number>>({});
   // Kart açıldığında ona kaydır. Eskiden AYNI kaydırma 100/300/600 ms'de ÜÇ KEZ
   // tetikleniyordu (kart yerleşimi geç oturuyor diye); kullanıcı bu arada elle
   // kaydırıyorsa ekran ondan iki kez geri çekiliyordu. Artık tek sefer: kartın
@@ -436,8 +446,12 @@ export default function ModlarScreen() {
     let tries = 0;
     const attempt = () => {
       const y = cardY.current[key];
-      if (y != null) {
-        scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
+      const sec = cardSection.current[key];
+      const secY = sec != null ? sectionY.current[sec] : undefined;
+      // İKİSİ DE hazır olmalı: yalnız kart y'siyle kaydırmak, kartın bölüm içindeki
+      // konumunu sayfa konumu sanmak demekti (bkz. bölüm ölçümü notu).
+      if (y != null && secY != null) {
+        scrollViewRef.current?.scrollTo({ y: Math.max(0, secY + y - 12), animated: true });
         return; // bulundu → bir daha deneme
       }
       if (++tries < 8) focusTimersRef.current.push(setTimeout(attempt, 80));
@@ -680,13 +694,21 @@ export default function ModlarScreen() {
   // Kullanıcı açmadıysa bu bir ÖNERİdir, aktif hedef değil.
   const ramazanCard = { id: 'ramazan', applied: ramazanApplied, node: <RamazanCard onOpenPreview={() => setModePreview({ type: 'ramazan', key: Date.now() })} /> };
 
-  const wrapCard = (m: { id: string; node: React.ReactNode }) => (
-    <View key={m.id} onLayout={(e) => { cardY.current[m.id] = e.nativeEvent.layout.y; }}>{m.node}</View>
-  );
+  const wrapCard = useCallback((sectionId: string) => (m: { id: string; node: React.ReactNode }) => (
+    <View
+      key={m.id}
+      onLayout={(e) => {
+        cardY.current[m.id] = e.nativeEvent.layout.y;
+        cardSection.current[m.id] = sectionId;
+      }}
+    >
+      {m.node}
+    </View>
+  ), []);
 
-  const appliedCards = [...modeCards.filter(m => m.applied), ...(seasonal.ramazan && ramazanApplied ? [ramazanCard] : [])].map(wrapCard);
-  const pendingCards = modeCards.filter(m => !m.applied).map(wrapCard);
-  const upcomingCards = (!seasonal.ramazan || !ramazanApplied) ? [wrapCard(ramazanCard)] : [];
+  const appliedCards = [...modeCards.filter(m => m.applied), ...(seasonal.ramazan && ramazanApplied ? [ramazanCard] : [])].map(wrapCard('applied'));
+  const pendingCards = modeCards.filter(m => !m.applied).map(wrapCard('pending'));
+  const upcomingCards = (!seasonal.ramazan || !ramazanApplied) ? [wrapCard('upcoming')(ramazanCard)] : [];
 
   const sectionsToRender: Array<{ id: string; title: string; hint?: string; color: string; Icon: any; cards: React.ReactNode }> = [];
   if (appliedCards.length > 0) {
@@ -722,7 +744,7 @@ export default function ModlarScreen() {
     exam3PlanTaskIds.forEach(id => retirePlanTask(id, 'exam3'));
     retireModeTasksByTag('exam');
     clearPlanIds('exam'); clearPlanIds('exam2'); clearPlanIds('exam3');
-    setExamNameInput(''); setExamDateInput('');
+    setExamDateInput('');
     setExam2NameInput(''); setExam2DateInput('');
     setExam3NameInput(''); setExam3DateInput('');
     setExamExpanded(false); setExam2Expanded(false); setExam3Expanded(false);
@@ -831,7 +853,7 @@ export default function ModlarScreen() {
 
       <View style={{ flex: 1 }}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView
+          <Animated.ScrollView
             ref={scrollViewRef}
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingBottom: navBarSpace(insets.bottom) + S.md, paddingHorizontal: S.lg, paddingTop: topBarSpace(insets.top) + S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
@@ -972,7 +994,25 @@ export default function ModlarScreen() {
                 kalmış kurulumlar ve takvimin önerdiği dönem. */}
             <TourTarget id="contents">
             {sectionsToRender.map(section => (
-              <View key={section.id} style={{ gap: S.md, marginTop: S.sm }}>
+              /*
+                BÖLÜMÜN KENDİ KONUMU DA ÖLÇÜLÜYOR.
+
+                Kartların `onLayout` y'si KENDİ KABINA göredir, sayfanın tamamına göre
+                değil. Kartlar üç bölüme ayrıldığı için (Aktif / Kurulumu Tamamla /
+                Yaklaşan) aynı sayı farklı bölümlerde farklı yerlere denk geliyordu.
+
+                Sonuç kullanıcıda şuydu: aktif bir mod varken yeni bir mod açılınca kart
+                "Kurulumu Tamamla" bölümüne düşüyor, oradaki y'si küçük bir sayı oluyor
+                ve sayfa YUKARI kayıyordu — kart ise aşağıda kalıyordu.
+
+                Bölümün y'si de kaydedilip kart y'siyle TOPLANIYOR; böylece hedef konum
+                sayfanın tamamına göre doğru hesaplanıyor.
+              */
+              <View
+                key={section.id}
+                onLayout={(e) => { sectionY.current[section.id] = e.nativeEvent.layout.y; }}
+                style={{ gap: S.md, marginTop: S.sm }}
+              >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginLeft: S.xs }}>
                   <section.Icon size={ICON.sm} color={section.color} />
                   <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>
@@ -1136,7 +1176,7 @@ export default function ModlarScreen() {
             })()}
             </TourTarget>
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
         </KeyboardAvoidingView>
       </View>
 
@@ -1240,17 +1280,21 @@ export default function ModlarScreen() {
               const slot = modePreview.examSlot ?? 'exam';
               const hIds = slot === 'exam2' ? exam2PlanHabitIds : slot === 'exam3' ? exam3PlanHabitIds : examPlanHabitIds;
               const tIds = slot === 'exam2' ? exam2PlanTaskIds  : slot === 'exam3' ? exam3PlanTaskIds  : examPlanTaskIds;
+              const name = slot === 'exam2' ? seasonal.exam2Name : slot === 'exam3' ? seasonal.exam3Name : seasonal.examName;
               hIds.forEach(id => removeHabit(id));
               tIds.forEach(id => retirePlanTask(id, slot));
+              retireModeTasksByTag(slot, name);
+              retireModeTasksByTag('exam', name);
               clearPlanIds(slot);
               if (!preserveMeta) {
                 if (slot === 'exam2') { setSeasonalPref('exam2Name', ''); setSeasonalPref('exam2Date', null); setExam2NameInput(''); setExam2DateInput(''); }
                 else if (slot === 'exam3') { setSeasonalPref('exam3Name', ''); setSeasonalPref('exam3Date', null); setExam3NameInput(''); setExam3DateInput(''); }
-                else { setSeasonalPref('examMode', false); setSeasonalPref('examName', ''); setSeasonalPref('examDate', null); setExamNameInput(''); setExamDateInput(''); }
+                else { setSeasonalPref('examMode', false); setSeasonalPref('examName', ''); setSeasonalPref('examDate', null); setExamDateInput(''); }
               }
             } else if (t === 'tez') {
               tezPlanHabitIds.forEach(id => removeHabit(id));
               tezPlanTaskIds.forEach(id => retirePlanTask(id, 'tez'));
+              retireModeTasksByTag('tez', seasonal.tezName);
               clearPlanIds('tez');
               if (!preserveMeta) {
                 setSeasonalPref('tezMode', false); setSeasonalPref('tezName', ''); setSeasonalPref('tezDate', null); setTezNameInput(''); setTezDateInput('');
@@ -1259,8 +1303,11 @@ export default function ModlarScreen() {
               const slot = modePreview.mulakatSlot ?? 'mulakat';
               const hIds = slot === 'mulakat2' ? mulakat2PlanHabitIds : slot === 'mulakat3' ? mulakat3PlanHabitIds : mulakatPlanHabitIds;
               const tIds = slot === 'mulakat2' ? mulakat2PlanTaskIds  : slot === 'mulakat3' ? mulakat3PlanTaskIds  : mulakatPlanTaskIds;
+              const name = slot === 'mulakat2' ? seasonal.mulakat2Name : slot === 'mulakat3' ? seasonal.mulakat3Name : seasonal.mulakatName;
               hIds.forEach(id => removeHabit(id));
               tIds.forEach(id => retirePlanTask(id, slot));
+              retireModeTasksByTag(slot, name);
+              retireModeTasksByTag('mulakat', name);
               clearPlanIds(slot);
               if (!preserveMeta) {
                 if (slot === 'mulakat2') { setSeasonalPref('mulakat2Name', ''); setSeasonalPref('mulakat2Date', null); setMulakat2NameInput(''); setMulakat2DateInput(''); }
@@ -1271,8 +1318,11 @@ export default function ModlarScreen() {
               const slot = modePreview.sporSlot ?? 'spor';
               const hIds = slot === 'spor2' ? spor2PlanHabitIds : slot === 'spor3' ? spor3PlanHabitIds : sporPlanHabitIds;
               const tIds = slot === 'spor2' ? spor2PlanTaskIds  : slot === 'spor3' ? spor3PlanTaskIds  : sporPlanTaskIds;
+              const goal = slot === 'spor2' ? seasonal.spor2Goal : slot === 'spor3' ? seasonal.spor3Goal : seasonal.sporGoal;
               hIds.forEach(id => removeHabit(id));
               tIds.forEach(id => retirePlanTask(id, slot));
+              retireModeTasksByTag(slot, goal);
+              retireModeTasksByTag('spor', goal);
               clearPlanIds(slot);
               if (!preserveMeta) {
                 if (slot === 'spor2') { setSeasonalPref('spor2Goal', ''); setSeasonalPref('spor2Date', null); setSpor2GoalInput(''); setSpor2DateInput(''); }
@@ -1283,6 +1333,7 @@ export default function ModlarScreen() {
               ramazanPlanHabitIds.forEach(id => removeHabit(id));
               habits.filter(h => RAMAZAN_HABIT_NAMES.some(n => n.toLowerCase() === h.name.toLowerCase())).forEach(h => removeHabit(h.id));
               ramazanPlanTaskIds.forEach(id => retirePlanTask(id, 'ramazan'));
+              retireModeTasksByTag('ramazan');
               clearPlanIds('ramazan');
               if (!preserveMeta) setSeasonalPref('ramazan', false);
             }

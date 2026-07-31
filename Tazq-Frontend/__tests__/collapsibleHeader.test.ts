@@ -79,6 +79,64 @@ describe('çöken başlık bağlanan ekranlarda eksiksiz', () => {
     expect(src).toMatch(/titleHeight > 0/);
   });
 
+  /**
+   * ÇÖKME KORUMASI — cihazda yaşandı.
+   *
+   * Native sürücü açıkken, kaydırma olayının bağlandığı bileşen RN'in kendi
+   * `Animated.createAnimatedComponent`iyle sarılmış OLMAK ZORUNDA. Başka bir animasyon
+   * kütüphanesinin listesine (ör. Reanimated'ın `Animated.FlatList`i) bağlanırsa
+   * uygulama ekran açılır açılmaz çöküyor:
+   *
+   *   "Components based on VirtualizedList must be wrapped with
+   *    Animated.createAnimatedComponent to support native onScroll events"
+   *
+   * Derleme bunu YAKALAMAZ (çalışma anı invariant'ı) ve üretim paketi de sorunsuz
+   * derlenir — hata ancak ekran açıldığında ortaya çıkar. Bu yüzden yapısal test.
+   */
+  it('Reanimated listesi kullanan ekranda native sürücü KAPALI', () => {
+    const src = read('app/tasks.tsx');
+    const usesReanimatedList = /Animated\.FlatList/.test(src)
+      && /from 'react-native-reanimated'/.test(src);
+    if (usesReanimatedList) {
+      expect(src).toMatch(/nativeDriver:\s*false/);
+    }
+  });
+
+  it('diğer ekranlar native sürücüyü KAPATMIYOR', () => {
+    // İstisna yalnız teknik zorunluluk olan yerde kalmalı; kolay kaçış yolu olmamalı.
+    for (const rel of ['app/archive.tsx', 'app/settings.tsx', 'app/cockpit.tsx', 'app/modlar.tsx']) {
+      expect(read(rel)).not.toMatch(/nativeDriver:\s*false/);
+    }
+  });
+
+  /**
+   * İKİNCİ ÇÖKME KORUMASI — bu da cihazda yaşandı.
+   *
+   * `Animated.event` native sürücüyle bir FONKSİYON değil, bir AnimatedEvent NESNESİ
+   * döndürüyor. Bunu yalnız RN'in kendi animated bileşenleri çözebiliyor; düz bir
+   * `ScrollView`e verilirse bileşen onu fonksiyon sanıp çağırıyor ve İLK KAYDIRMADA
+   * çöküyor:
+   *
+   *   "TypeError: Object is not a function" (ScrollView._handleScroll)
+   *
+   * Sinsi tarafı: ekran AÇILIRKEN sorun yok, hata ancak kullanıcı parmağını sürünce
+   * ortaya çıkıyor. Derleme, tip denetimi ve üretim paketi hiçbiri yakalamıyor.
+   */
+  it.each([
+    ['app/archive.tsx', 'Animated.FlatList'],
+    ['app/settings.tsx', 'Animated.ScrollView'],
+    ['app/cockpit.tsx', 'Animated.ScrollView'],
+    ['app/modlar.tsx', 'Animated.ScrollView'],
+  ])('%s → onScroll RN animated kabına bağlı', (rel, tag) => {
+    const src = read(rel);
+    // Açılış etiketinden sonraki ~15 satırda onScroll olmalı: yani olay ANIMATED
+    // kabın kendisine veriliyor, içindeki düz bir kaba değil.
+    const i = src.indexOf('<' + tag);
+    expect(i).toBeGreaterThan(-1);
+    const head = src.slice(i, i + 900);
+    expect(head).toContain('onScroll={onScroll}');
+  });
+
   it('kaydırma animasyonu UI thread üzerinde koşar', () => {
     /*
       Bir ara burada `useNativeDriver: false` yazılıydı ve gerekçesi yanlıştı:
@@ -94,8 +152,9 @@ describe('çöken başlık bağlanan ekranlarda eksiksiz', () => {
       ayrışmasını engelliyor.
     */
     const src = read('shared/hooks/useCollapsibleHeader.ts');
-    expect(src).toContain('useNativeDriver: true');
-    expect(src).not.toContain('useNativeDriver: false');
+    // Varsayılan `true`: istisna açıkça istenmedikçe animasyon UI thread'de koşar.
+    expect(src).toMatch(/nativeDriver = true/);
+    expect(src).toContain('useNativeDriver: nativeDriver');
   });
 
   it('ScreenHeader kaydırmaya YALNIZCA opaklık/dönüşüm bağlar', () => {

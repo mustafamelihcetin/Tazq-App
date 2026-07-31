@@ -56,6 +56,8 @@ interface PrefsState {
   setSeasonalPref: (key: keyof SeasonalPrefs, value: boolean | string | null) => void;
   planSpecs: Partial<Record<PlanMode, PlanSpec>>;
   setPlanSpec: (mode: PlanMode, spec: PlanSpec) => void;
+  /** Kurulum taslağı: yalnız günlük süreyi yazar, `startDate` damgalamaz. */
+  setPlanDraftMinutes: (mode: PlanMode, minutes: number | null) => void;
   clearPlanSpec: (mode: PlanMode) => void;
   weeklyNotification: boolean;
   setWeeklyNotification: (value: boolean) => void;
@@ -302,6 +304,27 @@ export const usePrefsStore = create<PrefsState>()(
             },
           };
         }),
+      /**
+       * KURULUM TASLAĞI — günlük süre seçimi, plan oluşturulmadan ÖNCE saklanır.
+       *
+       * Sınav kurulumu üç adım: ad + tarih + günlük süre. Ad ve tarih tercihlere
+       * yazılıyordu, süre ise yalnız bileşen belleğindeydi. Kart yeniden kurulduğu anda
+       * (ekran döndüğünde, moda geri dönüldüğünde) süre sıfırlanıyor, kurulum
+       * "tamamlanmamış" sayılıyor ve kart kullanıcıya "Sınav ekle" diyordu — halbuki
+       * sınav ve tarih kayıtlıydı ve üstteki özet onları gösteriyordu. Kullanıcı için
+       * bu, yaptığı işin kaybolması demekti.
+       *
+       * NEDEN `setPlanSpec` DEĞİL: o, ilk yazışta `startDate` damgalıyor. Kurulum
+       * sırasında çağrılsaydı planın "kaçıncı hafta" hesabı, plan henüz kurulmadan
+       * başlamış sayılırdı — kullanıcı taslağı bırakıp bir hafta sonra dönerse plan
+       * bir hafta ilerlemiş görünürdü. Bu yazıcı yalnız süreyi yazar; `startDate`
+       * damgası plan gerçekten oluşturulduğunda vurulmaya devam eder.
+       */
+      setPlanDraftMinutes: (mode, minutes) =>
+        set((s) => ({
+          planSpecs: { ...s.planSpecs, [mode]: { ...s.planSpecs[mode], dailyMinutes: minutes } },
+        })),
+
       clearPlanSpec: (mode) =>
         set((s) => {
           const next = { ...s.planSpecs };

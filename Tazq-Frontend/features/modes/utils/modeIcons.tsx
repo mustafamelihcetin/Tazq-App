@@ -141,6 +141,37 @@ export function renderModeEmojiIcon(emoji: string, size = 16, color?: string) {
       return <Lucide.Sprout size={size} color={color} />;
     case '🎵':
       return <Lucide.Music size={size} color={color} />;
+    case '⌨️':
+      return <Lucide.Keyboard size={size} color={color} />;
+    case '🧮':
+      return <Lucide.Calculator size={size} color={color} />;
+    case '📜':
+      return <Lucide.FileText size={size} color={color} />;
+    case '🩺':
+      return <Lucide.Stethoscope size={size} color={color} />;
+    case '🕊️':
+      return <Lucide.HeartHandshake size={size} color={color} />;
+    case '🇬🇧':
+    case '🇺🇸':
+      return <Lucide.Languages size={size} color={color} />;
+    case '🧑‍🏫':
+      return <Lucide.GraduationCap size={size} color={color} />;
+    case '📄':
+      return <Lucide.FileText size={size} color={color} />;
+    case '🏢':
+      return <Lucide.Building2 size={size} color={color} />;
+    case '📒':
+      return <Lucide.Book size={size} color={color} />;
+    case '👂':
+      return <Lucide.Volume2 size={size} color={color} />;
+    case '🎖️':
+      return <Lucide.Award size={size} color={color} />;
+    case '🚔':
+      return <Lucide.ShieldCheck size={size} color={color} />;
+    case '🏫':
+      return <Lucide.Landmark size={size} color={color} />;
+    case '🗃️':
+      return <Lucide.Layers size={size} color={color} />;
 
     // Habits & Tasks
     case '🚶':

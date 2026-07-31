@@ -46,7 +46,7 @@ import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
 import { useQuitStore, type QuitType } from '@/shared/store/useQuitStore';
 import { buildTasarrufPlan, buildBirakmaPlan } from '@/shared/utils/lifeModePlans';
 import { isWeightEntryTask, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/features/modes/utils/weightCheckin';
-import { MODE_TASK_TAGS } from '@/features/modes/utils/planTaskOps';
+import { MODE_TASK_TAGS, retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
 import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSync';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
@@ -208,7 +208,8 @@ function selfHealActiveModes(tr: boolean) {
   const taskIdsFor = (mode: string): number[] => ((freshPrefs as any)[`${mode}PlanTaskIds`] ?? []) as number[];
 
   // 1. RAMAZAN
-  if (freshSeasonal.ramazan) {
+  const ramazanHasPlan = freshPrefs.ramazanPlanHabitIds.length > 0 || taskIdsFor('ramazan').length > 0;
+  if (freshSeasonal.ramazan && ramazanHasPlan) {
     const tId = freshPrefs.planSpecs.ramazan?.templateId;
     const modePreview = getModePreview('ramazan');
     const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
@@ -223,7 +224,8 @@ function selfHealActiveModes(tr: boolean) {
     { active: !!freshSeasonal.exam3Name && !!freshSeasonal.exam3Date, name: freshSeasonal.exam3Name, date: freshSeasonal.exam3Date, habitIds: freshPrefs.exam3PlanHabitIds, slot: 'exam3' as const },
   ];
   for (const slot of examSlotsToHeal) {
-    if (slot.active && slot.name && slot.date) {
+    const hasPlan = slot.habitIds.length > 0 || taskIdsFor(slot.slot).length > 0;
+    if (slot.active && slot.name && slot.date && hasPlan) {
       const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
       const modePreview = getModePreview('exam', { examName: slot.name, examDate: slot.date });
       const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
@@ -233,7 +235,8 @@ function selfHealActiveModes(tr: boolean) {
   }
 
   // 3. TEZ
-  if (freshSeasonal.tezMode && freshSeasonal.tezName && freshSeasonal.tezDate) {
+  const tezHasPlan = freshPrefs.tezPlanHabitIds.length > 0 || taskIdsFor('tez').length > 0;
+  if (freshSeasonal.tezMode && freshSeasonal.tezName && freshSeasonal.tezDate && tezHasPlan) {
     const tId = freshPrefs.planSpecs.tez?.templateId;
     const modePreview = getModePreview('tez', { tezName: freshSeasonal.tezName, tezDate: freshSeasonal.tezDate });
     const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
@@ -248,7 +251,8 @@ function selfHealActiveModes(tr: boolean) {
     { active: !!freshSeasonal.mulakat3Name && !!freshSeasonal.mulakat3Date, name: freshSeasonal.mulakat3Name, date: freshSeasonal.mulakat3Date, habitIds: freshPrefs.mulakat3PlanHabitIds, slot: 'mulakat3' as const },
   ];
   for (const slot of mulakatSlotsToHeal) {
-    if (slot.active && slot.name && slot.date) {
+    const hasPlan = slot.habitIds.length > 0 || taskIdsFor(slot.slot).length > 0;
+    if (slot.active && slot.name && slot.date && hasPlan) {
       const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
       const modePreview = getModePreview('mulakat', { mulakatName: slot.name, mulakatDate: slot.date });
       const template = modePreview.templates?.find(t => t.id === tId) || modePreview.templates?.[0] || modePreview;
@@ -264,7 +268,8 @@ function selfHealActiveModes(tr: boolean) {
     { goal: freshSeasonal.spor3Goal, date: freshSeasonal.spor3Date, habitIds: freshPrefs.spor3PlanHabitIds, slot: 'spor3' as const },
   ];
   for (const slot of sporSlotsToHeal) {
-    if (slot.goal && slot.date) {
+    const hasPlan = slot.habitIds.length > 0 || taskIdsFor(slot.slot).length > 0;
+    if (slot.goal && slot.date && hasPlan) {
       const tId = freshPrefs.planSpecs[slot.slot]?.templateId;
       const sporState = useSporStore.getState();
       const inputs = {
@@ -283,7 +288,8 @@ function selfHealActiveModes(tr: boolean) {
   }
 
   // 6. TASARRUF
-  if (freshSeasonal.tasarrufMode && freshSeasonal.tasarrufName) {
+  const tasarrufHasPlan = freshPrefs.tasarrufPlanHabitIds.length > 0 || taskIdsFor('tasarruf').length > 0;
+  if (freshSeasonal.tasarrufMode && freshSeasonal.tasarrufName && tasarrufHasPlan) {
     const bStore = useBudgetStore.getState();
     const inferred = inferBudgetType(freshSeasonal.tasarrufName);
     if (bStore.budgetType === '' && inferred) {
@@ -298,7 +304,8 @@ function selfHealActiveModes(tr: boolean) {
   }
 
   // 7. BIRAKMA
-  if (freshSeasonal.birakmaMode && freshSeasonal.birakmaName) {
+  const birakmaHasPlan = freshPrefs.birakmaPlanHabitIds.length > 0 || taskIdsFor('birakma').length > 0;
+  if (freshSeasonal.birakmaMode && freshSeasonal.birakmaName && birakmaHasPlan) {
     const qStore = useQuitStore.getState();
     if (qStore.items.length === 0) {
       const nameStr = freshSeasonal.birakmaName;
@@ -577,23 +584,27 @@ export function usePlanAdaptations() {
     // Bu, her açılışta çalışan kendini-iyileştiren bir garanti katmanıdır.
     {
       const sSeasonal = usePrefsStore.getState().seasonal;
-      const sweepTags = new Set<string>();
-      if (!sSeasonal.examMode) MODE_TASK_TAGS.exam.forEach(t => sweepTags.add(t));
-      if (!sSeasonal.tezMode) MODE_TASK_TAGS.tez.forEach(t => sweepTags.add(t));
-      if (!sSeasonal.mulakatMode) MODE_TASK_TAGS.mulakat.forEach(t => sweepTags.add(t));
-      if (!sSeasonal.sporMode) MODE_TASK_TAGS.spor.forEach(t => sweepTags.add(t));
-      if (!sSeasonal.ramazan) MODE_TASK_TAGS.ramazan.forEach(t => sweepTags.add(t));
-      if (!sSeasonal.tasarrufMode) MODE_TASK_TAGS.tasarruf.forEach(t => sweepTags.add(t));
-      if (!sSeasonal.birakmaMode) MODE_TASK_TAGS.birakma.forEach(t => sweepTags.add(t));
-      if (sweepTags.size > 0) {
-        const orphans = useTaskStore.getState().tasks.filter(t =>
-          (t.tags ?? []).some(tag => sweepTags.has(tag))
-        );
-        orphans.forEach(t => {
-          const modeTag = (t.tags ?? []).find(tag => sweepTags.has(tag));
-          retirePlanTask(t.id, modeTag);
-        });
+      if (!sSeasonal.examMode) {
+        retireModeTasksByTag('exam', sSeasonal.examName);
+        retireModeTasksByTag('exam2', sSeasonal.exam2Name);
+        retireModeTasksByTag('exam3', sSeasonal.exam3Name);
       }
+      if (!sSeasonal.tezMode) {
+        retireModeTasksByTag('tez', sSeasonal.tezName);
+      }
+      if (!sSeasonal.mulakatMode) {
+        retireModeTasksByTag('mulakat', sSeasonal.mulakatName);
+        retireModeTasksByTag('mulakat2', sSeasonal.mulakat2Name);
+        retireModeTasksByTag('mulakat3', sSeasonal.mulakat3Name);
+      }
+      if (!sSeasonal.sporMode) {
+        retireModeTasksByTag('spor', sSeasonal.sporGoal);
+        retireModeTasksByTag('spor2', sSeasonal.spor2Goal);
+        retireModeTasksByTag('spor3', sSeasonal.spor3Goal);
+      }
+      if (!sSeasonal.ramazan) retireModeTasksByTag('ramazan');
+      if (!sSeasonal.tasarrufMode) retireModeTasksByTag('tasarruf', sSeasonal.tasarrufName);
+      if (!sSeasonal.birakmaMode) retireModeTasksByTag('birakma', sSeasonal.birakmaName);
 
       // ── ALIŞKANLIK ORPHAN SWEEP ──────────────────────────────────────────────
       // Kapalı modlara ait alışkanlıkları sil. Mod tespiti: yeni alışkanlıklarda

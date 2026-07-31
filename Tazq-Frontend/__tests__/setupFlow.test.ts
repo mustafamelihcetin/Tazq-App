@@ -29,8 +29,46 @@ describe('sinav kurulumu', () => {
     expect(src).not.toMatch(/setDailyMinutes\(\s*preset[?.]*\.defaultDailyMinutes/);
   });
 
-  it('preset degisince onceki sure secimi sifirlanir', () => {
-    expect(src).toMatch(/useEffect\(\(\) => \{ setDailyMinutes\(null\); \}, \[preset\?\.id\]\)/);
+  it('preset GERCEKTEN degisince onceki sure secimi sifirlanir', () => {
+    // Farkli sinav, farkli tempo: 90 dk'lik YDS planindan TUS'a gecen kullanici
+    // eski sureyle devam etmemeli.
+    expect(src).toMatch(/presetIdRef\.current = preset\?\.id/);
+    expect(src).toMatch(/setDailyMinutes\(null\)/);
+  });
+
+  it('sifirlama ilk render\'da calismaz — kayitli secim silinmez', () => {
+    /*
+      DUZELTILEN GERCEK HATA.
+
+      Sifirlama efekti bagimlilik listesiyle mount'ta da calisiyordu. Kart yeniden
+      kuruldugunda (moda geri donus, ekran donmesi) kayitli sure siliniyor, kurulum
+      "tamamlanmamis" sayiliyor ve kart kullaniciya "Sinav ekle" diyordu — halbuki
+      sinav adi ve tarihi kayitliydi ve ustteki ozet onlari gosteriyordu.
+      Kullanici acisindan yaptigi is buhar oluyordu.
+
+      `ref` ile ilk calistirma atlaniyor: yalnizca GERCEK preset degisimi sifirliyor.
+    */
+    expect(src).toMatch(/if \(presetIdRef\.current === preset\?\.id\) return;/);
+  });
+
+  it('gunluk sure KALICI — bilesen bellegi degil', () => {
+    // Ad ve tarih tercihlere yaziliyordu, sure yalnizca bellekteydi. Uc adimin ikisi
+    // kalici, biri ucucuydu; kurulum bu yuzden kendiliginden bozuluyordu.
+    expect(src).toMatch(/planSpecs(\.exam|\[slot\])\?\.dailyMinutes/);
+    expect(src).toMatch(/setPlanDraftMinutes/);
+  });
+
+  it('taslak yazici plan baslangicini DAMGALAMAZ', () => {
+    /*
+      `setPlanSpec` ilk yazista `startDate` damgalar. Kurulum sirasinda cagrilsaydi
+      planin "kacinci hafta" hesabi, plan daha kurulmadan baslamis sayilirdi:
+      kullanici taslagi birakip bir hafta sonra donerse plan bir hafta ilerlemis
+      gorunurdu. Taslak yazici yalnizca sureyi yazar.
+    */
+    const store = strip(read('features/modes/store/usePrefsStore.ts'));
+    const fn = store.slice(store.indexOf('setPlanDraftMinutes: (mode, minutes)'));
+    const body = fn.slice(0, fn.indexOf('clearPlanSpec'));
+    expect(body).not.toContain('startDate');
   });
 
   it('kurulum UC adimi da zorunlu tutar: ad + tarih + sure', () => {

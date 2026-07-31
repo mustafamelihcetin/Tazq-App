@@ -576,7 +576,7 @@ export default function CockpitScreen() {
         />
 
       <View style={{ flex: 1 }}>
-        <ScrollView
+        <Animated.ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: navBarSpace(insets.bottom) + S.md, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
@@ -1160,7 +1160,7 @@ export default function CockpitScreen() {
             </Touchable>
           </BentoCard>
           </TourTarget>
-        </ScrollView>
+        </Animated.ScrollView>
       </View>
 
       {/* ══ ADD HABIT SHEET ══ */}

@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { View, Text, Switch, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { ChevronRight, CalendarDays, GraduationCap, Calendar } from 'lucide-react-native';
+import { ChevronRight, CalendarDays, GraduationCap, Calendar, Sparkles } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '../../store/usePrefsStore';
@@ -80,7 +80,7 @@ export function TezCard({ onOpenPreview }: { onOpenPreview: () => void }) {
     // gorev o listeden dusmusse (offline tempId kaymasi, basarisiz silme) ekranda
     // kaliyordu ve ancak bir sonraki UYGULAMA ACILISINDA siliniyordu. Kullanicinin
     // gordugu: "modu kapattim ama gorevi hala duruyor".
-    retireModeTasksByTag('tez');
+    retireModeTasksByTag('tez', seasonal.tezName);
 clearPlanIds('tez');
     setSeasonalPref('tezMode', false);
     setSeasonalPref('tezName', '');
@@ -170,6 +170,30 @@ clearPlanIds('tez');
                     </View>
                   </View>
                 )}
+                {!hasPlan && (
+                  <Touchable
+                    onPress={() => { haptic.surface(); onOpenPreview(); }}
+                    activeOpacity={0.85}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: S.sm,
+                      backgroundColor: accent + '18', borderColor: accent + '40',
+                      borderWidth: B.thin, borderRadius: R.md, padding: S.md, marginTop: S.sm
+                    }}
+                  >
+                    <AppIcon Icon={Sparkles} color={accent} size={24} radius={R.sm} iconSize={ICON.sm} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: theme.onSurface, fontWeight: '600', fontSize: F.body }}>
+                        {tr ? 'Tez Çalışma Planını Oluştur' : 'Create Thesis Study Plan'}
+                      </Text>
+                      <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginTop: S.xxs }}>
+                        {tr ? 'Seviyene özel günlük çalışma ve alışkanlıkları başlat' : 'Start daily study and habits for your level'}
+                      </Text>
+                    </View>
+                    <Text style={{ color: TEZ_TX, fontSize: F.caption, fontWeight: '700' }}>
+                      {tr ? 'Planı Seç ›' : 'Choose Plan ›'}
+                    </Text>
+                  </Touchable>
+                )}
               </View>
             </View>
           )}
@@ -194,13 +218,23 @@ clearPlanIds('tez');
                       onChange={(event: DateTimePickerEvent, d?: Date) => {
                         if (Platform.OS === 'android') setShowDatePicker(false);
                         if (event.type === 'dismissed') { setShowDatePicker(false); return; }
-                        if (d) { const iso = d.toISOString().split('T')[0]; setSeasonalPref('tezDate', iso); if (Platform.OS === 'ios') setShowDatePicker(false); }
+                        if (d) { const iso = d.toISOString().split('T')[0]; setSeasonalPref('tezDate', iso); }
                       }}
                     />
                   </View>
                 </View>
               )}
-              <Touchable onPress={() => { haptic.select(); setExpanded(false); }} style={{ alignSelf: 'flex-end', paddingHorizontal: S.md, paddingVertical: S.xs }} activeOpacity={0.7}>
+              <Touchable
+                onPress={() => {
+                  haptic.select();
+                  setExpanded(false);
+                  if (isComplete && !hasPlan) {
+                    onOpenPreview();
+                  }
+                }}
+                style={{ alignSelf: 'flex-end', paddingHorizontal: S.md, paddingVertical: S.xs }}
+                activeOpacity={0.7}
+              >
                 <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Bitti' : 'Done'}</Text>
               </Touchable>
             </View>

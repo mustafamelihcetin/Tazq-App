@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
-import Animated, { Layout, LinearTransition, useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { Check, Timer, Plus, X, Pencil, Sparkles, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, Search, SlidersHorizontal, CheckSquare, Scale, Target, Archive, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { SubtaskProgressRing } from '@/shared/components/SubtaskProgressRing';
 import { BentoCard } from '@/shared/components/BentoCard';
@@ -522,7 +522,12 @@ export default function ActionCenter() {
     Yani kullanılmayan kod, var olmayan bir kısıtlama uydurdu ve doğru çözümü
     geciktirdi. Silinince engel de ortadan kalktı.
   */
-  const { scrollY, onScroll } = useCollapsibleHeader();
+  const { scrollY, onScroll } = useCollapsibleHeader({
+    // Bu ekranın listesi Reanimated'ın FlatList'i; RN'in native sürücüsü kendi
+    // animated bileşenini şart koşuyor ve olmayınca ekran açılırken ÇÖKÜYOR.
+    // Gerekçe ve hata metni: useCollapsibleHeader → `nativeDriver`.
+    nativeDriver: false,
+  });
   const { tasks, toggleTaskCompletion, addTask, removeTask, updateTask, setTasks, setLoading, isLoading, toggleSubtask, reorderTasks } = useTaskStore(useShallow(state => ({
     tasks: state.tasks,
     toggleTaskCompletion: state.toggleTaskCompletion,

@@ -48,7 +48,7 @@ function DatePickerInline({ value, onPick, onClose }: { value: Date; onPick: (is
           onChange={(event: DateTimePickerEvent, date?: Date) => {
             if (Platform.OS === 'android') onClose();
             if (event.type === 'dismissed') { onClose(); return; }
-            if (date) { onPick(date.toISOString().split('T')[0]); if (Platform.OS === 'ios') onClose(); }
+            if (date) { onPick(date.toISOString().split('T')[0]); }
           }}
         />
       </View>
@@ -81,6 +81,8 @@ function SecondarySlot({ slot, nameKey, dateKey, placeholder, onOpenPreview }: {
   const del = () => {
     planHabitIds.forEach(id => removeHabit(id));
     planTaskIds.forEach(id => retirePlanTask(id, slot));
+    retireModeTasksByTag(slot, name);
+    retireModeTasksByTag('mulakat', name);
     clearPlanIds(slot);
     setSeasonalPref(nameKey, ''); setSeasonalPref(dateKey, null);
     setExpanded(false);
@@ -178,7 +180,7 @@ export function MulakatCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => 
     // gorev o listeden dusmusse (offline tempId kaymasi, basarisiz silme) ekranda
     // kaliyordu ve ancak bir sonraki UYGULAMA ACILISINDA siliniyordu. Kullanicinin
     // gordugu: "modu kapattim ama gorevi hala duruyor".
-    retireModeTasksByTag('mulakat');
+    retireModeTasksByTag('mulakat', seasonal.mulakatName);
     clearPlanIds('mulakat');
     setSeasonalPref('mulakatMode', false); setSeasonalPref('mulakatName', ''); setSeasonalPref('mulakatDate', null);
     setExpanded(false);

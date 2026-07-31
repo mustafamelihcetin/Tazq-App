@@ -3,7 +3,7 @@
  * modlar.tsx'ten çıkarıldı. Veri doğrudan `seasonal`; preset/öneri/saat seçimi lokal UI state.
  * Tarih geçince "nasıl geçti?" review'ı bu bileşende (focus-effect). Önizleme merkezi → onOpenPreview.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, Switch, TextInput, Platform, useWindowDimensions } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useFocusEffect } from 'expo-router';
@@ -62,7 +62,7 @@ function ExamDatePicker({ value, onPick, onClose }: { value: Date; onPick: (iso:
           onChange={(event: DateTimePickerEvent, date?: Date) => {
             if (Platform.OS === 'android') onClose();
             if (event.type === 'dismissed') { onClose(); return; }
-            if (date) { onPick(date.toISOString().split('T')[0]); if (Platform.OS === 'ios') onClose(); }
+            if (date) { onPick(date.toISOString().split('T')[0]); }
           }}
         />
       </View>
@@ -85,7 +85,30 @@ function PresetEditor({ name, onName, preset, onPreset, suggestions, onSuggestio
       <View style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]}>
         <TextInput
           value={name}
-          onChangeText={(v) => { onName(v); if (!v.trim()) { onSuggestions([]); onPreset(null); onDailyMinutes(null); return; } const d = detectExamFromInput(v); if (d) { onPreset(d); onSuggestions([]); } else { onPreset(null); onSuggestions(matchExamName(v)); } }}
+          onChangeText={(v) => {
+            onName(v);
+            if (!v.trim()) { onSuggestions([]); onPreset(null); onDailyMinutes(null); return; }
+            const d = detectExamFromInput(v);
+            if (d) {
+              onPreset(d);
+              onSuggestions([]);
+            } else {
+              const trimmed = v.trim();
+              const customPreset: ExamPreset = {
+                id: 'custom-' + encodeURIComponent(trimmed),
+                displayName: trimmed,
+                shortName: trimmed,
+                aliases: [trimmed.toLowerCase()],
+                category: 'other',
+                defaultDailyMinutes: 90,
+                preferredTemplates: ['active-recall', 'spaced-repetition', 'deep-work', 'sprint'],
+                tipTr: 'Özel çalışma planı — kendi hızında, düzenli konu tekrarları ve soru çözümü.',
+                tipEn: 'Custom study plan — self-paced, regular concept review and practice.',
+              };
+              onPreset(customPreset);
+              onSuggestions(matchExamName(v));
+            }
+          }}
           placeholder={placeholder} placeholderTextColor={theme.onSurfaceVariant + '70'}
           style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }} returnKeyType="done" underlineColorAndroid="transparent" maxLength={60}
           onSubmitEditing={() => { if (suggestions.length > 0) { const top = suggestions[0]; onName(top.shortName); onPreset(top); onSuggestions([]); } }}
@@ -208,9 +231,30 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
   // "saati secmedim ama plan olustu" diyordu — hakliydi, hic sorulmamisti.
   //
   // Artik null kalir; onerilen sik HoursSelector'de vurgulanir ama SECIM sayilmaz.
-  const [dailyMinutes, setDailyMinutes] = useState<number | null>(null);
-  // Preset degisince onceki secim gecersizdir (farkli sinav, farkli tempo).
-  useEffect(() => { setDailyMinutes(null); }, [preset?.id]);
+  /*
+    Ana karttaki ile AYNI düzeltme: seçim kalıcı (bkz. ExamCard → dailyMinutes).
+    Yalnız bileşen belleğinde tutulduğunda, kart yeniden kurulunca kurulum
+    "tamamlanmamış"a düşüyor ve kullanıcı adı+tarihi girdiği hâlde "Sınav ekle"
+    görüyordu.
+  */
+  const [dailyMinutes, setDailyMinutes] = useState<number | null>(
+    () => usePrefsStore.getState().planSpecs[slot]?.dailyMinutes ?? null,
+  );
+
+  const pickDailyMinutes = useCallback((m: number | null) => {
+    setDailyMinutes(m);
+    usePrefsStore.getState().setPlanDraftMinutes(slot, m);
+  }, [slot]);
+
+  // Preset GERÇEKTEN değişince önceki seçim geçersizdir (farklı sınav, farklı tempo).
+  // İlk çalıştırma atlanıyor: eskiden mount'ta da tetiklenip kayıtlı seçimi siliyordu.
+  const presetIdRef = useRef(preset?.id);
+  useEffect(() => {
+    if (presetIdRef.current === preset?.id) return;
+    presetIdRef.current = preset?.id;
+    setDailyMinutes(null);
+    usePrefsStore.getState().setPlanDraftMinutes(slot, null);
+  }, [preset?.id, slot]);
 
   // Kurulum, UC adimin da tamamlanmasiyla biter: ad + tarih + gunluk sure.
   // Sure eksikken plan uretilirse seviye kullaniciya sorulmadan secilmis olur.
@@ -219,6 +263,8 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
   const del = () => {
     planHabitIds.forEach(id => removeHabit(id));
     planTaskIds.forEach(id => retirePlanTask(id, slot));
+    retireModeTasksByTag(slot, name);
+    retireModeTasksByTag('exam', name);
     clearPlanIds(slot);
     setSeasonalPref(nameKey, ''); setSeasonalPref(dateKey, null);
     setPreset(null); setDailyMinutes(null); setExpanded(false);
@@ -247,15 +293,30 @@ function ExamSlot({ slot, nameKey, dateKey, placeholder, addLabel, onOpenPreview
       ) : null}
       {expanded && (
         <View style={{ gap: S.sm }}>
-          <PresetEditor name={name} onName={(v) => setSeasonalPref(nameKey, v)} preset={preset} onPreset={setPreset} suggestions={suggestions} onSuggestions={setSuggestions} dailyMinutes={dailyMinutes} onDailyMinutes={setDailyMinutes} placeholder={placeholder} />
+          <PresetEditor name={name} onName={(v) => setSeasonalPref(nameKey, v)} preset={preset} onPreset={setPreset} suggestions={suggestions} onSuggestions={setSuggestions} dailyMinutes={dailyMinutes} onDailyMinutes={pickDailyMinutes} placeholder={placeholder} />
           <Touchable hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 40, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
             <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.caption, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Sınav tarihi seç' : 'Select date')}</Text>
             <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
           </Touchable>
           {showPicker && <ExamDatePicker value={dateObj} onPick={(iso) => setSeasonalPref(dateKey, iso)} onClose={() => setShowPicker(false)} />}
-          {preset && <HoursSelector preset={preset} dailyMinutes={dailyMinutes} onPick={setDailyMinutes} />}
+          {preset && <HoursSelector preset={preset} dailyMinutes={dailyMinutes} onPick={pickDailyMinutes} />}
           <View style={{ flexDirection: 'row', gap: S.sm }}>
-            <Touchable onPress={() => { if (name || date) del(); setExpanded(false); }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
+            {/*
+              "KAPAT" VERİ SİLMEZ.
+
+              Burada `if (name || date) del();` vardı: kullanıcı sınavı ve tarihi girip
+              "Kapat"a bastığında girdiği her şey SİLİNİYORDU. Kartın kendisi de boş
+              hâline döndüğü için kullanıcı, yaptığı işin kaybolduğunu ancak geri
+              döndüğünde fark ediyordu — mod açık ama sınav yok.
+
+              "Kapat" bir vazgeçme değil, bir görünüm eylemidir: paneli kapatır, veriyi
+              korur. Silmek isteyen kullanıcı için ayrı ve açıkça adlandırılmış bir yol
+              olmalı; yıkıcı eylem asla nötr bir etikete saklanmaz.
+
+              Yarım kalan kurulum da korunuyor: ad girilip tarih girilmemişse bile
+              kullanıcı geri döndüğünde kaldığı yerden devam eder.
+            */}
+            <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
               <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>
             </Touchable>
             {complete && (<Touchable onPress={() => { haptic.surface(); setExpanded(false); onOpenPreview({ templateId: levelTemplateIdFromMinutes(dailyMinutes ?? preset?.defaultDailyMinutes), examSlot: slot, examTipTr: preset?.tipTr, examTipEn: preset?.tipEn, examName: name, examDate: date }); }} style={{ flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.xs, backgroundColor: ACCENT, borderRadius: R.full, paddingVertical: S.sm }} activeOpacity={0.8}><BookOpen size={ICON.xs} color="#fff" /><Text style={{ color: '#fff', fontWeight: '600', fontSize: F.caption }}>{tr ? 'Planı Seç ›' : 'Choose Plan ›'}</Text></Touchable>)}
@@ -319,14 +380,48 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
   const [expanded, setExpanded] = useState(() => {
     const s = usePrefsStore.getState().seasonal;
     const comp = (s.examName || '').trim() !== '' && (s.examDate || '') !== '';
-    if (!comp) return true;
-    return !(usePrefsStore.getState().examPlanHabitIds.length > 0 || usePrefsStore.getState().examPlanTaskIds.length > 0);
+    const hasActivePlan = (usePrefsStore.getState().examPlanHabitIds.length > 0 || usePrefsStore.getState().examPlanTaskIds.length > 0);
+    // Kurulum devam ederken (plan henüz uygulanmamışsa) kart DAİMA açık kalır.
+    // Tarih seçildiğinde kart kendi kendine daralmaz ("Kurulumu tamamla"ya geçip yukarı zıplamaz).
+    if (!hasActivePlan) return true;
+    return !comp;
   });
   const [showPicker, setShowPicker] = useState(false);
   const [suggestions, setSuggestions] = useState<ExamPreset[]>([]);
-  // Gunluk sure KULLANICININ SECIMI — sessizce doldurulmaz (bkz. ExamSlot'taki not).
-  const [dailyMinutes, setDailyMinutes] = useState<number | null>(null);
-  useEffect(() => { setDailyMinutes(null); }, [preset?.id]);
+  /*
+    GÜNLÜK SÜRE ARTIK KALICI — kurulumun ortasında kaybolmuyor.
+
+    Süre yalnız bileşen belleğindeydi ve mount'ta `null`a çekiliyordu. Kart yeniden
+    kurulduğu anda (moda geri dönüş, ekran dönmesi) seçim siliniyor, `isComplete` false
+    oluyor ve kart "Sınav ekle" diyordu — halbuki sınav adı ve tarihi kayıtlıydı ve
+    üstteki özet onları gösteriyordu. Kullanıcı açısından yaptığı iş buhar oluyordu.
+
+    Süre KULLANICININ SEÇİMİ olmaya devam ediyor: sessizce varsayılan atanmıyor, yalnız
+    seçilmişse hatırlanıyor.
+  */
+  const [dailyMinutes, setDailyMinutes] = useState<number | null>(
+    () => usePrefsStore.getState().planSpecs.exam?.dailyMinutes ?? null,
+  );
+
+  const pickDailyMinutes = useCallback((m: number | null) => {
+    setDailyMinutes(m);
+    usePrefsStore.getState().setPlanDraftMinutes('exam', m);
+  }, []);
+
+  /*
+    Sınav DEĞİŞİRSE süre sıfırlanır — 90 dakikalık YDS planı seçip sonra TUS'a geçen
+    kullanıcı, farkında olmadan eski süreyle devam etmemeli.
+
+    Ama bu YALNIZCA gerçek değişimde olmalı: eskiden aynı etki mount'ta da çalışıyor
+    ve kayıtlı seçimi siliyordu. `ref` ile ilk çalıştırma atlanıyor.
+  */
+  const presetIdRef = useRef(preset?.id);
+  useEffect(() => {
+    if (presetIdRef.current === preset?.id) return;
+    presetIdRef.current = preset?.id;
+    setDailyMinutes(null);
+    usePrefsStore.getState().setPlanDraftMinutes('exam', null);
+  }, [preset?.id]);
 
   // Kurulum UC adimla biter: ad + tarih + gunluk sure. Sure secilmeden plan
   // uretilirse seviye (Temel/Orta/Ileri) kullaniciya sorulmadan secilmis olur.
@@ -360,13 +455,10 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
     examPlanHabitIds.forEach(id => removeHabit(id)); examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam'));
     exam2PlanHabitIds.forEach(id => removeHabit(id)); exam2PlanTaskIds.forEach(id => retirePlanTask(id, 'exam2'));
     exam3PlanHabitIds.forEach(id => removeHabit(id)); exam3PlanTaskIds.forEach(id => retirePlanTask(id, 'exam3'));
-        // ETIKET TABANLI SUPURME — id listesine bakmadan moda ait HER seyi kaldirir.
-    // Yukaridaki id-tabanli temizlik yalnizca 'bildigimiz' gorevleri siler; bir
-    // gorev o listeden dusmusse (offline tempId kaymasi, basarisiz silme) ekranda
-    // kaliyordu ve ancak bir sonraki UYGULAMA ACILISINDA siliniyordu. Kullanicinin
-    // gordugu: "modu kapattim ama gorevi hala duruyor".
-    retireModeTasksByTag('exam');
-clearPlanIds('exam'); clearPlanIds('exam2'); clearPlanIds('exam3');
+    retireModeTasksByTag('exam', seasonal.examName);
+    retireModeTasksByTag('exam2', seasonal.exam2Name);
+    retireModeTasksByTag('exam3', seasonal.exam3Name);
+    clearPlanIds('exam'); clearPlanIds('exam2'); clearPlanIds('exam3');
     setSeasonalPref('examMode', false); setSeasonalPref('examName', ''); setSeasonalPref('examDate', null);
     setSeasonalPref('exam2Name', ''); setSeasonalPref('exam2Date', null);
     setSeasonalPref('exam3Name', ''); setSeasonalPref('exam3Date', null);
@@ -436,7 +528,22 @@ clearPlanIds('exam'); clearPlanIds('exam2'); clearPlanIds('exam3');
           {!isComplete && !expanded && (
             <Touchable onPress={() => { haptic.select(); setExpanded(true); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, borderWidth: B.thin, borderStyle: 'dashed', borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)', borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.md }} activeOpacity={0.7}>
               <AppIcon Icon={Target} color={theme.onSurfaceVariant} size={24} radius={R.sm} iconSize={ICON.sm} />
-              <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.body, flex: 1 }}>{tr ? 'Sınav ekle' : 'Add exam'}</Text>
+              {/*
+                YARIM KURULUM "EKLE" DEMEZ.
+
+                Bu satır her tamamlanmamış durumda "Sınav ekle" yazıyordu — sınav adı ve
+                tarihi girilmiş, yalnız günlük süre kalmışken bile. Kullanıcı açısından bu
+                "girdiklerim silinmiş" demekti; üstteki özet tarihi gösterdiği için de
+                ekran kendi kendisiyle çelişiyordu.
+
+                Artık üç durum ayrı: hiç başlanmamış (ekle), yarım kalmış (devam et),
+                tamamlanmış (ayrı blokta zaten gösteriliyor).
+              */}
+              <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.body, flex: 1 }}>
+                {name.trim() || date
+                  ? (tr ? 'Kurulumu tamamla' : 'Finish setup')
+                  : (tr ? 'Sınav ekle' : 'Add exam')}
+              </Text>
               <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.4} />
             </Touchable>
           )}
@@ -506,14 +613,14 @@ clearPlanIds('exam'); clearPlanIds('exam2'); clearPlanIds('exam3');
 
           {expanded && (
             <View style={{ gap: S.sm }}>
-              <PresetEditor name={name} onName={(v) => setSeasonalPref('examName', v)} preset={preset} onPreset={setPreset} suggestions={suggestions} onSuggestions={setSuggestions} dailyMinutes={dailyMinutes} onDailyMinutes={setDailyMinutes} placeholder={tr ? 'Sınav adı (örn: ALES, DGS, KPSS...)' : 'Exam name (e.g. SAT, GRE, IELTS...)'} />
+              <PresetEditor name={name} onName={(v) => setSeasonalPref('examName', v)} preset={preset} onPreset={setPreset} suggestions={suggestions} onSuggestions={setSuggestions} dailyMinutes={dailyMinutes} onDailyMinutes={pickDailyMinutes} placeholder={tr ? 'Sınav adı (örn: ALES, DGS, KPSS...)' : 'Exam name (e.g. SAT, GRE, IELTS...)'} />
               {conflict && (<Text style={{ fontSize: F.caption, color: '#F59E0B', fontWeight: '500', paddingHorizontal: S.xxs }}>{conflict}</Text>)}
               <Touchable onPress={() => { haptic.select(); setShowPicker(true); }} style={[{ borderRadius: R.md, paddingHorizontal: S.md, height: 44, justifyContent: 'center', borderWidth: B.thin, flexDirection: 'row', alignItems: 'center' }, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)' }]} activeOpacity={0.7}>
                 <Text style={{ color: date ? theme.onSurface : theme.onSurfaceVariant + '70', fontSize: F.body, fontWeight: '600', flex: 1 }}>{date ? formatPlanDate(date, tr) : (tr ? 'Sınav tarihi seç' : 'Select exam date')}</Text>
                 <CalendarDays size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
               </Touchable>
               {showPicker && <ExamDatePicker value={dateObj} onPick={(iso) => setSeasonalPref('examDate', iso)} onClose={() => setShowPicker(false)} />}
-              {preset && <HoursSelector preset={preset} dailyMinutes={dailyMinutes} onPick={setDailyMinutes} withLevelLabels />}
+              {preset && <HoursSelector preset={preset} dailyMinutes={dailyMinutes} onPick={pickDailyMinutes} withLevelLabels />}
               <View style={{ flexDirection: 'row', gap: S.sm }}>
                 <Touchable onPress={() => setExpanded(false)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: R.full, paddingVertical: S.sm + 2, borderWidth: B.thin, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)' }} activeOpacity={0.7}>
                   <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption }}>{tr ? 'Kapat' : 'Close'}</Text>

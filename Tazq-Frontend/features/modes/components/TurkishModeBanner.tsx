@@ -14,7 +14,7 @@ import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useTaskStore, translateTag } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus/store/useFocusStore';
 import { TaskService } from '@/shared/services/api';
-import { TurkishMode, StudyTemplate, ModeHabit, ModeTask } from '../utils/turkishModes';
+import { TurkishMode, StudyTemplate, ModeHabit, ModeTask, localizeSporGoal } from '../utils/turkishModes';
 import { getCurrentRamadanStatus } from '@/shared/utils/ramadanDates';
 import { renderModeEmojiIcon } from '../utils/modeIcons';
 import { extractPlanFromText, QUICK_EMOJIS, QUICK_COLORS, DraftHabit, DraftTask } from '@/shared/utils/planExtractor';
@@ -536,6 +536,65 @@ export const TurkishModeBanner: React.FC<Props> = ({
       return dayOffset(4); // Low
     };
 
+    const getTaskPrefix = (): string => {
+      const modeType = mode.type as string;
+      if (modeType === 'exam') {
+        const slot = activeSlot ?? 'exam';
+        const nameMap: Record<string, string | null> = {
+          exam: seasonal.examName,
+          exam2: seasonal.exam2Name,
+          exam3: seasonal.exam3Name,
+        };
+        const name = nameMap[slot] || seasonal.examName;
+        if (name?.trim()) return name.trim();
+      }
+      if (modeType === 'tez') {
+        if (seasonal.tezName?.trim()) return seasonal.tezName.trim();
+      }
+      if (modeType === 'mulakat') {
+        const slot = activeSlot ?? 'mulakat';
+        const nameMap: Record<string, string | null> = {
+          mulakat: seasonal.mulakatName,
+          mulakat2: seasonal.mulakat2Name,
+          mulakat3: seasonal.mulakat3Name,
+        };
+        const name = nameMap[slot] || seasonal.mulakatName;
+        if (name?.trim()) return name.trim();
+      }
+      if (modeType === 'spor') {
+        const slot = activeSlot ?? 'spor';
+        const nameMap: Record<string, string | null> = {
+          spor: seasonal.sporGoal,
+          spor2: seasonal.spor2Goal,
+          spor3: seasonal.spor3Goal,
+        };
+        const name = nameMap[slot] || seasonal.sporGoal;
+        if (name?.trim()) return localizeSporGoal(name.trim(), tr) || name.trim();
+      }
+      const fallback = tr ? mode.labelTr : mode.labelEn;
+      return fallback ? fallback.replace(/\s*Hazırlığı$/i, '').trim() : '';
+    };
+
+    const taskPrefix = getTaskPrefix();
+
+    const formatWithPrefix = (titleStr: string, prefixStr: string): string => {
+      if (!prefixStr || !titleStr) return titleStr;
+      const p = prefixStr.trim();
+      const t = titleStr.trim();
+      const pLower = p.toLowerCase();
+      const tLower = t.toLowerCase();
+
+      if (tLower.startsWith(pLower + ':') || tLower.startsWith(pLower + ' -')) {
+        const rest = t.slice(p.length + 1).replace(/^[:\s-]+/, '').trim();
+        return `${p}: ${rest}`;
+      }
+      if (tLower.startsWith(pLower + ' ')) {
+        const rest = t.slice(p.length).trim();
+        return `${p}: ${rest}`;
+      }
+      return `${p}: ${t}`;
+    };
+
     // newTasks zaten gelecek-tarihli dökümü hariç tutuyor (bkz. tanımı) — doğrudan oluştur.
     const addedTaskIds: number[] = [];
     const visibleTagsMap: Record<string, string> = {
@@ -552,16 +611,25 @@ export const TurkishModeBanner: React.FC<Props> = ({
     const extraVisibleTag = visibleTagsMap[mode.type];
 
     for (const task of newTasks) {
-      const title = tr ? task.titleTr : task.titleEn;
+      let taskTitleTr = task.titleTr;
+      let taskTitleEn = task.titleEn;
+
+      if (taskPrefix) {
+        taskTitleTr = formatWithPrefix(taskTitleTr, taskPrefix);
+        taskTitleEn = formatWithPrefix(taskTitleEn, taskPrefix);
+      }
+
+      const title = tr ? taskTitleTr : taskTitleEn;
       const dueDate = getTaskDueDate(task);
       const description = JSON.stringify({ 
-        tr: task.titleTr, 
-        en: task.titleEn,
+        tr: taskTitleTr, 
+        en: taskTitleEn,
         ...(task.descTr && { descTr: task.descTr }),
         ...(task.descEn && { descEn: task.descEn }),
       });
       
-      const finalTags = [mode.type, ...(task.tags ?? [])];
+      const slotTag = activeSlot ?? mode.type;
+      const finalTags = Array.from(new Set([mode.type, slotTag, ...(task.tags ?? [])]));
       if (extraVisibleTag && !finalTags.includes(extraVisibleTag)) {
         finalTags.push(extraVisibleTag);
       }
@@ -573,7 +641,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
           isCompleted: false, tags: translatedTags, subtasks: [],
           ...(dueDate && { dueDate }),
         } as any);
-        addTask({ ...created, title, titleTr: task.titleTr, titleEn: task.titleEn } as any);
+        addTask({ ...created, title, titleTr: taskTitleTr, titleEn: taskTitleEn } as any);
         addedTaskIds.push(created.id);
       } catch {
         const localId = Math.floor(Date.now() + Math.random() * 1000);
@@ -581,7 +649,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
           id: localId, title, description, priority: task.priority,
           isCompleted: false, tags: translatedTags, subtasks: [],
           ...(dueDate && { dueDate }),
-          titleTr: task.titleTr, titleEn: task.titleEn,
+          titleTr: taskTitleTr, titleEn: taskTitleEn,
         } as any);
         addedTaskIds.push(localId);
       }
