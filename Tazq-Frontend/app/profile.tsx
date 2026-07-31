@@ -27,7 +27,7 @@ import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
 import { useSporStore } from '@/features/modes/store/useSporStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
-import { useTaskStore } from '@/features/tasks';
+import { useActiveTasks } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
 import { Touchable } from '@/shared/components/Touchable';
 import { BackButton } from '@/shared/components/BackButton';
@@ -62,7 +62,8 @@ export default function ProfileScreen() {
   const focusPoints = useFocusStore(s => s.focusPoints);
   const streakShields = useFocusStore(s => s.streakShields);
   const { habits, toggleDate } = useHabitStore();
-  const { tasks } = useTaskStore();
+  // Arşivlenmişler istatistiğe girmez: kullanıcı onları hayatından çıkardı.
+  const tasks = useActiveTasks();
   const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours } = usePrefsStore();
   const [sleepSupported] = useState(() => SleepHealth.isSupported());
   const handleSleepToggle = async (v: boolean) => {

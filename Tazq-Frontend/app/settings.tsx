@@ -8,6 +8,7 @@ import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
+import { useCollapsibleHeader } from '@/shared/components/LargeTitle';
 import { MotiView } from 'moti';
 import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate, Footprints } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
@@ -54,6 +55,7 @@ export default function SettingsScreen() {
   // Bölüme kaydırma: profil gruplu satırları ?section=<domain> ile gelir; ilgili
   // bölümün ölçülen y'sine atlarız. Böylece "her satır tüm sayfayı açıyor" biter.
   const scrollRef = useRef<ScrollView>(null);
+  const { scrollY, onScroll } = useCollapsibleHeader();
   const sectionY = useRef<Record<string, number>>({});
   const mountedAt = useRef(Date.now());
   const { section } = useLocalSearchParams<{ section?: string }>();
@@ -333,9 +335,9 @@ export default function SettingsScreen() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       {/* Ortak başlık — ana ekranlarla aynı sistem. Kendi satırı 22pt başlık
           kullanıyordu: alt sayfaya inince başlık BÜYÜYORDU (hiyerarşi ters). */}
-      <ScreenHeader onBack={() => router.back()} title={catTitle} />
+      <ScreenHeader onBack={() => router.back()} title={catTitle} scrollY={scrollY} />
 
-      <ScrollView ref={scrollRef} onContentSizeChange={tryScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}>
+      <ScrollView ref={scrollRef} onScroll={onScroll} scrollEventThrottle={16} onContentSizeChange={tryScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}>
             {show('notify') && (<>
             {/* ── BİLDİRİMLER ── */}
             <SectionHeader onLayout={e => markSection('notify', e.nativeEvent.layout.y)} title={language === 'tr' ? 'BİLDİRİMLER' : 'NOTIFICATIONS'} theme={theme} tr={language === 'tr'} />

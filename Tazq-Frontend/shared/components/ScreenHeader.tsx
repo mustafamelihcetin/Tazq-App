@@ -116,7 +116,24 @@ export const ScreenHeader = ({
    */
   const titleProgress = React.useMemo(() => {
     if (!scrollY) return null;
-    const end = Math.max(collapseAt ?? 0, 1);
+    /*
+      `collapseAt` YOKSA BAŞLIK HEP GÖRÜNÜR — ve bu iki farklı ekran türünü ayırıyor.
+
+      İki meşru kullanım var:
+
+       · SAYFADA BÜYÜK BAŞLIK VAR (ana sayfa): tepedeyken asıl başlık içerikteki
+         selamlamadır; çubuktaki başlık ancak o kayıp gidince devralır. `collapseAt`
+         verilir ve devir teslim ölçülen yükseklikte olur.
+
+       · SAYFADA BÜYÜK BAŞLIK YOK (diğer ekranlar): tepedeyken sayfanın adını söyleyen
+         BAŞKA hiçbir şey yoktur. Başlığı da gizlersek kullanıcı nerede olduğunu
+         bilemez — "temiz" değil, kayıp hissettirir. Burada gizlenmesi gereken tek şey
+         ÇUBUĞUN KENDİSİ (zemin + ayraç); yazı durmalı.
+
+      Yani "header yok gibi" demek "başlık yok" demek değil: kutu yok demek.
+    */
+    if (collapseAt == null) return null;
+    const end = Math.max(collapseAt, 1);
     return scrollY.interpolate({
       inputRange: [Math.max(end - 32, 0), end],
       outputRange: [0, 1],

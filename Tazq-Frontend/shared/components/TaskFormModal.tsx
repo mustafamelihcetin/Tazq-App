@@ -408,7 +408,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
           >
             {/* Drag Handle */}
             <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
-              <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
+              <View style={[styles.handle, { backgroundColor: theme.outline }]} />
             </View>
 
             {/* Header */}
@@ -418,12 +418,15 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
               </Text>
               <Touchable
                 onPress={() => !saving && onClose()}
-                style={[styles.closeModalBtn, saving && { opacity: 0.35 }]}
+                style={styles.closeModalBtn}
                 disabled={saving}
                 accessibilityRole="button"
                 accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'}
               >
-                <X size={ICON.md} color={theme.onSurfaceVariant} />
+                {/* Pasiflik OPAKLIKLA değil SEVİYEYLE anlatılıyor: palet rengini
+                    kullanım yerinde kısmak, o rengin ölçülmüş kontrastını geçersiz
+                    kılar. `onSurfaceMuted` zaten ölçülmüş bir "ikincil" seviyesi. */}
+                <X size={ICON.md} color={saving ? theme.onSurfaceMuted : theme.onSurfaceVariant} />
               </Touchable>
             </View>
 
@@ -437,7 +440,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 ].map((chip) => (
                   <View key={chip.text} style={{ backgroundColor: theme.primary + '14', borderRadius: R.full, paddingHorizontal: S.sm, paddingVertical: S.xs, flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
                     {chip.icon}
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: theme.primary, letterSpacing: 0.3 }}>{chip.text}</Text>
+                    <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.primary, letterSpacing: 0.3 }}>{chip.text}</Text>
                   </View>
                 ))}
               </View>
@@ -558,7 +561,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
                 {/* Inline Date Picker */}
                 {showDatePicker && (
-                  <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]}>
+                  <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: theme.outline }]}>
                     <Text style={[styles.inlinePickerTitle, { color: theme.onSurfaceVariant }]}>{t.dueDate}</Text>
                     <View style={styles.pickerRow}>
                       <View style={styles.pickerCol}>
@@ -617,7 +620,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
                 {/* Inline Time Picker */}
                 {showTimePicker && (
-                  <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]}>
+                  <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: theme.outline }]}>
                     <Text style={[styles.inlinePickerTitle, { color: theme.onSurfaceVariant }]}>{t.dueTime}</Text>
                     <View style={styles.pickerRow}>
                       <View style={styles.pickerCol}>
@@ -644,7 +647,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
               {/* Priority Selectors */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: 10 }]}>{t.priority.toUpperCase()}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{t.priority.toUpperCase()}</Text>
                 <View style={[styles.priorityRow, { gap: S.sm }]}>
                   {([
                     { key: 'Low', label: t.filterLow },
@@ -674,7 +677,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
               {/* Recurrence Selectors */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: 10 }]}>{t.recurrence.toUpperCase()}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{t.recurrence.toUpperCase()}</Text>
                 <View style={[styles.priorityRow, { gap: S.sm }]}>
                   {RECURRENCE_OPTIONS.map((r) => (
                     <Touchable
@@ -785,19 +788,34 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     });
                   }}
                   style={[styles.inputGroup, {
+                    /*
+                      RENK `primary`, `priorityMedium` DEĞİL.
+
+                      Hatırlatıcı satırı önceliğin ORTA renginde çiziliyordu. Ama
+                      hatırlatıcı bir öncelik değil; "orta öncelikli hatırlatıcı" diye bir
+                      şey yok. Aynı hatanın bir başkası silme düğmesindeydi (yıkıcı eylem
+                      `priorityHigh` ile çiziliyordu) ve orada da düzeltildi: öncelik
+                      renkleri YALNIZCA görevin aciliyetini anlatır.
+
+                      Doğru jeton `primary` — uygulamada "etkin kontrol" rengi. Ayarlardaki
+                      diğer anahtarlar da onu kullanıyor, yani bu satır artık onlarla aynı
+                      dili konuşuyor.
+                    */
                     backgroundColor: form.reminderEnabled
-                      ? theme.priorityMedium + (isDark ? '1F' : '14')
+                      ? theme.primaryContainer
                       : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow),
                     height: 52,
                   }]}
                 >
-                  <Bell size={ICON.md} color={form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant} />
-                  <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: form.reminderEnabled ? theme.priorityMedium : theme.onSurfaceVariant, marginLeft: S.sm }}>
+                  <Bell size={ICON.md} color={form.reminderEnabled ? theme.primary : theme.onSurfaceVariant} />
+                  <Text style={{ flex: 1, fontSize: F.body, fontWeight: '600', color: form.reminderEnabled ? theme.primary : theme.onSurfaceVariant, marginLeft: S.sm }}>
                     {t.reminderLabel}
                   </Text>
                   <View style={{
                     width: 44, height: 26, borderRadius: R.md,
-                    backgroundColor: form.reminderEnabled ? theme.priorityMedium : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'),
+                    // Kapalı ray rengi de PALETTEN: elle yazılmış rgba tonları tema
+                    // değişince sessizce eskiyordu.
+                    backgroundColor: form.reminderEnabled ? theme.primary : theme.outlineVariant,
                     justifyContent: 'center', paddingHorizontal: S.xxs,
                   }}>
                     <RNAnimated.View
@@ -815,7 +833,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
               {/* Subtasks Editor */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: 10 }]}>{t.subtasks.toUpperCase()}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{t.subtasks.toUpperCase()}</Text>
                 {form.subtasks.map((sub, i) => (
                   <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
                     <Touchable
@@ -845,7 +863,11 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       }}
                       style={{ padding: S.xs }}
                     >
-                      <Trash2 size={ICON.sm} color={theme.priorityHigh} />
+                      {/* Yıkıcı eylem `error` ile çizilir. `priorityHigh` görevin
+                          ACİLİYETİNİ anlatır; silmenin aciliyetle ilgisi yok. İkisi
+                          tesadüfen benzer renkler olabilir ama palet değişince bu
+                          satır sessizce yanlış anlama kayardı. */}
+                      <Trash2 size={ICON.sm} color={theme.error} />
                     </Touchable>
                   </View>
                 ))}
@@ -883,11 +905,11 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
               {/* Tag Editor (Visual selector chips) */}
               <View style={styles.section}>
-                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted, fontSize: 10 }]}>{(t as any).tags?.toUpperCase() || (language === 'tr' ? 'ETİKETLER' : 'TAGS')}</Text>
+                <Text style={[styles.optionLabel, { color: theme.onSurfaceMuted }]}>{(t as any).tags?.toUpperCase() || (language === 'tr' ? 'ETİKETLER' : 'TAGS')}</Text>
                 <View style={{ flexDirection: 'row', gap: S.xs, flexWrap: 'wrap', marginBottom: S.sm }}>
                   {visibleTextTags(form.tags).map(tag => (
                     <View key={tag} style={{ backgroundColor: theme.primary + '1F', borderRadius: R.sm, paddingLeft: S.sm, paddingRight: S.xs, paddingVertical: S.xs, flexDirection: 'row', alignItems: 'center', gap: S.xs }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>
+                      <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
                         {translateTag(tag, language as 'tr' | 'en')}
                       </Text>
                       <Touchable accessibilityRole="button" accessibilityLabel={language === 'tr' ? `${tag} etiketini kaldır` : `Remove tag ${tag}`} onPress={() => setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tag) }))} style={{ padding: S.xxs }}>
@@ -948,7 +970,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                   style={{ alignSelf: 'center', marginTop: S.sm, padding: S.sm }}
                   disabled={saving}
                 >
-                  <Text style={{ color: theme.priorityHigh, fontWeight: '700', fontSize: F.body }}>
+                  <Text style={{ color: theme.error, fontWeight: '700', fontSize: F.body }}>
                     {t.deleteTask || (language === 'tr' ? 'Görevi Sil' : 'Delete Task')}
                   </Text>
                 </Touchable>
@@ -1046,6 +1068,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   optionLabel: {
+    /*
+      PUNTO ÖLÇEKTEN. Bu etiketler kullanım yerinde `fontSize: 10` ile eziliyordu ve 10,
+      `F.caption`ın (11) altında — o değer tokens.ts'te "okunabilirliğin ALT SINIRI" diye
+      tanımlı. Yani başlıklar okunmak için değil, var olmak için yazılmıştı. Aynı hata
+      alışkanlık şeridinde ve görev satırlarında da vardı, oralarda da düzeltilmişti;
+      bu modal geride kalmıştı.
+    */
+    fontSize: F.caption,
     fontWeight: '600',
     letterSpacing: 1.2,
     marginBottom: S.sm,

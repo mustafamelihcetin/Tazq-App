@@ -9,7 +9,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes';
 import { useHabitStore } from '@/features/habits';
-import { useTaskStore } from '@/features/tasks';
+import { useTaskStore, useActiveTasks } from '@/features/tasks';
 import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W , topBarSpace} from '@/shared/constants/tokens';
 import { track } from '@/shared/utils/analytics';
 import { renderModeEmojiIcon } from '@/features/modes';
@@ -80,7 +80,8 @@ export default function ModOzetScreen() {
   };
   const seasonal = prefs.seasonal;
   const habits = useHabitStore(s => s.habits);
-  const tasks = useTaskStore(s => s.tasks);
+  // Arşivlenmişler hariç: mod özeti aktif planı anlatır.
+  const tasks = useActiveTasks();
 
   React.useEffect(() => { track('mode_summary_opened'); }, []);
 

@@ -78,7 +78,7 @@ export default function HomeScreen() {
   const isSmallScreen = width < 380 || height < 700;
   // Küçük ekranlarda kart içi boşlukları bir kademe sık → dikey kaydırma azalır.
   const bentoPad = isSmallScreen ? S.sm : S.md;
-  const { tasks, isLoading, setTasks, setLoading, addTask, toggleTaskCompletion } = useTaskStore(useShallow(state => ({
+  const { tasks: allTasks, isLoading, setTasks, setLoading, addTask, toggleTaskCompletion } = useTaskStore(useShallow(state => ({
     tasks: state.tasks,
     isLoading: state.isLoading,
     setTasks: state.setTasks,
@@ -86,6 +86,19 @@ export default function HomeScreen() {
     addTask: state.addTask,
     toggleTaskCompletion: state.toggleTaskCompletion
   })));
+
+  /**
+   * ARŞİVLENMİŞ GÖREVLER TEK NOKTADA SÜZÜLÜYOR.
+   *
+   * Bu ekran `tasks` üzerinde sekiz ayrı filtre kuruyor (bugünkü, tarihsiz, gelecek,
+   * tamamlanan, gecikmiş...). Arşiv kontrolünü her birine tek tek eklemek, sekiz ayrı
+   * unutma fırsatı yaratırdı — ve bir tanesi atlandığında arşivlenmiş görev yalnız o
+   * görünümde geri belirir, yani hata en zor fark edilen biçimde ortaya çıkardı.
+   *
+   * Kaynakta bir kez süzmek, aşağıdaki her türev listeyi otomatik doğru kılıyor.
+   */
+  const tasks = React.useMemo(() => allTasks.filter(t => t && !t.isArchived), [allTasks]);
+
   const { user, setUser, token, isFirstLogin, setIsFirstLogin } = useAuthStore();
   const { t, language } = useLanguageStore();
   const { theme, colorScheme } = useAppTheme();

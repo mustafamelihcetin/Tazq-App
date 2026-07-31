@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubtaskItem, RecurrenceType, Priority } from '@/shared/services/api';
@@ -160,7 +161,19 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
           ...t, 
           isCompleted: true, 
           completedAt: now.toISOString(),
-          ignoreMomentum: ignore
+          ignoreMomentum: ignore,
+          /*
+            ALT GÖREVLER DE KAPANIR.
+
+            Tek dokunuşla tamamlamak doğru — alt görevleri tek tek işaretlemeye zorlamak
+            işi bitmiş kullanıcıya angarya çıkarır. Ama eski hâllerinde bırakılırlarsa
+            kayıt kendi kendisiyle çelişir: satırda üstü çizili başlık ve yanında "1/4".
+            Aynı görev hem bitmiş hem bitmemiş görünür.
+
+            Geri alındığında alt görevler kapalı KALIR (aşağıya bkz.) — çünkü hangisinin
+            gerçekten yapıldığını uygulama bilemez; kullanıcı düzeltebilir.
+          */
+          subtasks: (t.subtasks ?? []).map((st) => ({ ...st, done: true })),
         };
       } else {
         try {
@@ -263,3 +276,23 @@ export function getLocalizedTaskDescription(task: { description?: string | null 
   return task.description;
 }
 
+/**
+ * AKTİF GÖREVLER — arşivlenmişler HARİÇ.
+ *
+ * ── NEDEN AYRI BİR SEÇİCİ ───────────────────────────────────────────────────────
+ * Arşiv bayrağı eklendikten sonra her ekranın `!t.isArchived` kontrolünü kendisi
+ * yazması gerekiyordu — ve üç ekran (merkez, mod özeti, profil) bunu unuttu. Sonuç
+ * kullanıcı için tuhaftı: görev "arşivlendi" ama merkezde duruyor, istatistiklerde
+ * sayılıyordu. Yani arşivlemek bir yerde işe yarıyor, başka yerde yaramıyordu.
+ *
+ * Bu, tek tek yamanabilecek bir hata değil: her yeni ekran aynı kontrolü yeniden
+ * yazmak zorunda kalır ve biri eninde sonunda unutur. Varsayılanın DOĞRU olması
+ * gerekiyor — arşivlenmişi görmek isteyen (yalnızca arşiv ekranı) açıkça `tasks`
+ * okur, geri kalan herkes bunu kullanır.
+ *
+ * `useShallow`: filtre her çağrıda yeni bir DİZİ üretir ama elemanlar aynı nesnelerdir.
+ * Sığ karşılaştırma olmadan her render yeni referans görüp gereksiz yere yeniden
+ * çizerdi — uzun listede gözle görülür bir maliyet.
+ */
+export const useActiveTasks = () =>
+  useTaskStore(useShallow((s: TaskState) => s.tasks.filter((t) => t && !t.isArchived)));

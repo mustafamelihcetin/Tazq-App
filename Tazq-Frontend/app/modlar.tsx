@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList, Animated } from 'react-native';
 import { swallow } from '@/shared/utils/swallow';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -11,6 +11,7 @@ import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
+import { useCollapsibleHeader } from '@/shared/components/LargeTitle';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { usePrefsStore, getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, localizeSporGoal, RAMAZAN, renderModeEmojiIcon, deriveDateSlot, isSeasonalExamActive } from '@/features/modes';
@@ -396,6 +397,27 @@ export default function ModlarScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const examInputViewRef = useRef<View>(null);
   const scrollOffsetRef = useRef(0);
+
+  /*
+    Kaydırma ofseti bir ref'e yazılıyor (klavye/otomatik kaydırma için) VE aynı olay
+    başlık çubuğunu besliyor. Hook'un `listener`ı ikisini birlikte çalıştırıyor.
+
+    `useCallback` gerekli: satır içi yazılsaydı her render'da yeni bir fonksiyon
+    üretilir, `onScroll` memo'su bozulur ve her render'da yeni bir `Animated.event`
+    kurulurdu. Ref kimliği sabit olduğu için bağımlılık listesi boş.
+
+    TANIM SIRASI: hook çağrısı ref'ten SONRA — kapanış sayesinde önce de çalışırdı ama
+    aşağıda tanımlı bir değişkene yukarıdan atıfta bulunmak, okuyanı her seferinde
+    "bu çalışıyor mu?" diye durduran türden bir kırılganlıktır.
+  */
+  const handleScrollOffset = useCallback(
+    (e: { nativeEvent: { contentOffset: { y: number } } }) => {
+      scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+    },
+    [],
+  );
+
+  const { scrollY, onScroll } = useCollapsibleHeader({ listener: handleScrollOffset });
   // Bir mod kartı "Düzenle/genişlet"e geçince o karta yumuşakça kaydır (odak netliği).
   // onLayout y'si gap-container'a göre; offset 0'da ilk kart header altına denk geldiğinden
   // scrollTo(y=cardY) açılan kartı tam o konuma getirir.
@@ -804,6 +826,7 @@ export default function ModlarScreen() {
            </Touchable>
             </>
           }
+          scrollY={scrollY}
         />
 
       <View style={{ flex: 1 }}>
@@ -815,7 +838,7 @@ export default function ModlarScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             scrollEventThrottle={16}
-            onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
+            onScroll={onScroll}
           >
           <View style={{ gap: S.md }}>
             {/* ── DURUM ÖZETİ KARTI ── aktif modlar: geri sayım + bugünkü plan + motivasyon; boşken davet. */}

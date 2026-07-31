@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { useTaskStore } from '@/features/tasks';
+import { useCollapsibleHeader } from '@/shared/components/LargeTitle';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { ArrowLeft, RotateCcw, Trash2 } from 'lucide-react-native';
@@ -20,6 +21,7 @@ export default function ArchiveScreen() {
     const { theme, isDark } = useAppTheme();
     const { language } = useLanguageStore();
     const router = useRouter();
+    const { scrollY, onScroll } = useCollapsibleHeader();
     
     const tasks = useTaskStore(state => state.tasks);
     const updateTask = useTaskStore(state => state.updateTask);
@@ -82,10 +84,13 @@ export default function ArchiveScreen() {
             <ScreenHeader
                 onBack={() => router.back()}
                 title={language === 'tr' ? 'Arşiv' : 'Archive'}
+                scrollY={scrollY}
             />
 
             <FlatList
                 data={archivedTasks}
+                onScroll={onScroll}
+                scrollEventThrottle={16}
                 keyExtractor={item => item.id.toString()}
                 contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, gap: S.sm, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
                 ListEmptyComponent={() => (

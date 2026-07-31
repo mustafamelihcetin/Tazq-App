@@ -44,6 +44,13 @@ function walk(dir: string, out: string[] = []): string[] {
 const rel = (p: string) => path.relative(ROOT, p).split(path.sep).join('/');
 const FILES = walk(ROOT).filter((f) => !EXEMPT[rel(f)]);
 
+/** Punto kurallarından muaf dosyalar — İKİ punto testi de bunu kullanıyor. */
+const FONT_EXEMPT = new Set([
+  'app/onboarding.tsx',          // sinematik intro: `isSmallDevice ? A : B` elle adaptif
+  'shared/components/TourFeaturePreview.tsx', // tur önizleme mock'u — küçültülmüş temsil
+  'features/user/components/MomentumPulse.tsx',      // yoğun mini görselleştirme
+]);
+
 /** Yorum satırlarını atar — kural metinleri kuralın kendisi sanılmasın. */
 function stripComments(src: string): string {
   return src
@@ -193,11 +200,6 @@ describe('ölçek disiplini', () => {
     //
     // FONT_EXEMPT: kendi ekran-oransal punto şemasını çizen mock/sinematik dosyalar.
     const TOKEN_SIZES = new Set([11, 12, 13, 14, 16, 17, 20, 22, 28, 34]);
-    const FONT_EXEMPT = new Set([
-      'app/onboarding.tsx',          // sinematik intro: `isSmallDevice ? A : B` elle adaptif
-      'shared/components/TourFeaturePreview.tsx', // tur önizleme mock'u — küçültülmüş temsil
-      'features/user/components/MomentumPulse.tsx',      // yoğun mini görselleştirme
-    ]);
     const rx = /fontSize:\s*(\d+)(?![.\d])/g;
     const hits: string[] = [];
     for (const file of FILES) {
@@ -212,6 +214,42 @@ describe('ölçek disiplini', () => {
       });
     }
     expect(hits).toEqual([]);
+  });
+
+  /**
+   * OKUNABİLİRLİK TABANININ ALTI — guard'daki gerçek delik.
+   *
+   * Yukarıdaki kontrol yalnızca "jeton değerine EŞİT ama elle yazılmış" puntoları
+   * yakalıyor (`fontSize: 14` yerine `F.body` yaz). Ama `fontSize: 10` TOKEN_SIZES
+   * kümesinde olmadığı için tamamen sızıyordu — yani daha ZARARLI olan durum hiç
+   * denetlenmiyordu.
+   *
+   * `F.caption` (11) tokens.ts'te açıkça "okunabilirliğin ALT SINIRI" diye tanımlı.
+   * Altına inen yazı bir tasarım tercihi değil, okunamayan yazıdır: 9-10pt etiketler
+   * "okunmak için değil, var olmak için" yazılır ve ekranda gürültüden başka bir şey
+   * yapmazlar. Görev formunda, alışkanlık şeridinde ve görev satırlarında bu hata
+   * tek tek bulunup düzeltildi — ama guard onları hiç görmemişti.
+   *
+   * NEDEN SIFIR DEĞİL, TAVAN: 96 kullanım var ve çoğu admin panelinde (yoğun veri
+   * tabloları). Kör bir süpürme düzeni bozar; her biri ayrı bir düzen kararı. Kural
+   * aynı: yeni borç eklenemez, mevcut borç zamanla düşer.
+   */
+  it('okunabilirlik tabanının (11pt) altına yeni punto eklenmemeli', () => {
+    // `10` önce: alternasyon soldan denenir, `[0-9]` "10"un yalnız "1"ini yakalayıp
+    // ileri-bakışta takılırdı (geri izlemeyle düzelir ama niyet okunmaz olurdu).
+    const rx = /fontSize:\s*(10|[0-9])(?![.\d])/g;
+    let count = 0;
+    for (const file of FILES) {
+      if (FONT_EXEMPT.has(rel(file))) continue;
+      const src = stripBlockComments(fs.readFileSync(file, 'utf8'));
+      src.split('\n').forEach((line) => {
+        const t = line.trim();
+        if (t.startsWith('//') || t.startsWith('*')) return;
+        count += (line.match(rx) ?? []).length;
+      });
+    }
+    // 91 → yalnız düşebilir.
+    expect(count).toBeLessThanOrEqual(91);
   });
 });
 

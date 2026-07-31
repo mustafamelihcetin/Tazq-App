@@ -11,7 +11,7 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
-import { useTaskStore, getLocalizedTaskTitle } from '@/features/tasks';
+import { useTaskStore, useActiveTasks, getLocalizedTaskTitle } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus';
 import { useHabitStore, Habit, fmtDateKey } from '@/features/habits';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -20,6 +20,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
+import { useCollapsibleHeader } from '@/shared/components/LargeTitle';
 import { FocusService } from '@/shared/services/api';
 import { ICON, S, R, F, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight} from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
@@ -104,7 +105,8 @@ export default function CockpitScreen() {
   const isSmallScreen = screenWidth < 380 || screenHeight < 700;
   const compactPad = isSmallScreen ? S.sm : S.md;
   const { language } = useLanguageStore();
-  const rawTasks = useTaskStore(s => s.tasks);
+  // Arşivlenmişler hariç — merkez aktif hayatı gösterir (bkz. useActiveTasks).
+  const rawTasks = useActiveTasks();
   const { habits: rawHabits, addHabit, removeHabit, toggleDate, toggleSkipDate, weeklyGoal, setWeeklyGoal, getStreak } = useHabitStore();
   const {
     seasonal,
@@ -125,6 +127,7 @@ export default function CockpitScreen() {
 
   const { measureAll } = useTour();
   const scrollViewRef = useRef<ScrollView>(null);
+  const { scrollY, onScroll } = useCollapsibleHeader();
 
   const handleStepChange = (step: number) => {
     try {
@@ -556,6 +559,7 @@ export default function CockpitScreen() {
           }
           title={tr ? 'Haftalık Merkez' : 'Weekly Hub'}
           subtitle={`${weekDays[0].getDate()} – ${weekDays[6].getDate()} ${weekDays[6].toLocaleString(tr ? 'tr-TR' : 'en-US', { month: 'short' }).toUpperCase()}`}
+          scrollY={scrollY}
           subtitleColor={theme.primary}
           right={
             <>
@@ -577,7 +581,10 @@ export default function CockpitScreen() {
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: navBarSpace(insets.bottom) + S.md, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
         >
+
           {/* ── WEEK STRIP ── */}
           <TourTarget id="weekStrip">
           <BentoCard index={0} style={{ padding: compactPad, marginBottom: S.md }}>

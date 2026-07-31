@@ -47,7 +47,17 @@ export function daysUntilNextWeight(log: { date: string }[]): number {
 
 /** Görev listesindeki TÜM açık (tamamlanmamış) weight_entry görevleri. */
 export function findOpenWeightTasks(): number[] {
-  return useTaskStore.getState().tasks.filter(x => !x.isCompleted && isWeightEntryTask(x)).map(x => x.id);
+  // ARŞİVLENMİŞ GÖREV "AÇIK" SAYILMAZ.
+  //
+  // Bu liste haftalık kilo zincirinin kalbi: açık görev varsa yenisi üretilmiyor.
+  // Arşivlenmiş bir görev burada "açık" görünseydi zincir sessizce dururdu — kullanıcı
+  // bir daha hiç tartım görevi almazdı ve sebebini anlamasına imkân olmazdı.
+  //
+  // Arayüz zaten plan görevlerinin arşivlenmesine izin vermiyor; bu kontrol o kuralın
+  // İKİNCİ savunma hattı. Tek bir etikete bağlı kalmak (weight_entry → 'spor') kırılgandı.
+  return useTaskStore.getState().tasks
+    .filter(x => !x.isCompleted && !x.isArchived && isWeightEntryTask(x))
+    .map(x => x.id);
 }
 
 /** Görev listesindeki açık (tamamlanmamış) weight_entry görevini bulur. */

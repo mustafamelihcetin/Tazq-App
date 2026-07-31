@@ -342,13 +342,17 @@ export function planPoolKeyFor(spec: DailyPlanSpec): { kind: string; phase: stri
 
 /** O gün ilgili plandan zaten günlük görev üretilmiş mi? */
 export function hasDailyToday(
-  tasks: { tags?: string[] | null; dueDate?: string | null; isCompleted: boolean }[],
+  tasks: { tags?: string[] | null; dueDate?: string | null; isCompleted: boolean; isArchived?: boolean }[],
   key: PlanKind | string,
   today: Date,
 ): boolean {
   const d0 = new Date(today); d0.setHours(0, 0, 0, 0);
   const d1 = new Date(today); d1.setHours(23, 59, 59, 999);
   return tasks.some(t => {
+    // Arşivlenmiş görev "bugün üretildi" saymaz: aksi halde arşivlenen bir plan görevi
+    // yerine yenisi gelmez ve o günün planı sessizce eksik kalırdı. Arayüz plan
+    // görevlerinin arşivlenmesini engelliyor — bu, o kuralın ikinci savunma hattı.
+    if (t.isArchived) return false;
     const tags = t.tags ?? [];
     if (!tags.includes('daily') || !tags.includes(key)) return false;
     if (!t.dueDate) return false;

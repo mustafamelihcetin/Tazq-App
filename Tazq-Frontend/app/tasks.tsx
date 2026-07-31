@@ -11,6 +11,7 @@ import { SubtaskProgressRing } from '@/shared/components/SubtaskProgressRing';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
+import { useCollapsibleHeader } from '@/shared/components/LargeTitle';
 import { WeightEntryModal } from '@/features/modes/components/WeightEntryModal';
 import { weightTaskAction, completeTaskOfflineFirst, isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
 import { TaskFormModal } from '@/shared/components/TaskFormModal';
@@ -36,7 +37,7 @@ import { HelpTourModal } from '@/shared/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
 import { syncTaskToCalendar, deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, MIN_TOUCH } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, MIN_TOUCH, HAIRLINE } from '@/shared/constants/tokens';
 import VoiceService from '@/shared/utils/voice';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -52,6 +53,45 @@ import { matchesTaskFilter, type TaskFilter } from '@/features/tasks/utils/taskF
 const SWIPE_THRESHOLD = -80;
 const TAG_COLORS_PALETTE = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4','#F97316'];
 const PRIORITY_ORDER: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
+
+/**
+ * Çoklu seçim araç çubuğundaki tek eylem: İKON + ETİKET.
+ *
+ * Etiket zorunlu. Dört çıplak ikon, kullanıcıya "hangisi arşiv hangisi sil" sorusunu
+ * her seferinde yeniden sordurur — ve yıkıcı bir eylemi TAHMİN ETTİRMEK kabul edilemez.
+ * iOS Fotoğraflar'ın seçim çubuğunda da ikonların altında yazı vardır.
+ *
+ * `tint` yalnız anlam taşıyan eylemlerde: tamamla yeşil, sil kırmızı. Düzenle ve arşivle
+ * nötr — çünkü ne olumlu ne yıkıcılar, sadece işlem. Her şeyi renklendirmek, rengin
+ * anlamını tüketir.
+ */
+const BulkAction = ({ Icon, label, onPress, disabled, tint, theme }: {
+  Icon: React.ComponentType<{ size?: number; color?: string }>;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  tint?: string;
+  theme: AppTheme;
+}) => {
+  // Pasiflik OPAKLIKLA değil SEVİYEYLE: palet rengini kullanım yerinde kısmak,
+  // o rengin ölçülmüş kontrastını geçersiz kılar.
+  const color = disabled ? theme.onSurfaceMuted : (tint ?? theme.onSurface);
+  return (
+    <Touchable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: S.xs, minHeight: MIN_TOUCH }}
+    >
+      <Icon size={ICON.md} color={color} />
+      <Text style={{ fontSize: F.caption, fontWeight: '600', color }} numberOfLines={1}>
+        {label}
+      </Text>
+    </Touchable>
+  );
+};
 const getTagColorStatic = (tag: string): string => {
   let hash = 0;
   for (let i = 0; i < tag.length; i++) hash = tag.charCodeAt(i) + ((hash << 5) - hash);
@@ -118,12 +158,25 @@ function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrenc
 
 
 const MemoizedTaskItem = React.memo((props: any) => {
-    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, subtaskSaveTimers, sortBy, onMoveUp, onMoveDown } = props;
-    
-    const prefs = usePrefsStore();
-    const modeInfo = useMemo(() => {
-        return getModeInfoForTask(task, prefs, theme);
-    }, [task.id, theme, prefs]);
+    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, subtaskSaveTimers, sortBy, onMoveUp, onMoveDown, modeInfo } = props;
+
+    /*
+      MOD BİLGİSİ ARTIK PROP — kart artık HİÇBİR store'a abone değil.
+
+      Burada `usePrefsStore()` SEÇİCİSİZ çağrılıyordu, yani her kart tüm tercih
+      store'una abone oluyordu. Sonuç, listedeki görev sayısı kadar abonelik ve
+      tercihlerde en ufak değişiklikte HEPSİNİN yeniden render edilmesi.
+
+      Görünüm tercihleri (filtre/sıralama/gizleme) kalıcı store'a taşınınca bu gizli
+      maliyet açığa çıktı: her filtre dokunuşu bütün kartları yeniden çiziyordu — ve
+      liste ne kadar uzunsa dokunuş o kadar geç cevap veriyordu.
+
+      Üstelik `React.memo` bu yüzden hiçbir işe yaramıyordu: prop'lar aynı kalsa bile
+      iç abonelik render'ı tetikliyor. `useMemo`nun `prefs` bağımlılığı da her store
+      değişiminde yeni nesne kimliği aldığı için sürekli bozuluyordu.
+
+      Hesap tek bir yere, ebeveyne alındı: N abonelik yerine 1, N hesap yerine 1 geçiş.
+    */
 
     const finalLeftColor = modeInfo?.color || priorityColor(task.priority);
 
@@ -456,32 +509,20 @@ export default function ActionCenter() {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
 
-  const scrollY = useSharedValue(0);
-  const scrollDir = useSharedValue(0); // 0 = up, 1 = down
-  
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event: any) => {
-      const currentScrollY = event.contentOffset.y;
-      if (currentScrollY > scrollY.value + 5 && currentScrollY > 50) {
-        scrollDir.value = 1; // scrolling down
-      } else if (currentScrollY < scrollY.value - 5) {
-        scrollDir.value = 0; // scrolling up
-      }
-      scrollY.value = currentScrollY;
-    }
-  });
+  /*
+    ÖLÜ KAYDIRMA MAKİNESİ KALDIRILDI.
 
-  const headerAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: withTiming(scrollDir.value === 1 ? -300 : 0, { duration: 300 }) }],
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 10,
-      backgroundColor: theme.background
-    };
-  });
+    Burada Reanimated tabanlı bir kaydırma işleyicisi (`useAnimatedScrollHandler`), iki
+    paylaşılan değer (`scrollY`, `scrollDir`) ve bir animasyon stili
+    (`headerAnimatedStyle`) duruyordu. HİÇBİRİ kullanılmıyordu — ne bir kaydırma kabına
+    bağlıydı ne de bir bileşene veriliyordu.
+
+    Ölü olduğu için zararsız görünüyordu ama değildi: çöken başlığı bu ekrana bağlarken
+    "Reanimated ile RN Animated'ı köprülemek gerekir, riskli" diye teşhis koymuştum.
+    Yani kullanılmayan kod, var olmayan bir kısıtlama uydurdu ve doğru çözümü
+    geciktirdi. Silinince engel de ortadan kalktı.
+  */
+  const { scrollY, onScroll } = useCollapsibleHeader();
   const { tasks, toggleTaskCompletion, addTask, removeTask, updateTask, setTasks, setLoading, isLoading, toggleSubtask, reorderTasks } = useTaskStore(useShallow(state => ({
     tasks: state.tasks,
     toggleTaskCompletion: state.toggleTaskCompletion,
@@ -865,7 +906,27 @@ export default function ActionCenter() {
             setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
           } else {
             try {
-              await TaskService.updateTask(id, { ...task, priority: task.priority, isCompleted: true });
+              await TaskService.updateTask(id, {
+                ...task,
+                priority: task.priority,
+                isCompleted: true,
+                /*
+                  GÖREV BİTİNCE ALT GÖREVLERİ DE BİTER.
+
+                  Tek dokunuşla tamamlamak DOĞRU — alt görevleri tek tek işaretlemeye
+                  zorlamak, işi bitmiş kullanıcıya angarya çıkarır (Apple Hatırlatıcılar
+                  ve Things de üst öğeyi doğrudan tamamlatır). Alt görevler bir yardımcı,
+                  bir kapı değil.
+
+                  Ama alt görevler ESKİ HÂLİNDE bırakılırsa kayıt kendi kendisiyle
+                  çelişir: satırda üstü çizili bir başlık ve yanında "1/4" yazar. Aynı
+                  görev hem bitmiş hem bitmemiş görünür — ve kullanıcı geri aldığında
+                  hangi adımda kaldığını artık bilemez.
+
+                  Bu yüzden tamamlama alt görevlere de iner: tek dokunuş, tutarlı kayıt.
+                */
+                subtasks: (task.subtasks ?? []).map((st: any) => ({ ...st, done: true })),
+              });
             } catch (error: unknown) {
               const isNetwork = isNetworkError(error);
               if (isNetwork) {
@@ -1263,6 +1324,16 @@ export default function ActionCenter() {
     const todayEndMs = (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); })();
 
     let result = tasks.filter((task) => {
+      /*
+        ARŞİVLENMİŞ GÖREV LİSTEDE GÖRÜNMEZ.
+
+        Arşiv bayrağı eklendi ama bu yüklem onu okumuyordu: görev "arşivlendi" diye
+        işaretleniyor, arşiv ekranında beliriyor AMA ana listede de duruyordu. Yani
+        arşivlemek hiçbir şey yapmıyor gibi görünüyordu — özelliğin tek vaadi
+        "gözümün önünden çekil" iken tam da onu yapmıyordu.
+      */
+      if (task.isArchived) return false;
+
       // Global hide-completed toggle (skip when "done" filter is active, or task is mid-exit animation)
       if (hideCompleted && filter !== 'done' && task.isCompleted && !completingIds.has(task.id)) return false;
       // Future tasks filtering: mode tasks are hidden until their due date; manual tasks depend on showFutureManualTasks toggle.
@@ -1349,14 +1420,66 @@ export default function ActionCenter() {
   };
 
   /**
-   * Seçim düzenlenebilir mi: TEK görev ve mod tarafından yönetilmiyor.
+   * PLAN GÖREVİ KİMLİKLERİ — TEK SEFER, TEK GEÇİŞ.
    *
-   * Bu koşul üç ayrı yerde (onPress, stil, ikon rengi) yeniden yazılıyordu. Üçü aynı
-   * cümleyi kurduğu sürece sorun yok — ama biri değiştiğinde düğme "aktif görünüp iş
-   * yapmayan" bir hâle düşerdi. Tek yerde hesaplanıyor.
+   * ── ÖNCEKİ HÂLİ NEDEN KASIYORDU ────────────────────────────────────────────────
+   * "Bu seçim düzenlenebilir mi / arşivlenebilir mi" soruları her render'da sıfırdan
+   * hesaplanıyordu ve her biri seçili görev başına şunları yapıyordu:
+   *   1. `tasks.find(...)` → tüm görevlerde arama (O(n))
+   *   2. `getModeInfoForTask(...)` → içeride `require()` + gerekirse bir `.find()` daha
+   *   3. `usePrefsStore.getState()` → her çağrıda yeniden
+   *
+   * Yani maliyet O(seçili × görev)'di ve seçim modunda HER dokunuş yeni bir render
+   * tetiklediği için bu iş sürekli tekrarlanıyordu. Kullanıcının hissettiği takılma
+   * buydu: liste ne kadar uzunsa dokunuş o kadar geç cevap veriyordu.
+   *
+   * Şimdi mod görevlerinin kimlikleri BİR KEZ çıkarılıyor (görev listesi değişince) ve
+   * aşağıdaki iki soru O(seçili) küme sorgusuna iniyor. Ayrıca `getModeInfoForTask`e
+   * görev NESNESİ veriliyor, sayı değil — sayı verildiğinde fonksiyon görevi bulmak
+   * için tüm listeyi bir kez daha tarıyor.
    */
-  const canEditSelection = selectedIds.size === 1
-    && !getModeInfoForTask(Array.from(selectedIds)[0], usePrefsStore.getState(), theme);
+  const prefsAll = usePrefsStore();
+
+  const modeInfoById = React.useMemo(() => {
+    const map = new Map<number, ReturnType<typeof getModeInfoForTask>>();
+    for (const t of tasks) {
+      if (!t) continue;
+      const info = getModeInfoForTask(t, prefsAll, theme);
+      if (info) map.set(t.id, info);
+    }
+    return map;
+  }, [tasks, theme, prefsAll]);
+
+  /*
+    `prefsAll` BAĞIMLILIK OLARAK ŞART. Önceki hâli `usePrefsStore.getState()` okuyup
+    bağımlılıklara koymuyordu: mod açılıp kapandığında ya da plan tarihleri
+    değiştiğinde bu harita ESKİ kalırdı ve kart yanlış mod rengini/adını gösterirdi.
+    Sessiz bir hata olurdu — çünkü ekran doğru görünmeye devam ederdi.
+  */
+
+
+  /** Düzenlenebilir: TEK görev seçili ve plan tarafından yönetilmiyor. */
+  const canEditSelection = React.useMemo(
+    () => selectedIds.size === 1 && !modeInfoById.has(Array.from(selectedIds)[0]),
+    [selectedIds, modeInfoById],
+  );
+
+  /**
+   * Arşivlenebilir: seçimde EN AZ BİR tane kendi görevin var.
+   *
+   * Arşiv her göreve açık değil. Ayrım sahiplik: kendi yazdığın görev senin, planın
+   * ürettiği görev planın. Plan görevlerini arşivlemek, varlıklarını takip eden
+   * motorların arkasından iş çevirmek olur — motor "duruyor" der, kullanıcı göremez,
+   * o günün planı sessizce eksik kalır.
+   *
+   * Düğme "bastır sonra reddet" değil KAPALI: bir eylemi vaat edip geri almak, hiç
+   * sunmamaktan kötüdür. Kısmi seçimde açık kalır, plan görevleri atlanır ve kaç
+   * tanesinin atlandığı bildirilir.
+   */
+  const canArchiveSelection = React.useMemo(
+    () => Array.from(selectedIds).some(id => !modeInfoById.has(id)),
+    [selectedIds, modeInfoById],
+  );
 
   /**
    * ARŞİVLE — daha önce HİÇBİR yerde yoktu.
@@ -1371,14 +1494,60 @@ export default function ActionCenter() {
    * silmek zorunda kalmak, kullanıcıyı ya çöp biriktirmeye ya da veri kaybetmeye zorlar.
    */
   const handleBulkArchive = async () => {
-    const ids = Array.from(selectedIds);
-    if (ids.length === 0) return;
+    const all = Array.from(selectedIds);
+
+    /*
+      MOD GÖREVLERİ ARŞİVLENMEZ — ve bu bir kısıtlama değil, veri bütünlüğü.
+
+      Bu görevleri plan motoru üretiyor ve günlük tekrarı `hasDailyToday` ile
+      engelliyor. O yüklem `isArchived`e BAKMIYOR: arşivlenmiş bir mod görevi hâlâ
+      "bugün üretildi" sayılır. Sonuç, kullanıcının hiç beklemediği bir şey olurdu —
+      arşivlediği görev listeden çıkar, motor da "zaten var" deyip yenisini üretmez,
+      yani o günün plan görevi SESSİZCE KAYBOLUR.
+
+      Kural, düzenleme kısıtlamasıyla aynı yerden geliyor: kendi yazdığın görev senin,
+      planın ürettiği görev planın. Birini istediğin gibi kenara koyabilirsin; ötekini
+      kaldırmanın yolu modu kapatmak ya da hedefi değiştirmek.
+    */
+    const modeTasks = all.filter(id => modeInfoById.has(id));
+    const modeSet = new Set(modeTasks);
+    const ids = all.filter(id => !modeSet.has(id));
+
+    if (ids.length === 0) {
+      setSelectedIds(new Set());
+      setIsBulkMode(false);
+      showToast(
+        language === 'tr'
+          ? 'Plan görevleri arşivlenemez — modu kapatarak kaldırabilirsin'
+          : 'Plan tasks cannot be archived — turn the mode off to remove them',
+        'info',
+      );
+      return;
+    }
 
     setSelectedIds(new Set());
     setIsBulkMode(false);
 
     // İyimser: ekranda hemen kaybolsun.
     ids.forEach(id => updateTask(id, { isArchived: true }));
+
+    /*
+      HATIRLATICILAR İPTAL EDİLİYOR — arşivin anlamı buysa, bunu da yapmalı.
+
+      Arşivlemek "aktif hayatımdan çıkar" demek. Ama zamanlanmış bildirim tam olarak
+      AKTİF olmanın tanımı: arşivlenen görev listelerden kayboluyor, sonra gecenin bir
+      yarısı telefon çalıp onu hatırlatıyordu. Kullanıcı bildirime dokunuyor ve
+      göremediği bir göreve yönlendiriliyordu.
+
+      Bu, "arşivdeki görev hâlâ yapılabiliyorsa neden arşivde" sorusunun en somut hali:
+      görünmüyor ama hâlâ seni çağırıyorsa arşivlenmemiştir.
+
+      Geri yüklemede hatırlatıcı kendiliğinden geri gelmez — bilinçli: kullanıcı görevi
+      geri aldığında tarihi çoktan geçmiş olabilir ve geçmiş bir zamana bildirim kurmak
+      anlamsızdır. Hatırlatıcıyı yeniden isteyen düzenleme ekranından kurar.
+    */
+    ids.forEach(id => cancelTaskNotification(id));
+
     haptic.success();
 
     if (!isOnline) {
@@ -1395,10 +1564,40 @@ export default function ActionCenter() {
       })
     ));
 
+    const skippedNote = modeTasks.length > 0
+      ? (language === 'tr' ? ` · ${modeTasks.length} plan görevi atlandı` : ` · ${modeTasks.length} plan task skipped`)
+      : '';
+
+    /*
+      TEKRARLI GÖREV ARŞİVLENİNCE SERİ DURAKLAR — ve bunu SÖYLEMEK zorundayız.
+
+      Tekrar zinciri yalnızca TAMAMLAMA ile ilerliyor: `CreateNextRecurrence` tek bir
+      yerden, görev tamamlandığı anda çağrılıyor. Arşivlenen görev listelerden çıktığı
+      için tamamlanamaz, dolayısıyla bir sonraki tekrar hiç üretilmez.
+
+      Mekanik olarak bu doğru ve GERİ DÖNÜŞLÜ: `recurrence` alanı silinmiyor, arşivden
+      çıkarıldığında seri kaldığı yerden devam ediyor. Yani veri kaybı yok — arşivin
+      silmeden ayrıldığı nokta tam da bu.
+
+      Eksik olan tek şey kullanıcının bunu BİLMESİ. "Her pazartesi" diye kurduğu görev
+      sessizce gelmemeye başlarsa, aradan haftalar geçtikten sonra sebebini bulması
+      imkânsıza yakın. Sessiz duraklama, yanlış duraklamadan daha zor fark edilir.
+    */
+    const recurringCount = ids.filter(id => {
+      const tk = tasks.find(x => x.id === id);
+      return !!tk && !!tk.recurrence && tk.recurrence !== 'None';
+    }).length;
+
+    const recurringNote = recurringCount > 0
+      ? (language === 'tr'
+          ? ` · tekrar duraklatıldı (arşivden çıkarınca sürer)`
+          : ` · repeat paused (resumes when restored)`)
+      : '';
+
     showToast(
-      language === 'tr'
+      (language === 'tr'
         ? (ids.length === 1 ? 'Arşive taşındı' : `${ids.length} görev arşive taşındı`)
-        : (ids.length === 1 ? 'Moved to archive' : `${ids.length} tasks moved to archive`),
+        : (ids.length === 1 ? 'Moved to archive' : `${ids.length} tasks moved to archive`)) + recurringNote + skippedNote,
       'success',
     );
   };
@@ -1519,7 +1718,18 @@ export default function ActionCenter() {
             )}
             </>
           }
-          title={isBulkMode ? (language === 'tr' ? 'Seçim' : 'Selection') : t.actionCenter}
+          title={isBulkMode
+            // Sayı BAŞLIKTA: seçim modunun tek durum bilgisi bu ve iOS'ta da başlıkta
+            // durur ("3 Selected"). Jenerik "Seçim" hiçbir şey söylemiyordu.
+            ? (language === 'tr' ? `${selectedIds.size} seçili` : `${selectedIds.size} selected`)
+            : t.actionCenter}
+          /*
+            Çubuk kaydırınca belirir (bkz. useCollapsibleHeader). Seçim modunda ise
+            HER ZAMAN açık: o modda çubuk kaç öğe seçili olduğunu ve çıkış yolunu
+            taşıyor — kaydırma durumuna göre kaybolması, kullanıcıyı moddan çıkamaz
+            hissettirirdi.
+          */
+          scrollY={isBulkMode ? undefined : scrollY}
           right={
             <>
             {isBulkMode ? (
@@ -1714,6 +1924,8 @@ export default function ActionCenter() {
             removeClippedSubviews={false} // Must be false for itemLayoutAnimation to work when items jump large distances
             contentContainerStyle={{ gap: S.sm, paddingBottom: fabSafeBottom(insets.bottom), paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
             extraData={{ highlightedId, isBulkMode, selectedIds, completingIds, language, expandedId }}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
             ListHeaderComponent={() => (
         <React.Fragment>
             <MotiView animate={{ height: showSearch ? 52 : 0 }} transition={{ type: 'timing', duration: 250 }} />
@@ -1842,6 +2054,9 @@ export default function ActionCenter() {
             renderItem={({ item: task, index: i }: any) => (
                 <MemoizedTaskItem
                     task={task}
+                    // Mod bilgisi ebeveynde TEK geçişte hesaplandı; kart artık hiçbir
+                    // store'a abone değil ve React.memo gerçekten işe yarıyor.
+                    modeInfo={modeInfoById.get(task.id) ?? null}
                     i={i}
                     theme={theme}
                     isDark={isDark}
@@ -1891,135 +2106,105 @@ export default function ActionCenter() {
         </TourTarget>
       </View>
 
-            {/* Minimalist Premium Bulk Action Pill */}
+            {/*
+              ÇOKLU SEÇİM ARAÇ ÇUBUĞU — yüzen ikon kapsülünden alt araç çubuğuna.
+
+              Eskiden ekranın ortasında havada duran bir hap vardı ve içinde dört EŞİT
+              çıplak daire: düzenle, tamamla, arşivle, sil. Üç sorun birdeydi:
+
+               · APPLE'IN DESENİ DEĞİL. iOS'ta çoklu seçim (Mail, Fotoğraflar,
+                 Hatırlatıcılar) ALT ARAÇ ÇUBUĞU ile yapılır — yüzen ikon hapıyla değil.
+               · HİYERARŞİ YOKTU. Silme, düzenlemeyle aynı boyda ve aynı ağırlıktaydı.
+                 Yıkıcı bir eylem, geri alınabilir bir eylemle aynı görünmemeli.
+               · ETİKET YOKTU. Dört çıplak ikon "hangisi arşiv, hangisi sil" sorusunu
+                 her seferinde yeniden sordurur. iOS Fotoğraflar'da bile ikonların altında
+                 yazı vardır; çünkü yıkıcı eylemi tahmin ettirmek kabul edilemez.
+
+              Ayrıca ÜST SATIR eklendi: kaç öğe seçili ve nasıl vazgeçilir. Eskiden
+              vazgeçmenin tek yolu tüm seçimleri tek tek kaldırmaktı (auto-exit) — yani
+              çıkış yolu görünmüyordu.
+            */}
       <AnimatePresence>
         {isBulkMode && (
           <MotiView
-            from={{ translateY: 80, opacity: 0, scale: 0.9 }}
-            animate={{ translateY: 0, opacity: 1, scale: 1 }}
-            exit={{ translateY: 80, opacity: 0, scale: 0.9 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            from={{ translateY: 120 }}
+            animate={{ translateY: 0 }}
+            exit={{ translateY: 120 }}
+            transition={{ type: 'spring', damping: 24, stiffness: 220 }}
             style={[
+              styles.bulkBar,
               {
-                position: 'absolute',
-                bottom: 90 + insets.bottom,
-                alignSelf: 'center',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: S.md,
-                paddingHorizontal: S.lg,
-                paddingVertical: S.md,
-                borderRadius: R.full,
-                /*
-                  PALET JETONLARI — tema başına elle yazılmış `rgba()` tonları kalktı.
-                  Bildirim kapsülüyle (Toast) aynı yüzen-yüzey dili: opak yüzey, saç teli
-                  çerçeve, geniş ve soluk gölge. Ham renkler paletin dışındaydı, yani
-                  ölçülen kontrast değerlerine dahil değillerdi.
-                */
+                paddingBottom: Math.max(insets.bottom, S.md),
                 backgroundColor: theme.surfaceFloating,
-                borderWidth: B.thin,
-                borderColor: theme.outline,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.16,
-                shadowRadius: 24,
-                elevation: 8,
-                zIndex: 100
-              }
+                borderTopColor: theme.outline,
+              },
             ]}
           >
-            {Platform.OS !== 'android' && (
-              <AppBlur material="regular" />
-            )}
-            
             {/*
-              Tek seçim + mod görevi değil → düzenlenebilir. Bu koşul eskiden ÜÇ ayrı
-              yerde (onPress, style, ikon rengi) yeniden yazılıyordu; biri değişse
-              düğme "aktif görünüp iş yapmayan" bir hâle düşerdi.
+              BURADA "VAZGEÇ" VE SAYI YOKTU — ÇÜNKÜ ZATEN BAŞLIK ÇUBUĞUNDA VARLAR.
+
+              Bir ara buraya "N seçili · Vazgeç" satırı eklenmişti ve iki şeyi birden
+              bozuyordu:
+
+               · KOPYAYDI. Üst başlıkta seçim modunun kendi X düğmesi ve başlığı zaten
+                 duruyor. Aynı işi iki yerde sunmak, kullanıcıya "bunlar farklı şeyler
+                 olmalı" dedirtir.
+               · TEHLİKELİYDİ. Sağ üstteki "Vazgeç", alttaki eylem sırasının en sağındaki
+                 "Sil"in TAM ÜSTÜNE denk geliyordu. Yıkıcı bir eylemin hemen üstüne
+                 vazgeçme düğmesi koymak, yanlış dokunuşu en pahalı sonuca bağlar.
+
+              iOS'un ayrımı net: iptal ve sayı ÜST çubukta (Mail, Fotoğraflar), eylemler
+              ALT çubukta. Burası yalnız eylemlerin yeri.
             */}
-            <Touchable
-              onPress={() => {
-                if (selectedIds.size !== 1) return;
-                const id = Array.from(selectedIds)[0];
-                const modeInfo = getModeInfoForTask(id, usePrefsStore.getState(), theme);
-                if (modeInfo) {
-                    import('expo-haptics').then(Haptics => haptic.error());
+            <View style={styles.bulkActions}>
+              <BulkAction
+                Icon={Pencil}
+                label={language === 'tr' ? 'Düzenle' : 'Edit'}
+                disabled={!canEditSelection}
+                theme={theme}
+                onPress={() => {
+                  if (selectedIds.size !== 1) return;
+                  const id = Array.from(selectedIds)[0];
+                  const modeInfo = getModeInfoForTask(id, usePrefsStore.getState(), theme);
+                  if (modeInfo) {
+                    haptic.error();
                     Alert.alert(
                       language === 'tr' ? 'Otomatik Plan Görevi' : 'Automated Plan Task',
-                      language === 'tr' 
-                        ? `Bu görev "${modeInfo.labelTr}" tarafından otomatik yönetildiği için manuel düzenlenemez. Ayarlarını değiştirmek için Modlar sayfasından hedef kartını kullanabilirsin.` 
-                        : `This task is automatically managed by "${modeInfo.labelEn}". To adjust its behavior, please modify your settings in the Modes overview.`
+                      language === 'tr'
+                        ? `Bu görev "${modeInfo.labelTr}" tarafından otomatik yönetildiği için manuel düzenlenemez. Ayarlarını değiştirmek için Modlar sayfasından hedef kartını kullanabilirsin.`
+                        : `This task is automatically managed by "${modeInfo.labelEn}". To adjust its behavior, please modify your settings in the Modes overview.`,
                     );
                     return;
-                }
-                setIsBulkMode(false);
-                setSelectedIds(new Set());
-                handleEditBtnPress(id);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={language === 'tr' ? 'Seçili görevi düzenle' : 'Edit selected task'}
-              accessibilityState={{ disabled: selectedIds.size !== 1 }}
-              style={styles.bulkAction}
-            >
-              {/*
-                PASİF DURUM RENGİ SEVİYEDEN GELİYOR. Eskiden `onSurfaceVariant + '40'`
-                yazılıydı: palet rengine kullanım yerinde alfa eklemek, o rengin ölçülmüş
-                kontrastını geçersiz kılar (aynı desen uygulamanın her yerinden kaldırıldı).
-                `onSurfaceMuted` zaten "ikincil ama okunur" seviyesi.
-              */}
-              <Pencil size={ICON.md} color={canEditSelection ? theme.onSurface : theme.onSurfaceMuted} />
-            </Touchable>
-
-            {/* Complete */}
-            <Touchable
-              onPress={handleBulkComplete}
-              disabled={selectedIds.size === 0}
-              accessibilityRole="button"
-              accessibilityLabel={language === 'tr' ? `Seçili ${selectedIds.size} görevi tamamla` : `Complete ${selectedIds.size} selected tasks`}
-              accessibilityState={{ disabled: selectedIds.size === 0 }}
-              style={styles.bulkAction}
-            >
-              {/* Boyut ICON.md — diğer ikonlar da öyle. Eskiden tek başına ICON.lg idi
-                  ve çubuğun ortasında sebepsiz büyük duruyordu. */}
-              <CheckCircle2 size={ICON.md} color={selectedIds.size > 0 ? theme.success : theme.onSurfaceMuted} />
-            </Touchable>
-
-            {/*
-              ARŞİVLE — sil ile tamamla arasındaki boşluğu dolduruyor.
-
-              Bu düğme yoktu ve arşiv ekranı bu yüzden yapısal olarak HER ZAMAN boştu:
-              kod tabanında `isArchived: true` yapan tek bir satır bile yoktu.
-
-              Silmenin yanında durması bilinçli: ikisi de "listemden çıksın" der ama
-              biri geri dönüşsüzdür. Peşine düşmediğin bir işi silmek zorunda kalmak,
-              kullanıcıyı ya çöp biriktirmeye ya da veri kaybetmeye zorlar.
-            */}
-            <Touchable
-              onPress={handleBulkArchive}
-              disabled={selectedIds.size === 0}
-              accessibilityRole="button"
-              accessibilityLabel={language === 'tr' ? `Seçili ${selectedIds.size} görevi arşivle` : `Archive ${selectedIds.size} selected tasks`}
-              accessibilityState={{ disabled: selectedIds.size === 0 }}
-              style={styles.bulkAction}
-            >
-              <Archive size={ICON.md} color={selectedIds.size > 0 ? theme.onSurface : theme.onSurfaceMuted} />
-            </Touchable>
-
-            {/* Delete */}
-            <Touchable
-              onPress={handleBulkDelete}
-              disabled={selectedIds.size === 0}
-              accessibilityRole="button"
-              accessibilityLabel={language === 'tr' ? `Seçili ${selectedIds.size} görevi sil` : `Delete ${selectedIds.size} selected tasks`}
-              accessibilityState={{ disabled: selectedIds.size === 0 }}
-              style={styles.bulkAction}
-            >
-              {/* `error`, `priorityHigh` DEĞİL. Silme yıkıcı bir eylemdir; öncelik rengi
-                  ise görevin aciliyetini anlatır. İkisi tesadüfen benzer olabilir ama
-                  aynı şeyi söylemezler — palet değişince bu satır sessizce yanlış olurdu. */}
-              <Trash2 size={ICON.md} color={selectedIds.size > 0 ? theme.error : theme.onSurfaceMuted} />
-            </Touchable>
+                  }
+                  setIsBulkMode(false);
+                  setSelectedIds(new Set());
+                  handleEditBtnPress(id);
+                }}
+              />
+              <BulkAction
+                Icon={CheckCircle2}
+                label={language === 'tr' ? 'Tamamla' : 'Complete'}
+                disabled={selectedIds.size === 0}
+                tint={theme.success}
+                theme={theme}
+                onPress={handleBulkComplete}
+              />
+              <BulkAction
+                Icon={Archive}
+                label={language === 'tr' ? 'Arşivle' : 'Archive'}
+                disabled={!canArchiveSelection}
+                theme={theme}
+                onPress={handleBulkArchive}
+              />
+              <BulkAction
+                Icon={Trash2}
+                label={language === 'tr' ? 'Sil' : 'Delete'}
+                disabled={selectedIds.size === 0}
+                tint={theme.error}
+                theme={theme}
+                onPress={handleBulkDelete}
+              />
+            </View>
           </MotiView>
         )}
       </AnimatePresence>
@@ -2052,7 +2237,16 @@ export default function ActionCenter() {
         </MagneticFAB>
       )}
 
-      <BottomNavBar />
+      {/*
+        SEÇİM MODUNDA SEKME ÇUBUĞU GİZLENİR — araç çubuğu onun YERİNİ alır.
+
+        iOS'ta Mail ve Fotoğraflar'da seçim moduna girince sekme çubuğu kaybolur ve
+        aynı yeri eylem çubuğu doldurur. Sebebi hem yer hem anlam: seçim bir MOD'dur,
+        o mod bitene kadar başka sekmeye geçmek gündemde değildir. İkisini üst üste
+        bırakmak, hem çubukları çakıştırır hem "hem buradayım hem gidebilirim" gibi
+        çelişkili bir durum kurar.
+      */}
+      {!isBulkMode && <BottomNavBar />}
 
       <WeightEntryModal
         visible={weightModalTaskId !== null}
@@ -2117,7 +2311,22 @@ const styles = StyleSheet.create({
     gri bir daire, yokken şeffaf. O dolgu hiçbir şey söylemiyordu — pasiflik zaten ikon
     renginden okunuyor. Kaldırınca çubuk hem sadeleşti hem paletin içine girdi.
   */
-  bulkAction: { width: MIN_TOUCH, height: MIN_TOUCH, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  /*
+    ALT ARAÇ ÇUBUĞU — sekme çubuğuyla aynı dil: tam genişlik, saç teli ÜST kenar,
+    yüzen yüzey rengi. Yüzen bir hap "geçici bir bildirim" gibi okunuyordu; oysa bu
+    bir MOD (seçim modu) ve modların iOS'taki yeri ekranın kenarıdır.
+  */
+  bulkBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: S.smd,
+    paddingHorizontal: S.lg,
+    borderTopWidth: HAIRLINE,
+    zIndex: 100,
+  },
+  bulkActions: { flexDirection: 'row', alignItems: 'flex-start' },
   listSection: { flex: 1 },
   sectionTitle: { fontWeight: '600', marginBottom: S.md },
   taskCard: { borderRadius: R.lg, flexDirection: 'row', alignItems: 'center', borderWidth: 0 },
