@@ -74,20 +74,72 @@ const KPSS: { start: string; end: string }[] = [
 // sezon modları bir gün erken açılırdı.
 const asLocalDay = (s: string) => (/^\d{4}-\d{2}-\d{2}$/.test(s) ? parseLocalDate(s) : new Date(s));
 
+/**
+ * Hedef tarihe kalan gün — TAKVİM GÜNÜ farkı.
+ *
+ * ÖLÇÜLEN TUTARSIZLIK: bu fonksiyon hedefi 23:59:59'a ayarlayıp `Date.now()` ile
+ * karşılaştırıyordu. Sonuç her zaman takvim farkından BİR FAZLA çıkıyordu; aynı tarih
+ * için mod kartı "61 gün", görev satırı "60 gün" yazıyordu.
+ *
+ * Uygulamada üç gün sayacı var ve DİĞER İKİSİ (planTaskOps.daysLeftOf,
+ * planAdaptations.daysUntil) iki tarihi de gün başına indirgeyip farkı alıyor.
+ * Azınlıkta kalan bu uygulama onlara hizalandı.
+ *
+ * ÜÇ SAATLİK GECE TOLERANSI da eklendi — diğer ikisinde vardı, burada yoktu:
+ * kullanıcı gece 01:00'de hâlâ "dünü" yaşıyor sayılır. Olmadan, gece yarısından
+ * sonra sayaçlar yine ayrışırdı.
+ *
+ * ETKİSİ: `daysLeft` plan FAZINI da belirlediği için faz sınırları bir gün öne
+ * kayıyor — yani yoğun döneme bir gün ERKEN giriliyor. Sınav/teslim hazırlığında
+ * güvenli olan yön bu.
+ */
 function daysUntilEnd(endStr: string): number {
+  const adjustedNow = new Date();
+  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  adjustedNow.setHours(0, 0, 0, 0);
+
   const end = asLocalDay(endStr);
-  end.setHours(23, 59, 59, 999);
-  return Math.ceil((end.getTime() - Date.now()) / 86400000);
+  end.setHours(0, 0, 0, 0);
+
+  return Math.ceil((end.getTime() - adjustedNow.getTime()) / 86400000);
 }
 
 // Kaç gün kaldığını ve tarihin geçip geçmediğini döner
+/**
+ * Hedef tarihe kalan gün + "bugün mü / geçti mi" bilgisi.
+ *
+ * ÜÇ HATA BİRDEN VARDI:
+ *
+ * 1. BİR GÜN FAZLA SAYIYORDU. Hedef 23:59:59'a ayarlanıp `Date.now()` ile
+ *    karşılaştırılıyor, sonra yukarı yuvarlanıyordu. 60 gün sonrası için 61 çıkıyordu.
+ *    Uygulamadaki diğer iki sayaç (planTaskOps.daysLeftOf, planAdaptations.daysUntil)
+ *    takvim farkı kullanıyor; mod kartı "61 gün", görev satırı "60 gün" yazıyordu.
+ *
+ * 2. `isToday` HİÇ TETİKLENMİYORDU. Hedef bugünse fark 0 değil 1 çıkıyordu (gün
+ *    sonuna kadar olan süre yukarı yuvarlanıyor). Yani "Bugün · Hedef günü!" mesajı
+ *    ÖLÜ koddu: sınav gününde uygulama "1 gün kaldı" diyordu — en önemli günde,
+ *    en yanlış cümle.
+ *
+ * 3. `new Date(dateStr)` KULLANIYORDU. 'YYYY-MM-DD' böyle ayrıştırılınca UTC gece
+ *    yarısı olur; negatif UTC ofsetli ülkelerde bir gün geriye kayar. Bu dosya bunu
+ *    `asLocalDay` yorumunda zaten uyarıyordu ama burada uygulanmamıştı.
+ *
+ * Üç saatlik gece toleransı da eklendi (diğer iki sayaçta vardı): kullanıcı gece
+ * 01:00'de hâlâ "dünü" yaşıyor sayılır, yoksa gece yarısından sonra sayaçlar ayrışırdı.
+ *
+ * ETKİSİ: `days` plan FAZINI da belirliyor; faz sınırları bir gün öne kayıyor — yani
+ * yoğun döneme bir gün ERKEN giriliyor. Sınav/teslim hazırlığında güvenli yön budur.
+ */
 function daysLeftInfo(dateStr: string): { days: number; isPast: boolean; isToday: boolean } {
-  const end = new Date(dateStr);
-  end.setHours(23, 59, 59, 999);
-  const diff = Math.ceil((end.getTime() - Date.now()) / 86400000);
-  const isPast = diff < 0;
-  const isToday = diff === 0;
-  return { days: Math.max(0, diff), isPast, isToday };
+  const adjustedNow = new Date();
+  adjustedNow.setHours(adjustedNow.getHours() - 3);
+  adjustedNow.setHours(0, 0, 0, 0);
+
+  const end = asLocalDay(dateStr);
+  end.setHours(0, 0, 0, 0);
+
+  const diff = Math.round((end.getTime() - adjustedNow.getTime()) / 86400000);
+  return { days: Math.max(0, diff), isPast: diff < 0, isToday: diff === 0 };
 }
 
 function modeSubtitle(

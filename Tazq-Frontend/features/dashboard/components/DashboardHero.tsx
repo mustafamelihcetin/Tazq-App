@@ -47,21 +47,41 @@ export const DashboardHero = React.memo<DashboardHeroProps>(
           dolayısıyla rengin taşıyacağı bir anlam yok: maviye boyamak onu
           "tıklanabilir/kritik" gibi gösteriyordu.
         */}
-        <Text
-          style={[
-            styles.greeting,
-            {
-              color: theme.onSurface,
-              fontSize: size,
-              lineHeight: size * LH.tight,
-              // Tracking puntoya BAĞLI: sabit TRACKING.hero (-0.8) yazılıydı, o 34pt
-              // için. 28pt'de fazla sıkı duruyordu — harf aralığı puntoyla ölçeklenir.
-              letterSpacing: trackingFor(size),
-            },
-          ]}
+        {/*
+          GÜN İÇİNDE KENDİLİĞİNDEN DEĞİŞİR — `key={greeting}`.
+
+          Saat 18:00'i geçtiğinde index.tsx `currentHour`u tazeliyor ve buraya
+          "İyi akşamlar" düşüyor. `key` selamlamaya bağlı olduğu için React eski satırı
+          bırakıp yenisini kuruyor; MotiView de `from`dan başlayarak yumuşak giriyor.
+          Anlık bir metin taklası yerine "gün ilerledi" hissi veren bir geçiş.
+
+          NEDEN SADECE BU SATIR: alt satır (subGreeting) görev sayısıyla sık sık değişir —
+          onu da animasyonlasaydık her görev tamamlamada ekran kıpırdardı, yani hareket
+          bilgi taşımaz gürültü olurdu. Selamlama günde en fazla 4 kez değişir; nadir
+          olduğu için fark edilir, fark edildiği için anlamlı.
+        */}
+        <MotiView
+          key={greeting}
+          from={{ opacity: 0, translateY: 6 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 420 }}
         >
-          {greeting}, {name}
-        </Text>
+          <Text
+            style={[
+              styles.greeting,
+              {
+                color: theme.onSurface,
+                fontSize: size,
+                lineHeight: size * LH.tight,
+                // Tracking puntoya BAĞLI: sabit TRACKING.hero (-0.8) yazılıydı, o 34pt
+                // için. 28pt'de fazla sıkı duruyordu — harf aralığı puntoyla ölçeklenir.
+                letterSpacing: trackingFor(size),
+              },
+            ]}
+          >
+            {greeting}, {name}
+          </Text>
+        </MotiView>
 
         {/*
           Alt satır İKİNCİL: bir seviye aşağı renk (onSurfaceMuted) ve normal ağırlık.

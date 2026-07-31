@@ -47,7 +47,7 @@ const SLIDES: SlideDef[] = [
   // 1 — Odak (aurora): en güçlü görsel, ilk izlenim · secondary (violet). Derin odak HER ZAMAN koyu.
   { kind: 'focus', accentKey: 'violet', darkColors: ['#1a0b42', '#2f1280', '#140a30'], ebTr: 'TAZQ', ebEn: 'TAZQ', tTr: 'Odağını topla,\nhayatını dengele', tEn: 'Focus deeply,\nlive in balance', sTr: 'Pomodoro, ambiyans sesleri ve zen moduyla derin odaklan.', sEn: 'Deep focus with Pomodoro, ambient sounds and zen mode.' },
   // 2 — Dönemsel Modlar: ayrıştırıcı özellik · teal
-  { kind: 'modes', accentKey: 'teal', darkColors: ['#062430', '#0c4258', '#051826'], ebTr: 'Dönemsel Modlar', ebEn: 'Life Modes', tTr: 'Dönemine özel\ngünlük plan', tEn: 'A daily plan\nfor your season', sTr: 'Sınav, spor, kariyer — planın her gün otomatik hazır.', sEn: 'Exams, fitness, career — your plan ready daily.' },
+  { kind: 'modes', accentKey: 'teal', darkColors: ['#062430', '#0c4258', '#051826'], ebTr: 'Yaşam Modları', ebEn: 'Life Modes', tTr: 'Dönemine özel\ngünlük plan', tEn: 'A daily plan\nfor your season', sTr: 'Sınav, spor, kariyer — planın her gün otomatik hazır.', sEn: 'Exams, fitness, career — your plan ready daily.' },
   // 3 — Görevler & Alışkanlıklar: günlük yürütme · indigo
   { kind: 'tasks', accentKey: 'indigo', darkColors: ['#0f1140', '#25297a', '#0b0d30'], ebTr: 'Görevler & Alışkanlıklar', ebEn: 'Tasks & Habits', tTr: 'Bugünün planı,\nalışkanlıkların', tEn: "Today's plan,\nyour habits", sTr: 'Görevlerini, alışkanlıklarını ve serilerini takip et.', sEn: 'Track your tasks, habits and streaks.' },
   // 4 — Momentum: ilerleme · emerald
@@ -200,7 +200,7 @@ export default function PromoScreen() {
       return (
         <Screen active={4}>
           <View style={{ marginTop: u * 0.5 }}>
-            <Text style={{ color: M.text, fontSize: T.h1, fontWeight: '800', letterSpacing: -0.4 }}>{tr ? 'Dönemsel Modlar' : 'Life Modes'}</Text>
+            <Text style={{ color: M.text, fontSize: T.h1, fontWeight: '800', letterSpacing: -0.4 }}>{tr ? 'Yaşam Modları' : 'Life Modes'}</Text>
             <Text style={{ color: M.sub, fontSize: T.sub, marginTop: 3 * S }} numberOfLines={1}>{tr ? 'Dönemine özel günlük planın' : 'Your daily plan for the season'}</Text>
           </View>
           {rows.map(([Ic, name, sub, c, pct]: any) => (

@@ -9,7 +9,7 @@ import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -90,7 +90,7 @@ export default function SettingsScreen() {
   const streakShields = useFocusStore(s => s.streakShields);
   const { habits, toggleDate } = useHabitStore();
   const { tasks } = useTaskStore();
-  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, hapticFeedback, setHapticFeedback, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours } = usePrefsStore();
+  const { weeklyNotification, setWeeklyNotification, morningBrief, setMorningBrief, eveningBrief, setEveningBrief, soundEffects, setSoundEffects, hapticFeedback, setHapticFeedback, motto, setMotto, productivityHour, setProductivityHour, avatarBorderColor, setAvatarBorderColor, uiMode, setUiMode, gender, setGender, sleepHealthOptIn, setSleepHealthOptIn, sleepGoalHours, setSleepGoalHours, hideNotificationContent, setHideNotificationContent } = usePrefsStore();
   const [sleepSupported] = useState(() => SleepHealth.isSupported());
   const { unlocked: unlockedAchievements } = useAchievementStore();
   const isDark = colorScheme === 'dark';
@@ -101,6 +101,7 @@ export default function SettingsScreen() {
   // Ortak hook (bkz. useKeyboardHeight).
   const kbHeight = useKeyboardHeight();
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [pwModalVisible, setPwModalVisible] = useState(false);
@@ -427,6 +428,27 @@ export default function SettingsScreen() {
                     theme={theme} isDark={isDark}
                 />
                 <RowDivider theme={theme} />
+                {/*
+                  MAHREMİYET — bildirim kilit ekranında çıkıyor ve gövdesinde görev adı
+                  duruyor; yanındaki herkes okuyabiliyor. Kullanıcı o metni kendisi için
+                  yazmıştı ("Doktor: test sonucu", "Ayrılık konuşması"…).
+
+                  Bunu bir içerik SÜZGECİYLE çözmek yanlış olurdu: metin kullanıcının
+                  kendi cihazında kendisine gösteriliyor, kimseyi rahatsız etmiyor.
+                  Doğru olan kararı kullanıcıya bırakmak.
+                */}
+                <ToggleRow
+                    icon={<Bell size={ICON.md} color="#FFFFFF" />}
+                    bg={A.core}
+                    title={language === 'tr' ? 'Bildirimde içeriği gizle' : 'Hide content in notifications'}
+                    subtitle={language === 'tr'
+                      ? 'Kilit ekranında görev adı yerine genel bir metin görünür'
+                      : 'Shows a generic message instead of the task name'}
+                    value={hideNotificationContent}
+                    onValueChange={(v: boolean) => { setHideNotificationContent(v); haptic.select(); }}
+                    theme={theme} isDark={isDark}
+                />
+                <RowDivider theme={theme} />
                 <SettingItem
                     icon={<Zap size={ICON.md} color="#FFFFFF" />}
                     label={language === 'tr' ? 'Focus Puanları' : 'Focus Points'}
@@ -589,6 +611,56 @@ export default function SettingsScreen() {
             <Touchable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.surfaceContainerHigh, marginTop: (user as any)?.hasPassword ? S.md : S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
                 <LogOut size={ICON.md} color={theme.onSurfaceVariant} />
                 <Text style={[styles.logoutText, { color: theme.onSurface, fontSize: F.body }]}>{t.logout}</Text>
+            </Touchable>
+
+            {/*
+              VERİ TAŞINABİLİRLİĞİ — silmenin HEMEN ÜSTÜNDE, bilinçli.
+
+              Hesabını silmeye giden kullanıcı, verisini yanına alabileceğini tam o anda
+              görmeli. Ayrı bir sekmeye gömülseydi kimse bulamaz, veri kalıcı olarak
+              kaybolurdu. Sıra da bunu söylüyor: önce AL, sonra sil.
+
+              Ayrıca KVKK/GDPR "veri taşınabilirliği" hakkının karşılığı bu. Silme zaten
+              vardı; taşınabilirlik eksikti.
+            */}
+            <Touchable
+              disabled={exporting}
+              onPress={async () => {
+                setExporting(true);
+                try {
+                  const { exportUserData } = require('@/shared/utils/dataExport');
+                  const res = await exportUserData();
+                  if (res.ok) {
+                    haptic.success();
+                  } else {
+                    haptic.error();
+                    Alert.alert(
+                      language === 'tr' ? 'Dışa aktarılamadı' : 'Export failed',
+                      res.reason === 'no-sharing'
+                        ? (language === 'tr'
+                            ? 'Bu cihaz dosya paylaşımını desteklemiyor.'
+                            : 'This device does not support file sharing.')
+                        : (language === 'tr'
+                            ? 'Bir sorun oldu, tekrar dener misin?'
+                            : 'Something went wrong, please try again.'),
+                    );
+                  }
+                } finally {
+                  setExporting(false);
+                }
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={language === 'tr' ? 'Verilerimi dışa aktar' : 'Export my data'}
+              style={[styles.logoutBtn, { backgroundColor: 'transparent', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md, opacity: exporting ? 0.6 : 1 }]}
+            >
+                {exporting
+                  ? <ActivityIndicator size="small" color={theme.onSurfaceVariant} />
+                  : <Download size={ICON.sm} color={theme.onSurfaceVariant} />}
+                <Text style={[styles.logoutText, { color: theme.onSurfaceVariant, fontSize: F.caption }]}>
+                  {exporting
+                    ? (language === 'tr' ? 'Hazırlanıyor…' : 'Preparing…')
+                    : (language === 'tr' ? 'Verilerimi indir' : 'Download my data')}
+                </Text>
             </Touchable>
 
             <Touchable onPress={openDeleteAccount} style={[styles.logoutBtn, { backgroundColor: 'transparent', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md }]}>

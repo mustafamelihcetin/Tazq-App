@@ -87,6 +87,23 @@ export async function registerNotificationCategories(): Promise<void> {
 
 // ─── Permissions ──────────────────────────────────────────────────────────────
 
+/**
+ * İzin var mı — SORMADAN. Planlama yollarında kullanılır.
+ *
+ * `requestNotificationPermissions` izin İSTER; onu bir görev kaydedilirken çağırmak
+ * kullanıcıyı beklemediği bir sistem diyaloguyla karşılardı. Burada yalnız MEVCUT
+ * durum okunuyor.
+ */
+export async function hasNotificationPermission(): Promise<boolean> {
+  if (!Notifications) return false;
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status === 'granted';
+  } catch {
+    return false;
+  }
+}
+
 export async function requestNotificationPermissions(): Promise<boolean> {
   if (!Notifications) return false;
   try {
@@ -260,9 +277,22 @@ export async function scheduleTaskNotification(
   title: string,
   dueDate?: string | null,
   dueTime?: string | null,
-  locale: string = 'en'
+  locale: string = 'en',
+  /** true → bildirimde görev adı yerine genel bir metin görünür (bkz. gövdedeki not). */
+  hideContent: boolean = false
 ): Promise<string | null> {
   if (!Notifications) return null;
+  /*
+    İZİN KONTROLÜ — sessiz başarısızlığı bitirir.
+
+    Bu kontrol YOKTU. Kullanıcı "Hatırlatıcı" anahtarını açıyor, anahtar yeşile
+    dönüyor, güvende hissediyor; ama bildirim izni reddedilmişse `scheduleNotificationAsync`
+    hiçbir şey yapmıyor ve KİMSE söylemiyordu. Uygulamanın verip sessizce bozduğu bir söz —
+    kullanıcı hatırlatmayı beklediği için ayrıca bir yere not da almıyor.
+
+    Artık `null` dönüyor; çağıran taraf bunu kullanıcıya söyleyebiliyor.
+  */
+  if (!(await hasNotificationPermission())) return null;
   try {
     const isTR = locale === 'tr';
     let triggerDate: Date | null = null;
@@ -288,7 +318,24 @@ export async function scheduleTaskNotification(
       identifier: id,
       content: {
         title: isTR ? 'Görev zamanı' : 'Task due',
-        body: title,
+        /*
+          GÖREV ADI KİLİT EKRANINDA GÖRÜNÜR.
+
+          Buraya kullanıcının yazdığı ham başlık giriyor ve bildirim kilit ekranında
+          çıkıyor — yani yanındaki herkes okuyabiliyor. Kullanıcı o metni KENDİSİ için,
+          özel olarak yazmıştı.
+
+          Bu bir "uygunsuz içerik" meselesi DEĞİL: metin kullanıcının kendi cihazında,
+          kendisine gösteriliyor. Küfür süzgeci koymak hem vesayetçi olurdu hem de
+          Türkçede güvenilir çalışmaz (yanlış pozitifler ve kaçırma kaçınılmaz).
+
+          Asıl risk MAHREMİYET ve küfürle sınırlı değil: "Doktor: test sonucu",
+          "Ayrılık konuşması", "Kredi başvurusu" — hepsi aynı kapıdan sızıyor.
+          Çözüm sansür değil, kullanıcının KARARI: içeriği gizle, yalnız hatırlat.
+        */
+        body: hideContent
+          ? (isTR ? 'Bir görevinin zamanı geldi' : 'A task is due')
+          : title,
         data: { taskId, type: 'task-reminder' },
         sound: true,
         categoryIdentifier: 'task-reminder',

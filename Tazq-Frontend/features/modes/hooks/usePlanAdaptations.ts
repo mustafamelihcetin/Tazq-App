@@ -44,7 +44,7 @@ import { useSubjectStore } from '@/shared/store/useSubjectStore';
 import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
 import { useQuitStore, type QuitType } from '@/shared/store/useQuitStore';
 import { buildTasarrufPlan, buildBirakmaPlan } from '@/shared/utils/lifeModePlans';
-import { isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
+import { isWeightEntryTask, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/features/modes/utils/weightCheckin';
 import { MODE_TASK_TAGS } from '@/features/modes/utils/planTaskOps';
 import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSync';
 
@@ -802,6 +802,36 @@ export function usePlanAdaptations() {
       if (!isKiloActive) {
         // Kilo modu kapalı → yetim kalan tüm açık tartım görevlerini süpür.
         openWeightTasks.forEach(t => retirePlanTask(t.id, 'spor'));
+      } else if (openWeightTasks.length === 0) {
+        /*
+          ZİNCİR KOPMASI ONARIMI.
+
+          Haftalık tartım, kendi kendini zincirleyen TEK plan görevi: her kayıttan sonra
+          bir sonraki (+7 gün) oluşturuluyor. Diğer plan görevlerini günlük motor her gün
+          yeniden ürettiği için onlar kendiliğinden iyileşiyor; bu zincirin ise tek bir
+          halkası var.
+
+          `ensureWeeklyWeightTask` yalnız İKİ yerden çağrılıyordu: tartım kaydedilince
+          ve plan ilk kurulunca. Kullanıcı açık tartım görevini silerse (kaydırıp sil,
+          ya da senkron kazası) ikisi de bir daha tetiklenmiyor ve HAFTALIK TARTIM KALICI
+          OLARAK DURUYOR. Kullanıcı bunu bir hata olarak da algılamıyor; sadece "artık
+          sormuyor" diye düşünüyor.
+
+          Burada her açılışta onarılıyor: kilo modu açık ve hiç açık tartım görevi yoksa
+          yenisi kuruluyor. Tarih, kadansa saygılı — tartım vakti geldiyse bugüne,
+          gelmediyse kalan gün kadar ileriye.
+        */
+        const log = useSporStore.getState().weightLog;
+        const due = canLogWeight(log)
+          ? new Date()
+          : (() => {
+              const d = new Date();
+              d.setDate(d.getDate() + Math.max(1, daysUntilNextWeight(log)));
+              d.setHours(8, 0, 0, 0);
+              return d;
+            })();
+        // Beklenmiyor (ateşle-unut): açılışı ağ isteğine bağlamamak için.
+        ensureWeeklyWeightTask(due, lang).catch((e: unknown) => swallow('planAdaptations.weightTaskRepair', e));
       } else if (openWeightTasks.length > 1) {
         // Yalnız 1 açık tartım görevi kalsın. "En güncel" = önce gerçek (pozitif) sunucu
         // id'leri, sonra en büyük id. Düz `b.id - a.id` sıralaması, offline geçici

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
@@ -447,15 +447,34 @@ export default function HomeScreen() {
 
 
 
+  /**
+   * SAAT CANLI TUTULUYOR — selamlama gün içinde kendiliğinden değişsin.
+   *
+   * Zamanlayıcı bir sonraki saat başına hizalanıyor, sonra saatlik tekrar ediyor:
+   * 18:00'de "İyi günler" → "İyi akşamlar" olur.
+   *
+   * ARKA PLAN KAPISI (eklendi): iOS ve Android, uygulama arka plandayken
+   * `setInterval`i askıya alır ya da kısar. Kullanıcı sabah 10'da uygulamayı arka
+   * plana atıp akşam 20'de dönerse, zamanlayıcı bir sonraki tik'e kadar sessiz kalıyor
+   * ve ekranda hâlâ "Günaydın" yazıyordu — saatlerce yanlış bir cümle.
+   *
+   * Öne çıkma anında saat YENİDEN okunuyor. Zamanlayıcıyı düzeltmeye çalışmak yerine
+   * "geri döndüğünde gerçeği sor" yaklaşımı: platform ne yaparsa yapsın doğru sonuç.
+   */
   useEffect(() => {
+    const syncHour = () => setCurrentHour(new Date().getHours());
+
     const now = new Date();
     const msUntilNextHour = (60 - now.getMinutes()) * 60000 - now.getSeconds() * 1000;
     let interval: ReturnType<typeof setInterval>;
     const timeout = setTimeout(() => {
-      setCurrentHour(new Date().getHours());
-      interval = setInterval(() => setCurrentHour(new Date().getHours()), 3600000);
+      syncHour();
+      interval = setInterval(syncHour, 3600000);
     }, msUntilNextHour);
-    return () => { clearTimeout(timeout); clearInterval(interval); };
+
+    const sub = AppState.addEventListener('change', (st: string) => { if (st === 'active') syncHour(); });
+
+    return () => { clearTimeout(timeout); clearInterval(interval); sub.remove(); };
   }, []);
 
   const handleQuickSave = async (title: string) => {
@@ -482,7 +501,7 @@ export default function HomeScreen() {
           addTask({ ...payload, id: tempId } as any);
           if (isReminder) {
             const { scheduleTaskNotification } = require('@/shared/utils/notifications');
-            await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
+            await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
         } else {
@@ -492,7 +511,7 @@ export default function HomeScreen() {
           // Schedule notification if it's a reminder
           if (created.id && isReminder) {
               const { scheduleTaskNotification } = require('@/shared/utils/notifications');
-              await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
+              await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
           showToast(`"${payload.title}" ${t.toastTaskAdded}`, 'success');
         }
@@ -503,7 +522,7 @@ export default function HomeScreen() {
           addTask({ ...payload, id: tempId } as any);
           if (isReminder) {
             const { scheduleTaskNotification } = require('@/shared/utils/notifications');
-            await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
+            await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
         } else {

@@ -139,12 +139,19 @@ describe('yoğunluk', () => {
      * başarı/hata, çalışma anında yalnız biri ateşlenir). Basma anındaki titreşim
      * bilinçli olarak EKLENMEDİ — düğme zaten soluklaşıp yazısını değiştiriyor,
      * görülebilen bir şeyi titretmek gürültüdür.
+     * → 298: "Bildirimde içeriği gizle" ayarı (mahremiyet anahtarı). Ayar değiştirmek
+     * bir SEÇİM eylemidir ve `select` bunun karşılığıdır — diğer tüm ayar anahtarları
+     * da aynı titreşimi veriyor; vermeseydi tek bir satır sessiz kalır, kullanıcı o
+     * anahtarın çalışmadığını sanırdı.
+     * → 300: "Verilerimi indir" (başarı/hata, çalışma anında yalnız biri ateşlenir).
+     * Dışa aktarma uzun sürüyor ve sonunda sistem paylaşım sayfası açılıyor; kullanıcı
+     * o an ekrana bakmıyor olabilir. Titreşim burada "bitti" demenin tek yolu.
      * Bilinçli ve gerekçeli yükseltme; kural hâlâ "yeni titreşim eklerken düşün".
      *
      * DÜRÜST NOT: hedef oran ~1/3, bugünkü ölçüm ~1/1.4. Yani yoğunluk HÂLÂ YÜKSEK.
      * Bunu düşürmek 50+ çağrı yerinde tek tek "bu titreşim ne anlatıyor?" sorusunu
      * yanıtlamayı gerektirir — ayrı ve bilinçli bir tur işi.
      */
-    expect(hap).toBeLessThanOrEqual(297);
+    expect(hap).toBeLessThanOrEqual(300);
   });
 });

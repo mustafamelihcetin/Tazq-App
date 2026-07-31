@@ -783,7 +783,7 @@ export default function ModlarScreen() {
             </TourTarget>
             </>
           }
-          title={language === 'tr' ? 'Dönemsel Modlar' : 'Seasonal Modes'}
+          title={language === 'tr' ? 'Yaşam Modları' : 'Life Modes'}
           right={
             <>
            {/* Bilgi düğmesi TURU YENİDEN AÇAR. Eskiden bloke eden bir Alert içinde
@@ -798,7 +798,7 @@ export default function ModlarScreen() {
              style={styles.headerIconBtn}
              accessibilityRole="button"
              accessibilityLabel={language === 'tr' ? 'Modları tanıt' : 'Show modes walkthrough'}
-             accessibilityHint={language === 'tr' ? 'Dönemsel modların nasıl çalıştığını adım adım gösterir' : 'Walks you through how seasonal modes work'}
+             accessibilityHint={language === 'tr' ? 'Yaşam modlarının nasıl çalıştığını adım adım gösterir' : 'Walks you through how life modes work'}
            >
                <Info size={ICON.lg} color={theme.onSurfaceVariant} />
            </Touchable>

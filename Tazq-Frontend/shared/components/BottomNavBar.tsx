@@ -45,9 +45,14 @@ const LITE_TAB_IDS = ['home', 'tasks', 'focus'];
 const TAB_SHORT: Record<string, { tr: string; en: string }> = {
   home: { tr: 'Ana Sayfa', en: 'Home' },
   tasks: { tr: 'Görevler', en: 'Tasks' },
-  focus: { tr: 'Odak', en: 'Focus' },
+  // "Odak" tek basina ne yaptigini soylemiyordu; uygulamanin kendi dilinde adi
+  // "Derin Odak" (bkz. focus ekrani). Gorsel etiket "Odak" kaliyor.
+  focus: { tr: 'Derin Odak', en: 'Deep Focus' },
   cockpit: { tr: 'Haftalık', en: 'Weekly' },
-  modlar: { tr: 'Modlar', en: 'Modes' },
+  // TAM ad — ekran okuyucuya bu okunur. Gorsel etiket kisa kaliyor ("Modlar"),
+  // cunku sekme etiketleri kisaltmadir. Ama sesli okunan ad, kullanicinin onboarding'de
+  // duydugu adla AYNI olmali; yoksa ozelligi arayan kisi bulamaz.
+  modlar: { tr: 'Yaşam Modları', en: 'Life Modes' },
 };
 
 // Ekran okuyucu (VoiceOver/TalkBack) için TAM sekme adı — kısaltma yalnız görsel.

@@ -69,11 +69,27 @@ export function snapshotMode(mode: string): ModeSnapshot {
 
 /** Anlık görüntüyü geri yükler. */
 export async function restoreMode(snap: ModeSnapshot): Promise<void> {
-  // 1) seasonal — yalnız DEĞİŞEN anahtarlar
+  /*
+    1) seasonal — yalnız BU MODA AİT ve DEĞİŞMİŞ anahtarlar.
+
+    ÖLÇÜLEN SORUN: eskiden fotoğraftaki TÜM anahtarlar geri yazılıyordu. Senaryo:
+    kullanıcı spor modunu kapatıyor, toast çıkıyor; o birkaç saniyede SINAV modunu
+    açıyor; sonra "Geri al"a basıyor. Spor geri geliyor ama sınav da KAPANIYOR —
+    kullanıcının az önce yaptığı, tamamen ilgisiz bir seçim sessizce geri alınıyor.
+
+    "Geri al" düğmesinin sözü dardır: YALNIZ kendi eylemini geri alır. Arada yapılan
+    başka bir şeyi geri almak, düğmenin sözünü aşmaktır.
+
+    KAPSAM NASIL ÇİZİLİYOR: seasonal anahtarları mod adıyla önekli
+    (`sporMode`, `sporGoal`, `spor2Date`… / `examMode`, `exam2Name`… / `ramazan`).
+    Bu yüzden "bu moda ait" sorusu ad önekiyle kesin cevaplanabiliyor — tahmin yok.
+  */
   const now = usePrefsStore.getState().seasonal as Record<string, any>;
   const setSeasonalPref = usePrefsStore.getState().setSeasonalPref;
   for (const key of Object.keys(snap.seasonal)) {
-    if (now[key] !== snap.seasonal[key]) setSeasonalPref(key as any, snap.seasonal[key]);
+    if (!key.startsWith(snap.mode)) continue;              // başka modun tercihi — dokunma
+    if (now[key] === snap.seasonal[key]) continue;          // değişmemiş — gereksiz yazma
+    setSeasonalPref(key as any, snap.seasonal[key]);
   }
 
   // 2) Alışkanlıklar — AYNI id, AYNI completedDates (seri korunur)

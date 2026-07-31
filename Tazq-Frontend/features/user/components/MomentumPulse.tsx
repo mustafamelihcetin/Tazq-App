@@ -12,6 +12,7 @@ import { BentoCard } from '@/shared/components/BentoCard';
 import { AnimatedNumber } from '@/shared/components/AnimatedNumber';
 import { useSettledValue } from '@/shared/hooks/useSettledValue';
 import { haptic } from '@/shared/utils/haptics';
+import { isBestDayOfWeek } from '@/shared/utils/momentum';
 
 interface DayScore { date: string; score: number }
 
@@ -91,6 +92,27 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
   const buildingUp = daysWithData < 3;
 
   const displayHistory = isEight ? history.slice(1) : history;
+
+  /**
+   * BUGÜN HAFTANIN EN İYİ GÜNÜ MÜ — grafikteki tek canlı öğenin kapısı.
+   *
+   * Momentum kutusu açılış animasyonundan sonra tamamen donuyordu: sayı sayılıyor,
+   * çubuklar yükseliyor, sonra ekran ölü bir resme dönüşüyordu.
+   *
+   * Buraya süs eklemek kolaydı; doğrusu değildi. Bu kod tabanında hareketin kuralı belli
+   * (bkz. StatusHub nabzı): HAREKET BİLGİ TAŞIR. O yüzden "bugün hâlâ yükseltilebilir"
+   * gibi neredeyse her zaman doğru olan bir koşul seçilmedi — sürekli yanan bir ışık
+   * bilgi değil gürültüdür, birkaç gün sonra göz onu görmez bile.
+   *
+   * Seçilen koşul NADİR ve ÖDÜL: bugünkü skor son yedi günün en iyisiyse. Parıltı
+   * "şu an haftanın en iyi günündesin" der. Kullanıcı bunu bir kez gördüğünde ne
+   * anlama geldiğini anlar ve tekrar görmek ister — bağlayan şey animasyonun kendisi
+   * değil, kazanılıyor olması.
+   *
+   * Karar SAF FONKSİYONDA (utils/momentum.ts): eşitlik, sıfır skor ve veri yokluğu gibi
+   * kenar durumlar grafiğe bakarak fark edilmez, teste bakarak edilir.
+   */
+  const isBestDay = isBestDayOfWeek(displayHistory.map((d) => d.score));
 
   return (
     <>
@@ -197,8 +219,40 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
               : day.score >= 40 ? theme.streak
               : theme.onSurfaceVariant;
             return (
+              <View key={day.date} style={{ flex: 1, height: 24, justifyContent: 'flex-end' }}>
+                {/*
+                  HALE — çubuğun ARKASINDA, çubuğun KENDİSİNDE değil.
+
+                  Çubuğun kendi opaklığını nefes ettirmek en kolay yoldu ama yanlış:
+                  bu grafikte renk skoru kodluyor (yeşil/turuncu/gri) ve opaklık
+                  kısılınca o kodlama okunamaz hâle geliyor — aynı gerekçeyle geçmiş
+                  günlerin %45 soluklaştırması da kaldırılmıştı (bkz. aşağıdaki not).
+                  Yükseklik de skoru kodluyor, onu oynatmak grafiği YALAN söyletirdi.
+
+                  Geriye veri taşımayan tek kanal kalıyor: çubuğun etrafındaki boşluk.
+                  Hale birkaç piksel dışarı taşan ayrı bir katman; çubuk tam opaklıkla
+                  onun üstünde duruyor. Yani parıltı hiçbir okunur değeri bozmadan
+                  ekleniyor.
+
+                  Lite modda kapalı: o mod süslemeleri değil, sürekli çalışan işi keser.
+                */}
+                {isToday && isBestDay && !isLite && (
+                  <MotiView
+                    from={{ opacity: 0 }}
+                    animate={{ opacity: 0.35 }}
+                    transition={{ type: 'timing', duration: 1400, loop: true, repeatReverse: true }}
+                    style={{
+                      position: 'absolute',
+                      left: -3,
+                      right: -3,
+                      bottom: -3,
+                      height: h + 6,
+                      borderRadius: R.sm,
+                      backgroundColor: barColor,
+                    }}
+                  />
+                )}
               <MotiView
-                key={day.date}
                 from={{ height: 0 }}
                 animate={{ height: h }}
                 transition={{ type: 'spring', damping: 16, delay: i * 35 }}
@@ -211,11 +265,11 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
                   değerleri soluklaştırmaz.
                 */
                 style={{
-                  flex: 1,
                   borderRadius: R.xs,
                   backgroundColor: barColor,
                 }}
               />
+              </View>
             );
           })}
         </View>

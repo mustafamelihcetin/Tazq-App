@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 /**
  * Haftalık tartım akışı — regresyon testleri.
  *
@@ -142,5 +144,62 @@ describe('completeTaskOfflineFirst', () => {
     useTaskStore.setState({ tasks: [{ ...mkTask(51, 'Güncel kilonu gir', ['weight_entry']), isCompleted: true }] as any });
     completeTaskOfflineFirst(51);
     expect(useTaskStore.getState().tasks[0].isCompleted).toBe(true);
+  });
+});
+
+/**
+ * ZİNCİR KOPMASI ONARIMI.
+ *
+ * Haftalık tartım, kendi kendini zincirleyen TEK plan görevi: her kayıttan sonra bir
+ * sonraki (+7 gün) oluşturuluyor. Diğer plan görevlerini günlük motor her gün yeniden
+ * ürettiği için onlar kendiliğinden iyileşiyor; bu zincirin tek bir halkası var.
+ *
+ * `ensureWeeklyWeightTask` yalnız iki yerden çağrılıyordu — tartım kaydedilince ve plan
+ * ilk kurulunca. Kullanıcı açık tartım görevini silerse ikisi de bir daha tetiklenmiyor
+ * ve haftalık tartım KALICI OLARAK duruyordu. Kullanıcı bunu hata olarak da algılamıyor,
+ * "artık sormuyor" diye düşünüyor — sessiz bozulmanın tanımı.
+ */
+describe('tartım zinciri kendini onarır', () => {
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'features/modes/hooks/usePlanAdaptations.ts'), 'utf8');
+
+  it('açık tartım görevi YOKSA yenisi kurulur', () => {
+    expect(src).toContain('} else if (openWeightTasks.length === 0) {');
+    expect(src).toContain('ensureWeeklyWeightTask(due, lang)');
+  });
+
+  it('onarım her açılışta çalışır — günlük üretim kapısının ÖNÜNDE', () => {
+    // Kapının arkasında olsaydı onarım günde bir kez denenir, silinen görev
+    // ertesi güne kadar geri gelmezdi.
+    const repair = src.indexOf('openWeightTasks.length === 0');
+    const gate = src.indexOf('ÜRETIM KAPISI');
+    expect(repair).toBeGreaterThan(-1);
+    expect(gate).toBeGreaterThan(-1);
+    expect(repair).toBeLessThan(gate);
+  });
+
+  it('onarım KADANSA saygılı — vakti gelmediyse ileri tarihe kurar', () => {
+    // Bugüne kurulsaydı kullanıcı 7 gün dolmadan tartım görevini görür, açar ve
+    // "7 günde bir girilir" duvarına toslardı.
+    const i = src.indexOf('openWeightTasks.length === 0');
+    const j = src.indexOf('ensureWeeklyWeightTask(due, lang)', i);
+    const block = i > -1 && j > i ? src.slice(i, j) : '';
+    expect(block).toContain('canLogWeight(log)');
+    expect(block).toContain('daysUntilNextWeight(log)');
+  });
+
+  it('onarım BEKLENMİYOR — açılış ağ isteğine bağlanmaz', () => {
+    // `await` edilseydi çevrimdışı/yavaş ağda uygulama açılışı gecikirdi.
+    expect(src).toMatch(/ensureWeeklyWeightTask\(due, lang\)\.catch\(/);
+    expect(src).not.toMatch(/await ensureWeeklyWeightTask\(due/);
+  });
+
+  it('kilo modu KAPALIYKEN görev üretmez', () => {
+    // Onarım `isKiloActive` dalının içinde olmalı; dışarıda olsaydı modu kapatan
+    // kullanıcıya sonsuza kadar tartım görevi üretilirdi.
+    const off = src.indexOf('if (!isKiloActive) {');
+    const repair = src.indexOf('openWeightTasks.length === 0');
+    expect(off).toBeGreaterThan(-1);
+    expect(off).toBeLessThan(repair); // önce kapalı dalı, sonra else-if zinciri
   });
 });

@@ -153,7 +153,7 @@ const TOURS: Record<PageId, TourStep[]> = {
     {
       Icon: Sparkles,
       color: (t) => t.primary,
-      title: { tr: 'Dönemsel Modlar', en: 'Seasonal Modes' },
+      title: { tr: 'Yaşam Modları', en: 'Life Modes' },
       desc: {
         tr: 'Aktif dönem hedeflerinin özeti. Sınav, tez, tasarruf ya da spor gibi yolculuklarını buradan takip et.',
         en: 'A summary of your active goals. Track journeys like exams, thesis, savings, or fitness here.',

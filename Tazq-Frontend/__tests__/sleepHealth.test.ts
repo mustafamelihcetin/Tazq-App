@@ -8,6 +8,8 @@
  * hatta iki ayrı gece).
  */
 import { lastSleepSessionMinutes, formatSleepDuration } from '@/shared/services/sleepHealth';
+import fs from 'fs';
+import path from 'path';
 
 const iso = (s: string) => new Date(s).toISOString();
 
@@ -75,5 +77,90 @@ describe('formatSleepDuration', () => {
     expect(formatSleepDuration(430, 'tr')).toBe('7s 10dk');
     expect(formatSleepDuration(420, 'tr')).toBe('7 saat');
     expect(formatSleepDuration(430, 'en')).toBe('7h 10m');
+  });
+});
+
+/**
+ * ANDROID EVRE FİLTRESİ — sessiz ve tek yönlü bir ölçüm hatasıydı.
+ *
+ * Kod `String(st.stage).toUpperCase().includes('AWAKE')` diye kontrol ediyordu ama
+ * `react-native-health-connect` evreyi SAYI döndürüyor (`stage: number`). `String(1)`
+ * = "1" ve bu asla "AWAKE" içermez → gece boyunca UYANIK geçen dakikalar UYKU olarak
+ * sayılıyordu. Etkisi: her gece 20-60 dakika fazla uyku, hedefin hak edilmeden
+ * tamamlanmış görünmesi.
+ *
+ * Sabitler (SleepStageType): 0 UNKNOWN · 1 AWAKE · 2 SLEEPING · 3 OUT_OF_BED
+ *                            4 LIGHT · 5 DEEP · 6 REM · (7 AWAKE_IN_BED)
+ */
+describe('Android uyku evresi — uyanıklık ayıklanır', () => {
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'shared/services/sleepHealth.ts'), 'utf8');
+
+  it('evre kontrolü METİN karşılaştırmasıyla yapılmaz', () => {
+    // Bu satır hatanın kendisiydi; geri gelirse ölçüm yine sessizce bozulur.
+    expect(src).not.toContain("String(st.stage ?? '').toUpperCase()");
+  });
+
+  it('uyanık evre kodları sabit tablodan gelir', () => {
+    expect(src).toContain('const AWAKE_STAGE_CODES = new Set([1, 3, 7]);');
+    expect(src).toContain('if (isAwakeStage(st.stage)) continue;');
+  });
+
+  it('UNKNOWN (0) uyku sayılır — kanıtsız dakika atılmaz', () => {
+    // Bir uyku oturumunun İÇİNDE geçen belirsiz süre, uyanıklık kanıtı değildir.
+    const m = src.match(/const AWAKE_STAGE_CODES = new Set\(\[([^\]]*)\]\)/);
+    expect(m).not.toBeNull();
+    expect(m![1]).not.toMatch(/\b0\b/);
+    expect(m![1]).not.toMatch(/\b2\b/); // SLEEPING de atılmamalı
+  });
+});
+
+/**
+ * GERİYE DÖNÜK DOLDURMA — uygulama açılmadığı için kaybolan geceler.
+ *
+ * Veri katmanı yalnız son 26 saati okuyor, senkron yalnız BUGÜNÜ işaretliyordu.
+ * Kullanıcı üç gün girmezse aradaki geceler platformda DURURKEN kayboluyor, uyku
+ * alışkanlığı işaretlenmiyor, SERİ kırılıyor, momentum düşüyordu.
+ */
+describe('uyku geriye dönük doldurma', () => {
+  const svc = fs.readFileSync(
+    path.join(__dirname, '..', 'shared/services/sleepHealth.ts'), 'utf8');
+  const sync = fs.readFileSync(
+    path.join(__dirname, '..', 'features/habits/hooks/useSleepHealthSync.ts'), 'utf8');
+
+  it('veri katmanı gün gün döküm verebiliyor', () => {
+    expect(svc).toContain('async getSleepMinutesByDay(daysBack: number)');
+    // Oturum UYANILAN güne yazılır (cur.end) — "dün gece kaç saat uyudum" sorusunun
+    // cevabı o sabahın gününe işlenir.
+    expect(svc).toContain('const d = new Date(cur.end);');
+  });
+
+  it('okuma mantığı TEK yerde — iki tüketici paylaşıyor', () => {
+    // Ayrışsalardı biri düzeltilip öteki eskirdi; bu dosyada tam olarak bu olmuştu.
+    expect(svc).toContain('async _readIntervals(from: Date, to: Date)');
+    expect(svc).toContain('const intervals = await this._readIntervals(from, to);');
+  });
+
+  it('doldurma penceresi SINIRLI — geçmiş yeniden yazılmaz', () => {
+    // Sınırsız doldurma, aylar sonra kurulan telefonda tüm geçmişi "başarı" yapardı.
+    const m = sync.match(/const BACKFILL_DAYS = (\d+);/);
+    expect(m).not.toBeNull();
+    expect(Number(m![1])).toBeLessThanOrEqual(7);
+  });
+
+  it('geçmiş günler SESSİZ doldurulur — toast yok', () => {
+    const block = sync.match(/for \(let back = 1; back <= BACKFILL_DAYS[\s\S]*?\n      \}/)?.[0] ?? '';
+    expect(block).not.toBe('');
+    expect(block).not.toContain('Toast');
+    expect(block).not.toContain('show(');
+  });
+
+  it('hedef tutmayan gün işaretlenmez — eksik BAŞARI tamamlanmaz', () => {
+    expect(sync).toContain('if (mins < goalHours * 60) continue;');
+  });
+
+  it('zaten işaretli günde toggle ÇAĞRILMAZ — silmesin', () => {
+    // `toggleDate` isminden belli: ikinci çağrı işareti KALDIRIR.
+    expect(sync).toContain("if (!cur || (cur.completedDates ?? []).includes(key)) continue;");
   });
 });

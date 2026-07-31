@@ -75,6 +75,22 @@ interface PrefsState {
    */
   hapticFeedback: boolean;
   setHapticFeedback: (value: boolean) => void;
+  /**
+   * Bildirimde görev/alışkanlık ADI gizlensin mi.
+   *
+   * Bildirim kilit ekranında çıkıyor ve gövdesinde kullanıcının yazdığı ham başlık
+   * duruyor — yani yanındaki herkes okuyabiliyor. Kullanıcı o metni kendisi için
+   * yazmıştı. "Doktor: test sonucu", "Ayrılık konuşması", "Kredi başvurusu"…
+   *
+   * Bunu bir içerik SÜZGECİYLE çözmek yanlış olurdu: metin kullanıcının kendi
+   * cihazında kendisine gösteriliyor, kimseyi rahatsız etmiyor. Doğru olan kararı
+   * kullanıcıya vermek. Varsayılan KAPALI — çoğu kişi hatırlatmanın ne olduğunu
+   * görmek ister; gizlemek bir tercih, dayatma değil.
+   *
+   * Cihaz tercihi: buluta eşitlenmez (aynı hesap farklı telefonda farklı mahremiyet).
+   */
+  hideNotificationContent: boolean;
+  setHideNotificationContent: (value: boolean) => void;
   // Derin odak tercihleri — cihazda kalıcı (her seansda sıfırlanmasın diye). Cihaza özel.
   focusBreathMode: 'classic' | 'box' | 'calm' | 'off';
   setFocusBreathMode: (v: 'classic' | 'box' | 'calm' | 'off') => void;
@@ -257,6 +273,8 @@ export const usePrefsStore = create<PrefsState>()(
       setSoundEffects: (value) => set({ soundEffects: value }),
       hapticFeedback: true,
       setHapticFeedback: (value) => set({ hapticFeedback: value }),
+      hideNotificationContent: false,
+      setHideNotificationContent: (value) => set({ hideNotificationContent: value }),
       // Derin odak: nefes varsayılanı 'off' (opt-in — odak ≠ nefes çalışması). Kullanıcı seçince kalıcı.
       focusBreathMode: 'off',
       setFocusBreathMode: (v) => set({ focusBreathMode: v }),

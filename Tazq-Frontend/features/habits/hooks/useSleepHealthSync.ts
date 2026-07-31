@@ -23,6 +23,27 @@ import { SleepHealth, formatSleepDuration } from '@/shared/services/sleepHealth'
 const MIN_REAL_SLEEP_MIN = 120; // <2 saat: gerçek gece uykusu sayma (şekerleme/yarım senkron) → sessiz, tekrar dene
 const RETRY_THROTTLE_MS = 15 * 60 * 1000; // veri yoksa en fazla 15 dk'da bir tekrar dene
 
+/**
+ * GERİYE DÖNÜK DOLDURMA PENCERESİ (gün).
+ *
+ * ÖLÇÜLEN SORUN: senkron yalnızca BUGÜNÜ işaretliyordu ve veri katmanı yalnızca son
+ * 26 saati okuyordu. Kullanıcı uygulamayı üç gün açmazsa aradaki iki gece,
+ * HealthKit/Health Connect'te DURURKEN kayboluyordu — uyku alışkanlığı işaretlenmiyor,
+ * SERİ kırılıyor, momentum düşüyordu. Yani uygulama kullanıcıyı uyuduğu hâlde,
+ * yalnızca kendisini açmadığı için cezalandırıyordu.
+ *
+ * NEDEN 4 GÜN VE SONSUZ DEĞİL: geçmişi sınırsız doldurmak, aylar sonra kurulan bir
+ * telefonda bütün geçmişi tek seferde "başarı" olarak işaretlerdi — seri de momentum
+ * da anlamını yitirirdi. Dört gün, "tatilden döndüm" senaryosunu kurtarır ama geçmişi
+ * yeniden yazmaz.
+ */
+const BACKFILL_DAYS = 4;
+
+/** `Date` → 'YYYY-MM-DD' (yerel). Habit store ile AYNI biçim olmak zorunda. */
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 type SleepOutcome = 'marked' | 'info' | 'nodata';
 
 function isSleepHabit(h: Habit): boolean {
@@ -118,6 +139,40 @@ export function useSleepHealthSync() {
       for (const h of unmarked) {
         const outcome = await processSleep(h.id, todayKey);
         if (outcome !== 'nodata') dataSeen = true; // mark ya da info = gece verisi vardı
+      }
+
+      /*
+        GEÇMİŞ GÜNLERİ DOLDUR — bugünden BAĞIMSIZ çalışır.
+
+        Bugün için veri olmasa bile (henüz uyunmadı / senkron gecikti) dünkü ve önceki
+        günlerin verisi mevcut olabilir. Bu yüzden `dataSeen` kapısının DIŞINDA.
+
+        SESSİZ: geçmiş günler için toast YOK. "3 gün önce hedefini tuttun" bildirimi
+        bilgi değil gürültüdür; kullanıcı o anı yaşamıyor. Yalnız işaret konur ki seri
+        ve momentum gerçeği yansıtsın.
+
+        HEDEF TUTMADIYSA İŞARETLENMEZ: geçmişi olduğu gibi bırakıyoruz. Doldurma,
+        eksik VERİYİ tamamlamak içindir; eksik BAŞARIYI değil.
+      */
+      const goalHours = usePrefsStore.getState().sleepGoalHours || 7;
+      const byDay = await SleepHealth.getSleepMinutesByDay(BACKFILL_DAYS);
+
+      for (const h of sleepHabits) {
+        for (let back = 1; back <= BACKFILL_DAYS; back++) {
+          const d = new Date();
+          d.setDate(d.getDate() - back);
+          const key = dayKey(d);
+
+          const mins = byDay[key];
+          if (mins == null || mins < MIN_REAL_SLEEP_MIN) continue;
+          if (mins < goalHours * 60) continue;
+
+          // Taze kontrol: zaten işaretliyse dokunma (toggle SİLERDİ).
+          const cur = useHabitStore.getState().habits.find(x => x.id === h.id);
+          if (!cur || (cur.completedDates ?? []).includes(key)) continue;
+
+          useHabitStore.getState().toggleDate(h.id, key);
+        }
       }
       // Veri geldiyse günü kapat → mark/info günde BİR kez. Veri yoksa kapatma (geç senkron için tekrar dene).
       if (dataSeen) prefs.setSleepLastCheckDate(todayKey);

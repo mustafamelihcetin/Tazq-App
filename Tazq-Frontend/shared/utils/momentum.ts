@@ -119,3 +119,39 @@ export function computeMomentum(input: MomentumInput): MomentumResult {
 
   return { momentum, totalCount, completedCount, weightedCompletion, focusScore, focusVolumeScore, streakScore, habitScore };
 }
+
+/**
+ * BUGÜN GÖRÜNEN HAFTANIN EN İYİ GÜNÜ MÜ — momentum grafiğindeki parıltının kapısı.
+ *
+ * Momentum kutusu açılış animasyonundan sonra donuyordu. Buraya süs eklemek kolaydı;
+ * doğrusu değildi — bu kod tabanında hareketin kuralı belli (bkz. StatusHub nabzı):
+ * HAREKET BİLGİ TAŞIR. "Bugün hâlâ yükseltilebilir" gibi neredeyse her zaman doğru bir
+ * koşul seçilseydi ışık sürekli yanardı; sürekli yanan ışık bilgi değil gürültüdür.
+ *
+ * Bu koşul NADİR ve ÖDÜL: parıltı "şu an haftanın en iyi günündesin" der. Kazanılan
+ * bir işaret olduğu için tekrar görülmek istenir.
+ *
+ * Bileşenin içinde satır arası yazılabilirdi; ayrı ve saf durmasının sebebi eşitlik ve
+ * sıfır gibi kenar durumların sessizce yanlış çalışabilmesi — grafiğe bakarak fark
+ * edilmezler, teste bakarak edilir.
+ *
+ * @param scores Ekranda görünen 7 günün skorları, eskiden yeniye. Veri olmayan gün < 0.
+ */
+export function isBestDayOfWeek(scores: number[]): boolean {
+  if (scores.length < 2) return false;
+
+  const today = scores[scores.length - 1];
+  const rest = scores.slice(0, -1);
+
+  // Sıfır skor "en iyi gün" olamaz: hiçbir şey yapılmamış bir günü kutlamak, işareti
+  // anlamsızlaştırır. Veri yokluğu (< 0) da aynı kapıya takılır.
+  if (today <= 0) return false;
+
+  // En az üç günlük gerçek veri: iki günlük geçmişte "haftanın en iyisi" boş bir övgü.
+  const withData = scores.filter((s) => s >= 0).length;
+  if (withData < 3) return false;
+
+  // Eşitlik de kazanır: kendi rekorunu tekrarlamak da iyi bir gündür ve rekorun
+  // olduğu gün ışığın sönmesi cezalandırma gibi okunur.
+  return rest.every((s) => today >= s);
+}

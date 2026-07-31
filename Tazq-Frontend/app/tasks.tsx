@@ -1092,7 +1092,7 @@ export default function ActionCenter() {
           updateTask(editingId, { ...payload, id: editingId } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
           if (formPayload.reminderEnabled && !payload.isCompleted) {
-              scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language);
+              scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           } else {
               cancelTaskNotification(editingId);
           }
@@ -1104,7 +1104,7 @@ export default function ActionCenter() {
           ]);
           updateTask(editingId, { ...payload, id: editingId } as any);
           if (formPayload.reminderEnabled && !payload.isCompleted) {
-              scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language);
+              scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           } else {
               cancelTaskNotification(editingId);
           }
@@ -1117,7 +1117,7 @@ export default function ActionCenter() {
           addTask({ ...payload, id: tempId, title: formPayload.title.trim() } as any);
           showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
           if (formPayload.reminderEnabled) {
-            scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language);
+            scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
           syncTaskToCalendar({ id: tempId, ...payload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         } else {
@@ -1127,7 +1127,7 @@ export default function ActionCenter() {
           ]) as any;
           addTask({ ...created, title: formPayload.title.trim() } as any);
           if (created.id && formPayload.reminderEnabled) {
-            scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language);
+            scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
           syncTaskToCalendar({ id: created.id, ...payload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         }
