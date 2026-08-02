@@ -48,6 +48,26 @@ describe('veri dışa aktarma', () => {
     expect(i).toBeLessThan(j);
   });
 
+  /*
+    KAPSAM — buluta gitmeyen veriler ÖZELLİKLE burada olmalı.
+
+    Kilo geçmişi, bırakma kaydı ve konu ilerlemesi yalnız cihazda duruyor: çıkış yapıldığında
+    siliniyor ve sunucudan geri gelmiyor. Dışa aktarma, kullanıcının bu veriye ulaşabildiği
+    TEK yol. Listeden biri düşerse hem taşınabilirlik hakkı hem pratik kurtarma imkânı
+    sessizce kaybolur — ve bunu ancak verisini kaybetmiş bir kullanıcı fark eder.
+  */
+  it('yalnız cihazda duran veriler dışa aktarmada', () => {
+    expect(src).toMatch(/weight: safe\(/);
+    expect(src).toMatch(/quit: safe\(/);       // bırakma: ad, başlangıç, NÜKS tarihleri
+    expect(src).toMatch(/subjects: safe\(/);   // konu/müfredat ilerlemesi
+  });
+
+  it('buluta giden veriler de eksiksiz', () => {
+    for (const key of ['tasks', 'habits', 'focus', 'achievements', 'preferences']) {
+      expect(src).toMatch(new RegExp(`${key}: safe\\(`));
+    }
+  });
+
   it('her store ayrı korunuyor — biri çökerse dışa aktarma ölmez', () => {
     // Tek bir store bozuksa (eski sürümden kalan veri) tüm dışa aktarma
     // başarısız olmamalı; o alan null geçer, gerisi kurtulur.

@@ -310,9 +310,34 @@ export interface UserStatsResponse {
 }
 
 export const TaskService = {
+  /*
+    TÜM SAYFALAR ÇEKİLİR — tek sayfa yetmiyordu.
+
+    Burası yalnız İLK sayfayı (`pageSize: 200`) alıyordu, oysa sunucu kullanıcı başına 5000
+    göreve izin veriyor. Dönen liste `setTasks` ile yerel listenin YERİNE geçtiği için,
+    200'ü aşan kullanıcıda geri kalan görevler uygulamadan tümüyle kayboluyordu — sunucuda
+    duruyor, ekranda yok. Günlük plan motoru her gün görev ürettiğinden ve tamamlananlar
+    saklandığından bu sınır birkaç ayda doluyor; yani hatayı en sadık kullanıcılar yaşardı.
+
+    Sayfa boyutu bilerek 200'de bırakıldı: sunucu her sayfayı tek tek şifre çözüyor, tek
+    seferde 5000 istemek açılışı yavaşlatırdı. 200'ün altındaki kullanıcı için istek sayısı
+    eskisiyle aynı (tek istek) — maliyet yalnız gerçekten çok görevi olanda doğuyor.
+  */
   getTasks: async () => {
-    const response = await api.get('/api/tasks', { params: { pageSize: 200 } });
-    return response.data.items ?? response.data;
+    const PAGE_SIZE = 200;
+    const MAX_PAGES = 25; // 25 × 200 = 5000 → sunucudaki kullanıcı başına üst sınır
+    const all: unknown[] = [];
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const response = await api.get('/api/tasks', { params: { page, pageSize: PAGE_SIZE } });
+      const data = response.data;
+      const items = data?.items ?? data;
+      // Beklenmedik/eski biçim: olduğu gibi döndür, sessizce boş liste verme.
+      if (!Array.isArray(items)) return page === 1 ? items : all;
+      all.push(...items);
+      const totalPages = typeof data?.totalPages === 'number' ? data.totalPages : 1;
+      if (items.length < PAGE_SIZE || page >= totalPages) break;
+    }
+    return all;
   },
   getTask: async (id: number) => {
     const response = await api.get(`/api/tasks/${id}`);

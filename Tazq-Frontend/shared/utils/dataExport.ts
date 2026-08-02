@@ -78,6 +78,19 @@ function collect(): Record<string, unknown> {
     momentum: safe(() => require('@/features/user/store/useMomentumStore').useMomentumStore.getState().history, 'momentum'),
     weight: safe(() => require('@/features/modes/store/useSporStore').useSporStore.getState().weightLog, 'weight'),
     budget: safe(() => require('@/shared/store/useBudgetStore').useBudgetStore.getState().entries, 'budget'),
+    /*
+      BIRAKMA ve KONU İLERLEMESİ — dışa aktarımda eksikti.
+
+      İkisi de kullanıcının kendi verisi ve ikisi de buluta gitmiyor; yani çıkış yapıldığında
+      cihazdan siliniyor ve geri gelmiyor. Dışa aktarma, kullanıcının bu veriye ulaşabildiği
+      TEK yol — listede olmamaları hem taşınabilirlik hakkını hem pratik kurtarma imkânını
+      ortadan kaldırıyordu.
+
+      `quit` özellikle önemli: bırakılan şeyin adı, başlangıç tarihi ve NÜKS TARİHLERİ gibi
+      kişisel davranış kaydı tutuyor. Kullanıcı verisini istediğinde bunun da gelmesi gerekir.
+    */
+    quit: safe(() => require('@/shared/store/useQuitStore').useQuitStore.getState().items, 'quit'),
+    subjects: safe(() => require('@/shared/store/useSubjectStore').useSubjectStore.getState().progress, 'subjects'),
     preferences: safe(() => {
       const s = require('@/features/modes/store/usePrefsStore').usePrefsStore.getState();
       // Fonksiyonlar ve setter'lar hariç — yalnız değerler.
