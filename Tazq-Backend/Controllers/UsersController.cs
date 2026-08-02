@@ -491,12 +491,36 @@ namespace Tazq_App.Controllers
             return Ok();
         }
 
+        /*
+          SUNUCU TARAFI ÜST SINIRLAR.
+
+          `Name`, `Motto` ve `AvatarBorderColor` serviste zaten kırpılıyordu; `Avatar` ve
+          `Preferences` ise hiçbir sınıra tabi değildi ve doğrudan veritabanına yazılıyordu.
+          İkisinin de sütununda uzunluk kısıtı yok (nvarchar(max)) — yani kimliği doğrulanmış
+          tek bir hesap, tek istekle megabaytlarca veri yazabiliyordu. Kayıt ücretsiz olduğu
+          için "kimliği doğrulanmış" burada anlamlı bir engel değil.
+
+          `Preferences` KIRPILMIYOR, REDDEDİLİYOR: yarısından kesilen bir JSON bozuk JSON'dur.
+          Kırpsaydık istemci sessizce çözümlenemeyen bir tercih bloğu geri alır ve ayarları
+          sebepsiz sıfırlanmış görünürdü. Sınır aşıldıysa doğrusu açıkça hata döndürmektir.
+
+          Sınırlar bilerek cömert: gerçek tercih bloğu birkaç KB, avatar ise 'm1' gibi kısa
+          bir anahtar. Meşru kullanımın çok üstünde ama sınırsız değil.
+        */
+        private const int MaxPreferencesLength = 200_000; // ~200 KB
+        private const int MaxAvatarLength = 256;
+
         [HttpPut("profile")]
         [Authorize]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
         {
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
+
+            if (dto.Preferences is { Length: > MaxPreferencesLength })
+                return BadRequest("Tercih verisi çok büyük.");
+            if (dto.Avatar is { Length: > MaxAvatarLength })
+                return BadRequest("Avatar değeri geçersiz.");
 
             var success = await _userService.UpdateProfileAsync(userId.Value, dto.Name, dto.Avatar, dto.Motto, dto.AvatarBorderColor, dto.Preferences);
             return success ? Ok("Profile updated.") : NotFound();
