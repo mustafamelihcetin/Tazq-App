@@ -9,7 +9,24 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "65432:5432"
+      # YALNIZCA YEREL — veritabanı internete AÇILMAZ.
+      #
+      # Burası "65432:5432" idi. Docker bu biçimi 0.0.0.0'a bağlar, yani PostgreSQL
+      # doğrudan internetten erişilebilir hale gelir; dışarıdan bağlantı denemesi
+      # gerçekten başarılı oluyordu. Veritabanını koruyan tek şey parola kalmıştı:
+      #
+      #   · parolaya sınırsız kaba kuvvet denemesi yapılabilir (uygulama katmanındaki
+      #     hız sınırları burada devrede DEĞİL),
+      #   · PostgreSQL'de çıkacak her uzaktan kod çalıştırma açığı doğrudan istismar
+      #     edilebilir hale gelir,
+      #   · parola sızarsa (`.env`) tüm veri okunur. Görev içerikleri AES-GCM ile
+      #     şifreli ama e-postalar, adlar, parola özetleri, yenileme jetonları ve
+      #     tercih JSON'u DÜZ METİN.
+      #
+      # 127.0.0.1'e bağlanınca port yalnız sunucunun kendisinden erişilebilir olur.
+      # Yönetim erişimin kaybolmaz; SSH tüneliyle bağlanırsın:
+      #   ssh -i ~/.ssh/tazq_key -L 65432:127.0.0.1:65432 root@178.105.135.252
+      - "127.0.0.1:65432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     restart: unless-stopped

@@ -1,5 +1,9 @@
 {
-    email contact@malthen.io
+    # Let's Encrypt bildirim adresi (sertifika yenileme sorunları buraya gider).
+    # Eski değer contact@malthen.io idi; malthen.io posta altyapısı terk edildiği için
+    # uyarılar hiçbir yere ulaşmıyordu — sertifika bir gün yenilenemezse haber alınamazdı.
+    # Uygulamanın ve sitenin her yerinde kullanılan adresle aynı olmalı.
+    email destek@tazqapp.com
 }
 
 # ─────────────────────────────────────────────
@@ -7,18 +11,49 @@
 # All Malthen products share this Caddy instance
 # ─────────────────────────────────────────────
 
+# ─────────────────────────────────────────────
+# Güvenlik başlıkları — TAZQ alan adları için ortak parça.
+#
+# Ölçüldü: canlıda bu başlıkların HİÇBİRİ yoktu. Sonuçları:
+#   · HSTS yok  → ilk istek HTTP'ye düşürülüp araya girilebilir (SSL stripping).
+#   · nosniff yok → tarayıcı içerik türünü tahmin eder; yanlış tahmin XSS'e döner.
+#   · frame-ancestors yok → sayfa başka sitede görünmez bir çerçeveye alınıp
+#     kullanıcıya farkında olmadan tıklatılabilir (clickjacking).
+#   · Server: Kestrel → arka uç teknolojisi ve sürüm ailesi bedavaya sızıyor.
+#
+# CSP BİLEREK YOK: açılış sayfası satır içi stil/script ve JSON-LD kullanıyor;
+# sıkı bir CSP sayfayı bozar. Ayrı ve ölçülerek eklenmeli.
+#
+# NOT: bu Caddy ORTAK (malthen.dev de buradan geçiyor). Bu yüzden başlıklar global
+# bloğa değil, yalnız Tazq alan adlarına uygulanıyor — başka bir ürünü etkilemesin.
+(tazq_security) {
+    header {
+        # 1 yıl. `preload` BİLEREK yok: preload listesine girmek pratikte geri
+        # alınamaz ve alt alan adlarını da bağlar.
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+        -Server
+    }
+}
+
 # TAZQ — API
 api.tazqapp.com {
+    import tazq_security
     reverse_proxy tazq-backend:80
 }
 
 # TAZQ — Landing + legal pages (served from backend wwwroot)
 tazqapp.com {
+    import tazq_security
     reverse_proxy tazq-backend:80
 }
 
 # SEO: tek kanonik host — www her zaman apex'e 301 döner
 www.tazqapp.com {
+    import tazq_security
     redir https://tazqapp.com{uri} permanent
 }
 
