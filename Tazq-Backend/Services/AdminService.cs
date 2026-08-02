@@ -255,10 +255,10 @@ namespace Tazq_App.Services
             var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == id);
             if (user == null) return null;
 
-            var tasks = await _context.Tasks.Where(t => t.UserId == id).ToListAsync();
-            var sessions = await _context.FocusSessions.Where(f => f.UserId == id).ToListAsync();
-            var support = await _context.SupportMessages.Where(m => m.UserId == id).ToListAsync();
-            var bans = await _context.BanHistories.Where(b => b.UserId == id).ToListAsync();
+            var tasks = await _context.Tasks.AsNoTracking().Where(t => t.UserId == id).ToListAsync();
+            var sessions = await _context.FocusSessions.AsNoTracking().Where(f => f.UserId == id).ToListAsync();
+            var support = await _context.SupportMessages.AsNoTracking().Where(m => m.UserId == id).ToListAsync();
+            var bans = await _context.BanHistories.AsNoTracking().Where(b => b.UserId == id).ToListAsync();
 
             // KVKK ihracı denetim kaydı gerektirir — kim, kimin verisini, ne zaman aldı.
             AddAudit(admin, "export", "user", id, user.Name, $"KVKK veri ihracı · {user.Email}");

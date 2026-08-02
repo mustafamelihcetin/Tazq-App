@@ -28,8 +28,10 @@ export function isWeightEntryTask(t: { title?: string; tags?: string[] | null } 
 export function daysSinceLastWeight(log: { date: string }[]): number | null {
   if (!log || log.length === 0) return null;
   const last = log.reduce((a, b) => (a.date > b.date ? a : b));
+  const todayStr = getLocalDateString();
+  const todayTime = new Date(todayStr + 'T00:00:00').getTime();
   const lastTime = new Date(last.date + 'T00:00:00').getTime();
-  return Math.floor((Date.now() - lastTime) / 86400000);
+  return Math.round((todayTime - lastTime) / 86400000);
 }
 
 /** 7 gün dolduysa (veya hiç kayıt yoksa) yeni tartım girilebilir. */

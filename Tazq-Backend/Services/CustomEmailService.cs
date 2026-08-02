@@ -403,7 +403,7 @@ namespace Tazq_App.Services
 			var user = await context.Users.FindAsync(userId);
 			if (user == null) throw new KeyNotFoundException("User not found.");
 
-			var tasks = await context.Tasks.Where(t => taskIds.Contains(t.Id) && t.UserId == userId).ToListAsync();
+			var tasks = await context.Tasks.AsNoTracking().Where(t => taskIds.Contains(t.Id) && t.UserId == userId).ToListAsync();
 			if (!tasks.Any()) throw new ArgumentException("No valid tasks found for this reminder.");
 
 			string subject = "Task Reminder";
@@ -419,7 +419,7 @@ namespace Tazq_App.Services
 			var user = await context.Users.FindAsync(userId);
 			if (user == null) throw new KeyNotFoundException("User not found.");
 
-			var pendingTasks = await context.Tasks.Where(t => t.UserId == userId && !t.IsCompleted).ToListAsync();
+			var pendingTasks = await context.Tasks.AsNoTracking().Where(t => t.UserId == userId && !t.IsCompleted).ToListAsync();
 			string subject = "Weekly Summary - Your Pending Tasks";
 			string body = pendingTasks.Any()
 				? FormatTaskList("Here are your pending tasks:", pendingTasks)
@@ -435,7 +435,7 @@ namespace Tazq_App.Services
 			var user = await context.Users.FindAsync(userId);
 			if (user == null) throw new KeyNotFoundException("User not found.");
 
-			var allTasks = await context.Tasks.Where(t => t.UserId == userId).ToListAsync();
+			var allTasks = await context.Tasks.AsNoTracking().Where(t => t.UserId == userId).ToListAsync();
 			string subject = "Exported Task List";
 			string body = allTasks.Any()
 				? FormatTaskList("Your complete task list:", allTasks)

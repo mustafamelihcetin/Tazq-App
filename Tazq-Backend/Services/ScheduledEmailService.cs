@@ -29,12 +29,14 @@ public class ScheduledEmailService : BackgroundService
 				try
 				{
 					_logger.LogInformation("Checking notification schedules (Hour: {Hour})...", currentHour);
+					var cryptoService = scope.ServiceProvider.GetRequiredService<ICryptoService>();
 
 					var usersWithReminders = await dbContext.UserNotificationPreferences
 						.Include(p => p.User)
+						.AsNoTracking()
 						.Where(p => p.ReceiveWeeklySummary ||
-									dbContext.Tasks.Any(t => t.UserId == p.UserId && t.DueDate.HasValue && t.DueDate.Value.Date == now.Date.AddDays(p.ReminderDaysBeforeDue)))
-						.ToListAsync();
+									dbContext.Tasks.Any(t => t.UserId == p.UserId && t.DueDate.HasValue))
+						.ToListAsync(stoppingToken);
 
 					foreach (var userPref in usersWithReminders)
 					{
@@ -47,9 +49,13 @@ public class ScheduledEmailService : BackgroundService
 
 						try
 						{
+							var targetDateStart = DateTime.SpecifyKind(now.Date.AddDays(userPref.ReminderDaysBeforeDue), DateTimeKind.Utc);
+							var targetDateEnd = targetDateStart.AddDays(1);
+
 							var tasksDueSoon = await dbContext.Tasks
-								.Where(t => t.UserId == user.Id && t.DueDate.HasValue && t.DueDate.Value.Date == now.Date.AddDays(userPref.ReminderDaysBeforeDue))
-								.ToListAsync();
+								.AsNoTracking()
+								.Where(t => t.UserId == user.Id && t.DueDate.HasValue && t.DueDate.Value >= targetDateStart && t.DueDate.Value < targetDateEnd)
+								.ToListAsync(stoppingToken);
 
 							if (tasksDueSoon.Any())
 							{
@@ -61,9 +67,21 @@ public class ScheduledEmailService : BackgroundService
 
 							if (userPref.ReceiveWeeklySummary && now.DayOfWeek == userPref.WeeklySummaryDay)
 							{
-								var allTasks = await dbContext.Tasks.Where(t => t.UserId == user.Id).ToListAsync();
+								var userKey = cryptoService.GetKeyForUser(user.Id);
+								var allTasks = await dbContext.Tasks
+									.AsNoTracking()
+									.Where(t => t.UserId == user.Id)
+									.ToListAsync(stoppingToken);
+
+								string DecryptTitle(string rawTitle)
+								{
+									if (userKey == null || string.IsNullOrWhiteSpace(rawTitle)) return rawTitle;
+									try { return cryptoService.Decrypt(rawTitle, userKey); }
+									catch { return rawTitle; }
+								}
+
 								var summaryBody = $"Hello {user.Name},\n\nHere is your weekly summary:\n\n" +
-												string.Join("\n", allTasks.Select(t => $"{t.Title} (Due: {t.DueDate:yyyy-MM-dd})"));
+												string.Join("\n", allTasks.Select(t => $"{DecryptTitle(t.Title)} (Due: {t.DueDate:yyyy-MM-dd})"));
 
 								await _emailService.SendEmailAsync(user.Email, "Weekly Task Summary", summaryBody);
 							}
