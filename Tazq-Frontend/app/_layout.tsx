@@ -482,10 +482,16 @@ export default function RootLayout() {
         const userData = await AuthService.getCurrentUser();
         if (userData) setUser(userData);
       } catch (error: unknown) {
-        if (httpStatusOf(error) === 401) {
+        // 401 tek başına yeterli değil: araya giren katman token'ı yenilemeyi denedi ve
+        // BAŞARISIZ olduysa bunun sebebi "token geçersiz" değil "sunucuya ulaşılamadı"
+        // olabilir. O durumda hata `__authTransient` ile işaretlenip oturum bilerek
+        // korunuyor; burada da saygı gösterilmeli, yoksa korunan oturumu biz kapatırız
+        // ve `clearLocalUserData` bekleyen çevrimdışı değişiklikleri siler.
+        const transient = (error as { __authTransient?: boolean })?.__authTransient === true;
+        if (httpStatusOf(error) === 401 && !transient) {
           logout();
         } else {
-          // Network/server error — don't logout, keep local session
+          // Ağ/sunucu hatası ya da geçici yenileme başarısızlığı → oturumu koru.
           swallow('layout.sessionSync', error);
         }
       }

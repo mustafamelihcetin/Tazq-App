@@ -9,16 +9,37 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { swallow } from '@/shared/utils/swallow';
 import { httpStatusOf } from '@/shared/utils/errors';
 
+/*
+  AYNI ANDA TEK AKIŞ — modül düzeyinde, çünkü koruma render'dan uzun yaşamalı.
+
+  Efekt `isOnline` her true olduğunda yeniden koşuyor ve mobil ağlar dalgalanır. Kuyruk
+  işlenirken (bir `createTask` cevabı beklenirken) ağ bir kez kesilip gelirse efekt tekrar
+  tetikleniyor ve İKİNCİ bir döngü, henüz kuyruktan düşmemiş AYNI anlık görüntüyle
+  başlıyordu. İki ayrı hasar üretiyordu:
+
+    • Aynı görev sunucuda İKİ KEZ oluşuyor (create op iki kez gönderiliyor).
+    • Her iki döngü de `dequeue(1)` çağırdığı için kuyruktan İKİ işlem düşüyor ama yalnız
+      biri işlenmiş oluyor → sıradaki işlem hiç gönderilmeden siliniyor. Sessiz veri kaybı;
+      kullanıcı çevrimdışıyken yaptığı bir değişikliğin kaybolduğunu ancak sonra fark eder.
+
+  `useRef` yetmezdi: aynı bileşen yeniden kurulursa ref sıfırlanır. Bayrak modül düzeyinde
+  ve `finally` ile bırakılıyor — hata yolunda kilitli kalmaz.
+*/
+let syncInFlight = false;
+
 export function useOfflineSync() {
   const isOnline = useNetworkStore(s => s.isOnline);
-  
+
   useEffect(() => {
     if (!isOnline) return;
 
     const processQueue = async () => {
+      if (syncInFlight) return;
       const queueState = useOfflineQueue.getState();
       const ops = queueState.ops;
       if (ops.length === 0) return;
+      syncInFlight = true;
+      try {
 
       if (__DEV__) console.log(`[Offline Sync] Starting sync of ${ops.length} items`);
       let processed = 0;
@@ -50,7 +71,20 @@ export function useOfflineSync() {
           } else if (op.type === 'delete-task') {
             await TaskService.deleteTask(op.id);
           } else if (op.type === 'reorder-tasks') {
-            await TaskService.reorderTasks(op.ids);
+            /*
+              SIRALAMA DA KİMLİK EŞLEMESİNDEN GEÇMELİ.
+
+              Yukarıdaki eşleme yalnız `op.id` alanına bakıyordu; sıralama işlemi ise
+              kimlikleri `ids` DİZİSİNDE taşıyor. Çevrimdışıyken görev oluşturup sıralayan
+              kullanıcıda dizi hâlâ geçici (negatif) kimliği içeriyor ve sunucuya o
+              gidiyordu: istek 400 dönüyor, "zehirli op" sayılıp atılıyor ve kullanıcının
+              yaptığı sıralama sessizce kayboluyordu.
+
+              Çözülemeyen negatif kimlikler diziden düşürülüyor — eksik de olsa geçerli bir
+              sıralama, tümden reddedilen bir istekten iyidir.
+            */
+            const mappedIds = op.ids.map(id => idMap.get(id) ?? id).filter(id => id > 0);
+            if (mappedIds.length > 0) await TaskService.reorderTasks(mappedIds);
           }
           
           processed++;
@@ -86,6 +120,13 @@ export function useOfflineSync() {
             'success'
           );
         }
+      }
+
+      } finally {
+        // Beklenmedik bir hata olsa bile bayrak DAİMA bırakılır. Aksi halde kuyruk
+        // kalıcı olarak kilitlenir ve kullanıcı bir daha hiç senkron olamazdı —
+        // korumanın kendisi, önlediği hatadan büyük bir hataya dönüşürdü.
+        syncInFlight = false;
       }
     };
 

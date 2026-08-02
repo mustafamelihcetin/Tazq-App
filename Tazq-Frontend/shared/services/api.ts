@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { reportApiError } from '@/shared/utils/sentry';
 import { swallow } from '@/shared/utils/swallow';
+import { httpStatusOf } from '@/shared/utils/errors';
 
 const BASE_URL = 'https://api.tazqapp.com';
 
@@ -73,13 +74,33 @@ function isLikelyConnectivityError(error: any): boolean {
 
 // Tek seferlik token yenileme — JWT 60 dk'da doluyor; eşzamanlı 401'lerde
 // tek bir refresh isteği paylaşılır (deduplication).
-let refreshPromise: Promise<string | null> | null = null;
-async function tryRefreshToken(): Promise<string | null> {
+/*
+  YENİLEME SONUCU ÜÇ DURUMLU — "başarısız" tek başına yeterli bilgi değil.
+
+  Eskiden bu fonksiyon her hatada `null` dönüyordu ve çağıran taraf null'ı "oturum bitti"
+  sayıp `logout()` çağırıyordu. `logout()` ise `clearLocalUserData()` ile YERELDEKİ HER ŞEYİ
+  siliyor: görevler, alışkanlıklar, kilo geçmişi ve BEKLEYEN ÇEVRİMDIŞI KUYRUK.
+
+  Sonuç şu zincirdi: JWT'nin süresi doldu → istek 401 aldı → yenileme denendi → tam o anda
+  sunucu 500/429 döndü ya da istek zaman aşımına uğradı → kullanıcı çıkışa zorlandı ve
+  çevrimdışıyken yaptığı, henüz gönderilmemiş değişiklikler KALICI olarak yok oldu.
+
+  Oysa "sunucuya ulaşamadım" ile "sunucu bu token'ı reddetti" aynı şey değil. Yalnız
+  ikincisi oturumun gerçekten bittiği anlamına gelir; ilkinde oturum korunmalı ve bir
+  sonraki istekte tekrar denenmelidir.
+*/
+type RefreshResult =
+  | { status: 'ok'; token: string }
+  | { status: 'invalid' }    // sunucu token'ı reddetti → oturum gerçekten bitti
+  | { status: 'transient' }; // ağ/zaman aşımı/5xx/429 → oturuma DOKUNMA
+
+let refreshPromise: Promise<RefreshResult> | null = null;
+async function tryRefreshToken(): Promise<RefreshResult> {
   if (refreshPromise) return refreshPromise;
-  refreshPromise = (async () => {
+  refreshPromise = (async (): Promise<RefreshResult> => {
     try {
       const refreshToken = useAuthStore.getState().refreshToken;
-      if (!refreshToken) return null;
+      if (!refreshToken) return { status: 'invalid' };
       // api instance'ı değil ham axios — interceptor döngüsüne girmesin
       const res = await axios.post(`${BASE_URL}/api/users/refresh`, { refreshToken }, {
         headers: { 'X-App-Signature': 'tazq-expo-frontend' },
@@ -90,11 +111,16 @@ async function tryRefreshToken(): Promise<string | null> {
       if (newToken) {
         // Rotasyon: yeni access + yeni refresh token'ı sakla
         useAuthStore.setState({ token: newToken, ...(newRefresh ? { refreshToken: newRefresh } : {}) });
-        return newToken;
+        return { status: 'ok', token: newToken };
       }
-      return null;
-    } catch {
-      return null;
+      return { status: 'invalid' };
+    } catch (err: unknown) {
+      const status = httpStatusOf(err);
+      // Yalnız sunucunun AÇIKÇA reddi oturumu bitirir.
+      if (status === 401 || status === 403) return { status: 'invalid' };
+      // Ağ kopması, zaman aşımı, 5xx, 429 (hız sınırı)... → geçici. Oturum korunur;
+      // bir sonraki istekte yeniden denenir.
+      return { status: 'transient' };
     } finally {
       refreshPromise = null;
     }
@@ -121,22 +147,37 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const { isLoggedIn, _hasHydrated } = useAuthStore.getState();
       const url: string = config?.url ?? '';
-      const isRefreshCall = url.includes('/refresh-session');
+      // Yenileme isteğinin KENDİSİ 401 alırsa tekrar yenilemeye kalkma (sonsuz döngü).
+      // Bu çağrı ham axios ile yapıldığı için normalde buraya düşmez; kontrol, ileride
+      // biri onu `api` örneğine taşırsa diye duruyor. Eskiden var olmayan bir yolu
+      // (`/refresh-session`) arıyordu, yani hiçbir şey korumuyordu.
+      const isRefreshCall = url.includes('/api/users/refresh');
 
       // Süresi dolmuş JWT → önce sessizce yenilemeyi dene, sonra isteği tekrarla.
       // Sadece gerçek oturum varsa, refresh çağrısının kendisi değilse ve daha önce
       // denenmediyse. Böylece her açılışta gereksiz logout olmaz.
       if (isLoggedIn && _hasHydrated && config && !config._retriedAuth && !isRefreshCall) {
         config._retriedAuth = true;
-        const newToken = await tryRefreshToken();
-        if (newToken) {
+        const result = await tryRefreshToken();
+        if (result.status === 'ok') {
           config.headers = config.headers ?? {};
-          config.headers.Authorization = `Bearer ${newToken}`;
+          config.headers.Authorization = `Bearer ${result.token}`;
           return api(config);
+        }
+        if (result.status === 'transient') {
+          // Sunucuya ULAŞILAMADI — token'ın geçersiz olduğuna dair bir kanıt yok.
+          // Oturumu koru, yalnız bu isteği reddet. Çıkış yapmak, kullanıcının bekleyen
+          // çevrimdışı değişikliklerini de silmek demekti (bkz. clearLocalUserData).
+          //
+          // İŞARET ŞART: hata yine 401 olarak yukarı çıkıyor ve çağıran katmanların bir
+          // kısmı "401 → çıkış" kuralını KENDİ uyguluyor (ör. açılıştaki oturum eşitlemesi).
+          // İşaret olmasaydı burada korunan oturum bir üst katmanda kapatılırdı.
+          (error as { __authTransient?: boolean }).__authTransient = true;
+          return Promise.reject(error);
         }
       }
 
-      // Yenileme başarısız (token gerçekten geçersiz) → ancak o zaman çıkış yap.
+      // Buraya yalnız yenileme AÇIKÇA reddedildiğinde gelinir → oturum gerçekten bitti.
       if (isLoggedIn && _hasHydrated) {
         useAuthStore.getState().logout();
       }
