@@ -57,9 +57,16 @@ const KNOWN_LARGE: Record<string, number> = {
   // "VirtualizedList must be wrapped with Animated.createAnimatedComponent" ile çöküyor).
   // Artış: seçenek nesnesi + üç satırlık gerekçe. Yorum iki kez kısaltıldı; geri kalanı
   // silmek, bir daha aynı hatayı yapmamızı sağlayan tek kaydı silmek olurdu.
-  'app/tasks.tsx': 2400,
+  // 2400 → 2402: ölü `subtaskSaveTimers` ref'i kaldırıldı (4 satır eksildi), yerine neden
+  // kaldırıldığını anlatan 4 satırlık not kondu. Not önemli: o ref, alt görev işaretlemesinin
+  // kaydedildiği izlenimini verip gerçek hatayı gizliyordu; silinip sessizce unutulursa
+  // birileri aynı yarım mekanizmayı yeniden kurabilir.
+  'app/tasks.tsx': 2402,
   'app/index.tsx': 2097,
-  'app/admin.tsx': 1663,
+  // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
+  // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
+  // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.
+  'app/admin.tsx': 1676,
   'features/modes/components/TurkishModeBanner.tsx': 1690,
   'app/cockpit.tsx': 1523,
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre

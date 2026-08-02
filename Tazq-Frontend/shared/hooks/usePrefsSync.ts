@@ -25,8 +25,16 @@ export function usePrefsSync() {
         const { isLoggedIn: logged } = useAuthStore.getState();
         const { isOnline: online } = useNetworkStore.getState();
         if (!logged || !online) return; // online/login olunca aşağıdaki effect yakalar
-        dirty.current = false;
-        usePrefsStore.getState().syncToCloud();
+        /*
+          BAYRAK ANCAK BAŞARIDA TEMİZLENİR.
+
+          Eskiden istek gönderilmeden ÖNCE `dirty = false` yapılıyordu ve `syncToCloud`
+          hatayı içeride yuttuğu için başarısızlık hiç fark edilmiyordu: sunucu 500/429
+          dönse bile değişiklik "gönderildi" sayılıp buluttaki kopya bir sonraki tercih
+          değişikliğine kadar bayat kalıyordu. Faturası yeni cihazda kesiliyordu — orada
+          yerel veri olmadığı için bulut kazanır ve kullanıcı eski ayarlarını geri alır.
+        */
+        usePrefsStore.getState().syncToCloud().then((ok) => { if (ok) dirty.current = false; });
       }, DEBOUNCE_MS);
     });
     return () => {
@@ -39,8 +47,8 @@ export function usePrefsSync() {
   useEffect(() => {
     if (firstRun.current) { firstRun.current = false; return; }
     if (isLoggedIn && isOnline && dirty.current) {
-      dirty.current = false;
-      usePrefsStore.getState().syncToCloud();
+      // Aynı kural: başarısız denemede bayrak AÇIK kalır, bir sonraki geçişte tekrar denenir.
+      usePrefsStore.getState().syncToCloud().then((ok) => { if (ok) dirty.current = false; });
     }
   }, [isLoggedIn, isOnline]);
 }

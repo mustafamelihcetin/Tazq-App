@@ -159,7 +159,7 @@ function getNextOccurrenceLabel(dueDateStr: string | null | undefined, recurrenc
 
 
 const MemoizedTaskItem = React.memo((props: any) => {
-    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, subtaskSaveTimers, sortBy, onMoveUp, onMoveDown, modeInfo } = props;
+    const { task, i, theme, isDark, highlightedId, isBulkMode, isSelected, language, t, showSwipePeek, priorityColor, handleDelete, handleToggleExpand, handleLongPress, handleBulkSelect, handleToggle, toggleSubtask, completingIds, expandedId, sortBy, onMoveUp, onMoveDown, modeInfo } = props;
 
     /*
       MOD BİLGİSİ ARTIK PROP — kart artık HİÇBİR store'a abone değil.
@@ -622,7 +622,10 @@ export default function ActionCenter() {
   }, [filter, tagFilter, searchQuery, sortBy, hideCompleted]);
 
 
-  const subtaskSaveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  // NOT: burada bir `subtaskSaveTimers` ref'i vardı — tanımlanmış, alt bileşene geçilmiş,
+  // unmount'ta temizleniyordu ama HİÇBİR yere yazılmıyordu. Alt görev işaretlemesinin
+  // kaydedildiği izlenimini verip hatayı gizliyordu. Kalıcılık artık store'da
+  // (useTaskStore.toggleSubtask → subtaskSync), yani tek giriş noktasında.
 
   // Collect unique tags from all tasks for tag filter — içsel/sistem etiketleri hariç
   /*
@@ -647,7 +650,6 @@ export default function ActionCenter() {
 
     return () => {
       VoiceService.destroy();
-      Object.values(subtaskSaveTimers.current).forEach(clearTimeout);
     };
   }, []);
 
@@ -2097,7 +2099,6 @@ export default function ActionCenter() {
                     toggleSubtask={toggleSubtask}
                     completingIds={completingIds}
                     expandedId={expandedId}
-                    subtaskSaveTimers={subtaskSaveTimers}
                 />
             )}
             ListFooterComponent={() => (

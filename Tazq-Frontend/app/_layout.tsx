@@ -445,6 +445,13 @@ export default function RootLayout() {
     const handleAppStateChange = (nextAppState: string) => {
       if (nextAppState === 'active') {
         checkTimerRehydration();
+      } else {
+        // Arka plana geçerken bekleyen alt görev yazmalarını HEMEN gönder: 800 ms'lik
+        // toplama penceresi dolmadan uygulamadan çıkan kullanıcının son dokunuşu
+        // kaybolmasın (yazma yalnız gecikmeli, yerel güncelleme zaten anında).
+        try {
+          require('@/features/tasks/utils/subtaskSync').flushPendingSubtasks();
+        } catch (e) { swallow('layout.flushPendingSubtasks', e, { capture: true }); }
       }
     };
 

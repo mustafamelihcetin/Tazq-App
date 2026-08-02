@@ -215,7 +215,8 @@ interface PrefsState {
   // (tüm slot dizilerinde). Böylece mod kapatma/temizlik doğru id'yi siler.
   remapPlanTaskId: (oldId: number, newId: number) => void;
   // Cihazlar arası eşitleme: seçili tercihleri backend'e gönderir / login sonrası geri yükler.
-  syncToCloud: () => Promise<void>;
+  /** true = buluta yazıldı · false = yazılamadı (çağıran "bekliyor" işaretini korumalı). */
+  syncToCloud: () => Promise<boolean>;
   hydrateFromCloud: (prefsJson?: string | null) => void;
   _hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
@@ -534,12 +535,25 @@ export const usePrefsStore = create<PrefsState>()(
           Bunun bedeli bilinen ve kabul edilmiş: çıkışta kilo geçmişi cihazdan silinir ve
           geri gelmez (bkz. useSporStore.clearAll). Plan kaldırmak ise geçmişi SİLMEZ.
         */
+        /*
+          SONUÇ DÖNDÜRÜLÜYOR — "denendi" ile "başarıldı" ayrı şeyler.
+
+          Bu fonksiyon hatayı içeride yutuyor ve hiçbir şey döndürmüyordu; çağıran taraf
+          (usePrefsSync) ise "bekleyen değişiklik" bayrağını istek GÖNDERİLMEDEN ÖNCE
+          temizliyordu. Sunucu 500/429 dönerse ya da istek düşerse değişiklik "gönderildi"
+          sayılıyor ve buluttaki kopya bir sonraki tercih değişikliğine kadar bayat kalıyordu.
+
+          Bunun faturası yeni cihazda kesiliyor: kullanıcı telefon değiştirdiğinde yerelde
+          hiçbir şey olmadığı için bulut kazanıyor ve eski tercihleri geri geliyor.
+        */
         try {
           await AuthService.updateProfile({ preferences: JSON.stringify(snapshot) });
+          return true;
         } catch (err) {
-          // Çevrimdışı/başarısız: sessizce geç, tercihler lokalde zaten kalıcı.
-          // Bir sonraki değişiklikte tekrar denenir; yine de iz bırak.
+          // Çevrimdışı/başarısız: tercihler lokalde zaten kalıcı; çağıran taraf bayrağı
+          // AÇIK bırakıp bir sonraki fırsatta (online/login geçişi) yeniden dener.
           swallow('prefsStore.syncToCloud', err);
+          return false;
         }
       },
 

@@ -70,11 +70,27 @@ namespace Tazq_App.Services
             // Sort at DB level on non-encrypted fields
             // ToLowerInvariant: tr-TR kültüründe "PRIORITY".ToLower() → "prıorıty" olur ve
             // eşleşmez; sıralama sessizce varsayılana düşerdi (yanlış sıra, hata yok).
+            /*
+              EŞİTLİK BOZUCU ŞART — sayfalama ancak KARARLI sıralamayla doğru çalışır.
+
+              Sıralama alanlarının hepsinde eşitlik çok olası: `SortOrder` varsayılanı 0
+              (yani görevlerin çoğu eşit), `DueDate` birçok görevde null, `Priority` üç
+              değerli. Eşit satırların sırası SQL'de tanımsızdır — veritabanı bunları her
+              sorguda farklı düzende döndürebilir.
+
+              `Skip/Take` ile sayfalarken bunun bedeli ağır: 1. sayfada dönen bir görev
+              2. sayfada TEKRAR çıkabilir, bir başkası ise hiç dönmeyebilir. Kullanıcı
+              listesinde çift kayıt görür ve bazı görevleri hiç göremez — üstelik hangi
+              görevin kaybolduğunu anlaması imkânsızdır.
+
+              `Id` benzersiz olduğu için sıralamayı tam olarak belirler; sayfalar arası
+              kayma imkânsız hale gelir.
+            */
             query = sortBy?.ToLowerInvariant() switch
             {
-                "duedate" => query.OrderBy(t => t.DueDate),
-                "priority" => query.OrderByDescending(t => t.Priority),
-                _ => query.OrderByDescending(t => t.SortOrder)
+                "duedate" => query.OrderBy(t => t.DueDate).ThenByDescending(t => t.Id),
+                "priority" => query.OrderByDescending(t => t.Priority).ThenByDescending(t => t.Id),
+                _ => query.OrderByDescending(t => t.SortOrder).ThenByDescending(t => t.Id)
             };
 
             var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();

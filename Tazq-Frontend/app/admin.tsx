@@ -1390,8 +1390,20 @@ export default function AdminScreen() {
                           </Text>
                         </Touchable>
 
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: S.xxs }}>
-                          <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>
+                        {/*
+                          ROZET KUTUDAN TAŞIYORDU.
+
+                          Soldaki künye metninin (platform · cihaz · sürüm · e-posta) ne `flex`i
+                          ne satır sınırı vardı; doğal genişliğini alıp satırı şişiriyor ve
+                          "Çözüldü" rozetini kartın dışına itiyordu. `space-between` bunu
+                          çözmez — içerik zaten sığmıyorsa dağıtacak boşluk kalmaz.
+
+                          Künye esneyip kırpılıyor (`flex: 1` + `numberOfLines`), rozet ise
+                          asla küçülmüyor (`flexShrink: 0`): kısaltılması gereken taraf uzun
+                          ve tekrar eden künye, sabit ve kritik olan durum etiketi değil.
+                        */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: S.sm, marginTop: S.xxs }}>
+                          <Text numberOfLines={2} style={{ flex: 1, minWidth: 0, color: theme.onSurfaceMuted, fontSize: F.caption }}>
                             {crash.platform} · {crash.deviceName} · v{crash.appVersion} {crash.userEmail ? `(${crash.userEmail})` : ''}
                           </Text>
                           {!crash.isResolved ? (
@@ -1404,14 +1416,14 @@ export default function AdminScreen() {
                                   setCrashes(cr.crashes || []);
                                 } catch (e) { swallow('admin.resolveCrashAndRefresh', e, { capture: true }); }
                               }}
-                              style={{ backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm }}
+                              style={{ flexShrink: 0, backgroundColor: theme.primary + '15', paddingHorizontal: S.sm, paddingVertical: S.xs, borderRadius: R.sm }}
                             >
                               <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>
                                 {tr ? 'Çözüldü İşaretle' : 'Mark Resolved'}
                               </Text>
                             </Touchable>
                           ) : (
-                            <Text style={{ color: '#10B981', fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Çözüldü' : 'Resolved'}</Text>
+                            <Text numberOfLines={1} style={{ flexShrink: 0, color: '#10B981', fontSize: F.caption, fontWeight: '700' }}>{tr ? 'Çözüldü' : 'Resolved'}</Text>
                           )}
                         </View>
                       </View>

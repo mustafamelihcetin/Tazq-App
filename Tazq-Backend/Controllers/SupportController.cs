@@ -50,6 +50,35 @@ namespace Tazq_App.Controllers
 			public string AppVersion { get; set; } = string.Empty;
 		}
 
+		/*
+		  ÇÖKME RAPORU — ANONİM ve SINIRSIZ bir yazma yoluydu.
+
+		  Bu uç `[AllowAnonymous]`: kimlik doğrulaması olmadan çağrılabiliyor. Alanların
+		  hiçbirinde uzunluk sınırı yoktu ve gelen yığın izi hem veritabanına hem de
+		  `LogError` ile LOG DOSYASINA olduğu gibi yazılıyordu.
+
+		  Asıl tehlike veritabanı değil, log tarafı: yeterince büyük ve yeterince sık
+		  gönderim diski doldurur, disk dolunca da PostgreSQL dahil sunucudaki her şey
+		  durur. Yani tek başına bu uç, kimlik doğrulaması gerektirmeyen bir servis
+		  dışı bırakma yoluydu.
+
+		  Kırpma sessiz ve bilinçli: çökme raporunu REDDETMEK, tam da görünürlüğe en çok
+		  ihtiyaç duyulan anda (kötü bir sürümde) veri kaybettirir. 8 KB yığın izi gerçek
+		  bir çökmeyi teşhis etmeye fazlasıyla yeter.
+		*/
+		private static string Clamp(string? value, int max, string fallback = "")
+		{
+			if (string.IsNullOrWhiteSpace(value)) return fallback;
+			var v = value.Trim();
+			return v.Length <= max ? v : v[..max];
+		}
+
+		private const int MaxErrorMessageLength = 500;
+		private const int MaxStackTraceLength = 8_000;
+		private const int MaxDeviceNameLength = 100;
+		private const int MaxPlatformLength = 50;
+		private const int MaxAppVersionLength = 20;
+
 		// POST: api/support/report-crash (Public / AllowAnonymous)
 		[HttpPost("report-crash")]
 		[AllowAnonymous]
@@ -57,11 +86,11 @@ namespace Tazq_App.Controllers
 		{
 			var crash = await _support.ReportCrashAsync(new ClientCrash
 			{
-				ErrorMessage = dto.ErrorMessage ?? "Unknown Error",
-				StackTrace = dto.StackTrace ?? string.Empty,
-				DeviceName = dto.DeviceName ?? "Unknown Device",
-				Platform = dto.Platform ?? "Unknown Platform",
-				AppVersion = dto.AppVersion ?? "1.0.0",
+				ErrorMessage = Clamp(dto.ErrorMessage, MaxErrorMessageLength, "Unknown Error"),
+				StackTrace = Clamp(dto.StackTrace, MaxStackTraceLength),
+				DeviceName = Clamp(dto.DeviceName, MaxDeviceNameLength, "Unknown Device"),
+				Platform = Clamp(dto.Platform, MaxPlatformLength, "Unknown Platform"),
+				AppVersion = Clamp(dto.AppVersion, MaxAppVersionLength, "1.0.0"),
 				CreatedAt = DateTime.UtcNow,
 			}, GetUserId());
 

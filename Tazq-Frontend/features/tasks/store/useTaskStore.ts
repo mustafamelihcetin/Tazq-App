@@ -201,6 +201,20 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
       return { ...t, subtasks: subs };
     });
     get().setTasks(newTasks);
+    /*
+      SUNUCUYA DA YAZ — yoksa işaretleme ilk tazelemede siliniyordu.
+
+      Burası eskiden yalnız yerel listeyi güncelliyordu. Yerel liste kalıcı olduğu için
+      tik bir süre duruyor, ama `getTasks` → `setTasks` çalıştığı anda sunucunun kopyası
+      üzerine yazıyor ve alt görevlerin hepsi `done: false`a dönüyordu.
+
+      Kalıcılık ÇAĞRI NOKTASINA değil buraya bağlandı: alt görev işaretlemesi ileride
+      başka bir ekrandan da yapılabilir ve o ekran bu adımı unutursa hata sessizce geri
+      gelir. Store tek giriş noktası olduğu için burada olması unutulmaya kapalı.
+    */
+    try {
+      require('@/features/tasks/utils/subtaskSync').persistSubtasks(taskId);
+    } catch (e) { swallow('taskStore.persistSubtasks', e, { capture: true }); }
   },
 
   reorderTasks: (orderedIds) => {

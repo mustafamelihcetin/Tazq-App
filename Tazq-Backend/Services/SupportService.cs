@@ -37,7 +37,9 @@ namespace Tazq_App.Services
 
             var total = await q.CountAsync();
             var items = await q
-                .OrderByDescending(c => c.CreatedAt)
+                // Eşitlik bozucu: aynı saniyeye düşen kayıtlar (toplu ekleme, çökme dalgası)
+                // sıralamada tanımsız kalır ve sayfalar arasında yer değiştirir. Id benzersiz.
+                .OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
                 .Skip(Math.Max(offset, 0))
                 .Take(Math.Clamp(limit, 1, 200))
                 .ToListAsync();

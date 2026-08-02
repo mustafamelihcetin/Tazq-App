@@ -49,8 +49,16 @@ namespace Tazq_App.Services
 
             var total = await q.CountAsync();
 
-            // Sunucu tarafında sıralama
-            q = sort switch
+            /*
+              Sunucu tarafında sıralama — sonunda `ThenBy(Id)` ile KARARLI hale getiriliyor.
+
+              Buradaki her ölçütte eşitlik çok olası: aynı ada sahip kullanıcılar, 0 görevli
+              kullanıcılar, hiç odak oturumu olmayanlar (varsayılan sıralama `Max(StartedAt)`
+              kullanıyor ve bu, oturumu olmayan herkeste NULL). Eşit satırların sırası SQL'de
+              tanımsızdır; "daha fazla yükle" ile sayfa sayfa ilerlerken aynı kullanıcı iki
+              kez listelenir, bir başkası ise hiç görünmez.
+            */
+            var ordered = sort switch
             {
                 "name" => asc ? q.OrderBy(u => u.Name) : q.OrderByDescending(u => u.Name),
                 "tasks" => asc
@@ -64,6 +72,7 @@ namespace Tazq_App.Services
                     ? q.OrderBy(u => _context.FocusSessions.Where(f => f.UserId == u.Id).Max(f => (DateTime?)f.StartedAt))
                     : q.OrderByDescending(u => _context.FocusSessions.Where(f => f.UserId == u.Id).Max(f => (DateTime?)f.StartedAt)),
             };
+            q = ordered.ThenBy(u => u.Id);
 
             var users = await q
                 .Skip((page - 1) * pageSize)
@@ -275,7 +284,9 @@ namespace Tazq_App.Services
             var q = _context.AdminAuditLogs.AsNoTracking();
             var total = await q.CountAsync();
             var items = await q
-                .OrderByDescending(a => a.CreatedAt)
+                // Eşitlik bozucu: aynı saniyeye düşen kayıtlar (toplu ekleme, çökme dalgası)
+                // sıralamada tanımsız kalır ve sayfalar arasında yer değiştirir. Id benzersiz.
+                .OrderByDescending(a => a.CreatedAt).ThenByDescending(a => a.Id)
                 .Skip(offset)
                 .Take(limit)
                 .ToListAsync();

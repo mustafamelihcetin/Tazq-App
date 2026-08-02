@@ -145,6 +145,43 @@ builder.Services.Configure<IpRateLimitOptions>(opt =>
             Endpoint = "post:/api/users/register",
             Period = "1h",
             Limit = 20
+        },
+        /*
+          ÇÖKME RAPORU — anonim yazma yolu, ikinci savunma hattı.
+
+          Alan uzunlukları kontrolcüde kırpıldı; bu kural gönderim SIKLIĞINI bağlıyor.
+          Uç `[AllowAnonymous]` ve her kayıt hem veritabanına hem log dosyasına yazılıyor,
+          yani sınırsız bırakılırsa diski doldurmak için hesap açmaya bile gerek yok.
+
+          NEDEN 5 DEĞİL: kötü bir sürümde birçok gerçek kullanıcı aynı anda çöker ve
+          mobil operatörlerin CGNAT'ı yüzünden hepsi tek IP'den görünebilir. Sıkı bir
+          sınır, tam da görünürlüğe en çok ihtiyaç duyduğumuz anda raporları keserdi.
+          60/saat, meşru çökme dalgasını taşır ama suistimali anlamsız kılar.
+        */
+        new RateLimitRule
+        {
+            Endpoint = "post:/api/support/report-crash",
+            Period = "1h",
+            Limit = 60
+        },
+        /*
+          YAPAY ZEKA — her çağrı PARA harcıyor.
+
+          Bu uç Groq'a gerçek bir istek atıyor. Girdi zaten sıkı sınırlı (kind/phase kapalı
+          küme, ad 60 karakter, max_tokens 2048) yani çağrı BAŞINA maliyet sabit; sınırsız
+          olan ÇAĞRI SAYISIYDI. Kayıt ücretsiz olduğu için tek bir hesap saatte 1000 istek
+          atıp kotayı tüketebilirdi.
+
+          Gerçek istemci zaten kendini frenliyor: aynı anahtar için tek uçuş, başarısızlıkta
+          24 saat tekrar denemiyor ve HER hatada sessizce sabit havuza düşüyor. Yani bu kural
+          uygulamaya değil, DEĞİŞTİRİLMİŞ bir istemciye karşı; 429 alan gerçek kullanıcı
+          hiçbir şey fark etmez, yalnız hazır havuzu kullanır.
+        */
+        new RateLimitRule
+        {
+            Endpoint = "post:/api/ai/plan-pool",
+            Period = "1h",
+            Limit = 30
         }
     };
     opt.QuotaExceededMessage = "Çok fazla istek gönderdiniz. Güvenliğiniz için sınırlandırıldınız. Lütfen daha sonra tekrar deneyin.";
