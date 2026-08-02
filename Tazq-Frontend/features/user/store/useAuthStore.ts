@@ -88,7 +88,10 @@ function clearLocalUserData() {
   safe(() => require('@/features/modes/store/usePrefsStore').usePrefsStore.getState().resetUserData());
   safe(() => require('@/shared/store/useBudgetStore').useBudgetStore.getState().reset());
   safe(() => require('@/shared/store/useQuitStore').useQuitStore.getState().reset());
-  safe(() => require('@/features/modes/store/useSporStore').useSporStore.getState().resetInputs());
+  // `clearAll` (resetInputs DEĞİL): çıkışta kilo geçmişi de cihazdan silinmeli.
+  // Artık buluta eşitlendiği için tekrar girişte geri gelir; `resetInputs` ise plan
+  // kaldırma yolunda kullanılıyor ve geçmişe kasten dokunmuyor.
+  safe(() => require('@/features/modes/store/useSporStore').useSporStore.getState().clearAll());
   safe(() => require('@/shared/store/useSubjectStore').useSubjectStore.getState().reset());
   safe(() => require('@/shared/store/useOfflineQueue').useOfflineQueue.getState().clear());
   safe(() => require('@/shared/store/useCompletionStore').useCompletionStore.setState({ events: [] }));

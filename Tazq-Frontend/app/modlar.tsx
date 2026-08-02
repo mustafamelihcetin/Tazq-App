@@ -32,7 +32,7 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporStore';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
-import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/features/modes/utils/weightCheckin';
+import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask, getLocalDateString } from '@/features/modes/utils/weightCheckin';
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
 import { matchExamName, detectExamFromInput, recommendTemplateId, HOURS_OPTIONS, type ExamPreset } from '@/shared/utils/examPresets';
 
@@ -1377,7 +1377,22 @@ export default function ModlarScreen() {
               // (bugün dolu kayıt yoksa bugüne, varsa +7 güne). Basılınca kilo girilir.
               if (slot === 'spor' && sporType === 'kilo') {
                 const startW = parseFloat(useSporStore.getState().currentWeight);
-                if (!isNaN(startW) && startW > 0 && useSporStore.getState().weightLog.length === 0) {
+                /*
+                  BAŞLANGIÇ KİLOSU HER YENİ PLANDA KAYDEDİLİR.
+
+                  Koşul eskiden "geçmiş tamamen boşsa" idi ve bu, geçmişin plan kaldırılınca
+                  silinmesine dayanıyordu. Geçmiş artık korunduğu için (bkz.
+                  useSporStore.resetInputs) o koşul ikinci planda ASLA tutmazdı: kullanıcı
+                  kurulumda yeni kilosunu yazar, grafik ise aylar önceki değeri "son ölçüm"
+                  göstermeye devam ederdi.
+
+                  Ölçüt "bugüne ait kayıt var mı" oldu; addWeightEntry zaten aynı günü
+                  tekilleştirdiği için aynı gün ikinci kurulum kopya üretmez.
+                */
+                const startDayKey = useSporStore.getState().weightLog.some(
+                  e => e.date === getLocalDateString(),
+                );
+                if (!isNaN(startW) && startW > 0 && !startDayKey) {
                   useSporStore.getState().addWeightEntry(startW);
                 }
                 const updatedLog = useSporStore.getState().weightLog;

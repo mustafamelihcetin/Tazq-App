@@ -30,7 +30,10 @@ interface SporState {
   setTrainingDays: (v: 3 | 4 | 5 | null) => void;
   addWeightEntry: (weight: number) => void;
   removeWeightEntry: (date: string) => void;
+  /** Plan formu alanlarını sıfırlar. Kilo GEÇMİŞİNE dokunmaz — bkz. resetInputs. */
   resetInputs: () => void;
+  /** Çıkış/hesap silme: kilo geçmişi DAHİL her şeyi siler (gizlilik sınırı). */
+  clearAll: () => void;
 }
 
 export function getLocalDateString(d: Date = new Date()): string {
@@ -68,9 +71,35 @@ export const useSporStore = create<SporState>()(
         return { weightLog: [...filtered, { date: today, weight }].sort((a, b) => b.date.localeCompare(a.date)) };
       }),
       removeWeightEntry: (date) => set((s) => ({ weightLog: s.weightLog.filter(e => e.date !== date) })),
-      // Plan kaldırıldığında tüm spor verisi sıfırlanır — kayıtlı kilo geçmişi (weightLog)
-      // dahil. Aksi halde plan yeniden açıldığında eski kilo girişleri görünür kalıyordu.
+      /*
+        PLAN KALDIRMAK TARTI GEÇMİŞİNİ SİLMEZ.
+
+        Burası eskiden `weightLog: []` de yazıyordu; gerekçesi "plan yeniden açıldığında
+        eski girişler görünür kalıyordu" idi. Bedeli ise ölçtüğünden ağırdı:
+
+         1. VERİ KAYBI. Kilo geçmişi kullanıcının kendi sağlık kaydı, planın kurulum
+            artığı değil. Plan bir kez kapatılınca aylarca birikmiş tartım geri gelmiyordu.
+         2. HAFTALIK ZİNCİR SIFIRLANIYORDU. "7 günde bir tartıl" sayacı geçmişten
+            hesaplanıyor (bkz. canLogWeight). Geçmiş silinince sayaç sıfırlanıyor ve
+            "Güncel kilonu gir" görevi daha yeni tartılmışken hemen geri geliyordu.
+
+        Form alanları (hedef kilo, boy, yaş...) plana AİT olduğu için sıfırlanmaya devam
+        ediyor; ölçümler kullanıcıya ait olduğu için korunuyor.
+      */
       resetInputs: () => set({
+        currentWeight: '', targetWeight: '', heightCm: '', ageYears: '', gender: '' as Gender,
+        weeklyKm: '', targetEvent: '', trainingDays: null,
+      }),
+      /*
+        ÇIKIŞ AYRI BİR SINIR: cihazda kullanıcıya ait iz kalmamalı — aynı telefonu başkası
+        kullanabilir. Bu yüzden burada geçmiş DE siliniyor.
+
+        Bilinen bedel: kilo geçmişi buluta gönderilmediği için (gizlilik metni 2.5 —
+        sağlık verisi sunucuya gitmez) çıkış yapan kullanıcı geçmişini geri alamaz.
+        Bunu değiştirmek metin + App Store veri etiketi kararı gerektirir; kod tek başına
+        karar veremez.
+      */
+      clearAll: () => set({
         currentWeight: '', targetWeight: '', heightCm: '', ageYears: '', gender: '' as Gender,
         weeklyKm: '', targetEvent: '', trainingDays: null, weightLog: [],
       }),

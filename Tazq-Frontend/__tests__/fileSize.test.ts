@@ -65,9 +65,17 @@ const KNOWN_LARGE: Record<string, number> = {
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.
-  'app/modlar.tsx': 1420,
+  // 1420 → 1425: başlangıç kilosu koşulunun düzeltmesi. Koşul "kilo geçmişi tamamen boşsa"
+  // idi ve geçmişin plan kaldırılınca silinmesine dayanıyordu; geçmiş artık korunduğu için
+  // (useSporStore.resetInputs) o koşul ikinci planda asla tutmuyordu.
+  'app/modlar.tsx': 1425,
   'features/tasks/components/TaskFormModal.tsx': 1199,
-  'features/modes/hooks/usePlanAdaptations.ts': 1150,
+  // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
+  // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
+  // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
+  // eklenen tek çağrı + kapının NEDENİNİ anlatan yorum; o yorum silinirse kapı ilk
+  // "sadeleştirmede" geri alınır.
+  'features/modes/hooks/usePlanAdaptations.ts': 1180,
   'app/profile.tsx': 910,
   'shared/constants/legal.ts': 893,
   'features/modes/utils/planAdaptations.ts': 880,

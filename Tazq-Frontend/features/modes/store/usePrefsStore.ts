@@ -523,6 +523,17 @@ export const usePrefsStore = create<PrefsState>()(
           const ach = require('@/features/user/store/useAchievementStore').useAchievementStore.getState();
           snapshot.__achievements = { unlocked: ach.unlocked, baselined: ach.baselined };
         } catch (e) { swallow('prefsStore.collectAchievementsForSnapshot', e, { capture: true }); }
+        /*
+          KİLO GEÇMİŞİ BİLEREK BURAYA EKLENMEDİ.
+
+          Teknik olarak sığardı (bu JSON serbest biçimli), ama gizlilik metninin 2.5.
+          maddesi sağlık verisinin "sunucularımıza gönderilmez" taahhüdünü veriyor ve kilo
+          KVKK'da özel nitelikli sağlık verisi. Buluta taşımak önce metnin ve App Store veri
+          etiketinin değişmesini gerektirir — kod kararı değil, ürün kararı.
+
+          Bunun bedeli bilinen ve kabul edilmiş: çıkışta kilo geçmişi cihazdan silinir ve
+          geri gelmez (bkz. useSporStore.clearAll). Plan kaldırmak ise geçmişi SİLMEZ.
+        */
         try {
           await AuthService.updateProfile({ preferences: JSON.stringify(snapshot) });
         } catch (err) {
@@ -571,6 +582,8 @@ export const usePrefsStore = create<PrefsState>()(
               require('@/features/user/store/useAchievementStore').useAchievementStore.getState().applyCloud(parsed.__achievements);
             } catch (e) { swallow('prefsStore.applyCloudAchievements', e, { capture: true }); }
           }
+          // Kilo geçmişi buluta hiç gönderilmediği için burada geri yüklenecek bir şey de
+          // yok (gerekçe: syncToCloud içindeki not).
         } catch (err) {
           swallow('prefsStore.hydrateFromCloud', err, { capture: true });
         }

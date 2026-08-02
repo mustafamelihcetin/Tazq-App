@@ -809,7 +809,11 @@ export function usePlanAdaptations() {
         wSeasonal.sporGoal?.toLocaleLowerCase('tr').includes('kilo') ||
         wSeasonal.sporGoal?.toLowerCase().includes('weight')
       );
-      const openWeightTasks = useTaskStore.getState().tasks.filter(t => !t.isCompleted && isWeightEntryTask(t));
+      // ARŞİVLENMİŞ GÖREV "AÇIK" SAYILMAZ — `findOpenWeightTasks` ile aynı ölçüt.
+      // Burada arşiv filtresi yoktu: arşivlenmiş tek bir tartım görevi "açık" görünüp
+      // zincir onarımını KALICI olarak susturabiliyordu (kullanıcı bir daha tartım
+      // görevi almaz, sebebini de anlayamazdı — weightCheckin.ts'teki notun aynısı).
+      const openWeightTasks = useTaskStore.getState().tasks.filter(t => !t.isCompleted && !t.isArchived && isWeightEntryTask(t));
 
       if (!isKiloActive) {
         // Kilo modu kapalı → yetim kalan tüm açık tartım görevlerini süpür.
@@ -863,9 +867,33 @@ export function usePlanAdaptations() {
     // Temizlik/dedupe yukarıda her açılışta çalıştı; görev üretimi ise günde 1 kez.
     if (!force && !(await shouldRunToday())) return;
 
+    /*
+      İKİNCİ KAPI: PLAN UYGULANMADAN GÖREV ÜRETİLMEZ.
+
+      Üretim koşulu birçok modda yalnız "mod açık + ad + tarih" idi. Yani kullanıcı sınavı
+      seçip tarihi girdiği ANDA — daha planı görmeden, günlük süresini seçmeden — görev
+      üretiliyor ve `applyTasks` içinden `setPlanIds` yazılıyordu. Bu, planı kullanıcı adına
+      başlatmak demekti ve ekranda şu zincire yol açıyordu:
+
+        • `examApplied` true oluyor → kart "Kurulumu Tamamla" bölümünden "Aktif Hedeflerim"e
+          taşınıyor. Bölüm değişince React kartı YENİDEN KURUYOR: açık kart kapanıyor.
+          Kullanıcı bunu "kart yukarı zıpladı / kayboldu" diye yaşıyor.
+        • Üstteki özet geri sayımı göstermeye başlıyor (tarih oraya "gidiyor"),
+          ama kart hâlâ "Kurulumu tamamla" diyor — çünkü günlük süre gerçekten seçilmedi.
+          Ekran kendi kendisiyle çelişiyor.
+
+      Tasarruf, Bırakma ve Ramazan'ın adaptasyon bloğu zaten plan şartı koşuyordu; sınav,
+      tez, mülakat ve spor bu sözleşmeden sapmıştı. Kapı tek yerde toplanıyor: plan ancak
+      kullanıcı "Planı Seç" akışını bitirip gerçekten uyguladıysa (elinde alışkanlık ya da
+      görev kimliği varsa) beslenir.
+    */
+    const hasAppliedPlan = (taskIds: number[], habitIds: string[]) =>
+      taskIds.length > 0 || habitIds.length > 0;
+
     // ── KILO ────────────────────────────────────────────────────────────────
     const sporDeadlinePast = !!activeSeasonal.sporDate && new Date(activeSeasonal.sporDate).setHours(23, 59, 59, 999) < Date.now();
-    if (activeSeasonal.sporMode && activeSeasonal.sporGoal && !sporDeadlinePast) {
+    if (activeSeasonal.sporMode && activeSeasonal.sporGoal && !sporDeadlinePast
+        && hasAppliedPlan(sporPlanTaskIds, sporPlanHabitIds)) {
       const sporType = detectSporTypeLocal(activeSeasonal.sporGoal);
 
       if (sporType === 'kilo') {
@@ -927,7 +955,7 @@ export function usePlanAdaptations() {
       { active: !!activeSeasonal.exam3Name && !!activeSeasonal.exam3Date, name: activeSeasonal.exam3Name, date: activeSeasonal.exam3Date, taskIds: exam3PlanTaskIds, habitIds: exam3PlanHabitIds, mode: 'exam3' as const },
     ];
     for (const slot of examSlots) {
-      if (slot.active && slot.name && slot.date) {
+      if (slot.active && slot.name && slot.date && hasAppliedPlan(slot.taskIds, slot.habitIds)) {
         const daysLeft = daysUntil(slot.date);
         const newTasks = buildSinavAdaptationTasks(slot.name, daysLeft, existing, lang);
         await applyTasks(newTasks, slot.mode, slot.taskIds, slot.habitIds);
@@ -935,7 +963,8 @@ export function usePlanAdaptations() {
     }
 
     // ── TEZ ─────────────────────────────────────────────────────────────────
-    if (activeSeasonal.tezMode && activeSeasonal.tezName && activeSeasonal.tezDate) {
+    if (activeSeasonal.tezMode && activeSeasonal.tezName && activeSeasonal.tezDate
+        && hasAppliedPlan(tezPlanTaskIds, tezPlanHabitIds)) {
       const daysLeft = daysUntil(activeSeasonal.tezDate);
       const newTasks = buildTezAdaptationTasks(activeSeasonal.tezName, daysLeft, existing, lang);
       await applyTasks(newTasks, 'tez', tezPlanTaskIds, tezPlanHabitIds);
@@ -948,7 +977,7 @@ export function usePlanAdaptations() {
       { active: !!activeSeasonal.mulakat3Name && !!activeSeasonal.mulakat3Date, name: activeSeasonal.mulakat3Name, date: activeSeasonal.mulakat3Date, taskIds: mulakat3PlanTaskIds, habitIds: mulakat3PlanHabitIds, mode: 'mulakat3' as const },
     ];
     for (const slot of mulakatSlots) {
-      if (slot.active && slot.name && slot.date) {
+      if (slot.active && slot.name && slot.date && hasAppliedPlan(slot.taskIds, slot.habitIds)) {
         const daysLeft = daysUntil(slot.date);
         const newTasks = buildMulakatAdaptationTasks(slot.name, daysLeft, existing, lang);
         await applyTasks(newTasks, slot.mode, slot.taskIds, slot.habitIds);
@@ -991,7 +1020,7 @@ export function usePlanAdaptations() {
     // Sınav slotları — bilinen sınavda günün konusunu seç ("KPSS — Türkçe"),
     // bilinmeyen sınavda düz ad (jenerik akış). Görev üretilirse ilerleme güncellenir.
     for (const slot of examSlots) {
-      if (slot.active && slot.name && slot.date) {
+      if (slot.active && slot.name && slot.date && hasAppliedPlan(slot.taskIds, slot.habitIds)) {
         let planName = slot.name;
         let subjectId: string | undefined;
         const curriculum = findExamCurriculum(slot.name);
@@ -1009,7 +1038,8 @@ export function usePlanAdaptations() {
       }
     }
     // Tez
-    if (activeSeasonal.tezMode && activeSeasonal.tezName && activeSeasonal.tezDate) {
+    if (activeSeasonal.tezMode && activeSeasonal.tezName && activeSeasonal.tezDate
+        && hasAppliedPlan(tezPlanTaskIds, tezPlanHabitIds)) {
       dailySlots.push({
         spec: { kind: 'tez', slot: 'tez', name: activeSeasonal.tezName, daysLeft: daysUntil(activeSeasonal.tezDate), dailyMinutes: planSpecs.tez?.dailyMinutes, templateId: planSpecs.tez?.templateId },
         mode: 'tez', taskIds: tezPlanTaskIds, habitIds: tezPlanHabitIds,
@@ -1017,7 +1047,7 @@ export function usePlanAdaptations() {
     }
     // Mülakat slotları
     for (const slot of mulakatSlots) {
-      if (slot.active && slot.name && slot.date) {
+      if (slot.active && slot.name && slot.date && hasAppliedPlan(slot.taskIds, slot.habitIds)) {
         dailySlots.push({
           spec: { kind: 'mulakat', slot: slot.mode, name: slot.name, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
           mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
@@ -1031,15 +1061,16 @@ export function usePlanAdaptations() {
       { goal: activeSeasonal.spor3Goal, date: activeSeasonal.spor3Date, taskIds: spor3PlanTaskIds, habitIds: spor3PlanHabitIds, mode: 'spor3' as const },
     ];
     for (const slot of sporSlots) {
-      if (slot.goal && slot.date) {
+      if (slot.goal && slot.date && hasAppliedPlan(slot.taskIds, slot.habitIds)) {
         dailySlots.push({
           spec: { kind: sporKind(slot.goal), slot: slot.mode, daysLeft: daysUntil(slot.date), dailyMinutes: planSpecs[slot.mode]?.dailyMinutes, templateId: planSpecs[slot.mode]?.templateId },
           mode: slot.mode, taskIds: slot.taskIds, habitIds: slot.habitIds,
         });
       }
     }
-    // Ramazan (aktif dönemdeyse)
-    if (activeSeasonal.ramazan) {
+    // Ramazan (aktif dönemdeyse) — adaptasyon bloğu zaten plan şartı koşuyordu, günlük
+    // üretim ise koşmuyordu; ikisi aynı kapıya bağlandı.
+    if (activeSeasonal.ramazan && hasAppliedPlan(ramazanPlanTaskIds, ramazanPlanHabitIds)) {
       const todayStr = getLocalDateString(today);
       const activeRamazan = RAMAZAN.find(r => todayStr >= r.start && todayStr <= r.end);
       if (activeRamazan) {
