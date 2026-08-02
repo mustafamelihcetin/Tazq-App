@@ -49,6 +49,7 @@ import type { AppTheme } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
 import { haptic } from '@/shared/utils/haptics';
 import { matchesTaskFilter, type TaskFilter } from '@/features/tasks/utils/taskFilter';
+import { toDateKey } from '@/shared/utils/dateKey';
 
 const SWIPE_THRESHOLD = -80;
 const TAG_COLORS_PALETTE = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4','#F97316'];
@@ -493,7 +494,7 @@ function checkAndCreateNextIntervalInstance(task: any) {
     return {
       title: task.title,
       description: task.description || '',
-      dueDate: nextDate.toISOString().split('T')[0],
+      dueDate: toDateKey(nextDate),
       dueTime: task.dueTime || null,
       isCompleted: false,
       priority: task.priority || 'Medium',

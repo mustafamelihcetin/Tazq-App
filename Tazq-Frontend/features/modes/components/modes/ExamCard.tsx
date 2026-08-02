@@ -28,6 +28,7 @@ import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
+import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -62,7 +63,7 @@ function ExamDatePicker({ value, onPick, onClose }: { value: Date; onPick: (iso:
           onChange={(event: DateTimePickerEvent, date?: Date) => {
             if (Platform.OS === 'android') onClose();
             if (event.type === 'dismissed') { onClose(); return; }
-            if (date) { onPick(date.toISOString().split('T')[0]); }
+            if (date) { onPick(toDateKey(date)); }
           }}
         />
       </View>
@@ -473,7 +474,7 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
     React.useCallback(() => {
       const st = usePrefsStore.getState();
       const s = st.seasonal;
-      if (s.examMode && s.examDate && !st.examReviewShown && new Date(s.examDate).setHours(23, 59, 59, 999) < Date.now()) {
+      if (s.examMode && s.examDate && !st.examReviewShown && parseDateKey(s.examDate).setHours(23, 59, 59, 999) < Date.now()) {
         setExamReviewShown(true);
         const nm = s.examName || (tr ? 'Sınav' : 'Exam');
         setTimeout(() => {

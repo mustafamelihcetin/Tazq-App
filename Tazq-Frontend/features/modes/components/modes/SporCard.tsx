@@ -31,6 +31,7 @@ import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
+import { toDateKey, dateKeyFromNow } from '@/shared/utils/dateKey';
 
 // Vurgu MERKEZİ PALETTEN, tema-duyarlı. Ham '#F97316' iki temada aynıydı ve açık
 // temada 2.80:1 veriyordu (WCAG'ın büyük-metin eşiği 3:1'in bile altı).
@@ -74,7 +75,7 @@ function SporDatePicker({ value, onPick, onClose }: { value: Date; onPick: (iso:
     <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH * calendarScale, height: 320 * calendarScale, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginVertical: S.xs } : { alignSelf: 'center', marginVertical: S.xs }}>
       <View style={Platform.OS === 'ios' ? { width: BASE_CALENDAR_WIDTH, height: 320, transform: [{ scale: calendarScale }], justifyContent: 'center', alignItems: 'center' } : undefined}>
         <DateTimePicker style={Platform.OS === 'ios' ? { width: 320, height: 320 } : undefined} value={value} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'default'} themeVariant={isDark ? 'dark' : 'light'} locale={language === 'tr' ? 'tr-TR' : 'en-GB'} minimumDate={new Date()} maximumDate={(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })()}
-          onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') onClose(); if (event.type === 'dismissed') { onClose(); return; } if (date) { onPick(date.toISOString().split('T')[0]); } }} />
+          onChange={(event: DateTimePickerEvent, date?: Date) => { if (Platform.OS === 'android') onClose(); if (event.type === 'dismissed') { onClose(); return; } if (date) { onPick(toDateKey(date)); } }} />
       </View>
     </View>
   );
@@ -216,7 +217,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
   const kiloGaining = cwNum > 0 && twNum > 0 && twNum > cwNum;
   const kiloWeeklyRate = kiloGaining ? 0.25 : 0.5;
   const kiloAutoWeeks = cwNum > 0 && twNum > 0 && cwNum !== twNum ? Math.ceil(Math.abs(cwNum - twNum) / kiloWeeklyRate) : null;
-  const kiloAutoDate = kiloAutoWeeks ? new Date(Date.now() + kiloAutoWeeks * 7 * 86400000).toISOString().split('T')[0] : null;
+  const kiloAutoDate = kiloAutoWeeks ? dateKeyFromNow(kiloAutoWeeks * 7) : null;
   const effectiveSporDate = sporType === 'kilo' ? (kiloAutoDate ?? date) : date;
   const sporDateObj = effectiveSporDate ? new Date(effectiveSporDate) : new Date(Date.now() + 90 * 86400000);
   const kiloWeightValid = cwNum >= 30 && cwNum <= 300 && twNum >= 30 && twNum <= 300;
@@ -295,7 +296,7 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
       summary = tr ? `"${goal}" hedefinin süresi doldu. Programını tamamladın 💪 Uzatmak ister misin?` : `"${goal}" deadline reached. You completed your program 💪 Want to extend?`;
     }
     Alert.alert(tr ? 'Hedef Sonucu' : 'Goal Result', summary, [
-      { text: tr ? 'Süreyi uzat (+4 hafta)' : 'Extend (+4 weeks)', onPress: () => { const d = new Date(); d.setDate(d.getDate() + 28); setSeasonalPref('sporDate', d.toISOString().split('T')[0]); reviewHandledRef.current = false; setTimeout(() => runAdaptations(true), 300); } },
+      { text: tr ? 'Süreyi uzat (+4 hafta)' : 'Extend (+4 weeks)', onPress: () => { setSeasonalPref('sporDate', dateKeyFromNow(28)); reviewHandledRef.current = false; setTimeout(() => runAdaptations(true), 300); } },
       { text: tr ? 'Hedefi Kapat' : 'Close Goal', style: 'destructive', onPress: () => closeModeWithUndo('spor', closePlan, tr ? 'Spor modu kapatıldı' : 'Fitness mode closed', tr ? 'Geri al' : 'Undo') },
     ]);
   }, [seasonal.sporMode, sporPlanHabitIds, sporPlanTaskIds, past, sporType, twNum, cwNum, kiloLatest, tr]);

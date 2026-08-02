@@ -24,6 +24,7 @@ import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
+import { toDateKey } from '@/shared/utils/dateKey';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -218,7 +219,7 @@ clearPlanIds('tez');
                       onChange={(event: DateTimePickerEvent, d?: Date) => {
                         if (Platform.OS === 'android') setShowDatePicker(false);
                         if (event.type === 'dismissed') { setShowDatePicker(false); return; }
-                        if (d) { const iso = d.toISOString().split('T')[0]; setSeasonalPref('tezDate', iso); }
+                        if (d) { setSeasonalPref('tezDate', toDateKey(d)); }
                       }}
                     />
                   </View>

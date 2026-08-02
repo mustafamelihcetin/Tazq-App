@@ -28,6 +28,7 @@ import { Coins } from 'lucide-react-native';
 import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
 import { haptic } from '@/shared/utils/haptics';
+import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 
 const fmtMoney = (n: number) => n.toLocaleString('tr-TR');
 
@@ -67,8 +68,8 @@ export function TasarrufCard() {
   const pct = goalAmt > 0 ? Math.min(100, Math.round((doneAmt / goalAmt) * 100)) : 0;
 
   const dateObj = seasonal.tasarrufDate ? new Date(seasonal.tasarrufDate) : null;
-  const daysLeft = dateObj ? Math.max(0, Math.ceil((new Date(seasonal.tasarrufDate!).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
-  const datePast = dateObj ? new Date(seasonal.tasarrufDate!).setHours(23, 59, 59, 999) < Date.now() : false;
+  const daysLeft = dateObj ? Math.max(0, Math.ceil((parseDateKey(seasonal.tasarrufDate!).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const datePast = dateObj ? parseDateKey(seasonal.tasarrufDate!).setHours(23, 59, 59, 999) < Date.now() : false;
 
   const canLog = (() => {
     const r = getRecentBudgetEntry(log, 7);
@@ -197,7 +198,7 @@ export function TasarrufCard() {
     setTargetAmount(String(computedTarget));
     setSeasonalPref('tasarrufMode', true);
     setSeasonalPref('tasarrufName', tasarrufTypeLabel(budgetType, tr));
-    setSeasonalPref('tasarrufDate', d.toISOString().split('T')[0]);
+    setSeasonalPref('tasarrufDate', toDateKey(d));
     if (log.length === 0) addEntry(computedStart); // başlangıç noktası
     setPlanIds('tasarruf', habitIds, taskIds);
     setExpanded(false);

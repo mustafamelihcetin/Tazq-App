@@ -48,6 +48,7 @@ import { buildTasarrufPlan, buildBirakmaPlan } from '@/shared/utils/lifeModePlan
 import { isWeightEntryTask, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/features/modes/utils/weightCheckin';
 import { MODE_TASK_TAGS, retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
 import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSync';
+import { parseDateKey } from '@/shared/utils/dateKey';
 
 const LAST_RUN_KEY = 'plan_adaptations_last_run';
 
@@ -494,7 +495,7 @@ export function usePlanAdaptations() {
     // boş modu yanlışlıkla kapatılmaz (toggle'ın geri snap'lemesi bug'ı çözülür).
     let anyExamExpired = false;
     // Exam 1
-    if (freshSeasonal.examMode && freshSeasonal.examDate && new Date(freshSeasonal.examDate).setHours(23, 59, 59, 999) < now) {
+    if (freshSeasonal.examMode && freshSeasonal.examDate && parseDateKey(freshSeasonal.examDate).setHours(23, 59, 59, 999) < now) {
       freshPrefs.examPlanHabitIds.forEach(id => removeHabitFn(id));
       freshPrefs.examPlanTaskIds.forEach(id => retirePlanTask(id, 'exam'));
       freshPrefs.clearPlanIds('exam');
@@ -503,7 +504,7 @@ export function usePlanAdaptations() {
       anyExamExpired = true;
     }
     // Exam 2
-    if (freshSeasonal.exam2Name && freshSeasonal.exam2Date && new Date(freshSeasonal.exam2Date).setHours(23, 59, 59, 999) < now) {
+    if (freshSeasonal.exam2Name && freshSeasonal.exam2Date && parseDateKey(freshSeasonal.exam2Date).setHours(23, 59, 59, 999) < now) {
       freshPrefs.exam2PlanHabitIds.forEach(id => removeHabitFn(id));
       freshPrefs.exam2PlanTaskIds.forEach(id => retirePlanTask(id, 'exam2'));
       freshPrefs.clearPlanIds('exam2');
@@ -512,7 +513,7 @@ export function usePlanAdaptations() {
       anyExamExpired = true;
     }
     // Exam 3
-    if (freshSeasonal.exam3Name && freshSeasonal.exam3Date && new Date(freshSeasonal.exam3Date).setHours(23, 59, 59, 999) < now) {
+    if (freshSeasonal.exam3Name && freshSeasonal.exam3Date && parseDateKey(freshSeasonal.exam3Date).setHours(23, 59, 59, 999) < now) {
       freshPrefs.exam3PlanHabitIds.forEach(id => removeHabitFn(id));
       freshPrefs.exam3PlanTaskIds.forEach(id => retirePlanTask(id, 'exam3'));
       freshPrefs.clearPlanIds('exam3');
@@ -527,7 +528,7 @@ export function usePlanAdaptations() {
     }
 
     // TEZ
-    if (freshSeasonal.tezMode && freshSeasonal.tezDate && new Date(freshSeasonal.tezDate).setHours(23, 59, 59, 999) < now) {
+    if (freshSeasonal.tezMode && freshSeasonal.tezDate && parseDateKey(freshSeasonal.tezDate).setHours(23, 59, 59, 999) < now) {
       freshPrefs.tezPlanHabitIds.forEach(id => removeHabitFn(id));
       freshPrefs.tezPlanTaskIds.forEach(id => retirePlanTask(id, 'tez'));
       freshPrefs.clearPlanIds('tez');
@@ -539,7 +540,7 @@ export function usePlanAdaptations() {
     // MULAKATS
     let anyMulakatExpired = false;
     // Mulakat 1
-    if (freshSeasonal.mulakatMode && freshSeasonal.mulakatDate && new Date(freshSeasonal.mulakatDate).setHours(23, 59, 59, 999) < now) {
+    if (freshSeasonal.mulakatMode && freshSeasonal.mulakatDate && parseDateKey(freshSeasonal.mulakatDate).setHours(23, 59, 59, 999) < now) {
       freshPrefs.mulakatPlanHabitIds.forEach(id => removeHabitFn(id));
       freshPrefs.mulakatPlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat'));
       freshPrefs.clearPlanIds('mulakat');
@@ -548,7 +549,7 @@ export function usePlanAdaptations() {
       anyMulakatExpired = true;
     }
     // Mulakat 2
-    if (freshSeasonal.mulakat2Name && freshSeasonal.mulakat2Date && new Date(freshSeasonal.mulakat2Date).setHours(23, 59, 59, 999) < now) {
+    if (freshSeasonal.mulakat2Name && freshSeasonal.mulakat2Date && parseDateKey(freshSeasonal.mulakat2Date).setHours(23, 59, 59, 999) < now) {
       freshPrefs.mulakat2PlanHabitIds.forEach(id => removeHabitFn(id));
       freshPrefs.mulakat2PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat2'));
       freshPrefs.clearPlanIds('mulakat2');
@@ -557,7 +558,7 @@ export function usePlanAdaptations() {
       anyMulakatExpired = true;
     }
     // Mulakat 3
-    if (freshSeasonal.mulakat3Name && freshSeasonal.mulakat3Date && new Date(freshSeasonal.mulakat3Date).setHours(23, 59, 59, 999) < now) {
+    if (freshSeasonal.mulakat3Name && freshSeasonal.mulakat3Date && parseDateKey(freshSeasonal.mulakat3Date).setHours(23, 59, 59, 999) < now) {
       freshPrefs.mulakat3PlanHabitIds.forEach(id => removeHabitFn(id));
       freshPrefs.mulakat3PlanTaskIds.forEach(id => retirePlanTask(id, 'mulakat3'));
       freshPrefs.clearPlanIds('mulakat3');
@@ -891,7 +892,7 @@ export function usePlanAdaptations() {
       taskIds.length > 0 || habitIds.length > 0;
 
     // ── KILO ────────────────────────────────────────────────────────────────
-    const sporDeadlinePast = !!activeSeasonal.sporDate && new Date(activeSeasonal.sporDate).setHours(23, 59, 59, 999) < Date.now();
+    const sporDeadlinePast = !!activeSeasonal.sporDate && parseDateKey(activeSeasonal.sporDate).setHours(23, 59, 59, 999) < Date.now();
     if (activeSeasonal.sporMode && activeSeasonal.sporGoal && !sporDeadlinePast
         && hasAppliedPlan(sporPlanTaskIds, sporPlanHabitIds)) {
       const sporType = detectSporTypeLocal(activeSeasonal.sporGoal);

@@ -107,6 +107,44 @@ builder.Services.Configure<IpRateLimitOptions>(opt =>
             Endpoint = "post:/api/users/reset-password",
             Period = "1h",
             Limit = 5
+        },
+        /*
+          GİRİŞ — kaba kuvvet freni.
+
+          Hesap kilitleme yok; giriş yalnız genel kurala tabiydi ve tek IP'den saatte 1000
+          şifre denemesine izin veriyordu. Sınır 200'e çekildi.
+
+          NEDEN 5 DEĞİL: mobil operatörler CGNAT kullanıyor — yüzlerce gerçek kullanıcı
+          aynı çıkış IP'sinden görünebilir. Sıkı bir sınır saldırganı değil, aynı
+          operatördeki masum kullanıcıları dışarıda bırakırdı. 200/saat, tek kişinin
+          meşru kullanımının çok üstünde ama kaba kuvvet için anlamsız derecede yavaş.
+        */
+        new RateLimitRule
+        {
+            Endpoint = "post:/api/users/login",
+            Period = "1h",
+            Limit = 200
+        },
+        /*
+          DOĞRULAMA E-POSTASI — bu uç nokta PARA HARCAR.
+
+          Her istek Resend üzerinden gerçek bir e-posta gönderiyor. Sınırsız bırakıldığında
+          hem kota tükenir hem de gönderim alan adımız (tazqapp.com) spam olarak
+          işaretlenebilir — o noktada MEŞRU doğrulama postaları da düşmeye başlar.
+          Meşru kullanıcı bunu saatte en fazla 2-3 kez ister.
+        */
+        new RateLimitRule
+        {
+            Endpoint = "post:/api/users/resend-verification",
+            Period = "1h",
+            Limit = 5
+        },
+        // Kayıt da e-posta gönderiyor ve hesap üretiyor; toplu hesap açmayı frenler.
+        new RateLimitRule
+        {
+            Endpoint = "post:/api/users/register",
+            Period = "1h",
+            Limit = 20
         }
     };
     opt.QuotaExceededMessage = "Çok fazla istek gönderdiniz. Güvenliğiniz için sınırlandırıldınız. Lütfen daha sonra tekrar deneyin.";

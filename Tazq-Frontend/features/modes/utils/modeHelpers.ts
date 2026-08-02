@@ -16,6 +16,7 @@
  */
 import { localizeSporGoal } from './turkishModes';
 import { swallow } from '@/shared/utils/swallow';
+import { parseDateKey } from '@/shared/utils/dateKey';
 
 type TaskLike = { id: number; tags?: string[] | null };
 
@@ -41,7 +42,7 @@ export function deriveDateSlot(
   now: number = Date.now(),
 ): DateSlotDerived {
   const isComplete = labelInput.trim() !== '' && dateInput !== '';
-  const endOfDay = dateInput ? new Date(dateInput).setHours(23, 59, 59, 999) : 0;
+  const endOfDay = dateInput ? parseDateKey(dateInput).setHours(23, 59, 59, 999) : 0;
   const datePast = dateInput ? endOfDay < now : false;
   const daysLeft = dateInput && !datePast ? Math.max(0, Math.ceil((endOfDay - now) / 86400000)) : 0;
   const dateObj = dateInput ? new Date(dateInput) : new Date(now + fallbackDays * 86400000);

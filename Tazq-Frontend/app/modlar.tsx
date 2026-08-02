@@ -59,6 +59,7 @@ import { usePlanAdaptations } from '@/features/modes';
 import { Touchable } from '@/shared/components/Touchable';
 import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
+import { dateKeyFromNow, parseDateKey } from '@/shared/utils/dateKey';
 
 const MarsIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -306,7 +307,7 @@ export default function ModlarScreen() {
     ? Math.ceil(Math.abs(cwNum - twNum) / kiloWeeklyRate)
     : null;
   const kiloAutoDate = kiloAutoWeeks
-    ? new Date(Date.now() + kiloAutoWeeks * 7 * 86400000).toISOString().split('T')[0]
+    ? dateKeyFromNow(kiloAutoWeeks * 7)
     : null;
 
   // Effective date: kilo → hesaplanmış, diğerleri → kullanıcı girişi
@@ -366,8 +367,8 @@ export default function ModlarScreen() {
     if (kpssAutoActive && n.includes('KPSS')) return language === 'tr' ? '⚠️ KPSS modu zaten otomatik aktif — bu plan onunla çakışabilir' : '⚠️ KPSS mode is already auto-active — this plan may overlap';
     return null;
   }, [examNameInput, yksAutoActive, kpssAutoActive, language]);
-  const sporDatePast = effectiveSporDate ? new Date(effectiveSporDate).setHours(23, 59, 59, 999) < Date.now() : false;
-  const sporDaysLeft = effectiveSporDate && !sporDatePast ? Math.max(0, Math.ceil((new Date(effectiveSporDate).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const sporDatePast = effectiveSporDate ? parseDateKey(effectiveSporDate).setHours(23, 59, 59, 999) < Date.now() : false;
+  const sporDaysLeft = effectiveSporDate && !sporDatePast ? Math.max(0, Math.ceil((parseDateKey(effectiveSporDate).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
   // Mod renkleri MERKEZİ PALETTEN. Eskiden bu dosya #F97316/#10B981 gibi ham hex'ler
   // yazıyordu — üstelik paletin kontrast yetersizliği yüzünden REDDETTİĞİ tonları
   // (spor #F97316 = 2.80:1, mulakat #10B981 = 2.54:1 — büyük metin eşiğinin bile
@@ -640,8 +641,8 @@ export default function ModlarScreen() {
   const statusCands: Array<{ days: number; label: string; color: string; textColor: string; emoji: string }> = [];
   // Decouple: tarih/ad LOCAL input yerine KALICI `seasonal`'dan okunur (mod çıkarımının
   // önünü açar; past/days dateStr'den içeride hesaplanır). Yalnız uygulanmış modlar sayılır.
-  const dPast = (d?: string | null) => !!d && new Date(d).setHours(23, 59, 59, 999) < Date.now();
-  const dLeft = (d?: string | null) => (d && !dPast(d)) ? Math.max(0, Math.ceil((new Date(d).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
+  const dPast = (d?: string | null) => !!d && parseDateKey(d).setHours(23, 59, 59, 999) < Date.now();
+  const dLeft = (d?: string | null) => (d && !dPast(d)) ? Math.max(0, Math.ceil((parseDateKey(d).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
   const pushCand = (on: boolean, dateStr: string | null, label: string, color: string, textColor: string, emoji: string) => {
     if (on && dateStr && !dPast(dateStr)) statusCands.push({ days: dLeft(dateStr), label: stripEmoji(label) || label, color, textColor, emoji });
   };

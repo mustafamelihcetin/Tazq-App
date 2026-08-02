@@ -11,6 +11,7 @@
 import { CreateTaskPayload } from '@/shared/services/api';
 import type { RecoveryState } from '@/shared/utils/recovery';
 import { WeightEntry } from '@/features/modes/store/useSporStore';
+import { parseDateKey } from '@/shared/utils/dateKey';
 
 export type Language = 'tr' | 'en';
 
@@ -39,8 +40,7 @@ export function daysUntil(dateStr: string): number {
   const adjustedNow = new Date();
   adjustedNow.setHours(adjustedNow.getHours() - 3);
   adjustedNow.setHours(0, 0, 0, 0);
-  const d = new Date(dateStr);
-  d.setHours(0, 0, 0, 0);
+  const d = parseDateKey(dateStr);
   return Math.ceil((d.getTime() - adjustedNow.getTime()) / 86400000);
 }
 

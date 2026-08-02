@@ -22,6 +22,7 @@ import { useModeAccent } from '@/shared/hooks/useModeAccent';
 import { ProgressRail } from '@/shared/components/ProgressRail';
 import { haptic } from '@/shared/utils/haptics';
 import { closeModeWithUndo } from '@/features/modes/utils/modeUndo';
+import { toDateKey } from '@/shared/utils/dateKey';
 
 // Vurgu merkezi paletten (bkz. Colors.ModeAccents) — tema-duyarlı + kontrast güvenli.
 const BASE_CALENDAR_WIDTH = 340;
@@ -48,7 +49,7 @@ function DatePickerInline({ value, onPick, onClose }: { value: Date; onPick: (is
           onChange={(event: DateTimePickerEvent, date?: Date) => {
             if (Platform.OS === 'android') onClose();
             if (event.type === 'dismissed') { onClose(); return; }
-            if (date) { onPick(date.toISOString().split('T')[0]); }
+            if (date) { onPick(toDateKey(date)); }
           }}
         />
       </View>

@@ -8,6 +8,7 @@ import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { TaskService } from '@/shared/services/api';
+import { parseDateKey } from '@/shared/utils/dateKey';
 
 /**
  * Bir plan görevini emekliye ayırır: tamamlanmışsa completion journal'a işler,
@@ -144,8 +145,9 @@ export function daysLeftOf(iso: string | null | undefined): number {
   adjustedNow.setHours(adjustedNow.getHours() - 3);
   adjustedNow.setHours(0, 0, 0, 0);
   
-  const targetDate = new Date(iso);
-  targetDate.setHours(0, 0, 0, 0);
+  // Anahtar YEREL gece yarisi olarak cozulur; `new Date(iso)` UTC sayip negatif
+  // ofsetli saat dilimlerinde bir gun geri kaydiriyordu (bkz. parseDateKey).
+  const targetDate = parseDateKey(iso);
   
   const diffMs = targetDate.getTime() - adjustedNow.getTime();
   return Math.max(0, Math.ceil(diffMs / 86400000));

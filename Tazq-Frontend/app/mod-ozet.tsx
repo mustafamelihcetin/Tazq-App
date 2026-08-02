@@ -15,6 +15,7 @@ import { track } from '@/shared/utils/analytics';
 import { renderModeEmojiIcon } from '@/features/modes';
 import { localizeSporGoal } from '@/features/modes';
 import { modeAccent, modeAccentText } from '@/shared/constants/Colors';
+import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 
 // Bu haftanın (Pzt–Paz) 'YYYY-MM-DD' anahtarları.
 function thisWeekKeys(): Set<string> {
@@ -26,7 +27,7 @@ function thisWeekKeys(): Set<string> {
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    keys.add(d.toISOString().split('T')[0]);
+    keys.add(toDateKey(d));
   }
   return keys;
 }
@@ -39,7 +40,7 @@ const stripEmoji = (s: string) => s
 
 function daysLeftOf(dateStr: string | null): number | null {
   if (!dateStr) return null;
-  const end = new Date(dateStr).setHours(23, 59, 59, 999);
+  const end = parseDateKey(dateStr).setHours(23, 59, 59, 999);
   if (end < Date.now()) return -1; // geçmiş
   return Math.max(0, Math.ceil((end - Date.now()) / 86400000));
 }

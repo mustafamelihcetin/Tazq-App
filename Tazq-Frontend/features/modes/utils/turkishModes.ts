@@ -1,5 +1,6 @@
 import { CategoryColors } from '@/shared/constants/Colors';
 import { getRamadanRanges, parseLocalDate } from '@/shared/utils/ramadanDates';
+import { dateKeyFromNow } from '@/shared/utils/dateKey';
 export type ModeType = 'ramazan' | 'yks' | 'kpss' | 'exam' | 'tez' | 'mulakat' | 'spor';
 
 export interface ModeHabit {
@@ -2693,16 +2694,16 @@ export function getModePreview(type: ModeType, opts?: { examName?: string; examD
     return { ...RAMAZAN_MODE(daysUntil), subtitleTr, subtitleEn };
   }
   if (type === 'exam') {
-    return getCustomExamMode(opts?.examName ?? '', opts?.examDate ?? new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0], opts?.examTipTr, opts?.examTipEn);
+    return getCustomExamMode(opts?.examName ?? '', opts?.examDate ?? dateKeyFromNow(30), opts?.examTipTr, opts?.examTipEn);
   }
   if (type === 'tez') {
-    return getTezMode(opts?.tezName ?? '', opts?.tezDate ?? new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0]);
+    return getTezMode(opts?.tezName ?? '', opts?.tezDate ?? dateKeyFromNow(90));
   }
   if (type === 'mulakat') {
-    return getMulakatMode(opts?.mulakatName ?? '', opts?.mulakatDate ?? new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]);
+    return getMulakatMode(opts?.mulakatName ?? '', opts?.mulakatDate ?? dateKeyFromNow(14));
   }
   if (type === 'spor') {
-    return getSporMode(opts?.sporGoal ?? '', opts?.sporDate ?? new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0], opts?.sporInputs);
+    return getSporMode(opts?.sporGoal ?? '', opts?.sporDate ?? dateKeyFromNow(90), opts?.sporInputs);
   }
   if (type === 'yks') {
     const next = nextDate(YKS);
