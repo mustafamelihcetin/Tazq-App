@@ -646,7 +646,7 @@ export async function sendAdminSupportNotification(userName: string, tr: boolean
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: tr ? '🚨 Yeni Destek Mesajı!' : '🚨 New Support Message!',
+        title: tr ? 'Yeni Destek Mesajı!' : 'New Support Message!',
         body: tr ? `${userName} bir destek mesajı gönderdi.` : `${userName} sent a support request.`,
         sound: true,
       },

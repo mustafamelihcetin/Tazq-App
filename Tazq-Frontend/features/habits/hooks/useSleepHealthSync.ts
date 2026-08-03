@@ -66,8 +66,7 @@ export function useSleepHealthSync() {
     }
   };
 
-  const processSleep = useCallback(async (habitId: string, todayKey: string): Promise<SleepOutcome> => {
-    const mins = await SleepHealth.getRecentSleepMinutes();
+  const processSleep = useCallback(async (habitId: string, todayKey: string, mins: number | null): Promise<SleepOutcome> => {
     if (mins == null || mins < MIN_REAL_SLEEP_MIN) return 'nodata'; // anlamlı uyku yok → sessiz
 
     const lang = (useLanguageStore.getState().language === 'en' ? 'en' : 'tr') as 'tr' | 'en';
@@ -78,36 +77,66 @@ export function useSleepHealthSync() {
     const fresh = useHabitStore.getState().habits.find(h => h.id === habitId);
     const alreadyDone = !!fresh && (fresh.completedDates ?? []).includes(todayKey);
 
+    /*
+      BİLDİRİM BURADA GÖSTERİLMEZ — kararı `run` verir.
+
+      ÖLÇÜLEN HATA: `isSleepHabit` üç ölçütle eşleşiyor (healthMetric, emoji, ad içinde
+      "uyku"/"sleep"). Plan "Düzenli uyku" eklemişse ve kullanıcının uykuyla ilgili başka
+      bir alışkanlığı varsa İKİSİ birden eşleşiyor; döngü de her biri için AYRI toast
+      gösteriyordu. Kuyruğa giren ikinci toast, kullanıcı sayfalar arası gezerken
+      çıkıyor ve "aynı bildirim tekrar geldi" gibi görünüyordu.
+
+      Oysa bu bildirim ALIŞKANLIK hakkında değil, KULLANICININ UYKUSU hakkında — ve
+      kullanıcı bir kez uyudu. Kaç alışkanlık satırı eşleştiği kullanıcının bilmesi
+      gereken bir şey değil. İşaretleme hepsine uygulanır (doğrusu bu), bildirim bir tanedir.
+    */
     if (goalMet) {
-      if (!alreadyDone) {
-        markDone(habitId, todayKey);
-        useToastStore.getState().show(
-          lang === 'tr' ? `😴 Uyku işaretlendi · ${dur} 🎉` : `😴 Sleep marked · ${dur} 🎉`,
-          'success',
-          {
-            label: lang === 'tr' ? 'Geri al' : 'Undo',
-            onAction: () => {
-              const cur = useHabitStore.getState().habits.find(h => h.id === habitId);
-              if (cur && (cur.completedDates ?? []).includes(todayKey)) useHabitStore.getState().toggleDate(habitId, todayKey);
-            },
-          }
-        );
-      }
+      if (!alreadyDone) markDone(habitId, todayKey);
       return 'marked';
     }
+    return 'info';
+  }, []);
 
-    // Hedef tutulmadı → başarısız işaretleme YOK; nazik bilgi + istersen işaretle.
-    if (!alreadyDone) {
+  /**
+   * Tek bildirim — tüm uyku alışkanlıkları işlendikten SONRA bir kez gösterilir.
+   *
+   * Metin emojisiz: uygulamanın görsel dili düz (flat) ikon. Sistem emojisi hem o dile
+   * aykırı hem de platformdan platforma farklı çiziliyor — aynı metin iOS'ta başka,
+   * Android'de başka görünür.
+   */
+  const announce = useCallback((outcome: SleepOutcome, mins: number, habitIds: string[], todayKey: string) => {
+    if (outcome === 'nodata' || habitIds.length === 0) return;
+    const lang = (useLanguageStore.getState().language === 'en' ? 'en' : 'tr') as 'tr' | 'en';
+    const goalHours = usePrefsStore.getState().sleepGoalHours || 7;
+    const dur = formatSleepDuration(mins, lang);
+
+    if (outcome === 'marked') {
       useToastStore.getState().show(
-        lang === 'tr' ? `😴 Son uyku ${dur} · hedef ${goalHours} saat` : `😴 Last sleep ${dur} · goal ${goalHours}h`,
-        'info',
+        lang === 'tr' ? `Uyku işaretlendi · ${dur}` : `Sleep marked · ${dur}`,
+        'success',
         {
-          label: lang === 'tr' ? 'İşaretle' : 'Mark',
-          onAction: () => markDone(habitId, todayKey),
+          label: lang === 'tr' ? 'Geri al' : 'Undo',
+          // Geri alma da HEPSİNİ kapsar: tek bildirim gösterdiysek, tek dokunuş da
+          // gösterdiğimiz şeyin tamamını geri almalı.
+          onAction: () => {
+            for (const id of habitIds) {
+              const cur = useHabitStore.getState().habits.find(h => h.id === id);
+              if (cur && (cur.completedDates ?? []).includes(todayKey)) useHabitStore.getState().toggleDate(id, todayKey);
+            }
+          },
         }
       );
+      return;
     }
-    return 'info';
+
+    useToastStore.getState().show(
+      lang === 'tr' ? `Son uyku ${dur} · hedef ${goalHours} saat` : `Last sleep ${dur} · goal ${goalHours}h`,
+      'info',
+      {
+        label: lang === 'tr' ? 'İşaretle' : 'Mark',
+        onAction: () => { for (const id of habitIds) markDone(id, todayKey); },
+      }
+    );
   }, []);
 
   const run = useCallback(async () => {
@@ -136,9 +165,22 @@ export function useSleepHealthSync() {
       if (nowMs - lastAttemptRef.current < RETRY_THROTTLE_MS) return;
       lastAttemptRef.current = nowMs;
 
+      /*
+        UYKU VERİSİ BİR KEZ OKUNUR — alışkanlık başına değil.
+
+        Eskiden döngü her alışkanlık için `processSleep` çağırıyordu ve o da HER seferinde
+        HealthKit/Health Connect'e ayrı bir sorgu atıyordu. Oysa "dün gece kaç saat uyudun"
+        sorusunun cevabı alışkanlığa göre değişmez; iki uyku alışkanlığı olan kullanıcıda
+        aynı veri iki kez okunuyordu. Sorgu bir kez yapılıp sonuç hepsine uygulanıyor.
+      */
+      const minsOnce = await SleepHealth.getRecentSleepMinutes();
+      const marked: string[] = [];
+      let outcomeOnce: SleepOutcome = 'nodata';
+
       let dataSeen = false;
       for (const h of unmarked) {
-        const outcome = await processSleep(h.id, todayKey);
+        const outcome = await processSleep(h.id, todayKey, minsOnce);
+        if (outcome !== 'nodata') { outcomeOnce = outcome; marked.push(h.id); }
         if (outcome !== 'nodata') dataSeen = true; // mark ya da info = gece verisi vardı
       }
 
@@ -187,12 +229,15 @@ export function useSleepHealthSync() {
           useHabitStore.getState().toggleDate(h.id, key);
         }
       }
+      // TEK bildirim — kaç alışkanlık eşleştiğinden bağımsız (bkz. processSleep'teki not).
+      if (minsOnce != null) announce(outcomeOnce, minsOnce, marked, todayKey);
+
       // Veri geldiyse günü kapat → mark/info günde BİR kez. Veri yoksa kapatma (geç senkron için tekrar dene).
       if (dataSeen) prefs.setSleepLastCheckDate(todayKey);
     } finally {
       runningRef.current = false;
     }
-  }, [habits, processSleep]);
+  }, [habits, processSleep, announce]);
 
   useEffect(() => {
     run();

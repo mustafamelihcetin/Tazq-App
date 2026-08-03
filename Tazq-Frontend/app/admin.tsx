@@ -1210,8 +1210,8 @@ export default function AdminScreen() {
                 {sysHealth ? (
                   <View style={{ gap: S.xs }}>
                     {[
-                      [tr ? 'Veritabanı' : 'Database', sysHealth.dbOk ? '🟢 OK' : '🔴 Hata'],
-                      [tr ? 'Redis' : 'Redis', sysHealth.redisOk == null ? '—' : (sysHealth.redisOk ? '🟢 OK' : '🔴 Hata')],
+                      [tr ? 'Veritabanı' : 'Database', sysHealth.dbOk ? 'OK' : 'Hata'],
+                      [tr ? 'Redis' : 'Redis', sysHealth.redisOk == null ? '—' : (sysHealth.redisOk ? 'OK' : 'Hata')],
                       [tr ? 'Çalışma süresi' : 'Uptime', `${Math.floor(sysHealth.uptimeSeconds / 3600)}s ${Math.floor((sysHealth.uptimeSeconds % 3600) / 60)}d`],
                       [tr ? 'Ortam' : 'Env', sysHealth.environment],
                       [tr ? 'Son migration' : 'Latest migration', (sysHealth.latestMigration || '—').replace(/^\d+_/, '')],

@@ -136,11 +136,11 @@ export const RocketFeedback: React.FC = () => {
   // Multi-state headers
   const isHighHeat = roundedHeat > 50;
   const statusText = isOverheated 
-    ? (tr ? 'MOTOR KİLİTLENDİ ❌' : 'ENGINE LOCKED ❌')
+    ? (tr ? 'MOTOR KİLİTLENDİ' : 'ENGINE LOCKED')
     : isBatchConfirming
-      ? (tr ? 'TOPLU ONAYLAMA 📥' : 'BATCH COMPLETION 📥')
+      ? (tr ? 'TOPLU ONAYLAMA' : 'BATCH COMPLETION')
       : isPerfectSync
-        ? (tr ? 'KUSURSUZ SENKRON 🌟' : 'PERFECT SYNC 🌟')
+        ? (tr ? 'KUSURSUZ SENKRON' : 'PERFECT SYNC')
         : (isHighHeat 
             ? (tr ? 'MOTOR ISINIYOR 🌋' : 'ENGINE WARMING 🌋')
             : (tr ? 'İVME ATEŞLENDİ 🚀' : 'BOOSTER FIRED 🚀'));

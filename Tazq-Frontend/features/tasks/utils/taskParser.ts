@@ -350,7 +350,7 @@ export function parseTaskHint(text: string, preferredLang?: 'tr' | 'en'): Parsed
   const finalContext = (hint.context || 'normal') as string;
   
   if (isExplicitNote || isNote) {
-    hint.wittyMessage = isTR ? "Bu önemli bilgiyi not defterime kaydettim. 📝" : "I've saved this important info to my notebook. 📝";
+    hint.wittyMessage = isTR ? "Bu önemli bilgiyi not defterime kaydettim." : "I've saved this important info to my notebook.";
     if (isExplicitNote) {
       if (!hint.tags) hint.tags = [];
       hint.tags.push(isTR ? 'not' : 'note');
@@ -360,31 +360,31 @@ export function parseTaskHint(text: string, preferredLang?: 'tr' | 'en'): Parsed
         // We'll keep the full text but maybe flag it or handle it in UI
     }
   } else if (hasReminderIntent) {
-    hint.wittyMessage = isTR ? "Not aldım, vakti gelince hatırlatacağım. Merak etme! 🔔" : "Noted, I'll remind you when the time comes. Don't worry! 🔔";
+    hint.wittyMessage = isTR ? "Not aldım, vakti gelince hatırlatacağım. Merak etme!" : "Noted, I'll remind you when the time comes. Don't worry!";
     hint.priority = hint.priority === 'Low' ? 'Medium' : hint.priority;
     if (!hint.tags) hint.tags = [];
     hint.tags.push(isTR ? 'hatırlatıcı' : 'reminder');
   } else if (hasGuestIntent) {
-    hint.wittyMessage = isTR ? "Misafirlerin başımın üstünde yeri var! Hazırlıklara başlayalım. ☕" : "Guests are always welcome! Let's get ready for them. ☕";
+    hint.wittyMessage = isTR ? "Misafirlerin başımın üstünde yeri var! Hazırlıklara başlayalım." : "Guests are always welcome! Let's get ready for them.";
     hint.context = 'joyful';
     if (!hint.tags) hint.tags = [];
     hint.tags.push(isTR ? 'sosyal' : 'social');
   } else if (isEvent) {
-    hint.wittyMessage = isTR ? "Ajandana bir etkinlik ekliyorum. Vaktinde orada olalım! 📅" : "Adding an event to your agenda. Let's be there on time! 📅";
+    hint.wittyMessage = isTR ? "Ajandana bir etkinlik ekliyorum. Vaktinde orada olalım!" : "Adding an event to your agenda. Let's be there on time!";
     if (!hint.tags) hint.tags = [];
     hint.tags.push(isTR ? 'etkinlik' : 'event');
   } else if (finalContext === 'sensitive') {
     if (scores.sensitive >= 10) {
-         hint.wittyMessage = isTR ? "Başınız sağ olsun. TAZQ bu süreçte ajandanızı sadeleştirecek. 🙏" : "My condolences. TAZQ will simplify your agenda during this time. 🙏";
+         hint.wittyMessage = isTR ? "Başınız sağ olsun. TAZQ bu süreçte ajandanızı sadeleştirecek." : "My condolences. TAZQ will simplify your agenda during this time.";
      } else {
-         hint.wittyMessage = isTR ? "Geçmiş olsun, sağlığınız her şeyden önemli. Kaydedildi. 🙏" : "Get well soon, your health is priority #1. Noted. 🙏";
+         hint.wittyMessage = isTR ? "Geçmiş olsun, sağlığınız her şeyden önemli. Kaydedildi." : "Get well soon, your health is priority #1. Noted.";
      }
    } else if (finalContext === 'joyful') {
-     hint.wittyMessage = isTR ? "Harika bir plan! TAZQ kutlama moduna hazır. 🎉" : "Great plan! TAZQ is ready for celebration mode. 🎉";
+     hint.wittyMessage = isTR ? "Harika bir plan! TAZQ kutlama moduna hazır." : "Great plan! TAZQ is ready for celebration mode.";
   } else if (finalContext === 'stressful') {
-    hint.wittyMessage = isTR ? "Zorlu bir görev ama üstesinden gelebilirsin. Odaklanalım! 💪" : "A tough task, but you can handle it. Let's focus! 💪";
+    hint.wittyMessage = isTR ? "Zorlu bir görev ama üstesinden gelebilirsin. Odaklanalım!" : "A tough task, but you can handle it. Let's focus!";
   } else {
-    hint.wittyMessage = isTR ? "Planlandı. Adım adım hedefe ilerliyoruz. ✅" : "Scheduled. Moving towards the goal step by step. ✅";
+    hint.wittyMessage = isTR ? "Planlandı. Adım adım hedefe ilerliyoruz." : "Scheduled. Moving towards the goal step by step.";
   }
 
   return hint;

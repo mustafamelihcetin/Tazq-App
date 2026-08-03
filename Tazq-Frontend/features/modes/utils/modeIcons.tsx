@@ -224,7 +224,60 @@ export function renderModeEmojiIcon(emoji: string, size = 16, color?: string) {
       return <Lucide.Ruler size={size} color={color} />;
     case '🔢':
       return <Lucide.Binary size={size} color={color} />;
-    
+
+    /*
+      ── ÖLÇÜLEREK EKLENEN EŞLEMELER ───────────────────────────────────────────
+      Veri dosyalarındaki `emoji:` alanları ile bu switch karşılaştırıldı: 112 farklı
+      emoji kullanılıyordu, 20'sinin eşlemesi YOKTU. Eşlemesi olmayan her emoji
+      aşağıdaki fallback'e düşüp HAM olarak çiziliyor — yani çizgisel ikonların
+      yanında sistem emojisi görünüyor ve arayüz yamalı duruyor.
+
+      Aşağıdaki ikon adlarının hepsi kurulu lucide sürümünde tek tek doğrulandı;
+      olmayan bir ada referans vermek, çökme kayıtlarındaki
+      "Property 'X' doesn't exist" hatasının aynısını üretirdi.
+    */
+    case '🌍':
+    case '🌐':
+      return <Lucide.Globe size={size} color={color} />;
+    case '🏥':
+      return <Lucide.Stethoscope size={size} color={color} />;
+    case '🧬':
+      return <Lucide.Dna size={size} color={color} />;
+    case '🥛':
+      return <Lucide.Milk size={size} color={color} />;
+    case '👟':
+      return <Lucide.Footprints size={size} color={color} />;
+    case '🏊':
+      return <Lucide.Waves size={size} color={color} />;
+    case '🤸':
+      return <Lucide.PersonStanding size={size} color={color} />;
+    case '👮':
+      return <Lucide.Shield size={size} color={color} />;
+    case '💎':
+      return <Lucide.Gem size={size} color={color} />;
+    case '🌟':
+      return <Lucide.Star size={size} color={color} />;
+    case '🔮':
+      return <Lucide.Telescope size={size} color={color} />;
+    case '🏅':
+      return <Lucide.Medal size={size} color={color} />;
+    case '🎉':
+      return <Lucide.PartyPopper size={size} color={color} />;
+    case '✅':
+      return <Lucide.CircleCheck size={size} color={color} />;
+
+    // Ruh hâli ölçeği (5 kademe) — sırayı KORU: en olumsuzdan en olumluya.
+    case '😫':
+      return <Lucide.Angry size={size} color={color} />;
+    case '😕':
+      return <Lucide.Frown size={size} color={color} />;
+    case '😐':
+      return <Lucide.Meh size={size} color={color} />;
+    case '🙂':
+      return <Lucide.Smile size={size} color={color} />;
+    case '😎':
+      return <Lucide.Laugh size={size} color={color} />;
+
     // Fallback: render the original emoji as text if not mapped
     default:
       return <Text style={{ fontSize: size }}>{emoji}</Text>;

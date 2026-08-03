@@ -341,8 +341,8 @@ export default function ModlarScreen() {
   const latestWeight = weightLog.length > 0 ? weightLog[0].weight : null;
 
   const SPOR_GOALS = language === 'tr'
-    ? [{ key: 'maraton', label: '🏃 Maraton / Koşu' }, { key: 'guc', label: '💪 Güç & Kas' }, { key: 'kilo', label: '⚖️ Kilo Yönetimi' }, { key: 'genel', label: '✨ Genel Form' }, { key: 'yaris', label: '🏆 Spor Yarışması' }]
-    : [{ key: 'maraton', label: '🏃 Marathon / Running' }, { key: 'guc', label: '💪 Strength & Muscle' }, { key: 'kilo', label: '⚖️ Weight Management' }, { key: 'genel', label: '✨ General Fitness' }, { key: 'yaris', label: '🏆 Sport Competition' }];
+    ? [{ key: 'maraton', label: 'Maraton / Koşu' }, { key: 'guc', label: 'Güç & Kas' }, { key: 'kilo', label: 'Kilo Yönetimi' }, { key: 'genel', label: 'Genel Form' }, { key: 'yaris', label: 'Spor Yarışması' }]
+    : [{ key: 'maraton', label: 'Marathon / Running' }, { key: 'guc', label: 'Strength & Muscle' }, { key: 'kilo', label: 'Weight Management' }, { key: 'genel', label: 'General Fitness' }, { key: 'yaris', label: 'Sport Competition' }];
 
   // Aynı tür birden çok spor slotunda olamaz (ör. iki "Kilo Yönetimi" mantıksız).
   // Bir slot için, DİĞER slotlarda zaten seçili türleri çiplerden gizle (kendi seçili
@@ -363,8 +363,8 @@ export default function ModlarScreen() {
   const kpssAutoActive = useMemo(() => isSeasonalExamActive('kpss'), []);
   const examNameConflict = useMemo(() => {
     const n = examNameInput.toUpperCase();
-    if (yksAutoActive && ['YKS', 'TYT', 'AYT'].some(k => n.includes(k))) return language === 'tr' ? '⚠️ YKS modu zaten otomatik aktif — bu plan onunla çakışabilir' : '⚠️ YKS mode is already auto-active — this plan may overlap';
-    if (kpssAutoActive && n.includes('KPSS')) return language === 'tr' ? '⚠️ KPSS modu zaten otomatik aktif — bu plan onunla çakışabilir' : '⚠️ KPSS mode is already auto-active — this plan may overlap';
+    if (yksAutoActive && ['YKS', 'TYT', 'AYT'].some(k => n.includes(k))) return language === 'tr' ? 'YKS modu zaten otomatik aktif — bu plan onunla çakışabilir' : 'YKS mode is already auto-active — this plan may overlap';
+    if (kpssAutoActive && n.includes('KPSS')) return language === 'tr' ? 'KPSS modu zaten otomatik aktif — bu plan onunla çakışabilir' : 'KPSS mode is already auto-active — this plan may overlap';
     return null;
   }, [examNameInput, yksAutoActive, kpssAutoActive, language]);
   const sporDatePast = effectiveSporDate ? parseDateKey(effectiveSporDate).setHours(23, 59, 59, 999) < Date.now() : false;

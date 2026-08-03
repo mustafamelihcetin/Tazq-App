@@ -1183,23 +1183,36 @@ export function detectSporType(goalLabel: string): SporType {
 export function localizeSporGoal(goal: string | null | undefined, tr: boolean): string {
   if (!goal) return '';
   const g = goal.trim();
-  const hasEmoji = g.startsWith('🏃') || g.startsWith('💪') || g.startsWith('⚖️') || g.startsWith('✨') || g.startsWith('🏆');
+  /*
+    EMOJİ YANSITILMAZ — uygulamanın görsel dili düz (flat) ikon.
+
+    Burası eskiden girdideki emojiyi çıktıya geri koyuyordu (`hasEmoji` bayrağı):
+    hedef "💪 Güç & Kas" olarak kaydedildiği için başlıklarda, çiplerde ve plan
+    özetlerinde kas emojisi görünüyordu. Sistem emojisi hem çizgisel ikonların
+    yanında yamalı duruyor hem de her platformda farklı çiziliyor. İkon zaten
+    AYRI olarak gösteriliyor; metinde tekrar etmesi gereksiz.
+
+    Girdide emoji KABUL EDİLMEYE devam ediyor: eski kullanıcıların kayıtlı hedefi
+    hâlâ emojiyle başlıyor olabilir ve eşleştirme `includes` ile yapıldığı için
+    çalışıyor. Değişen yalnız ÇIKTI.
+  */
   if (g.includes('Kilo') || g.includes('Weight')) {
-    return hasEmoji ? (tr ? '⚖️ Kilo Yönetimi' : '⚖️ Weight Management') : (tr ? 'Kilo Yönetimi' : 'Weight Management');
+    return tr ? 'Kilo Yönetimi' : 'Weight Management';
   }
   if (g.includes('Maraton') || g.includes('Marathon') || g.includes('Koşu') || g.includes('Running')) {
-    return hasEmoji ? (tr ? '🏃 Maraton / Koşu' : '🏃 Marathon / Running') : (tr ? 'Maraton / Koşu' : 'Marathon / Running');
+    return tr ? 'Maraton / Koşu' : 'Marathon / Running';
   }
   if (g.includes('Güç') || g.includes('Strength') || g.includes('Kas') || g.includes('Muscle')) {
-    return hasEmoji ? (tr ? '💪 Güç & Kas' : '💪 Strength & Muscle') : (tr ? 'Güç & Kas' : 'Strength & Muscle');
+    return tr ? 'Güç & Kas' : 'Strength & Muscle';
   }
   if (g.includes('Genel Form') || g.includes('General Fitness')) {
-    return hasEmoji ? (tr ? '✨ Genel Form' : '✨ General Fitness') : (tr ? 'Genel Form' : 'General Fitness');
+    return tr ? 'Genel Form' : 'General Fitness';
   }
   if (g.includes('Spor Yarışması') || g.includes('Sport Competition') || g.includes('Yarışma') || g.includes('Competition')) {
-    return hasEmoji ? (tr ? '🏆 Spor Yarışması' : '🏆 Sport Competition') : (tr ? 'Spor Yarışması' : 'Sport Competition');
+    return tr ? 'Spor Yarışması' : 'Sport Competition';
   }
-  return goal;
+  // Bilinmeyen serbest metin: kullanıcının yazdığı ad korunur, yalnız baştaki süs atılır.
+  return g.replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '').trim() || g;
 }
 
 // Returns the split label for a given day count and day index (0-based Mon)
@@ -1432,8 +1445,8 @@ function buildMaratonTemplate(inputs: SporInputs, days: number): StudyTemplate {
           priority: 'Medium',
         },
         ...(tooShort ? [{
-          titleTr: `⚠️ Dikkat: ${event} için ideal hazırlık ${minWeeks} haftadır — tarihi uzatmayı düşün`,
-          titleEn: `⚠️ Note: Ideal prep for ${event} is ${minWeeks} weeks — consider extending your date`,
+          titleTr: `Dikkat: ${event} için ideal hazırlık ${minWeeks} haftadır — tarihi uzatmayı düşün`,
+          titleEn: `Note: Ideal prep for ${event} is ${minWeeks} weeks — consider extending your date`,
           priority: 'High' as const,
           daysFromNow: 0,
         }] : []),
@@ -1567,14 +1580,14 @@ function buildGucTemplate(inputs: SporInputs, days: number, goalType: SporType):
   const tasks = isYaris ? yarisTasks : isGenel ? genelTasks : gucTasks;
 
   const yarisHabits = [
-    { name: 'Antrenman', nameTr: `${dayListTr} — spor pratiği`, emoji: '🏆', color: CategoryColors.red },
+    { name: 'Antrenman', nameTr: 'Antrenman seansı: planlanan mesafe ve tempo', emoji: '🏆', color: CategoryColors.red },
     { name: 'Dinlenme', nameTr: 'Toparlanma: uyku + aktif dinlenme', emoji: '😴', color: CategoryColors.violet },
     { name: 'Beslenme', nameTr: 'Performans beslenmesi: yeterli karbonhidrat + protein', emoji: '🥗', color: CategoryColors.amber },
     { name: 'Mental', nameTr: 'Mental hazırlık: görselleştirme / nefes egzersizi', emoji: '🧠', color: CategoryColors.green },
   ];
 
   const gucHabits = [
-    { name: 'Antrenman', nameTr: `${dayListTr} — planlı seans`, emoji: '🏋️', color: CategoryColors.red },
+    { name: 'Antrenman', nameTr: 'Direnç antrenmanı: ana hareket + 2-3 yardımcı', emoji: '🏋️', color: CategoryColors.red },
     { name: 'Protein', nameTr: 'Günlük protein alımı (her öğünde yeterli kaynak)', emoji: '🥩', color: CategoryColors.amber },
     { name: 'Uyku', nameTr: 'Uyku kalitesi — kaslar uyurken büyür', emoji: '😴', color: CategoryColors.violet },
     { name: 'Kayıt', nameTr: 'Antrenman günlüğü: set · tekrar · ağırlık', emoji: '📊', color: CategoryColors.green },

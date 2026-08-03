@@ -52,8 +52,8 @@ const VenusIcon = ({ size = 16, color = '#000', strokeWidth = 2.5 }: { size?: nu
 
 function getSporGoals(tr: boolean) {
   return tr
-    ? [{ key: 'maraton', label: '🏃 Maraton / Koşu' }, { key: 'guc', label: '💪 Güç & Kas' }, { key: 'kilo', label: '⚖️ Kilo Yönetimi' }, { key: 'genel', label: '✨ Genel Form' }, { key: 'yaris', label: '🏆 Spor Yarışması' }]
-    : [{ key: 'maraton', label: '🏃 Marathon / Running' }, { key: 'guc', label: '💪 Strength & Muscle' }, { key: 'kilo', label: '⚖️ Weight Management' }, { key: 'genel', label: '✨ General Fitness' }, { key: 'yaris', label: '🏆 Sport Competition' }];
+    ? [{ key: 'maraton', label: 'Maraton / Koşu' }, { key: 'guc', label: 'Güç & Kas' }, { key: 'kilo', label: 'Kilo Yönetimi' }, { key: 'genel', label: 'Genel Form' }, { key: 'yaris', label: 'Spor Yarışması' }]
+    : [{ key: 'maraton', label: 'Marathon / Running' }, { key: 'guc', label: 'Strength & Muscle' }, { key: 'kilo', label: 'Weight Management' }, { key: 'genel', label: 'General Fitness' }, { key: 'yaris', label: 'Sport Competition' }];
 }
 function sporGoalsForSlot(tr: boolean, selfLabel: string, otherLabels: string[]) {
   const otherKeys = new Set(otherLabels.filter(Boolean).map(l => detectSporType(l)));

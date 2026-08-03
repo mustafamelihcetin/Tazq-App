@@ -437,8 +437,8 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
     // çakışma uyarısı yanlış çalışır.
     const yks = isSeasonalExamActive('yks');
     const kpss = isSeasonalExamActive('kpss');
-    if (yks && ['YKS', 'TYT', 'AYT'].some(k => n.includes(k))) return tr ? '⚠️ YKS modu zaten otomatik aktif — bu plan onunla çakışabilir' : '⚠️ YKS mode is already auto-active — this plan may overlap';
-    if (kpss && n.includes('KPSS')) return tr ? '⚠️ KPSS modu zaten otomatik aktif — bu plan onunla çakışabilir' : '⚠️ KPSS mode is already auto-active — this plan may overlap';
+    if (yks && ['YKS', 'TYT', 'AYT'].some(k => n.includes(k))) return tr ? 'YKS modu zaten otomatik aktif — bu plan onunla çakışabilir' : '⚠️ YKS mode is already auto-active — this plan may overlap';
+    if (kpss && n.includes('KPSS')) return tr ? 'KPSS modu zaten otomatik aktif — bu plan onunla çakışabilir' : '⚠️ KPSS mode is already auto-active — this plan may overlap';
     return null;
   })();
 
@@ -478,9 +478,9 @@ export function ExamCard({ onOpenPreview }: { onOpenPreview: (p: PreviewPayload)
         setExamReviewShown(true);
         const nm = s.examName || (tr ? 'Sınav' : 'Exam');
         setTimeout(() => {
-          Alert.alert(tr ? `🎓 ${nm} tamamlandı!` : `🎓 ${nm} is over!`, tr ? 'Nasıl geçti?' : 'How did it go?', [
-            { text: tr ? 'Harika geçti 🎉' : 'It went great 🎉', onPress: () => closeModeWithUndo('exam', closeWithReview, tr ? 'Sınav modu kapatıldı' : 'Exam mode closed', tr ? 'Geri al' : 'Undo') },
-            { text: tr ? 'Orta geçti 😅' : 'So-so 😅', onPress: () => closeModeWithUndo('exam', closeWithReview, tr ? 'Sınav modu kapatıldı' : 'Exam mode closed', tr ? 'Geri al' : 'Undo') },
+          Alert.alert(tr ? `${nm} tamamlandı!` : `${nm} is over!`, tr ? 'Nasıl geçti?' : 'How did it go?', [
+            { text: tr ? 'Harika geçti' : 'It went great', onPress: () => closeModeWithUndo('exam', closeWithReview, tr ? 'Sınav modu kapatıldı' : 'Exam mode closed', tr ? 'Geri al' : 'Undo') },
+            { text: tr ? 'Orta geçti' : 'So-so', onPress: () => closeModeWithUndo('exam', closeWithReview, tr ? 'Sınav modu kapatıldı' : 'Exam mode closed', tr ? 'Geri al' : 'Undo') },
             { text: tr ? 'Zor geçti 😢' : 'It was tough 😢', onPress: () => closeModeWithUndo('exam', closeWithReview, tr ? 'Sınav modu kapatıldı' : 'Exam mode closed', tr ? 'Geri al' : 'Undo') },
           ]);
         }, 400);

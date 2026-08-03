@@ -74,10 +74,30 @@ describe('localizeSporGoal — dil değişince hedef adı da değişir', () => {
     expect(localizeSporGoal('Weight Management', true)).toContain('Kilo Yönetimi');
   });
 
-  it('emoji varsa KORUNUR, yoksa eklenmez', () => {
-    // Emoji burada veri değil biçim: kullanıcının seçtiği etikette varsa kalmalı.
-    expect(localizeSporGoal('⚖️ Kilo Yönetimi', true)).toBe('⚖️ Kilo Yönetimi');
+  /*
+    KURAL DEĞİŞTİ: emoji artık YANSITILMIYOR.
+
+    Bu test eskiden "emoji varsa KORUNUR" diyordu ve fonksiyon girdideki emojiyi
+    çıktıya geri koyuyordu. Sonucu: hedef "💪 Güç & Kas" olarak kaydedildiği için
+    başlıklarda, çiplerde ve plan özetlerinde kas emojisi görünüyordu.
+
+    Uygulamanın görsel dili düz (flat) ikon; sistem emojisi hem o dille çelişiyor
+    hem de her platformda farklı çiziliyor. İkon zaten AYRI olarak gösteriliyor,
+    metinde tekrar etmesi gereksiz.
+
+    Eski kullanıcıların kayıtlı hedefi hâlâ emojiyle başlıyor olabilir — bu yüzden
+    GİRDİDE emoji kabul edilmeye devam ediyor (eşleştirme `includes` ile), yalnız
+    ÇIKTI temizleniyor.
+  */
+  it('emoji girdide kabul edilir ama çıktıya YANSITILMAZ', () => {
+    expect(localizeSporGoal('⚖️ Kilo Yönetimi', true)).toBe('Kilo Yönetimi');
+    expect(localizeSporGoal('💪 Güç & Kas', true)).toBe('Güç & Kas');
     expect(localizeSporGoal('Kilo Yönetimi', true)).toBe('Kilo Yönetimi');
+  });
+
+  it('bilinmeyen hedefte de baştaki emoji atılır', () => {
+    // Kullanıcının kendi yazdığı ad korunur, yalnız başındaki süs temizlenir.
+    expect(localizeSporGoal('🏊 Yüzme antrenmanı', true)).toBe('Yüzme antrenmanı');
   });
 
   it('boş girdide boş döner — "undefined" yazmaz', () => {
@@ -89,10 +109,10 @@ describe('localizeSporGoal — dil değişince hedef adı da değişir', () => {
     // Kullanıcının kendi yazdığı hedef adı korunuyor; bilinmeyen bir metni "genel"e
     // çevirmek kullanıcının yazdığını silmek olurdu.
     expect(localizeSporGoal('Yüzme antrenmanı', true)).toBe('Yüzme antrenmanı');
-    // Yalnız boşluktan ibaret girdi de aynen geçiyor (kırpılmıyor) — zararsız,
-    // çünkü ekranda boşluk olarak çiziliyor. Davranış burada BELGELENİYOR ki
-    // ileride değişirse fark edilsin.
-    expect(localizeSporGoal('   ', true)).toBe('   ');
+    // Yalnız boşluktan ibaret girdi artık BOŞ dönüyor (eskiden aynen geçiyordu).
+    // Emoji temizliği eklenirken kırpma da devreye girdi; bu bir iyileşme —
+    // görünmez bir "hedef" etiketi çizmek yerine hiç çizilmiyor.
+    expect(localizeSporGoal('   ', true)).toBe('');
   });
 });
 
