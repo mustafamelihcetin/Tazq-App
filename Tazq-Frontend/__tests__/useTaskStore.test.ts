@@ -1,6 +1,26 @@
 import { useTaskStore } from '@/features/tasks';
 import type { Task } from '@/features/tasks';
 
+/*
+  ALT GÖREV SENKRONU SAHTELENİYOR — bu dosya STORE mantığını sınıyor, ağı değil.
+
+  `toggleSubtask` artık işaretlemeyi sunucuya da yazıyor (800 ms gecikmeli). Sahtelenmezse
+  zamanlayıcı test bittikten SONRA ateşleniyor ve Jest ortamı kapandığı için şu uyarıyı
+  üretiyordu:
+
+    "You are trying to `import` a file after the Jest environment has been torn down"
+
+  Uyarı testi düşürmüyor ama iki gerçek sorunu gizliyor: test gerçek bir ağ isteği
+  denemesi yapıyor (yavaş ve kırılgan) ve ortam kapandıktan sonra çalışan kod, ileride
+  açıklaması zor hatalar üretir.
+
+  Kalıcılık davranışı ayrıca `subtaskSync.test.ts`'te sınanıyor.
+*/
+jest.mock('@/features/tasks/utils/subtaskSync', () => ({
+  persistSubtasks: jest.fn(),
+  flushPendingSubtasks: jest.fn(),
+}));
+
 const makeTask = (overrides: Partial<Task> = {}): Task => ({
   id: Math.floor(Math.random() * 10000),
   title: 'Test Task',
