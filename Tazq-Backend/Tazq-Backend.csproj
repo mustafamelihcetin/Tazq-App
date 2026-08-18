@@ -5,6 +5,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Tazq_Backend</RootNamespace>
+
+    <!-- Arka ucun sürümü yoktu: dağıtımdan sonra sunucuda hangi kodun çalıştığı
+         anlaşılamıyordu. İstemci sürümüyle (app.json) aynı hatta tutuluyor.
+         Admin panelindeki sağlık ucundan okunur. -->
+    <Version>1.3.2</Version>
   </PropertyGroup>
 
 

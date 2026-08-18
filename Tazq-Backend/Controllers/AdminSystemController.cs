@@ -48,6 +48,11 @@ namespace Tazq_App.Controllers
                 status = health.DbOk ? "ok" : "degraded",
                 dbOk = health.DbOk,
                 redisOk = health.RedisOk,
+                // Derleme anında gömülür (csproj → <Version>), yani yeniden derlenmeden
+                // değişemez: dağıtımın gerçekten yeni kodu taşıdığının kanıtı.
+                // `uptime` bunu göstermez — konteyner yeniden başlar ama kod eski kalabilir.
+                version = System.Reflection.Assembly.GetExecutingAssembly()
+                              .GetName().Version?.ToString(3) ?? "bilinmiyor",
                 environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production",
                 serverTimeUtc = DateTime.UtcNow,
                 uptimeSeconds = (long)uptime.TotalSeconds,
