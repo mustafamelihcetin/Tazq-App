@@ -376,3 +376,4 @@ stitch_tazq_sophisticated_playful_ui/
 
 # Agent rules
 .agents/AGENTS.md
+.env.example

@@ -46,7 +46,12 @@ namespace Tazq_App.Services
 					Port = smtpPort,
 					UseDefaultCredentials = false,
 					Credentials = new NetworkCredential(smtpUser, smtpPass),
-					EnableSsl = true
+					EnableSsl = true,
+					// Zaman aşımı verilmemişti; SmtpClient'ın varsayılanı 100 sn. Gönderim
+					// arka plan kuyruğunda (tek işçi) çalıştığı için takılan TEK bir mail
+					// arkasındaki tüm kuyruğu 100 sn bloke ediyordu. Resend sağlıklıyken
+					// gönderim saniyenin altında; 30 sn geniş ama sonlu bir üst sınır.
+					Timeout = 30_000
 				};
 
 				string displayName = Environment.GetEnvironmentVariable("SMTP_DISPLAY_NAME") ?? _smtpSettings.DisplayName ?? "TAZQ";
@@ -75,11 +80,32 @@ namespace Tazq_App.Services
 			}
 		}
 
+		/*
+		  KULLANICI METNİ HTML GÖVDEYE HAM GİRİYORDU.
+
+		  Aşağıdaki şablonlar `{userName}`, `{userMessage}`, `{originalMessage}` ve
+		  `{adminReply}` değerlerini doğrudan interpolate ediyordu. Bunların üçü
+		  kullanıcı tarafından yazılıyor; yani gövdeye HTML enjekte edilebiliyordu.
+
+		  EN CİDDİ HEDEF KULLANICI DEĞİL, BİZİZ: destek onay ve yanıt e-postalarındaki
+		  metni okuyan taraf destek ekibi/admin. Adını `<a href="...">Hesabınızı
+		  doğrulayın</a>` yapan biri, TAZQ'ın kendi alan adından gönderilen (SPF/DKIM
+		  geçerli) bir postanın içine kendi bağlantısını koyabilirdi — kimlik avı için
+		  ideal zemin. Betik çoğu istemcide çalışmaz ama bağlantı ve biçimlendirme
+		  fazlasıyla yeter.
+
+		  Çözüm zaten bu dosyada mevcuttu: `SendAdminSignupDigestAsync` her alanı
+		  `WebUtility.HtmlEncode` ile geçiriyor. Eski şablonlar bu adımı atlamıştı;
+		  aynı deyim onlara da uygulandı.
+
+		  Düz-metin alternatifi (`StripHtml`) bu gövdeden üretildiği için o da
+		  kendiliğinden düzeliyor.
+		*/
 		public async Task SendWelcomeEmailAsync(string toEmail, string userName)
 		{
 			string subject = "TAZQ Dünyasına Hoş Geldin!";
 			string content = $@"
-				<p>Merhaba <b>{userName}</b>,</p>
+				<p>Merhaba <b>{WebUtility.HtmlEncode(userName)}</b>,</p>
 				<p>TAZQ ailesine katıldığın için çok mutluyuz! Artık derin odaklanma, hayat modlarını yönetme ve üretkenliğini zirveye taşıma yolunda ilk adımını attın.</p>
 				<p>TAZQ ile yapabileceklerinden bazıları:</p>
 				<ul style=""padding-left: 20px; color: #334155; margin-bottom: 25px;"">
@@ -112,7 +138,7 @@ namespace Tazq_App.Services
 			}
 
 			string content = $@"
-				<p>Merhaba <b>{userName}</b>,</p>
+				<p>Merhaba <b>{WebUtility.HtmlEncode(userName)}</b>,</p>
 				<p>TAZQ'a hoş geldin! Hesabını güvenle kullanmaya başlamak için son bir adım kaldı. Aşağıdaki 6 haneli kodu uygulamadaki doğrulama ekranına gir:</p>
 				<table role=""presentation"" cellpadding=""0"" cellspacing=""0"" align=""center"" style=""margin: 30px auto 18px auto;"">
 					<tr>{cells}</tr>
@@ -132,7 +158,7 @@ namespace Tazq_App.Services
 			string subject = "TAZQ Şifre Sıfırlama Talebi";
 			string resetUrl = $"https://api.tazqapp.com/api/users/reset-password-form?token={Uri.EscapeDataString(resetCode)}";
 			string content = $@"
-				<p>Merhaba <b>{userName}</b>,</p>
+				<p>Merhaba <b>{WebUtility.HtmlEncode(userName)}</b>,</p>
 				<p>TAZQ hesabının şifresini sıfırlamak için bir talepte bulundun. Aşağıdaki butona tıklayarak şifreni güvenli bir şekilde sıfırlayabilirsin:</p>
 				<div style=""text-align: center; margin: 30px 0;"">
 					<a href=""{resetUrl}"" class=""btn"" style=""background-color: #6366f1; color: #ffffff; padding: 14px 28px; border-radius: 12px; font-weight: 700; text-decoration: none; display: inline-block; box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);"">Şifremi Sıfırla</a>
@@ -149,11 +175,11 @@ namespace Tazq_App.Services
 		{
 			string subject = "Destek Talebiniz Alındı";
 			string content = $@"
-				<p>Merhaba <b>{userName}</b>,</p>
+				<p>Merhaba <b>{WebUtility.HtmlEncode(userName)}</b>,</p>
 				<p>Gönderdiğin mesaj başarıyla bize ulaştı. Talebini incelemeye aldık ve en kısa sürede (genellikle 24 saat içinde) sana yanıt vereceğiz.</p>
 				<p>Gönderdiğin mesajın bir kopyası aşağıdadır:</p>
 				<div class=""quote-box"">
-					""{userMessage}""
+					""{WebUtility.HtmlEncode(userMessage)}""
 				</div>
 				<p>Yanıt geldiğinde sana yine bir bilgilendirme e-postası göndereceğiz. Ayrıca yanıtları uygulama içindeki Destek ekranından da her zaman takip edebilirsin.</p>
 				<p>Sabrın için teşekkür eder, iyi günler dileriz,<br><b>TAZQ</b></p>";
@@ -166,17 +192,17 @@ namespace Tazq_App.Services
 		{
 			string subject = "Destek Talebiniz Yanıtlandı";
 			string content = $@"
-				<p>Merhaba <b>{userName}</b>,</p>
+				<p>Merhaba <b>{WebUtility.HtmlEncode(userName)}</b>,</p>
 				<p>İlettiğin talebin yanıtlandı! Yanıt ayrıntıları aşağıda yer almaktadır:</p>
 				
 				<div style=""margin: 20px 0; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;"">
 					<div style=""background-color: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #e2e8f0;"">
 						<p style=""margin: 0; font-size: 12px; font-weight: 700; color: #64748b;"">GÖNDERDİĞİNİZ MESAJ</p>
-						<p style=""margin: 8px 0 0 0; color: #334155; font-style: italic;"">""{originalMessage}""</p>
+						<p style=""margin: 8px 0 0 0; color: #334155; font-style: italic;"">""{WebUtility.HtmlEncode(originalMessage)}""</p>
 					</div>
 					<div style=""padding: 20px; background-color: #ffffff;"">
 						<p style=""margin: 0; font-size: 12px; font-weight: 700; color: #059669;"">DESTEK EKİBİ YANITI</p>
-						<p style=""margin: 8px 0 0 0; color: #0f172a; font-weight: 500;"">{adminReply}</p>
+						<p style=""margin: 8px 0 0 0; color: #0f172a; font-weight: 500;"">{WebUtility.HtmlEncode(adminReply)}</p>
 					</div>
 				</div>
 

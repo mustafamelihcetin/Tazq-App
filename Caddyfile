@@ -21,13 +21,33 @@
 #     kullanıcıya farkında olmadan tıklatılabilir (clickjacking).
 #   · Server: Kestrel → arka uç teknolojisi ve sürüm ailesi bedavaya sızıyor.
 #
-# CSP BİLEREK YOK: açılış sayfası satır içi stil/script ve JSON-LD kullanıyor;
-# sıkı bir CSP sayfayı bozar. Ayrı ve ölçülerek eklenmeli.
+# CSP ARTIK VAR — ama satır içi koda izin vererek. Gerekçe ölçüldü, tahmin değil:
+#
+#   · Sayfalardaki TÜM dış kaynak Google Fonts'tan ibaret (fonts.googleapis.com →
+#     stil, fonts.gstatic.com → font dosyaları). Başka hiçbir dış `src` yok;
+#     apps.apple.com ve schema.org yalnızca bağlantı/JSON-LD metni, yüklenen kaynak
+#     değil. Görseller wwwroot'tan geliyor.
+#   · Satır içi stil ve script GERÇEKTEN var (JSON-LD, dil değiştirici, şifre
+#     sıfırlama formunun kendi betiği). Bu yüzden 'unsafe-inline' zorunlu.
+#
+# 'unsafe-inline' CSP'yi ZAYIFLATIR, bunu saklamıyoruz: satır içi betik enjeksiyonuna
+# karşı koruma sağlamaz. Buna rağmen değerli, çünkü hâlâ şunları engelliyor:
+#   · Yabancı bir sunucudan betik yüklenmesi (script-src 'self')
+#   · <object>/<embed> ile eklenti tabanlı kaçış (object-src 'none')
+#   · <base> etiketiyle tüm göreli URL'lerin kaçırılması (base-uri 'self')
+#   · Formun başka bir sunucuya post edilmesi — veri sızdırma (form-action 'self')
+#   · Veri çıkışı için dış uca fetch/XHR (connect-src 'self')
+# Bu sayfalar kullanıcı girdisi ÇİZMİYOR; yani XSS yüzeyi zaten yok. CSP burada
+# mevcut bir açığı kapatmıyor, ileride bir sayfa dinamikleşirse hasarı sınırlıyor.
+#
+# frame-ancestors, X-Frame-Options'ın modern karşılığı; ikisi de bilerek duruyor
+# (eski tarayıcılar yalnız X-Frame-Options'ı anlıyor).
 #
 # NOT: bu Caddy ORTAK (malthen.dev de buradan geçiyor). Bu yüzden başlıklar global
 # bloğa değil, yalnız Tazq alan adlarına uygulanıyor — başka bir ürünü etkilemesin.
 (tazq_security) {
     header {
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
         # 1 yıl. `preload` BİLEREK yok: preload listesine girmek pratikte geri
         # alınamaz ve alt alan adlarını da bağlar.
         Strict-Transport-Security "max-age=31536000; includeSubDomains"

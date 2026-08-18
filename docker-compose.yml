@@ -65,6 +65,17 @@ services:
       tazq-redis:
         condition: service_healthy
     restart: unless-stopped
+    # Kapanış penceresi — .NET tarafıyla eşleşmesi için.
+    #
+    # Compose'un varsayılanı 10 sn: SIGTERM'den 10 sn sonra SIGKILL. .NET ise
+    # (Program.cs → HostOptions.ShutdownTimeout) süren istekleri bitirmek ve mail
+    # kuyruğunu boşaltmak için 15 sn'lik bir plan yapıyor. Eski durumda Docker,
+    # uygulamanın planı bitmeden fişi çekiyordu.
+    #
+    # BU BİR BEKLEME SÜRESİ DEĞİL, ÜST SINIR: süreç 1 sn'de kapanırsa Docker 1 sn
+    # bekler. Yani deploy süresini uzatmaz, yalnız gerçekten iş varken zaman tanır.
+    # 20 > 15 olmalı ki kapanışı SIGKILL değil uygulamanın kendisi bitirsin.
+    stop_grace_period: 20s
 
   caddy:
     image: caddy:2-alpine

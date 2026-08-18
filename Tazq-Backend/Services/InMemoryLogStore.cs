@@ -44,9 +44,17 @@ namespace Tazq_App.Services
             _capacity = capacity;
         }
 
+        /// <summary>
+        /// Kaydı tampona alır — MASKELEYEREK.
+        ///
+        /// Maskeleme burada, tek boğaz noktasında yapılıyor: bu depodaki her satır admin
+        /// panelinden okunabiliyor, dolayısıyla hangi çağrı yerinden geldiğine bakmaksızın
+        /// e-posta ve jeton içeren hiçbir kayıt ham hâlde saklanmamalı. Ayrıntı için
+        /// bkz. LogRedactor.
+        /// </summary>
         public void Add(LogEntry entry)
         {
-            _entries.Enqueue(entry);
+            _entries.Enqueue(entry with { Message = LogRedactor.Redact(entry.Message) });
             while (_entries.Count > _capacity && _entries.TryDequeue(out _)) { }
         }
 

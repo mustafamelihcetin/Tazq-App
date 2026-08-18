@@ -189,11 +189,52 @@ builder.Services.Configure<IpRateLimitOptions>(opt =>
 
 builder.Services.AddHealthChecks();
 
+/*
+  KAPANIŞ SÜRESİ — .NET ile Docker'ın pencereleri UYUŞMUYORDU.
+
+  .NET'in varsayılanı 30 sn: SIGTERM gelince yeni istek almayı keser, süren
+  istekleri bitirmeye ve arka plan işçilerini (mail kuyruğu) durdurmaya çalışır.
+  Docker Compose'un varsayılan `stop_grace_period` ise 10 sn — süre dolunca
+  SIGKILL. Yani .NET 30 sn'lik bir plan yapıyor, Docker 10. sn'de fişi çekiyordu.
+
+  Sonuç: her deploy'da (`docker compose up -d` konteyneri yeniden yaratır)
+  kuyruktaki mail gönderimi ve yarım kalan istekler kesilebiliyordu.
+
+  15 sn, Docker tarafında ayarlanacak 20 sn'lik pencerenin ALTINDA kalır —
+  böylece kapanışı SIGKILL değil, uygulamanın kendisi bitirir. Kapanış hızlıysa
+  süreç zaten hemen çıkar; bu bir bekleme değil, üst sınırdır.
+  Docker tarafı: docker-compose.yml → tazq-backend.stop_grace_period: 20s
+*/
+builder.Services.Configure<HostOptions>(opt =>
+{
+    opt.ShutdownTimeout = TimeSpan.FromSeconds(15);
+});
+
+/*
+  CORS — LİSTE BOŞSA HİÇBİR ORIGIN, "HERKES" DEĞİL.
+
+  Burada `ALLOWED_ORIGINS` tanımsızsa `AllowAnyOrigin()` devreye giriyordu. Ölçüldü:
+  `.env` içindeki değer BOŞTU, yani joker fiilen açıktı. Bir güvenlik ayarının
+  varsayılanı, unutulduğunda en gevşek hale düşmemeli — tam tersi olmalı.
+
+  Bunu kapatmak neyi bozar: HİÇBİR ŞEYİ. CORS yalnız TARAYICI kaynaklıdır.
+    · Mobil uygulama yerel HTTP kullanır, CORS uygulanmaz.
+    · Açılış ve yasal sayfalar backend'in kendi wwwroot'undan gelir → aynı köken.
+    · Şifre sıfırlama formu da aynı kökene (`/api/users/reset-password`) POST eder.
+  wwwroot'ta tek bir `fetch` çağrısı bile yok; çapraz köken bağımlılığı sıfır.
+
+  Geliştirmede joker korunuyor: Swagger UI ve yerel web denemeleri için gerekli,
+  ve orada zaten gerçek kullanıcı verisi yok.
+*/
 var allowedOrigins = (Environment.GetEnvironmentVariable("ALLOWED_ORIGINS") ?? "")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-if (allowedOrigins.Length == 0)
-    Console.WriteLine("WARNING: ALLOWED_ORIGINS env var is not set — CORS wildcard is active. Set it in .env for production.");
+var isDevelopmentEnv = builder.Environment.IsDevelopment();
+
+if (allowedOrigins.Length == 0 && !isDevelopmentEnv)
+    Console.WriteLine(
+        "BILGI: ALLOWED_ORIGINS tanımlı değil — çapraz köken istekleri REDDEDİLİYOR. " +
+        "Tarayıcıdan API çağıran bir yüzey eklenirse alan adını .env içine yaz.");
 
 builder.Services.AddCors(opt =>
 {
@@ -201,8 +242,9 @@ builder.Services.AddCors(opt =>
     {
         if (allowedOrigins.Length > 0)
             policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader();
-        else
+        else if (isDevelopmentEnv)
             policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        // Üretimde ve liste boşken: hiçbir origin eklenmez → çapraz köken reddedilir.
     });
 });
 
@@ -252,7 +294,23 @@ if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") != "true")
 if (string.IsNullOrWhiteSpace(pgHost) || string.IsNullOrWhiteSpace(pgDb))
     throw new Exception("PostgreSQL environment variables are missing!");
 
-var pgConnectionString = $"Host={pgHost};Port={pgPort};Database={pgDb};Username={pgUser};Password={pgPassword};SslMode=Prefer;Trust Server Certificate=true;";
+/*
+  BAĞLANTI HAVUZU — davranış değişmiyor, varsayılanlar YAZILI hale geliyor.
+
+  Dürüst not: Npgsql zaten havuzluyor. Aşağıdaki değerler sürücünün kendi
+  varsayılanlarıyla AYNI (Pooling=true, Max=100, Connect Timeout=15s, Command
+  Timeout=30s); yani bu satır bir açığı kapatmıyor, çalışan sınırları görünür
+  kılıyor. Değeri şurada: bu sınırların ne olduğunu öğrenmek için artık Npgsql
+  sürüm notlarına bakmak gerekmiyor ve ileride ayarlanacaksa yeri belli.
+
+  Command Timeout bilerek 30'da bırakıldı — yükseltmek, takılan bir sorgunun
+  havuzdaki bağlantıyı daha uzun tutması demek olurdu.
+*/
+var pgConnectionString =
+    $"Host={pgHost};Port={pgPort};Database={pgDb};Username={pgUser};Password={pgPassword};" +
+    "SslMode=Prefer;Trust Server Certificate=true;" +
+    "Pooling=true;Minimum Pool Size=0;Maximum Pool Size=100;" +
+    "Timeout=15;Command Timeout=30;Connection Idle Lifetime=300;";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(pgConnectionString)
@@ -511,6 +569,28 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
+/*
+  UYGULAMA İMZASI — SABİT ZAMANLI KARŞILAŞTIRMA.
+
+  Karşılaştırma `string.Equals` ile yapılıyordu. .NET'in string eşitliği İLK FARKLI
+  KARAKTERDE çıkar; yani doğru tahmin edilen her karakter yanıtı ölçülebilir biçimde
+  uzatır ve sır karakter karakter türetilebilir. Parola ve token karşılaştırmaları
+  bu projede zaten sabit zamanlı (PasswordHasher.Verify → FixedTimeEquals); geriye
+  kalan tek yer burasıydı.
+
+  BÜYÜK/KÜÇÜK HARF DUYARSIZLIĞI BİLEREK KORUNDU. Eski davranış `OrdinalIgnoreCase`
+  idi. Uygulama YAYINDA ve mağazadan yüklenmiş istemciler güncellenemez; karşılaştırmayı
+  harf duyarlı hale getirmek, farklı yazımla imza gönderen bir sürüm varsa onu
+  sessizce 403'e düşürürdü. İki taraf da küçültülüp öyle karşılaştırılıyor: davranış
+  birebir aynı, sızan tek şey (sabit ve gizli olmayan) uzunluk bilgisi.
+*/
+static bool SignatureMatches(string provided, string expected)
+{
+    var a = System.Text.Encoding.UTF8.GetBytes(provided.ToLowerInvariant());
+    var b = System.Text.Encoding.UTF8.GetBytes(expected.ToLowerInvariant());
+    return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(a, b);
+}
+
 app.Use(async (context, next) =>
 {
     if (app.Environment.IsDevelopment())
@@ -535,7 +615,7 @@ app.Use(async (context, next) =>
     }
 
     if (!context.Request.Headers.TryGetValue("X-App-Signature", out var signature) ||
-        !string.Equals(signature.ToString(), appSignature, StringComparison.OrdinalIgnoreCase))
+        !SignatureMatches(signature.ToString(), appSignature))
     {
         context.Response.StatusCode = 403;
         await context.Response.WriteAsync("Forbidden.");

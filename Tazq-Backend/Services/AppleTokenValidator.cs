@@ -8,10 +8,29 @@ namespace Tazq_App.Services
 	public class AppleTokenValidator : IAppleTokenValidator
 	{
 		private readonly ILogger<AppleTokenValidator> _logger;
+		private readonly IHttpClientFactory _httpFactory;
 
-		public AppleTokenValidator(ILogger<AppleTokenValidator> logger)
+		/*
+		  APPLE ANAHTAR SUNUCUSUNA ÇAĞRI — iki ayrı sorun vardı.
+
+		  1) ZAMAN AŞIMI YOKTU. `new HttpClient()` 100 saniyelik varsayılanla gelir.
+		     Apple'ın anahtar ucu yavaşlarsa her Apple girişi 100 saniye boyunca bir
+		     istek işleyicisini tutar. Giriş, kullanıcının BEKLEDİĞİ bir akış; 100 sn
+		     beklemek pratikte "uygulama donuk" demek. 10 sn fazlasıyla yeterli:
+		     sağlıklı yanıt milisaniyeler sürüyor ve başarısızlıkta akış zaten
+		     null dönüp temiz bir hata veriyor.
+
+		  2) HER ÇAĞRIDA YENİ HttpClient. Klasik soket tükenmesi deseni: her HttpClient
+		     kendi bağlantı havuzunu açar ve `Dispose` sonrası soket TIME_WAIT'te
+		     bekler. Yoğun girişte kullanılabilir port biter. IHttpClientFactory
+		     bağlantı havuzunu paylaştırır — bu sınıf zaten Singleton, fabrika da öyle.
+		*/
+		private static readonly TimeSpan AppleKeysTimeout = TimeSpan.FromSeconds(10);
+
+		public AppleTokenValidator(ILogger<AppleTokenValidator> logger, IHttpClientFactory httpFactory)
 		{
 			_logger = logger;
+			_httpFactory = httpFactory;
 		}
 
 		public async Task<ClaimsPrincipal?> ValidateAsync(string identityToken)
@@ -24,7 +43,8 @@ namespace Tazq_App.Services
 					return null;
 				}
 
-				using var httpClient = new HttpClient();
+				var httpClient = _httpFactory.CreateClient();
+				httpClient.Timeout = AppleKeysTimeout;
 				var keysJson = await httpClient.GetStringAsync("https://appleid.apple.com/auth/keys");
 				var keySet = new JsonWebKeySet(keysJson);
 

@@ -33,17 +33,37 @@ namespace Tazq_App.Controllers
                 var pool = await _groq.GeneratePlanPoolAsync(req);
                 return Ok(pool);
             }
-            catch (ArgumentException ex)
+            /*
+              HATA MESAJLARI SABİT — istemci zaten yalnız DURUM KODUNA bakıyor.
+
+              Üç `catch` de `ex.Message` döndürüyordu. En kötüsü sondakiydi: GroqService
+              başarısız çağrıda `throw new Exception($"Groq API error: {raw}")` yapıyor,
+              yani Groq'un HAM YANIT GÖVDESİ 500'ün içinde istemciye gidiyordu — üçüncü
+              taraf bir servisin hata ayrıntısı, kota/hesap bilgisi dahil.
+
+              Davranış değişmiyor: istemci 503'te sessizce koddaki sabit havuza düşüyor
+              (bkz. shared/utils/planPoolSync.ts), 400'de isteği bırakıyor. Ayrıntı
+              gerektiğinde sunucu logunda duruyor.
+            */
+            catch (ArgumentException)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new { message = "Geçersiz istek." });
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
-                return StatusCode(503, new { message = ex.Message });
+                return StatusCode(503, new { message = "Servis şu anda kullanılamıyor." });
             }
-            catch (Exception ex)
+            /*
+              Groq'a ulaşamamak BİZİM hatamız değil — 500 değil 503.
+
+              Ayrım gürültü içindir: 5xx'ler istemcide Sentry'ye "issue" olarak düşüyor
+              (bkz. reportApiError). Groq'un kesintisi 500 sayılırsa, bizde hiçbir şey
+              bozulmamışken uyarı yağmuru başlar ve gerçek hatalar arasında kaybolur.
+              İstemci için sonuç aynı: 5xx görür, sessizce sabit havuza düşer.
+            */
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
-                return StatusCode(500, new { message = ex.Message });
+                return StatusCode(503, new { message = "Servis şu anda kullanılamıyor." });
             }
         }
 

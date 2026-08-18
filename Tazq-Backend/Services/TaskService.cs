@@ -21,6 +21,22 @@ namespace Tazq_App.Services
 
         public async Task<(List<TaskItem> Items, int TotalCount)> GetTasksAsync(int userId, string? tag, string? search, string? sortBy, bool? isCompleted, DateTime? startDate, DateTime? endDate, int page = 1, int pageSize = 50)
         {
+            /*
+              SAYFA SINIRI BURADA DA — denetleyiciye güvenilmiyor.
+
+              Asıl kırpma TasksController.GetTasks'ta yapılıyor (üst sınırın neden tam 200
+              olduğu orada anlatıldı). Buradaki ikinci kontrol gereksiz görünebilir; değil:
+              bu metot bir HTTP uç noktası değil, YENİDEN KULLANILABİLİR bir servis. İleride
+              başka bir denetleyici, zamanlanmış bir iş ya da admin dışa aktarımı buraya
+              kırpma yapmadan `pageSize` geçirirse, sınır sessizce ortadan kalkar.
+
+              Negatif `page` ayrıca doğrudan bir hatadır: `Skip((page-1)*pageSize)` negatif
+              OFFSET üretir ve PostgreSQL bunu reddeder — yani 500. Sınıra çekmek, çağıranı
+              patlatmak yerine anlamlı ilk sayfayı döndürür.
+            */
+            page = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
+
             var query = _context.Tasks.AsNoTracking().Where(t => t.UserId == userId).AsQueryable();
             var key = _cryptoService.GetKeyForUser(userId)!;
 
@@ -171,6 +187,11 @@ namespace Tazq_App.Services
 
         // Alan uzunluk tavanları — görev BAŞINA depolama sınırı. Şifrelemeden ÖNCE (düz metinde)
         // uygulanır; yoksa tek görev megabaytlarca not taşıyabilirdi (satır tavanı tek başına yetmez).
+        // Tek istekte dönebilecek en fazla görev. İstemcinin sayfa boyutuyla aynı
+        // (shared/services/api.ts → PAGE_SIZE = 200); düşürülmesi mağazadaki
+        // istemcilerde veri kaybına yol açar — gerekçe TasksController.GetTasks'ta.
+        private const int MaxPageSize = 200;
+
         private const int MaxTitleLength = 200;
         private const int MaxDescriptionLength = 5000;
 
@@ -239,6 +260,24 @@ namespace Tazq_App.Services
             return task;
         }
 
+        /*
+          DİKKAT — BU YOL TEKİL EKLEMEDEN FARKLI: IDEMPOTENCY YOK.
+
+          CreateTaskAsync, ClientKey ile çift kaydı önlüyor (ağ kopması sonrası tekrar
+          gönderim aynı görevi ikinci kez oluşturmaz). Bu toplu yol ise ClientKey'i hiç
+          taşımıyor: `TaskDto` böyle bir alan tanımlamıyor ve TasksController.CreateTasks
+          eşlemesinde de yok. Yani bu uca yapılan bir tekrar gönderim, 200 görevin
+          tamamını İKİ KEZ oluşturur.
+
+          BİLEREK KAPATILMADI. Uç şu an ÖLÜ: istemcide `/api/tasks/bulk` çağrısı yok
+          (Tazq-Frontend genelinde tek eşleşme bile bulunmuyor). Hiç kimsenin çağırmadığı
+          bir yola idempotency altyapısı kurmak, doğrulanamayan ve ilk gerçek kullanımda
+          yanlış varsayımla yazılmış olma ihtimali yüksek koddur.
+
+          BU UCU KULLANMAYA BAŞLAMADAN ÖNCE: TaskDto'ya ClientKey ekle, denetleyicideki
+          eşlemeye koy ve buraya CreateTaskAsync'teki gibi "mevcut anahtarları ele" filtresi
+          yaz. Aksi halde çevrimdışı kuyruk bu uçla çift kayıt üretir.
+        */
         public async Task<bool> CreateTasksBulkAsync(int userId, List<TaskItem> tasks)
         {
             // Toplu ekleme (mod planları): kotaya SIĞDIĞI KADARINI ekler — hepsini reddetmez.

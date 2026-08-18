@@ -16,4 +16,31 @@ COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:80
 EXPOSE 80
 
+# ── KONTEYNER ROOT OLARAK ÇALIŞMAZ ──────────────────────────────────────────
+#
+# Bu imajda `USER` direktifi yoktu; süreç konteyner içinde root (uid 0) idi.
+# Tek başına bir açık değil ama bir ZARAR ÇARPANI: .NET'te, bir bağımlılıkta ya
+# da bir seri hale getirme yolunda çıkacak herhangi bir kod çalıştırma açığı
+# doğrudan root yetkisiyle çalışır. Root olmayan bir kullanıcıda aynı açık,
+# paket kuramayan / sistem dosyasına yazamayan sınırlı bir kabukla kalır.
+#
+# `app` kullanıcısı .NET 8 çalışma zamanı imajında HAZIR gelir (uid 1654);
+# ayrıca oluşturmak gerekmiyor.
+#
+# UYGULAMA HİÇBİR YERE YAZMIYOR — kod tabanında tek bir File.Write/Directory.Create
+# çağrısı yok; wwwroot yalnız okunuyor. Yani yazma izni kaybı hiçbir şeyi bozmaz.
+#
+# TEK RİSK 80 PORTU. Linux'ta 1024 altı portlar ayrıcalıklıdır; ancak Docker
+# konteynerlerde `net.ipv4.ip_unprivileged_port_start=0` varsayılanını 20.10
+# sürümünden beri uyguluyor (bu sunucu Compose V2 kullanıyor, yani daemon 20.10+).
+# Dolayısıyla root olmayan kullanıcı 80'i bağlayabilir.
+#
+# DAĞITIMDAN ÖNCE TEK KOMUTLA DOĞRULA (sunucuda):
+#   docker run --rm mcr.microsoft.com/dotnet/aspnet:8.0 \
+#     cat /proc/sys/net/ipv4/ip_unprivileged_port_start
+#   → "0" yazmalı. Başka bir değer çıkarsa bu satırı geri al ya da
+#     docker-compose.yml'de tazq-backend'e şunu ekle:
+#       sysctls: ["net.ipv4.ip_unprivileged_port_start=0"]
+USER app
+
 ENTRYPOINT ["dotnet", "Tazq-Backend.dll"]

@@ -44,6 +44,30 @@ namespace Tazq_App.Controllers
             if (userId == null)
                 return Unauthorized(new { status = 401, message = "Invalid or missing user ID in token." });
 
+            /*
+              SAYFA PARAMETRELERİ SINIRSIZDI — istemciden geldiği gibi kullanılıyordu.
+
+              İki somut sonucu vardı:
+                · `?pageSize=100000` → kullanıcı başına izinli 5000 görevin tamamı tek
+                  istekte çekilir ve HER BİRİ AES ile çözülür. Kimlik doğrulaması olan
+                  ama ucuz bir servis dışı bırakma yolu.
+                · `?page=0` → `Skip((0-1)*50)` = `Skip(-50)`; PostgreSQL negatif OFFSET
+                  kabul etmez, istek 500'e düşer.
+
+              ÜST SINIR NEDEN TAM 200: istemci her zaman `pageSize: 200` gönderiyor ve
+              sayfaları `items.length < PAGE_SIZE` olana kadar döngüyle çekiyor
+              (shared/services/api.ts → TaskService.getTasks). Sınır 200'ün ALTINA
+              çekilseydi sunucu 100 kayıt döndürür, istemci bunu "son sayfa" sanıp
+              döngüden çıkar ve kullanıcının geri kalan görevleri UYGULAMADAN KAYBOLURDU.
+              Git geçmişindeki tüm istemci sürümleri de 200 gönderiyor; yani 200
+              mağazadaki her sürüm için etkisiz, sadece elle atılan istekleri bağlar.
+
+              Etkin değerler cevapta geri dönüyor: `totalPages` hesabı ile istemcinin
+              döngü koşulu aynı sayıya bakmalı.
+            */
+            page = Math.Max(page, 1);
+            pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
+
             var (items, totalCount) = await _taskService.GetTasksAsync(userId.Value, tag, search, sortBy, isCompleted, startDate, endDate, page, pageSize);
             return Ok(new
             {
@@ -54,6 +78,10 @@ namespace Tazq_App.Controllers
                 totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
             });
         }
+
+        // İstemcinin kullandığı sayfa boyutu (shared/services/api.ts → PAGE_SIZE).
+        // Düşürülmesi mağazadaki istemcilerde veri kaybına yol açar; bkz. GetTasks.
+        private const int MaxPageSize = 200;
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTaskById(int id)
@@ -88,10 +116,19 @@ namespace Tazq_App.Controllers
             {
                 return StatusCode(429, new { StatusCode = 429, Message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { StatusCode = 500, Message = ex.Message });
-            }
+            /*
+              HATA DETAYI İSTEMCİYE ÇIKMAZ.
+
+              Burada `ex.Message` döndürülüyordu. Bu `catch` her şeyi yakalıyor —
+              en olası kaynak Npgsql; onun mesajları tablo/sütun adını, kısıt adını
+              ve kimi zaman değeri taşır. Yani beklenmedik bir hata, şema haritasını
+              istekte bulunan kişiye veriyordu.
+
+              Program.cs'teki global işleyici üretimde zaten genel mesaj + traceId
+              döndürüyor; bu blok tam olarak onu ATLIYORDU. Fırlatarak devrediyoruz:
+              hata oraya düşer, traceId ile loglanır (admin panelden okunabilir) ve
+              istemci yalnız genel mesajı görür.
+            */
         }
 
         [HttpPost("bulk")]

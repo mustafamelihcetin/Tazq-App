@@ -57,6 +57,32 @@ namespace Tazq_App.Services
             return true;
         }
 
+        /*
+          DESTEK METİNLERİNİN UZUNLUK TAVANI YOKTU.
+
+          `Message` ve `AdminReply` sütunları `text` ve gelen değer olduğu gibi
+          yazılıyordu. Çökme raporu ucu (SupportController.ReportCrash) tam olarak bu
+          sebeple kırpılmıştı; aynı düşünce buraya uygulanmamıştı.
+
+          Fark şu: destek mesajı `[Authorize]` arkasında, yani saldırganın önce hesap
+          açması gerekiyor — ama kayıt ücretsiz, dolayısıyla bu gerçek bir engel değil.
+          Sınırsız bir metin alanı, veritabanını ve (mesaj e-postayla da gönderildiği
+          için) SMTP kuyruğunu tek istekle şişirebilirdi.
+
+          SINIRLAR ARAYÜZÜN ÇOK ÜSTÜNDE, bilerek: uygulamadaki alan 500 karakterle
+          (SupportModal), admin yanıtı 1000 karakterle sınırlı. Sunucu tarafındaki 2000 /
+          4000, arayüz sınırı ileride gevşetilirse meşru kullanımı kesmez; kırptığı tek
+          şey elle atılan uç isteklerdir.
+        */
+        private const int MaxMessageLength = 2_000;
+        private const int MaxReplyLength = 4_000;
+
+        private static string ClampText(string? value, int max)
+        {
+            var v = (value ?? string.Empty).Trim();
+            return v.Length <= max ? v : v[..max];
+        }
+
         public async Task<SupportMessage?> CreateMessageAsync(int userId, string message)
         {
             var user = await _context.Users.FindAsync(userId);
@@ -67,7 +93,7 @@ namespace Tazq_App.Services
                 UserId = user.Id,
                 UserName = user.Name,
                 UserEmail = user.Email,
-                Message = message.Trim(),
+                Message = ClampText(message, MaxMessageLength),
                 CreatedAt = DateTime.UtcNow,
                 IsRead = false,
             };
@@ -95,7 +121,7 @@ namespace Tazq_App.Services
             var msg = await _context.SupportMessages.FindAsync(id);
             if (msg == null) return null;
 
-            msg.AdminReply = reply.Trim();
+            msg.AdminReply = ClampText(reply, MaxReplyLength);
             msg.RepliedAt = DateTime.UtcNow;
             msg.IsRead = true; // Yanıtlanan mesaj okunmuş sayılır.
             await _context.SaveChangesAsync();

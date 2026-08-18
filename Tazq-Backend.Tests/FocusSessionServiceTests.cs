@@ -95,5 +95,70 @@ namespace Tazq_Backend.Tests
 
             Assert.Equal(0, stats.TotalFocusHours);
         }
+
+        /*
+          AŞAĞIDAKİ İKİ TEST BİR BOŞLUĞU KAPATIYOR.
+
+          İstatistik sorgusu tam satır çekmekten `DueDate` projeksiyonuna çevrildi. Mevcut
+          testler toplam saat, tamamlanan sayısı ve 7 günlük yapıyı doğruluyordu — ama
+          `DueDate` değerini TÜKETEN iki yolu, yani seriyi ve günlük görev kırılımını,
+          hiçbir test kontrol etmiyordu. Yani projeksiyon bu iki hesabı sessizce bozsa
+          paket yine yeşil kalırdı.
+        */
+
+        [Fact]
+        public async Task GetUserStatsAsync_ShouldCountConsecutiveDayStreak()
+        {
+            var userId = 20;
+            var today = DateTime.UtcNow.Date;
+
+            // Bugün, dün, evvelsi gün → kesintisiz 3 günlük seri.
+            _context.Tasks.AddRange(
+                new TaskItem { UserId = userId, Title = "A", IsCompleted = true, DueDate = today },
+                new TaskItem { UserId = userId, Title = "B", IsCompleted = true, DueDate = today.AddDays(-1) },
+                new TaskItem { UserId = userId, Title = "C", IsCompleted = true, DueDate = today.AddDays(-2) }
+            );
+            await _context.SaveChangesAsync();
+
+            var stats = await _service.GetUserStatsAsync(userId);
+
+            Assert.Equal(3, stats.ActiveStreak);
+        }
+
+        [Fact]
+        public async Task GetUserStatsAsync_ShouldBreakStreakOnGap()
+        {
+            var userId = 21;
+            var today = DateTime.UtcNow.Date;
+
+            // Bugün var, dün YOK, önceki günler var → seri 1'de kesilmeli.
+            _context.Tasks.AddRange(
+                new TaskItem { UserId = userId, Title = "A", IsCompleted = true, DueDate = today },
+                new TaskItem { UserId = userId, Title = "C", IsCompleted = true, DueDate = today.AddDays(-3) },
+                new TaskItem { UserId = userId, Title = "D", IsCompleted = true, DueDate = today.AddDays(-4) }
+            );
+            await _context.SaveChangesAsync();
+
+            var stats = await _service.GetUserStatsAsync(userId);
+
+            Assert.Equal(1, stats.ActiveStreak);
+        }
+
+        [Fact]
+        public async Task GetUserStatsAsync_ShouldAttributeCompletedTaskToItsWeekday()
+        {
+            var userId = 22;
+            var today = DateTime.UtcNow.Date;
+
+            _context.Tasks.Add(new TaskItem { UserId = userId, Title = "Bugünkü", IsCompleted = true, DueDate = today });
+            await _context.SaveChangesAsync();
+
+            var stats = await _service.GetUserStatsAsync(userId);
+
+            // Görev, haftalık kırılımda BUGÜNÜN gününe düşmeli — hepsine değil, birine.
+            var todayLabel = today.ToString("ddd");
+            Assert.Equal(1, stats.WeeklyFocus.Where(d => d.Day == todayLabel).Sum(d => d.TasksCompleted));
+            Assert.Equal(1, stats.WeeklyFocus.Sum(d => d.TasksCompleted));
+        }
     }
 }

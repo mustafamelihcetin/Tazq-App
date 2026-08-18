@@ -9,6 +9,7 @@ namespace Tazq_App.Services
     public class GroqService : IGroqService
     {
         private readonly HttpClient _http;
+        private readonly ILogger<GroqService> _logger;
         private readonly string? _apiKey;
         private readonly string _model;
         private readonly string _today;
@@ -25,9 +26,30 @@ namespace Tazq_App.Services
         /// </summary>
         private const string DefaultModel = "llama-3.3-70b-versatile";
 
-        public GroqService(IHttpClientFactory httpFactory)
+        /*
+          İSTEK BÜTÇESİ — bu çağrının SONLU olduğunu garanti eder.
+
+          Ölçülen durum: `CreateClient()` HttpClient'ın 100 saniyelik varsayılan
+          zaman aşımıyla geliyordu ve üstünde 2 kez yeniden deneme vardı. Groq
+          yanıt vermeyi keserse (yavaşlarsa, kesintiye girerse) tek bir istek
+          100 + 2 + 100 + 4 + 100 ≈ 306 saniye boyunca bir istek işleyicisini ve
+          bir bağlantıyı meşgul ediyordu. Yeterince eşzamanlı çağrıda bu, ÜÇÜNCÜ
+          TARAFIN kesintisinin bizim API'mizi de durdurması demek.
+
+          20 sn seçildi: bu uç 2048 token'lık tek bir üretim yapıyor, sağlıklı
+          yanıt birkaç saniye sürüyor. En kötü durum artık 20+2+20+4+20 = 66 sn ve
+          bu süre tamamen bizim kontrolümüzde.
+
+          Kullanıcı hiçbir şey kaybetmez: istemci başarısızlıkta koddaki sabit
+          havuza düşüyor ve 24 saat tekrar denemiyor.
+        */
+        private static readonly TimeSpan UpstreamTimeout = TimeSpan.FromSeconds(20);
+
+        public GroqService(IHttpClientFactory httpFactory, ILogger<GroqService> logger)
         {
             _http = httpFactory.CreateClient();
+            _http.Timeout = UpstreamTimeout;
+            _logger = logger;
             _apiKey = Environment.GetEnvironmentVariable("GROQ_API_KEY");
             var configured = Environment.GetEnvironmentVariable("GROQ_MODEL");
             _model = string.IsNullOrWhiteSpace(configured) ? DefaultModel : configured.Trim();
@@ -166,7 +188,28 @@ namespace Tazq_App.Services
                 var response = await _http.SendAsync(request);
                 var raw = await response.Content.ReadAsStringAsync();
                 if (!response.IsSuccessStatusCode)
-                    throw new Exception($"Groq API error: {raw}");
+                {
+                    /*
+                      HAM YANIT GÖVDESİ İSTİSNA MESAJINA KONMAZ.
+
+                      Burada `throw new Exception($"Groq API error: {raw}")` vardı ve
+                      AiController bu mesajı 500'ün gövdesinde istemciye geri veriyordu —
+                      yani üçüncü bir servisin hata ayrıntısı (hesap durumu, kota,
+                      kimi zaman istek yankısı) dışarı çıkıyordu.
+
+                      Ayrıntı KAYBOLMUYOR: loga yazılıyor, oradan admin panelinden
+                      okunabiliyor. Dışarı çıkan yalnız durum kodu.
+
+                      Tip de değişti (Exception → HttpRequestException): denetleyicinin
+                      "yukarı akış çöktü" ile "bizde bir hata var" ayrımını yapıp 503
+                      döndürebilmesi için sınıflandırılabilir olması gerekiyor.
+                    */
+                    _logger.LogWarning(
+                        "Groq API {StatusCode} döndürdü. Yanıt (ilk 500): {Body}",
+                        (int)response.StatusCode,
+                        raw.Length > 500 ? raw[..500] : raw);
+                    throw new HttpRequestException($"Groq API error: {(int)response.StatusCode}");
+                }
 
                 using var doc = JsonDocument.Parse(raw);
                 var content = doc.RootElement
