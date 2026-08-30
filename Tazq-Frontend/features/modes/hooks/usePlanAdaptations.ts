@@ -46,7 +46,7 @@ import { useBudgetStore, type BudgetType } from '@/shared/store/useBudgetStore';
 import { useQuitStore, type QuitType } from '@/shared/store/useQuitStore';
 import { buildTasarrufPlan, buildBirakmaPlan } from '@/shared/utils/lifeModePlans';
 import { isWeightEntryTask, canLogWeight, daysUntilNextWeight, ensureWeeklyWeightTask } from '@/features/modes/utils/weightCheckin';
-import { MODE_TASK_TAGS, retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
+import { MODE_TASK_TAGS, PLAN_TAGS, retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
 import { getExtraPool, ensureExtraPool } from '@/features/modes/utils/planPoolSync';
 import { parseDateKey } from '@/shared/utils/dateKey';
 
@@ -68,7 +68,6 @@ function whenHydrated(store: any): Promise<void> {
     setTimeout(done, 3000);
   });
 }
-const PLAN_TAGS = ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss', 'daily', 'tasarruf', 'birakma'];
 
 // MODE_TASK_TAGS artik planTaskOps.ts'te (tek kaynak) — kapatma yollari da ayni
 // kumeyi kullansin diye oraya tasindi.

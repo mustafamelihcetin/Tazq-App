@@ -22,6 +22,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask, formatPlanDate, isDatePast, daysLeftOf , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { detectSporType, localizeSporGoal } from '../../utils/turkishModes';
+import { stripLeadingEmoji } from '@/shared/utils/emoji';
 import { recordWeeklyWeight, canLogWeight, daysUntilNextWeight } from '@/features/modes/utils/weightCheckin';
 import { WeightWheelPicker } from './WeightWheelPicker';
 import { ICON, S, R, F, B, HAIRLINE } from '@/shared/constants/tokens';
@@ -38,9 +39,27 @@ import { toDateKey, dateKeyFromNow } from '@/shared/utils/dateKey';
 // SPOR = dolgu/ikon/çubuk · SPOR_TX = küçük yazı (AA 4.5:1).
 const BASE_CALENDAR_WIDTH = 340;
 type Slot = 'spor' | 'spor2' | 'spor3';
-const SPOR_EMOJIS = ['🏃', '💪', '⚖️', '✨', '🏆'];
-const stripEmojiPrefix = (str: string) => { let c = str || ''; for (const e of SPOR_EMOJIS) if (c.startsWith(e)) c = c.substring(e.length).trim(); return c; };
-const getEmojiFromLabel = (str: string) => { for (const e of SPOR_EMOJIS) if ((str || '').startsWith(e)) return e; return ''; };
+/**
+ * KAYITLI hedef adının başındaki emojiyi siler.
+ *
+ * Yalnız GEÇMİŞ veri için: hedef adları bir zamanlar "⚖️ Kilo Yönetimi" biçiminde
+ * kaydediliyordu ve o kayıtlar kullanıcının cihazında hâlâ duruyor. Yeni etiketler
+ * (getSporGoals) emojisiz üretiliyor, onlara uygulanmaz.
+ */
+const stripEmojiPrefix = stripLeadingEmoji;
+
+/**
+ * Hedef TÜRÜNDEN ikon — etiket metninden DEĞİL.
+ *
+ * ÖLÇÜLEN SORUN: çip ikonu `getEmojiFromLabel(g.label)` ile üretiliyordu, yani
+ * etiketin BAŞINDAKİ emojiden. Etiketler emojisiz hâle gelince o fonksiyon boş string
+ * dönmeye başladı; `renderModeEmojiIcon('')` de switch'in sonuna düşüp boş bir
+ * `<Text>` çiziyordu. Sonuç: beş çipin de ikonu yok, yanında da ikondan kalan boşluk.
+ *
+ * Asıl hata emojiyi silmek değil, ikonu METİNDEN türetmekti: görünen metin bir kimlik
+ * değil, sunumdur — değişince türetilen her şey sessizce bozulur. Çipin `key` alanı
+ * ('maraton' | 'guc' | 'kilo' | 'genel' | 'yaris') zaten elde ve hiç değişmiyor.
+ */
 const goalEmoji = (type: string | null) => type === 'kilo' ? '⚖️' : type === 'maraton' ? '🏃' : type === 'yaris' ? '🏆' : type === 'genel' ? '✨' : '💪';
 
 const MarsIcon = ({ size = 16, color = '#000', strokeWidth = 2.5 }: { size?: number; color?: string; strokeWidth?: number }) => (
@@ -140,8 +159,8 @@ function SporSlot({ slot, goalKey, dateKey, otherGoals, addLabel, onOpenPreview 
               const active = goal === g.label;
               return (
                 <Touchable key={g.key} onPress={() => { haptic.select(); setSeasonalPref(goalKey, active ? '' : g.label); }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? SPOR : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? SPOR + '18' : 'transparent' }} activeOpacity={0.7}>
-                  {renderModeEmojiIcon(getEmojiFromLabel(g.label), 14, active ? SPOR : theme.onSurfaceVariant)}
-                  <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? SPOR : theme.onSurfaceVariant }}>{stripEmojiPrefix(g.label)}</Text>
+                  {renderModeEmojiIcon(goalEmoji(g.key), 14, active ? SPOR : theme.onSurfaceVariant)}
+                  <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? SPOR : theme.onSurfaceVariant }}>{g.label}</Text>
                 </Touchable>
               );
             })}
@@ -495,8 +514,8 @@ export function SporCard({ onOpenPreview }: { onOpenPreview: (slot: Slot) => voi
                         Alert.alert(tr ? 'Hedef Türü Değişiyor' : 'Goal Type Changing', tr ? 'Mevcut plan alışkanlık ve görevleri kaldırılacak. Devam et?' : 'Existing plan habits and tasks will be removed. Continue?', [{ text: tr ? 'İptal' : 'Cancel', style: 'cancel' }, { text: tr ? 'Devam Et' : 'Continue', style: 'destructive', onPress: () => { sporPlanHabitIds.forEach(id => removeHabit(id)); sporPlanTaskIds.forEach(id => retirePlanTask(id, 'spor')); retireModeTasksByTag('spor'); clearPlanIds('spor'); apply(); } }]);
                       } else apply();
                     }} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingHorizontal: S.sm + 2, paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.medium, borderColor: active ? SPOR : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)'), backgroundColor: active ? SPOR + '18' : 'transparent' }} activeOpacity={0.7}>
-                      {renderModeEmojiIcon(getEmojiFromLabel(g.label), 14, active ? SPOR : theme.onSurfaceVariant)}
-                      <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? SPOR : theme.onSurfaceVariant }}>{stripEmojiPrefix(g.label)}</Text>
+                      {renderModeEmojiIcon(goalEmoji(g.key), 14, active ? SPOR : theme.onSurfaceVariant)}
+                      <Text style={{ fontSize: F.caption, fontWeight: '500', color: active ? SPOR : theme.onSurfaceVariant }}>{g.label}</Text>
                     </Touchable>
                   );
                 })}

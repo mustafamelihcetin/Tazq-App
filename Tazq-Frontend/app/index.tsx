@@ -110,6 +110,20 @@ export default function HomeScreen() {
   const { trigger: triggerAchievement, baseline: baselineAchievements } = useAchievementStore();
   const achHydrated = useAchievementStore(s => s._hasHydrated);
   const uiMode = usePrefsStore(s => s.uiMode);
+
+  /**
+   * SADE MOD — ayarın sözünü TUTAN yüklem.
+   *
+   * ÖLÇÜLEN SORUN: `uiMode` bu ekranda yalnız iki başarım kapısında kullanılıyordu;
+   * en tepedeki İVME SKORU Sade modda da duruyordu (MomentumPulse'ın kendi `isLite`
+   * kontrolü sadece sayma animasyonunu kapatıyordu). Skorlanmaktan kaçmak için
+   * düğmeyi açan kullanıcı skorlanmaya devam ediyordu.
+   *
+   * GİZLENİR: ivme skoru · durum merkezi düğmesi · kutlama/konfeti · tezahürat metni.
+   * KALIR: günlük ilerleme (işin durumu oyun değil) ve tüm VERİ yazımı — mod bir
+   * görünüm tercihidir, geçmişi budamaz. Bkz. __tests__/liteMode.test.ts
+   */
+  const isLite = uiMode === 'lite';
   const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, helpTourShown, completedTours, onboardingCompleted, setOnboardingCompleted, _hasHydrated: prefsHydrated } = usePrefsStore();
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
@@ -1031,8 +1045,9 @@ export default function HomeScreen() {
     const prefsState = usePrefsStore.getState();
     const isFirstWin = !prefsState.firstWinAt;
 
+    // Konfeti Sade modda yok; puan ve `markFirstWin` YİNE işlenir (bkz. isLite notu).
     if (isFirstWin) {
-      require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
+      if (!isLite) require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
         language === 'tr' ? 'İlk Başarı!' : 'First Victory!',
         language === 'tr' ? 'Tebrikler, TAZQ\'daki ilk görevini tamamladın!' : 'Congratulations on completing your first task on TAZQ!',
         'high',
@@ -1041,7 +1056,7 @@ export default function HomeScreen() {
       prefsState.markFirstWin();
       useFocusStore.getState().addFocusPoints(10);
     } else if (allTasksDone) {
-      require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
+      if (!isLite) require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
         language === 'tr' ? 'Günü Temizledin!' : 'Day Cleared!',
         language === 'tr' ? 'Bugünün tüm görevlerini başarıyla tamamladın!' : 'You completed all of today\'s tasks successfully!',
         'high',
@@ -1202,6 +1217,7 @@ export default function HomeScreen() {
     const prev = dayCompleteRef.current;
     dayCompleteRef.current = done;
     if (prev !== false || !done) return;
+    if (isLite) return; // Sade mod: kutlama katmanı hiç açılmaz
 
     const key = `@day_celebrated_${fmtDateKey()}`;
     (async () => {
@@ -1214,7 +1230,7 @@ export default function HomeScreen() {
         store.celebrate(ACHIEVEMENTS.daily_perfect);
       } catch (e) { swallow('index.dailyCelebration', e); }
     })();
-  }, [todayCompleted, dailyGoal]);
+  }, [todayCompleted, dailyGoal, isLite]);
 
   const priorityColor = (p: string) => {
     if (p === 'High') return theme.priorityHigh;
@@ -1346,9 +1362,12 @@ export default function HomeScreen() {
         scrollY={scrollY}
         collapseAt={titleCollapseAt}
         right={
-          <TourTarget id="cockpit">
-            <StatusHub onPress={() => { haptic.commit(); setStatusHubVisible(true); }} />
-          </TourTarget>
+          // Sade modda gizli; erişim Ayarlar → MERKEZ satırından sürüyor.
+          isLite ? undefined : (
+            <TourTarget id="cockpit">
+              <StatusHub onPress={() => { haptic.commit(); setStatusHubVisible(true); }} />
+            </TourTarget>
+          )
         }
       />
 
@@ -1412,21 +1431,23 @@ export default function HomeScreen() {
               />
             </View>
 
-            <TourTarget id="momentum">
-              <MomentumPulse
-                score={momentum}
-                history={momentumHistory}
-                language={language}
-                loading={statsLoading}
-              />
-            </TourTarget>
+            {!isLite && (
+              <TourTarget id="momentum">
+                <MomentumPulse
+                  score={momentum}
+                  history={momentumHistory}
+                  language={language}
+                  loading={statsLoading}
+                />
+              </TourTarget>
+            )}
 
             <TodayCard
               completed={todayCompleted}
               goal={dailyGoal}
               focusMinutes={dailyFocusMinutes}
               focusGoalMinutes={dailyGoalMinutes}
-              highlight={todayHighlight}
+              highlight={!isLite && todayHighlight}
               surprise={todaySurprise}
               burstKey={todayBurstKey}
               onTap={todayTap.onTap}
@@ -1491,7 +1512,7 @@ export default function HomeScreen() {
                             }
 
                             if (allHabitsDone) {
-                              require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
+                              if (!isLite) require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
                                 language === 'tr' ? 'Alışkanlıklar Tamam!' : 'All Habits Done!',
                                 language === 'tr' ? 'Bugünkü tüm alışkanlık hedeflerini tamamladın. Harika istikrar!' : 'You completed all habit targets for today. Great consistency!',
                                 'medium',

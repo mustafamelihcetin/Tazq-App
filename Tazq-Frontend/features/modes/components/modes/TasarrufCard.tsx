@@ -345,7 +345,7 @@ export function TasarrufCard() {
             <View>
               <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, marginBottom: S.xs }}>{tr ? 'Toplam borcun ₺' : 'Total debt ₺'}</Text>
               {moneyInput(startAmount, setStartAmount)}
-              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xs }}>{tr ? '🎯 Hedef: borcu sıfırlamak (₺0)' : '🎯 Goal: clear the debt (₺0)'}</Text>
+              <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption, marginTop: S.xs }}>{tr ? 'Hedef: borcu sıfırlamak (₺0)' : 'Goal: clear the debt (₺0)'}</Text>
             </View>
           )}
           {budgetType === 'acilfon' && (

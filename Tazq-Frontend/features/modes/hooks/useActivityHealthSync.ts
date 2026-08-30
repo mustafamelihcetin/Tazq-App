@@ -137,11 +137,11 @@ export function useActivityHealthSync() {
       const msg =
         lang === 'tr'
           ? n === 1
-            ? '🏃 Hareket görevin işaretlendi'
-            : `🏃 ${n} hareket görevin işaretlendi`
+            ? 'Hareket görevin işaretlendi'
+            : `${n} hareket görevin işaretlendi`
           : n === 1
-            ? '🏃 Your movement task is done'
-            : `🏃 ${n} movement tasks are done`;
+            ? 'Your movement task is done'
+            : `${n} movement tasks are done`;
 
       useToastStore.getState().show(msg, 'success', {
         label: lang === 'tr' ? 'Geri al' : 'Undo',

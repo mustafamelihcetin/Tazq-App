@@ -262,9 +262,22 @@ export const AuthService = {
   logout: async (refreshToken: string) => {
     try { await axios.post(`${BASE_URL}/api/users/logout`, { refreshToken }, { headers: { 'X-App-Signature': 'tazq-expo-frontend' }, timeout: 8000 }); } catch (e) { swallow('api.logout', e); }
   },
-  // Hesabı sil — best-effort
+  /**
+   * Hesabı sil — HATAYI YUTMAZ, çağırana fırlatır.
+   *
+   * ÖLÇÜLEN SORUN: burada `swallow` vardı ve çağıran da ikinci kez yutuyordu. Sonuç:
+   * cihaz çevrimdışıyken, token süresi dolmuşken ya da uç 500 dönerken kullanıcı
+   * "SİL" yazıp onaylıyor, çıkış yaptırılıp login'e atılıyor ve hesabının silindiğine
+   * inanıyordu — oysa hesap sunucuda duruyordu. Kullanıcının doğrulayabileceği bir
+   * geri bildirim yok: silinmediğini ancak tekrar giriş yaparsa anlar.
+   *
+   * Yıkıcı ve geri alınamaz bir işlemin sonucu, yapan kişiden saklanamaz. `logout`
+   * best-effort olabilir (oturum zaten yerelde kapanıyor), bu olamaz.
+   *
+   * 404 = hesap zaten silinmiş → çağıran bunu BAŞARI sayar (bkz. settings.tsx).
+   */
   deleteAccount: async () => {
-    try { await api.delete('/api/users/me'); } catch (e) { swallow('api.deleteAccount', e); }
+    await api.delete('/api/users/me');
   },
 };
 

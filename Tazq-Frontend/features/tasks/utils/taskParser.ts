@@ -10,7 +10,16 @@ export interface ParsedHint {
   wittyMessage?: string;
   context?: 'sensitive' | 'joyful' | 'stressful' | 'normal';
   recurrence?: RecurrenceType;
-  recurrenceDayLabel?: string; // e.g. "Pazartesi", "Monday" — extracted from "her pazartesi"
+  /**
+   * Haftalık tekrarın günü — 0=Pazar … 6=Cumartesi (Date.getDay ile aynı).
+   *
+   * Eskiden burada `recurrenceDayLabel: string` vardı ve ayrıştırıcı gün adını
+   * GİRDİNİN dilinde sabitliyordu: arayüzü İngilizce olan biri "her salı" yazınca
+   * ipucunda "Salı", Türkçe arayüzde "every monday" yazınca "Monday" görüyordu.
+   * Ayrıştırıcının işi anlamı çıkarmak, metni biçimlendirmek değil — ad, gösterildiği
+   * yerde ve GÖSTERİLDİĞİ dilde üretilir (bkz. TaskFormModal).
+   */
+  recurrenceDay?: number;
 }
 
 /**
@@ -252,7 +261,26 @@ export function parseTaskHint(text: string, preferredLang?: 'tr' | 'en'): Parsed
   const dailyPatterns = ['her gun', 'her gün', 'her sabah', 'her gece', 'gunluk', 'günlük', 'daily', 'every day', 'everyday'];
   const weeklyPatterns = ['her hafta', 'haftalik', 'haftalık', 'weekly', 'every week'];
   const monthlyPatterns = ['her ay', 'aylik', 'aylık', 'monthly', 'every month'];
-  const weeklyDayPattern = /her\s+(pazartesi|salı|çarşamba|perşembe|cuma|cumartesi|pazar|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i;
+  /*
+    HAFTANIN GÜNÜ İLE TEKRAR — "her salı" / "every tuesday".
+
+    ÖLÇÜLEN SORUN: desen `/her\s+(…|monday|tuesday|…)/i` idi, yani İngilizce gün
+    adları listede olmasına rağmen önlerinde TÜRKÇE "her" aranıyordu. "every monday"
+    yazan İngilizce kullanıcı hiçbir desene takılmıyordu (dailyPatterns'da yok,
+    weeklyPatterns yalnız "weekly"/"every week" tutuyor) ve görev SESSİZCE tek
+    seferlik oluşuyordu — ne tekrar kuruluyor ne de ipucu gösteriliyordu.
+    Listedeki yedi İngilizce gün adı yalnız "her monday" gibi anlamsız bir girdide
+    ateşlenebiliyordu, yani hiç.
+
+    Artık her dil kendi belirtecini kullanıyor: TR "her", EN "every"/"each".
+
+    "on monday" BİLEREK dışarıda: o bir TEKRAR değil, tek bir tarihtir ("meet John
+    on monday"). Tek tarih zaten yukarıda WEEKDAY_MAP ile çözülüyor (5. Smart Date).
+  */
+  // Son ek koruması `\b` DEĞİL: `\b` ASCII sözcük sınırıdır ve 'salı' sonundaki
+  // 'ı' ASCII harf sayılmadığından sınır oluşmuyor, Türkçe gün adı eşleşmiyordu.
+  // `(?!\p{L})` Unicode farkındadır: 'mondayx' tutmaz, 'salı' tutar.
+  const weeklyDayPattern = /(?:her|every|each)\s+(pazartesi|salı|çarşamba|perşembe|cuma|cumartesi|pazar|monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?(?!\p{L})/iu;
 
   if (intervalMatched) {
     // Already set via interval matcher
@@ -264,14 +292,10 @@ export function parseTaskHint(text: string, preferredLang?: 'tr' | 'en'): Parsed
     const dayMatch = weeklyDayPattern.exec(lower);
     if (dayMatch) {
       hint.recurrence = 'Weekly';
-      const raw = dayMatch[1].toLowerCase();
-      const dayMap: Record<string, string> = {
-        pazartesi: 'Pazartesi', salı: 'Salı', çarşamba: 'Çarşamba',
-        perşembe: 'Perşembe', cuma: 'Cuma', cumartesi: 'Cumartesi', pazar: 'Pazar',
-        monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday',
-        thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday',
-      };
-      hint.recurrenceDayLabel = dayMap[raw] ?? raw;
+      // WEEKDAY_MAP her iki dili de gün NUMARASINA çeviriyor — ayrı bir ad tablosu
+      // tutmak, aynı bilgiyi ikinci kez (ve tek dilde) yazmak olurdu.
+      const day = WEEKDAY_MAP[dayMatch[1].toLocaleLowerCase('tr')];
+      if (day != null) hint.recurrenceDay = day;
     } else if (monthlyPatterns.some(p => lower.includes(p))) {
       hint.recurrence = 'Monthly';
       // Match day number if specified: "her ayın 30'u", "every month on the 30th", "30th of every month"

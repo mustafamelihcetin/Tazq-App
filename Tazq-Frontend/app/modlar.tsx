@@ -14,7 +14,7 @@ import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useHabitStore, fmtDateKey } from '@/features/habits';
-import { usePrefsStore, getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, localizeSporGoal, RAMAZAN, renderModeEmojiIcon, deriveDateSlot, isSeasonalExamActive } from '@/features/modes';
+import { usePrefsStore, getModePreview, ModeType, RAMAZAN_HABIT_NAMES, detectSporType, localizeSporGoal, RAMAZAN, renderModeEmojiIcon, deriveDateSlot } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -77,28 +77,21 @@ const VenusIcon = ({ size = 16, color = 'currentColor', strokeWidth = 2.5 }: { s
   </Svg>
 );
 
-const stripEmojiPrefix = (str: string): string => {
-  if (!str) return '';
-  const emojis = ['🏃', '💪', '⚖️', '✨', '🏆'];
-  let clean = str;
-  for (const e of emojis) {
-    if (clean.startsWith(e)) {
-      clean = clean.substring(e.length).trim();
-    }
-  }
-  return clean;
-};
+/*
+  ÖLÜ KOD KALDIRILDI — spor hedefi ve sınav çakışması artık BU dosyada değil.
 
-const getEmojiFromLabel = (str: string): string => {
-  if (!str) return '';
-  const emojis = ['🏃', '💪', '⚖️', '✨', '🏆'];
-  for (const e of emojis) {
-    if (str.startsWith(e)) {
-      return e;
-    }
-  }
-  return '';
-};
+  Bu ekran mod kartlarını kendi bileşenlerine devretti (<SporCard/>, <ExamCard/>).
+  Devir sırasında işaretleme taşındı ama YARDIMCILAR geride kaldı ve hiçbir şey
+  onları çağırmıyordu: stripEmojiPrefix, getEmojiFromLabel, SPOR_GOALS,
+  sporGoalsForSlot, TARGET_EVENTS, yksAutoActive/kpssAutoActive, examNameConflict.
+
+  Zararsız değildi: emoji temizliği turunda bu ÖLÜ kopyanın iki dalı da düzeltildi,
+  CANLI kopya (ExamCard) ise yarım kaldı — İngilizce dalında '⚠️' duruyordu. Yani ölü
+  ikiz, düzeltmenin yanlış dosyaya gitmesine sebep oldu.
+
+  Canlı hâlleri: features/modes/components/modes/SporCard.tsx ve ExamCard.tsx
+*/
+
 
 export default function ModlarScreen() {
   const router = useRouter();
@@ -340,33 +333,6 @@ export default function ModlarScreen() {
   const thisWeekWeight = getThisWeekEntry(weightLog);
   const latestWeight = weightLog.length > 0 ? weightLog[0].weight : null;
 
-  const SPOR_GOALS = language === 'tr'
-    ? [{ key: 'maraton', label: 'Maraton / Koşu' }, { key: 'guc', label: 'Güç & Kas' }, { key: 'kilo', label: 'Kilo Yönetimi' }, { key: 'genel', label: 'Genel Form' }, { key: 'yaris', label: 'Spor Yarışması' }]
-    : [{ key: 'maraton', label: 'Marathon / Running' }, { key: 'guc', label: 'Strength & Muscle' }, { key: 'kilo', label: 'Weight Management' }, { key: 'genel', label: 'General Fitness' }, { key: 'yaris', label: 'Sport Competition' }];
-
-  // Aynı tür birden çok spor slotunda olamaz (ör. iki "Kilo Yönetimi" mantıksız).
-  // Bir slot için, DİĞER slotlarda zaten seçili türleri çiplerden gizle (kendi seçili
-  // türü kalır ki vurgulu görünsün).
-  const sporGoalsForSlot = (selfLabel: string, otherLabels: string[]) => {
-    const otherKeys = new Set(otherLabels.filter(Boolean).map(l => detectSporType(l)));
-    const selfKey = selfLabel ? detectSporType(selfLabel) : null;
-    return SPOR_GOALS.filter(g => g.key === selfKey || !otherKeys.has(g.key as any));
-  };
-
-  const TARGET_EVENTS = ['5K', '10K', 'Yarı', 'Tam'] as const;
-
-  // YKS / KPSS auto-mode active check — warn if user enters same exam in custom exam mode
-  // Sınav tarihleri TEK KAYNAKTAN (turkishModes). Burada YKS/KPSS tablolarının
-  // elle yazılmış birer kopyası daha duruyordu — Ramazan'da düzeltilen hatanın aynısı:
-  // tablo güncellenince bu kopya sessizce eskiyor ve çakışma uyarısı yanlış çalışıyordu.
-  const yksAutoActive = useMemo(() => isSeasonalExamActive('yks'), []);
-  const kpssAutoActive = useMemo(() => isSeasonalExamActive('kpss'), []);
-  const examNameConflict = useMemo(() => {
-    const n = examNameInput.toUpperCase();
-    if (yksAutoActive && ['YKS', 'TYT', 'AYT'].some(k => n.includes(k))) return language === 'tr' ? 'YKS modu zaten otomatik aktif — bu plan onunla çakışabilir' : 'YKS mode is already auto-active — this plan may overlap';
-    if (kpssAutoActive && n.includes('KPSS')) return language === 'tr' ? 'KPSS modu zaten otomatik aktif — bu plan onunla çakışabilir' : 'KPSS mode is already auto-active — this plan may overlap';
-    return null;
-  }, [examNameInput, yksAutoActive, kpssAutoActive, language]);
   const sporDatePast = effectiveSporDate ? parseDateKey(effectiveSporDate).setHours(23, 59, 59, 999) < Date.now() : false;
   const sporDaysLeft = effectiveSporDate && !sporDatePast ? Math.max(0, Math.ceil((parseDateKey(effectiveSporDate).setHours(23, 59, 59, 999) - Date.now()) / 86400000)) : 0;
   // Mod renkleri MERKEZİ PALETTEN. Eskiden bu dosya #F97316/#10B981 gibi ham hex'ler

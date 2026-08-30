@@ -6,6 +6,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { SleepHealth, formatSleepDuration } from '@/shared/services/sleepHealth';
 import { recoveryFromSleep } from '@/shared/utils/recovery';
+import { isSleepHabit } from '@/features/habits/utils/sleepHabit';
 
 /**
  * Uyku sağlık senkronu — hedef-bazlı, "onaylı asistan" (iOS HealthKit / Android Health Connect).
@@ -45,13 +46,16 @@ function dayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-type SleepOutcome = 'marked' | 'info' | 'nodata';
+/**
+ * Bir uyku alışkanlığı için turun sonucu.
+ *  · 'marked'  — BU tur işaret koyduk (geri alınabilir)
+ *  · 'already' — zaten işaretliydi (kullanıcı elle koymuş olabilir → GERİ ALINAMAZ)
+ *  · 'info'    — veri var ama hedef tutmadı
+ *  · 'nodata'  — anlamlı uyku verisi yok
+ */
+type SleepOutcome = 'marked' | 'already' | 'info' | 'nodata';
 
-function isSleepHabit(h: Habit): boolean {
-  if (h.healthMetric === 'sleep') return true;
-  if (h.emoji === '😴') return true;
-  return /uyku|sleep/i.test(`${h.name ?? ''} ${h.nameTr ?? ''} ${h.nameEn ?? ''}`);
-}
+
 
 export function useSleepHealthSync() {
   const habits = useHabitStore(s => s.habits);
@@ -66,35 +70,46 @@ export function useSleepHealthSync() {
     }
   };
 
-  const processSleep = useCallback(async (habitId: string, todayKey: string, mins: number | null): Promise<SleepOutcome> => {
+  /*
+    BİLDİRİM BURADA GÖSTERİLMEZ — kararı `run` verir.
+
+    Bir kullanıcının birden çok uyku alışkanlığı olabilir (plan "Düzenli uyku" ekler,
+    kullanıcının kendi "Uyku düzeni" alışkanlığı da olabilir). Döngü her biri için AYRI
+    toast gösteriyordu; kuyruğa giren ikinci toast kullanıcı sayfalar arası gezerken
+    çıkıp "aynı bildirim tekrar geldi" gibi görünüyordu.
+
+    Oysa bu bildirim ALIŞKANLIK hakkında değil, KULLANICININ UYKUSU hakkında — ve
+    kullanıcı bir kez uyudu. Kaç satır eşleştiği kullanıcının bilmesi gereken bir şey
+    değil: işaretleme hepsine uygulanır, bildirim bir tanedir.
+
+    (Hangi alışkanlığın uyku sayılacağı ayrı bir sorudur ve artık sleepHabit.ts'te
+    tek bir yerde cevaplanıyor — eskiden buradaki gevşek kural spor planının
+    "Toparlanma: uyku + aktif dinlenme" alışkanlığını da uyku sayıyordu.)
+  */
+  const processSleep = useCallback((habitId: string, todayKey: string, mins: number | null): SleepOutcome => {
     if (mins == null || mins < MIN_REAL_SLEEP_MIN) return 'nodata'; // anlamlı uyku yok → sessiz
 
-    const lang = (useLanguageStore.getState().language === 'en' ? 'en' : 'tr') as 'tr' | 'en';
     const goalHours = usePrefsStore.getState().sleepGoalHours || 7;
-    const dur = formatSleepDuration(mins, lang);
-    const goalMet = mins >= goalHours * 60;
-
-    const fresh = useHabitStore.getState().habits.find(h => h.id === habitId);
-    const alreadyDone = !!fresh && (fresh.completedDates ?? []).includes(todayKey);
+    if (mins < goalHours * 60) return 'info'; // veri var ama hedef tutmadı → yalnız bilgi
 
     /*
-      BİLDİRİM BURADA GÖSTERİLMEZ — kararı `run` verir.
+      DÖNÜŞ DEĞERİ, GERÇEKTEN İŞARET KOYDUYSAK 'marked'.
 
-      ÖLÇÜLEN HATA: `isSleepHabit` üç ölçütle eşleşiyor (healthMetric, emoji, ad içinde
-      "uyku"/"sleep"). Plan "Düzenli uyku" eklemişse ve kullanıcının uykuyla ilgili başka
-      bir alışkanlığı varsa İKİSİ birden eşleşiyor; döngü de her biri için AYRI toast
-      gösteriyordu. Kuyruğa giren ikinci toast, kullanıcı sayfalar arası gezerken
-      çıkıyor ve "aynı bildirim tekrar geldi" gibi görünüyordu.
+      ÖLÇÜLEN SORUN: eskiden hedef tutunca koşulsuz 'marked' dönüyordu — yazma
+      korumalıydı (`if (!alreadyDone)`) ama dönüş değeri değildi. `run` bu id'yi
+      "işaretledik" listesine ekliyor, toast'ın "Geri al" düğmesi de o listedeki her
+      şeyi geri alıyordu. Kullanıcı sağlık verisi okunurken (gerçek bir HealthKit /
+      Health Connect turu) alışkanlığı KENDİ işaretlemişse, "Geri al" onun kendi
+      işaretini siliyordu.
 
-      Oysa bu bildirim ALIŞKANLIK hakkında değil, KULLANICININ UYKUSU hakkında — ve
-      kullanıcı bir kez uyudu. Kaç alışkanlık satırı eşleştiği kullanıcının bilmesi
-      gereken bir şey değil. İşaretleme hepsine uygulanır (doğrusu bu), bildirim bir tanedir.
+      Geri alma, ancak YAPTIĞIMIZ şeyi kapsamalı. Zaten işaretliyse yapacak bir şey
+      yok ve geri alacak bir şey de yok.
     */
-    if (goalMet) {
-      if (!alreadyDone) markDone(habitId, todayKey);
-      return 'marked';
-    }
-    return 'info';
+    const fresh = useHabitStore.getState().habits.find(h => h.id === habitId);
+    if (fresh && (fresh.completedDates ?? []).includes(todayKey)) return 'already';
+
+    markDone(habitId, todayKey);
+    return 'marked';
   }, []);
 
   /**
@@ -173,15 +188,56 @@ export function useSleepHealthSync() {
         sorusunun cevabı alışkanlığa göre değişmez; iki uyku alışkanlığı olan kullanıcıda
         aynı veri iki kez okunuyordu. Sorgu bir kez yapılıp sonuç hepsine uygulanıyor.
       */
-      const minsOnce = await SleepHealth.getRecentSleepMinutes();
-      const marked: string[] = [];
-      let outcomeOnce: SleepOutcome = 'nodata';
+      /*
+        TEK PLATFORM OKUMASI — hem "dün gece", hem son N günün dökümü.
 
+        Eskiden iki ayrı okuma vardı (`getRecentSleepMinutes` + `getSleepMinutesByDay`)
+        ve geniş pencere darını zaten kapsıyordu: aynı veri iki kez isteniyordu.
+        Android'de her okuma bir Health Connect IPC'si + izin kontrolü demek.
+        İki cevap birbirinden TÜRETİLEMEZ (son oturum ≠ gün toplamı), o yüzden ikisi de
+        hesaplanıyor — ama tek okumadan. Bkz. SleepHealth.getSleepSummary.
+      */
+      const { lastSession: minsOnce, byDay } = await SleepHealth.getSleepSummary(BACKFILL_DAYS);
+
+      /*
+        İKİ AYRI LİSTE — biri geri alınabilir, biri değil.
+
+        `justMarked` yalnız BU turda işaret koyduklarımızı taşır ve toast'ın "Geri al"
+        düğmesi tam olarak bunu kapsar. Eskiden tek liste vardı ve 'nodata' olmayan HER
+        sonucu topluyordu; içine kullanıcının kendi işaretledikleri de düşüyor, "Geri al"
+        onları da siliyordu.
+
+        `touched` ise "gece verisi vardı mı" sorusunun cevabı — günü kapatma kararı buna
+        bakar, bildirimin kapsamına değil.
+      */
+      const justMarked: string[] = [];
+      const pendingMark: string[] = [];
+      let outcomeOnce: SleepOutcome = 'nodata';
       let dataSeen = false;
+
       for (const h of unmarked) {
-        const outcome = await processSleep(h.id, todayKey, minsOnce);
-        if (outcome !== 'nodata') { outcomeOnce = outcome; marked.push(h.id); }
-        if (outcome !== 'nodata') dataSeen = true; // mark ya da info = gece verisi vardı
+        const outcome = processSleep(h.id, todayKey, minsOnce);
+        if (outcome === 'nodata') continue;
+        dataSeen = true; // marked / already / info → gece verisi vardı
+        if (outcome === 'marked') justMarked.push(h.id);
+        // 'info' = hedef tutmadı; toast "İşaretle" eylemi bunları hedefler.
+        if (outcome === 'info') pendingMark.push(h.id);
+        // 'already' hiçbir listeye girmez: ne geri alınır ne işaretlenir.
+        if (outcome !== 'already') outcomeOnce = outcome;
+      }
+
+      /*
+        BİLDİRİM İŞ BİTER BİTMEZ — geriye doldurmayı BEKLEMEZ.
+
+        Bildirimin ihtiyaç duyduğu her şey bu noktada hazır. Eskiden `announce` geriye
+        doldurmadan SONRA çağrılıyordu; arada ikinci bir tam platform sorgusu
+        (getSleepMinutesByDay) ve alışkanlık × 4 gün'lük bir döngü vardı. Soğuk bir
+        Health Connect okumasında bu saniyeler sürüyor ve toast 4 sn sonra kendini
+        kapattığı için kullanıcı başka ekrana geçtikten sonra beliriyordu — yani
+        "geç gelen bildirim" sorununu çözmek için taşınan kod, aynı sorunu üretiyordu.
+      */
+      if (minsOnce != null) {
+        announce(outcomeOnce, minsOnce, outcomeOnce === 'marked' ? justMarked : pendingMark, todayKey);
       }
 
       /*
@@ -198,7 +254,6 @@ export function useSleepHealthSync() {
         eksik VERİYİ tamamlamak içindir; eksik BAŞARIYI değil.
       */
       const goalHours = usePrefsStore.getState().sleepGoalHours || 7;
-      const byDay = await SleepHealth.getSleepMinutesByDay(BACKFILL_DAYS);
 
       /*
         TOPARLANMA SİNYALİ BURADA ÜRETİLİYOR — veri zaten elimizde.
@@ -229,9 +284,6 @@ export function useSleepHealthSync() {
           useHabitStore.getState().toggleDate(h.id, key);
         }
       }
-      // TEK bildirim — kaç alışkanlık eşleştiğinden bağımsız (bkz. processSleep'teki not).
-      if (minsOnce != null) announce(outcomeOnce, minsOnce, marked, todayKey);
-
       // Veri geldiyse günü kapat → mark/info günde BİR kez. Veri yoksa kapatma (geç senkron için tekrar dene).
       if (dataSeen) prefs.setSleepLastCheckDate(todayKey);
     } finally {

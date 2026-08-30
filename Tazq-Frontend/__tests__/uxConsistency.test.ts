@@ -14,6 +14,27 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const stripComments = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
 
+/**
+ * Uygulamanın TÜM kaynak dosyaları — kural bir dosya listesine değil, koda uygulanır.
+ *
+ * Elle tutulan dosya listeleri bayatlıyor: yeni bir ekran eklendiğinde listeye girmiyor
+ * ve kural o ekranda sessizce geçersiz oluyor. Emoji koruması tam olarak böyle
+ * delinmişti (bkz. aşağıdaki not).
+ */
+const SKIP_DIRS = ['node_modules', '.expo', 'android', 'ios', 'dist', '.git', '__tests__', '__mocks__'];
+function walkSource(dir: string): string[] {
+  const abs = path.join(ROOT, dir);
+  if (!fs.existsSync(abs)) return [];
+  return fs.readdirSync(abs, { withFileTypes: true }).flatMap((e) => {
+    if (SKIP_DIRS.includes(e.name)) return [];
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) return walkSource(rel);
+    return /\.tsx?$/.test(e.name) ? [rel] : [];
+  });
+}
+const ALL_SOURCE_FILES = ['app', 'shared', 'features'].flatMap(walkSource);
+
+
 describe('geri düğmesi deseni', () => {
   /**
    * Uygulamada BİLİNÇLİ olarak iki desen var:
@@ -137,13 +158,21 @@ describe('dönemsel modlar — akış dili', () => {
 });
 
 describe('dönemsel modlar — tekilleştirilmiş takvim', () => {
-  it('modlar.tsx sınav tarih tablosunun kopyasını taşımaz', () => {
+  it('hiçbir ekran sınav tarih tablosunun kopyasını taşımaz', () => {
     // Ramazan'da düzeltilen hatanın aynısıydı: YKS/KPSS tarihleri hem
     // turkishModes.ts'te hem modlar.tsx içinde elle yazılıydı. İkinci kopya,
     // birincisi güncellendiğinde sessizce eskiyor.
-    const src = stripComments(read('app/modlar.tsx'));
-    expect(src).not.toMatch(/YKS_DATES|KPSS_DATES/);
-    expect(src).toContain('isSeasonalExamActive');
+    for (const f of ALL_SOURCE_FILES) {
+      if (f === 'features/modes/utils/turkishModes.ts') continue; // TEK kaynak
+      expect(stripComments(read(f))).not.toMatch(/YKS_DATES|KPSS_DATES/);
+    }
+  });
+
+  it('çakışma uyarısı TEK kaynağı kullanıyor — canlı kopyada', () => {
+    // Kontrol bir zamanlar modlar.tsx'teydi ama ExamCard'a taşındıktan sonra oradaki
+    // kopya ÖLÜ kaldı; bu test ölü kopyayı canlı sanıp onu doğruluyordu.
+    expect(read('features/modes/components/modes/ExamCard.tsx')).toContain('isSeasonalExamActive');
+    expect(stripComments(read('app/modlar.tsx'))).not.toContain('isSeasonalExamActive');
   });
 
   it('Ramazan kartı, tarih tablosu tükendiğinde görünmez', () => {
@@ -232,25 +261,75 @@ describe('ikon dili — ham emoji değil, flat glif', () => {
    * (📚 Tez, 💼 Mülakat, 💪 Spor, 🌙 Ramazan). Toast zaten tipine göre kendi
    * ikonunu çiziyor; emoji hem gereksiz hem dil dışıydı.
    */
-  const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
-  const NOTIFY_FILES = [
-    'app/modlar.tsx',
-    'features/modes/components/modes/ExamCard.tsx',
-    'features/modes/components/modes/TezCard.tsx',
-    'features/modes/components/modes/MulakatCard.tsx',
-    'features/modes/components/modes/SporCard.tsx',
-    'features/modes/components/modes/RamazanCard.tsx',
+  /*
+    KORUMA TÜM UYGULAMAYI TARAR — tek bir cümle kalıbını değil.
+
+    ÖNCEKİ HÂLİ ŞUYDU ve ölçülebilir biçimde işe yaramıyordu:
+
+        line.match(/'([^']*(?:modu kapatıldı|mode closed)[^']*)'/)
+
+    Yalnız "modu kapatıldı" / "mode closed" geçen dizeleri ve yalnız altı mod dosyasını
+    görüyordu. Yani kuralı yazdıran OLAYI koruyordu, kuralın kendisini değil. Sonuç:
+    kural "tüm kullanıcıya görünen çıktı" diye genişletildiğinde koruma yerinde kaldı
+    ve yarım kalmış temizlikler testten geçerek yayına gitti —
+
+        ExamCard       '⚠️ YKS mode is already auto-active…'  (TR dalı temiz, EN dalı değil)
+        ExamCard       'Zor geçti 😢'                          (üç butondan yalnız biri)
+        RocketFeedback 'MOTOR ISINIYOR 🌋'                     (beş daldan yalnız ikisi)
+        TaskFormModal  '📅' '⏰' '🔁' '🏷️'                       (cümle temiz, parçalar değil)
+
+    Üçü NOTIFY_FILES listesinde bile değildi. Koruma artık app/ + features/ + shared/
+    ağacının tamamını tarıyor.
+
+    NE ARANIYOR: emoji taşıyan DÜZ METİN dizeleri — içinde en az bir kelime ve boşluk
+    olanlar. Emojinin VERİ olduğu yerler (mod tanımlarındaki `emoji: '🌙'`,
+    renderModeEmojiIcon'ın eşleme tabloları) kural dışı: orada emoji ekrana çizilmez,
+    çizgisel ikona ÇEVRİLİR.
+  */
+  const EMOJI = /\p{Extended_Pictographic}/u;
+  const PROSE = /'([^'\\]{3,140})'/g;
+
+  /** Emoji'nin ekrana çizilmediği, ikona ÇEVRİLDİĞİ yerler. */
+  const ICON_MAPPING_FILES = [
+    'features/modes/utils/modeIcons.tsx',
+    'shared/utils/emoji.ts',
+    'features/habits/utils/sleepHabit.ts',
   ];
 
-  it('bildirim/toast metinleri emoji öneki taşımaz', () => {
+  it('kullanıcıya görünen hiçbir metin ham emoji taşımaz', () => {
     const hits: string[] = [];
-    for (const f of NOTIFY_FILES) {
+    for (const f of ALL_SOURCE_FILES) {
+      if (ICON_MAPPING_FILES.includes(f)) continue;
       stripComments(read(f)).split('\n').forEach((line, i) => {
-        const m = line.match(/'([^']*(?:modu kapatıldı|mode closed)[^']*)'/);
-        if (m && EMOJI.test(m[1])) hits.push(`${f}:${i + 1}`);
+        const t = line.trim();
+        if (t.startsWith('*') || t.startsWith('//')) return;
+        for (const m of line.matchAll(PROSE)) {
+          const str = m[1];
+          if (!EMOJI.test(str)) continue;
+          // Düz metin mi? En az bir kelime + boşluk. Saf emoji/veri dizeleri elenir.
+          if (!/[A-Za-zğüşıöçĞÜŞİÖÇ]{3,}/.test(str)) continue;
+          if (!str.includes(' ')) continue;
+          hits.push(`${f}:${i + 1}  ${str.slice(0, 60)}`);
+        }
       });
     }
     expect(hits).toEqual([]);
+  });
+
+  it('koruma gerçekten TARIYOR — dosya listesi boş kalmasın', () => {
+    // Yürüyüş bozulursa test sessizce "0 ihlal" der ve hiçbir şeyi korumaz.
+    expect(ALL_SOURCE_FILES.length).toBeGreaterThan(100);
+    expect(ALL_SOURCE_FILES).toContain('features/user/components/RocketFeedback.tsx');
+    expect(ALL_SOURCE_FILES).toContain('features/tasks/components/TaskFormModal.tsx');
+    expect(ALL_SOURCE_FILES).toContain('features/modes/components/modes/ExamCard.tsx');
+  });
+
+  it('koruma YAKALIYOR — bilerek bozulmuş bir örnek geçmemeli', () => {
+    const sample = "const msg = tr ? 'Sınav modu kapatıldı 📚' : 'Exam mode closed';";
+    const found = [...sample.matchAll(PROSE)].some(
+      m => EMOJI.test(m[1]) && /[A-Za-zğüşıöçĞÜŞİÖÇ]{3,}/.test(m[1]) && m[1].includes(' '),
+    );
+    expect(found).toBe(true);
   });
 });
 

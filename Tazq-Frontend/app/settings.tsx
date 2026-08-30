@@ -35,9 +35,9 @@ import { useTaskStore } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
 import { Touchable } from '@/shared/components/Touchable';
 import { DottedBackground } from '@/shared/components/DottedBackground';
-import { swallow } from '@/shared/utils/swallow';
+import { DeleteAccountModal } from '@/features/user/components/DeleteAccountModal';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
-import { isNetworkError, httpDataOf } from '@/shared/utils/errors';
+import { httpDataOf } from '@/shared/utils/errors';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { SettingsCard, SettingItem, ToggleRow, RowDivider, settingsAccents } from '@/shared/components/SettingsRows';
 import { AppIcon } from '@/shared/components/AppIcon';
@@ -105,8 +105,6 @@ export default function SettingsScreen() {
   const kbHeight = useKeyboardHeight();
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [deleting, setDeleting] = useState(false);
   const [pwModalVisible, setPwModalVisible] = useState(false);
   const [curPw, setCurPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -119,8 +117,6 @@ export default function SettingsScreen() {
     checkStreakFreezeReset();
   }, []);
 
-  const DELETE_WORD = language === 'tr' ? 'SİL' : 'DELETE';
-  const canConfirmDelete = deleteConfirmText.trim().toLocaleUpperCase(language === 'tr' ? 'tr-TR' : 'en-US') === DELETE_WORD;
 
   const handleSleepToggle = async (v: boolean) => {
     haptic.select();
@@ -242,7 +238,6 @@ export default function SettingsScreen() {
 
   const openDeleteAccount = () => {
     haptic.commit();
-    setDeleteConfirmText('');
     setDeleteModalVisible(true);
   };
 
@@ -272,17 +267,6 @@ export default function SettingsScreen() {
     } finally {
       setChangingPw(false);
     }
-  };
-
-  const performDeleteAccount = async () => {
-    if (!canConfirmDelete || deleting) return;
-    setDeleting(true);
-    haptic.destructive();
-    try { await AuthService.deleteAccount(); } catch (e) { swallow('profile.performDeleteAccount', e); }
-    setDeleting(false);
-    setDeleteModalVisible(false);
-    logout();
-    router.replace('/login');
   };
 
   const toggleLanguage = () => {
@@ -420,7 +404,7 @@ export default function SettingsScreen() {
                     icon={<Zap size={ICON.md} color="#FFFFFF" />}
                     bg={A.system}
                     title={language === 'tr' ? 'Sade Mod' : 'Lite Mode'}
-                    subtitle={language === 'tr' ? 'Oyunlaştırma ve modları gizler — sadece görevler' : 'Hides gamification & modes — tasks only'}
+                    subtitle={language === 'tr' ? 'İvme skorunu, kutlamaları ve modları gizler' : 'Hides momentum score, celebrations & modes'}
                     value={uiMode === 'lite'}
                     onValueChange={(v: boolean) => { haptic.select(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
                     theme={theme} isDark={isDark}
@@ -718,73 +702,17 @@ export default function SettingsScreen() {
       {/* Ayarlar bir SEKME değil (profilden push edilir, 2 kademe derin) → alt tab-bar
           "hiçbir sekme aktif değil" halinde görünüyordu. iOS deseni: geri butonu + tam ekran. */}
 
-      <Modal visible={deleteModalVisible} transparent animationType="fade" onRequestClose={() => { if (!deleting) setDeleteModalVisible(false); }}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insets.top + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insets.bottom) + S.lg }}>
-          <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { if (!deleting) { Keyboard.dismiss(); setDeleteModalVisible(false); } }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
-          <MotiView
-            from={{ opacity: 0, scale: 0.96, translateY: 16 }}
-            animate={{ opacity: 1, scale: 1, translateY: 0 }}
-            transition={{ type: 'spring', damping: 18 }}
-            style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderRadius: R.lg, padding: S.lg, gap: S.md }}
-          >
-            <View style={{ width: 52, height: 52, borderRadius: R.full, backgroundColor: theme.error + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
-              <Trash2 size={ICON.lg} color={theme.error} strokeWidth={2.2} />
-            </View>
-
-            <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, textAlign: 'center', letterSpacing: -0.3 }}>
-              {language === 'tr' ? 'Hesabını sil' : 'Delete account'}
-            </Text>
-
-            {/* Açıklama + kayıp listesi yalnızca klavye kapalıyken (yazarken kompakt kalır, scroll gerekmez) */}
-            {kbHeight === 0 && (
-              <>
-                <Text style={{ fontSize: F.body, color: theme.onSurfaceVariant, textAlign: 'center', lineHeight: 20 }}>
-                  {language === 'tr'
-                    ? 'Hesabın hemen devre dışı kalır. 30 gün içinde tekrar giriş yaparsan her şey geri gelir. Süre dolunca şunlar kalıcı olarak silinir:'
-                    : 'Your account is deactivated right away. Log back in within 30 days to restore everything. After that, the following is permanently deleted:'}
-                </Text>
-                <View style={{ gap: S.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md }}>
-                  {(language === 'tr'
-                    ? ['Profilin ve tüm ayarların', 'Tüm görev ve alışkanlıkların', 'Odak geçmişin ve istatistiklerin', 'Aktif modların ve planların']
-                    : ['Your profile & all settings', 'All tasks & habits', 'Focus history & stats', 'Active modes & plans']
-                  ).map((li, i) => (
-                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                      <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: theme.error, opacity: 0.7 }} />
-                      <Text style={{ flex: 1, fontSize: F.caption + 1, color: theme.onSurfaceVariant, fontWeight: '500' }}>{li}</Text>
-                    </View>
-                  ))}
-                </View>
-              </>
-            )}
-
-            <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, textAlign: 'center', marginTop: S.xxs }}>
-              {language === 'tr' ? 'Onaylamak için ' : 'Type '}
-              <Text style={{ fontWeight: '700', color: theme.error, letterSpacing: 1 }}>{DELETE_WORD}</Text>
-              {language === 'tr' ? ' yazın' : ' to confirm'}
-            </Text>
-            <TextInput
-              value={deleteConfirmText}
-              onChangeText={setDeleteConfirmText}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              placeholder={DELETE_WORD}
-              placeholderTextColor={theme.onSurfaceVariant + '66'}
-              editable={!deleting}
-              style={{ borderWidth: B.medium, borderColor: canConfirmDelete ? theme.error : theme.outline, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', letterSpacing: 2, textAlign: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
-            />
-
-            <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.xs }}>
-              <Touchable onPress={() => { if (!deleting) { Keyboard.dismiss(); setDeleteModalVisible(false); } }} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center' }}>
-                <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Vazgeç' : 'Cancel'}</Text>
-              </Touchable>
-              <Touchable disabled={!canConfirmDelete || deleting} onPress={performDeleteAccount} style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.error, alignItems: 'center', justifyContent: 'center', opacity: (canConfirmDelete && !deleting) ? 1 : 0.4 }}>
-                {deleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: F.body }}>{language === 'tr' ? 'Hesabı Sil' : 'Delete'}</Text>}
-              </Touchable>
-            </View>
-          </MotiView>
-        </View>
-      </Modal>
-
+      <DeleteAccountModal
+        visible={deleteModalVisible}
+        onClose={() => setDeleteModalVisible(false)}
+        onDeleted={() => { setDeleteModalVisible(false); logout(); router.replace('/login'); }}
+        theme={theme}
+        isDark={isDark}
+        language={language}
+        kbHeight={kbHeight}
+        insetTop={insets.top}
+        insetBottom={insets.bottom}
+      />
       <Modal visible={pwModalVisible} transparent animationType="fade" onRequestClose={() => { if (!changingPw) setPwModalVisible(false); }}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insets.top + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insets.bottom) + S.lg }}>
           <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { if (!changingPw) { Keyboard.dismiss(); setPwModalVisible(false); } }} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />

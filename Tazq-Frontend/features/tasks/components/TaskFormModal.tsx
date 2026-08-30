@@ -19,6 +19,8 @@ import { Touchable } from '@/shared/components/Touchable';
 import VoiceService from '@/shared/utils/voice';
 import { parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS } from '@/features/tasks';
 import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
+import { weekdayName } from '@/shared/constants/weekdays';
+import { NlpHintRow, hasNlpHint, EMPTY_NLP_HINT, type NlpHint, type NlpChip } from '@/features/tasks/components/NlpHintRow';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
@@ -26,6 +28,7 @@ import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
 
 const SWIPE_THRESHOLD = -80;
+
 
 interface TaskForm {
   title: string;
@@ -124,7 +127,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [titleError, setTitleError] = useState(false);
   const [dateError, setDateError] = useState(false);
-  const [nlpHint, setNlpHint] = useState('');
+  const [nlpHint, setNlpHint] = useState<NlpHint>(EMPTY_NLP_HINT);
   const [showSmartHint, setShowSmartHint] = useState(true);
   
   const [isListeningTitle, setIsListeningTitle] = useState(false);
@@ -160,7 +163,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       setSaving(false);
       setTitleError(false);
       setDateError(false);
-      setNlpHint('');
+      setNlpHint(EMPTY_NLP_HINT);
       setShowDatePicker(false);
       setShowTimePicker(false);
       setNewSubtaskText('');
@@ -197,7 +200,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
     if (!text.trim() && !task) {
       setForm(f => ({ ...f, title: '', priority: 'Medium', tags: [], dueDate: '', dueTime: null }));
-      setNlpHint('');
+      setNlpHint(EMPTY_NLP_HINT);
       if (titleError) setTitleError(false);
       return;
     }
@@ -226,15 +229,13 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
     if (titleError) setTitleError(false);
 
-    // Build user facing NLP hint message
-    const parts = [];
+    // Ayrıştırıcının ANLADIĞI şeyler — ham emoji YOK, tür var. İkonu NlpHintRow çizer.
+    const chips: NlpChip[] = [];
     if (hint.dueDate) {
-      const dateStr = new Date(hint.dueDate).toLocaleDateString();
-      parts.push(`📅 ${dateStr}`);
+      chips.push({ kind: 'date', text: new Date(hint.dueDate).toLocaleDateString() });
     }
     if (hint.dueTime) {
-      const timeStr = new Date(hint.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      parts.push(`⏰ ${timeStr}`);
+      chips.push({ kind: 'time', text: new Date(hint.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
     }
     if (hint.recurrence && hint.recurrence !== 'None') {
       const isTR = language === 'tr';
@@ -243,24 +244,20 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
         Weekly: isTR ? 'Her hafta' : 'Weekly',
         Monthly: isTR ? 'Her ay' : 'Monthly',
       };
-      const label = hint.recurrenceDayLabel
-        ? `Her ${hint.recurrenceDayLabel}`
-        : recurrenceLabel[hint.recurrence];
-      parts.push(`🔁 ${label}`);
+      // Gün adı ARAYÜZ dilinde kurulur. Burada `Her ${...}` sabit Türkçe yazıyordu ve
+      // gün adı da ayrıştırıcıdan GİRDİNİN dilinde geliyordu → "Her Monday".
+      chips.push({
+        kind: 'repeat',
+        text: hint.recurrenceDay != null
+          ? `${isTR ? 'Her' : 'Every'} ${weekdayName(hint.recurrenceDay, isTR ? 'tr' : 'en')}`
+          : recurrenceLabel[hint.recurrence],
+      });
+    }
+    for (const t of visibleTextTags(hint.tags)) {
+      chips.push({ kind: 'tag', text: translateTag(t, language as 'tr' | 'en') });
     }
 
-    const userFacingTags = visibleTextTags(hint.tags);
-    if (userFacingTags.length > 0) {
-      const translated = userFacingTags.map(t => translateTag(t, language as 'tr' | 'en'));
-      parts.push(`🏷️ ${translated.join(', ')}`);
-    }
-
-    const fullHint = [
-      hint.wittyMessage,
-      parts.length > 0 ? `(${parts.join('  ')})` : ''
-    ].filter(Boolean).join(' ');
-
-    setNlpHint(fullHint);
+    setNlpHint({ message: hint.wittyMessage ?? '', chips });
   };
 
   const handleDescriptionChange = (text: string) => {
@@ -482,7 +479,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     underlineColorAndroid="transparent"
                   />
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
-                    {nlpHint ? <Sparkles size={ICON.sm} color={theme.primary} /> : null}
+                    {hasNlpHint(nlpHint) ? <Sparkles size={ICON.sm} color={theme.primary} /> : null}
                     <Touchable
                       onPress={() => toggleVoice('title')}
                       style={{ padding: S.xs, alignItems: 'center', justifyContent: 'center' }}
@@ -495,10 +492,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                   </View>
                 </View>
 
-                {nlpHint ? (
-                  <Text style={{ color: theme.primary, fontSize: F.caption, marginTop: S.sm, marginLeft: S.md, fontWeight: '600', letterSpacing: 0.5 }}>
-                    {nlpHint}
-                  </Text>
+                {hasNlpHint(nlpHint) ? (
+                  <NlpHintRow hint={nlpHint} theme={theme} />
                 ) : showSmartHint && !task ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginTop: S.sm, marginLeft: S.md }}>
                     <Sparkles size={ICON.xs} color={theme.primary} />

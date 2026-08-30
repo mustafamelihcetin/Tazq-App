@@ -324,13 +324,57 @@ export const SleepHealth = {
    * cevabi da o sabahin gunune isler. Mevcut davranis da buydu, korunuyor.
    */
   async getSleepMinutesByDay(daysBack: number): Promise<Record<string, number>> {
-    const to = new Date();
-    // +1 gun pay: en eski gunun uykusu bir onceki aksam baslamis olabilir.
-    const from = new Date(to.getTime() - (daysBack + 1) * 24 * 60 * 60 * 1000);
+    const raw = await this._readIntervals(...byDayWindow(daysBack));
+    return raw ? bucketByDay(raw) : {};
+  },
 
-    const raw = await this._readIntervals(from, to);
-    if (!raw) return {};
+  /**
+   * TEK OKUMA, İKİ CEVAP — "dün gece kaç saat" + "son N günün dökümü".
+   *
+   * NEDEN: senkron turu ikisine de ihtiyaç duyuyor ve ikisini AYRI AYRI okuyordu
+   * (`getRecentSleepMinutes` + `getSleepMinutesByDay`). Her okuma Android'de ayrı bir
+   * Health Connect IPC'si + izin kontrolü demek; üstelik geniş pencere darını zaten
+   * kapsıyordu, yani aynı veri iki kez isteniyordu.
+   *
+   * İKİ CEVAP BİRBİRİNDEN TÜRETİLEMEZ, o yüzden ikisi de hesaplanıyor:
+   *   · lastSession — EN SON oturum (26 saatlik pencere)
+   *   · byDay       — gün başına TOPLAM (gece + şekerleme aynı güne toplanır)
+   * 6 saat gece + 1 saat şekerleme uyuyan kullanıcıda byDay 7 saat, lastSession 6 saat
+   * der. Hedef kontrolü buna bakar; birini diğerinin yerine koymak davranışı değiştirir.
+   */
+  async getSleepSummary(daysBack: number): Promise<{ lastSession: number | null; byDay: Record<string, number> }> {
+    const raw = await this._readIntervals(...byDayWindow(daysBack));
+    if (!raw) return { lastSession: null, byDay: {} };
 
+    // Son oturum YALNIZ dar pencereden hesaplanır — geniş pencerede "en son oturum"
+    // günler öncesine düşebilir ve "dün gece" sorusunun cevabı olmaz.
+    const { from: recentFrom } = recentSleepWindow();
+    const recentOnly = raw.filter(x => x != null && x.end >= recentFrom.getTime());
+
+    return { lastSession: lastSessionMinutes(recentOnly), byDay: bucketByDay(raw) };
+  },
+
+  async getAvailability(): Promise<SleepAvailability> {
+    if (!this.isSupported()) return 'unsupported';
+    if (!(await this.isDataAvailable())) return 'unsupported';
+    const mins = await this.getRecentSleepMinutes();
+    return mins != null ? 'ready' : 'needs-permission';
+  },
+};
+
+/** Gün-dökümü okumasının penceresi. +1 gün pay: en eski gecenin uykusu bir önceki akşam başlar. */
+function byDayWindow(daysBack: number): [Date, Date] {
+  const to = new Date();
+  return [new Date(to.getTime() - (daysBack + 1) * 24 * 60 * 60 * 1000), to];
+}
+
+/**
+ * Ham aralıkları GÜN BAŞINA toplam dakikaya çevirir (saf — okuma yapmaz).
+ *
+ * Bir oturum UYANILAN güne yazılır: 23:00–07:00 uykusu ertesi günün uykusudur.
+ * İnsanlar "dün gece kaç saat uyudum" diye sorar, cevabı o sabahın gününe işler.
+ */
+function bucketByDay(raw: (Interval | null)[]): Record<string, number> {
     // Ayni union + oturum ayrimi kurallari; ama TUM oturumlar, yalniz sonuncusu degil.
     const items = raw.filter((x): x is Interval => x != null).sort((a, b) => a.start - b.start);
     if (items.length === 0) return {};
@@ -373,15 +417,7 @@ export const SleepHealth = {
     flush();
 
     return out;
-  },
-
-  async getAvailability(): Promise<SleepAvailability> {
-    if (!this.isSupported()) return 'unsupported';
-    if (!(await this.isDataAvailable())) return 'unsupported';
-    const mins = await this.getRecentSleepMinutes();
-    return mins != null ? 'ready' : 'needs-permission';
-  },
-};
+}
 
 /**
  * Saf yardımcı (test edilebilir): ISO/Date çiftlerinden EN SON uyku oturumunun

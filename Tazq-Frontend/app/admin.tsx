@@ -1274,7 +1274,7 @@ export default function AdminScreen() {
                     <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, lineHeight: 17 }}>{sysSentry.message || (tr ? 'Sentry yapılandırılmamış.' : 'Sentry not configured.')}</Text>
                   </View>
                 ) : sysSentry.ok === false ? (
-                  <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '600' }}>{tr ? '⚠ Sentry’ye ulaşılamadı.' : '⚠ Could not reach Sentry.'} {sysSentry.status ? `(HTTP ${sysSentry.status})` : ''}</Text>
+                  <Text style={{ color: theme.error, fontSize: F.caption, fontWeight: '600' }}>{tr ? 'Sentry’ye ulaşılamadı.' : 'Could not reach Sentry.'} {sysSentry.status ? `(HTTP ${sysSentry.status})` : ''}</Text>
                 ) : (sysSentry.issues && sysSentry.issues.length > 0) ? (
                   <>
                     {(() => {

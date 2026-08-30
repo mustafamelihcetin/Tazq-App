@@ -50,7 +50,9 @@ const NEW_FILE_LIMIT = 800;
  * aksi halde liste bayatlar ve koruma işlevini yitirir (bkz. aşağıdaki test).
  */
 const KNOWN_LARGE: Record<string, number> = {
-  'features/modes/utils/turkishModes.ts': 2820,
+  // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
+  // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
+  'features/modes/utils/turkishModes.ts': 2817,
   'app/focus.tsx': 2488,
   // 2394 → 2400: çöken bir ekranın düzeltmesi. Bu ekranın listesi Reanimated'ın
   // FlatList'i olduğu için native kaydırma sürücüsü kapatılmak ZORUNDA (yoksa açılışta
@@ -75,18 +77,33 @@ const KNOWN_LARGE: Record<string, number> = {
   // 1420 → 1425: başlangıç kilosu koşulunun düzeltmesi. Koşul "kilo geçmişi tamamen boşsa"
   // idi ve geçmişin plan kaldırılınca silinmesine dayanıyordu; geçmiş artık korunduğu için
   // (useSporStore.resetInputs) o koşul ikinci planda asla tutmuyordu.
-  'app/modlar.tsx': 1425,
-  'features/tasks/components/TaskFormModal.tsx': 1199,
+  // 1425 → 1391: mod kartları kendi bileşenlerine devredilirken geride kalan ölü
+  // yardımcılar kaldırıldı (SPOR_GOALS, sporGoalsForSlot, examNameConflict,
+  // stripEmojiPrefix, getEmojiFromLabel, TARGET_EVENTS, yks/kpssAutoActive).
+  // Zararsız değillerdi: emoji temizliği ÖLÜ kopyaya uygulanmış, canlı ExamCard
+  // yarım kalmıştı.
+  'app/modlar.tsx': 1391,
+  // 1199 → 1194: akıllı ayrıştırıcı ipucu NlpHintRow'a çıkarıldı. İpucu tek metin
+  // olarak kuruluyordu ve temizlenmiş bir cümleyle dört HAM emojiyi (📅⏰🔁🏷️) aynı
+  // Text düğümünde yan yana getiriyordu; parçalar artık tür taşıyor, ikonu sunum çiziyor.
+  'features/tasks/components/TaskFormModal.tsx': 1194,
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
   // eklenen tek çağrı + kapının NEDENİNİ anlatan yorum; o yorum silinirse kapı ilk
   // "sadeleştirmede" geri alınır.
   'features/modes/hooks/usePlanAdaptations.ts': 1180,
-  'app/profile.tsx': 910,
+  // 910 → 864: hesap silme ve şifre değiştirmenin ÖLÜ kopyası kaldırıldı. Modal
+  // işaretlemesi settings.tsx'e taşınırken bu dosyadaki state + iki handler geride
+  // kalmıştı; hiçbiri çağrılmıyordu ama `deleteAccount`ın hatalı sürümü iki dosyada
+  // birden duruyor ve hangisinin canlı olduğu okurken belli olmuyordu.
+  'app/profile.tsx': 865,
   'shared/constants/legal.ts': 893,
   'features/modes/utils/planAdaptations.ts': 880,
-  'app/settings.tsx': 856,
+  // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
+  // uygulamadaki tek geri alınamaz işlem; durumu ekranın üstünde, onay kelimesi
+  // ortasında, modalı en altında dağınık duruyordu. Tek adres = tek doğru davranış.
+  'app/settings.tsx': 784,
 };
 
 describe('dosya boyutu', () => {

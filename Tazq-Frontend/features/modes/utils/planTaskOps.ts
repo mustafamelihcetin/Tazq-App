@@ -67,6 +67,57 @@ export const MODE_TASK_TAGS: Record<string, string[]> = {
 };
 
 /**
+ * PLAN ÜRETİMİ GÖREVLERİN ETİKET KÜMESİ — "bu görev bizim mi?" sorusunun tek cevabı.
+ *
+ * Daha önce `usePlanAdaptations.ts` içinde yerel bir sabitti; MODE_TASK_TAGS buraya
+ * taşınırken o geride kaldı ve iki dosya aynı soruyu iki ayrı listeyle yanıtlar oldu.
+ * Artık tek kaynak burada, `usePlanAdaptations` buradan içeri alıyor.
+ *
+ * 'daily' listede: modlar arası ortak günlük görevler de plan üretimidir.
+ * 'weight_entry' listede DEĞİL ve olmamalı — kilo geçmişi bilinçli olarak modun
+ * kapanmasından sağ çıkar (bkz. MODE_TASK_TAGS notu).
+ */
+export const PLAN_TAGS = [
+  'exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3',
+  'spor', 'spor2', 'spor3', 'ramazan', 'yks', 'kpss', 'daily', 'tasarruf', 'birakma',
+];
+
+/**
+ * Ad eşleşmesi için EN KISA ad. 2 karakter fazla cömertti: "ev", "iş", "AB" gibi
+ * iki harfli bir hedef adı hemen her başlığın içinde geçer.
+ */
+const MIN_NAME_MATCH_LEN = 3;
+
+/** PLAN_TAGS + tüm mod etiketleri — ad eşleşmesinin girebileceği tek küme. */
+const PLAN_OWNED_TAGS: ReadonlySet<string> = new Set<string>([
+  ...PLAN_TAGS,
+  ...Object.values(MODE_TASK_TAGS).flat(),
+]);
+
+/**
+ * Görev bir yaşam modu tarafından mı üretildi?
+ *
+ * Kullanıcının kendi görevleri de etiket taşır (NLP ayrıştırıcısı 'iş', 'sağlık',
+ * 'acil'… ekler) ama o etiketlerin hiçbiri bu kümede değil. Ayrım bu yüzden güvenli.
+ */
+export function isPlanOwnedTask(task: { tags?: string[] | null }): boolean {
+  return (task.tags ?? []).some(tag => PLAN_OWNED_TAGS.has(tag));
+}
+
+/**
+ * Başlık/ad karşılaştırması için normalleştirme.
+ *
+ * `toLowerCase()` Türkçede YANLIŞ: JS'in varsayımı İngilizcedir, 'I' → 'i' verir
+ * ama Türkçede 'I' → 'ı'dır. "KILO" yazan bir başlık "kilo" ile eşleşiyordu,
+ * "IŞIK" ise "ışık" ile eşleşmiyordu — yani eşleşme dile göre rastgele davranıyordu.
+ * `toLocaleLowerCase('tr')` ikisini de doğru yapar (bkz. usePlanAdaptations'taki
+ * makeClientKey / planDedupeKey — onlar zaten böyle yapıyordu).
+ */
+function normalizeForMatch(value?: string | null): string {
+  return (value ?? '').trim().toLocaleLowerCase('tr');
+}
+
+/**
  * Bir modun TÜM görevlerini etikete göre emekliye ayırır — id listesine bakmadan.
  *
  * Mod kapatılırken ÇAĞRILMALI. ID tabanlı temizlik "bildiğimiz" görevleri siler;

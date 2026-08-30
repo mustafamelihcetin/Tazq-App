@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Flame, Clock, CheckCircle2, Zap, Calendar } from 'lucide-react-native';
+import { ArrowLeft, Flame, Clock, CheckCircle2, Zap, Calendar, Compass } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -120,9 +120,13 @@ export default function ReportScreen() {
             const c = toneColor(theme, coach.tone);
             return (
               <View style={[styles.coach, { backgroundColor: c + '14', borderColor: c + '33' }]}>
-                <Text style={{ color: c, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5, marginBottom: S.xs }}>
-                  {tr ? '🧭 KOÇUN' : '🧭 YOUR COACH'}
-                </Text>
+                {/* Bölüm işareti ÇİZGİSEL ikon — bkz. mod-ozet'teki aynı başlık. */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.xs }}>
+                  <Compass size={ICON.xs} color={c} strokeWidth={2.5} />
+                  <Text style={{ color: c, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5 }}>
+                    {tr ? 'KOÇUN' : 'YOUR COACH'}
+                  </Text>
+                </View>
                 <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', lineHeight: 22 }}>
                   {tr ? coach.textTr : coach.textEn}
                 </Text>

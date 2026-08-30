@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { inferSleepFromNames } from '@/features/habits/utils/sleepHabit';
 
 export interface Habit {
   id: string;
@@ -100,8 +101,12 @@ export const useHabitStore = create<HabitState>()(
           if (s.habits.some(h => h.name.trim().toLocaleLowerCase('tr') === key)) {
             return s;
           }
-          // Faz 0: uyku alışkanlığını tek noktada isim/emojiden türet (mod verisini tek tek etiketlemek yerine).
-          const isSleep = /uyku|sleep/i.test(`${name} ${nameTr ?? ''} ${nameEn ?? ''}`) || emoji === '😴';
+          // Faz 0: uyku alışkanlığını tek noktada türet. KURAL PAYLAŞIMLI (sleepHabit.ts):
+          // kayıt ve okuma farklı kurallar kullanırsa bir alışkanlık kaydedilirken uyku
+          // sayılıp okunurken sayılmayabilir. Eski satır burada `|| emoji === '😴'` diyordu
+          // ve spor planının "Toparlanma: uyku + aktif dinlenme" alışkanlığına damgayı
+          // KALICI olarak basıyordu — bkz. sleepHabit.ts'teki ölçülen sorun.
+          const isSleep = inferSleepFromNames({ name, nameTr, nameEn, emoji });
           return {
             habits: [
               ...s.habits,
@@ -172,6 +177,22 @@ export const useHabitStore = create<HabitState>()(
             color: h.color ?? '#6366F1',
             emoji: h.emoji ?? '📌',
             name: h.name ?? '',
+            /*
+              YANLIŞ UYKU DAMGASINI DÜZELT — eski kural depoya yazdı, yalnız okumayı
+              düzeltmek yetmez.
+
+              `healthMetric: 'sleep'` kayıt anında basılıyordu ve o günkü kural
+              `|| emoji === '😴'` içeriyordu. Spor planının "Toparlanma: uyku + aktif
+              dinlenme" alışkanlığı bu yüzden uyku damgası taşıyor ve her sabah
+              otomatik işaretleniyordu. Damga kalıcı olduğundan, kuralı düzeltmek
+              MEVCUT kullanıcıları kurtarmıyor — damga da düzeltilmeli.
+
+              GEÇMİŞ TAMAMLAMALARA DOKUNULMAZ. Hangi işaretin otomatik, hangisinin
+              elle konduğu kayıtlı değil; silmek kullanıcının gerçekten yaptığı işi de
+              silme riski taşır. Sessizce veri silmek, düzelttiğimiz hatanın aynısıdır.
+              Bugünden itibaren doğru davranır.
+            */
+            healthMetric: inferSleepFromNames(h) ? ('sleep' as const) : undefined,
           }));
         const seen = new Set<string>();
         const habits = raw.filter((h) => {

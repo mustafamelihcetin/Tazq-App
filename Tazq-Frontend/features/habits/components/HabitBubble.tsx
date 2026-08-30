@@ -2,6 +2,10 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { Coffee, Flame, CheckCircle2 } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
+// Saf metin yardımcısı utils'e taşındı (uyku sınıflandırıcısı da kullanıyor);
+// buradan yeniden dışa veriliyor ki mevcut içe aktarmalar kırılmasın.
+import { compactHabitLabel } from '@/features/habits/utils/habitLabel';
+export { compactHabitLabel };
 import { renderModeEmojiIcon } from '@/features/modes';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { F, S, ICON, R } from '@/shared/constants/tokens';
@@ -13,32 +17,6 @@ import { F, S, ICON, R } from '@/shared/constants/tokens';
  */
 const LABEL_LINE = 12;
 
-/**
- * BALONCUK ETİKETİ — adın yalnız ADI, açıklaması değil.
- *
- * Alışkanlık adlarının bir kısmı iki iş birden yapıyor: ad + koçluk detayı.
- *   "Kalori fazlası ile beslen (TDEE + 300-500)"
- *   "Düzenli uyku (7–9 saat) — kas onarımı için kritik"
- *
- * Yuva 62'den 78pt'ye çıkarıldı ve etiket iki satıra alındı; ikisi de gerekliydi ama
- * yetmedi — parantez içi detay tek başına satırları dolduruyor ve ad yine "…" ile
- * kesiliyor. Yan yana beş kesik kelime sayfayı bitmemiş gösteriyor.
- *
- * Detay SİLİNMİYOR, yalnız bu 78pt'lik yuvada gösterilmiyor: görev satırında ve
- * alışkanlık detayında tam metin duruyor. Kompakt gösterim adı taşır, açıklamayı değil.
- *
- * Yalnız " (" ve " — / – " ayraçlarında kesiliyor: normal tireli kelimeler
- * ("check-in", "e-posta") bozulmasın diye. Kalan parça anlamsız derecede kısaysa
- * (3 karakterden az) tam ada dönülüyor — kırpma bir adı yok etmemeli.
- */
-export function compactHabitLabel(title?: string | null): string {
-  // Başlık boş/tanımsız gelebiliyor (çevrimdışı kuyruktaki geçici kayıtlar, eksik
-  // çeviri). Eskiden `{item.title}` sessizce boş çiziyordu; kırpma eklenince aynı veri
-  // çökmeye başladı. Bileşen bir veri boşluğu yüzünden ekranı düşürmemeli.
-  if (!title) return '';
-  const head = title.split(/\s+[—–]\s+|\s*\(/)[0].trim();
-  return head.length >= 3 ? head : title;
-}
 
 export interface HabitBubbleProps {
   item: any;

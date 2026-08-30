@@ -142,8 +142,8 @@ export const RocketFeedback: React.FC = () => {
       : isPerfectSync
         ? (tr ? 'KUSURSUZ SENKRON' : 'PERFECT SYNC')
         : (isHighHeat 
-            ? (tr ? 'MOTOR ISINIYOR 🌋' : 'ENGINE WARMING 🌋')
-            : (tr ? 'İVME ATEŞLENDİ 🚀' : 'BOOSTER FIRED 🚀'));
+            ? (tr ? 'MOTOR ISINIYOR' : 'ENGINE WARMING')
+            : (tr ? 'İVME ATEŞLENDİ' : 'BOOSTER FIRED'));
 
   // Clear, readable explanations of tasks completion logic
   const descText = isOverheated
@@ -165,8 +165,8 @@ export const RocketFeedback: React.FC = () => {
   // Why wait description
   const waitExplanation = isOverheated
     ? (tr 
-        ? '💡 İvme puanı doğruluğu için görevlerinizi gün içinde gerçekleştikçe gerçek zamanlı işaretleyin.' 
-        : '💡 Check off tasks in real-time as you complete them to track score accurately.')
+        ? 'İvme puanı doğruluğu için görevlerinizi gün içinde gerçekleştikçe gerçek zamanlı işaretleyin.' 
+        : 'Check off tasks in real-time as you complete them to track score accurately.')
     : isBatchConfirming
       ? (tr
           ? 'İvmeniz korunuyor. Görevleri zamanında işaretlemek en iyisidir.'

@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Animated, Platfor
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, CalendarClock, Layers, Flame } from 'lucide-react-native';
+import { ArrowLeft, CalendarClock, Layers, Flame, Compass } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -188,7 +188,12 @@ export default function ModOzetScreen() {
           {/* İçgörü satırı */}
           {coachLine ? (
             <View style={[styles.coach, { backgroundColor: (nearest?.color ?? theme.primary) + '14', borderColor: (nearest?.color ?? theme.primary) + '33' }]}>
-              <Text style={{ color: nearest?.color ?? theme.primary, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5, marginBottom: S.xs }}>{tr ? '🧭 GENEL DURUM' : '🧭 OVERVIEW'}</Text>
+              {/* Bölüm işareti ÇİZGİSEL ikon: sistem emojisi platformdan platforma farklı
+                  çiziliyor ve temayı dinlemiyor. İşaret korunuyor, dili düzeltiliyor. */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, marginBottom: S.xs }}>
+                <Compass size={ICON.xs} color={nearest?.color ?? theme.primary} strokeWidth={2.5} />
+                <Text style={{ color: nearest?.color ?? theme.primary, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5 }}>{tr ? 'GENEL DURUM' : 'OVERVIEW'}</Text>
+              </View>
               <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', lineHeight: 22 }}>{coachLine}</Text>
             </View>
           ) : null}

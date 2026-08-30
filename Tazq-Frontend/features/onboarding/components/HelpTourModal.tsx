@@ -222,11 +222,22 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
   const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
   const { theme, isDark } = useAppTheme();
-  const { completedTours, setTourCompleted, setHelpTourShown } = usePrefsStore();
+  const { completedTours, setTourCompleted, setHelpTourShown, uiMode } = usePrefsStore();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
 
-  const steps = TOURS[pageId] ?? [];
+  /*
+    SADE MODDA GİZLİ ÖZELLİK ANLATILMAZ.
+
+    Sade mod ivme skorunu ekrandan kaldırıyor (bkz. app/index.tsx isLite). Turun ilk
+    adımı ise tam olarak "İvme Skorun"u anlatıyordu — kullanıcı ekranda olmayan bir
+    şeyin nasıl çalıştığını dinliyordu. Bir tur, gördüğü ekranı anlatmalı.
+  */
+  const GAMIFIED_STEP_TITLES = ['İvme Skorun', 'Your Momentum'];
+  const allSteps = TOURS[pageId] ?? [];
+  const steps = uiMode === 'lite'
+    ? allSteps.filter(st => !GAMIFIED_STEP_TITLES.includes(st.title.tr) && !GAMIFIED_STEP_TITLES.includes(st.title.en))
+    : allSteps;
   const isTourShown = completedTours?.[pageId] === true || steps.length === 0;
 
   const [currentStep, setCurrentStep] = useState(0);

@@ -156,8 +156,8 @@ describe('günü tamamlama kutlaması', () => {
     expect(body).not.toContain('pushCloud');
   });
 
-  it('üç kapı da yerinde — yanlış kutlama olmasın', () => {
-    const eff = src.match(/const dayCompleteRef[\s\S]*?\}, \[todayCompleted, dailyGoal\]\);/)?.[0] ?? '';
+  it('dört kapı da yerinde — yanlış kutlama olmasın', () => {
+    const eff = src.match(/const dayCompleteRef[\s\S]*?\}, \[todayCompleted, dailyGoal[^\]]*\]\);/)?.[0] ?? '';
     expect(eff).not.toBe('');
     // 1. yalnız geçiş anı: gün zaten bitmişken uygulamayı açmak kutlama değildir
     expect(eff).toContain('if (prev !== false || !done) return;');
@@ -165,6 +165,8 @@ describe('günü tamamlama kutlaması', () => {
     expect(eff).toContain('@day_celebrated_');
     // 3. ilk mükemmel günde rozet kendi kutlamasını yapıyor — üst üste binmesin
     expect(eff).toContain("hasUnlocked('daily_perfect')");
+    // 4. Sade mod: kutlama katmanı hiç açılmaz (bkz. __tests__/liteMode.test.ts)
+    expect(eff).toContain('if (isLite) return;');
   });
 });
 

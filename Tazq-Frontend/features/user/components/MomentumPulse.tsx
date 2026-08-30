@@ -378,7 +378,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
                     fontWeight: '700',
                     color: isOverheated ? theme.error : (roundedHeat > 50 ? theme.streak : theme.success)
                   }}>
-                    {isOverheated ? (tr ? 'AŞIRI ISINDI 🌋' : 'OVERHEATED 🌋') : (tr ? 'NOMİNAL 🔥' : 'NOMINAL 🔥')}
+                    {isOverheated ? (tr ? 'AŞIRI ISINDI' : 'OVERHEATED') : (tr ? 'NOMİNAL' : 'NOMINAL')}
                   </Text>
                 </View>
 

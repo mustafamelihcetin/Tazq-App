@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { MODE_ICONS } from '@/features/modes/utils/modeIcons';
 
 /**
  * KURULUM AKISI — "kullaniciya sormadan karar verme" bekcisi.
@@ -128,13 +129,27 @@ describe('alışkanlık simge seçicisi', () => {
    * kalp atışı gibi olan mesela."
    * Sebep: 🏃 (koşu) ve 🧘 (meditasyon) ikisi de `Activity` glifine eşleniyordu.
    */
+  /*
+    EŞLEME TABLODAN OKUNUYOR — kaynağı regex'le ayrıştırmaktan değil.
+
+    Burası `case '…': return <Lucide.X …>` kalıbını regex'le tarıyordu. Eşleme bir
+    nesne tablosuna dönüşünce regex hiçbir şey bulamadı ve testler sessizce "0 eşleme"
+    üzerinden çalışmaya başladı. Kaynak METNİNİ ayrıştıran koruma, kaynağın biçimi
+    değiştiğinde korumayı bırakır; dışa verilen DEĞERİ okuyan koruma bırakmaz.
+
+    Glif KİMLİĞİ bileşenin kendisidir: iki emoji aynı bileşene işaret ediyorsa aynı
+    glife eşleniyor demektir (ad karşılaştırmasından güvenilir — lucide aynı ikonu
+    birden çok adla dışa veriyor).
+  */
   const iconMap = () => {
-    const src = read('features/modes/utils/modeIcons.tsx');
-    const pairs = [...src.matchAll(/case '([^']+)':\s*\n(?:\s*\/\/[^\n]*\n)*\s*return <Lucide\.(\w+)/g)];
-    const map = new Map<string, string>();
-    for (const [, emoji, icon] of pairs) if (!map.has(emoji)) map.set(emoji, icon);
+    const map = new Map<string, unknown>();
+    for (const [emoji, Icon] of Object.entries(MODE_ICONS)) map.set(emoji, Icon);
     return map;
   };
+
+  const iconName = (Icon: unknown): string =>
+    (Icon as { displayName?: string; name?: string })?.displayName ??
+    (Icon as { name?: string })?.name ?? 'anonim';
 
   const pickerEmojis = () => {
     const src = read('app/cockpit.tsx');
@@ -144,14 +159,14 @@ describe('alışkanlık simge seçicisi', () => {
 
   it('seçicideki her simge FARKLI bir glife eşlenir', () => {
     const map = iconMap();
-    const used = new Map<string, string[]>();
+    const used = new Map<unknown, string[]>();
     for (const e of pickerEmojis()) {
       const icon = map.get(e);
       if (!icon) continue;
       used.set(icon, [...(used.get(icon) ?? []), e]);
     }
     const dups = [...used.entries()].filter(([, es]) => es.length > 1)
-      .map(([icon, es]) => `${icon} <- ${es.join(' ')}`);
+      .map(([icon, es]) => `${iconName(icon)} <- ${es.join(' ')}`);
     expect(dups).toEqual([]);
   });
 

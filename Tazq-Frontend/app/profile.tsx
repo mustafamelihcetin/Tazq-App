@@ -7,7 +7,7 @@ import { track } from '@/shared/utils/analytics';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, Settings } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, FileText, MessageSquare, Send, Settings } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -34,7 +34,7 @@ import { BackButton } from '@/shared/components/BackButton';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { swallow } from '@/shared/utils/swallow';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
-import { isNetworkError, httpDataOf } from '@/shared/utils/errors';
+import { isNetworkError } from '@/shared/utils/errors';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { SettingsCard, SettingItem, ToggleRow, RowDivider, settingsAccents } from '@/shared/components/SettingsRows';
 import { haptic } from '@/shared/utils/haptics';
@@ -107,16 +107,6 @@ export default function ProfileScreen() {
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [calendarSync, setCalendarSync] = useState(false);
   const [kbHeight, setKbHeight] = useState(0);
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const [pwModalVisible, setPwModalVisible] = useState(false);
-  const [curPw, setCurPw] = useState('');
-  const [newPw, setNewPw] = useState('');
-  const [confPw, setConfPw] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [changingPw, setChangingPw] = useState(false);
-  const [pwError, setPwError] = useState<string | null>(null);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -285,54 +275,19 @@ export default function ProfileScreen() {
     ]);
   };
 
-  // Onay kelimesi — parolasız (Google/Apple) kullanıcılar dahil herkes için çalışır
-  const DELETE_WORD = language === 'tr' ? 'SİL' : 'DELETE';
-  const canConfirmDelete = deleteConfirmText.trim().toLocaleUpperCase(language === 'tr' ? 'tr-TR' : 'en-US') === DELETE_WORD;
+  /*
+    HESAP YÖNETİMİ BURADA DEĞİL — AYARLAR EKRANINDA.
 
-  const openDeleteAccount = () => {
-    haptic.commit();
-    setDeleteConfirmText('');
-    setDeleteModalVisible(true);
-  };
+    Hesap silme ve şifre değiştirme akışlarının tamamı (state, açıcılar, onay kelimesi,
+    modallar) bir noktada app/settings.tsx'e taşındı ama BU dosyadaki kopya silinmedi:
+    ~60 satır state ve iki tam handler geride kaldı, hiçbiri çağrılmıyordu — modal
+    işaretlemesi taşınırken gitmişti, yani `setDeleteModalVisible(true)` hiçbir şey
+    açmıyordu.
 
-  const openChangePassword = () => {
-    haptic.surface();
-    setCurPw(''); setNewPw(''); setConfPw(''); setShowPw(false); setPwError(null);
-    setPwModalVisible(true);
-  };
-
-  const performChangePassword = async () => {
-    if (changingPw) return;
-    setPwError(null);
-    if (!curPw) { setPwError(language === 'tr' ? 'Mevcut şifreni gir.' : 'Enter your current password.'); return; }
-    if (!(newPw.length >= 8 && /[A-Za-zÇĞİÖŞÜçğıöşü]/.test(newPw) && /[0-9]/.test(newPw))) { setPwError(language === 'tr' ? 'Şifre en az 8 karakter olmalı ve en az bir harf ile bir rakam içermelidir.' : 'Password must be at least 8 characters and include a letter and a number.'); return; }
-    if (newPw !== confPw) { setPwError(language === 'tr' ? 'Yeni şifreler eşleşmiyor.' : 'New passwords do not match.'); return; }
-    setChangingPw(true);
-    try {
-      await AuthService.changePassword(curPw, newPw);
-      haptic.success();
-      Keyboard.dismiss();
-      setPwModalVisible(false);
-      showToast(language === 'tr' ? 'Şifren güncellendi.' : 'Password updated.', 'success');
-    } catch (err: unknown) {
-      haptic.error();
-      const msg = httpDataOf<{ message?: string }>(err).message;
-      setPwError(msg || (language === 'tr' ? 'Şifre değiştirilemedi.' : 'Could not change password.'));
-    } finally {
-      setChangingPw(false);
-    }
-  };
-
-  const performDeleteAccount = async () => {
-    if (!canConfirmDelete || deleting) return;
-    setDeleting(true);
-    haptic.destructive();
-    try { await AuthService.deleteAccount(); } catch (e) { swallow('profile.performDeleteAccount', e); }
-    setDeleting(false);
-    setDeleteModalVisible(false);
-    logout();
-    router.replace('/login');
-  };
+    Ölü kopya zararsız değildi: `deleteAccount`ın sonucu yutan hatalı sürümü İKİ
+    dosyada birden duruyordu ve okuyan kişi hangisinin canlı olduğunu bilemiyordu.
+    Canlı hâli için bkz. app/settings.tsx → performDeleteAccount / performChangePassword.
+  */
 
   const toggleLanguage = () => {
     haptic.surface();

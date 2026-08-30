@@ -1,6 +1,7 @@
 import { CategoryColors } from '@/shared/constants/Colors';
 import { getRamadanRanges, parseLocalDate } from '@/shared/utils/ramadanDates';
 import { dateKeyFromNow } from '@/shared/utils/dateKey';
+import { stripLeadingEmoji } from '@/shared/utils/emoji';
 export type ModeType = 'ramazan' | 'yks' | 'kpss' | 'exam' | 'tez' | 'mulakat' | 'spor';
 
 export interface ModeHabit {
@@ -426,8 +427,8 @@ const TEMPLATE_RAMAZAN_GECE: StudyTemplate = {
   titleEn: 'Night Focus',
   descTr: 'Teravih sonrası zihin taze, ev sessiz. İbadet ve üretkenliği dengeleyen karma bir rutin — hem huzur hem ilerleme.',
   descEn: 'Mind is fresh after Tarawih, house is quiet. A balanced routine blending worship and productivity — peace and progress together.',
-  targetTr: '🌙 Teravih kılıyor · Gece uyuyor · Gündüz odaklanmakta zorlananlar',
-  targetEn: '🌙 Prays Tarawih · Sleeps at night · Struggles to focus during the day',
+  targetTr: 'Teravih kılıyor · Gece uyuyor · Gündüz odaklanmakta zorlananlar',
+  targetEn: 'Prays Tarawih · Sleeps at night · Struggles to focus during the day',
   emoji: '🌙',
   dailyGoalMinutes: 60,
   habits: [
@@ -468,8 +469,8 @@ const TEMPLATE_RAMAZAN_SABAH: StudyTemplate = {
   titleEn: 'Suhoor Blessing',
   descTr: 'Sahur bereketi sadece ruhani değil — taze zihinle ders ya da işe başlamak için de en doğal vakit. Gün ilerledikçe ibadet ritmi alışkanlığı destekler.',
   descEn: 'Suhoor blessing isn\'t only spiritual — it\'s the most natural time to start studying or working with a fresh mind. Daily worship rhythm reinforces the habit.',
-  targetTr: '🌅 Erken uyuyor · Sabah çalışmayı seviyor · Oruç + verimlilik dengesini arıyor',
-  targetEn: '🌅 Early sleeper · Loves morning work · Seeking balance between fasting and productivity',
+  targetTr: 'Erken uyuyor · Sabah çalışmayı seviyor · Oruç + verimlilik dengesini arıyor',
+  targetEn: 'Early sleeper · Loves morning work · Seeking balance between fasting and productivity',
   emoji: '🌅',
   dailyGoalMinutes: 45,
   habits: [
@@ -510,8 +511,8 @@ const TEMPLATE_RAMAZAN_OGRENCI: StudyTemplate = {
   titleEn: 'Student Balance',
   descTr: 'Ramazan okul/sınav dönemine denk geldiğinde düşük enerjiyi yönetmek esastır. Kısa ama düzenli çalışma bloklarını ibadet ritmiyle harmanlayan, sürdürülebilir bir rutin.',
   descEn: 'When Ramadan overlaps with school/exams, managing low energy is key. A sustainable routine blending short, regular study blocks with a worship rhythm.',
-  targetTr: '🎓 Okul/sınav dönemi · Oruçluyken derse odaklanmakta zorlanan öğrenciler',
-  targetEn: '🎓 School/exam season · Students who struggle to focus on lessons while fasting',
+  targetTr: 'Okul/sınav dönemi · Oruçluyken derse odaklanmakta zorlanan öğrenciler',
+  targetEn: 'School/exam season · Students who struggle to focus on lessons while fasting',
   emoji: '🎓',
   dailyGoalMinutes: 50,
   habits: [
@@ -551,8 +552,8 @@ const TEMPLATE_RAMAZAN_CALISAN: StudyTemplate = {
   titleEn: 'Working Rhythm',
   descTr: 'Tam gün iş + oruç enerji yönetimi ister. Zorlu işleri yüksek enerjili sabah saatlerine alıp ibadeti güne yedirerek hem verimi hem huzuru korur.',
   descEn: 'A full workday plus fasting demands energy management. Schedule hard work in high-energy morning hours and weave worship into the day to protect both output and peace.',
-  targetTr: '💼 Tam zamanlı çalışan · Oruçluyken iş verimini korumak isteyenler',
-  targetEn: '💼 Full-time worker · Those who want to keep work performance while fasting',
+  targetTr: 'Tam zamanlı çalışan · Oruçluyken iş verimini korumak isteyenler',
+  targetEn: 'Full-time worker · Those who want to keep work performance while fasting',
   emoji: '💼',
   dailyGoalMinutes: 40,
   habits: [
@@ -1212,7 +1213,7 @@ export function localizeSporGoal(goal: string | null | undefined, tr: boolean): 
     return tr ? 'Spor Yarışması' : 'Sport Competition';
   }
   // Bilinmeyen serbest metin: kullanıcının yazdığı ad korunur, yalnız baştaki süs atılır.
-  return g.replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '').trim() || g;
+  return stripLeadingEmoji(g);
 }
 
 // Returns the split label for a given day count and day index (0-based Mon)
@@ -1640,8 +1641,10 @@ export function getSporMode(goalLabel: string, goalDate: string, inputs?: SporIn
     template = buildGucTemplateWithProgram(inp, days, sporType);
   }
 
-  // Chip label'ından baştaki emojiyi sil (ör. "💪 Güç & Kas" → "Güç & Kas")
-  const cleanName = name.replace(/^[\p{Emoji}\s]+/u, '').trim() || name;
+  // Chip label'ından baştaki emojiyi sil (ör. "💪 Güç & Kas" → "Güç & Kas").
+  // Burada bir zamanlar `\p{Emoji}` yazıyordu ve o sınıf RAKAMLARI da kapsıyor:
+  // "5K Koşu Programı" → "K Koşu Programı". Bkz. shared/utils/emoji.ts
+  const cleanName = stripLeadingEmoji(name);
 
   return {
     type: 'spor',
