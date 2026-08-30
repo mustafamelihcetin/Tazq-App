@@ -77,16 +77,31 @@ export const MODE_TASK_TAGS: Record<string, string[]> = {
 export function retireModeTasksByTag(mode: keyof typeof MODE_TASK_TAGS | string, extraName?: string | null): void {
   const tags = MODE_TASK_TAGS[mode] ?? [mode];
   const tagSet = new Set(tags);
-  const nameLower = extraName?.trim().toLowerCase();
+  const nameLower = normalizeForMatch(extraName);
 
   useTaskStore.getState().tasks
     .filter(t => {
       if ((t.tags ?? []).some(tag => tagSet.has(tag))) return true;
-      if (nameLower && nameLower.length >= 2) {
-        const titleLower = t.title?.trim().toLowerCase() || '';
-        if (titleLower.startsWith(nameLower + ':') || titleLower.startsWith(nameLower + ' ') || titleLower.includes(nameLower)) {
-          return true;
-        }
+
+      /*
+        AD EŞLEŞMESİ YALNIZ PLANIN KENDİ GÖREVLERİNDE — kullanıcının görevinde ASLA.
+
+        ÖLÇÜLEN SORUN: burada `titleLower.includes(nameLower)` vardı ve hiçbir kapısı
+        yoktu. `extraName` kullanıcının yazdığı serbest metindir (sınav adı, tasarruf
+        hedefi) ya da bir hedef etiketidir. Emoji önekleri kaldırıldıktan sonra spor
+        hedefleri düpedüz gündelik ifadelere döndü: "Kilo Yönetimi", "Genel Form".
+        Sonuç: modu kapatan kullanıcının KENDİ yazdığı "Kilo yönetimi için diyetisyen
+        ara" görevi de eşleşiyor ve `retirePlanTask` onu hem yerelden hem SUNUCUDAN
+        kalıcı siliyordu. Geri alma yok, uyarı yok, kullanıcı silindiğini bile görmüyor.
+
+        Ad eşleşmesi yine de GEREKLİ: plan başlıkları adı cümle ORTASINDA taşır
+        (ör. "Hafta 3 sprint: tam YKS denemesi çöz"), o yüzden yalnız önek denemek
+        öksüz görev bırakır. Doğru sınır ad değil, MÜLKİYET: görev plan tarafından
+        üretilmişse adı eşleştirmek serbest, kullanıcı yazdıysa dokunulmaz.
+      */
+      if (nameLower && nameLower.length >= MIN_NAME_MATCH_LEN && isPlanOwnedTask(t)) {
+        const titleLower = normalizeForMatch(t.title);
+        if (titleLower && titleLower.includes(nameLower)) return true;
       }
       return false;
     })
