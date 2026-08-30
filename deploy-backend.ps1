@@ -20,6 +20,7 @@ $filesToUpload = @()
 $dirs = @("Controllers", "Services", "Models", "Data", "Migrations", "wwwroot", "Middlewares", "Validators", "Properties")
 $rootFiles = @("Tazq-Backend.csproj", "Program.cs", "appsettings.json", "DockerFile")
 
+
 # Tum dosyalari tara
 $allFiles = @()
 foreach ($d in $dirs) {
