@@ -50,24 +50,43 @@ describe('ana ekran — oyunlaştırma gizlenir', () => {
 });
 
 describe('kutlamalar susturulur', () => {
-  it('konfeti çağrılarının hepsi kapıdan geçer', () => {
-    const calls = [...HOME.matchAll(/useConfettiStore\.getState\(\)\.trigger\(/g)];
-    expect(calls.length).toBeGreaterThan(0);
-    for (const c of calls) {
-      const before = HOME.slice(Math.max(0, c.index! - 120), c.index!);
-      expect(before).toContain('!isLite');
+  const CELEBRATE = read('features/user/utils/celebrate.ts');
+
+  it('kutlama kararı TEK yerde — üç kopya birleşti', () => {
+    // Karar ana ekranda üç ayrı yere kopyalanmıştı (ilk görev · günün son görevi ·
+    // günün son alışkanlığı) ve Sade mod kapısı üçüne ayrı ayrı yazılmak zorundaydı.
+    expect(HOME).not.toContain('useConfettiStore');
+    const calls = [...HOME.matchAll(/celebrate\(\{ kind: '([a-z-]+)'/g)].map(m => m[1]);
+    expect(calls.sort()).toEqual(['day-cleared', 'first-win', 'habits-cleared']);
+  });
+
+  it('her çağrı Sade mod bayrağını GEÇİRİR', () => {
+    for (const m of HOME.matchAll(/celebrate\(\{[^}]*\}\)/g)) {
+      expect(m[0]).toContain('isLite');
     }
+  });
+
+  it('konfeti YALNIZ Sade mod dışında açılır', () => {
+    const idx = CELEBRATE.indexOf('useConfettiStore.getState().trigger');
+    expect(idx).toBeGreaterThan(-1);
+    expect(CELEBRATE.slice(Math.max(0, idx - 60), idx)).toContain('if (!isLite)');
   });
 
   it('gün tamamlama kutlaması Sade modda açılmaz', () => {
     expect(HOME).toContain('if (isLite) return;');
   });
 
-  it('PUAN ve ilk-başarı kaydı yine işlenir — mod veriyi budamaz', () => {
-    // Sade mod bir GÖRÜNÜM tercihi: moddan çıkan kullanıcının geçmişi eksik olmamalı
-    expect(HOME).toContain('prefsState.markFirstWin()');
-    expect(HOME).toContain('addFocusPoints(10)');
-    expect(HOME).toContain('addFocusPoints(25)');
+  it('PUAN ve ilk-başarı kaydı KAPININ DIŞINDA — mod veriyi budamaz', () => {
+    // Sade mod bir GÖRÜNÜM tercihi: moddan çıkan kullanıcının geçmişi eksik olmamalı.
+    const gate = CELEBRATE.indexOf('if (!isLite)');
+    expect(CELEBRATE.indexOf('markFirstWin()')).toBeGreaterThan(gate);
+    expect(CELEBRATE.indexOf('addFocusPoints(spec.points)')).toBeGreaterThan(gate);
+  });
+
+  it('üç kutlamanın puanı korundu (10 / 25 / 20)', () => {
+    expect(CELEBRATE).toMatch(/'first-win':[\s\S]*?points: 10/);
+    expect(CELEBRATE).toMatch(/'day-cleared':[\s\S]*?points: 25/);
+    expect(CELEBRATE).toMatch(/'habits-cleared':[\s\S]*?points: 20/);
   });
 });
 

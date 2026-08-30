@@ -67,6 +67,7 @@ import { Colors } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { haptic } from '@/shared/utils/haptics';
+import { celebrate } from '@/features/user/utils/celebrate';
 
 
 // Hoş geldin (profil kurulumu) oturum başına yalnızca bir kez — remount'ta sıfırlanmasın diye
@@ -1045,25 +1046,10 @@ export default function HomeScreen() {
     const prefsState = usePrefsStore.getState();
     const isFirstWin = !prefsState.firstWinAt;
 
-    // Konfeti Sade modda yok; puan ve `markFirstWin` YİNE işlenir (bkz. isLite notu).
-    if (isFirstWin) {
-      if (!isLite) require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
-        language === 'tr' ? 'İlk Başarı!' : 'First Victory!',
-        language === 'tr' ? 'Tebrikler, TAZQ\'daki ilk görevini tamamladın!' : 'Congratulations on completing your first task on TAZQ!',
-        'high',
-        'levelup'
-      );
-      prefsState.markFirstWin();
-      useFocusStore.getState().addFocusPoints(10);
-    } else if (allTasksDone) {
-      if (!isLite) require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
-        language === 'tr' ? 'Günü Temizledin!' : 'Day Cleared!',
-        language === 'tr' ? 'Bugünün tüm görevlerini başarıyla tamamladın!' : 'You completed all of today\'s tasks successfully!',
-        'high',
-        'day_cleared'
-      );
-      useFocusStore.getState().addFocusPoints(25);
-    }
+    // Kutlama kararı tek yerde (bkz. features/user/utils/celebrate.ts):
+    // Sade modda konfeti yok, puan ve 'ilk başarı' damgası YİNE işlenir.
+    if (isFirstWin) celebrate({ kind: 'first-win', isLite, tr });
+    else if (allTasksDone) celebrate({ kind: 'day-cleared', isLite, tr });
     toggleTaskCompletion(taskId);
     
     const modeInfo = getModeInfoForTask(task, prefsState, theme);
@@ -1511,15 +1497,7 @@ export default function HomeScreen() {
                               });
                             }
 
-                            if (allHabitsDone) {
-                              if (!isLite) require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
-                                language === 'tr' ? 'Alışkanlıklar Tamam!' : 'All Habits Done!',
-                                language === 'tr' ? 'Bugünkü tüm alışkanlık hedeflerini tamamladın. Harika istikrar!' : 'You completed all habit targets for today. Great consistency!',
-                                'medium',
-                                'day_cleared'
-                              );
-                              useFocusStore.getState().addFocusPoints(20);
-                            }
+                            if (allHabitsDone) celebrate({ kind: 'habits-cleared', isLite, tr });
                           }
                           // Tamamlama BAŞARI, geri alma yalnızca yüzey hareketi — ikisi farklı anlam.
                           item.isCompleted ? haptic.surface() : haptic.success();
