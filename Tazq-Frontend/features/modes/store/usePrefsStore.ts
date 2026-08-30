@@ -202,6 +202,20 @@ interface PrefsState {
   setOnboardingCompleted: (v: boolean) => void;
   helpTourShown: boolean;
   setHelpTourShown: (v: boolean) => void;
+  /**
+   * Bildirim ÖN-BİLGİLENDİRMESİ gösterildi mi?
+   *
+   * Sistem izin diyaloğu girişten hemen sonra, hiçbir bağlam vermeden açılıyordu.
+   * iOS'ta o diyalog kullanıcı başına BİR KEZ gösterilebilir: reddedilirse uygulama
+   * bir daha soramaz, kullanıcının Ayarlar'a gidip elle açması gerekir. Bağlamsız
+   * sorulan izin daha çok reddedilir ve sabah/akşam özeti kalıcı olarak kapanır.
+   *
+   * Bu bayrak, önce KENDİ ekranımızda ne göndereceğimizi anlattığımızı işaretler;
+   * sistem diyaloğu yalnız kullanıcı "aç" dediğinde açılır. "Şimdi değil" denirse
+   * sistem diyaloğu HİÇ açılmaz — tek hak harcanmaz.
+   */
+  notifPrimerSeen: boolean;
+  setNotifPrimerSeen: (v: boolean) => void;
   completedTours: Record<string, boolean>;
   setTourCompleted: (page: string, completed: boolean) => void;
   firstWinAt: string | null;
@@ -236,6 +250,7 @@ const CLOUD_PREF_KEYS = [
   'featureFlags',
   'onboardingCompleted',
   'helpTourShown',
+  'notifPrimerSeen',
   'completedTours',
   'firstWinAt',
   'examPlanHabitIds', 'examPlanTaskIds',
@@ -419,6 +434,8 @@ export const usePrefsStore = create<PrefsState>()(
       setOnboardingCompleted: (v) => set({ onboardingCompleted: v }),
       helpTourShown: false,
       setHelpTourShown: (v) => set({ helpTourShown: v }),
+      notifPrimerSeen: false,
+      setNotifPrimerSeen: (v) => set({ notifPrimerSeen: v }),
       completedTours: {},
       setTourCompleted: (page, completed) => set((s) => ({ completedTours: { ...s.completedTours, [page]: completed } })),
       firstWinAt: null,
@@ -474,6 +491,7 @@ export const usePrefsStore = create<PrefsState>()(
         planSpecs: {},
         examReviewShown: false,
         helpTourShown: false,
+        notifPrimerSeen: false,
         completedTours: {},
         uiMode: 'pro',
         onboardingCompleted: false,

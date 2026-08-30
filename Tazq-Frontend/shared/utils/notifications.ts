@@ -104,6 +104,41 @@ export async function hasNotificationPermission(): Promise<boolean> {
   }
 }
 
+/**
+ * Mevcut izin durumunu OKUR — sistem diyaloğunu AÇMAZ.
+ *
+ * Ayrım kritik: iOS'ta izin diyaloğu kullanıcı başına BİR KEZ gösterilebilir.
+ * "Durumu öğren" ile "izin iste" aynı fonksiyonda olduğu sürece, yalnızca durumu
+ * merak eden her çağrı o tek hakkı harcama riski taşır.
+ *
+ *  · 'granted'      — izin var
+ *  · 'undetermined' — hiç sorulmadı, sorma hakkı DURUYOR
+ *  · 'denied'       — reddedilmiş; tekrar sormak işe yaramaz, kullanıcı Ayarlar'dan açmalı
+ */
+export async function getNotificationPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
+  if (!Notifications) return 'denied';
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status === 'granted') return 'granted';
+    if (status === 'undetermined') return 'undetermined';
+    return 'denied';
+  } catch (_) {
+    return 'denied';
+  }
+}
+
+/**
+ * SİSTEM DİYALOĞUNU AÇAR — yalnız kullanıcı açıkça istediğinde çağır.
+ *
+ * ÖLÇÜLEN SORUN: bu fonksiyon girişten hemen sonra, hiçbir bağlam verilmeden
+ * çağrılıyordu (_layout). Kullanıcı uygulamayı henüz kullanmamışken "bildirim
+ * göndermek istiyor" diyaloğunu görüyordu. Bağlamsız sorulan izin daha çok
+ * reddedilir; reddedilince de sabah özeti, akşam özeti, görev ve alışkanlık
+ * hatırlatıcıları KALICI olarak kapanır — çünkü ikinci bir sorma hakkı yok.
+ *
+ * Artık önce kendi ön-bilgilendirme ekranımız çıkıyor (NotificationPrimer) ve bu
+ * fonksiyon ancak kullanıcı "aç" dediğinde çalışıyor.
+ */
 export async function requestNotificationPermissions(): Promise<boolean> {
   if (!Notifications) return false;
   try {
