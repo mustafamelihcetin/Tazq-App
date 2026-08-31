@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '@/features/user/store/useAuthStore';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
+import { isGuestSession } from '@/shared/store/useSessionStore';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { reportApiError } from '@/shared/utils/sentry';
@@ -41,8 +42,29 @@ export const api = axios.create({
   },
 });
 
+/**
+ * MİSAFİR MODU İSTEĞİ — sunucuya HİÇ çıkmaz.
+ *
+ * Hesapsız kullanan birinin token'ı yok; istek gitse 401 döner ve `useOfflineSync`
+ * kuyruğu boşuna dener. Kapı en başta: istek ağa hiç çıkmaz.
+ *
+ * HATA "AĞ HATASI" ŞEKLİNDE ATILIYOR (`response` YOK) ve bu bilinçli: uygulamanın
+ * offline-first yolları zaten `isNetworkError(e)` görünce işlemi KUYRUĞA alıp
+ * iyimser yerel durumu koruyor. Yani misafir modunun ihtiyacı olan davranış zaten
+ * yazılmış ve test edilmiş durumda — ikinci bir yol açmak yerine o yola bağlanıyor.
+ * Kullanıcı kayıt olduğunda kuyruk aynen akar (bkz. useAuthStore.endGuest).
+ */
+export const GUEST_MODE_ERROR_CODE = 'TAZQ_GUEST_MODE';
+
+function guestModeError(): Error & { code: string } {
+  const e = new Error('Guest mode: request not sent') as Error & { code: string };
+  e.code = GUEST_MODE_ERROR_CODE;
+  return e;
+}
+
 // Inject token into every request — skip if caller already set Authorization (e.g. login flow)
 api.interceptors.request.use(async (config) => {
+  if (isGuestSession()) throw guestModeError();
   const token = useAuthStore.getState().token;
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -135,6 +157,10 @@ api.interceptors.response.use(
   },
   async (error) => {
     const config = error.config as typeof error.config & { _retryCount?: number; _retriedAuth?: boolean };
+
+    // Misafir modu kapısı bir AĞ sorunu değil — "bağlantı yok" bandını göstermemeli.
+    // Kullanıcı çevrimiçi; biz bilerek istek atmıyoruz.
+    if (error?.code === GUEST_MODE_ERROR_CODE) return Promise.reject(error);
 
     // Only mark offline for likely device connectivity failures. Server/API
     // timeouts should not show a misleading "no internet" banner.

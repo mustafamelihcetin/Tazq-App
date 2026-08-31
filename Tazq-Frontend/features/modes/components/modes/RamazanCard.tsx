@@ -17,6 +17,7 @@ import { renderModeEmojiIcon } from '../../utils/modeIcons';
 import { retirePlanTask , retireModeTasksByTag} from '@/features/modes/utils/planTaskOps';
 import { getCurrentRamadanStatus, formatRamadanDate } from '@/shared/utils/ramadanDates';
 import { RAMAZAN_HABIT_NAMES } from '../../utils/turkishModes';
+import { isTurkeySeasonalEnabled } from '../../utils/localeGate';
 import { scheduleRamadanStartNotification, cancelRamadanStartNotification } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { Separator } from '@/shared/components/Separator';
@@ -49,7 +50,20 @@ export function RamazanCard({ onOpenPreview }: { onOpenPreview: () => void }) {
   // `{ period: null, daysUntilStart: 0 }` döner ve `0 <= 7` doğru olduğu için kart
   // SONSUZA KADAR boş/bozuk halde ekranda kalıyordu. Artık yalnız gerçek bir dönem
   // varken (ya da kullanıcı bilerek açtıysa) görünür.
-  const calendarSuggests = !!ramadanStatus.period && (ramadanStatus.isActive || ramadanStatus.daysUntilStart <= 7);
+  /*
+    TAKVİM ÖNERİSİ YALNIZ TÜRKÇE ARAYÜZDE.
+
+    Ramazan bir TAKVİM tetiklemesiydi ve tetikleme yalnız tarihe bakıyordu. Arayüzü
+    İngilizce olan kullanıcı, hiç beklemediği bir anda "Ramazan yaklaşıyor" önerisi
+    görüyordu. Öneri kullanıcının bağlamına ait olmalı; tarihe ait olması yetmez.
+
+    KULLANICI KENDİ AÇTIYSA (`seasonal.ramazan`) kart HER DİLDE görünür — açık bir
+    tercihi dil yüzünden geri almak, kullanıcının kararını ezmek olurdu.
+  */
+  const calendarSuggests =
+    isTurkeySeasonalEnabled() &&
+    !!ramadanStatus.period &&
+    (ramadanStatus.isActive || ramadanStatus.daysUntilStart <= 7);
   if (!(seasonal.ramazan || calendarSuggests)) return null;
 
   // Bugünkü ilerleme.

@@ -19,3 +19,4 @@ export {
 } from './utils/turkishModes';
 export { TurkishModeBanner } from './components/TurkishModeBanner';
 export { usePlanAdaptations } from './hooks/usePlanAdaptations';
+export { isTurkeySeasonalEnabled } from './utils/localeGate';

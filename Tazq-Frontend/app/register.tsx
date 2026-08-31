@@ -242,8 +242,10 @@ export default function RegisterScreen() {
     }
   };
 
+  // Klavyeyi kapatan sarmalayıcı `accessible={false}`: kendisi ekran okuyucu ağacının
+  // dışında kalır, İÇERİĞİ değil (no-hide-descendants tüm ekranı susturur).
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
       <View style={styles.container}>
         <AnimatedBackground />
 

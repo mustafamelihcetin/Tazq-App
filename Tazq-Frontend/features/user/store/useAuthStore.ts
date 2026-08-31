@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { swallow } from '@/shared/utils/swallow';
+import { useSessionStore } from '@/shared/store/useSessionStore';
 
 const SECURE_TOKEN_KEY = 'tazq-jwt-token';
 const SECURE_REFRESH_KEY = 'tazq-refresh-token';
@@ -133,10 +134,28 @@ interface AuthState {
   token: string | null;
   refreshToken: string | null;
   isLoggedIn: boolean;
+  /**
+   * MİSAFİR MODU — hesapsız, tamamen yerel kullanım.
+   *
+   * ÖLÇÜLEN SORUN: onboarding'in sonunda kullanıcı doğrudan /login'e atılıyordu.
+   * Bir yapılacaklar uygulamasını denemek için önce e-posta, şifre ve 13-yaş onayı
+   * isteniyordu; oysa uygulamanın çekirdeği (görev, alışkanlık, odak) zaten
+   * offline-first ve yerel store'larla çalışıyor — sunucu gerektirmiyordu. Yani
+   * kayıt duvarı teknik bir zorunluluk değil, sadece bir varsayımdı.
+   *
+   * SÖZLEŞME: misafirken hiçbir istek sunucuya GİTMEZ (bkz. api.ts kapısı) ama
+   * yapılan her şey offline kuyruğuna yazılır. Kullanıcı sonradan kayıt olunca
+   * kuyruk mevcut senkron yolundan aynen akar — yani "denerken yaptıkların
+   * kaybolur" durumu YOK.
+   */
   _hasHydrated: boolean;
   lastUserId: number | null; // bu cihazda en son giriş yapan kullanıcı (hesap değişimi tespiti)
   isFirstLogin: boolean;
   setAuth: (user: User, token: string, refreshToken?: string | null, isFirstLogin?: boolean) => void;
+  /** Hesapsız kullanıma geç. Yerel veriye DOKUNMAZ. */
+  startGuest: () => void;
+  /** Misafirlikten çık (kayıt/giriş sonrası). Yerel veriye DOKUNMAZ — taşınacak. */
+  endGuest: () => void;
   setIsFirstLogin: (val: boolean) => void;
   setUser: (user: User) => void;
   logout: () => void;
@@ -161,6 +180,7 @@ export const useAuthStore = create<AuthState>()(
           clearLocalUserData();
         }
         hydrateProfilePrefs(user);
+        useSessionStore.getState().setGuest(false); // gerçek hesap geldi — misafirlik biter
         set({
           user,
           token,
@@ -170,6 +190,15 @@ export const useAuthStore = create<AuthState>()(
           isFirstLogin: isFirstLogin ?? false
         });
       },
+      startGuest: () => useSessionStore.getState().setGuest(true),
+      /*
+        MİSAFİRLİK BİTERKEN YEREL VERİ SİLİNMEZ.
+
+        Kullanıcı denerken oluşturduğu görevleri kaybetmemeli — kayıt olmak bir
+        "sıfırdan başla" eylemi değil, "buraya kadar yaptıklarımı sahiplen" eylemi.
+        Kuyruk `useOfflineSync` ile yeni hesaba akar.
+      */
+      endGuest: () => useSessionStore.getState().setGuest(false),
       setIsFirstLogin: (val) => set({ isFirstLogin: val }),
       setUser: (user) => { hydrateProfilePrefs(user); set({ user }); },
       logout: () => {
@@ -180,6 +209,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (e) { swallow('authStore.logoutRevokeRefreshToken', e, { capture: true }); }
         // isLoggedIn=false; lastUserId KORUNUR ki bir sonraki girişte hesap değişimi
         // tespit edilebilsin (aynı kullanıcı geri girerse veri sıfırlanmasın).
+        useSessionStore.getState().setGuest(false);
         set({ user: null, token: null, refreshToken: null, isLoggedIn: false, isFirstLogin: false });
         clearLocalUserData();
       },

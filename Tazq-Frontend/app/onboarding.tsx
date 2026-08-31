@@ -505,6 +505,34 @@ export default function OnboardingScreen() {
             )}
           </View>
 
+          {/*
+            HESAPSIZ DENEME — son slaytta, kayıt duvarının hemen önünde.
+
+            Tanıtım biter bitmez kullanıcı /login'e atılıyordu: bir yapılacaklar
+            uygulamasını denemek için önce e-posta, şifre ve 13-yaş onayı isteniyordu.
+            Çekirdek zaten yerel çalıştığı için bu bir zorunluluk değildi.
+          */}
+          {currentIndex === SLIDES.length - 1 && (
+            <Touchable
+              onPress={async () => {
+                haptic.commit();
+                try { await AsyncStorage.setItem('tazq-onboarding-done', 'true'); } catch (e) { swallow('onboarding.persistCompletedFlag', e, { capture: true }); }
+                usePrefsStore.getState().setOnboardingCompleted(true);
+                track('onboarding_completed', { skipped: false, lastStep: currentIndex, guest: true });
+                useAuthStore.getState().startGuest();
+                router.replace('/');
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t.guest.tryWithoutAccount}
+              accessibilityHint={t.guest.tryHint}
+              style={{ alignSelf: 'center', paddingVertical: S.sm, paddingHorizontal: S.md }}
+            >
+              <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.primary }}>
+                {t.guest.tryWithoutAccount}
+              </Text>
+            </Touchable>
+          )}
+
           <Touchable 
             onPress={nextSlide} 
             activeOpacity={0.8} 

@@ -47,6 +47,7 @@ if ((TextInput as any).defaultProps == null) {
 // ------------------------------------
 import { Colors } from '@/shared/constants/Colors';
 import { useAuthStore } from '@/features/user';
+import { useSessionStore } from '@/shared/store/useSessionStore';
 import { AuthService, FocusService, api } from '@/shared/services/api';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -65,6 +66,7 @@ import {
   scheduleShutdownNotification,
   cancelHabitAtRisk,
   requestNotificationPermissions,
+  getNotificationPermissionStatus,
   showFocusNotification,
   cancelFocusNotification,
   registerNotificationCategories,
@@ -79,6 +81,7 @@ import { CelebrationOverlay } from '@/features/user/components/CelebrationOverla
 import { OfflineBanner } from '@/shared/components/OfflineBanner';
 import { ConfettiOverlay } from '@/shared/components/ConfettiOverlay';
 import { CustomAlertModal } from '@/shared/components/CustomAlert';
+import { NotificationPrimer } from '@/shared/components/NotificationPrimer';
 import { RocketFeedback } from '@/features/user/components/RocketFeedback';
 import { Asset } from 'expo-asset';
 import { useOfflineSync } from '@/shared/hooks/useOfflineSync';
@@ -154,6 +157,7 @@ export default function RootLayout() {
 
   const { theme, colorScheme, isDark } = useAppTheme();
   const { isLoggedIn, token, setUser, logout, _hasHydrated } = useAuthStore();
+  const isGuest = useSessionStore(s => s.isGuest);
   const currentUser = useAuthStore((s) => s.user);
 
   // Sentry kullanıcı bağlamı: giriş/çıkış ve açılışta oturum geri yüklemesinin hepsi `user`'a
@@ -174,7 +178,7 @@ export default function RootLayout() {
 
   const { sync, language } = useLanguageStore();
   const { tasks } = useTaskStore();
-  const { morningBrief: morningBriefEnabled, eveningBrief: eveningBriefEnabled, productivityHour } = usePrefsStore();
+  const { morningBrief: morningBriefEnabled, eveningBrief: eveningBriefEnabled, productivityHour, notifPrimerSeen, _hasHydrated: prefsHydrated } = usePrefsStore();
   const focusActive = useFocusStore((s) => s.isActive);
 
   // Preload all critical assets
@@ -231,11 +235,49 @@ export default function RootLayout() {
     };
   }, [focusActive]);
 
-  // Register notification categories + schedule daily morning/evening briefs
+  /*
+    BİLDİRİM İZNİ ARTIK BURADA İSTENMİYOR — yalnız MEVCUT izin okunuyor.
+
+    ÖLÇÜLEN SORUN: bu effect girişten hemen sonra `requestNotificationPermissions()`
+    çağırıyordu, yani sistem diyaloğunu açıyordu. Kullanıcı henüz tek görev bile
+    eklememişken "TAZQ size bildirim göndermek istiyor" penceresini görüyordu ve ne
+    göndereceğimiz yazmıyordu. iOS'ta o pencere kullanıcı başına BİR KEZ açılabilir:
+    reddedilirse sabah özeti, akşam özeti, görev ve alışkanlık hatırlatıcıları KALICI
+    olarak kapanıyordu.
+
+    Şimdi: izin zaten varsa her şey eskisi gibi kurulur. İzin yoksa burada hiçbir şey
+    sorulmaz — önce kendi ön-bilgilendirme ekranımız çıkar (NotificationPrimer) ve
+    sistem diyaloğu ancak kullanıcı "aç" derse açılır.
+  */
+  const [notifPermission, setNotifPermission] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
+
   useEffect(() => {
     if (!isLoggedIn) return;
-    requestNotificationPermissions().then((granted) => {
-      if (!granted) return;
+    getNotificationPermissionStatus().then(setNotifPermission);
+  }, [isLoggedIn]);
+
+  /*
+    ÖN-BİLGİLENDİRME NE ZAMAN ÇIKAR: kullanıcının hatırlatılacak bir şeyi olduğunda.
+
+    Girişte sormak, henüz hiçbir görevi olmayan birine "hatırlatayım mı" demektir —
+    cevabı doğal olarak "hayır"dır ve iOS'ta o "hayır" kalıcıdır. En az bir görev
+    varken sorulduğunda soru anlamlı hâle gelir.
+
+    'denied' durumunda GÖSTERİLMEZ: sistem bir daha sormamıza izin vermiyor, bizim
+    ekranımız da kullanıcıyı Ayarlar'a yollamaktan başka bir şey yapamaz — istenmemiş
+    bir engel olur. Kullanıcı isterse Ayarlar → BİLDİRİMLER'den açabilir.
+  */
+  const showNotifPrimer =
+    isLoggedIn &&
+    prefsHydrated &&
+    !notifPrimerSeen &&
+    notifPermission === 'undetermined' &&
+    tasks.length > 0;
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    if (notifPermission !== 'granted') return;
+    {
       registerNotificationCategories();
 
       const allTasks = tasks;
@@ -270,8 +312,8 @@ export default function RootLayout() {
       } else {
         cancelEveningBrief();
       }
-    });
-  }, [isLoggedIn]);
+    }
+  }, [isLoggedIn, notifPermission]);
 
 
   // Notification response handler — covers tap, Watch action buttons, and Lock Screen actions
@@ -399,8 +441,18 @@ export default function RootLayout() {
         else if (isLoggedIn && onboardingDone === 'true' && (inAuthGroup || inOnboarding)) {
           router.replace('/');
         }
-        // If not logged in and not in auth/onboarding, go to login
-        else if (!isLoggedIn && onboardingDone === 'true' && !inAuthGroup && !inOnboarding) {
+        /*
+          MİSAFİR UYGULAMAYI KULLANABİLİR.
+
+          Bu kapı eskiden yalnız `isLoggedIn`e bakıyordu ve onboarding'i bitiren
+          herkesi /login'e atıyordu — yani bir yapılacaklar uygulamasını denemek için
+          önce hesap açmak gerekiyordu. Oysa çekirdek (görev · alışkanlık · odak)
+          zaten offline-first; kayıt duvarı teknik bir zorunluluk değildi.
+
+          Misafir onboarding'e ya da giriş ekranına ZORLA gönderilmez; oraya kendi
+          isteğiyle gider (Ayarlar → Hesap oluştur).
+        */
+        else if (!isLoggedIn && !isGuest && onboardingDone === 'true' && !inAuthGroup && !inOnboarding) {
           router.replace('/login');
         }
         setIsInitialized(true);
@@ -411,7 +463,7 @@ export default function RootLayout() {
 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [_hasHydrated, isLoggedIn, segments]);
+  }, [_hasHydrated, isLoggedIn, isGuest, segments]);
 
   // BR-01: Recover focus session that ended while app was killed or backgrounded
   useEffect(() => {
@@ -586,6 +638,15 @@ export default function RootLayout() {
         <ConfettiOverlay />
         <RocketFeedback />
         <CustomAlertModal />
+        <NotificationPrimer
+          visible={showNotifPrimer}
+          onEnable={async () => {
+            usePrefsStore.getState().setNotifPrimerSeen(true);
+            const granted = await requestNotificationPermissions();
+            setNotifPermission(granted ? 'granted' : 'denied');
+          }}
+          onDismiss={() => usePrefsStore.getState().setNotifPrimerSeen(true)}
+        />
       </View>
       </TourProvider>
     </SafeAreaProvider>

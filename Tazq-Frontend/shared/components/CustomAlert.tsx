@@ -116,7 +116,8 @@ export function CustomAlertModal() {
   return (
     <Modal transparent visible={true} animationType="none" onRequestClose={() => hide()}>
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        <TouchableWithoutFeedback onPress={() => { /* disable tap to close by default */ }}>
+        {/* Boş dokunma yakalayıcı (dışarı dokunarak kapatma KAPALI) — ağacın dışında. */}
+        <TouchableWithoutFeedback accessible={false} onPress={() => { /* disable tap to close by default */ }}>
           <AppBlur material="thin">
             <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.2)' }]} />
           </AppBlur>

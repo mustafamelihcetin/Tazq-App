@@ -8,6 +8,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { swallow } from '@/shared/utils/swallow';
 import { httpStatusOf } from '@/shared/utils/errors';
+import { useSessionStore } from '@/shared/store/useSessionStore';
 
 /*
   AYNI ANDA TEK AKIŞ — modül düzeyinde, çünkü koruma render'dan uzun yaşamalı.
@@ -29,9 +30,21 @@ let syncInFlight = false;
 
 export function useOfflineSync() {
   const isOnline = useNetworkStore(s => s.isOnline);
+  /*
+    MİSAFİRKEN KUYRUK AKMAZ — akacak bir hesap yok.
+
+    Misafir kullanıcının cihazı ÇEVRİMİÇİ, yani `isOnline` true. Kapı olmasaydı
+    kuyruk her açılışta boşuna denenir, her istek misafir kapısından döner ve
+    `dequeue` çağrılmadığı için sonsuza kadar tekrarlanırdı.
+
+    Kuyruk SİLİNMİYOR, bekletiliyor: kullanıcı kayıt olduğunda `isGuest` false olur,
+    bu efekt yeniden koşar ve denerken yaptığı her şey yeni hesabına akar.
+  */
+  const isGuest = useSessionStore(s => s.isGuest);
 
   useEffect(() => {
     if (!isOnline) return;
+    if (isGuest) return;
 
     const processQueue = async () => {
       if (syncInFlight) return;
@@ -131,5 +144,5 @@ export function useOfflineSync() {
     };
 
     processQueue();
-  }, [isOnline]);
+  }, [isOnline, isGuest]);
 }

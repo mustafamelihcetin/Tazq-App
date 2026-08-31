@@ -45,6 +45,7 @@ export default function LoginScreen() {
   const isSmallScreen = height < 750;
   const isMediumScreen = height < 850;
   const setAuth = useAuthStore(state => state.setAuth);
+  const startGuest = useAuthStore(state => state.startGuest);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -298,7 +299,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
       <View style={styles.container}>
         <AnimatedBackground />
         
@@ -559,17 +560,25 @@ export default function LoginScreen() {
                   </Text>
                 </Text>
 
+                {/*
+                  HESAPSIZ DENEME — kayıt duvarının tek çıkışı.
+
+                  Buradaki eski düğme yalnız tanıtım turuna geri götürüyordu; kullanıcı
+                  turu ikinci kez izleyip yine aynı duvara çarpıyordu. Uygulamanın
+                  çekirdeği (görev · alışkanlık · odak) zaten yerel çalıştığı için
+                  "dene" gerçekten DENEMEK olabilir — tur değil, uygulamanın kendisi.
+                */}
                 <TouchableOpacity
-                  onPress={() => router.push('/onboarding')}
+                  onPress={() => { haptic.commit(); startGuest(); router.replace('/'); }}
                   activeOpacity={0.7}
                   style={{ marginTop: isSmallScreen ? 6 : isMediumScreen ? 10 : 14, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: S.sm, paddingVertical: isSmallScreen ? 3 : 6, paddingHorizontal: S.sm }}
                   accessibilityRole="button"
-                  accessibilityLabel={language === 'tr' ? 'Uygulamayı keşfet' : 'Explore the app'}
-                  accessibilityHint={language === 'tr' ? 'Hesap açmadan tanıtım turunu başlatır' : 'Starts the intro tour without an account'}
+                  accessibilityLabel={t.guest.tryWithoutAccount}
+                  accessibilityHint={t.guest.tryHint}
                 >
                   <Sparkles size={ICON.sm} color={theme.primary} strokeWidth={2.2} />
                   <Text style={{ fontSize: 13.5, fontWeight: '700', color: theme.primary, letterSpacing: 0.2 }}>
-                    {language === 'tr' ? 'Uygulamayı keşfet' : 'Explore the app'}
+                    {t.guest.tryWithoutAccount}
                   </Text>
                   <ArrowRight size={ICON.sm} color={theme.primary} strokeWidth={2.4} />
                 </TouchableOpacity>
@@ -583,7 +592,7 @@ export default function LoginScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={{ flex: 1 }}
           >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
             <AppBlur material="regular" tint="dark" />
             <GlassCard style={styles.modalCard}>

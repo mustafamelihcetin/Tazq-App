@@ -398,7 +398,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       onShow={taskSlideIn}
     >
       <View style={styles.overlay}>
-        <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && onClose()} />
+        {/* Sayfanın arka planı — ekran okuyucuda adsız bir kontrol olarak belirmesin. */}
+        <Touchable accessible={false} importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => !saving && onClose()} />
 
         <View style={styles.sheetContainer}>
           <RNAnimated.View

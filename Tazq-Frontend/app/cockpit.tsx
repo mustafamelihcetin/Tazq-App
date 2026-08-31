@@ -15,6 +15,7 @@ import { useTaskStore, useActiveTasks, getLocalizedTaskTitle } from '@/features/
 import { useFocusStore } from '@/features/focus';
 import { useHabitStore, Habit, fmtDateKey } from '@/features/habits';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { describeHabit, rowHint } from '@/shared/utils/a11y';
 import { usePrefsStore, renderModeEmojiIcon } from '@/features/modes';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { BentoCard } from '@/shared/components/BentoCard';
@@ -871,7 +872,12 @@ export default function CockpitScreen() {
                       isSkipped={isSkipped}
                       showPeekHint={showSwipeHint && hIdx === 0}
                     >
+                      {/* Sesli ad: durum + seri (ekranda bunları yalnız renk ve rozet söylüyor). */}
                       <Touchable
+                        accessibilityRole="button"
+                        accessibilityLabel={describeHabit({ doneToday, skipped: isSkipped, streak }, habit.name, language)}
+                        accessibilityState={{ checked: doneToday, expanded: expandedHabitIds.has(habit.id) }}
+                        accessibilityHint={rowHint(language)}
                         onPress={() => toggleHabitExpand(habit.id)}
                         onLongPress={() => handleLongPressHabit(habit.id, habit.name)}
                         activeOpacity={0.9}

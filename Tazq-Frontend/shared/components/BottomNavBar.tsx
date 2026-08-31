@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
+import { useSessionStore } from '@/shared/store/useSessionStore';
 import { TourTarget } from '@/shared/components/TourContext';
 import { haptic } from '@/shared/utils/haptics';
 
@@ -73,6 +74,7 @@ export const BottomNavBar = () => {
   const { language } = useLanguageStore();
   const tr = language === 'tr';
   const uiMode = usePrefsStore(s => s.uiMode);
+  const isGuest = useSessionStore(s => s.isGuest);
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
@@ -94,7 +96,20 @@ export const BottomNavBar = () => {
     { id: 'modlar', path: '/modlar', icon: Layers },
   ];
   // Lite modda sade sekme seti; Pro'da hepsi.
-  const tabs = uiMode === 'lite' ? allTabs.filter(t => LITE_TAB_IDS.includes(t.id)) : allTabs;
+  /*
+    MİSAFİRDE MODLAR SEKMESİ YOK.
+
+    Yaşam modları planı SUNUCUDA kurar (görev üretimi, uyarlama, eşitleme). Hesapsız
+    kullanıcıya bu sekmeyi göstermek, dokununca çalışmayan bir özelliğe götürmek olurdu.
+    Sekmeyi gizlemek, "açıp hüsrana uğratmak"tan dürüsttür — kullanıcı hesap açtığında
+    sekme kendiliğinden geri gelir (bkz. Ayarlar → hesap oluştur satırı).
+
+    Sade mod ile aynı kümeye düşüyor: ikisi de "daha az yüzey" demek.
+  */
+  const visibleIds = isGuest ? LITE_TAB_IDS : null;
+  const tabs = (uiMode === 'lite' || visibleIds)
+    ? allTabs.filter(t => LITE_TAB_IDS.includes(t.id))
+    : allTabs;
 
   const handlePress = (path: string) => {
     if (pathname === path) return;

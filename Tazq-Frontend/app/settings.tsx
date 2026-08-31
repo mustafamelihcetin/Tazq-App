@@ -10,13 +10,14 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate, Footprints } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate, Footprints, UserPlus } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
 import { ActivityHealth } from '@/shared/services/activityHealth';
 import { SupportModal } from '@/shared/components/SupportModal';
 import { useAuthStore, getAvatarSource, AVATAR_CONFIGS, AVATAR_MAP, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
+import { useSessionStore } from '@/shared/store/useSessionStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
@@ -50,6 +51,7 @@ import { haptic } from '@/shared/utils/haptics';
 export default function SettingsScreen() {
   const { theme, colorScheme, setTheme, currentSetting } = useAppTheme();
   const { user, setUser, logout } = useAuthStore();
+  const isGuest = useSessionStore(s => s.isGuest);
   const { t, language, setLanguage } = useLanguageStore();
   const router = useRouter();
   // Bölüme kaydırma: profil gruplu satırları ?section=<domain> ile gelir; ilgili
@@ -637,10 +639,33 @@ export default function SettingsScreen() {
                 Silme  → kırmızı (kalıcı). Küçük tutulur (kaza önleme) ama rengi tehlikeyi
                          söyler; asıl sürtünme onay modalında (yazarak doğrulama).
             */}
-            <Touchable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.surfaceContainerHigh, marginTop: (user as any)?.hasPassword ? S.md : S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
-                <LogOut size={ICON.md} color={theme.onSurfaceVariant} />
-                <Text style={[styles.logoutText, { color: theme.onSurface, fontSize: F.body }]}>{t.logout}</Text>
-            </Touchable>
+            {/*
+              MİSAFİRE ÇIKIŞ DEĞİL, HESAP OLUŞTURMA GÖSTERİLİR.
+
+              Hesapsız kullanıcı için "Çıkış yap" anlamsız (çıkacak hesap yok) ve
+              tehlikeli görünür. Onun yerine ihtiyacı olan şey: verisini kalıcı
+              kılmanın yolu. Metin bunu açıkça söylüyor — "verilerim kalsın" —
+              çünkü kayıt olmanın yerel veriyi sileceği korkusu, kaydolmamanın en
+              yaygın sebebi.
+            */}
+            {isGuest ? (
+              <Touchable
+                // Titreşim YOK: bu saf gezinme, bir işlem sonucu değil (bkz. haptics.test.ts).
+                onPress={() => router.push('/register')}
+                accessibilityRole="button"
+                accessibilityLabel={t.guest.keepMyData}
+                accessibilityHint={t.guest.settingsSub}
+                style={[styles.logoutBtn, { backgroundColor: theme.primary, marginTop: S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}
+              >
+                <UserPlus size={ICON.md} color={theme.onPrimary} />
+                <Text style={[styles.logoutText, { color: theme.onPrimary, fontSize: F.body }]}>{t.guest.keepMyData}</Text>
+              </Touchable>
+            ) : (
+              <Touchable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: theme.surfaceContainerHigh, marginTop: (user as any)?.hasPassword ? S.md : S.xl, paddingVertical: S.md, paddingHorizontal: S.md }]}>
+                  <LogOut size={ICON.md} color={theme.onSurfaceVariant} />
+                  <Text style={[styles.logoutText, { color: theme.onSurface, fontSize: F.body }]}>{t.logout}</Text>
+              </Touchable>
+            )}
 
             {/*
               VERİ TAŞINABİLİRLİĞİ — silmenin HEMEN ÜSTÜNDE, bilinçli.

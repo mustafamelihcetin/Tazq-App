@@ -115,7 +115,10 @@ export const SupportModal: React.FC<SupportModalProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.modalOverlay}
       >
+        {/* Sayfanın arka planı — ekran okuyucuda adsız bir kontrol olarak belirmesin. */}
         <Touchable
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
           style={StyleSheet.absoluteFill}
           onPress={onClose}
           activeOpacity={1}

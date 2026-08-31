@@ -2,6 +2,7 @@ import { CategoryColors } from '@/shared/constants/Colors';
 import { getRamadanRanges, parseLocalDate } from '@/shared/utils/ramadanDates';
 import { dateKeyFromNow } from '@/shared/utils/dateKey';
 import { stripLeadingEmoji } from '@/shared/utils/emoji';
+import { isTurkeySeasonalEnabled } from './localeGate';
 export type ModeType = 'ramazan' | 'yks' | 'kpss' | 'exam' | 'tez' | 'mulakat' | 'spor';
 
 export interface ModeHabit {
@@ -2742,12 +2743,14 @@ export function getModePreview(type: ModeType, opts?: { examName?: string; examD
  * yaşanan hatanın aynısı. Tek kaynak burası.
  */
 export function isSeasonalExamActive(kind: 'yks' | 'kpss'): boolean {
+  if (!isTurkeySeasonalEnabled()) return false;
   const ranges = kind === 'yks' ? YKS : KPSS;
   const lead = kind === 'yks' ? 35 : 45;
   return ranges.some(r => isActive(r.start, r.end, lead) >= 0);
 }
 
 export function detectTurkishMode(): TurkishMode | null {
+  if (!isTurkeySeasonalEnabled()) return null;
   for (const r of RAMAZAN) {
     // Active during Ramazan itself
     const duringDays = isActive(r.start, r.end, 0);

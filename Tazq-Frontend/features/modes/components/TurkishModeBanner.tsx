@@ -1349,7 +1349,8 @@ export const TurkishModeBanner: React.FC<Props> = ({
 
       <Modal visible={sheetVisible} transparent animationType="none" onRequestClose={() => setSheetVisible(false)} onShow={() => slideIn()}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
-          <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setSheetVisible(false)} />
+          {/* Sayfanın arka planı — ekran okuyucuda adsız bir kontrol olarak belirmesin. */}
+          <Touchable accessible={false} importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setSheetVisible(false)} />
           <Animated.View
             style={[
               animatedStyle,

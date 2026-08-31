@@ -5,6 +5,7 @@ import { Touchable } from '@/shared/components/Touchable';
 // Saf metin yardımcısı utils'e taşındı (uyku sınıflandırıcısı da kullanıyor);
 // buradan yeniden dışa veriliyor ki mevcut içe aktarmalar kırılmasın.
 import { compactHabitLabel } from '@/features/habits/utils/habitLabel';
+import { describeHabit } from '@/shared/utils/a11y';
 export { compactHabitLabel };
 import { renderModeEmojiIcon } from '@/features/modes';
 import type { AppTheme } from '@/shared/constants/Colors';
@@ -56,11 +57,22 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
     ? 'rgba(255, 255, 255, 0.45)' // quiet neutral icon when pending
     : 'rgba(0, 0, 0, 0.4)';
 
+  /*
+    Sesli ad TAM addır, görsel etiket ise KIRPILMIŞ (compactHabitLabel) — kırpma bir
+    yer darlığı çözümüdür, isim değil. Baloncuğun içinde metin yok; ekran okuyucu
+    burada yalnız "düğme" duyuyordu.
+  */
+  const a11yLabel = item.title ?? item.name ?? '';
+
   return (
     <Touchable
       onPress={onPress}
       onLongPress={onLongPress}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={describeHabit({ doneToday: isCompleted, skipped: isSkipped, streak: streakVal }, a11yLabel, tr ? 'tr' : 'en')}
+      accessibilityState={{ checked: !!isCompleted }}
+      accessibilityHint={tr ? 'Dokun: işaretle · Basılı tut: seçenekler' : 'Tap to toggle · Long press for options'}
       style={{ alignItems: 'center', width: 62, gap: S.sm }}
     >
       <View style={{

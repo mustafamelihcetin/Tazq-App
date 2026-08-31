@@ -67,6 +67,7 @@ import { Colors } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { haptic } from '@/shared/utils/haptics';
+import { savedLocallyMessage } from '@/shared/utils/saveFeedback';
 import { celebrate } from '@/features/user/utils/celebrate';
 
 
@@ -536,7 +537,7 @@ export default function HomeScreen() {
             const { scheduleTaskNotification } = require('@/shared/utils/notifications');
             await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
-          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          showToast(savedLocallyMessage(), 'success');
         } else {
           const created = await TaskService.createTask(payload as any);
           addTask(created);
@@ -557,7 +558,7 @@ export default function HomeScreen() {
             const { scheduleTaskNotification } = require('@/shared/utils/notifications');
             await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
-          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          showToast(savedLocallyMessage(), 'success');
         } else {
           showToast(t.saveError, 'error');
           throw error;
@@ -1773,8 +1774,8 @@ export default function HomeScreen() {
         <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
           <AppBlur material="regular" />
           
-          <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setCommandPortalVisible(false); }}>
-            <View style={StyleSheet.absoluteFill} />
+          <TouchableWithoutFeedback accessible={false} onPress={() => { Keyboard.dismiss(); setCommandPortalVisible(false); }}>
+            <View style={StyleSheet.absoluteFill} importantForAccessibility="no-hide-descendants" />
           </TouchableWithoutFeedback>
           
           <SafeAreaView style={{ flex: 1, paddingHorizontal: S.lmd }} pointerEvents="box-none">

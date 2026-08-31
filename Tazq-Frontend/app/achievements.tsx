@@ -211,8 +211,10 @@ export default function AchievementsScreen() {
         {detail && (() => {
           const color = ACHIEVEMENT_ICONS[detail.id]?.color || theme.primary;
           const p = !detail.earned ? progressOf(detail.id) : null;
+          // Kapatma katmanı `accessible={false}`: kendisi adsız bir kontrol olarak odak
+          // almasın; içindeki rozet kartı okunmaya devam eder.
           return (
-            <Touchable activeOpacity={1} onPress={() => setDetail(null)} style={{ flex: 1 }}>
+            <Touchable accessible={false} activeOpacity={1} onPress={() => setDetail(null)} style={{ flex: 1 }}>
               <AppBlur material="thick" />
               <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.20)' }]} />
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.xl }}>

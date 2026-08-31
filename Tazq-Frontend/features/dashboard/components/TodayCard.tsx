@@ -102,7 +102,12 @@ export const TodayCard = React.memo<TodayCardProps>(
 
     return (
       <View style={styles.wrap}>
-        <Touchable onPress={onTap} activeOpacity={1}>
+        {/*
+          `accessible={false}`: bu dokunuş bir ÖZELLİK değil, çift dokunma kolay
+          yumurtası. Adsız bir düğme olarak odak almasındansa ağacın dışında kalması
+          doğru — kartın içindeki sayılar ve etiketler tek tek okunmaya devam eder.
+        */}
+        <Touchable accessible={false} onPress={onTap} activeOpacity={1}>
           <BentoCard index={0} style={{ overflow: 'hidden', padding }}>
             {/*
               KART ÜSTÜ RENK YIKAMASI KALDIRILDI — bkz. NextMissionCard'daki uzun not.

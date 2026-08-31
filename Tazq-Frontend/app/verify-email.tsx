@@ -86,8 +86,10 @@ export default function VerifyEmailScreen() {
   const boxW = isSmallScreen ? scale(40) : scale(46);
   const boxH = isSmallScreen ? verticalScale(46) : verticalScale(54);
 
+  // Klavyeyi kapatan sarmalayıcı `accessible={false}`: kendisi ekran okuyucu ağacının
+  // dışında kalır, İÇERİĞİ değil (no-hide-descendants tüm ekranı susturur).
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
       <View style={styles.container}>
         <AnimatedBackground />
 

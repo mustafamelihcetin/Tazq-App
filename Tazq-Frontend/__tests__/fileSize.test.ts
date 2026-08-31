@@ -52,8 +52,13 @@ const NEW_FILE_LIMIT = 800;
 const KNOWN_LARGE: Record<string, number> = {
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
-  'features/modes/utils/turkishModes.ts': 2817,
-  'app/focus.tsx': 2488,
+  // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
+  // kendiliğinden açılmasınlar). Kapının kendisi ayrı dosyada — bu dosya uygulamanın
+  // en büyüğü ve saf veri katmanı; bir store bağımlılığı buraya ait değil.
+  'features/modes/utils/turkishModes.ts': 2820,
+  // 2488 → 2491: ERİŞİLEBİLİRLİK. Sayaç kürenin basılı-tutma alanı adsız bir kontrol
+  // olarak odak alıyordu; o bir topraklanma JESTİ, düğme değil — ağacın dışına alındı.
+  'app/focus.tsx': 2491,
   // 2394 → 2400: çöken bir ekranın düzeltmesi. Bu ekranın listesi Reanimated'ın
   // FlatList'i olduğu için native kaydırma sürücüsü kapatılmak ZORUNDA (yoksa açılışta
   // "VirtualizedList must be wrapped with Animated.createAnimatedComponent" ile çöküyor).
@@ -63,14 +68,22 @@ const KNOWN_LARGE: Record<string, number> = {
   // kaldırıldığını anlatan 4 satırlık not kondu. Not önemli: o ref, alt görev işaretlemesinin
   // kaydedildiği izlenimini verip gerçek hatayı gizliyordu; silinip sessizce unutulursa
   // birileri aynı yarım mekanizmayı yeniden kurabilir.
-  'app/tasks.tsx': 2402,
+  // 2402 → 2410: ERİŞİLEBİLİRLİK. Görev satırı bir düğmeydi ama ADI yoktu; öncelik ve
+  // tamamlanma da yalnız RENKLE söyleniyordu (sol şerit, üstü çizili başlık). Renk ekran
+  // okuyucuya hiçbir şey söylemez — kör bir kullanıcı için tüm satırlar aynıydı.
+  // Metinler shared/utils/a11y.ts'te toplandı; burada kalan yalnız etiket bağlantısı.
+  // 2410 → 2411: "Çevrimdışı kaydedildi" mesajı savedLocallyMessage()'a çıkarıldı —
+  // 9 kopya gitti, 1 import geldi (misafire "çevrimdışısın" demek yanlıştı).
+  'app/tasks.tsx': 2411,
   'app/index.tsx': 2097,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.
   'app/admin.tsx': 1676,
   'features/modes/components/TurkishModeBanner.tsx': 1690,
-  'app/cockpit.tsx': 1523,
+  // 1523 → 1529: ERİŞİLEBİLİRLİK. Alışkanlık satırının adı, durumu ve serisi ekran
+  // okuyucuya hiç ulaşmıyordu (durum renkle, seri rozetle söyleniyordu).
+  'app/cockpit.tsx': 1529,
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.
@@ -86,7 +99,8 @@ const KNOWN_LARGE: Record<string, number> = {
   // 1199 → 1194: akıllı ayrıştırıcı ipucu NlpHintRow'a çıkarıldı. İpucu tek metin
   // olarak kuruluyordu ve temizlenmiş bir cümleyle dört HAM emojiyi (📅⏰🔁🏷️) aynı
   // Text düğümünde yan yana getiriyordu; parçalar artık tür taşıyor, ikonu sunum çiziyor.
-  'features/tasks/components/TaskFormModal.tsx': 1194,
+  // 1194 → 1195: paylaşılan gün-adı tablosunun içe aktarımı (shared/constants/weekdays).
+  'features/tasks/components/TaskFormModal.tsx': 1195,
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
@@ -103,7 +117,9 @@ const KNOWN_LARGE: Record<string, number> = {
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
   // uygulamadaki tek geri alınamaz işlem; durumu ekranın üstünde, onay kelimesi
   // ortasında, modalı en altında dağınık duruyordu. Tek adres = tek doğru davranış.
-  'app/settings.tsx': 784,
+  // 784 → 809: MİSAFİR MODU. Hesapsız kullanıcıya "Çıkış yap" anlamsız (çıkacak hesap
+  // yok) ve tehlikeli görünür; onun yerine verisini kalıcı kılmanın yolu gösteriliyor.
+  'app/settings.tsx': 809,
 };
 
 describe('dosya boyutu', () => {

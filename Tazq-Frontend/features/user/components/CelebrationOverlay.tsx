@@ -214,8 +214,10 @@ export const CelebrationOverlay: React.FC = () => {
   const cy = height * 0.42;
   const shimmerTranslate = shimmerX.interpolate({ inputRange: [-1, 2], outputRange: [-300, 300] });
 
+  // Kapatma katmanı `accessible={false}`: kendisi ağacın dışında kalır, kutlama
+  // metni okunmaya devam eder.
   return (
-    <TouchableWithoutFeedback onPress={dismiss}>
+    <TouchableWithoutFeedback accessible={false} onPress={dismiss}>
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: overlayOpacity, zIndex: 9999 }]}>
         <AppBlur material="thick" />
         <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.48)' : 'rgba(0,0,0,0.22)' }]} />

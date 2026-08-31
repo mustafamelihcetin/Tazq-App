@@ -78,12 +78,31 @@ describe('DeleteAccountModal — silme akışı', () => {
   });
 
   it('üç hata durumu AYRI cümleyle anlatılır (ağ / oturum / sunucu)', () => {
-    const helper = src.slice(src.indexOf('const errorTextFor'), src.indexOf('const errorTextFor') + 1600);
+    const helper = src.slice(src.indexOf('const errorTextFor'), src.indexOf('const errorTextFor') + 900);
     expect(helper).toContain('isNetworkError(e)');
     expect(helper).toMatch(/status === 401/);
-    // Hepsi "hesabın silinmedi"yi açıkça söylemeli — belirsizlik bırakılmaz
-    expect((helper.match(/SİLİNMEDİ/g) ?? []).length).toBeGreaterThanOrEqual(3);
-    expect((helper.match(/NOT deleted/g) ?? []).length).toBeGreaterThanOrEqual(3);
+    // Üç ayrı anahtar — hepsine aynı cümleyi yazmak kullanıcıyı ne yapacağını
+    // bilmeden bırakır (ağ → bağlantı, oturum → tekrar giriş, sunucu → sonra dene).
+    expect(helper).toContain('t.errNetwork');
+    expect(helper).toContain('t.errSession');
+    expect(helper).toContain('t.errServer');
+  });
+
+  it('üç hata metni de hesabın SİLİNMEDİĞİNİ açıkça söyler', () => {
+    // Belirsizlik bırakmak, sessiz başarısızlığın yumuşak hâlidir.
+    const { translations } = require('@/shared/constants/i18n');
+    for (const lang of ['tr', 'en'] as const) {
+      const d = translations[lang].deleteAccountModal;
+      const needle = lang === 'tr' ? 'SİLİNMEDİ' : 'NOT deleted';
+      for (const key of ['errNetwork', 'errSession', 'errServer'] as const) {
+        expect(d[key]).toContain(needle);
+      }
+    }
+  });
+
+  it('metinler i18n sözlüğünde — bileşende satır içi çeviri yok', () => {
+    expect(src).toContain("useLanguageStore(s2 => s2.t).deleteAccountModal");
+    expect(src).not.toMatch(/tr \? '/);
   });
 });
 

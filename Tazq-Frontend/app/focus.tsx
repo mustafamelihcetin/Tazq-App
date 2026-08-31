@@ -1558,7 +1558,10 @@ export default function FocusScreen() {
                   : null),
               }]}
             >
+              {/* Basılı tutma bir TOPRAKLANMA jesti, adı olan bir düğme değil:
+                  ağacın dışında kalır, sayaç ve düğmeler kendi adlarıyla okunur. */}
               <Touchable
+                accessible={false}
                 activeOpacity={1}
                 onPressIn={() => {
                   pressStartRef.current = Date.now();

@@ -48,7 +48,9 @@ import { playSoundEffect } from '@/shared/utils/soundEffects';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
 import { haptic } from '@/shared/utils/haptics';
+import { savedLocallyMessage } from '@/shared/utils/saveFeedback';
 import { matchesTaskFilter, type TaskFilter } from '@/features/tasks/utils/taskFilter';
+import { describeTask, rowHint, bulkSelectHint } from '@/shared/utils/a11y';
 import { toDateKey } from '@/shared/utils/dateKey';
 
 const SWIPE_THRESHOLD = -80;
@@ -181,6 +183,8 @@ const MemoizedTaskItem = React.memo((props: any) => {
 
     const finalLeftColor = modeInfo?.color || priorityColor(task.priority);
 
+    // Sesli ad: başlık + öncelik + durum (ekranda bunları yalnız RENK söylüyor).
+    const taskA11yLabel = describeTask(task, getLocalizedTaskTitle(task, language === 'tr'), language);
     return (
         <Animated.View>
             <SwipeableItem
@@ -191,6 +195,10 @@ const MemoizedTaskItem = React.memo((props: any) => {
                 <View style={{ transform: [{ scale: isBulkMode && !isSelected ? 0.96 : 1 }] }}>
                     <Touchable
                         activeOpacity={0.9}
+                        accessibilityRole="button"
+                        accessibilityLabel={taskA11yLabel}
+                        accessibilityState={{ checked: !!task.isCompleted, selected: isBulkMode && isSelected }}
+                        accessibilityHint={isBulkMode ? bulkSelectHint(language) : rowHint(language)}
                         onPress={() => {
                             if (isBulkMode) {
                                 handleBulkSelect(task.id);
@@ -910,7 +918,7 @@ export default function ActionCenter() {
           if (!isOnline) {
             // Offline: queue the toggle and keep optimistic UI
             enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
-            showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+            showToast(savedLocallyMessage(), 'success');
             setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
           } else {
             try {
@@ -939,7 +947,7 @@ export default function ActionCenter() {
               const isNetwork = isNetworkError(error);
               if (isNetwork) {
                 enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
-                showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+                showToast(savedLocallyMessage(), 'success');
               } else if (httpStatusOf(error) === 404) {
                 useTaskStore.getState().removeTask(id);
                 setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
@@ -965,7 +973,7 @@ export default function ActionCenter() {
 
       if (!isOnline) {
         enqueueOffline({ type: 'toggle-task', id, isCompleted: isCompleting, completedAt: isCompleting ? new Date().toISOString() : null });
-        showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+        showToast(savedLocallyMessage(), 'success');
         setCompletingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
         return;
       }
@@ -980,7 +988,7 @@ export default function ActionCenter() {
         const isNetwork = isNetworkError(error);
         if (isNetwork) {
           enqueueOffline({ type: 'toggle-task', id, isCompleted: isCompleting, completedAt: isCompleting ? new Date().toISOString() : null });
-          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          showToast(savedLocallyMessage(), 'success');
         } else if (httpStatusOf(error) === 404) {
           useTaskStore.getState().removeTask(id);
           showToast(language === 'tr' ? 'Bu görev gün aşımı nedeniyle kaldırıldı.' : 'This task was removed due to date rollover.', 'info');
@@ -1175,7 +1183,7 @@ export default function ActionCenter() {
         if (!isOnline) {
           enqueueOffline({ type: 'update-task', id: editingId, payload });
           updateTask(editingId, { ...payload, id: editingId } as any);
-          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          showToast(savedLocallyMessage(), 'success');
           if (formPayload.reminderEnabled && !payload.isCompleted) {
               scheduleTaskNotification(editingId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           } else {
@@ -1200,7 +1208,7 @@ export default function ActionCenter() {
           const tempId = -Date.now();
           enqueueOffline({ type: 'create-task', tempId, payload });
           addTask({ ...payload, id: tempId, title: formPayload.title.trim() } as any);
-          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          showToast(savedLocallyMessage(), 'success');
           if (formPayload.reminderEnabled) {
             scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
@@ -1245,13 +1253,13 @@ export default function ActionCenter() {
         if (editingId !== null) {
           enqueueOffline({ type: 'update-task', id: editingId, payload: safePayload });
           updateTask(editingId, { ...safePayload, id: editingId } as any);
-          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          showToast(savedLocallyMessage(), 'success');
           syncTaskToCalendar({ id: editingId, ...safePayload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         } else {
           const tempId = -Date.now();
           enqueueOffline({ type: 'create-task', tempId, payload: safePayload });
           addTask({ ...safePayload, id: tempId, title: formPayload.title.trim() } as any);
-          showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+          showToast(savedLocallyMessage(), 'success');
           syncTaskToCalendar({ id: tempId, ...safePayload } as any).catch((e) => swallow('tasks.syncTaskToCalendar', e));
         }
       } else if (httpStatusOf(err) === 429) {
@@ -1642,7 +1650,7 @@ export default function ActionCenter() {
       const completedAt = new Date().toISOString();
       ids.forEach(id => enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt }));
       haptic.success();
-      showToast(language === 'tr' ? 'Çevrimdışı kaydedildi' : 'Saved offline', 'success');
+      showToast(savedLocallyMessage(), 'success');
       return;
     }
 
@@ -1759,6 +1767,8 @@ export default function ActionCenter() {
 
         {showSortMenu && (
             <Touchable
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
               style={[StyleSheet.absoluteFill, { zIndex: 100 }]}
               onPress={() => setShowSortMenu(false)}
               activeOpacity={1}

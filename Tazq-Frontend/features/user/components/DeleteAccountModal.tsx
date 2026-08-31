@@ -9,6 +9,7 @@ import { AuthService } from '@/shared/services/api';
 import { isNetworkError, httpStatusOf, httpDataOf } from '@/shared/utils/errors';
 import { swallow } from '@/shared/utils/swallow';
 import { haptic } from '@/shared/utils/haptics';
+import { useLanguageStore } from '@/shared/store/useLanguageStore';
 
 /**
  * HESAP SİLME — geri alınamaz tek işlem, kendi bileşeninde.
@@ -29,6 +30,8 @@ import { haptic } from '@/shared/utils/haptics';
  * kullanıcı sonucu ANINDA bilmeli.
  */
 
+const UPPER_LOCALE = { tr: 'tr-TR', en: 'en-US' };
+
 export type DeleteAccountModalProps = {
   visible: boolean;
   onClose: () => void;
@@ -46,14 +49,19 @@ export type DeleteAccountModalProps = {
 export function DeleteAccountModal({
   visible, onClose, onDeleted, theme, isDark, language, kbHeight, insetTop, insetBottom,
 }: DeleteAccountModalProps) {
-  const tr = language === 'tr';
+  // Metinler i18n sözlüğünden — bu ekranda satır içi iki dilli dallanma YOK.
+  // Bkz. __tests__/i18nRatchet.test.ts (yeni kod sözlüğü kullanmak zorunda).
+  const t = useLanguageStore(s2 => s2.t).deleteAccountModal;
   const [confirmText, setConfirmText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   // Onay kelimesi — parolasız (Google/Apple) kullanıcılar dahil herkes için çalışır.
-  const DELETE_WORD = tr ? 'SİL' : 'DELETE';
-  const canConfirm = confirmText.trim().toLocaleUpperCase(tr ? 'tr-TR' : 'en-US') === DELETE_WORD;
+  const DELETE_WORD = t.confirmWord;
+  // Büyük harfe çevirme LOCALE'e duyarlı olmak zorunda: Türkçede 'i' → 'İ'dir, JS'in
+  // varsayılanı ise 'I' verir. "sil" yazan kullanıcı aksi hâlde onaylayamazdı.
+  const upperLocale = UPPER_LOCALE[language === 'tr' ? 'tr' : 'en'];
+  const canConfirm = confirmText.trim().toLocaleUpperCase(upperLocale) === DELETE_WORD;
 
   const dismiss = () => {
     if (deleting) return;
@@ -73,21 +81,15 @@ export function DeleteAccountModal({
    */
   const errorTextFor = (e: unknown): string => {
     if (isNetworkError(e)) {
-      return tr
-        ? 'Bağlantı kurulamadı — hesabın SİLİNMEDİ. İnternetini kontrol edip tekrar dene.'
-        : 'Could not reach the server — your account was NOT deleted. Check your connection and try again.';
+      return t.errNetwork;
     }
     const status = httpStatusOf(e);
     if (status === 401 || status === 403) {
-      return tr
-        ? 'Oturumun sona ermiş — hesabın SİLİNMEDİ. Çıkıp tekrar giriş yaptıktan sonra dene.'
-        : 'Your session expired — your account was NOT deleted. Sign out, sign back in, and try again.';
+      return t.errSession;
     }
     const body = httpDataOf<{ traceId?: string; TraceId?: string }>(e);
     const code = body.traceId || body.TraceId;
-    const base = tr
-      ? 'Hesabın SİLİNMEDİ. Sunucuya ulaşıldı ama işlem tamamlanamadı — lütfen tekrar dene.'
-      : 'Your account was NOT deleted. The server was reached but the request failed — please try again.';
+    const base = t.errServer;
     return code ? `${base} (${code})` : base;
   };
 
@@ -114,14 +116,12 @@ export function DeleteAccountModal({
     onDeleted();
   };
 
-  const bullets = tr
-    ? ['Profilin ve tüm ayarların', 'Tüm görev ve alışkanlıkların', 'Odak geçmişin ve istatistiklerin', 'Aktif modların ve planların']
-    : ['Your profile & all settings', 'All tasks & habits', 'Focus history & stats', 'Active modes & plans'];
+  const bullets = [t.lossProfile, t.lossTasks, t.lossFocus, t.lossModes];
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insetTop + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insetBottom) + S.lg }}>
-        <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} accessibilityRole="button" accessibilityLabel={tr ? 'Kapat' : 'Close'} />
+        <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} accessibilityRole="button" accessibilityLabel={t.close} />
         <MotiView
           from={{ opacity: 0, scale: 0.96, translateY: 16 }}
           animate={{ opacity: 1, scale: 1, translateY: 0 }}
@@ -133,16 +133,14 @@ export function DeleteAccountModal({
           </View>
 
           <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, textAlign: 'center', letterSpacing: -0.3 }}>
-            {tr ? 'Hesabını sil' : 'Delete account'}
+            {t.title}
           </Text>
 
           {/* Açıklama + kayıp listesi yalnızca klavye kapalıyken (yazarken kompakt kalır). */}
           {kbHeight === 0 && (
             <>
               <Text style={{ fontSize: F.body, color: theme.onSurfaceVariant, textAlign: 'center', lineHeight: 20 }}>
-                {tr
-                  ? 'Hesabın hemen devre dışı kalır. 30 gün içinde tekrar giriş yaparsan her şey geri gelir. Süre dolunca şunlar kalıcı olarak silinir:'
-                  : 'Your account is deactivated right away. Log back in within 30 days to restore everything. After that, the following is permanently deleted:'}
+                {t.body}
               </Text>
               <View style={{ gap: S.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md }}>
                 {bullets.map((li, i) => (
@@ -156,9 +154,9 @@ export function DeleteAccountModal({
           )}
 
           <Text style={{ fontSize: F.caption, color: theme.onSurfaceVariant, textAlign: 'center', marginTop: S.xxs }}>
-            {tr ? 'Onaylamak için ' : 'Type '}
+            {t.confirmPre}
             <Text style={{ fontWeight: '700', color: theme.error, letterSpacing: 1 }}>{DELETE_WORD}</Text>
-            {tr ? ' yazın' : ' to confirm'}
+            {t.confirmPost}
           </Text>
           <TextInput
             value={confirmText}
@@ -168,7 +166,7 @@ export function DeleteAccountModal({
             placeholder={DELETE_WORD}
             placeholderTextColor={theme.onSurfaceVariant + '66'}
             editable={!deleting}
-            accessibilityLabel={tr ? `Onaylamak için ${DELETE_WORD} yazın` : `Type ${DELETE_WORD} to confirm`}
+            accessibilityLabel={t.confirmA11y}
             style={{ borderWidth: B.medium, borderColor: canConfirm ? theme.error : theme.outline, borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.sm, color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', letterSpacing: 2, textAlign: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
           />
 
@@ -186,7 +184,7 @@ export function DeleteAccountModal({
 
           <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.xs }}>
             <Touchable onPress={dismiss} accessibilityRole="button" style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)', alignItems: 'center' }}>
-              <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{tr ? 'Vazgeç' : 'Cancel'}</Text>
+              <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{t.cancel}</Text>
             </Touchable>
             <Touchable
               disabled={!canConfirm || deleting}
@@ -195,7 +193,7 @@ export function DeleteAccountModal({
               accessibilityState={{ disabled: !canConfirm || deleting, busy: deleting }}
               style={{ flex: 1, paddingVertical: S.md, borderRadius: R.md, backgroundColor: theme.error, alignItems: 'center', justifyContent: 'center', opacity: (canConfirm && !deleting) ? 1 : 0.4 }}
             >
-              {deleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: F.body }}>{tr ? 'Hesabı Sil' : 'Delete'}</Text>}
+              {deleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: F.body }}>{t.submit}</Text>}
             </Touchable>
           </View>
         </MotiView>
