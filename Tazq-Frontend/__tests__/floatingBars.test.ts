@@ -8,7 +8,8 @@ import {
   NAV_BAR_SIDE_INSET,
   NAV_BAR_RADIUS,
   NAV_BAR_MINIMIZED_HEIGHT,
-  NAV_SEARCH_SIZE,
+  NAV_CAPSULE_PAD,
+  NAV_LABEL_MIN_TAB_WIDTH,
   NAV_ICON_SIZE,
   NAV_LABEL_SIZE,
   topBarSpace,
@@ -144,18 +145,46 @@ describe('sekme cubugu geometrisi', () => {
     expect(src).toMatch(/borderTopWidth: IS_IOS \? 0 : HAIRLINE/);
   });
 
-  it('ARAMA ADASI kapsulun DISINDA — sekme genisligini yemiyor', () => {
+  it('ARAMA CUBUKTA DEGIL — Gorevler ekraninda zaten var', () => {
     /*
-      Yuzen "pill" bir kez denenip geri alinmisti: 5 sekmeye dusen ~72pt'ye etiket
-      sigmiyordu. Apple'in cozumu aramayi satirdan cikarip kendi dairesel adasina
-      koymak. Arama kapsulun icine geri tasinirsa o eski hata geri gelir.
+      Bir tur arama icin kapsulun saginda ayri bir dairesel ada denendi (iOS 26/27
+      deseni). Geri alindi: arama zaten Gorevler ekraninin icinde ve ikinci bir
+      giris altinci bir hedef ekleyip cubugu daraltiyordu. Desene uymak, ihtiyac
+      olmayan bir seyi eklemek icin gerekce degil.
     */
     const src = read('shared/components/BottomNavBar.tsx');
-    expect(src).toContain('searchIsland');
-    expect(NAV_SEARCH_SIZE).toBe(NAV_BAR_HEIGHT); // ada cubukla ayni yukseklikte
-    // Arama `allTabs` dizisine EKLENMEMELI — orasi kapsulun icerigi.
+    expect(src).not.toContain('searchIsland');
     const tabsBlock = src.slice(src.indexOf('const allTabs'), src.indexOf('];', src.indexOf('const allTabs')));
     expect(tabsBlock).not.toContain('search');
+  });
+
+  it('ETIKET SIGMIYORSA GIZLENIR — kirilim noktasi degil, OLCU', () => {
+    /*
+      Sekme sayisi (3 veya 5), ekran genisligi ve yazi olcegi birlikte degisiyor.
+      Sabit bir cihaz listesi ucunu de karsilamaz ve ilk yeni cihazda eskir.
+    */
+    const src = read('shared/components/BottomNavBar.tsx');
+    expect(src).toContain('NAV_LABEL_MIN_TAB_WIDTH');
+    expect(src).toContain('useWindowDimensions');
+    // Yazi olcegi esige CARPILMALI: punto buyuyunce etiket kirpilmasin.
+    expect(src).toMatch(/NAV_LABEL_MIN_TAB_WIDTH \* Math\.max\(fontScale, 1\)/);
+    // Sekme SAYISINA bolunmeli — Sade modda 3, Pro'da 5.
+    expect(src).toMatch(/usableWidth \/ Math\.max\(tabs\.length, 1\)/);
+  });
+
+  it('esik en uzun kisa ada gore — 5 sekme dar telefonda sigar', () => {
+    // En uzun kisa ad "Ana Sayfa" (9 karakter, 10pt semibold ~48pt) + nefes payi.
+    expect(NAV_LABEL_MIN_TAB_WIDTH).toBe(54);
+    // 375pt telefon, 5 sekme: (375 - 2*16 - 2*6) / 5 = 66.2 -> sigar.
+    const perTab = (375 - 2 * 16 - 2 * NAV_CAPSULE_PAD) / 5;
+    expect(perTab).toBeGreaterThan(NAV_LABEL_MIN_TAB_WIDTH);
+    // Ayni telefon, yazi olcegi 1.15 (uygulamanin ust siniri) -> hala sigar.
+    expect(perTab).toBeGreaterThan(NAV_LABEL_MIN_TAB_WIDTH * 1.15);
+  });
+
+  it('kapsulun IC PAYI var — icerik yuvarlak uca dayanmaz', () => {
+    expect(NAV_CAPSULE_PAD).toBeGreaterThan(0);
+    expect(read('shared/components/BottomNavBar.tsx')).toContain('paddingHorizontal: NAV_CAPSULE_PAD');
   });
 });
 

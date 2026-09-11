@@ -55,7 +55,12 @@ export const StatusHub = ({ onPress }: { onPress: () => void }) => {
         animate={{ scale: 1, opacity: 1 }}
         style={[styles.container, { borderColor: theme.outline }]}
       >
-        <AppBlur material="thin" />
+        {/*
+          Yarıçap MALZEMEYE veriliyor, yalnız kaba değil. Yuvarlak kabın
+          `overflow: 'hidden'`i bulanık/cam katmanı güvenilir biçimde kırpmıyordu;
+          katman kare çiziliyor ve köşeleri dairenin içinde görünüyordu.
+        */}
+        <AppBlur material="thin" radius={HUB / 2} />
 
         <MotiView
           animate={{

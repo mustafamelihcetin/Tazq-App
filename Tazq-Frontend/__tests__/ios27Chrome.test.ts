@@ -126,29 +126,75 @@ describe('kaydırmada küçülme', () => {
   });
 });
 
-describe('arama adası', () => {
-  it('kapsülün DIŞINDA, ayrı bir ada', () => {
-    expect(NAV).toContain('searchIsland');
-    // Sekme dizisine eklenmemeli — orası kapsülün içeriği.
-    const tabs = NAV.slice(NAV.indexOf('const allTabs'), NAV.indexOf('];', NAV.indexOf('const allTabs')));
-    expect(tabs).not.toContain('search');
+describe('sekme çubuğu yerleşimi', () => {
+  it('ARAMA ÇUBUKTA YOK — Görevler ekranında zaten var', () => {
+    /*
+      Bir tur, kapsülün sağında ayrı bir dairesel arama adası denendi (iOS 26/27
+      deseni). Geri alındı: arama zaten Görevler ekranının içinde ve ikinci bir
+      giriş altıncı bir hedef ekleyip çubuğu daraltıyordu. Desene uymak, ihtiyaç
+      olmayan bir şeyi eklemek için gerekçe değil.
+    */
+    expect(NAV).not.toContain('searchIsland');
+    expect(NAV).not.toContain('focusSearch');
+    // Görevler ekranı da artık böyle bir parametre beklemiyor.
+    expect(read('app/tasks.tsx')).not.toContain('focusSearch');
   });
 
-  it('ANDROID\'DE YOK — Material\'da ayrık ada deseni yok', () => {
-    expect(NAV).toMatch(/\{IS_IOS && \(\s*<MotiView[\s\S]{0,400}searchIsland/);
+  it('etiket SIĞMIYORSA gizlenir, kırpılmaz', () => {
+    // "Ana Say…" hem daha az bilgi taşır hem daha kalabalık durur.
+    expect(NAV).toContain('showLabels');
+    expect(NAV).toContain('labelFits');
+    expect(NAV).toContain('numberOfLines={1}');
   });
 
-  it('aramaya dokunmak arama alanını AÇAR — sadece ekrana götürmez', () => {
-    expect(NAV).toContain("focusSearch: '1'");
-    const tasks = read('app/tasks.tsx');
-    expect(tasks).toContain("if (focusSearch === '1') setShowSearch(true);");
+  it('ölçü CANLI — döndürme, katlanır ekran ve Dynamic Type', () => {
+    expect(NAV).toContain('useWindowDimensions');
+    expect(NAV).toMatch(/NAV_LABEL_MIN_TAB_WIDTH \* Math\.max\(fontScale, 1\)/);
+    // Geniş ekranda içerik sütunuyla aynı sınır — sekmeler sonsuza yayılmaz.
+    expect(NAV).toContain('Math.min(winW, MAX_W)');
   });
 
-  it('metni sözlükten — satır içi çeviri yok', () => {
-    expect(NAV).toContain('t.nav.searchTasks');
-    const { translations } = require('@/shared/constants/i18n');
-    expect(translations.tr.nav.searchTasks).toBeTruthy();
-    expect(translations.en.nav.searchTasks).toBeTruthy();
+  it('sekme SAYISI hesaba katılıyor — Sade modda 3, Pro tarafında 5', () => {
+    expect(NAV).toMatch(/usableWidth \/ Math\.max\(tabs\.length, 1\)/);
+  });
+
+  it('etiket gizlense de İKON yerinde — dokunma hedefi kaymaz', () => {
+    // İkon koşulsuz çiziliyor; yalnız `<Text>` koşullu.
+    const inner = NAV.slice(NAV.indexOf('<View style={styles.tabInner}>'), NAV.indexOf('</View>', NAV.indexOf('<View style={styles.tabInner}>')) + 800);
+    expect(inner).toContain('size={NAV_ICON_SIZE}');
+    expect(inner).toMatch(/\{showLabels && \(/);
+  });
+
+  it('kapsülün iç payı var — içerik yuvarlak uca dayanmaz', () => {
+    expect(NAV).toContain('paddingHorizontal: NAV_CAPSULE_PAD');
+  });
+});
+
+describe('etiket tabloları DOĞRU yerde', () => {
+  /**
+   * İki tablonun değerleri bir noktada birbirine karışmıştı: BARDA "Derin Odak" ve
+   * "Yaşam Modları" (uzun) yazıyor, EKRAN OKUYUCUYA "Odak" ve "Modlar" (kısa)
+   * okunuyordu — her iki yorumun da söylediğinin tersi. Görsel tarafta bu doğrudan
+   * sıkışıklık üretiyordu ("Yaşam Modları" 13 karakter), sesli tarafta ise kullanıcı
+   * özelliği aradığı adla duymuyordu.
+   */
+  it('BARDA kısa ad yazar', () => {
+    const short = NAV.slice(NAV.indexOf('const TAB_SHORT'), NAV.indexOf('const TAB_LABELS'));
+    expect(short).toContain("focus: { tr: 'Odak'");
+    expect(short).toContain("modlar: { tr: 'Modlar'");
+    expect(short).not.toContain('Derin Odak');
+    expect(short).not.toContain('Yaşam Modları');
+  });
+
+  it('EKRAN OKUYUCUYA tam ad okunur', () => {
+    const labels = NAV.slice(NAV.indexOf('const TAB_LABELS'));
+    expect(labels).toContain("focus: { tr: 'Derin Odak'");
+    expect(labels).toContain("modlar: { tr: 'Yaşam Modları'");
+  });
+
+  it('görünen metin kısa tablodan, sesli ad tam tablodan geliyor', () => {
+    expect(NAV).toContain('TAB_SHORT[tab.id].tr');
+    expect(NAV).toContain('accessibilityLabel={tr ? TAB_LABELS[tab.id].tr : TAB_LABELS[tab.id].en}');
   });
 });
 
@@ -188,21 +234,23 @@ describe('Android bu turda DEĞİŞMEDİ', () => {
 
   it('Android çubuğu opak kalır — cam yalnız iOS\'ta', () => {
     expect(NAV).toMatch(/backgroundColor: IS_IOS \? 'transparent' : theme\.surfaceFloating/);
-    expect(NAV).toMatch(/\{IS_IOS && <AppBlur material="chrome" \/>\}/);
+    expect(NAV).toMatch(/\{IS_IOS && <AppBlur material="chrome"/);
   });
 
   it('ayraç çizgisi YALNIZ yapışık çubukta — yüzen kapsülde anlamsız', () => {
     expect(NAV).toMatch(/borderTopWidth: IS_IOS \? 0 : HAIRLINE/);
   });
 
-  it('Android arama adasını ÇİZMEZ — altıncı bir hedef eklenmiyor', () => {
+  it('cam/blur katmanı KENDİ yarıçapını bilir — köşeleri kabın dışına taşmaz', () => {
     /*
-      Ada ÇİZİMİ iOS kapısının arkasında. Stil tanımı her iki platformda da dosyada
-      durur — çizilmediği sürece zararsız; bu yüzden metne değil KAPIYA bakılıyor.
-      Android'de arama bugünkü yerinde, Görevler ekranının içinde kalıyor.
+      ÖLÇÜLEN SORUN: yuvarlak bir kabın (`borderRadius` + `overflow:'hidden'`) içine
+      konan bulanık/cam katman kabın şeklini almıyordu; kare çiziliyor ve köşeleri
+      dairenin içinde görünüyordu. Ana sayfadaki durum düğmesinde birebir bu oldu.
+      Ebeveynin kırpması bu katmanlarda güvenilir değil — malzeme kendi şeklini
+      bilmek zorunda.
     */
-    const jsx = NAV.indexOf('style={[styles.searchIsland');
-    expect(jsx).toBeGreaterThan(-1);
-    expect(NAV.slice(Math.max(0, jsx - 300), jsx)).toContain('{IS_IOS && (');
+    expect(NAV).toContain('radius={NAV_BAR_RADIUS}');
+    expect(read('features/dashboard/components/StatusHub.tsx')).toContain('radius={HUB / 2}');
+    expect(BLUR).toContain('radius != null && { borderRadius: radius }');
   });
 });

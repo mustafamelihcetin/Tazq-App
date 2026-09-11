@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Platform, Keyboard } from 'react-native';
-import { LayoutGrid, CheckSquare, Sparkles, Layers, CalendarDays, Search } from 'lucide-react-native';
+import { View, Text, StyleSheet, Platform, Keyboard, useWindowDimensions } from 'react-native';
+import { LayoutGrid, CheckSquare, Sparkles, Layers, CalendarDays } from 'lucide-react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { MotiView } from 'moti';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import {
   S, HAIRLINE, MAX_W, NAV_BAR_HEIGHT, NAV_BAR_MIN_INSET, NAV_ICON_SIZE, NAV_LABEL_SIZE,
-  NAV_BAR_LIFT, NAV_BAR_SIDE_INSET, NAV_BAR_RADIUS, NAV_SEARCH_SIZE, NAV_ISLAND_GAP,
-  NAV_BAR_MINIMIZED_HEIGHT,
+  NAV_BAR_LIFT, NAV_BAR_SIDE_INSET, NAV_BAR_RADIUS,
+  NAV_BAR_MINIMIZED_HEIGHT, NAV_CAPSULE_PAD, NAV_LABEL_MIN_TAB_WIDTH,
 } from '@/shared/constants/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
@@ -52,29 +52,42 @@ import { TourTarget } from '@/shared/components/TourContext';
 const LITE_TAB_IDS = ['home', 'tasks', 'focus'];
 
 /**
- * BARDA yazan kısa ad. Sekme çubuğunda tek kelime konvansiyondur; tam genişlikte
- * bile "Haftalık Merkez" iki satıra düşer.
+ * BARDA yazan KISA ad — sekme çubuğunda tek kelime konvansiyondur.
+ *
+ * ── İKİ TABLONUN DEĞERLERİ TERSTİ ─────────────────────────────────────────────
+ * Bu tablo ile aşağıdaki `TAB_LABELS` bir noktada birbirine karışmış: BARDA yazan
+ * ad "Derin Odak" ve "Yaşam Modları" (uzun), ekran okuyucuya okunan ad ise "Odak"
+ * ve "Modlar" (kısa) idi — her iki yorumun da söylediğinin tam TERSİ.
+ *
+ * İkisi birden zarar veriyordu:
+ *   · GÖRSEL: "Yaşam Modları" 13 karakter. 10pt'de ~68pt tutuyor ve bir sekmeye
+ *     düşen alandan geniş — etiket kırpılıyor, çubuk sıkışık okunuyordu. Sıkışıklık
+ *     bir yerleşim sorunu değil, yanlış tablodan gelen metindi.
+ *   · SESLİ: ekran okuyucu kullanan kişi kısaltmayı duyuyordu. Oysa kısaltma bir
+ *     yer darlığı çözümüdür; sesin yer sorunu yoktur ve kullanıcı özelliği
+ *     onboarding'de duyduğu ADLA arar.
  */
 const TAB_SHORT: Record<string, { tr: string; en: string }> = {
   home: { tr: 'Ana Sayfa', en: 'Home' },
   tasks: { tr: 'Görevler', en: 'Tasks' },
-  // "Odak" tek basina ne yaptigini soylemiyordu; uygulamanin kendi dilinde adi
-  // "Derin Odak" (bkz. focus ekrani). Gorsel etiket "Odak" kaliyor.
-  focus: { tr: 'Derin Odak', en: 'Deep Focus' },
+  focus: { tr: 'Odak', en: 'Focus' },
   cockpit: { tr: 'Haftalık', en: 'Weekly' },
-  // TAM ad — ekran okuyucuya bu okunur. Gorsel etiket kisa kaliyor ("Modlar"),
-  // cunku sekme etiketleri kisaltmadir. Ama sesli okunan ad, kullanicinin onboarding'de
-  // duydugu adla AYNI olmali; yoksa ozelligi arayan kisi bulamaz.
-  modlar: { tr: 'Yaşam Modları', en: 'Life Modes' },
+  modlar: { tr: 'Modlar', en: 'Modes' },
 };
 
-// Ekran okuyucu (VoiceOver/TalkBack) için TAM sekme adı — kısaltma yalnız görsel.
+/**
+ * Ekran okuyucuya (VoiceOver/TalkBack) okunan TAM ad — kısaltma yalnız görsel.
+ *
+ * Sesli okunan ad, kullanıcının uygulamanın başka yerlerinde duyduğu adla AYNI
+ * olmalı: "Derin Odak" odak ekranının kendi adı, "Yaşam Modları" da tanıtımda
+ * geçen ad. Özelliği arayan kişi onu bu adla arar.
+ */
 const TAB_LABELS: Record<string, { tr: string; en: string }> = {
   home: { tr: 'Ana Sayfa', en: 'Home' },
   tasks: { tr: 'Görevler', en: 'Tasks' },
-  focus: { tr: 'Odak', en: 'Focus' },
+  focus: { tr: 'Derin Odak', en: 'Deep Focus' },
   cockpit: { tr: 'Haftalık Merkez', en: 'Weekly Hub' },
-  modlar: { tr: 'Modlar', en: 'Modes' },
+  modlar: { tr: 'Yaşam Modları', en: 'Life Modes' },
 };
 
 const IS_IOS = Platform.OS === 'ios';
@@ -133,9 +146,29 @@ export const BottomNavBar = () => {
   }
 
   const barHeight = minimized ? NAV_BAR_MINIMIZED_HEIGHT : NAV_BAR_HEIGHT;
-  const searchActive = pathname === '/tasks';
 
-  /** Kapsül ve arama adasının ortak kabuk stili. */
+  /*
+    ── ETİKET SIĞIYOR MU? ───────────────────────────────────────────────────────
+
+    Kırılım noktası (ör. "SE'de gizle") YAZMIYORUZ. Üç şey birden değişiyor:
+    sekme SAYISI (Sade mod ve misafirde 3, Pro'da 5), ekran GENİŞLİĞİ ve yazı
+    ÖLÇEĞİ (Dynamic Type). Sabit bir cihaz listesi üçünü de karşılamaz ve ilk yeni
+    cihazda eskir. Gerçek soru soruluyor: bu sekmeye etiket sığıyor mu?
+
+    `fontScale` çarpanı önemli: yazı büyüdükçe eşik de büyür. Yoksa erişilebilirlik
+    için puntoyu büyüten kullanıcı kırpılmış etiketler görürdü — yani ayar ona
+    zarar verirdi.
+
+    Sığmıyorsa KIRPILMAZ, gizlenir: "Ana Say…" hem daha az bilgi taşır hem daha
+    kalabalık durur. Apple da dar alanda etiketi düşürür.
+  */
+  const { width: winW, fontScale } = useWindowDimensions();
+  const usableWidth = Math.min(winW, MAX_W) - NAV_BAR_SIDE_INSET * 2 - NAV_CAPSULE_PAD * 2;
+  const perTabWidth = usableWidth / Math.max(tabs.length, 1);
+  const labelFits = perTabWidth >= NAV_LABEL_MIN_TAB_WIDTH * Math.max(fontScale, 1);
+  const showLabels = !minimized && labelFits;
+
+  /** Kapsülün kabuk stili. */
   const shellStyle = {
     backgroundColor: IS_IOS ? 'transparent' : theme.surfaceFloating,
     borderRadius: NAV_BAR_RADIUS,
@@ -168,7 +201,9 @@ export const BottomNavBar = () => {
             transition={{ type: 'timing', duration: 220 }}
             style={[styles.capsule, shellStyle]}
           >
-            {IS_IOS && <AppBlur material="chrome" />}
+            {/* Yarıçap MALZEMEYE de veriliyor: yuvarlak kabın `overflow:hidden`i
+                cam/blur katmanını güvenilir kırpmıyor (bkz. AppBlur radius notu). */}
+            {IS_IOS && <AppBlur material="chrome" radius={NAV_BAR_RADIUS} />}
             <View style={styles.tabsContainer} accessibilityRole="tablist">
               {tabs.map((tab) => {
                 const isActive = pathname === tab.path || (tab.path === '/' && pathname === '/index');
@@ -191,9 +226,10 @@ export const BottomNavBar = () => {
                       color={isActive ? theme.primary : theme.onSurfaceVariant}
                       strokeWidth={isActive ? 2.1 : 1.8}
                     />
-                    {/* Küçülmüş hâlde etiket YOK — Apple'ın ikon-only pill'i.
-                        Etiket kaldırılıyor, ikon yerinde kalıyor: hedef kaymaz. */}
-                    {!minimized && (
+                    {/* Etiket iki durumda gizlenir: çubuk küçüldüğünde (Apple'ın
+                        ikon-only pill'i) ve sığmadığında. İkisinde de İKON yerinde
+                        kalır — dokunma hedefi kaymaz. */}
+                    {showLabels && (
                       <Text
                         numberOfLines={1}
                         // Sekme adı ekran okuyucuya accessibilityLabel ile TAM hâliyle
@@ -231,40 +267,6 @@ export const BottomNavBar = () => {
             </View>
           </MotiView>
 
-          {/* ── ARAMA ADASI ──────────────────────────────────────────────────
-              Apple'ın deseni: arama diğer sekmelerden GÖRSEL OLARAK ayrılır ve
-              kendi dairesel cam adasında durur. Bu yalnız estetik değil — aramayı
-              sekme satırından çıkararak kalan 5 sekmeye genişlik bırakıyor; eski
-              "yüzen pill"in çöktüğü nokta tam olarak burasıydı.
-
-              ANDROID'DE YOK: Material'ın gezinme çubuğunda ayrık ada diye bir şey
-              yok ve altıncı bir hedef eklemek çubuğu kalabalıklaştırırdı. Android'de
-              arama bugünkü yerinde — Görevler ekranının içinde — kalıyor. */}
-          {IS_IOS && (
-            <MotiView
-              animate={{ height: barHeight, width: barHeight }}
-              transition={{ type: 'timing', duration: 220 }}
-              style={[styles.searchIsland, shellStyle, { borderRadius: NAV_BAR_RADIUS }]}
-            >
-              <AppBlur material="chrome" />
-              <Touchable
-                // Titreşim YOK: bu saf gezinme, bir işlem sonucu değil.
-                onPress={() => router.replace({ pathname: '/tasks', params: { focusSearch: '1' } } as any)}
-                activeOpacity={0.7}
-                style={styles.searchTouch}
-                accessibilityRole="button"
-                accessibilityLabel={t.nav.searchTasks}
-                accessibilityState={{ selected: searchActive }}
-              >
-                <Search
-                  size={NAV_ICON_SIZE}
-                  color={searchActive ? theme.primary : theme.onSurfaceVariant}
-                  strokeWidth={searchActive ? 2.1 : 1.8}
-                />
-              </Touchable>
-            </MotiView>
-          )}
-
         </View>
       </View>
     </View>
@@ -287,23 +289,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: NAV_ISLAND_GAP,
   },
   capsule: {
     flex: 1,
     justifyContent: 'center',
-  },
-  searchIsland: {
-    width: NAV_SEARCH_SIZE,
-    height: NAV_SEARCH_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchTouch: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
+    // Yuvarlak uçlu kapta içerik kenara dayanmaz; ilk ve son sekme eğrinin
+    // dibinde durmasın diye küçük bir iç pay.
+    paddingHorizontal: NAV_CAPSULE_PAD,
   },
   tabsContainer: {
     flex: 1,

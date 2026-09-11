@@ -297,14 +297,32 @@ export const NAV_BAR_SIDE_INSET = Platform.OS === 'ios' ? 16 : 0;
 export const NAV_BAR_RADIUS = Platform.OS === 'ios' ? 999 : 0;
 
 /**
- * ARAMA ADASI — kapsülün sağında ayrı, dairesel.
+ * KAPSÜLÜN İÇ YAN BOŞLUĞU.
  *
- * Apple'ın deseni: arama diğer sekmelerden GÖRSEL OLARAK ayrılır ve kendi dairesel
- * cam adasında durur. Bu yalnız estetik değil — aramayı sekme satırından çıkararak
- * kalan sekmelere genişlik bırakıyor.
+ * Yuvarlak uçlu bir kapta içerik kenara dayanırsa kabuk dar okunur — ilk ve son
+ * sekmenin ikonu eğrinin dibinde durur. Küçük bir iç pay, kapsülün "kabuk" olduğunu
+ * söylüyor; Apple'ın kendi kapsülünde de bu pay var.
  */
-export const NAV_SEARCH_SIZE = 49;
-export const NAV_ISLAND_GAP = 8;
+export const NAV_CAPSULE_PAD = 6;
+
+/**
+ * ETİKETİN GÖRÜNMESİ İÇİN GEREKEN EN AZ SEKME GENİŞLİĞİ.
+ *
+ * ── NEDEN ÖLÇÜ, NEDEN KIRILIM NOKTASI DEĞİL ───────────────────────────────────
+ * Sekme sayısı değişiyor (Sade mod ve misafirde 3, Pro'da 5), ekran genişliği
+ * değişiyor (SE'den foldable'a), yazı ölçeği değişiyor (Dynamic Type). Sabit bir
+ * "şu telefonda gizle" listesi bunların hiçbirini karşılamaz ve ilk yeni cihazda
+ * eskir. Onun yerine gerçek soru soruluyor: BU sekmeye etiket sığıyor mu?
+ *
+ * 54 nereden geliyor: en uzun kısa ad "Ana Sayfa" (9 karakter). 10pt semibold'da
+ * ~48pt tutuyor; iki yana 3'er punto nefes payıyla 54. Yazı ölçeğiyle ÇARPILIYOR —
+ * Dynamic Type büyüdükçe eşik de büyür, yoksa etiket kırpılır.
+ *
+ * SIĞMIYORSA KIRPILMAZ, GİZLENİR. "Ana Say…" yazan bir sekme, ikon-only bir
+ * sekmeden daha az bilgi taşır ve daha kalabalık görünür. Apple da dar alanda
+ * etiketi düşürür.
+ */
+export const NAV_LABEL_MIN_TAB_WIDTH = 54;
 
 /**
  * KÜÇÜLMÜŞ ÇUBUK — yalnız ikon, etiket yok.

@@ -62,6 +62,19 @@ export interface AppBlurProps {
    * temada koyu kalır — kaçış kapısı olduğu için bilinçli seçilmeli.
    */
   tint?: BlurTint;
+  /**
+   * KÖŞE YARIÇAPI — yuvarlak kaplarda ŞART.
+   *
+   * ÖLÇÜLEN SORUN: yuvarlak bir kabın (`borderRadius` + `overflow: 'hidden'`) içine
+   * konan bulanık/cam katman kabın şeklini ALMIYOR; kare olarak çiziliyor ve
+   * köşeleri dairenin içinde görünüyor. Ebeveynin kırpması bu katmanlarda güvenilir
+   * değil — malzeme kendi şeklini bilmek zorunda.
+   *
+   * Cam malzemede (iOS 26+) bu daha da belirgin: `UIVisualEffectView` tabanlı
+   * yüzeyler ışık ve kırılmayı KENDİ sınırlarına göre hesaplar; sınır yanlışsa
+   * efektin kendisi yanlış yerde olur.
+   */
+  radius?: number;
   /** Varsayılan: kapsayıcıyı tamamen doldurur. */
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
@@ -108,7 +121,7 @@ const GLASS_STYLE: Record<BlurMaterial, 'clear' | 'regular'> = {
   chrome: 'regular',
 };
 
-export const AppBlur = ({ material = 'regular', tint, style, children }: AppBlurProps) => {
+export const AppBlur = ({ material = 'regular', tint, radius, style, children }: AppBlurProps) => {
   const { colorScheme, theme } = useAppTheme();
   const reduceTransparency = useReduceTransparency();
   const level = INTENSITY[material][colorScheme === 'dark' ? 'dark' : 'light'];
@@ -123,7 +136,7 @@ export const AppBlur = ({ material = 'regular', tint, style, children }: AppBlur
   */
   if (reduceTransparency) {
     return (
-      <View style={[style ?? StyleSheet.absoluteFill, { backgroundColor: theme.surfaceFloating }]}>
+      <View style={[style ?? StyleSheet.absoluteFill, { backgroundColor: theme.surfaceFloating }, radius != null && { borderRadius: radius }]}>
         {children}
       </View>
     );
@@ -149,7 +162,7 @@ export const AppBlur = ({ material = 'regular', tint, style, children }: AppBlur
           olarak koyudur) o kazanır — aynı kaçış kapısı blur yolunda da var.
         */
         colorScheme={tint ?? colorScheme}
-        style={style ?? StyleSheet.absoluteFill}
+        style={[style ?? StyleSheet.absoluteFill, radius != null && { borderRadius: radius }]}
       >
         {children}
       </GlassView>
@@ -168,7 +181,7 @@ export const AppBlur = ({ material = 'regular', tint, style, children }: AppBlur
         çubukların zemini zaten opak `surfaceFloating` (bkz. Colors.ts).
       */
       blurMethod={material === 'chrome' ? 'none' : 'dimezisBlurViewSdk31Plus'}
-      style={style ?? StyleSheet.absoluteFill}
+      style={[style ?? StyleSheet.absoluteFill, radius != null && { borderRadius: radius }]}
     >
       {children}
     </BlurView>
