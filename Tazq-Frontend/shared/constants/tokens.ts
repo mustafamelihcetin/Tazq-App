@@ -264,9 +264,58 @@ export const separatorInset = (leadingWidth: number, gap: number = S.smd) => lea
  * Ekstra "nefes payı" eklenmez; Apple da eklemez. Etiket 10pt/semibold (bkz. F.tabLabel),
  * ikon ~24-25pt, aktif sekmenin tek işareti tint rengidir.
  */
-export const NAV_BAR_HEIGHT = 49;     // UIKit UITabBar standart yüksekliği
-export const NAV_BAR_LIFT = 0;        // dibe yapışık — yükselti yok
+export const NAV_BAR_HEIGHT = 49;     // UIKit UITabBar standart içerik yüksekliği
+
+/**
+ * ── iOS 26/27: ÇUBUK YÜZÜYOR ──────────────────────────────────────────────────
+ *
+ * Yukarıdaki not (dibe yapışık, tam genişlik) Liquid Glass ÖNCESİ UIKit için
+ * doğruydu. iOS 26 ile sistem sekme çubuğu kenarlardan içeri alınmış, kapsül
+ * biçimli, içeriğin ÜZERİNDE yüzen bir cam şeride dönüştü. Yani TAZQ'nun titizlikle
+ * hizalandığı ölçü, hizalandıktan sonra Apple tarafından değiştirildi.
+ *
+ * ESKİ İTİRAZ ÇÖZÜLDÜ. Yüzen "pill" bir kez denenip geri alınmıştı çünkü 5 sekmeye
+ * düşen dar alana etiket sığmıyordu. Apple'ın kendi çözümü bu sorunu iki hamleyle
+ * kaldırıyor:
+ *   · ARAMA kapsülün İÇİNDE değil — sağında ayrı dairesel bir ada. Kapsülün
+ *     genişliğinden yemiyor.
+ *   · Kaydırırken çubuk zaten ikon-only'ye küçülüyor; etiketler yalnız durağan
+ *     hâlde görünüyor. Yani dar alan kalıcı bir durum değil.
+ *
+ * ANDROID DEĞİŞMİYOR. Material'ın kendi dili dibe yapışık, tam genişlikte, opak bir
+ * gezinme çubuğudur ve Android'de blur zaten kapalı (bkz. AppBlur). Yüzen cam kapsül
+ * oraya taşınırsa platformun diline yabancı bir şey olur. Değerler bu yüzden
+ * platforma göre ayrıldı — tek bir "doğru" yok, iki platformun iki doğrusu var.
+ */
+export const NAV_BAR_LIFT = Platform.OS === 'ios' ? 8 : 0;
 export const NAV_BAR_MIN_INSET = 0;   // ekstra pay yok; alt boşluk güvenli alandan gelir
+
+/** Kapsülün ekran kenarlarından içeri alınması. Android'de 0 → tam genişlik. */
+export const NAV_BAR_SIDE_INSET = Platform.OS === 'ios' ? 16 : 0;
+
+/** Kapsül yarıçapı. Android'de 0 → düz çubuk. */
+export const NAV_BAR_RADIUS = Platform.OS === 'ios' ? 999 : 0;
+
+/**
+ * ARAMA ADASI — kapsülün sağında ayrı, dairesel.
+ *
+ * Apple'ın deseni: arama diğer sekmelerden GÖRSEL OLARAK ayrılır ve kendi dairesel
+ * cam adasında durur. Bu yalnız estetik değil — aramayı sekme satırından çıkararak
+ * kalan sekmelere genişlik bırakıyor.
+ */
+export const NAV_SEARCH_SIZE = 49;
+export const NAV_ISLAND_GAP = 8;
+
+/**
+ * KÜÇÜLMÜŞ ÇUBUK — yalnız ikon, etiket yok.
+ *
+ * Aşağı kaydırırken çubuk bu yüksekliğe iner, kaydırma durunca etiketlerle birlikte
+ * geri açılır. Yükseklik etiket satırı (10pt × 1.25 + 2pt boşluk ≈ 14.5) kadar azalır.
+ *
+ * DİKKAT: sayfaların dip boşluğu bu değere göre HESAPLANMAZ. Boşluk her zaman AÇIK
+ * yüksekliğe göre ayrılır; yoksa çubuk her küçüldüğünde içerik zıplardı.
+ */
+export const NAV_BAR_MINIMIZED_HEIGHT = 36;
 
 /**
  * SEKME ÇUBUĞU İÇERİĞİ — ÖLÇEKLENMEZ.

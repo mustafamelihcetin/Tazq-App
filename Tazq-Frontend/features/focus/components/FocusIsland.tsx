@@ -1,9 +1,10 @@
 import React from 'react';
-import { F, S, ICON, R, B } from '@/shared/constants/tokens';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { F, S, ICON, R, B, NAV_BAR_HEIGHT, NAV_BAR_LIFT, NAV_BAR_MIN_INSET, NAV_BAR_MINIMIZED_HEIGHT } from '@/shared/constants/tokens';
+import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { MotiView } from 'moti';
 import { Zap } from 'lucide-react-native';
 import { useFocusStore } from '../store/useFocusStore';
+import { useChromeStore } from '@/shared/store/useChromeStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,12 +20,36 @@ export const FocusIsland = () => {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const isDark = colorScheme === 'dark';
+  const minimized = useChromeStore(s => s.minimized) && Platform.OS === 'ios';
 
   const isOnFocusScreen = pathname === '/focus';
   const isOnDashboard = pathname === '/' || pathname === '/index';
 
   // Dashboard has its own focus indicator (StatusHub); skip here to avoid covering the logo
   if (!isActive || isOnFocusScreen || isOnDashboard) return null;
+
+  /*
+    ── HAP EKRANIN ÜSTÜNDEN SEKME ÇUBUĞUNUN ÜSTÜNE TAŞINDI ──────────────────────
+
+    Eskiden `top: insets.top + 8` ile Dynamic Island tarafında duruyordu. Orası
+    yanlış yuvaydı: sürüyor olan bir odak seansı bir BİLDİRİM değil, arka planda
+    devam eden bir iş. Apple bu iş için ayrı bir yer tanımlıyor — sekme çubuğunun
+    hemen üstündeki "aksesuar görünümü", yani Müzik'teki çalan-parça şeridi.
+    Odak seansı da tıpkı çalan bir şarkı gibi: devam ediyor, her an dokunulabilir,
+    ama ekranın konusu değil.
+
+    Üstelik eski konum başlık çubuğuyla aynı bölgeyi paylaşıyordu ve orada zaten
+    avatar, marka işareti ve durum rozeti var.
+
+    KONUM İKİ DURUMA GÖRE: sekme çubuğu olan ekranlarda çubuğun üstünde, olmayanlarda
+    güvenli alanın hemen üstünde. Çubuk küçüldüğünde hap da onunla birlikte iniyor —
+    Apple'ın aksesuar davranışı da bu.
+  */
+  const hasNavBar = pathname === '/tasks' || pathname === '/cockpit' || pathname === '/modlar';
+  const barHeight = (minimized ? NAV_BAR_MINIMIZED_HEIGHT : NAV_BAR_HEIGHT);
+  const bottomOffset = hasNavBar
+    ? Math.max(insets.bottom, NAV_BAR_MIN_INSET) + NAV_BAR_LIFT + barHeight + S.sm
+    : insets.bottom + S.sm;
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -33,12 +58,17 @@ export const FocusIsland = () => {
   };
 
   return (
-    <View
+    <MotiView
       pointerEvents="box-none"
-      style={[styles.wrapper, { top: insets.top + 8 }]}
+      // Çubuk küçülüp büyüdükçe hap da onunla birlikte iner/çıkar. Süre sekme
+      // çubuğununkiyle AYNI (220ms) — ikisi tek hareket gibi okunmalı.
+      animate={{ bottom: bottomOffset }}
+      transition={{ type: 'timing', duration: 220 }}
+      style={styles.wrapper}
     >
       <MotiView
-        from={{ translateY: -60, opacity: 0, scale: 0.85 }}
+        // Aşağıdan doğar: hap artık sekme çubuğunun üstünden çıkıyor, tepeden inmiyor.
+        from={{ translateY: 24, opacity: 0, scale: 0.9 }}
         animate={{ translateY: 0, opacity: 1, scale: 1 }}
         transition={{ type: 'spring', damping: 18, stiffness: 220 }}
         style={[
@@ -71,7 +101,7 @@ export const FocusIsland = () => {
           </Text>
         </Touchable>
       </MotiView>
-    </View>
+    </MotiView>
   );
 };
 
@@ -80,6 +110,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+    // `bottom` çalışma anında veriliyor: sekme çubuğu var mı, küçülmüş mü —
+    // ikisi de ekrana göre değişiyor (bkz. bileşendeki konum notu).
     alignItems: 'center',
     zIndex: 9999,
   } as any,

@@ -67,6 +67,7 @@ import { Colors } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
 import { AppIcon } from '@/shared/components/AppIcon';
 import { haptic } from '@/shared/utils/haptics';
+import { useChromeMinimizeOnScroll } from '@/shared/hooks/useChromeMinimizeOnScroll';
 import { savedLocallyMessage } from '@/shared/utils/saveFeedback';
 import { celebrate } from '@/features/user/utils/celebrate';
 
@@ -289,6 +290,10 @@ export default function HomeScreen() {
    * tetiklemez (dashboard'un render'ı ağır — bkz. momentum/istatistik hesapları).
    */
   const scrollY = useRef(new Animated.Value(0)).current;
+  // Sekme çubuğu aşağı kaydırınca ikon-only'ye iner (iOS). Ana sayfa kendi
+  // kaydırma değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar
+  // ortak `useCollapsibleHeader` üzerinden bağlanıyor.
+  useChromeMinimizeOnScroll(scrollY);
 
   /**
    * Başlığın devralacağı kaydırma mesafesi — selamlama bloğunun ALT BOŞLUĞU HARİÇ

@@ -223,7 +223,7 @@ describe('misafirin yaptığı iş KAYBOLMAZ', () => {
 describe('sunucu gerektiren yüzeyler', () => {
   it('modlar sekmesi misafire gösterilmez', () => {
     const nav = stripComments(read('shared/components/BottomNavBar.tsx'));
-    expect(nav).toContain('const visibleIds = isGuest ? LITE_TAB_IDS : null;');
+    expect(nav).toMatch(/uiMode === 'lite' \|\| isGuest/);
   });
 
   it('misafirde görev/odak sekmeleri KALIR — çekirdek yerel çalışıyor', () => {

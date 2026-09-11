@@ -74,8 +74,14 @@ const KNOWN_LARGE: Record<string, number> = {
   // Metinler shared/utils/a11y.ts'te toplandı; burada kalan yalnız etiket bağlantısı.
   // 2410 → 2411: "Çevrimdışı kaydedildi" mesajı savedLocallyMessage()'a çıkarıldı —
   // 9 kopya gitti, 1 import geldi (misafire "çevrimdışısın" demek yanlıştı).
-  'app/tasks.tsx': 2411,
-  'app/index.tsx': 2097,
+  // 2411 → 2420: sekme çubuğundaki ARAMA ADASINDAN gelen gezinme. Adaya dokunan
+  // kullanıcı "aramak" istiyor, "Görevler ekranını açmak" değil — ekran arama alanı
+  // AÇIK geliyor (iOS 26/27 deseni, bkz. __tests__/ios27Chrome.test.ts).
+  'app/tasks.tsx': 2420,
+  // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
+  // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
+  // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).
+  'app/index.tsx': 2102,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.

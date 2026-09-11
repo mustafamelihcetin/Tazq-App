@@ -1,8 +1,9 @@
 import React from 'react';
-import { StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { StyleSheet, StyleProp, ViewStyle, View, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import type { BlurTint } from 'expo-blur';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useReduceTransparency } from '@/shared/hooks/useReduceTransparency';
 
 /**
  * BULANIK YÜZEY — uygulamadaki TEK blur girişi.
@@ -66,9 +67,94 @@ export interface AppBlurProps {
   children?: React.ReactNode;
 }
 
+/**
+ * LIQUID GLASS — iOS 26+ için gerçek sistem malzemesi.
+ *
+ * ── NEDEN OPSİYONEL YÜKLENİYOR ────────────────────────────────────────────────
+ * `expo-glass-effect` bir NATIVE modül. Derlemede yoksa (eski bir geliştirme
+ * derlemesi, Expo Go, Android) `require` patlar. Uygulamadaki mevcut desen bu:
+ * Google Sign-In, SystemUI ve NavigationBar da aynı şekilde savunmacı yükleniyor.
+ *
+ * Modül yoksa DEĞİŞEN HİÇBİR ŞEY OLMAZ — `expo-blur` yolu aynen çalışır. Yani bu
+ * dosya yeni derleme alınmadan da güvenli; cam yalnız desteklendiği yerde belirir.
+ */
+let GlassModule: any = null;
+try {
+  GlassModule = require('expo-glass-effect');
+} catch (e) {
+  // Sessiz: modülün olmaması bir hata değil, desteklenmeyen bir ortam.
+}
+
+/** Cam malzeme bu cihazda GERÇEKTEN çizilebilir mi? */
+function canUseGlass(): boolean {
+  if (Platform.OS !== 'ios' || !GlassModule) return false;
+  try {
+    // İki ayrı kontrol: derleme/işletim sistemi uygunluğu + çalışma anı API varlığı.
+    // İkincisi bazı iOS 26 beta sürümlerinde API'nin eksik olmasına karşı — o
+    // sürümlerde yalnız ilkine bakmak ÇÖKMEYE yol açıyor.
+    const buildOk = GlassModule.isLiquidGlassAvailable?.() ?? false;
+    const runtimeOk = GlassModule.isGlassEffectAPIAvailable?.() ?? buildOk;
+    return !!(buildOk && runtimeOk);
+  } catch (e) {
+    return false;
+  }
+}
+
+/** Malzeme kalınlığı → cam stili. `thick` tam örtmeli, o yüzden normal cam. */
+const GLASS_STYLE: Record<BlurMaterial, 'clear' | 'regular'> = {
+  thin: 'clear',
+  regular: 'regular',
+  thick: 'regular',
+  chrome: 'regular',
+};
+
 export const AppBlur = ({ material = 'regular', tint, style, children }: AppBlurProps) => {
-  const { colorScheme } = useAppTheme();
+  const { colorScheme, theme } = useAppTheme();
+  const reduceTransparency = useReduceTransparency();
   const level = INTENSITY[material][colorScheme === 'dark' ? 'dark' : 'light'];
+
+  /*
+    ŞEFFAFLIĞI AZALT — her şeyden ÖNCE gelir.
+
+    Tercihi açan kullanıcı bulanıklık istemiyor. Cam da blur da bu isteği çiğner;
+    doğrusu opak bir yüzey. Bu kontrol en başta duruyor ki hiçbir malzeme yolu
+    onu atlayamasın. iOS 27'nin cam yoğunluk kaydırıcısı da aynı aileden bir
+    tercih — sistem yüzeyleri otomatik uyar, bizimkilerin uyması için bu gerekir.
+  */
+  if (reduceTransparency) {
+    return (
+      <View style={[style ?? StyleSheet.absoluteFill, { backgroundColor: theme.surfaceFloating }]}>
+        {children}
+      </View>
+    );
+  }
+
+  /*
+    iOS 26+ → GERÇEK cam. Sistem malzemesi olduğu için kırılma, ışık ve kenar
+    davranışını Apple yönetir; iOS sürümü ilerledikçe kendiliğinden güncellenir.
+    Taklit etmeye çalışmak her yıl kovalamak demekti.
+  */
+  if (canUseGlass()) {
+    const GlassView = GlassModule.GlassView;
+    return (
+      <GlassView
+        glassEffectStyle={GLASS_STYLE[material]}
+        /*
+          TEMA SİSTEMDEN DEĞİL UYGULAMADAN GELİR.
+
+          TAZQ kendi tema tercihini tutuyor (açık / koyu / sistem). Cam varsayılan
+          olarak SİSTEMİN görünümünü izler; kullanıcı uygulamada koyu tema seçmişken
+          telefon açık temadaysa cam açık kalır ve yüzey, üstündeki koyu içerikle
+          çakışır. `tint` verilmişse (giriş ve tanıtım ekranı zemini temadan bağımsız
+          olarak koyudur) o kazanır — aynı kaçış kapısı blur yolunda da var.
+        */
+        colorScheme={tint ?? colorScheme}
+        style={style ?? StyleSheet.absoluteFill}
+      >
+        {children}
+      </GlassView>
+    );
+  }
 
   return (
     <BlurView

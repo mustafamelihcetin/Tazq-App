@@ -321,6 +321,8 @@ export const translations = {
       dismiss: 'Not now',
       dismissHint: 'The system permission dialog will not appear; you can enable it later in settings',
     },
+    /** Alt sekme çubuğu — arama adası (bkz. BottomNavBar). */
+    nav: { searchTasks: 'Search tasks' },
     savedOffline: 'Saved offline',
     /** Misafir (hesapsız) kullanım — bkz. useAuthStore.isGuest */
     guest: {
@@ -626,6 +628,8 @@ export const translations = {
       markRead: 'Okundu Yap',
       noMessages: 'Henüz destek mesajı bulunmuyor.',
     },
+    /** Alt sekme çubuğu — arama adası (bkz. BottomNavBar). */
+    nav: { searchTasks: 'Görevlerde ara' },
     savedOffline: 'Çevrimdışı kaydedildi',
     /** Misafir (hesapsız) kullanım — bkz. useAuthStore.isGuest */
     guest: {

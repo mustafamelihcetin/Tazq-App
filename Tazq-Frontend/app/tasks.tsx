@@ -566,7 +566,7 @@ export default function ActionCenter() {
   const setCurrentTask = useFocusStore(s => s.setCurrentTask);
   const { width, height } = useWindowDimensions();
   const router = useRouter();
-  const { action, highlightId, dateFilter } = useLocalSearchParams<{ action?: string; highlightId?: string; dateFilter?: string }>();
+  const { action, highlightId, dateFilter, focusSearch } = useLocalSearchParams<{ action?: string; highlightId?: string; dateFilter?: string; focusSearch?: string }>();
   const insets = useSafeAreaInsets();
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const scrollViewRef = useRef<any>(null);
@@ -678,7 +678,16 @@ export default function ActionCenter() {
       setExpandedId(id);
       setTimeout(() => setHighlightedId(null), 3000);
     }
-  }, [action, highlightId, dateFilter]);
+    /*
+      SEKME ÇUBUĞUNDAKİ ARAMA ADASINDAN GELİNDİ.
+
+      iOS 26/27'de arama sekme satırının sağında ayrı dairesel bir ada (bkz.
+      BottomNavBar). Adaya dokunan kullanıcı "aramak" istiyor, "Görevler ekranını
+      açmak" değil — bu yüzden ekran arama alanı AÇIK geliyor. Odak `showSearch`
+      etkisinden geliyor, burada ikinci kez odaklamaya gerek yok.
+    */
+    if (focusSearch === '1') setShowSearch(true);
+  }, [action, highlightId, dateFilter, focusSearch]);
 
   // Refresh tasks when returning from background (keeps "today" filter accurate after midnight)
   useEffect(() => {

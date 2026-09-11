@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Animated, type LayoutChangeEvent } from 'react-native';
 import { S } from '@/shared/constants/tokens';
+import { useChromeMinimizeOnScroll } from '@/shared/hooks/useChromeMinimizeOnScroll';
 
 /**
  * ÇUBUK KAYDIRINCA BELİRİR — "sayfa tepedeyken header yok gibi".
@@ -64,6 +65,21 @@ export function useCollapsibleHeader({
 } = {}) {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [titleHeight, setTitleHeight] = useState(0);
+
+  /*
+    SEKME ÇUBUĞUNUN KÜÇÜLMESİ AYNI KAYDIRMADAN BESLENİYOR.
+
+    Buraya bağlı olmasının sebebi: sekme çubuğu her ekranda AYRI çiziliyor ve
+    kaydırma bilgisi sayfanın içinde — ikisi arasında prop yolu yok. Bu hook zaten
+    üç sekmeli ekranın (Görevler, Haftalık, Modlar) ortak kaydırma kaynağı, yani
+    tek bağlantı üçünü birden kapsıyor.
+
+    Sekme çubuğu OLMAYAN ekranlarda (Ayarlar, Rapor, Arşiv) sinyal üretilir ama
+    çizecek bir çubuk yoktur — zararsız; hook ekrandan çıkarken durumu zaten
+    sıfırlıyor. Ayrıca davranış iOS'a ve "Hareketi Azalt" kapalıysa sınırlı
+    (bkz. useChromeMinimizeOnScroll).
+  */
+  useChromeMinimizeOnScroll(scrollY);
 
   const onTitleLayout = useCallback((e: LayoutChangeEvent) => {
     const h = e.nativeEvent.layout.height;

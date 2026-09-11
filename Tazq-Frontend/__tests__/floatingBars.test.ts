@@ -5,6 +5,10 @@ import {
   NAV_BAR_HEIGHT,
   NAV_BAR_LIFT,
   NAV_BAR_MIN_INSET,
+  NAV_BAR_SIDE_INSET,
+  NAV_BAR_RADIUS,
+  NAV_BAR_MINIMIZED_HEIGHT,
+  NAV_SEARCH_SIZE,
   NAV_ICON_SIZE,
   NAV_LABEL_SIZE,
   topBarSpace,
@@ -30,35 +34,74 @@ import {
  */
 
 const ROOT = path.resolve(__dirname, '..');
+/** Depo kökünden dosya okur. (Aşağıdaki bloklarda `app/` köküne göre yerel bir kopyası var.) */
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-describe('navBarSpace hesabi', () => {
+describe('sekme cubugu geometrisi', () => {
   /**
-   * Bar artik YUZMUYOR: ekranin dibine yapisik, tam genislikte standart sekme cubugu
-   * (yuzen pill + arkadaki kayan hap kaldirildi). Dolayisiyla kapladigi alan
-   * "icerik yuksekligi + guvenli alan" oldu; yukselti (LIFT) sifir.
+   * ── ÖLÇÜ DEĞİŞTİ, DEĞİŞMEYEN GÜVENCE AYNI ───────────────────────────────────
    *
-   * DEGISMEYEN GUVENCE: navBarSpace, barin GERCEKTEN kapladigi yuksekligi vermeli.
-   * Yanlissa son gorev barin arkasinda kalir ve kullanici ona ULASAMAZ — sessiz hata:
-   * kod calisir, tsc susar, test gecer.
+   * Bu blok bir süre şunu çiviliyordu: "bar dibe yapisik, yukselti yok". O ölçü
+   * UIKit'in Liquid Glass ÖNCESİ UITabBar'ından geliyordu (49pt içerik, tam
+   * genişlik, hairline ayraç) ve doğruydu.
+   *
+   * iOS 26 ile Apple o çubuğu değiştirdi: kenarlardan içeri alınmış, kapsül biçimli,
+   * içeriğin ÜZERİNDE yüzen bir cam şerit. Yani hizalandığımız spesifikasyon
+   * hizalandıktan sonra yer değiştirdi. Karar bilinçli olarak yenilendi.
+   *
+   * DEĞİŞMEYEN GÜVENCE: `navBarSpace`, çubuğun GERÇEKTEN kapladığı yüksekliği
+   * vermeli. Yanlışsa son görev çubuğun arkasında kalır ve kullanıcı ona ULAŞAMAZ —
+   * sessiz hata: kod çalışır, tsc susar, test geçer. Bu güvence yüzen çubukta da
+   * aynen geçerli ve aşağıda platformdan bağımsız olarak sınanıyor.
+   *
+   * NOT: jest `Platform.OS === 'ios'` altında koşuyor, yani aşağıdaki sayısal
+   * değerler iOS değerleridir. Android'in DEĞİŞMEDİĞİ, token'ların platforma göre
+   * dallandığı kaynak üzerinden ayrıca sınanıyor.
    */
-  it('navbar in kapladigi alani dogru verir — Apple olcusu', () => {
-    // UIKit UITabBar: icerik 49pt, guvenli alan (home gostergesi 34pt) ALTINA eklenir.
-    // iPhone'da toplam 83pt — Apple'in kendi sayisi.
+  it('bosluk = guvenli alan + yukselti + icerik yuksekligi', () => {
+    // Formül platformdan bağımsız; yalnız LIFT'in değeri platforma göre değişir.
     expect(navBarSpace(34)).toBe(34 + NAV_BAR_LIFT + NAV_BAR_HEIGHT);
-    expect(navBarSpace(34)).toBe(83);
-  });
-
-  it('home gostergesi yoksa cubuk dibe tam yapisir', () => {
-    // inset 0 -> 0 + 0 + 49 = 49. Apple da ekstra pay EKLEMEZ (iPhone SE davranisi).
     expect(navBarSpace(0)).toBe(NAV_BAR_MIN_INSET + NAV_BAR_LIFT + NAV_BAR_HEIGHT);
-    expect(navBarSpace(0)).toBe(49);
   });
 
-  it('Apple sekme cubugu olculeri korunur', () => {
-    // Bu uc sayi tasarim karari, tahmin degil. Degistirilirse bilincli olsun.
-    expect(NAV_BAR_HEIGHT).toBe(49);   // UITabBar standart icerik yuksekligi
-    expect(NAV_BAR_LIFT).toBe(0);      // yuzmez, dibe yapisik
-    expect(NAV_BAR_MIN_INSET).toBe(0); // ekstra nefes payi yok
+  it('iOS: cubuk YUZER — kenarlardan iceri alinmis kapsul', () => {
+    expect(NAV_BAR_LIFT).toBe(8);          // guvenli alanin uzerinde nefes payi
+    expect(NAV_BAR_SIDE_INSET).toBe(16);   // kenarlardan iceri
+    expect(NAV_BAR_RADIUS).toBeGreaterThan(100); // kapsul (tam yuvarlak)
+    expect(NAV_BAR_HEIGHT).toBe(49);       // icerik yuksekligi DEGISMEDI
+  });
+
+  it('ANDROID DEGISMIYOR — geometri platforma gore dallaniyor', () => {
+    /*
+      Android'in Material gezinme cubugu dibe yapisik, tam genislikte ve opaktir;
+      yuzen cam kapsul oraya tasinirsa platformun diline yabanci bir sey olur.
+      Jest iOS altinda kostugu icin Android degerleri calisma aninda okunamaz —
+      kaynaktaki DALLANMA sininiyor.
+    */
+    const src = read('shared/constants/tokens.ts');
+    expect(src).toMatch(/NAV_BAR_LIFT = Platform\.OS === 'ios' \? 8 : 0/);
+    expect(src).toMatch(/NAV_BAR_SIDE_INSET = Platform\.OS === 'ios' \? 16 : 0/);
+    expect(src).toMatch(/NAV_BAR_RADIUS = Platform\.OS === 'ios' \? 999 : 0/);
+  });
+
+  it('kuculmus cubuk DAHA KISA ama bosluk TAM yukseklige gore ayrilir', () => {
+    /*
+      Kaydirirken cubuk ikon-only'ye iner. Ama sayfalarin dip boslugu bu degere gore
+      hesaplanmaz: hesaplansaydi cubuk her kuculdugunde icerik ZIPLARDI. Bosluk her
+      zaman ACIK yukseklige gore ayrilir — kucuk hal yalnizca gorsel.
+    */
+    expect(NAV_BAR_MINIMIZED_HEIGHT).toBeLessThan(NAV_BAR_HEIGHT);
+    // Etiket satiri kadar kisaliyor (10pt x 1.25 + 2pt bosluk ~ 14.5), fazlasi degil.
+    expect(NAV_BAR_HEIGHT - NAV_BAR_MINIMIZED_HEIGHT).toBeLessThanOrEqual(16);
+    // Bosluk formulu kucuk yuksekligi HIC kullanmamali.
+    const src = read('shared/constants/tokens.ts');
+    const fn = src.slice(src.indexOf('export const navBarSpace'), src.indexOf('export const navBarSpace') + 200);
+    expect(fn).not.toContain('MINIMIZED');
+  });
+
+  it('kucuk halde bile ikon yerinde kalir — hedef kaymaz', () => {
+    // Ikon + ust/alt pay kucuk yuksekluge sigmali; sigmiyorsa ikon kirpilir.
+    expect(NAV_BAR_MINIMIZED_HEIGHT - NAV_ICON_SIZE).toBeGreaterThanOrEqual(8);
   });
 
   it('cubuk icerigi OLCEKLENMEZ — kap sabitken icerik buyuyemez', () => {
@@ -70,14 +113,12 @@ describe('navBarSpace hesabi', () => {
      */
     expect(NAV_ICON_SIZE).toBe(22);
     expect(NAV_LABEL_SIZE).toBe(10);
-    // Yigin (ikon + 2pt bosluk + ~1.25em satir) cubuga nefes payiyla sigmali.
     const stack = NAV_ICON_SIZE + 2 + NAV_LABEL_SIZE * 1.25;
-    expect(NAV_BAR_HEIGHT - stack).toBeGreaterThanOrEqual(8); // ust+alt toplam >= 8pt
+    expect(NAV_BAR_HEIGHT - stack).toBeGreaterThanOrEqual(8);
 
-    const src = fs.readFileSync(path.join(ROOT, 'shared/components/BottomNavBar.tsx'), 'utf8');
+    const src = read('shared/components/BottomNavBar.tsx');
     expect(src).toContain('size={NAV_ICON_SIZE}');
     expect(src).toContain('fontSize: NAV_LABEL_SIZE');
-    // Olcekli token'lar cubukta kullanilmamali.
     expect(src).not.toMatch(/size=\{ICON\./);
     expect(src).not.toMatch(/fontSize: F\./);
   });
@@ -87,26 +128,34 @@ describe('navBarSpace hesabi', () => {
     expect(navBarSpace(0)).toBeLessThanOrEqual(navBarSpace(16));
   });
 
-  it('bar dibe yapisik: yukselti yok', () => {
-    // Yuzen tasarimin kalintisi geri gelirse burasi kirilir.
-    expect(NAV_BAR_LIFT).toBe(0);
-  });
-
-  it('bosluk her zaman barin icerik yuksekliginden buyuk', () => {
-    // Eski regresyon kaydi ("64 yetersizdi") yuzen tasarima ozeldi ve artik gecersiz;
-    // yerine olcekten bagimsiz gercek degismez: bosluk >= icerik + taban pay.
+  it('bosluk her zaman cubugun icerik yuksekliginden buyuk', () => {
     for (const inset of [0, 8, 20, 34, 50]) {
       expect(navBarSpace(inset)).toBeGreaterThanOrEqual(NAV_BAR_HEIGHT + NAV_BAR_MIN_INSET);
     }
   });
 
   it('bilesen kendi olcusunu tokenlardan kurar — sayfa ile ayrisamaz', () => {
-    const src = fs.readFileSync(path.join(ROOT, 'shared/components/BottomNavBar.tsx'), 'utf8');
+    const src = read('shared/components/BottomNavBar.tsx');
     expect(src).toContain('NAV_BAR_HEIGHT');
     expect(src).toContain('NAV_BAR_MIN_INSET');
-    // Dibe yapisik olmali: yan bosluk/yuvarlak kabuk yok, ust ayrac cizgisi var.
-    expect(src).toMatch(/bottom: 0/);
-    expect(src).toContain('borderTopWidth: HAIRLINE');
+    expect(src).toContain('NAV_BAR_LIFT');
+    expect(src).toContain('NAV_BAR_SIDE_INSET');
+    // Ayrac cizgisi YALNIZ Android'de (yapisik cubukta) anlamli.
+    expect(src).toMatch(/borderTopWidth: IS_IOS \? 0 : HAIRLINE/);
+  });
+
+  it('ARAMA ADASI kapsulun DISINDA — sekme genisligini yemiyor', () => {
+    /*
+      Yuzen "pill" bir kez denenip geri alinmisti: 5 sekmeye dusen ~72pt'ye etiket
+      sigmiyordu. Apple'in cozumu aramayi satirdan cikarip kendi dairesel adasina
+      koymak. Arama kapsulun icine geri tasinirsa o eski hata geri gelir.
+    */
+    const src = read('shared/components/BottomNavBar.tsx');
+    expect(src).toContain('searchIsland');
+    expect(NAV_SEARCH_SIZE).toBe(NAV_BAR_HEIGHT); // ada cubukla ayni yukseklikte
+    // Arama `allTabs` dizisine EKLENMEMELI — orasi kapsulun icerigi.
+    const tabsBlock = src.slice(src.indexOf('const allTabs'), src.indexOf('];', src.indexOf('const allTabs')));
+    expect(tabsBlock).not.toContain('search');
   });
 });
 
