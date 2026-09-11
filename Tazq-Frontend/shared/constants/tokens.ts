@@ -72,8 +72,42 @@ export const R = {
   md: moderateScale(12),   // KART — iOS standardı (eski: 16)
   lg: moderateScale(16),   // büyük kart, panel (eski: 24)
   xl: moderateScale(22),   // sheet / modal
+  /**
+   * CAM SAYFA / MODAL — Liquid Glass bandı.
+   *
+   * Ölçeğin geri kalanı (md 12 · lg 16 · xl 22) iOS'un Liquid Glass ÖNCESİ kart
+   * değerlerine hizalı ve İÇERİK için hâlâ doğru: aşırı yuvarlak bir kart ucuz
+   * template estetiğidir ve o karar ölçülerek verilmişti.
+   *
+   * Ama iOS 26/27'de CAM yüzeylerin köşesi belirgin biçimde daha yumuşak. Ayrım
+   * malzemede: cam bir kabuk (sayfa, modal, popover) yuvarlanır, içindeki içerik
+   * kartı yuvarlanmaz. Bu yüzden ölçek BÜYÜTÜLMEDİ, üstüne bir adım eklendi —
+   * eski değerler bozulmadan yeni banda erişiliyor.
+   */
+  sheet: moderateScale(28),
   full: 999,               // hap/daire — ölçeklenmez
 } as const;
+
+/**
+ * EŞMERKEZLİ KÖŞE — iç içe geçen yüzeylerin doğru yarıçapı.
+ *
+ * ── KURAL ─────────────────────────────────────────────────────────────────────
+ * Yuvarlak bir kabın içine, kenarlarından `inset` kadar boşlukla yerleşen bir öğenin
+ * yarıçapı `dışYarıçap − inset` olmalıdır. Ancak o zaman iki eğri BİRBİRİNE PARALEL
+ * kalır ve göz onları tek bir nesne gibi okur.
+ *
+ * Yanlış yapıldığında gözle görülür: iç kart dış kabuktan daha "köşeli" ya da daha
+ * "şişkin" durur ve aradaki boşluk köşelerde incelip kenarlarda kalınlaşır. Apple
+ * iOS 26 ile bu ilişkiyi sisteme aldı (concentric corners); bizde hiç yoktu, her
+ * iç içe yüzey kendi yarıçapını bağımsız seçiyordu.
+ *
+ * ALT SINIR: sonuç `R.xs`in altına düşmez. Sıfır yarıçaplı bir iç öğe, yuvarlak bir
+ * kabuğun içinde daha da yanlış durur — eğri ilişkisi kopar.
+ *
+ *   const cardRadius = concentric(R.sheet, S.md);  // 28 - 16 = 12
+ */
+export const concentric = (outerRadius: number, inset: number): number =>
+  Math.max(outerRadius - inset, moderateScale(4));
 
 /**
  * İkon boyutu ölçeği.

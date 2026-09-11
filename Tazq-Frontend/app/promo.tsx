@@ -44,20 +44,72 @@ type SlideDef = {
 };
 
 const SLIDES: SlideDef[] = [
-  // 1 — Odak (aurora): en güçlü görsel, ilk izlenim · secondary (violet). Derin odak HER ZAMAN koyu.
-  { kind: 'focus', accentKey: 'violet', darkColors: ['#1a0b42', '#2f1280', '#140a30'], ebTr: 'TAZQ', ebEn: 'TAZQ', tTr: 'Odağını topla,\nhayatını dengele', tEn: 'Focus deeply,\nlive in balance', sTr: 'Pomodoro, ambiyans sesleri ve zen moduyla derin odaklan.', sEn: 'Deep focus with Pomodoro, ambient sounds and zen mode.' },
-  // 2 — Dönemsel Modlar: ayrıştırıcı özellik · teal
-  { kind: 'modes', accentKey: 'teal', darkColors: ['#062430', '#0c4258', '#051826'], ebTr: 'Yaşam Modları', ebEn: 'Life Modes', tTr: 'Dönemine özel\ngünlük plan', tEn: 'A daily plan\nfor your season', sTr: 'Sınav, spor, kariyer — planın her gün otomatik hazır.', sEn: 'Exams, fitness, career — your plan ready daily.' },
-  // 3 — Görevler & Alışkanlıklar: günlük yürütme · indigo
-  { kind: 'tasks', accentKey: 'indigo', darkColors: ['#0f1140', '#25297a', '#0b0d30'], ebTr: 'Görevler & Alışkanlıklar', ebEn: 'Tasks & Habits', tTr: 'Bugünün planı,\nalışkanlıkların', tEn: "Today's plan,\nyour habits", sTr: 'Görevlerini, alışkanlıklarını ve serilerini takip et.', sEn: 'Track your tasks, habits and streaks.' },
+  /*
+    ── SIRA BİR TASARIM KARARI ──────────────────────────────────────────────────
+    Mağazada dönüşümün büyük kısmını İLK İKİ görsel belirler; kullanıcı geri kalanını
+    çoğu zaman hiç görmez. Sıra bir tur önce odak ekranıyla başlıyordu — güzel bir
+    görseldi ama "bir pomodoro uygulaması daha" diyordu ve TAZQ'nun o kategoride
+    ayırt edici bir sözü yok (Forest, Todoist, TickTick aynı rafta).
+
+    Şimdi dönemsel modlar başta: Todoist'in yapmadığı, yapamayacağı şey bu — genel
+    bir listeye özel bir dönem kurgusu koyulamaz. Aranan sorgu da bu ("YKS çalışma
+    programı", "sigara bırakma takip"); görsel, aramayla aynı şeyi söylemeli.
+
+    ── METİN KURALI ─────────────────────────────────────────────────────────────
+    Başlık FAYDA söyler, alt satır bunu SOMUT bir örnekle kanıtlar. Özellik listesi
+    yazmıyoruz: "Pomodoro, ambiyans sesleri ve zen modu" bir menü; "Bir saatliğine
+    dünyayı sustur" bir vaat. Kullanıcı kaydırırken saniyenin altında okuyor.
+  */
+
+  // 1 — Dönemsel Modlar: TEK gerçek ayrıştırıcı, o yüzden ilk görsel · teal
+  { kind: 'modes', accentKey: 'teal', darkColors: ['#062430', '#0c4258', '#051826'],
+    ebTr: 'Yaşam Modları', ebEn: 'Life Modes',
+    tTr: 'Tarihini gir,\nplanını biz kuralım', tEn: 'Set your date,\nwe build the plan',
+    sTr: 'Sınavına 90 gün mü var? Her sabah o güne ait görevlerin hazır.',
+    sEn: '90 days to your exam? Each morning, that day’s tasks are ready.' },
+
+  // 2 — Odak (aurora): en güçlü görsel · violet. Derin odak HER ZAMAN koyu.
+  { kind: 'focus', accentKey: 'violet', darkColors: ['#1a0b42', '#2f1280', '#140a30'],
+    ebTr: 'Derin Odak', ebEn: 'Deep Focus',
+    tTr: 'Bir saatliğine\ndünyayı sustur', tEn: 'Mute the world\nfor an hour',
+    sTr: 'Pomodoro, ambiyans sesleri ve zen modu — dikkatin dağılmadan.',
+    sEn: 'Pomodoro, ambient sound and zen mode — without losing your thread.' },
+
+  // 3 — Görevler: kancası AKILLI GİRİŞ, liste tutmak değil · indigo
+  { kind: 'tasks', accentKey: 'indigo', darkColors: ['#0f1140', '#25297a', '#0b0d30'],
+    ebTr: 'Görevler & Alışkanlıklar', ebEn: 'Tasks & Habits',
+    tTr: 'Yaz gitsin,\ngerisini TAZQ anlasın', tEn: 'Just type it.\nTAZQ gets the rest',
+    sTr: '“yarın 15:00 toplantı” — tarih, saat ve öncelik kendiliğinden.',
+    sEn: '“meeting tomorrow 3pm” — date, time and priority, automatically.' },
+
   // 4 — Momentum: ilerleme · emerald
-  { kind: 'momentum', accentKey: 'emerald', darkColors: ['#06271f', '#0d4a3c', '#051c16'], ebTr: 'Momentum', ebEn: 'Momentum', tTr: 'İlerlemeni gör,\nmomentumu koru', tEn: 'See progress,\nkeep momentum', sTr: 'Haftalık odak istatistikleri ve momentum skorun.', sEn: 'Weekly focus stats and your momentum score.' },
-  // 5 — Kokpit / Haftalık Karne: başarı & ilerleme · amber (ödül/karne tonu)
-  { kind: 'cockpit', accentKey: 'amber', darkColors: ['#2a1a06', '#5c3c0f', '#1e1305'], ebTr: 'Kokpit · Haftalık', ebEn: 'Cockpit · Weekly', tTr: 'Haftanı\nkarneyle bitir', tEn: 'Close your week\nwith a report', sTr: 'Günlük tutarlılığını gör, haftalık karnenle ilerlemeni ölç.', sEn: 'See daily consistency and measure progress with a weekly report.' },
+  { kind: 'momentum', accentKey: 'emerald', darkColors: ['#06271f', '#0d4a3c', '#051c16'],
+    ebTr: 'Momentum', ebEn: 'Momentum',
+    tTr: 'Tek sayı,\nbütün hikâye', tEn: 'One number,\nthe whole story',
+    sTr: 'Görev, odak ve serin tek skorda. Bugün iyi miydin, bir bakışta.',
+    sEn: 'Tasks, focus and streak in one score. Was today good? One glance.' },
+
+  // 5 — Haftalık Merkez · amber (ödül/karne tonu)
+  { kind: 'cockpit', accentKey: 'amber', darkColors: ['#2a1a06', '#5c3c0f', '#1e1305'],
+    ebTr: 'Haftalık Merkez', ebEn: 'Weekly Hub',
+    tTr: 'Haftan nasıl\ngeçti gerçekten?', tEn: 'How did your week\nactually go?',
+    sTr: 'Günlük tutarlılığın ve haftalık karnen — tahmin değil, ölçüm.',
+    sEn: 'Daily consistency and a weekly report — measured, not guessed.' },
+
   // 6 — Ana ekran: genel bakış · primary (mavi, marka hero)
-  { kind: 'home', accentKey: 'blue', darkColors: ['#08122f', '#123a86', '#070c26'], ebTr: 'Genel Bakış', ebEn: 'Overview', tTr: 'Her şey\ntek yerde', tEn: 'Everything\nin one place', sTr: 'Odak, plan ve alışkanlıklar — dengeli bir gün.', sEn: 'Focus, plans and habits — a balanced day.' },
-  // 7 — Marka kapanışı · violet. Dramatik kapanış HER ZAMAN koyu.
-  { kind: 'brand', accentKey: 'violet', darkColors: ['#1a0b42', '#2f1280', '#140a30'], ebTr: 'TAZQ', ebEn: 'TAZQ', tTr: 'Odaklan. İlerle.\nDengede kal.', tEn: 'Focus. Progress.\nStay balanced.', sTr: 'Üretkenliğin ve huzurun bir arada. Bugün başla.', sEn: 'Productivity and calm, together. Start today.' },
+  { kind: 'home', accentKey: 'blue', darkColors: ['#08122f', '#123a86', '#070c26'],
+    ebTr: 'Genel Bakış', ebEn: 'Overview',
+    tTr: 'Günün\ntek ekranda', tEn: 'Your day,\none screen',
+    sTr: 'Sırada ne var, ne kadar ilerledin, bugün ne kaldı.',
+    sEn: 'What’s next, how far you’ve come, what’s left today.' },
+
+  // 7 — Marka kapanışı · violet. Alt satır GİRİŞ ENGELİNİ kaldırıyor:
+  //     son görselde okunan son cümle bu olmalı.
+  { kind: 'brand', accentKey: 'violet', darkColors: ['#1a0b42', '#2f1280', '#140a30'],
+    ebTr: 'TAZQ', ebEn: 'TAZQ',
+    tTr: 'Odaklan. İlerle.\nDengede kal.', tEn: 'Focus. Progress.\nStay balanced.',
+    sTr: 'Ücretsiz. Hesap açmadan denemeye başlayabilirsin.',
+    sEn: 'Free. Start trying it without an account.' },
 ];
 
 // Bu slaytın ARKA PLANI koyu mu? Odak ve marka her modda koyu (derin odak koyu ekran, kapanış dramatik).

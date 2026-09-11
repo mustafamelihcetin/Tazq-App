@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Modal, StyleSheet } from 'react-native';
-import { MotiView } from 'moti';
+import { GlassSheet } from '@/shared/components/GlassSheet';
 import { Bell, Sunrise, Sunset, ListChecks } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { S, R, F, ICON } from '@/shared/constants/tokens';
@@ -56,15 +56,7 @@ export function NotificationPrimer({ visible, onEnable, onDismiss }: Notificatio
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <View style={styles.backdrop}>
-        <MotiView
-          from={{ opacity: 0, scale: 0.96, translateY: 16 }}
-          animate={{ opacity: 1, scale: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 18 }}
-          style={[
-            styles.card,
-            { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest },
-          ]}
-        >
+        <GlassSheet>
           <View style={[styles.badge, { backgroundColor: theme.primary + '18' }]}>
             <Bell size={ICON.lg} color={theme.primary} strokeWidth={2.2} />
           </View>
@@ -111,7 +103,7 @@ export function NotificationPrimer({ visible, onEnable, onDismiss }: Notificatio
               {t.dismiss}
             </Text>
           </Touchable>
-        </MotiView>
+        </GlassSheet>
       </View>
     </Modal>
   );
@@ -119,7 +111,6 @@ export function NotificationPrimer({ visible, onEnable, onDismiss }: Notificatio
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: S.lg },
-  card: { width: '100%', maxWidth: 420, borderRadius: R.lg, padding: S.lg, gap: S.md },
   badge: { width: 52, height: 52, borderRadius: R.full, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   title: { fontSize: F.title3, fontWeight: '700', textAlign: 'center', letterSpacing: -0.3 },
   sub: { fontSize: F.body, textAlign: 'center', lineHeight: 20 },

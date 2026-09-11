@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Modal, TextInput, Keyboard, StyleSheet, ActivityIndicator } from 'react-native';
-import { MotiView } from 'moti';
+import { GlassSheet } from '@/shared/components/GlassSheet';
 import { Trash2, AlertCircle } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
 import { S, R, F, B, ICON } from '@/shared/constants/tokens';
@@ -122,12 +122,7 @@ export function DeleteAccountModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: S.lg, paddingTop: insetTop + S.lg, paddingBottom: (kbHeight > 0 ? kbHeight : insetBottom) + S.lg }}>
         <Touchable style={StyleSheet.absoluteFill} activeOpacity={1} onPress={dismiss} accessibilityRole="button" accessibilityLabel={t.close} />
-        <MotiView
-          from={{ opacity: 0, scale: 0.96, translateY: 16 }}
-          animate={{ opacity: 1, scale: 1, translateY: 0 }}
-          transition={{ type: 'spring', damping: 18 }}
-          style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderRadius: R.lg, padding: S.lg, gap: S.md }}
-        >
+        <GlassSheet>
           <View style={{ width: 52, height: 52, borderRadius: R.full, backgroundColor: theme.error + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
             <Trash2 size={ICON.lg} color={theme.error} strokeWidth={2.2} />
           </View>
@@ -196,7 +191,7 @@ export function DeleteAccountModal({
               {deleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: F.body }}>{t.submit}</Text>}
             </Touchable>
           </View>
-        </MotiView>
+        </GlassSheet>
       </View>
     </Modal>
   );

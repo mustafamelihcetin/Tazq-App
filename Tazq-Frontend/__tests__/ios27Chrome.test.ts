@@ -254,3 +254,62 @@ describe('Android bu turda DEĞİŞMEDİ', () => {
     expect(BLUR).toContain('radius != null && { borderRadius: radius }');
   });
 });
+
+describe('cam sayfalar ve eşmerkezli köşeler', () => {
+  const SHEET = read('shared/components/GlassSheet.tsx');
+  const { R, concentric, S } = require('@/shared/constants/tokens');
+
+  it('içerik ölçeği BÜYÜTÜLMEDİ — yeni bant üstüne eklendi', () => {
+    /*
+      md/lg/xl iOS'un Liquid Glass ÖNCESİ kart değerlerine hizalı ve İÇERİK için hâlâ
+      doğru: aşırı yuvarlak kart ucuz template estetiğidir, o karar ölçülerek verildi.
+      Cam KABUK ayrı bir mesele — bu yüzden ölçek büyütülmedi, üstüne adım eklendi.
+    */
+    expect(R.sheet).toBeGreaterThan(R.xl);
+    expect(R.md).toBeLessThanOrEqual(12 * 1.125);
+    expect(R.lg).toBeLessThanOrEqual(16 * 1.125);
+  });
+
+  it('eşmerkezli kural: iç yarıçap = dış − boşluk', () => {
+    // Ancak o zaman iki eğri PARALEL kalır ve göz onları tek nesne gibi okur.
+    expect(concentric(28, 16)).toBe(12);
+    expect(concentric(40, 8)).toBe(32);
+  });
+
+  it('eşmerkezli sonuç sıfıra düşmez — eğri ilişkisi kopmasın', () => {
+    expect(concentric(10, 100)).toBeGreaterThan(0);
+    expect(concentric(10, 100)).toBeLessThanOrEqual(R.xs);
+  });
+
+  it('sayfa iç yarıçapını KENDİ dolgusundan türetir', () => {
+    expect(SHEET).toContain('concentric(R.sheet, padding)');
+    expect(SHEET).toContain('sheetInnerRadius');
+  });
+
+  it('cam TEK BAŞINA kontrast garanti etmez — ton katmanı var', () => {
+    /*
+      Saf cam üstünde metin okunmaz: arkadaki içerik kaydıkça kontrast oynar ve bir
+      anda AA'nın altına düşer. Apple'ın sayfaları da saf cam değil.
+    */
+    expect(SHEET).toContain('VEIL_OPACITY');
+    const idx = SHEET.indexOf('VEIL_OPACITY = {');
+    expect(SHEET.slice(idx, idx + 120)).toMatch(/light: 0\.\d+, dark: 0\.\d+/);
+  });
+
+  it('ton opaklığı TEK yerde — her modalda yeniden uydurulmasın', () => {
+    // AppBlur'ün "17 çağrıda 12 farklı sayı" hatasının aynısına düşmemek için.
+    expect((SHEET.match(/VEIL_OPACITY/g) ?? []).length).toBe(2); // tanım + kullanım
+  });
+
+  it('Android cam almaz — yüzey yükseltiyle ayrılır', () => {
+    expect(SHEET).toMatch(/Platform\.OS === 'android'[\s\S]{0,40}elevation/);
+  });
+
+  it('taşınan sayfalar kendi zeminini ARTIK çizmiyor', () => {
+    for (const f of ['features/user/components/DeleteAccountModal.tsx', 'shared/components/NotificationPrimer.tsx']) {
+      const src = read(f);
+      expect(src).toContain('<GlassSheet>');
+      expect(src).not.toMatch(/backgroundColor: isDark \? theme\.surfaceContainerHigh/);
+    }
+  });
+});
