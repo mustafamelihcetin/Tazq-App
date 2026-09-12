@@ -7,6 +7,7 @@ import React from 'react';
 import { Modal, View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { MotiView } from 'moti';
 import { AppBlur } from '@/shared/components/AppBlur';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { S, R, F, SPRING } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
@@ -33,8 +34,9 @@ export function PeekMenu({ visible, onClose, items, title }: { visible: boolean;
           from={{ opacity: 0, scale: 0.9, translateY: 8 }}
           animate={{ opacity: 1, scale: 1, translateY: 0 }}
           transition={SPRING as any}
-          style={[styles.menu, { backgroundColor: isDark ? 'rgba(40,40,46,0.96)' : 'rgba(255,255,255,0.98)', borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]}
+          style={[styles.menu, { borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.06)' }]}
         >
+          <GlassSurface radius={R.sheet} />
           {title ? (
             <Text numberOfLines={1} style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', paddingHorizontal: S.md, paddingTop: S.sm + 2, paddingBottom: S.xxs }}>{title}</Text>
           ) : null}
@@ -60,5 +62,5 @@ export function PeekMenu({ visible, onClose, items, title }: { visible: boolean;
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.xl },
-  menu: { width: 250, maxWidth: '90%', borderRadius: R.lg, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 12 },
+  menu: { width: 250, maxWidth: '90%', borderRadius: R.sheet, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 12 },
 });

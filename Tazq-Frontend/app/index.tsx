@@ -46,6 +46,7 @@ import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { StatusHubModal } from '@/features/dashboard/components/StatusHubModal';
 import { QuickDraftModal } from '@/shared/components/QuickDraftModal';
 import { ProfileSetupModal } from '@/features/user/components/ProfileSetupModal';
@@ -1791,8 +1792,7 @@ export default function HomeScreen() {
               transition={{ type: 'spring', damping: 28, stiffness: 180 }}
               style={{
                 marginTop: S.xxl,
-                backgroundColor: isDark ? 'rgba(28, 28, 35, 0.94)' : 'rgba(255, 255, 255, 0.94)',
-                borderRadius: R.xl,
+                borderRadius: R.sheet,
                 borderWidth: 1.2,
                 borderColor: theme.primary + '25',
                 shadowColor: theme.primary,
@@ -1804,6 +1804,7 @@ export default function HomeScreen() {
                 maxHeight: '65%'
               }}
             >
+              <GlassSurface radius={R.sheet} />
               {/* Search Input Area */}
               <View style={{
                 flexDirection: 'row',

@@ -14,6 +14,7 @@ import type { Achievement } from '@/features/user/store/useAchievementStore';
 import { ACHIEVEMENT_ICONS, renderAchievementIcon } from '@/shared/utils/achievementIcons';
 import { BackButton } from '@/shared/components/BackButton';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { S, R, F, B, ICON, MIN_TOUCH , MAX_W} from '@/shared/constants/tokens';
 import { haptic } from '@/shared/utils/haptics';
@@ -224,11 +225,11 @@ export default function AchievementsScreen() {
                   transition={{ type: 'spring', damping: 15, stiffness: 180 }}
                   style={{
                     width: '100%', maxWidth: 340, alignItems: 'center',
-                    backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest,
                     borderColor: theme.separator, borderWidth: B.thin,
-                    borderRadius: R.xl, padding: S.xl,
+                    borderRadius: R.sheet, padding: S.xl,
                   }}
                 >
+                  <GlassSurface radius={R.sheet} />
                   <View
                     style={{
                       width: 112, height: 112, borderRadius: R.full, alignItems: 'center', justifyContent: 'center',

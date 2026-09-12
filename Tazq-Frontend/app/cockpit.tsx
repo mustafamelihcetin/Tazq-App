@@ -25,6 +25,7 @@ import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { FocusService } from '@/shared/services/api';
 import { ICON, S, R, F, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight} from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { SwipeableHabitItem } from '@/features/habits/components/SwipeableHabitItem';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
@@ -1187,7 +1188,6 @@ export default function CockpitScreen() {
               styles.sheet,
               addSlide,
               {
-                backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface,
                 paddingBottom: Math.max(insets.bottom, S.xl),
                 // flexShrink: klavye açılınca KeyboardAvoidingView'ın iç alanı daralır;
                 // sheet küçülebilmezse taşar. maxHeight yalnız ÜST sınır.
@@ -1196,6 +1196,7 @@ export default function CockpitScreen() {
               },
             ]}
           >
+            <GlassSurface corners="top" />
             <View
               {...addPan.panHandlers}
               style={styles.handleArea}
@@ -1350,12 +1351,12 @@ export default function CockpitScreen() {
               styles.sheet,
               planSlide,
               {
-                backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surface,
                 paddingBottom: Math.max(insets.bottom, S.xl),
                 maxHeight: sheetMaxHeight(screenHeight, insets.top),
               },
             ]}
           >
+            <GlassSurface corners="top" />
             <View
               {...planPan.panHandlers}
               style={styles.handleArea}
@@ -1508,7 +1509,7 @@ const styles = StyleSheet.create({
   planBtnText: { fontSize: F.body, fontWeight: '600' },
 
   // Sheets
-  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: S.xl, paddingTop: S.md, gap: S.md },
+  sheet: { borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, padding: S.xl, paddingTop: S.md, gap: S.md },
   handleArea: { paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' },
   sheetHandle: { width: 36, height: 4, borderRadius: R.xs },
   sheetTitle: { fontSize: F.title, fontWeight: '600', letterSpacing: -0.5 },

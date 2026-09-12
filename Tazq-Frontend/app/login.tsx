@@ -595,7 +595,7 @@ export default function LoginScreen() {
           <TouchableWithoutFeedback accessible={false} onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
             <AppBlur material="regular" tint="dark" />
-            <GlassCard style={styles.modalCard}>
+            <GlassCard style={styles.modalCard} floating>
               {forgotSuccess ? (
                 <View style={{ alignItems: 'center', gap: S.md, paddingVertical: S.sm }}>
                   <View style={{ width: 56, height: 56, borderRadius: R.full, backgroundColor: theme.tertiary + '15', alignItems: 'center', justifyContent: 'center' }}>

@@ -19,6 +19,7 @@ import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporSt
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import { usePlanAdaptations } from '@/features/modes/hooks/usePlanAdaptations';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { recordWeeklyWeight, daysUntilNextWeight } from '@/features/modes/utils/weightCheckin';
 import { haptic } from '@/shared/utils/haptics';
 
@@ -112,9 +113,8 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
         />
         <Animated.View
           style={{
-            backgroundColor: isDark ? '#1C1C22' : '#FFFFFF',
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
+            borderTopLeftRadius: R.sheet,
+            borderTopRightRadius: R.sheet,
             paddingTop: S.sm,
             paddingBottom: insets.bottom > 0 ? insets.bottom : S.xl,
             paddingHorizontal: S.lg,
@@ -123,6 +123,7 @@ export function WeightEntryModal({ visible, taskId, onClose, onSaved }: Props) {
             transform: [{ translateY: slideAnim }],
           }}
         >
+          <GlassSurface corners="top" />
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>

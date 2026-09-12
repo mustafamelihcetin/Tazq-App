@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SupportService, MySupportMessage } from '@/shared/services/api';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { ICON, S, R, F, B } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { httpStatusOf, isNetworkError, httpRawDataOf } from '@/shared/utils/errors';
@@ -127,11 +128,11 @@ export const SupportModal: React.FC<SupportModalProps> = ({
           style={[
             styles.modalContent,
             {
-              backgroundColor: isDark ? '#1C1C22' : '#FFFFFF',
               paddingBottom: insets.bottom + S.lg,
             },
           ]}
         >
+          <GlassSurface corners="top" />
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
@@ -282,8 +283,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: R.sheet,
+    borderTopRightRadius: R.sheet,
     width: '100%',
     maxHeight: '90%',
   },

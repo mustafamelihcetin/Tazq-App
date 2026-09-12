@@ -4,6 +4,7 @@ import { Zap } from 'lucide-react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 
@@ -79,13 +80,15 @@ export const QuickDraftModal: React.FC<QuickDraftModalProps> = ({
               animatedStyle,
               styles.quickDraftSheet,
               {
-                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
                 paddingBottom: keyboardHeight > 0 ? S.md : S.xl,
-                borderBottomLeftRadius: keyboardHeight > 0 ? R.lg : 0,
-                borderBottomRightRadius: keyboardHeight > 0 ? R.lg : 0,
+                borderBottomLeftRadius: keyboardHeight > 0 ? R.sheet : 0,
+                borderBottomRightRadius: keyboardHeight > 0 ? R.sheet : 0,
               },
             ]}
           >
+            {/* Klavye açıkken sayfa klavyenin ÜSTÜNDE yüzer → dört köşe yuvarlak;
+                kapalıyken ekranın dibine yapışık → yalnız üst köşeler. */}
+            <GlassSurface corners={keyboardHeight > 0 ? 'all' : 'top'} />
             {/* Drag Handle */}
             <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
               <View style={styles.sheetHandle} />
@@ -176,8 +179,8 @@ const styles = StyleSheet.create({
   },
   quickDraftSheet: {
     width: '100%',
-    borderTopLeftRadius: R.lg,
-    borderTopRightRadius: R.lg,
+    borderTopLeftRadius: R.sheet,
+    borderTopRightRadius: R.sheet,
     padding: S.lg,
     borderWidth: B.thin,
     borderColor: 'rgba(255,255,255,0.1)',

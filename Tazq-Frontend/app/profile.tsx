@@ -30,6 +30,7 @@ import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useActiveTasks } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { BackButton } from '@/shared/components/BackButton';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { swallow } from '@/shared/utils/swallow';
@@ -530,7 +531,8 @@ export default function ProfileScreen() {
       <Modal visible={editModalVisible} transparent animationType="none" onShow={() => editSlideIn()}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
             <Touchable style={StyleSheet.absoluteFill} onPress={() => setEditModalVisible(false)} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Kapat' : 'Close'} />
-              <Animated.View style={[editSlide, styles.modalContent, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, maxHeight: sheetMaxHeight(height, insets.top) }]}>
+              <Animated.View style={[editSlide, styles.modalContent, { maxHeight: sheetMaxHeight(height, insets.top) }]}>
+                <GlassSurface radius={R.sheet} />
                 <View {...editPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
                   <View style={[styles.modalHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
                 </View>
@@ -851,7 +853,7 @@ const styles = StyleSheet.create({
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm, borderRadius: R.lg },
   logoutText: { fontFamily: 'Jakarta-Bold', fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: S.xl, borderTopRightRadius: S.xl, borderBottomLeftRadius: S.xl, borderBottomRightRadius: S.xl, paddingTop: S.sm, overflow: 'hidden' },
+  modalContent: { borderRadius: R.sheet, paddingTop: S.sm, overflow: 'hidden' },
   modalHandle: { width: 40, height: 4, borderRadius: R.sm, alignSelf: 'center', marginBottom: S.md },
   modalTitle: { fontWeight: '700', marginBottom: S.lg, textAlign: 'center', paddingHorizontal: S.lg },
   avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },

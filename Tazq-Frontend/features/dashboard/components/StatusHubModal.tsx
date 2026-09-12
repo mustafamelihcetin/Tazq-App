@@ -7,6 +7,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { BrainCircuit, Zap, Target, Play, TrendingUp, TrendingDown, Check, Coffee, BarChart2, Calendar, Sparkles } from 'lucide-react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { AppIcon } from '@/shared/components/AppIcon';
@@ -211,11 +212,11 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
             animatedStyle,
             styles.sheet,
             {
-              backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
               borderColor: theme.outlineVariant,
             },
           ]}
         >
+          <GlassSurface corners="top" />
           {/* Drag Handle */}
           <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
             <View
@@ -669,8 +670,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: R.sheet,
+    borderTopRightRadius: R.sheet,
     borderWidth: B.thin,
     padding: scale(24),
     gap: scale(24),

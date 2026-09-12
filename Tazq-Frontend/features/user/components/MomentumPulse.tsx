@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Minus, CheckCircle2, Zap, Flame, Shield, Info
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { ICON, S, F, R, METRIC, LH, trackingFor } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { useMomentumStore } from '@/features/user/store/useMomentumStore';
 import { swallow } from '@/shared/utils/swallow';
 import { Separator } from '@/shared/components/Separator';
@@ -321,8 +322,9 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
           from={{ scale: 0.92, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', damping: 18 }}
-          style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderRadius: R.xl, padding: S.lg, width: '100%', gap: S.md }}
+          style={{ borderRadius: R.sheet, padding: S.lg, width: '100%', gap: S.md }}
         >
+          <GlassSurface radius={R.sheet} />
           <Text style={{ fontSize: 16, fontWeight: '700', color: accentColor, letterSpacing: -0.5 }}>
             {tr ? 'Momentum Nasıl Hesaplanır?' : 'How is Momentum Calculated?'}
           </Text>

@@ -19,6 +19,7 @@ import { AdminService, AdminUser, AdminStats, BanHistoryItem, AdminUserDetail, A
 import { sendAdminSupportNotification } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, MAX_W, HAIRLINE } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { swallow } from '@/shared/utils/swallow';
 import { haptic } from '@/shared/utils/haptics';
@@ -1632,7 +1633,8 @@ export default function AdminScreen() {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: S.lg }}>
           <TouchableOpacity style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} activeOpacity={1} onPress={() => { if (!deleting) { Keyboard.dismiss(); setDeleteTarget(null); } }} />
           <MotiView from={{ opacity: 0, scale: 0.96, translateY: 12 }} animate={{ opacity: 1, scale: 1, translateY: 0 }} transition={{ type: 'spring', damping: 18 }}
-            style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderRadius: R.lg, padding: S.lg, gap: S.md }}>
+            style={{ width: '100%', maxWidth: 420, borderRadius: R.sheet, padding: S.lg, gap: S.md }}>
+            <GlassSurface radius={R.sheet} />
             <View style={{ width: 52, height: 52, borderRadius: R.full, backgroundColor: theme.error + '18', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
               <Trash2 size={ICON.lg} color={theme.error} strokeWidth={2.2} />
             </View>

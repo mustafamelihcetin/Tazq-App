@@ -12,6 +12,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, TextInput, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Image, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { ICON, S, R, F, B, MAX_W } from '@/shared/constants/tokens';
 import { AVATAR_CONFIGS } from '@/features/user';
 import { Sunrise, Sun, Sunset, Moon, Zap } from 'lucide-react-native';
@@ -128,7 +129,8 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.7)' }}>
         <AppBlur material="thin" />
         
-        <View style={[styles.card, { backgroundColor: isDark ? '#1C1C22' : '#FFFFFF', borderColor: theme.outlineVariant, borderWidth: B.thin }]}>
+        <View style={[styles.card, { borderColor: theme.outlineVariant, borderWidth: B.thin }]}>
+          <GlassSurface radius={R.sheet} />
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
             <View style={StyleSheet.absoluteFill} />
           </TouchableWithoutFeedback>
@@ -344,7 +346,7 @@ const styles = StyleSheet.create({
   card: {
     width: '90%',
     maxWidth: MAX_W - 40,
-    borderRadius: R.lg,
+    borderRadius: R.sheet,
     padding: S.lg,
     elevation: 10,
     shadowColor: '#000',

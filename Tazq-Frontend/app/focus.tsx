@@ -28,6 +28,7 @@ import { Colors } from '@/shared/constants/Colors';
 import { getRandomQuote } from '@/shared/constants/Quotes';
 import { ICON, S, R, F, B, SPRING_SOFT } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { Easing as RNEasing } from 'react-native';
@@ -2024,9 +2025,10 @@ export default function FocusScreen() {
             style={[
               customSlide,
               styles.customSheet,
-              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', paddingBottom: S.xxl },
+              { paddingBottom: S.xxl },
             ]}
           >
+            <GlassSurface corners="top" />
             <View {...customPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
             </View>
@@ -2094,7 +2096,8 @@ export default function FocusScreen() {
       >
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
           <Touchable style={styles.modalOverlay} activeOpacity={1} onPress={() => setModesSheetVisible(false)} />
-          <View style={[styles.customSheet, { backgroundColor: isDark ? theme.surfaceContainerHighest : '#FFFFFF', paddingBottom: (insets.bottom || S.md) + S.md, alignItems: 'stretch' }]}>
+          <View style={[styles.customSheet, { paddingBottom: (insets.bottom || S.md) + S.md, alignItems: 'stretch' }]}>
+            <GlassSurface corners="top" />
             <View style={{ alignItems: 'center' }}>
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
             </View>
@@ -2147,9 +2150,10 @@ export default function FocusScreen() {
             style={[
               breathSlide,
               styles.customSheet,
-              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', paddingBottom: S.xxl },
+              { paddingBottom: S.xxl },
             ]}
           >
+            <GlassSurface corners="top" />
             <View {...breathPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
               <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
             </View>
@@ -2223,8 +2227,9 @@ export default function FocusScreen() {
             from={{ opacity: 0, scale: 0.88 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', damping: 18, stiffness: 280 }}
-            style={{ width: '100%', borderRadius: R.lg, backgroundColor: theme.surface, padding: S.xl, alignItems: 'center', gap: S.md }}
+            style={{ width: '100%', borderRadius: R.sheet, padding: S.xl, alignItems: 'center', gap: S.md }}
           >
+            <GlassSurface radius={R.sheet} />
             {/* Icon */}
             <MotiView
               from={{ scale: 0.8, opacity: 0, rotate: '-10deg' }}
@@ -2375,8 +2380,9 @@ export default function FocusScreen() {
             from={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', damping: 18 }}
-            style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderRadius: R.xl, padding: S.slg, width: '100%', gap: S.md }}
+            style={{ borderRadius: R.sheet, padding: S.slg, width: '100%', gap: S.md }}
           >
+            <GlassSurface radius={R.sheet} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd }}>
               <AppIcon Icon={Timer} color={theme.primary} size={40} radius={R.md} iconSize={ICON.md} />
               <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, flex: 1 }}>
@@ -2473,7 +2479,7 @@ const styles = StyleSheet.create({
   footer: { alignItems: 'center' },
   quote: { fontStyle: 'italic', textAlign: 'center', opacity: 0.5 },
   modalOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
-  customSheet: { borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, padding: S.lg, alignItems: 'center', gap: S.sm },
+  customSheet: { borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, padding: S.lg, alignItems: 'center', gap: S.sm },
   sheetHandle: { width: 36, height: 4, borderRadius: R.sm, marginBottom: S.sm },
   sheetTitle: { fontSize: F.title, fontWeight: '700', letterSpacing: -0.5 },
   sheetSub: { fontSize: F.body, fontWeight: '600', marginBottom: S.sm },

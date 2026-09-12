@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, ActivityIndicator, Platform, Linking, KeyboardAvoidingView } from 'react-native';
 import { MotiView } from 'moti';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Zap } from 'lucide-react-native';
-import { S, R, B, F } from '@/shared/constants/tokens';
+import { Zap, Sparkles, Heart } from 'lucide-react-native';
+import { S, R, B, F, ICON } from '@/shared/constants/tokens';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
@@ -124,10 +125,9 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
             // Klavye açıkken kalan alana KÜÇÜLEBİLSİN. Sabit yükseklikli bir kart,
             // klavye alanı yiyince ortadan taşar ve üst/alt kırpılır.
             flexShrink: 1,
-            backgroundColor: theme.surface,
             borderColor: theme.outlineVariant,
             borderWidth: B.thin,
-            borderRadius: R.xl,
+            borderRadius: R.sheet,
             padding: S.lg,
             gap: S.md,
             shadowColor: '#000',
@@ -137,9 +137,10 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
             elevation: 10,
           }}
         >
-          {/* Header */}
+          <GlassSurface radius={R.sheet} />
+          {/* Header — uygulamanın ikon setinden; emoji her platformda farklı çizilir. */}
           <View style={{ alignItems: 'center', gap: S.sm }}>
-            <Text style={{ fontSize: 32 }}>✨</Text>
+            <Sparkles size={ICON.xl} color={theme.primary} strokeWidth={2} />
             <Text style={{ color: theme.onSurface, fontSize: 18, fontWeight: '700', textAlign: 'center', letterSpacing: -0.5 }}>
               {tr ? 'TAZQ\'ı Nasıl Buluyorsunuz?' : 'How do you rate TAZQ?'}
             </Text>
@@ -247,7 +248,7 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
               animate={{ scale: 1, opacity: 1 }}
               style={{ alignItems: 'center', paddingVertical: S.lg, gap: S.md }}
             >
-              <Text style={{ fontSize: 44 }}>❤️</Text>
+              <Heart size={44} color={theme.error} fill={theme.error} strokeWidth={2} />
               <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', textAlign: 'center' }}>
                 {tr ? 'Geri bildiriminiz için teşekkürler!' : 'Thank you for your feedback!'}
               </Text>

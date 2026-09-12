@@ -35,6 +35,7 @@ import { useHabitStore, fmtDateKey } from '@/features/habits';
 import { useTaskStore } from '@/features/tasks';
 import { renderAchievementIcon, ACHIEVEMENT_ICONS } from '@/shared/utils/achievementIcons';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { DeleteAccountModal } from '@/features/user/components/DeleteAccountModal';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
@@ -745,8 +746,9 @@ export default function SettingsScreen() {
             from={{ opacity: 0, scale: 0.96, translateY: 16 }}
             animate={{ opacity: 1, scale: 1, translateY: 0 }}
             transition={{ type: 'spring', damping: 18 }}
-            style={{ width: '100%', maxWidth: 420, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, borderRadius: R.lg, padding: S.lg, gap: S.md }}
+            style={{ width: '100%', maxWidth: 420, borderRadius: R.sheet, padding: S.lg, gap: S.md }}
           >
+            <GlassSurface radius={R.sheet} />
             <AppIcon Icon={Lock} color={theme.primary} size={52} radius={R.full} iconSize={ICON.lg} />
             <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, textAlign: 'center', letterSpacing: -0.3 }}>
               {language === 'tr' ? 'Şifre Değiştir' : 'Change Password'}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, Animated, TouchableWithoutFeedback, Easing, Alert, Platform } from 'react-native';
 import { swallow } from '@/shared/utils/swallow';
 import { AppBlur } from '@/shared/components/AppBlur';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Touchable } from './Touchable';
 import { S, R, F } from '@/shared/constants/tokens';
@@ -124,9 +125,8 @@ export function CustomAlertModal() {
         </TouchableWithoutFeedback>
         
         <Animated.View style={[
-          styles.alertBox, 
-          { 
-            backgroundColor: isDark ? 'rgba(28, 28, 30, 0.85)' : 'rgba(255, 255, 255, 0.9)',
+          styles.alertBox,
+          {
             borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
             transform: [
               { scale: scaleAnim },
@@ -134,8 +134,9 @@ export function CustomAlertModal() {
             ]
           }
         ]}>
-          <AppBlur material="regular" />
-          
+          {/* Zemin ortak cam yüzeyden — yarı saydam elle yazılmış renk + ayrı blur yerine. */}
+          <GlassSurface radius={R.sheet} />
+
           <View style={styles.content}>
             <View style={[styles.iconContainer, { backgroundColor: iconColor + '15' }]}>
               <IconComponent size={24} color={iconColor} strokeWidth={2.5} />
@@ -210,7 +211,7 @@ const styles = StyleSheet.create({
   alertBox: {
     width: '80%',
     maxWidth: 320,
-    borderRadius: R.xl,
+    borderRadius: R.sheet,
     borderWidth: 1,
     overflow: 'hidden',
     elevation: 24,

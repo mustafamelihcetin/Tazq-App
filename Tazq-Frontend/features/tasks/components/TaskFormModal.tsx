@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import VoiceService from '@/shared/utils/voice';
 import { parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS } from '@/features/tasks';
 import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
@@ -407,14 +408,15 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
               styles.sheet,
               taskSlide,
               {
-                backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF',
                 padding: S.lg,
-                borderBottomLeftRadius: keyboardHeight > 0 ? S.xl : 0,
-                borderBottomRightRadius: keyboardHeight > 0 ? S.xl : 0,
+                borderBottomLeftRadius: keyboardHeight > 0 ? R.sheet : 0,
+                borderBottomRightRadius: keyboardHeight > 0 ? R.sheet : 0,
                 maxHeight: scale(620), // Standard viewport layout protection
               },
             ]}
           >
+            {/* Klavye açıkken sayfa klavyenin üstünde yüzer → dört köşe; kapalıyken dibe yapışık → üst köşeler. */}
+            <GlassSurface corners={keyboardHeight > 0 ? 'all' : 'top'} />
             {/* Drag Handle */}
             <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
               <View style={[styles.handle, { backgroundColor: theme.outline }]} />
@@ -1005,8 +1007,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   sheet: {
-    borderTopLeftRadius: S.xl,
-    borderTopRightRadius: S.xl,
+    borderTopLeftRadius: R.sheet,
+    borderTopRightRadius: R.sheet,
     borderWidth: B.thin,
     borderBottomWidth: 0,
   },

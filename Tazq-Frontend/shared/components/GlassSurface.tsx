@@ -27,9 +27,11 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
  *
  * Buradaki değerler o ton katmanı. TEK yerde duruyorlar ki her yüzeyde yeniden
  * uydurulmasın (bkz. AppBlur'ün "17 çağrıda 12 farklı sayı" notu — aynı hata).
- * Koyu temada daha düşük değil daha YÜKSEK örtme gerekirdi diye düşünülebilir; ölçü
- * tersini söylüyor: koyu tonun kendisi zaten koyu, 0.78 arkadaki parlak içeriği
- * yeterince bastırıyor ve camın derinliği kaybolmuyor.
+ *
+ * DOĞRULAMA DURUMU: değerler bilinçli olarak YÜKSEK bir başlangıç noktası — metin
+ * okunurluğu camın görünürlüğünden önce gelir. Cihazda görülerek ayarlanmadılar.
+ * Cam fazla silik ya da metin zor okunuyorsa ayar yalnız BURADAN yapılır; bütün
+ * sayfa, menü ve uyarılar birlikte değişir.
  *
  * ── ANDROID: OPAK ─────────────────────────────────────────────────────────────
  * Android'de cam malzeme yok ve Material'ın sayfaları opaktır. Bu turdan önce
@@ -69,7 +71,7 @@ export interface GlassSurfaceProps {
 export const surfaceShape = (radius: number, corners: GlassCorners): ViewStyle =>
   corners === 'top'
     ? { position: 'absolute', top: 0, left: 0, right: 0, bottom: -radius, borderRadius: radius }
-    : { ...StyleSheet.absoluteFillObject, borderRadius: radius };
+    : { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: radius };
 
 export function GlassSurface({ radius = R.sheet, corners = 'all', material = 'thick' }: GlassSurfaceProps) {
   const { theme, colorScheme } = useAppTheme();

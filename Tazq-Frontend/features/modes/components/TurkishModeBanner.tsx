@@ -22,6 +22,7 @@ import { ICON, S, R, F, B, HAIRLINE , sheetMaxHeight} from '@/shared/constants/t
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSurface } from '@/shared/components/GlassSurface';
 import { usePrefsStore, PlanMode, PlanSpec, SeasonalPrefs } from '../store/usePrefsStore';
 import { usePlanAdaptations } from '../hooks/usePlanAdaptations';
 import { modeAccent as resolveModeAccent } from '@/shared/constants/Colors';
@@ -1356,7 +1357,6 @@ export const TurkishModeBanner: React.FC<Props> = ({
               animatedStyle,
               styles.sheet,
               {
-                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
                 borderColor: theme.outlineVariant,
                 maxHeight: sheetMaxHeight(screenHeight, insets.top),
                 paddingBottom: Math.max(insets.bottom, S.lg) + S.md,
@@ -1374,6 +1374,7 @@ export const TurkishModeBanner: React.FC<Props> = ({
               },
             ]}
           >
+            <GlassSurface corners="top" />
             <View {...panResponder.panHandlers} style={styles.dragHandle}>
               <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
             </View>
@@ -1620,7 +1621,7 @@ const styles = StyleSheet.create({
   planBtn: { flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.sm + 2, paddingVertical: S.xs + 1, borderRadius: R.full },
   planBtnText: { color: '#fff', fontSize: F.caption, fontWeight: '500' },
   dismissBtn: { padding: S.xxs },
-  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: B.thin, paddingHorizontal: S.lg },
+  sheet: { borderTopLeftRadius: R.sheet, borderTopRightRadius: R.sheet, borderWidth: B.thin, paddingHorizontal: S.lg },
   dragHandle: { paddingTop: S.smd, paddingBottom: S.sm, alignItems: 'center' },
   handle: { width: 36, height: 4, borderRadius: R.xs },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: S.md, marginBottom: S.lg },
