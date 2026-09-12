@@ -2042,12 +2042,12 @@ export default function FocusScreen() {
               {/* fade top */}
               <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, zIndex: 1, pointerEvents: 'none', backgroundColor: 'transparent' }}
                     pointerEvents="none">
-                <View style={{ flex: 1, backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', opacity: 0.7 }} />
+                <View style={{ flex: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, opacity: 0.7 }} />
               </View>
               {/* fade bottom */}
               <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, zIndex: 1, pointerEvents: 'none' }}
                     pointerEvents="none">
-                <View style={{ flex: 1, backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', opacity: 0.7 }} />
+                <View style={{ flex: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, opacity: 0.7 }} />
               </View>
               <ScrollView
                 ref={wheelRef}

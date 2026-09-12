@@ -60,12 +60,15 @@ const CEILING: Record<string, number> = {
   // onboarding: temizlendi. 7 marka-dışı slayt rengi (Material #6200ee, #3367ff, #ff2d55…)
   // palet token'larına bağlandı (accentKey → theme/CategoryColors, tema-duyarlı); emoji
   // etiketler lucide glife çevrildi. İlk-izlenim ekranı artık app'in paletiyle aynı.
-  'features/modes/components/TurkishModeBanner.tsx': 20,
-  'features/user/components/ProfileSetupModal.tsx': 22,  // kullanıcının seçtiği avatar renkleri
+  // 20 → 19 / 22 → 21: sayfa zeminleri cam yüzeye geçti.
+  'features/modes/components/TurkishModeBanner.tsx': 19,
+  'features/user/components/ProfileSetupModal.tsx': 21,  // kullanıcının seçtiği avatar renkleri
   // 21 → 4: mod vurgusu palete, semantik renkler (#EF4444/#F59E0B/#10B981) tema
   // token'larına (theme.error/warning/success) bağlandı. Kalan 4: yüzey/nötr tonlar.
   'features/modes/components/modes/SporCard.tsx': 4,
-  'app/focus.tsx': 18,  // derin odak — Skia shader, kendi görsel dili
+  // 18 → 13: beş modalın elle yazılmış sayfa zemini ve süre seçicinin kenar solmaları
+  // ortak cam yüzeyin ton rengine (tema token'ı) bağlandı.
+  'app/focus.tsx': 13,  // derin odak — Skia shader, kendi görsel dili
   // 18 → 5: mod renklerinin ÜÇÜNCÜ kopyası (modlar.tsx'in aynısı) merkezi palete
   // bağlandı; iki ekran aynı modu farklı tonda gösterebiliyordu.
   'app/mod-ozet.tsx': 5,
@@ -76,19 +79,22 @@ const CEILING: Record<string, number> = {
   'features/onboarding/components/TourFeaturePreview.tsx': 12,
   'app/tasks.tsx': 10,
   // 10 → 7: trend/nokta/değerlendirme yeşilleri theme.success'e bağlandı (tema-kör #10B981'di)
-  'features/dashboard/components/StatusHubModal.tsx': 7,
-  // 8 → 1: kilo artış/azalış + kaydet butonu + aktivite aksanı semantik theme.success/error'a
-  // bağlandı (buton bg'de beyaz-üstü kontrast da düzeldi — #10B981 2.5:1'di)
-  'features/modes/components/WeightEntryModal.tsx': 1,
+  // 7 → 6: sayfa zemini (#1C1C1E) cam yüzeye geçti.
+  'features/dashboard/components/StatusHubModal.tsx': 6,
+  // WeightEntryModal LİSTEDEN ÇIKTI (8 → 1 → 0): semantik renkler temaya bağlanmıştı; son
+  // sabit renk sayfa zeminiydi (#1C1C22) ve ortak cam yüzeye (GlassSurface) geçti.
   'app/report.tsx': 7,
   'features/modes/utils/modeHelpers.ts': 7,
-  'shared/components/QuickDraftModal.tsx': 7,
+  // 7 → 5: sayfa zemini cam yüzeye geçti.
+  'shared/components/QuickDraftModal.tsx': 5,
   'features/modes/components/modes/ExamCard.tsx': 6,
   // 6 → 3: alt-görev "yapıldı" tik/çerçeve/zemin semantik theme.success'e bağlandı
-  'features/tasks/components/TaskFormModal.tsx': 3,
+  // 3 → 2: sayfa zemini (#1A1A1A) cam yüzeye geçti.
+  'features/tasks/components/TaskFormModal.tsx': 2,
   'features/modes/components/modes/MulakatCard.tsx': 5,
   'features/modes/components/modes/TezCard.tsx': 5,
-  'shared/components/SupportModal.tsx': 5,
+  // 5 → 3: sayfa zemini cam yüzeye geçti.
+  'shared/components/SupportModal.tsx': 3,
   'app/login.tsx': 4,
   'app/register.tsx': 4,
   'features/focus/components/DynamicIsland.tsx': 4,
@@ -109,7 +115,7 @@ const CEILING: Record<string, number> = {
   'features/focus/components/FocusIsland.tsx': 1,
   'features/habits/store/useHabitStore.ts': 1,
   'shared/components/GlassCard.tsx': 1,
-  'features/user/components/MomentumPulse.tsx': 1,
+  // MomentumPulse LİSTEDEN ÇIKTI (1 → 0): bilgi penceresinin zemini (#1C1C1E) cam yüzeye geçti.
   // MyDayTaskRow: temizlendi. Tek sabit rengi #10B981 idi ve iki temada da aynıydı —
   // yani koyu temada yanlıştı. theme.success'e bağlandı (açık #047857 / koyu #34D399).
   'shared/components/PeekMenu.tsx': 1,

@@ -282,34 +282,87 @@ describe('cam sayfalar ve eşmerkezli köşeler', () => {
   });
 
   it('sayfa iç yarıçapını KENDİ dolgusundan türetir', () => {
-    expect(SHEET).toContain('concentric(R.sheet, padding)');
+    expect(SHEET).toContain('concentric(R.sheet, padding, R.md)');
     expect(SHEET).toContain('sheetInnerRadius');
   });
+
+  it('eşmerkezlilik kenara YAKIN iç öğe içindir — uzak içerik kartı kendi yarıçapını korur', () => {
+    /*
+      Dolgu 24 iken formül 28 − 24 = 4 verir: içerik kartı neredeyse köşeli olurdu.
+      Apple'ın ConcentricRectangle'ı da "dış − boşluk, ama bir minimumdan küçük değil"
+      diye çalışır. Minimum içerik kartının doğal yarıçapı (R.md).
+    */
+    expect(concentric(R.sheet, S.lg, R.md)).toBe(R.md);
+    expect(concentric(R.sheet, S.xs, R.md)).toBe(R.sheet - S.xs);
+  });
+});
+
+describe('cam yüzey — bütün modallar tek zeminden', () => {
+  const SURFACE = stripComments(read('shared/components/GlassSurface.tsx'));
+
+  function walk(dir: string): string[] {
+    const abs = path.join(ROOT, dir);
+    if (!fs.existsSync(abs)) return [];
+    return fs.readdirSync(abs, { withFileTypes: true }).flatMap((e) => {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) return walk(rel);
+      return e.name.endsWith('.tsx') ? [rel] : [];
+    });
+  }
+  const FILES = ['app', 'shared', 'features'].flatMap(walk);
 
   it('cam TEK BAŞINA kontrast garanti etmez — ton katmanı var', () => {
     /*
       Saf cam üstünde metin okunmaz: arkadaki içerik kaydıkça kontrast oynar ve bir
       anda AA'nın altına düşer. Apple'ın sayfaları da saf cam değil.
     */
-    expect(SHEET).toContain('VEIL_OPACITY');
-    const idx = SHEET.indexOf('VEIL_OPACITY = {');
-    expect(SHEET.slice(idx, idx + 120)).toMatch(/light: 0\.\d+, dark: 0\.\d+/);
+    const idx = SURFACE.indexOf('VEIL_OPACITY = {');
+    expect(idx).toBeGreaterThan(-1);
+    expect(SURFACE.slice(idx, idx + 60)).toMatch(/light: 0\.\d+, dark: 0\.\d+/);
   });
 
-  it('ton opaklığı TEK yerde — her modalda yeniden uydurulmasın', () => {
+  it('ton opaklığı TEK yerde — hiçbir yüzey kendi sayısını uydurmaz', () => {
     // AppBlur'ün "17 çağrıda 12 farklı sayı" hatasının aynısına düşmemek için.
-    expect((SHEET.match(/VEIL_OPACITY/g) ?? []).length).toBe(2); // tanım + kullanım
+    const offenders = FILES.filter(
+      (f) => f !== 'shared/components/GlassSurface.tsx' && read(f).includes('VEIL_OPACITY'),
+    );
+    expect(offenders).toEqual([]);
   });
 
-  it('Android cam almaz — yüzey yükseltiyle ayrılır', () => {
-    expect(SHEET).toMatch(/Platform\.OS === 'android'[\s\S]{0,40}elevation/);
+  it('Android cam almaz — opak yüzey, bu turdan önceki gibi', () => {
+    expect(SURFACE).toMatch(/Platform\.OS !== 'ios'\)\s*\{\s*return <View[^>]*backgroundColor: fill/);
   });
 
-  it('taşınan sayfalar kendi zeminini ARTIK çizmiyor', () => {
-    for (const f of ['features/user/components/DeleteAccountModal.tsx', 'shared/components/NotificationPrimer.tsx']) {
-      const src = read(f);
-      expect(src).toContain('<GlassSheet>');
-      expect(src).not.toMatch(/backgroundColor: isDark \? theme\.surfaceContainerHigh/);
-    }
+  it('dibe yapışık sayfada alt köşeler ekranın DIŞINA taşınır', () => {
+    /*
+      Köşe başına yarıçap yedek bulanıklık katmanında cihazda doğrulanmadı. Eşit
+      yarıçap + alt kenarı yarıçap kadar uzatmak üç malzeme yolunda da çalışan tek biçim.
+    */
+    expect(SURFACE).toMatch(/corners === 'top'[\s\S]{0,120}bottom: -radius/);
+  });
+
+  it('modal açan HER dosya cam yüzey kullanır — opak zemin geri gelemez', () => {
+    /*
+      ÖLÇÜLEN SORUN: 21 dosyadaki 29 modal kendi opak zeminini çiziyordu (#1C1C1E,
+      #1C1C22, #1A1A1A, theme.surface…). Kullanıcı çubukları cam, açtığı sayfayı opak
+      görüyordu. Yeni bir modal eklenirse bu test onu da yakalar.
+    */
+    const offenders = FILES
+      .map((f) => {
+        const src = read(f);
+        const modals = (src.match(/<Modal\b/g) ?? []).length;
+        const glass = (src.match(/<GlassSurface\b|<GlassSheet\b|<GlassCard[^>]*floating/g) ?? []).length;
+        return { f, modals, glass };
+      })
+      .filter(({ modals, glass }) => modals > 0 && glass < modals)
+      .map(({ f, modals, glass }) => `${f}: ${modals} modal, ${glass} cam yüzey`);
+    expect(offenders).toEqual([]);
+  });
+
+  it('eski elle yazılmış sayfa zeminleri kalmadı', () => {
+    const offenders = FILES.filter((f) =>
+      /backgroundColor: isDark \? '#1C1C1E' : '#FFFFFF',\s*paddingBottom|'#1A1A1A' : '#FFFFFF'/.test(read(f)),
+    );
+    expect(offenders).toEqual([]);
   });
 });

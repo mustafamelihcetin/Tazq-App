@@ -248,7 +248,7 @@ export function ReviewPromptModal({ visible, onClose, theme, tr }: Props) {
               animate={{ scale: 1, opacity: 1 }}
               style={{ alignItems: 'center', paddingVertical: S.lg, gap: S.md }}
             >
-              <Heart size={44} color={theme.error} fill={theme.error} strokeWidth={2} />
+              <Heart size={ICON.xxl} color={theme.error} fill={theme.error} strokeWidth={2} />
               <Text style={{ color: theme.onSurface, fontSize: F.subhead, fontWeight: '700', textAlign: 'center' }}>
                 {tr ? 'Geri bildiriminiz için teşekkürler!' : 'Thank you for your feedback!'}
               </Text>

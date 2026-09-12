@@ -58,7 +58,9 @@ const KNOWN_LARGE: Record<string, number> = {
   'features/modes/utils/turkishModes.ts': 2820,
   // 2488 → 2491: ERİŞİLEBİLİRLİK. Sayaç kürenin basılı-tutma alanı adsız bir kontrol
   // olarak odak alıyordu; o bir topraklanma JESTİ, düğme değil — ağacın dışına alındı.
-  'app/focus.tsx': 2491,
+  // 2491 → 2497: CAM SAYFALAR. Beş modalın (süre, mod, nefes, özet, pomodoro) elle
+  // yazılmış opak zemini ortak GlassSurface'e bağlandı: içe aktarım + modal başına tek satır.
+  'app/focus.tsx': 2497,
   // 2394 → 2400: çöken bir ekranın düzeltmesi. Bu ekranın listesi Reanimated'ın
   // FlatList'i olduğu için native kaydırma sürücüsü kapatılmak ZORUNDA (yoksa açılışta
   // "VirtualizedList must be wrapped with Animated.createAnimatedComponent" ile çöküyor).
@@ -81,15 +83,19 @@ const KNOWN_LARGE: Record<string, number> = {
   // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
   // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
   // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).
-  'app/index.tsx': 2102,
+  // 2102 → 2103: CAM SAYFALAR. Komut paletinin yarı saydam elle zemini GlassSurface'e
+  // bağlandı (zemin satırı gitti; içe aktarım + yüzey satırı geldi).
+  'app/index.tsx': 2103,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.
-  'app/admin.tsx': 1676,
+  // 1676 → 1677: CAM SAYFALAR. Kalıcı silme modalı ortak cam yüzeye bağlandı.
+  'app/admin.tsx': 1677,
   'features/modes/components/TurkishModeBanner.tsx': 1690,
   // 1523 → 1529: ERİŞİLEBİLİRLİK. Alışkanlık satırının adı, durumu ve serisi ekran
   // okuyucuya hiç ulaşmıyordu (durum renkle, seri rozetle söyleniyordu).
-  'app/cockpit.tsx': 1529,
+  // 1529 → 1530: CAM SAYFALAR. Alışkanlık ekleme ve plan sayfaları ortak cam yüzeye bağlandı.
+  'app/cockpit.tsx': 1530,
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.
@@ -106,7 +112,9 @@ const KNOWN_LARGE: Record<string, number> = {
   // olarak kuruluyordu ve temizlenmiş bir cümleyle dört HAM emojiyi (📅⏰🔁🏷️) aynı
   // Text düğümünde yan yana getiriyordu; parçalar artık tür taşıyor, ikonu sunum çiziyor.
   // 1194 → 1195: paylaşılan gün-adı tablosunun içe aktarımı (shared/constants/weekdays).
-  'features/tasks/components/TaskFormModal.tsx': 1195,
+  // 1195 → 1197: CAM SAYFALAR. Görev formunun opak zemini ortak cam yüzeye bağlandı;
+  // klavye açıkken dört, kapalıyken iki köşe yuvarlanıyor (tek satırlık not).
+  'features/tasks/components/TaskFormModal.tsx': 1197,
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
@@ -117,7 +125,8 @@ const KNOWN_LARGE: Record<string, number> = {
   // işaretlemesi settings.tsx'e taşınırken bu dosyadaki state + iki handler geride
   // kalmıştı; hiçbiri çağrılmıyordu ama `deleteAccount`ın hatalı sürümü iki dosyada
   // birden duruyor ve hangisinin canlı olduğu okurken belli olmuyordu.
-  'app/profile.tsx': 865,
+  // 865 → 867: CAM SAYFALAR. Profil düzenleme sayfası ortak cam yüzeye bağlandı.
+  'app/profile.tsx': 867,
   'shared/constants/legal.ts': 893,
   'features/modes/utils/planAdaptations.ts': 880,
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
@@ -125,7 +134,8 @@ const KNOWN_LARGE: Record<string, number> = {
   // ortasında, modalı en altında dağınık duruyordu. Tek adres = tek doğru davranış.
   // 784 → 809: MİSAFİR MODU. Hesapsız kullanıcıya "Çıkış yap" anlamsız (çıkacak hesap
   // yok) ve tehlikeli görünür; onun yerine verisini kalıcı kılmanın yolu gösteriliyor.
-  'app/settings.tsx': 809,
+  // 809 → 811: CAM SAYFALAR. Şifre değiştirme modalı ortak cam yüzeye bağlandı.
+  'app/settings.tsx': 811,
 };
 
 describe('dosya boyutu', () => {
