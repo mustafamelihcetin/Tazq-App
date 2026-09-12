@@ -106,8 +106,8 @@ export const R = {
  *
  *   const cardRadius = concentric(R.sheet, S.md);  // 28 - 16 = 12
  */
-export const concentric = (outerRadius: number, inset: number): number =>
-  Math.max(outerRadius - inset, moderateScale(4));
+export const concentric = (outerRadius: number, inset: number, minimum: number = moderateScale(4)): number =>
+  Math.max(outerRadius - inset, minimum);
 
 /**
  * İkon boyutu ölçeği.
