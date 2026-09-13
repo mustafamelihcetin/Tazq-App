@@ -21,6 +21,7 @@ import { Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, CheckSquare, Sq
 import Svg, { Path } from 'react-native-svg';
 import { AuthService } from '@/shared/services/api';
 import { useAuthStore } from '@/features/user';
+import { useToastStore } from '@/shared/store/useToastStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { GlassCard } from '@/shared/components/GlassCard';
@@ -206,8 +207,9 @@ export default function RegisterScreen() {
 
     try {
       // 1) KAYIT adımı — hatası net bir sebep gösterir ("sebebi yok" olmaz).
+      let registerRes: { token?: string; refreshToken?: string; needsVerification?: boolean } | null = null;
       try {
-        await AuthService.register({ name, email, password });
+        registerRes = await AuthService.register({ name, email, password });
       } catch (err: unknown) {
         haptic.error();
         if (isNetworkError(err)) { setError(t.login.networkError); return; }
@@ -234,8 +236,30 @@ export default function RegisterScreen() {
         return;
       }
 
-      // 2) Kayıt BAŞARILI — kod e-postaya gönderildi. Doğrulama ekranına yönlendir.
+      /*
+        2) KAYIT BAŞARILI — VE OTURUM HEMEN AÇILIYOR.
+
+        ÖLÇÜLEN SORUN: kullanıcı buradan doğrulama ekranına atılıyordu; uygulamadan
+        ÇIKIP e-postasını açmak, kodu bulmak ve geri dönmek zorundaydı. Üstelik bu,
+        henüz hiçbir değer görmediği anda oluyordu — kayıt yolundaki en pahalı adım.
+
+        Doğrulama kaldırılmadı, ERTELENDİ: kod yine gönderildi, hatırlatma Ayarlar'da
+        duruyor ve e-posta gerektiren işler (özet postaları) doğrulanana kadar
+        çalışmıyor (sunucu tarafı: ScheduledEmailService).
+
+        Sunucu eski sürümdeyse token gelmez — o zaman ESKİ akış aynen geçerli.
+      */
       haptic.success();
+      const grantedToken = registerRes?.token;
+      if (grantedToken) {
+        const userData = await AuthService.getCurrentUser(grantedToken);
+        setAuth(userData, grantedToken, registerRes?.refreshToken ?? null, true);
+        if (registerRes?.needsVerification) {
+          useToastStore.getState().show(t.verifyEmail.toast, 'success');
+        }
+        router.replace('/');
+        return;
+      }
       router.push({ pathname: '/verify-email', params: { email } });
     } finally {
       setIsLoading(false);

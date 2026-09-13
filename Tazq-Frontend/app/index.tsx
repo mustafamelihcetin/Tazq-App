@@ -49,6 +49,8 @@ import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { StatusHubModal } from '@/features/dashboard/components/StatusHubModal';
 import { QuickAddSheet } from '@/features/tasks/components/QuickAddSheet';
+import { ModeTodayCard } from '@/features/modes/components/ModeTodayCard';
+import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
 import { ProfileSetupModal } from '@/features/user/components/ProfileSetupModal';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
@@ -1233,6 +1235,28 @@ export default function HomeScreen() {
 
 
   /*
+    EKRANIN KONUSU DURUMA GÖRE: aktif bir dönem (sınav, tez, spor, tasarruf…) varsa
+    ekranın cevapladığı soru "bugün ne var" değil, "PLANIMDA bugün ne var"dır.
+    Karar tek yerde; hangi modun en acil olduğunu hook söylüyor.
+  */
+  const modeFirst = useActiveModeSummary().activeCount > 0;
+
+  /*
+    Skor satırı: tek tanım, iki olası konum (aşağıdaki nextMissionCard deseniyle aynı).
+    Konumu `modeFirst`e göre değişiyor — gerekçesi JSX'teki notta.
+  */
+  const momentumRow = !isLite ? (
+    <TourTarget id="momentum">
+      <MomentumPulse
+        score={momentum}
+        history={momentumHistory}
+        language={language}
+        loading={statsLoading}
+      />
+    </TourTarget>
+  ) : null;
+
+  /*
     Tek tanım, iki olası konum. İki ayrı yere KOPYALANSAYDI props zamanla ayrışır ve
     kartın davranışı sayfanın neresinde durduğuna göre değişirdi.
   */
@@ -1424,16 +1448,34 @@ export default function HomeScreen() {
               />
             </View>
 
-            {!isLite && (
-              <TourTarget id="momentum">
-                <MomentumPulse
-                  score={momentum}
-                  history={momentumHistory}
-                  language={language}
-                  loading={statsLoading}
-                />
-              </TourTarget>
-            )}
+            {/*
+              EKRAN DURUMA GÖRE KURULUYOR — "bugün ne yapmalıyım" sorusu en üstte.
+
+              ÖLÇÜLEN SORUN: bu ekranda on iki yüzey yarışıyordu ve göz nereye gideceğini
+              bilmiyordu. Sıra artık bir KARARDAN geliyor:
+
+                1. Aktif dönem varsa PLAN (aşağıdaki kart) — sınava hazırlanan biri için
+                   günün sorusu "bugün ne var" değil, "planımda bugün ne var"dır.
+                2. Bugünün durumu ve görevleri
+                3. Skor (ivme) — bir EYLEM değil, bir sonuç. Eylemlerin altına indi.
+
+              İvme skoru eskiden selamlamanın hemen altındaydı: kullanıcı ekranı açtığında
+              ilk gördüğü şey, yapacağı iş değil aldığı nottu.
+            */}
+            <ModeTodayCard onOpen={() => router.push('/modlar')} />
+
+            {/*
+              MOD YOKKEN SKOR YERİNDE KALIYOR.
+
+              Bu satırın selamlamayla kartlar arasındaki yeri bir kez denenip GERİ ALINMIŞTI:
+              momentum satırı kartsızdır ve iki ağır kartın arasına sıkışınca öksüz kalıyor
+              (bkz. __tests__/dashboardZeroState.test.ts). O ders duruyor — aktif dönemi
+              olmayan kullanıcı için sıra hiç değişmedi.
+
+              Aktif dönem varsa ekranın konusu PLAN oluyor; skor o zaman eylemlerin altına
+              iniyor. Kart tek yerde tanımlı, yalnız KONUMU duruma göre değişiyor.
+            */}
+            {!modeFirst && momentumRow}
 
             <TodayCard
               completed={todayCompleted}
@@ -1620,6 +1662,9 @@ export default function HomeScreen() {
                 </BentoCard>
               </View>
             )}
+
+            {/* Aktif dönem varsa skor BURADA — eylemlerin altında (yukarıdaki nota bkz.). */}
+            {modeFirst && momentumRow}
 
             {/* Focus Widget */}
             <DynamicIsland />

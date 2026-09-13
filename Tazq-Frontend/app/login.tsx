@@ -214,8 +214,13 @@ export default function LoginScreen() {
 
     try {
       const res = await AuthService.login(email, password);
-      // E-posta doğrulanmamış → doğrulama ekranına yönlendir (kod tekrar gönderildi)
-      if (res?.needsVerification) {
+      /*
+        DOĞRULANMAMIŞ HESAP ARTIK GİRİŞ YAPIYOR: yeni sunucu bu durumda da token
+        döndürüyor, yanında yalnız bir HATIRLATMA bayrağı geliyor. Token YOKSA sunucu
+        eski sürümdür ve eski davranış (doğrulama ekranı) geçerlidir — uygulama
+        güncellenmiş ama sunucu güncellenmemişse kullanıcı kilitte kalmasın.
+      */
+      if (res?.needsVerification && !res?.token) {
         haptic.destructive();
         router.push({ pathname: '/verify-email', params: { email } });
         return;

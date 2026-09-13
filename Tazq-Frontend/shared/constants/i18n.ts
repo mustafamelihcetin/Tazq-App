@@ -344,6 +344,30 @@ export const translations = {
       save: 'Add',
       close: 'Close',
     },
+    /** E-posta doğrulama hatırlatması — doğrulama artık kullanımın önkoşulu DEĞİL. */
+    verifyEmail: {
+      rowTitle: 'Verify your email',
+      rowSub: 'Needed for summary emails and getting your account back',
+      toast: 'We emailed you a code. You can verify any time from Settings.',
+    },
+    /** Ana ekranın en üstü — aktif dönem varsa (bkz. ModeTodayCard). */
+    modeToday: {
+      eyebrow: 'Your plan today',
+      daysLeft: 'days left',
+      todayPlan: 'plan tasks',
+      noTasks: 'No plan tasks today',
+      allDone: 'Today\'s plan is done',
+      more: 'more',
+      open: 'Opens your modes',
+    },
+    /** Mod adlarının varsayılanı — kullanıcı kendi adını girmediyse (bkz. useActiveModeSummary). */
+    modeNames: {
+      exam: 'Exam',
+      interview: 'Interview',
+      fitness: 'Fitness',
+      thesis: 'Thesis',
+      ramadan: 'Ramadan',
+    },
     savedOffline: 'Saved offline',
     /** Misafir (hesapsız) kullanım — bkz. useAuthStore.isGuest */
     guest: {
@@ -671,6 +695,30 @@ export const translations = {
       detailsHint: 'Yazdığın metinle tam formu açar',
       save: 'Ekle',
       close: 'Kapat',
+    },
+    /** E-posta doğrulama hatırlatması — doğrulama artık kullanımın önkoşulu DEĞİL. */
+    verifyEmail: {
+      rowTitle: 'E-postanı doğrula',
+      rowSub: 'Özet e-postaları ve hesabını geri alabilmek için gerekli',
+      toast: 'Kodu e-postana gönderdik. İstediğin zaman Ayarlar\'dan doğrulayabilirsin.',
+    },
+    /** Ana ekranın en üstü — aktif dönem varsa (bkz. ModeTodayCard). */
+    modeToday: {
+      eyebrow: 'Bugünkü planın',
+      daysLeft: 'gün kaldı',
+      todayPlan: 'plan görevi',
+      noTasks: 'Bugün plan görevin yok',
+      allDone: 'Bugünün planı tamam',
+      more: 'mod daha',
+      open: 'Modlar sayfasını açar',
+    },
+    /** Mod adlarının varsayılanı — kullanıcı kendi adını girmediyse (bkz. useActiveModeSummary). */
+    modeNames: {
+      exam: 'Sınav',
+      interview: 'Mülakat',
+      fitness: 'Spor',
+      thesis: 'Tez',
+      ramadan: 'Ramazan',
     },
     savedOffline: 'Çevrimdışı kaydedildi',
     /** Misafir (hesapsız) kullanım — bkz. useAuthStore.isGuest */

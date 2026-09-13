@@ -10,7 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { MotiView } from 'moti';
-import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate, Footprints, UserPlus } from 'lucide-react-native';
+import { Bell, Moon, Languages, LogOut, Download, ChevronRight, Zap, Target, Trophy, Shield, CalendarDays, Star, Volume2, Sunrise, Sun, Sunset, Trash2, FileText, MessageSquare, Send, Lock, Eye, EyeOff, ArrowLeft , Vibrate, Footprints, UserPlus, MailCheck } from 'lucide-react-native';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { AuthService, FocusService } from '@/shared/services/api';
 import { SleepHealth } from '@/shared/services/sleepHealth';
@@ -617,6 +617,31 @@ export default function SettingsScreen() {
                   {language === 'tr' ? 'Admin Paneli' : 'Admin Panel'}
                 </Text>
                 <ChevronRight size={ICON.sm} color="#6366F1" />
+              </Touchable>
+            )}
+
+            {/*
+              E-POSTA DOĞRULAMA HATIRLATMASI — engel değil, HATIRLATMA.
+
+              Doğrulama kayıt yolundan çıkarıldı (kullanıcı artık uygulamadan çıkıp kod
+              aramak zorunda değil). Ama tamamen unutulmamalı: özet e-postaları
+              doğrulanana kadar gönderilmiyor ve şifre sıfırlama o adrese dayanıyor.
+              Bu yüzden burada, sebebiyle birlikte duruyor.
+            */}
+            {user && (user as any).isEmailVerified === false && (
+              <Touchable
+                onPress={() => router.push({ pathname: '/verify-email', params: { email: user.email } })}
+                accessibilityRole="button"
+                accessibilityLabel={t.verifyEmail.rowTitle}
+                accessibilityHint={t.verifyEmail.rowSub}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.warning + '14', borderRadius: R.md, paddingVertical: S.md, paddingHorizontal: S.md, marginTop: S.xl, borderWidth: B.thin, borderColor: theme.warning + '33' }}
+              >
+                <MailCheck size={ICON.md} color={theme.warning} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.onSurface, fontWeight: '700', fontSize: F.body }}>{t.verifyEmail.rowTitle}</Text>
+                  <Text style={{ color: theme.onSurfaceVariant, fontWeight: '500', fontSize: F.caption, marginTop: S.xxs }}>{t.verifyEmail.rowSub}</Text>
+                </View>
+                <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.5} />
               </Touchable>
             )}
 

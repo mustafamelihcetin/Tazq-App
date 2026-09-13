@@ -1,0 +1,61 @@
+/*
+  Mod rehber sayfalarinin ortak stili.
+  Palet ana sayfayla ayni (Zinc notrler + marka mavisi); acik/koyu tema duyarli.
+  Tek dosya: alti sayfa ayrisamaz.
+*/
+:root{
+  --bg:#F4F4F5; --surface:#FFFFFF; --ink:#18181B; --ink-2:#52525B; --ink-3:#71717A;
+  --rule:#E4E4E7; --accent:#0B6BCB; --accent-soft:#DBEAFE;
+  --shadow:0 1px 2px rgba(24,24,27,.05), 0 10px 30px -20px rgba(24,24,27,.25);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#09090B; --surface:#17171C; --ink:#F4F4F5; --ink-2:#A1A1AA; --ink-3:#71717A;
+    --rule:#2C2C34; --accent:#0A84FF; --accent-soft:#0A2A4A;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.8);
+  }
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  font-size:17px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent)}
+.wrap{max-width:52rem;margin:0 auto;padding:clamp(1rem,4vw,2rem) clamp(1rem,4vw,2rem) 4rem}
+nav.top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-block:.5rem}
+nav.top a.brand{display:flex;align-items:center;gap:.55rem;text-decoration:none;color:var(--ink);font-weight:800}
+nav.top img{display:block}
+nav.top a.back{font-size:.92rem;font-weight:700;text-decoration:none}
+header.hero{padding-block:clamp(1.5rem,5vw,3rem) 1rem}
+.eyebrow{font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 .6rem}
+h1{font-size:clamp(1.9rem,5.4vw,2.9rem);line-height:1.08;letter-spacing:-.035em;font-weight:800;margin:0;text-wrap:balance}
+.lead{font-size:1.1rem;color:var(--ink-2);max-width:44ch;margin:.9rem 0 0}
+.cta{display:flex;flex-wrap:wrap;gap:.7rem;align-items:center;margin-top:1.6rem}
+.btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;font-weight:700;
+     padding:.85rem 1.3rem;border-radius:999px;font-size:1rem}
+.note{font-size:.88rem;color:var(--ink-3)}
+section{margin-top:clamp(2.2rem,6vw,3.4rem)}
+h2{font-size:clamp(1.25rem,3vw,1.6rem);line-height:1.2;letter-spacing:-.02em;font-weight:800;margin:0 0 1rem}
+h3{font-size:1.02rem;font-weight:700;margin:0 0 .3rem}
+p{margin:0 0 .8rem;max-width:62ch}
+ol.steps{list-style:none;counter-reset:s;margin:0;padding:0;display:grid;gap:.8rem}
+ol.steps li{counter-increment:s;background:var(--surface);border:1px solid var(--rule);border-radius:14px;
+            padding:1.05rem 1.2rem 1.05rem 3.4rem;position:relative;box-shadow:var(--shadow)}
+ol.steps li::before{content:counter(s);position:absolute;left:1.1rem;top:1.05rem;width:1.6rem;height:1.6rem;
+  border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:.9rem;display:grid;place-items:center}
+ul.feat{list-style:none;margin:0;padding:0;display:grid;gap:.7rem}
+ul.feat li{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:1rem 1.15rem;box-shadow:var(--shadow)}
+ul.feat li b{display:block;font-size:1rem;margin-bottom:.15rem}
+ul.feat li span{color:var(--ink-2);font-size:.96rem}
+details{background:var(--surface);border:1px solid var(--rule);border-radius:14px;margin-bottom:.7rem;overflow:hidden}
+summary{cursor:pointer;font-weight:700;padding:1rem 1.15rem;list-style:none}
+summary::-webkit-details-marker{display:none}
+details[open] summary{padding-bottom:.3rem}
+details p{padding:0 1.15rem 1.1rem;color:var(--ink-2);margin:0}
+.links{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem}
+.links a{background:var(--accent-soft);color:var(--accent);text-decoration:none;font-size:.9rem;font-weight:700;
+         padding:.4rem .8rem;border-radius:999px}
+footer{margin-top:3.5rem;padding-top:1.4rem;border-top:1px solid var(--rule);color:var(--ink-3);font-size:.9rem}
+footer a{color:var(--ink-2)}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}

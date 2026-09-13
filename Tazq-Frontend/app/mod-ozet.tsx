@@ -7,7 +7,7 @@ import { ArrowLeft, CalendarClock, Layers, Flame, Compass } from 'lucide-react-n
 import { MotiView } from 'moti';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { usePrefsStore } from '@/features/modes';
+import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
 import { useHabitStore } from '@/features/habits';
 import { useTaskStore, useActiveTasks } from '@/features/tasks';
 import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W , topBarSpace} from '@/shared/constants/tokens';
@@ -18,19 +18,6 @@ import { modeAccent, modeAccentText } from '@/shared/constants/Colors';
 import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 
 // Bu haftanın (Pzt–Paz) 'YYYY-MM-DD' anahtarları.
-function thisWeekKeys(): Set<string> {
-  const now = new Date();
-  const day = (now.getDay() + 6) % 7; // 0 = Pazartesi
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - day);
-  const keys = new Set<string>();
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    keys.add(toDateKey(d));
-  }
-  return keys;
-}
 
 // Etiketteki ham emoji'leri temizle (preset adı "⚖️ Kilo Yönetimi" gibi).
 const stripEmoji = (s: string) => s
@@ -38,25 +25,7 @@ const stripEmoji = (s: string) => s
   .replace(/\s+/g, ' ')
   .trim();
 
-function daysLeftOf(dateStr: string | null): number | null {
-  if (!dateStr) return null;
-  const end = parseDateKey(dateStr).setHours(23, 59, 59, 999);
-  if (end < Date.now()) return -1; // geçmiş
-  return Math.max(0, Math.ceil((end - Date.now()) / 86400000));
-}
 
-interface ModeEntry {
-  key: string;
-  label: string;
-  /** Dolgu/ikon/çubuk rengi (WCAG büyük-metin ≥3:1). */
-  color: string;
-  /** Küçük yazı rengi (WCAG AA ≥4.5:1) — caption/etiketlerde bunu kullan. */
-  textColor: string;
-  emoji: string;
-  days: number | null; // null = süresiz, -1 = geçmiş
-  habitIds: string[];
-  taskIds: number[];
-}
 
 export default function ModOzetScreen() {
   const { theme, isDark } = useAppTheme();
@@ -65,77 +34,24 @@ export default function ModOzetScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const prefs = usePrefsStore();
+  /*
+    HESAP ORTAK BİR HOOK'TA (bkz. useActiveModeSummary).
 
-  // Mod renkleri MERKEZİ PALETTEN (modlar.tsx ile aynı kaynak). Burada ham hex'lerin
-  // üçüncü bir kopyası duruyordu; iki ekran aynı modu farklı tonda gösterebiliyordu.
-  const MC = {
-    exam: modeAccent('exam', isDark), tez: modeAccent('tez', isDark),
-    mulakat: modeAccent('mulakat', isDark), spor: modeAccent('spor', isDark),
-    ramazan: modeAccent('ramazan', isDark),
-  };
-  const MCT = {
-    exam: modeAccentText('exam', isDark), tez: modeAccentText('tez', isDark),
-    mulakat: modeAccentText('mulakat', isDark), spor: modeAccentText('spor', isDark),
-    ramazan: modeAccentText('ramazan', isDark),
-  };
-  const seasonal = prefs.seasonal;
-  const habits = useHabitStore(s => s.habits);
-  // Arşivlenmişler hariç: mod özeti aktif planı anlatır.
-  const tasks = useActiveTasks();
+    Bu blok eskiden burada, ~60 satır olarak duruyordu. Ana ekran da aynı özeti
+    göstermeye başlayınca kopyalanması gerekecekti; iki kopya zamanla ayrışır —
+    biri slot modlarını sayar diğeri saymaz, biri tarihi geçmiş modu aktif gösterir.
+    Aynı soruya iki farklı cevap veren iki ekran güveni bitirir.
+  */
+  const summary = useActiveModeSummary();
+  const computed = summary.entries;
+  const activeCount = summary.activeCount;
+  const nearest = summary.nearest;
+  const totalHabits = summary.totalHabits;
+  const overallPct = summary.overallPct;
+  const todayDoneAll = summary.todayDoneAll;
+  const todayTotalAll = summary.todayTotalAll;
 
   React.useEffect(() => { track('mode_summary_opened'); }, []);
-
-  const weekKeys = useMemo(() => thisWeekKeys(), []);
-  const now = new Date();
-  const isToday = (d?: string | null) => {
-    if (!d) return false;
-    const x = new Date(d);
-    return x.getFullYear() === now.getFullYear() && x.getMonth() === now.getMonth() && x.getDate() === now.getDate();
-  };
-
-  // Aktif mod girişlerini topla (slotlar dahil).
-  const entries: ModeEntry[] = [];
-  const examLbl = tr ? 'Sınav' : 'Exam';
-  const mulLbl = tr ? 'Mülakat' : 'Interview';
-  const sporLbl = tr ? 'Spor' : 'Fitness';
-  if (seasonal.examMode) {
-    entries.push({ key: 'exam', label: seasonal.examName || examLbl, color: MC.exam, textColor: MCT.exam, emoji: '🎯', days: daysLeftOf(seasonal.examDate), habitIds: prefs.examPlanHabitIds, taskIds: prefs.examPlanTaskIds });
-    if (seasonal.exam2Name) entries.push({ key: 'exam2', label: seasonal.exam2Name, color: MC.exam, textColor: MCT.exam, emoji: '🎯', days: daysLeftOf(seasonal.exam2Date), habitIds: prefs.exam2PlanHabitIds, taskIds: prefs.exam2PlanTaskIds });
-    if (seasonal.exam3Name) entries.push({ key: 'exam3', label: seasonal.exam3Name, color: MC.exam, textColor: MCT.exam, emoji: '🎯', days: daysLeftOf(seasonal.exam3Date), habitIds: prefs.exam3PlanHabitIds, taskIds: prefs.exam3PlanTaskIds });
-  }
-  if (seasonal.tezMode) entries.push({ key: 'tez', label: seasonal.tezName || (tr ? 'Tez' : 'Thesis'), color: MC.tez, textColor: MCT.tez, emoji: '📚', days: daysLeftOf(seasonal.tezDate), habitIds: prefs.tezPlanHabitIds, taskIds: prefs.tezPlanTaskIds });
-  if (seasonal.mulakatMode) {
-    entries.push({ key: 'mulakat', label: seasonal.mulakatName || mulLbl, color: MC.mulakat, textColor: MCT.mulakat, emoji: '💼', days: daysLeftOf(seasonal.mulakatDate), habitIds: prefs.mulakatPlanHabitIds, taskIds: prefs.mulakatPlanTaskIds });
-    if (seasonal.mulakat2Name) entries.push({ key: 'mulakat2', label: seasonal.mulakat2Name, color: MC.mulakat, textColor: MCT.mulakat, emoji: '💼', days: daysLeftOf(seasonal.mulakat2Date), habitIds: prefs.mulakat2PlanHabitIds, taskIds: prefs.mulakat2PlanTaskIds });
-    if (seasonal.mulakat3Name) entries.push({ key: 'mulakat3', label: seasonal.mulakat3Name, color: MC.mulakat, textColor: MCT.mulakat, emoji: '💼', days: daysLeftOf(seasonal.mulakat3Date), habitIds: prefs.mulakat3PlanHabitIds, taskIds: prefs.mulakat3PlanTaskIds });
-  }
-  if (seasonal.sporMode) {
-    entries.push({ key: 'spor', label: localizeSporGoal(seasonal.sporGoal || '', tr) || sporLbl, color: MC.spor, textColor: MCT.spor, emoji: '💪', days: daysLeftOf(seasonal.sporDate), habitIds: prefs.sporPlanHabitIds, taskIds: prefs.sporPlanTaskIds });
-    if (seasonal.spor2Goal) entries.push({ key: 'spor2', label: localizeSporGoal(seasonal.spor2Goal, tr), color: MC.spor, textColor: MCT.spor, emoji: '💪', days: daysLeftOf(seasonal.spor2Date), habitIds: prefs.spor2PlanHabitIds, taskIds: prefs.spor2PlanTaskIds });
-    if (seasonal.spor3Goal) entries.push({ key: 'spor3', label: localizeSporGoal(seasonal.spor3Goal, tr), color: MC.spor, textColor: MCT.spor, emoji: '💪', days: daysLeftOf(seasonal.spor3Date), habitIds: prefs.spor3PlanHabitIds, taskIds: prefs.spor3PlanTaskIds });
-  }
-  if (seasonal.ramazan) entries.push({ key: 'ramazan', label: tr ? 'Ramazan' : 'Ramadan', color: MC.ramazan, textColor: MCT.ramazan, emoji: '🌙', days: null, habitIds: prefs.ramazanPlanHabitIds, taskIds: prefs.ramazanPlanTaskIds });
-
-  // Her giriş için ölçütleri hesapla.
-  const computed = entries.map(e => {
-    const eHabits = habits.filter(h => e.habitIds.includes(h.id));
-    const weekActive = eHabits.filter(h => (Array.isArray(h.completedDates) ? h.completedDates : []).some(d => weekKeys.has(d))).length;
-    const pct = eHabits.length > 0 ? Math.round((weekActive / eHabits.length) * 100) : 0;
-    const todays = tasks.filter(t => e.taskIds.includes(t.id) && t.tags?.includes('daily') && isToday(t.dueDate));
-    const todayDone = todays.filter(t => t.isCompleted).length;
-    return { ...e, habitCount: eHabits.length, weekActive, pct, todayDone, todayTotal: todays.length, taskTotal: e.taskIds.length };
-  });
-
-  // Genel özet.
-  const activeCount = computed.length;
-  const dated = computed.filter(c => c.days !== null && c.days >= 0).sort((a, b) => (a.days! - b.days!));
-  const nearest = dated[0] ?? null;
-  const totalHabits = computed.reduce((a, c) => a + c.habitCount, 0);
-  const totalWeekActive = computed.reduce((a, c) => a + c.weekActive, 0);
-  const overallPct = totalHabits > 0 ? Math.round((totalWeekActive / totalHabits) * 100) : 0;
-  const todayDoneAll = computed.reduce((a, c) => a + c.todayDone, 0);
-  const todayTotalAll = computed.reduce((a, c) => a + c.todayTotal, 0);
 
   // Kural-tabanlı tek satırlık içgörü (ücretsiz).
   const coachLine = (() => {

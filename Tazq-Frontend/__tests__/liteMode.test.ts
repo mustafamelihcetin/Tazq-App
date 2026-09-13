@@ -26,12 +26,19 @@ describe('ana ekran — oyunlaştırma gizlenir', () => {
   });
 
   it('ivme skoru Sade modda çizilmez', () => {
-    expect(HOME).toContain('{!isLite && (');
+    /*
+      Skor satırı artık TEK yerde tanımlı bir değişken (momentumRow) ve konumu duruma
+      göre değişiyor (bkz. dashboardZeroState.test.ts). Kapı da o tanımın başında:
+      Sade modda değişken `null` olur, iki konumda da hiçbir şey çizilmez.
+    */
+    const def = HOME.indexOf('const momentumRow = !isLite ?');
+    expect(def).toBeGreaterThan(-1);
     const idx = HOME.indexOf('<MomentumPulse');
-    const gate = HOME.lastIndexOf('{!isLite && (', idx);
-    expect(gate).toBeGreaterThan(-1);
+    expect(idx).toBeGreaterThan(def);
     // Kapı ile bileşen arasında başka bir kart girmemiş olmalı
-    expect(idx - gate).toBeLessThan(200);
+    expect(idx - def).toBeLessThan(200);
+    // Tek tanım: ikinci bir çizim yolu açılmamalı.
+    expect((HOME.match(/<MomentumPulse/g) ?? [])).toHaveLength(1);
   });
 
   it('durum merkezi düğmesi Sade modda gizli', () => {

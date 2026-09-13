@@ -148,7 +148,10 @@ const KNOWN_LARGE: Record<string, number> = {
   // 784 → 809: MİSAFİR MODU. Hesapsız kullanıcıya "Çıkış yap" anlamsız (çıkacak hesap
   // yok) ve tehlikeli görünür; onun yerine verisini kalıcı kılmanın yolu gösteriliyor.
   // 809 → 811: CAM SAYFALAR. Şifre değiştirme modalı ortak cam yüzeye bağlandı.
-  'app/settings.tsx': 811,
+  // 811 → 836: E-POSTA DOĞRULAMA HATIRLATMASI. Doğrulama kayıt yolundan çıkarıldı;
+  // hatırlatma artık burada, SEBEBİYLE birlikte duruyor (özet postaları ve hesap
+  // kurtarma o adrese bağlı). Artışın yarısı o gerekçe notu.
+  'app/settings.tsx': 836,
 };
 
 describe('dosya boyutu', () => {

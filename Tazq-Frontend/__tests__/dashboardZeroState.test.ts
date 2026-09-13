@@ -37,12 +37,44 @@ describe('dashboard sırası', () => {
     expect((src.match(/<NextMissionCard/g) ?? [])).toHaveLength(1);
   });
 
-  it('momentum selamlamadan hemen sonra gelir — geçiş satırı', () => {
+  /*
+    ── SIRA ARTIK DURUMA GÖRE ────────────────────────────────────────────────────
+    Yukarıdaki ders (momentum satırı selamlamayla kartlar arasında yumuşak bir geçiş
+    kurar; üstüne kart konunca öksüz kalır) DURUYOR — ama yalnız aktif dönemi olmayan
+    kullanıcı için.
+
+    Aktif bir dönem varsa (sınav, tez, spor, tasarruf…) ekranın cevapladığı soru
+    değişiyor: "bugün ne var" değil, "planımda bugün ne var". O zaman ilk kart PLAN
+    oluyor, skor da eylemlerin altına iniyor — skor bir eylem değil, bir sonuçtur.
+
+    Kart yine TEK yerde tanımlı; değişen sadece konumu.
+  */
+  it('skor TEK yerde tanımlı, iki olası konumda', () => {
+    expect((src.match(/const momentumRow =/g) ?? [])).toHaveLength(1);
+    expect((src.match(/\{!modeFirst && momentumRow\}/g) ?? [])).toHaveLength(1);
+    expect((src.match(/\{modeFirst && momentumRow\}/g) ?? [])).toHaveLength(1);
+  });
+
+  it('mod YOKKEN skor selamlamanın hemen ardında — geçiş satırı korunuyor', () => {
     const hero = src.indexOf('<DashboardHero');
-    const momentum = src.indexOf('<MomentumPulse');
+    const topSlot = src.indexOf('{!modeFirst && momentumRow}');
     const today = src.indexOf('<TodayCard');
-    expect(hero).toBeLessThan(momentum);
-    expect(momentum).toBeLessThan(today);
+    expect(hero).toBeLessThan(topSlot);
+    expect(topSlot).toBeLessThan(today);
+  });
+
+  it('mod VARSA ilk kart plan kartı, skor aşağıda', () => {
+    const modeCard = src.indexOf('<ModeTodayCard');
+    const today = src.indexOf('<TodayCard');
+    const lowSlot = src.indexOf('{modeFirst && momentumRow}');
+    expect(modeCard).toBeGreaterThan(-1);
+    expect(modeCard).toBeLessThan(today);
+    expect(today).toBeLessThan(lowSlot);
+  });
+
+  it('plan kartı mod yoksa HİÇ çizilmez — boş bir kutu bırakmaz', () => {
+    const card = read('features/modes/components/ModeTodayCard.tsx');
+    expect(card).toContain('if (activeCount === 0) return null;');
   });
 });
 

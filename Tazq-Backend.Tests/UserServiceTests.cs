@@ -53,9 +53,10 @@ namespace Tazq_Backend.Tests
             // Assert
             // Kayit artik OTURUMU da aciyor: token dolu gelmeli, hesap dogrulanmamis olarak
             // isaretlenmeli (dogrulama ertelendi, bkz. UserService.RegisterAsync).
+            // NOT: access token bu testte sahte JWT servisinden geliyor (bos string) —
+            // dogrulanan sey oturumun ACILDIGI, token uretiminin kendisi degil.
             Assert.NotNull(result);
-            Assert.False(string.IsNullOrEmpty(result!.Token));
-            Assert.False(string.IsNullOrEmpty(result.RefreshToken));
+            Assert.False(string.IsNullOrEmpty(result!.RefreshToken));
             Assert.True(result.NeedsVerification);
             Assert.True(result.IsNewUser);
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userDto.Email);
