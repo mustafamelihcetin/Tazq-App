@@ -1,68 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, useWindowDimensions, StyleSheet, StatusBar } from 'react-native';
-import { F } from '@/shared/constants/tokens';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
-import {
-  X, EyeOff, Moon, Sun, GraduationCap, Dumbbell, Coins,
-  CheckCircle2, Circle, Flame, TrendingUp, Trophy, Gauge, Plus, Clock3,
-  SlidersHorizontal, Search, CalendarClock, ChevronRight,
-  // Alt sekme çubuğunun GERÇEK ikonları (bkz. BottomNavBar) — mock ile uygulama
-  // arasındaki en görünür fark buydu: tanıtımda başka ikonlar duruyordu.
-  LayoutGrid, CheckSquare, Sparkles, CalendarDays, Layers,
-  Wifi, BatteryFull, SignalHigh,
-} from 'lucide-react-native';
-import { Colors } from '@/shared/constants/Colors';
+import { X, EyeOff, Moon, Sun } from 'lucide-react-native';
 import { TazqLogo } from '@/shared/components/TazqLogo';
+/*
+  MOCK EKRANLAR KENDİ DOSYASINDA.
+
+  Bu sayfa iki ayrı iş yapıyordu: (1) slayt/kaydırma/tema-dil kontrolü olan tanıtım
+  kabuğu, (2) uygulamanın ölçülü bir kopyasını çizen mock motoru. İkincisi ilkinden
+  uzun ve tamamen başka bir iş: uygulamanın arayüzü değiştiğinde değişiyor, tanıtım
+  kurgusu değiştiğinde değil. İki farklı sebeple değişen iki şey aynı dosyada durmaz.
+*/
+import {
+  PromoMock, ACCENTS, type AccentKey, type PromoKind, type PromoMode,
+} from '@/features/promo/components/PromoMock';
 import { Touchable } from '@/shared/components/Touchable';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAuthStore } from '@/features/user';
 
-type Mode = 'dark' | 'light';
-// Vurgu tonları — her biri aydınlık/karanlık çift (uygulama paletiyle aynı: primary/secondary/
-// tertiary/warning/streak + CategoryColors indigo/teal). Koyuda parlak, açıkta koyu → iki temada da
-// beyaz-glif çipte ve kart üstü yazıda okunur.
-const ACCENTS = {
-  dark:  { blue: '#0A84FF', violet: '#A78BFA', indigo: '#6366F1', teal: '#2DD4BF', emerald: '#34D399', amber: '#FBBF24', orange: '#FB923C' },
-  light: { blue: '#0B6BCB', violet: '#7C3AED', indigo: '#4F46E5', teal: '#0D9488', emerald: '#047857', amber: '#B45309', orange: '#EA580C' },
-} as const;
-type AccentKey = keyof typeof ACCENTS['dark'];
-
-/*
-  MOCK PALETİ UYDURULMAZ — UYGULAMANIN PALETİNDEN GELİR.
-
-  Buradaki renkler elle yazılmıştı (#0C0C12 / #F2F2F7) ve uygulamanın gerçek
-  zeminlerinden (#09090B / #F4F4F5) farklıydı. Mağaza görselinde gördüğü ekranla
-  indirdikten sonra gördüğü ekran aynı olmalı; tek tık fark bile "bu o uygulama
-  değil" hissi bırakır. Artık tek kaynak `Colors`.
-*/
-const NEUTRAL = {
-  dark: {
-    screen: Colors.dark.background,
-    card: Colors.dark.surfaceContainer,
-    border: 'rgba(255,255,255,0.08)',
-    text: Colors.dark.onSurface,
-    sub: Colors.dark.onSurfaceVariant,
-    muted: Colors.dark.onSurfaceMuted,
-    track: 'rgba(255,255,255,0.09)',
-    chrome: 'rgba(23,23,28,0.72)',
-  },
-  light: {
-    screen: Colors.light.background,
-    card: Colors.light.surfaceContainerLowest,
-    border: 'rgba(0,0,0,0.06)',
-    text: Colors.light.onSurface,
-    sub: Colors.light.onSurfaceVariant,
-    muted: Colors.light.onSurfaceMuted,
-    track: 'rgba(0,0,0,0.07)',
-    chrome: 'rgba(255,255,255,0.78)',
-  },
-} as const;
-
-type Kind = 'focus' | 'deepfocus' | 'modes' | 'tasks' | 'momentum' | 'cockpit' | 'home' | 'brand';
 
 type SlideDef = {
   kind: Kind;
@@ -143,6 +102,9 @@ const SLIDES: SlideDef[] = [
 ];
 
 // Bu slaytın ARKA PLANI koyu mu? Odak ve marka her modda koyu (derin odak koyu ekran, kapanış dramatik).
+type Mode = PromoMode;
+type Kind = PromoKind;
+
 const backdropIsDark = (kind: Kind, mode: Mode) => mode === 'dark' || kind === 'focus' || kind === 'brand';
 
 export default function PromoScreen() {
@@ -174,7 +136,6 @@ export default function PromoScreen() {
   };
 
   const A = ACCENTS[mode];
-  const N = NEUTRAL[mode];
 
   // Telefon çerçevesi ölçüsü
   let fh = H * 0.62;
@@ -184,266 +145,6 @@ export default function PromoScreen() {
 
   // Şu an görünen slaytın alt kontrol (nokta/metin) rengi arka plana göre
   const pageDark = backdropIsDark(SLIDES[page]?.kind ?? 'focus', mode);
-
-  // ── Temsili ekranlar (gerçek uygulamaya sadık) ───────────────────────────
-  // deepMode: bu mock koyu mu render edilsin? Odak (derin odak) her zaman koyu; gerisi genel temaya uyar.
-  const MockScreen: React.FC<{ kind: Kind; accent: string }> = ({ kind, accent }) => {
-    const deepMode: Mode = (kind === 'focus' || kind === 'deepfocus') ? 'dark' : mode;
-    const M = NEUTRAL[deepMode];
-    // ── Altın-oran temelli ortak tasarım tokenları ──
-    const PHI = 1.618;
-    const u = 8 * S;                               // temel birim
-    const pad = Math.round(u * PHI);               // ~13
-    const gap = Math.round(u * 1.5);               // 12
-    const rad = Math.round(u * 2);                 // 16
-    const CARD = { backgroundColor: M.card, borderWidth: 1, borderColor: M.border, borderRadius: rad } as const;
-    const LAB = { color: M.muted, fontWeight: '800' as const, letterSpacing: 1.2, fontSize: F.caption * S };
-    // Tip ölçeği (φ adımlı): cap · body · h1 · big
-    const T = { cap: 10.5 * S, body: 12.5 * S, sub: 11 * S, h1: 20 * S, big: 30 * S };
-    // Solid AppIcon imzası: dolu renkli kutu + beyaz glif (uygulamanın güncel ikon dili).
-    const chip = (c: string, sz: number) => ({ width: sz, height: sz, borderRadius: Math.round(sz * 0.32), backgroundColor: c, alignItems: 'center' as const, justifyContent: 'center' as const });
-
-    // Gerçek iOS ekran iskeleti: durum çubuğu (saat + sinyal/wifi/batarya) · başlık payı ·
-    // içerik (flex) · alt sekme çubuğu · home göstergesi. Paylar tek birimden (u) türetilir ki
-    // boşluk ritmi tutarlı olsun; mock telefonun tamamını gerçek bir ekran gibi doldurur.
-    const NAV = [Home, ListChecks, Target, BarChart3, Dumbbell];
-    const Screen: React.FC<{ active: number; children: React.ReactNode }> = ({ active, children }) => (
-      <View style={{ flex: 1, backgroundColor: M.screen }}>
-        {/* Durum çubuğu — çentiğin iki yanına saat ve sistem göstergeleri */}
-        <View style={{ height: u * 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: pad + u * 0.5 }}>
-          <Text style={{ color: M.text, fontSize: F.caption * S, fontWeight: '800', letterSpacing: 0.2 }}>9:41</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 * S }}>
-            <SignalHigh size={11 * S} color={M.text} strokeWidth={2.4} />
-            <Wifi size={11 * S} color={M.text} strokeWidth={2.4} />
-            <BatteryFull size={13 * S} color={M.text} strokeWidth={2} />
-          </View>
-        </View>
-        {/* İçerik — yatay pay + üst başlık payı; kartlar arası ritim = gap */}
-        <View style={{ flex: 1, paddingHorizontal: pad, paddingTop: u * 0.75, gap: gap }}>{children}</View>
-        {/* Alt sekme çubuğu + home göstergesi */}
-        <View style={{ borderTopWidth: 1, borderTopColor: M.border, backgroundColor: M.card, paddingTop: u * 1.1 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }}>
-            {NAV.map((Ic, i) => (
-              <Ic key={i} size={20 * S} color={i === active ? A.blue : M.muted} strokeWidth={i === active ? 2.6 : 2} />
-            ))}
-          </View>
-          <View style={{ alignSelf: 'center', marginTop: u * 1, marginBottom: u * 0.7, width: fw * 0.32, height: 3.5 * S, borderRadius: 999, backgroundColor: M.text, opacity: 0.26 }} />
-        </View>
-      </View>
-    );
-
-    if (kind === 'focus' || kind === 'deepfocus') {
-      // Gerçek derin-odak ekranı: TAM EKRAN aurora (Skia aurora estetiği) + minimal sayaç.
-      // Eski "çerçeveli daire + çip sırası" düzeni değil — akış hâlinde sakin bir gökyüzü.
-      const ring = fw * 0.62;
-      return (
-        <View style={{ flex: 1, backgroundColor: '#05060E', overflow: 'hidden' }}>
-          {/* Aurora arka plan: geniş renk lekeleri → BlurView ile yumuşar (Skia aurora hissi) */}
-          <View style={{ position: 'absolute', top: '-16%', left: '-30%', width: '108%', height: '56%', borderRadius: 999, backgroundColor: '#4F46E5', opacity: 0.5 }} />
-          <View style={{ position: 'absolute', top: '20%', right: '-34%', width: '96%', height: '50%', borderRadius: 999, backgroundColor: '#2DD4BF', opacity: 0.32 }} />
-          <View style={{ position: 'absolute', bottom: '-14%', left: '-18%', width: '108%', height: '54%', borderRadius: 999, backgroundColor: '#7C3AED', opacity: 0.44 }} />
-          <View style={{ position: 'absolute', bottom: '4%', right: '-22%', width: '70%', height: '38%', borderRadius: 999, backgroundColor: '#DB2777', opacity: 0.24 }} />
-          <AppBlur material="thick" tint="dark" />
-          <LinearGradient colors={['rgba(5,6,14,0.55)', 'rgba(5,6,14,0.18)', 'rgba(5,6,14,0.7)']} style={StyleSheet.absoluteFill} />
-
-          {/* Üst etiket — ekranın ne olduğu net olsun */}
-          <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: T.sub, fontWeight: '700', letterSpacing: 2.5, textTransform: 'uppercase', textAlign: 'center', marginTop: u * 2.2 }}>{tr ? 'Derin Odak' : 'Deep Focus'}</Text>
-
-          {/* Merkezde net bir sayaç HALKASI — "bu bir odak zamanlayıcısı" anında okunur */}
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ width: ring, height: ring, alignItems: 'center', justifyContent: 'center' }}>
-              {/* taban halka */}
-              <View style={{ position: 'absolute', width: ring, height: ring, borderRadius: ring / 2, borderWidth: 6 * S, borderColor: 'rgba(255,255,255,0.14)' }} />
-              {/* ilerleme yayı (~70%): iki kenar renklendirip döndürerek */}
-              <View style={{ position: 'absolute', width: ring, height: ring, borderRadius: ring / 2, borderWidth: 6 * S, borderColor: 'transparent', borderTopColor: '#8FA6FF', borderLeftColor: '#8FA6FF', borderBottomColor: '#8FA6FF', transform: [{ rotate: '135deg' }] }} />
-              <Text style={{ color: '#FFFFFF', fontSize: ring * 0.24, fontWeight: '200', letterSpacing: -1.5, textShadowColor: 'rgba(150,180,255,0.55)', textShadowRadius: 20 }}>24:18</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: T.cap, fontWeight: '600', letterSpacing: 1, marginTop: 2 * S }}>{tr ? 'KALAN' : 'REMAINING'}</Text>
-            </View>
-          </View>
-
-          {/* Alt: seans + zen ipucu */}
-          <View style={{ alignItems: 'center', gap: 6 * S, paddingBottom: u * 3 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 * S, backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: u * 1.4, paddingVertical: u * 0.7, borderRadius: 999 }}>
-              <Moon size={13 * S} color="#C7D2FE" />
-              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: T.cap, fontWeight: '700' }}>{tr ? 'Zen Modu' : 'Zen Mode'}</Text>
-            </View>
-            <Text style={{ color: 'rgba(255,255,255,0.42)', fontSize: T.cap, fontWeight: '600' }}>{tr ? 'Sakinleşmek için çembere dokun' : 'Tap the ring to calm'}</Text>
-          </View>
-        </View>
-      );
-    }
-
-    if (kind === 'modes') {
-      const rows = [
-        [GraduationCap, tr ? 'Sınav Modu' : 'Exam Mode', tr ? 'Günlük çalışma bloğu' : 'Daily study block', A.amber, '68%'],
-        [Dumbbell, tr ? 'Spor Modu' : 'Fitness Mode', tr ? 'Antrenman & alışkanlık' : 'Workout & habit', A.orange, '41%'],
-        [Briefcase, tr ? 'Kariyer Modu' : 'Career Mode', tr ? 'Hedef odaklı görevler' : 'Goal-focused tasks', A.indigo, '25%'],
-      ];
-      return (
-        <Screen active={4}>
-          <View style={{ marginTop: u * 0.5 }}>
-            <Text style={{ color: M.text, fontSize: T.h1, fontWeight: '800', letterSpacing: -0.4 }}>{tr ? 'Yaşam Modları' : 'Life Modes'}</Text>
-            <Text style={{ color: M.sub, fontSize: T.sub, marginTop: 3 * S }} numberOfLines={1}>{tr ? 'Dönemine özel günlük planın' : 'Your daily plan for the season'}</Text>
-          </View>
-          {rows.map(([Ic, name, sub, c, pct]: any) => (
-            <View key={name} style={[CARD, { padding: pad, gap: u * 1.1 }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: u * 1.25 }}>
-                <View style={chip(c, 40 * S)}><Ic size={20 * S} color="#FFFFFF" /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: M.text, fontWeight: '700', fontSize: T.body + 1 }} numberOfLines={1}>{name}</Text>
-                  <Text style={{ color: M.sub, fontSize: T.cap, marginTop: 2 * S }} numberOfLines={1}>{sub}</Text>
-                </View>
-                <Text style={{ color: c, fontWeight: '800', fontSize: T.body }}>{pct}</Text>
-              </View>
-              <View style={{ height: 5 * S, backgroundColor: M.track, borderRadius: 3 }}>
-                <View style={{ width: pct, height: '100%', backgroundColor: c, borderRadius: 3 }} />
-              </View>
-            </View>
-          ))}
-        </Screen>
-      );
-    }
-
-    if (kind === 'tasks') {
-      const tasks: [string, boolean][] = [
-        [tr ? 'Sabah 25 dk derin odak' : 'Morning 25 min deep focus', true],
-        [tr ? 'Proje sunumunu hazırla' : 'Prepare project deck', false],
-        [tr ? 'Spor: 30 dk koşu' : 'Workout: 30 min run', false],
-        [tr ? 'Akşam okuma alışkanlığı' : 'Evening reading habit', false],
-      ];
-      return (
-        <Screen active={1}>
-          <View style={{ marginTop: u * 0.5 }}>
-            <Text style={LAB}>{tr ? 'BUGÜN · 6 TEMMUZ' : 'TODAY · JUL 6'}</Text>
-            <Text style={{ color: M.text, fontSize: T.h1, fontWeight: '800', letterSpacing: -0.4, marginTop: 3 * S }}>{tr ? 'Günün Planı' : 'Your Day'}</Text>
-          </View>
-          <View style={[CARD, { paddingHorizontal: pad, paddingVertical: u * 0.3 }]}>
-            {tasks.map(([t, done], i) => (
-              <View key={t} style={{ flexDirection: 'row', alignItems: 'center', gap: u * 1.25, paddingVertical: u, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: M.border }}>
-                {done ? <CheckCircle2 size={20 * S} color={A.emerald} /> : <Circle size={20 * S} color={M.muted} />}
-                <Text style={{ flex: 1, color: done ? M.muted : M.text, fontSize: T.body, fontWeight: '600', textDecorationLine: done ? 'line-through' : 'none' }} numberOfLines={1}>{t}</Text>
-              </View>
-            ))}
-          </View>
-          <Text style={[LAB, { marginTop: u * 0.25 }]}>{tr ? 'ALIŞKANLIKLAR' : 'HABITS'}</Text>
-          <View style={{ flexDirection: 'row', gap: u * 1.1 }}>
-            {[[tr ? 'Su iç' : 'Hydrate', '12', A.teal], [tr ? 'Meditasyon' : 'Meditate', '7', A.emerald]].map(([n, s]: any) => (
-              <View key={n} style={[CARD, { flex: 1, padding: pad, gap: u * 0.75 }]}>
-                <Text style={{ color: M.text, fontSize: T.body, fontWeight: '700' }} numberOfLines={1} adjustsFontSizeToFit>{n}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 * S }}>
-                  <Flame size={14 * S} color={A.orange} />
-                  <Text style={{ color: A.orange, fontSize: T.body, fontWeight: '800' }}>{s} {tr ? 'gün' : 'd'}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </Screen>
-      );
-    }
-
-    if (kind === 'momentum') {
-      const bars = [0.4, 0.65, 0.5, 0.85, 0.7, 0.95, 0.6];
-      const days = ['P', 'S', 'Ç', 'P', 'C', 'C', 'P'];
-      return (
-        <Screen active={3}>
-          <Text style={{ color: M.text, fontSize: T.h1, fontWeight: '800', lineHeight: T.h1 * 1.3, letterSpacing: -0.4, marginTop: u * 0.5 }}>{tr ? 'Momentum' : 'Momentum'}</Text>
-          <View style={[CARD, { padding: pad, flexDirection: 'row', alignItems: 'center', gap: pad }]}>
-            <View style={{ width: 76 * S, height: 76 * S, borderRadius: 38 * S, borderWidth: 5 * S, borderColor: A.emerald, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: M.text, fontSize: T.big, fontWeight: '800', letterSpacing: -0.5 }}>84</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 * S }}>
-                <TrendingUp size={15 * S} color={A.emerald} />
-                <Text style={{ color: M.text, fontSize: T.body + 1, fontWeight: '700' }}>{tr ? 'Momentum skoru' : 'Momentum'}</Text>
-              </View>
-              <Text style={{ color: M.sub, fontSize: T.sub, marginTop: 4 * S }}>{tr ? 'Bu hafta 6.5 sa odak' : '6.5 h focused this week'}</Text>
-            </View>
-          </View>
-          <View style={[CARD, { padding: pad, gap: gap }]}>
-            <Text style={LAB}>{tr ? 'HAFTALIK ODAK' : 'WEEKLY FOCUS'}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: u * 0.8, height: 62 * S }}>
-              {bars.map((v, i) => (
-                <View key={i} style={{ flex: 1, alignItems: 'center', gap: 5 * S }}>
-                  <View style={{ width: '100%', height: 54 * S * v, backgroundColor: i === 5 ? A.emerald : A.emerald + '59', borderRadius: 4 }} />
-                  <Text style={{ color: M.muted, fontSize: F.caption * S, fontWeight: '700' }}>{days[i]}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </Screen>
-      );
-    }
-
-    if (kind === 'cockpit') {
-      const stats: [string, string, any][] = [
-        [tr ? 'Toplam Odak' : 'Total Focus', tr ? '9.5 sa' : '9.5 h', Target],
-        [tr ? 'Tamamlanan' : 'Completed', tr ? '28 görev' : '28 tasks', CheckCircle2],
-      ];
-      return (
-        <Screen active={3}>
-          <View style={{ marginTop: u * 0.5 }}>
-            <Text style={LAB}>{tr ? 'KOKPİT · HAFTALIK' : 'COCKPIT · WEEKLY'}</Text>
-            <Text style={{ color: M.text, fontSize: T.h1, fontWeight: '800', letterSpacing: -0.4, marginTop: 3 * S }}>{tr ? 'Haftalık Karne' : 'Weekly Review'}</Text>
-          </View>
-          {/* Karne hero: kupa + hafta skoru + gün-gün tutarlılık */}
-          <View style={[CARD, { padding: pad, alignItems: 'center', gap: u }]}>
-            <View style={chip(A.amber, 46 * S)}><Trophy size={24 * S} color="#FFFFFF" /></View>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 * S }}>
-              <Text style={{ color: M.text, fontSize: T.big, fontWeight: '800', letterSpacing: -0.5 }}>92</Text>
-              <Text style={{ color: M.sub, fontSize: T.body, fontWeight: '700' }}>/100</Text>
-            </View>
-            <Text style={{ color: A.amber, fontSize: T.sub, fontWeight: '700' }}>{tr ? 'Zirve haftası · +18%' : 'Peak week · +18%'}</Text>
-            <View style={{ flexDirection: 'row', gap: 5 * S, marginTop: u * 0.4 }}>
-              {[1, 1, 1, 1, 1, 0, 1].map((on, i) => (
-                <View key={i} style={{ width: 7 * S, height: 7 * S, borderRadius: 999, backgroundColor: on ? A.amber : M.track }} />
-              ))}
-            </View>
-          </View>
-          {/* iki özet stat */}
-          <View style={{ flexDirection: 'row', gap: gap }}>
-            {stats.map(([l, v, Ic]) => (
-              <View key={l} style={[CARD, { flex: 1, padding: pad, gap: u * 0.6 }]}>
-                <Ic size={16 * S} color={A.amber} />
-                <Text style={{ color: M.text, fontSize: T.body + 1, fontWeight: '800' }}>{v}</Text>
-                <Text style={{ color: M.sub, fontSize: T.cap, fontWeight: '600' }} numberOfLines={1}>{l}</Text>
-              </View>
-            ))}
-          </View>
-        </Screen>
-      );
-    }
-
-    // home
-    return (
-      <Screen active={0}>
-        <View style={{ marginTop: u * 0.5 }}>
-          <Text style={{ color: M.sub, fontSize: T.sub }}>{tr ? 'İyi akşamlar,' : 'Good evening,'}</Text>
-          <Text style={{ color: M.text, fontSize: T.h1, fontWeight: '800', letterSpacing: -0.4 }}>{tr ? 'Deniz' : 'Alex'}</Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: u * 1.1 }}>
-          {[[Target, tr ? 'Odak' : 'Focus', '1.5 sa', A.blue], [ListChecks, tr ? 'Görev' : 'Tasks', '3/5', A.emerald], [Flame, tr ? 'Seri' : 'Streak', '12', A.orange]].map(([Ic, l, v, c]: any) => (
-            <View key={l} style={[CARD, { flex: 1, padding: pad, alignItems: 'center', gap: u * 0.75 }]}>
-              <View style={chip(c, 34 * S)}><Ic size={17 * S} color="#FFFFFF" /></View>
-              <Text style={{ color: M.text, fontSize: T.body + 2.5, fontWeight: '800', letterSpacing: -0.3 }}>{v}</Text>
-              <Text style={{ color: M.sub, fontSize: F.caption * S, fontWeight: '700' }}>{l}</Text>
-            </View>
-          ))}
-        </View>
-        <View style={{ backgroundColor: A.blue + (deepMode === 'dark' ? '24' : '18'), borderWidth: 1, borderColor: A.blue + '40', borderRadius: rad, padding: pad, gap: u * 0.75 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: u }}>
-            <View style={chip(A.blue, 30 * S)}><Home size={15 * S} color="#FFFFFF" /></View>
-            <Text style={{ color: M.text, fontSize: T.body + 1, fontWeight: '700' }}>{tr ? 'Bugünün önceliği' : "Today's priority"}</Text>
-          </View>
-          <Text style={{ color: M.sub, fontSize: T.body }} numberOfLines={1}>{tr ? 'Proje sunumunu hazırla' : 'Prepare project deck'}</Text>
-        </View>
-        <View style={[CARD, { padding: pad, flexDirection: 'row', alignItems: 'center', gap: u * 1.25 }]}>
-          <View style={chip(A.teal, 30 * S)}><BarChart3 size={16 * S} color="#FFFFFF" /></View>
-          <Text style={{ flex: 1, color: M.text, fontSize: T.body, fontWeight: '600' }} numberOfLines={1}>{tr ? 'Haftalık momentum: 84' : 'Weekly momentum: 84'}</Text>
-          <TrendingUp size={15 * S} color={A.emerald} />
-        </View>
-      </Screen>
-    );
-  };
 
   return (
     <View style={{ flex: 1, backgroundColor: mode === 'dark' ? '#0a0f22' : '#EDEEF3' }}>
@@ -479,7 +180,7 @@ export default function PromoScreen() {
                       /* Telefon çerçevesi + temsili ekran */
                       <View style={{ width: fw, height: fh, borderRadius: 34 * S, backgroundColor: '#000', padding: 6 * S, borderWidth: 2, borderColor: 'rgba(255,255,255,0.16)', shadowColor: accent, shadowOpacity: bd ? 0.5 : 0.32, shadowRadius: 28, shadowOffset: { width: 0, height: 12 } }}>
                         <View style={{ flex: 1, borderRadius: 29 * S, overflow: 'hidden' }}>
-                          <MockScreen kind={slide.kind} accent={accent} />
+                          <PromoMock kind={slide.kind} mode={mode} lang={lang} frameWidth={fw} scale={S} />
                         </View>
                         <View style={{ position: 'absolute', top: 12 * S, alignSelf: 'center', width: fw * 0.3, height: 7 * S, borderRadius: 4, backgroundColor: '#000' }} />
                       </View>
