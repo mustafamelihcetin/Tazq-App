@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   ScrollView,
+  Modal,
   NativeSyntheticEvent,
   NativeScrollEvent,
   Platform
@@ -22,12 +23,32 @@ import { CategoryColors } from '@/shared/constants/Colors';
 import { Easing } from 'react-native-reanimated';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { Touchable } from '@/shared/components/Touchable';
+import { GlassSheet } from '@/shared/components/GlassSheet';
 import { track } from '@/shared/utils/analytics';
 import { usePrefsStore } from '@/features/modes';
 import { useAuthStore } from '@/features/user';
 import { swallow } from '@/shared/utils/swallow';
 import { haptic } from '@/shared/utils/haptics';
 
+/**
+ * TANITIM — YEDİ SLAYTTAN DÖRDE.
+ *
+ * ── ÖLÇÜLEN SORUN ─────────────────────────────────────────────────────────────
+ * Yedi slayt "Geç"e basılmasını garanti ediyordu; basıldığında da hiçbir şey
+ * anlatılmamış oluyordu. Uzunluk anlatımı güçlendirmiyor, ZAYIFLATIYOR: kullanıcı
+ * daha uygulamayı görmeden yedi ekran okumak istemiyor.
+ *
+ * ── HANGİSİ NEDEN DÜŞTÜ ───────────────────────────────────────────────────────
+ *  · gizlilik → aynı bilgi kayıt ekranında zaten var (ve orada bağlamı var)
+ *  · haftalık merkez → ikinci seviye bir ekran; ilk dakikanın konusu değil
+ *  · ivme skoru → Sade modda o özellik YOK; herkese anlatmak yanlış vaat
+ *
+ * ── KALANLARIN SIRASI ─────────────────────────────────────────────────────────
+ * hoş geldin · akıllı giriş · YAŞAM MODLARI · odak
+ *
+ * Modlar üçüncü sıraya alındı: uygulamanın gerçek farkı o. Dördüncü slayta kadar
+ * gelmeyen kullanıcı bile uygulamanın ne yaptığını anlamış oluyor.
+ */
 const SLIDES = [
   {
     id: '1',
@@ -44,13 +65,6 @@ const SLIDES = [
     type: 'smart_input',
   },
   {
-    id: 'privacy',
-    titleKey: 'onboardingTitlePrivacy',
-    bodyKey: 'onboardingBodyPrivacy',
-    accentKey: 'success',
-    type: 'privacy',
-  },
-  {
     id: 'modes',
     titleKey: 'onboardingTitleModes',
     bodyKey: 'onboardingBodyModes',
@@ -64,20 +78,6 @@ const SLIDES = [
     accentKey: 'error',
     type: 'focus',
   },
-  {
-    id: '4',
-    titleKey: 'onboardingTitle4c',
-    bodyKey: 'onboardingBody4c',
-    accentKey: 'indigo',
-    type: 'cockpit',
-  },
-  {
-    id: '5',
-    titleKey: 'onboardingTitle4b',
-    bodyKey: 'onboardingBody4b',
-    accentKey: 'warning',
-    type: 'momentum',
-  },
 ];
 
 export default function OnboardingScreen() {
@@ -87,6 +87,15 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
+  /*
+    TEK SORU — tanıtımın sonunda, çıkıştan hemen önce.
+
+    Sade mod sözünü tutuyor (ivme skorunu ve seriyi gerçekten gizliyor) ama kimse
+    açmıyordu: Ayarlar'ın içinde, kimsenin aramadığı bir yerde duruyor. Oysa bu bir
+    ZEVK meselesi ve cevabı kullanıcıdan başkası bilemez. Yeni bir slayt eklemeden,
+    çıkışın önünde tek soruyla soruluyor; cevap Ayarlar'dan değiştirilebiliyor.
+  */
+  const [modeAsk, setModeAsk] = useState<null | 'continue' | 'guest'>(null);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -117,20 +126,40 @@ export default function OnboardingScreen() {
     }
   };
 
-  const nextSlide = async () => {
+  /**
+   * TANITIMI KAPATIR — tercih yazılır, bayrak kalıcı olur, çıkılır.
+   *
+   * İki çıkış da (hesapla devam / hesapsız dene) buradan geçiyor: eskiden aynı beş
+   * satır iki yerde kopyalanmıştı ve biri güncellendiğinde diğeri geride kalıyordu.
+   */
+  const completeOnboarding = async (mode: 'lite' | 'pro', exit: 'continue' | 'guest') => {
+    haptic.commit();
+    // Kullanıcının cevabı: skor/seri görünecek mi? (Sade mod ivmeyi gizler.)
+    usePrefsStore.getState().setUiMode(mode);
+    try {
+      await AsyncStorage.setItem('tazq-onboarding-done', 'true');
+    } catch (e) {
+      swallow('onboarding.persistCompletedFlag', e, { capture: true });
+    }
+    usePrefsStore.getState().setOnboardingCompleted(true);
+    track('onboarding_completed', { skipped: false, lastStep: currentIndex, guest: exit === 'guest', uiMode: mode });
+
+    if (exit === 'guest') {
+      useAuthStore.getState().startGuest();
+      router.replace('/');
+      return;
+    }
+    const nextPath = useAuthStore.getState().token ? '/' : '/login';
+    router.replace(nextPath as any);
+  };
+
+  const nextSlide = () => {
     if (currentIndex < SLIDES.length - 1) {
       scrollViewRef.current?.scrollTo({ x: (currentIndex + 1) * width, animated: true });
     } else {
-      haptic.commit();
-      try {
-        await AsyncStorage.setItem('tazq-onboarding-done', 'true');
-      } catch (e) {
-        swallow('onboarding.saveStatus', new Error('Failed to save onboarding status'));
-      }
-      usePrefsStore.getState().setOnboardingCompleted(true);
-      track('onboarding_completed', { skipped: false, lastStep: currentIndex });
-      const nextPath = useAuthStore.getState().token ? '/' : '/login';
-      router.replace(nextPath as any);
+      // Son slayt: çıkmadan ÖNCE tek soru (bkz. aşağıdaki mod sorusu).
+      haptic.surface();
+      setModeAsk('continue');
     }
   };
 
@@ -514,14 +543,7 @@ export default function OnboardingScreen() {
           */}
           {currentIndex === SLIDES.length - 1 && (
             <Touchable
-              onPress={async () => {
-                haptic.commit();
-                try { await AsyncStorage.setItem('tazq-onboarding-done', 'true'); } catch (e) { swallow('onboarding.persistCompletedFlag', e, { capture: true }); }
-                usePrefsStore.getState().setOnboardingCompleted(true);
-                track('onboarding_completed', { skipped: false, lastStep: currentIndex, guest: true });
-                useAuthStore.getState().startGuest();
-                router.replace('/');
-              }}
+              onPress={() => { haptic.surface(); setModeAsk('guest'); }}
               accessibilityRole="button"
               accessibilityLabel={t.guest.tryWithoutAccount}
               accessibilityHint={t.guest.tryHint}
@@ -548,6 +570,44 @@ export default function OnboardingScreen() {
           </Touchable>
         </View>
       </SafeAreaView>
+
+      {/*
+        MOD SORUSU — tanıtımın sonunda, çıkıştan hemen önce. Yeni bir slayt DEĞİL:
+        slayt olsaydı "Geç"le atlanır ve cevap alınamazdı; burada çıkışın üstünde
+        duruyor ama iki seçenekten biri tek dokunuşla geçiliyor.
+      */}
+      <Modal visible={modeAsk !== null} transparent animationType="fade" onRequestClose={() => setModeAsk(null)}>
+        <View style={styles.askBackdrop}>
+          <GlassSheet>
+            <Text style={[styles.askTitle, { color: theme.onSurface }]}>{t.onboardingModeAsk}</Text>
+            <Text style={[styles.askSub, { color: theme.onSurfaceVariant }]}>{t.onboardingModeAskSub}</Text>
+
+            {[
+              { key: 'pro' as const, Icon: Flame, title: t.onboardingModeFull, sub: t.onboardingModeFullSub, color: theme.primary },
+              { key: 'lite' as const, Icon: ListChecks, title: t.onboardingModeLite, sub: t.onboardingModeLiteSub, color: theme.onSurfaceVariant },
+            ].map(({ key, Icon, title, sub, color }) => (
+              <Touchable
+                key={key}
+                onPress={() => {
+                  const exit = modeAsk ?? 'continue';
+                  setModeAsk(null);
+                  completeOnboarding(key, exit);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={title}
+                accessibilityHint={sub}
+                style={[styles.askOption, { borderColor: color + '55', backgroundColor: color + '12' }]}
+              >
+                <Icon size={ICON.md} color={color} strokeWidth={2.2} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.askOptionTitle, { color: theme.onSurface }]}>{title}</Text>
+                  <Text style={[styles.askOptionSub, { color: theme.onSurfaceMuted }]}>{sub}</Text>
+                </View>
+              </Touchable>
+            ))}
+          </GlassSheet>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -592,5 +652,11 @@ const styles = StyleSheet.create({
   nextBtn: { borderRadius: R.xl, width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: S.sm },
   clayShadow: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 15 },
   nextBtnText: { fontWeight: '700' },
+  askBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.lg },
+  askTitle: { fontSize: F.title3, fontWeight: '700', textAlign: 'center', letterSpacing: -0.3 },
+  askSub: { fontSize: F.body, textAlign: 'center', lineHeight: 20 },
+  askOption: { flexDirection: 'row', alignItems: 'center', gap: S.smd, borderRadius: R.md, borderWidth: B.thin, paddingVertical: S.md, paddingHorizontal: S.md },
+  askOptionTitle: { fontSize: F.body, fontWeight: '700' },
+  askOptionSub: { fontSize: F.caption, fontWeight: '500', marginTop: S.xxs },
 });
 

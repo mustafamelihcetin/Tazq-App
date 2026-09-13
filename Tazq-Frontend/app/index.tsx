@@ -48,7 +48,7 @@ import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { StatusHubModal } from '@/features/dashboard/components/StatusHubModal';
-import { QuickDraftModal } from '@/shared/components/QuickDraftModal';
+import { QuickAddSheet } from '@/features/tasks/components/QuickAddSheet';
 import { ProfileSetupModal } from '@/features/user/components/ProfileSetupModal';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
@@ -1625,7 +1625,12 @@ export default function HomeScreen() {
             <DynamicIsland />
 
             {/* İlk açılış — soğuk başlangıç kartı: görev ve alışkanlık yokken kullanıcıya net 3 giriş noktası sunar */}
-            {completedTours?.dashboard === true && tasks.length === 0 && habits.length === 0 && (
+            {/*
+              Kart eskiden "tur BİTMİŞSE" gösteriliyordu, çünkü tur zaten ilk açılışta
+              çıkıyor ve ikisi çakışıyordu. Tur ilk göreve taşınınca o koşul boş ekranı
+              rehbersiz bırakırdı: görevi olmayan yeni kullanıcı ne turu ne kartı görürdü.
+            */}
+            {tasks.length === 0 && habits.length === 0 && (
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <BentoCard index={1} style={{ padding: isSmallScreen ? S.md : S.lg, gap: S.sm }}>
                     <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.3, marginBottom: S.xs }}>
@@ -1711,8 +1716,8 @@ export default function HomeScreen() {
 
         </Animated.ScrollView>
 
-        {/* Quick Draft Modal */}
-        <QuickDraftModal
+        {/* Hızlı ekleme — + düğmesinin varsayılanı (bkz. QuickAddSheet) */}
+        <QuickAddSheet
           visible={quickDraftVisible}
           onClose={() => setQuickDraftVisible(false)}
           onSave={handleQuickSave}
@@ -2038,7 +2043,20 @@ export default function HomeScreen() {
         onClose={() => setWeightModalTaskId(null)}
       />
 
-      {(!profileSetupVisible && completedTours?.dashboard !== true) && (
+      {/*
+        TUR İLK GÖREVDEN SONRA — daha önce uygulamanın İLK ekranında, kullanıcı tek
+        dokunuş yapmadan açılıyordu.
+
+        ÖLÇÜLEN SORUN: "İvme Skorun şöyle çalışır" anlatımı, henüz hiçbir görevi
+        olmayan birine yapılıyordu. Kullanılmamış bir özelliği anlatmak, anlatımın
+        tutmamasının en yaygın sebebi: karşılığı olmayan bir cümle akılda kalmaz,
+        üstelik kullanıcıyla ilk görevi arasına giren fazladan bir engel olur.
+        Aynı ilke bildirim izninde de uygulandı — izin, işe yarayacağı ana taşındı.
+
+        Görevi olmayan kullanıcı bunun yerine "nereden başlayayım" kartını görüyor
+        (aşağıya bkz.); yani rehberlik kaybolmuyor, SIRASI değişiyor.
+      */}
+      {(!profileSetupVisible && completedTours?.dashboard !== true && tasks.length > 0) && (
         <HelpTourModal
           pageId="dashboard"
           onStepChange={handleStepChange}

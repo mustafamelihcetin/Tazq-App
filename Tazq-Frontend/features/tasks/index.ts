@@ -2,3 +2,4 @@ export { useTaskStore, useActiveTasks, type Task, getLocalizedTaskTitle, getLoca
 export { parseTaskHint } from './utils/taskParser';
 export { categorizeTask, initIntelligence } from './utils/taskIntelligence';
 export { visibleTextTags, translateTag, isInternalTag, ICON_TAGS } from './utils/taskTags';
+export { QuickAddSheet } from './components/QuickAddSheet';

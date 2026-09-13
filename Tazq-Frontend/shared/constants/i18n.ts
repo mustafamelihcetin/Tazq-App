@@ -40,6 +40,16 @@ export const translations = {
     },
     notificationsEnabled: 'Enabled',
     notificationsDisabled: 'Disabled',
+    /**
+     * TANITIMIN SONUNDAKİ TEK SORU — oyunlaştırma açık mı kapalı mı?
+     * (bkz. app/onboarding.tsx; Sade mod ivme skorunu ve seriyi gizler)
+     */
+    onboardingModeAsk: 'One last thing',
+    onboardingModeAskSub: 'Some people work better with a score and a streak; others find them noisy. You can change this any time in settings.',
+    onboardingModeFull: 'Score and streak on',
+    onboardingModeFullSub: 'One number for your day, plus streaks and achievements',
+    onboardingModeLite: 'Keep it plain',
+    onboardingModeLiteSub: 'Just tasks, habits and focus — no scoring',
     onboardingTitle1: 'Master Your Focus',
     onboardingBody1: 'Take back control of your time. Seamlessly unite your tasks, habits, and focus sessions to reach your absolute peak every single day.',
     onboardingTitle2: 'Semantic Intelligence',
@@ -147,6 +157,8 @@ export const translations = {
     titleRequired: 'Please add a title to continue.',
     // Recurring Tasks
     recurrence: 'Repeat',
+    /** Gün adıyla birleşen tekrar öneki: "Every Monday" (bkz. buildNlpChips). */
+    recurrenceEvery: 'Every',
     recurrenceNone: 'None',
     recurrenceDaily: 'Daily',
     recurrenceWeekly: 'Weekly',
@@ -321,6 +333,17 @@ export const translations = {
       dismiss: 'Not now',
       dismissHint: 'The system permission dialog will not appear; you can enable it later in settings',
     },
+    /** Hızlı ekleme sayfası — + düğmesinin varsayılanı (bkz. QuickAddSheet). */
+    quickAdd: {
+      title: 'Quick add',
+      sub: 'Type it, TAZQ reads the rest',
+      placeholder: 'meeting tomorrow at 3pm',
+      note: 'Dates, times and repeats are read from your sentence',
+      details: 'Details',
+      detailsHint: 'Opens the full form with what you typed',
+      save: 'Add',
+      close: 'Close',
+    },
     savedOffline: 'Saved offline',
     /** Misafir (hesapsız) kullanım — bkz. useAuthStore.isGuest */
     guest: {
@@ -378,6 +401,16 @@ export const translations = {
     },
     notificationsEnabled: 'Açık',
     notificationsDisabled: 'Kapalı',
+    /**
+     * TANITIMIN SONUNDAKİ TEK SORU — oyunlaştırma açık mı kapalı mı?
+     * (bkz. app/onboarding.tsx; Sade mod ivme skorunu ve seriyi gizler)
+     */
+    onboardingModeAsk: 'Son bir soru',
+    onboardingModeAskSub: 'Kimi insan skor ve seriyle daha iyi çalışır, kimi onları gürültü bulur. İstediğin zaman ayarlardan değiştirebilirsin.',
+    onboardingModeFull: 'Skor ve seri açık olsun',
+    onboardingModeFullSub: 'Günün tek sayıda, üstüne seri ve başarımlar',
+    onboardingModeLite: 'Sade tutalım',
+    onboardingModeLiteSub: 'Sadece görev, alışkanlık ve odak — puanlama yok',
     onboardingTitle1: 'Odağına Hükmet',
     onboardingBody1: 'Hayatının kontrolünü eline al. Görevlerini, alışkanlıklarını ve zamanını tek bir akışta birleştirip her gün potansiyelini zirveye taşı.',
     onboardingTitle2: 'Semantik Zeka',
@@ -485,6 +518,8 @@ export const translations = {
     titleRequired: 'Devam etmek için başlık ekle.',
     // Recurring Tasks
     recurrence: 'Tekrar',
+    /** Gün adıyla birleşen tekrar öneki: "Her Pazartesi" (bkz. buildNlpChips). */
+    recurrenceEvery: 'Her',
     recurrenceNone: 'Yok',
     recurrenceDaily: 'Her Gün',
     recurrenceWeekly: 'Her Hafta',
@@ -625,6 +660,17 @@ export const translations = {
       adminTab: 'Destek Mesajları',
       markRead: 'Okundu Yap',
       noMessages: 'Henüz destek mesajı bulunmuyor.',
+    },
+    /** Hızlı ekleme sayfası — + düğmesinin varsayılanı (bkz. QuickAddSheet). */
+    quickAdd: {
+      title: 'Hızlı ekle',
+      sub: 'Yaz gitsin, gerisini TAZQ anlasın',
+      placeholder: 'yarın 15:00 toplantı',
+      note: 'Tarih, saat ve tekrar yazdığın cümleden anlaşılır',
+      details: 'Detaylar',
+      detailsHint: 'Yazdığın metinle tam formu açar',
+      save: 'Ekle',
+      close: 'Kapat',
     },
     savedOffline: 'Çevrimdışı kaydedildi',
     /** Misafir (hesapsız) kullanım — bkz. useAuthStore.isGuest */

@@ -57,6 +57,7 @@ import { retireModeTasksByTag } from '@/features/modes/utils/planTaskOps';
 import { TaskService } from '@/shared/services/api';
 import { usePlanAdaptations } from '@/features/modes';
 import { Touchable } from '@/shared/components/Touchable';
+import { ChromeShell } from '@/shared/components/ChromeShell';
 import { modeAccent as resolveModeAccent, modeAccentText as resolveModeAccentText } from '@/shared/constants/Colors';
 import { haptic } from '@/shared/utils/haptics';
 import { dateKeyFromNow, parseDateKey } from '@/shared/utils/dateKey';
@@ -789,6 +790,7 @@ export default function ModlarScreen() {
               accessibilityRole="button"
               accessibilityLabel={language === 'tr' ? 'Modların özeti' : 'Modes overview'}
             >
+              <ChromeShell />
               <BarChart3 size={ICON.lg} color={theme.onSurfaceVariant} />
             </Touchable>
             </TourTarget>
@@ -811,6 +813,7 @@ export default function ModlarScreen() {
              accessibilityLabel={language === 'tr' ? 'Modları tanıt' : 'Show modes walkthrough'}
              accessibilityHint={language === 'tr' ? 'Yaşam modlarının nasıl çalıştığını adım adım gösterir' : 'Walks you through how life modes work'}
            >
+               <ChromeShell />
                <Info size={ICON.lg} color={theme.onSurfaceVariant} />
            </Touchable>
             </>

@@ -20,8 +20,8 @@ import { GlassSurface } from '@/shared/components/GlassSurface';
 import VoiceService from '@/shared/utils/voice';
 import { parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS } from '@/features/tasks';
 import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
-import { weekdayName } from '@/shared/constants/weekdays';
-import { NlpHintRow, hasNlpHint, EMPTY_NLP_HINT, type NlpHint, type NlpChip } from '@/features/tasks/components/NlpHintRow';
+import { buildNlpChips } from '@/features/tasks/utils/nlpChips';
+import { NlpHintRow, hasNlpHint, EMPTY_NLP_HINT, type NlpHint } from '@/features/tasks/components/NlpHintRow';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
@@ -104,6 +104,14 @@ interface TaskFormModalProps {
   visible: boolean;
   onClose: () => void;
   task: any; // Task payload to edit, or null for creation
+  /**
+   * YENİ görevde başlığın ÖN DOLU gelmesi — hızlı ekleme sayfasındaki "Detaylar".
+   *
+   * Kullanıcı hızlı eklemeye bir cümle yazıp detaya geçtiğinde yazdığı kaybolursa
+   * ikinci adım bir CEZA olur ve bir daha kimse detaya geçmez. Metin taşınıyor;
+   * ayrıştırıcı da açılışta aynı cümleyi okuyup alanları dolduruyor.
+   */
+  initialTitle?: string;
   onSave: (payload: any) => Promise<void>;
   onDelete?: (id: number) => Promise<void>;
   theme: AppTheme;
@@ -116,6 +124,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   visible,
   onClose,
   task,
+  initialTitle,
   onSave,
   onDelete,
   theme,
@@ -181,11 +190,30 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
           recurrence: (task.recurrence as RecurrenceType) || 'None',
           reminderEnabled: task.tags?.includes('hatırlatıcı') || task.tags?.includes('reminder') || false
         });
+      } else if (initialTitle) {
+        /*
+          HIZLI EKLEMEDEN GELDİ. Yalnız başlığı taşımak yetmez: kullanıcı "yarın 15:00"
+          yazdıysa o bilgi zaten cümlede var; forma boş tarih/saatle gelmek onu AYNI
+          şeyi ikinci kez girmeye zorlardı. Aynı ayrıştırıcı burada da çalışıyor.
+        */
+        const parsed = parseTaskHint(initialTitle, language as 'tr' | 'en');
+        const parsedTags = parsed.tags || [];
+        setForm({
+          ...EMPTY_FORM,
+          title: initialTitle,
+          priority: parsed.priority || 'Medium',
+          dueDate: parsed.dueDate || '',
+          dueTime: parsed.dueTime || null,
+          recurrence: parsed.recurrence || 'None',
+          tags: parsedTags,
+          reminderEnabled: parsedTags.includes('hatırlatıcı') || parsedTags.includes('reminder'),
+        });
+        setNlpHint({ message: parsed.wittyMessage ?? '', chips: buildNlpChips(parsed, language) });
       } else {
         setForm(EMPTY_FORM);
       }
     }
-  }, [visible, task, prepareTask]);
+  }, [visible, task, initialTitle, language, prepareTask]);
 
   const priorityColor = (p: Priority) => {
     if (p === 'High') return theme.priorityHigh;
@@ -231,34 +259,9 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
     if (titleError) setTitleError(false);
 
     // Ayrıştırıcının ANLADIĞI şeyler — ham emoji YOK, tür var. İkonu NlpHintRow çizer.
-    const chips: NlpChip[] = [];
-    if (hint.dueDate) {
-      chips.push({ kind: 'date', text: new Date(hint.dueDate).toLocaleDateString() });
-    }
-    if (hint.dueTime) {
-      chips.push({ kind: 'time', text: new Date(hint.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
-    }
-    if (hint.recurrence && hint.recurrence !== 'None') {
-      const isTR = language === 'tr';
-      const recurrenceLabel: Record<string, string> = {
-        Daily: isTR ? 'Her gün' : 'Daily',
-        Weekly: isTR ? 'Her hafta' : 'Weekly',
-        Monthly: isTR ? 'Her ay' : 'Monthly',
-      };
-      // Gün adı ARAYÜZ dilinde kurulur. Burada `Her ${...}` sabit Türkçe yazıyordu ve
-      // gün adı da ayrıştırıcıdan GİRDİNİN dilinde geliyordu → "Her Monday".
-      chips.push({
-        kind: 'repeat',
-        text: hint.recurrenceDay != null
-          ? `${isTR ? 'Her' : 'Every'} ${weekdayName(hint.recurrenceDay, isTR ? 'tr' : 'en')}`
-          : recurrenceLabel[hint.recurrence],
-      });
-    }
-    for (const t of visibleTextTags(hint.tags)) {
-      chips.push({ kind: 'tag', text: translateTag(t, language as 'tr' | 'en') });
-    }
-
-    setNlpHint({ message: hint.wittyMessage ?? '', chips });
+    // Dönüşüm ORTAK (bkz. buildNlpChips): hızlı ekleme sayfası da aynı ipucunu gösteriyor;
+    // kopyalansaydı iki ekran zamanla ayrışırdı.
+    setNlpHint({ message: hint.wittyMessage ?? '', chips: buildNlpChips(hint, language) });
   };
 
   const handleDescriptionChange = (text: string) => {

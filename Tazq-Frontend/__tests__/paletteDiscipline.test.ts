@@ -85,8 +85,8 @@ const CEILING: Record<string, number> = {
   // sabit renk sayfa zeminiydi (#1C1C22) ve ortak cam yüzeye (GlassSurface) geçti.
   'app/report.tsx': 7,
   'features/modes/utils/modeHelpers.ts': 7,
-  // 7 → 5: sayfa zemini cam yüzeye geçti.
-  'shared/components/QuickDraftModal.tsx': 5,
+  // QuickDraftModal LİSTEDEN ÇIKTI: dosya silindi. Yerine features/tasks altındaki
+  // hızlı ekleme sayfası geçti (renkleri tamamen paletten).
   'features/modes/components/modes/ExamCard.tsx': 6,
   // 6 → 3: alt-görev "yapıldı" tik/çerçeve/zemin semantik theme.success'e bağlandı
   // 3 → 2: sayfa zemini (#1A1A1A) cam yüzeye geçti.

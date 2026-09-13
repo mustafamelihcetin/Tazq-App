@@ -93,11 +93,17 @@ describe('gün adı ayrıştırıcıda SABİTLENMEZ', () => {
   });
 
   it('ad, gösterildiği yerde ve arayüz dilinde kurulur', () => {
-    const src = stripComments(read('features/tasks/components/TaskFormModal.tsx'));
+    /*
+      Dönüşüm artık ORTAK dosyada (buildNlpChips): hızlı ekleme sayfası da aynı
+      ipucunu gösteriyor ve kopyalansaydı iki ekran zamanla ayrışırdı.
+    */
+    const src = stripComments(read('features/tasks/utils/nlpChips.ts'));
     expect(src).toContain('weekdayName(hint.recurrenceDay');
-    // Sabit Türkçe "Her" geri gelmesin
+    // Sabit Türkçe "Her" geri gelmesin — önek sözlükten geliyor.
     expect(src).not.toMatch(/`Her \$\{hint\./);
-    expect(src).toContain("isTR ? 'Her' : 'Every'");
+    expect(src).toContain('t.recurrenceEvery');
+    // Form da kendi kopyasını tutmuyor.
+    expect(stripComments(read('features/tasks/components/TaskFormModal.tsx'))).toContain('buildNlpChips(hint, language)');
   });
 
   it('gün adı tablosu Date.getDay() ile hizalı (0 = Pazar)', () => {
@@ -110,9 +116,10 @@ describe('gün adı ayrıştırıcıda SABİTLENMEZ', () => {
   });
 
   it('tablo TEK yerde — bileşen kendi kopyasını tutmuyor', () => {
-    const src = stripComments(read('features/tasks/components/TaskFormModal.tsx'));
+    const src = stripComments(read('features/tasks/utils/nlpChips.ts'));
     expect(src).not.toContain('const WEEKDAY_NAMES');
     expect(src).toContain("from '@/shared/constants/weekdays'");
+    expect(stripComments(read('features/tasks/components/TaskFormModal.tsx'))).not.toContain('const WEEKDAY_NAMES');
   });
 
   it('aralık dışı gün numarası çökertmez', () => {

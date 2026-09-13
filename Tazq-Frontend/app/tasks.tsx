@@ -42,6 +42,8 @@ import VoiceService from '@/shared/utils/voice';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { Touchable } from '@/shared/components/Touchable';
+import { ChromeShell } from '@/shared/components/ChromeShell';
+import { QuickAddSheet } from '@/features/tasks/components/QuickAddSheet';
 import { swallow } from '@/shared/utils/swallow';
 import { httpStatusOf, isNetworkError, errorMessage, httpDataOf } from '@/shared/utils/errors';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
@@ -608,6 +610,12 @@ export default function ActionCenter() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  /*
+    HIZLI EKLEME — + düğmesinin VARSAYILANI (bkz. QuickAddSheet).
+    Tam form ikinci adımda: hızlı sayfadaki "Detaylar" yazılan metni taşıyarak açar.
+  */
+  const [quickAddVisible, setQuickAddVisible] = useState(false);
+  const [prefillTitle, setPrefillTitle] = useState('');
   useUiDepth(modalVisible || weightModalTaskId !== null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showSwipePeek, setShowSwipePeek] = useState(false);
@@ -721,8 +729,42 @@ export default function ActionCenter() {
     }
   };
 
+  /**
+   * + düğmesi → HIZLI EKLEME.
+   *
+   * `editingId` BURADA sıfırlanıyor, kaydederken değil: `handleFormSave` düzenleme mi
+   * yoksa oluşturma mı olduğuna ona bakarak karar veriyor. Kullanıcı önce bir görevi
+   * düzenleyip sonra hızlı ekleme yapsaydı, kalmış bir `editingId` yeni görev yerine
+   * ESKİSİNİ güncellerdi.
+   */
   const handleAddBtnPress = () => {
     setEditingId(null);
+    setPrefillTitle('');
+    setQuickAddVisible(true);
+  };
+
+  /** Hızlı eklemeden gelen tek satır — alanları cümleden ayrıştırıcı dolduruyor. */
+  const handleQuickAdd = async (title: string) => {
+    const hint = parseTaskHint(title, language as 'tr' | 'en');
+    const tags = hint.tags || [];
+    await handleFormSave({
+      title,
+      description: '',
+      priority: hint.priority || 'Medium',
+      dueDate: hint.dueDate || '',
+      dueTime: hint.dueTime || null,
+      tags,
+      subtasks: [],
+      recurrence: hint.recurrence || 'None',
+      reminderEnabled: tags.includes('hatırlatıcı') || tags.includes('reminder'),
+    });
+  };
+
+  /** "Detaylar" → yazılan metin KAYBOLMADAN tam forma geçilir. */
+  const handleQuickAddDetails = (title: string) => {
+    setQuickAddVisible(false);
+    setEditingId(null);
+    setPrefillTitle(title);
     setModalVisible(true);
   };
 
@@ -1719,11 +1761,13 @@ export default function ActionCenter() {
             <>
             {isBulkMode ? (
                 <Touchable onPress={() => { setIsBulkMode(false); setSelectedIds(new Set()); }} hitSlop={{top:10, bottom:10, left:10, right:10}} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Seçimi iptal et' : 'Cancel selection'}>
+                    <ChromeShell />
                     <X size={ICON.lg} color={theme.onSurface} />
                 </Touchable>
             ) : (
                 // Sol: Sırala & Filtrele. Sağ: Ara (büyüteç). Back butonu YOK — alt navigasyondan gezilir.
                 <Touchable onPress={() => { setShowSortMenu(!showSortMenu); import('expo-haptics').then(Haptics => haptic.surface()); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
+                    <ChromeShell />
                     <View>
                         <SlidersHorizontal size={ICON.lg} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
                         {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) && (
@@ -1758,6 +1802,7 @@ export default function ActionCenter() {
                 </View>
             ) : (
                 <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => haptic.surface()); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
+                    <ChromeShell />
                     <Search size={ICON.lg} color={showSearch ? theme.primary : theme.onSurface} />
                 </Touchable>
             )}
@@ -2272,10 +2317,22 @@ export default function ActionCenter() {
       />
 
       {/* Task Form Modal */}
+      <QuickAddSheet
+        visible={quickAddVisible}
+        onClose={() => setQuickAddVisible(false)}
+        onSave={handleQuickAdd}
+        onDetails={handleQuickAddDetails}
+        theme={theme}
+        isDark={isDark}
+        language={language}
+        t={t}
+      />
+
       <TaskFormModal
         visible={modalVisible}
-        onClose={() => setModalVisible(false)}
+        onClose={() => { setModalVisible(false); setPrefillTitle(''); }}
         task={editingId !== null ? tasks.find(t => t.id === editingId) : null}
+        initialTitle={prefillTitle}
         onSave={handleFormSave}
         onDelete={editingId !== null ? async (id) => handleDelete(id) : undefined}
         theme={theme}
@@ -2283,10 +2340,14 @@ export default function ActionCenter() {
         language={language}
         t={t}
       />
-      <HelpTourModal 
-        pageId="tasks" 
-        onStepChange={handleStepChange} 
-      />
+      {/* Tur, anlatacak bir şey olduğunda: liste boşken "sola kaydır, ertele" anlatımının
+          karşılığı yok (bkz. app/index.tsx'teki aynı karar). */}
+      {tasks.length > 0 && (
+        <HelpTourModal
+          pageId="tasks"
+          onStepChange={handleStepChange}
+        />
+      )}
     </View>
   );
 }

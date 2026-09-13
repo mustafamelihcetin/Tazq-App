@@ -26,6 +26,7 @@ import { FocusService } from '@/shared/services/api';
 import { ICON, S, R, F, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight} from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
+import { ChromeShell } from '@/shared/components/ChromeShell';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { SwipeableHabitItem } from '@/features/habits/components/SwipeableHabitItem';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
@@ -555,6 +556,7 @@ export default function CockpitScreen() {
               accessibilityRole="button"
               accessibilityLabel={tr ? 'Haftalık rapor' : 'Weekly report'}
             >
+              <ChromeShell />
               <BarChart3 size={ICON.lg} color={theme.onSurface} />
             </Touchable>
             </>
@@ -571,6 +573,7 @@ export default function CockpitScreen() {
               accessibilityRole="button"
               accessibilityLabel={tr ? 'Ekle' : 'Add'}
             >
+              <ChromeShell />
               <Plus size={ICON.lg} color={theme.onSurface} />
             </Touchable>
             </>

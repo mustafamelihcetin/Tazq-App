@@ -1,14 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform, useWindowDimensions, Animated } from 'react-native';
+import { MotiView } from 'moti';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import {
   S, ICON, HAIRLINE, MAX_W,
-  TOP_BAR_HEIGHT, TOP_TITLE_SIZE, TOP_SUBTITLE_SIZE,
+  TOP_BAR_HEIGHT, TOP_BAR_MINIMIZED_HEIGHT, TOP_TITLE_SIZE, TOP_SUBTITLE_SIZE,
 } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
+import { ChromeShell } from '@/shared/components/ChromeShell';
+import { useChromeStore } from '@/shared/store/useChromeStore';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { haptic } from '@/shared/utils/haptics';
 
@@ -107,6 +110,8 @@ export const ScreenHeader = ({
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
   const { language } = useLanguageStore();
+  // Küçülme YALNIZ iOS'ta: Android'in app bar'ı sabittir (bkz. aşağıdaki not).
+  const minimized = useChromeStore(s => s.minimized) && Platform.OS === 'ios';
 
   /**
    * Başlığın belirmesi — büyük başlık ekrandan çıkarken devralır.
@@ -194,6 +199,9 @@ export const ScreenHeader = ({
       // Görsel glif ICON.lg, dokunma hedefi HIG alt sınırı (44pt).
       style={{ width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center', marginLeft: -S.sm }}
     >
+      {/* iOS 26/27: araç çubuğu düğmesi cam bir halkanın içindedir. Android'de kabuk
+          çizilmez (Material'ın düğmesi çıplak gliftir) — bkz. ChromeShell. */}
+      <ChromeShell />
       <ArrowLeft size={ICON.lg} color={theme.onSurface} />
     </Touchable>
   ) : left;
@@ -294,7 +302,22 @@ export const ScreenHeader = ({
 
       {/* Geniş/foldable ekranda içerikle aynı sütuna hizalanır (sayfa gövdesi de MAX_W). */}
       <View style={[styles.column, { maxWidth: Math.min(width, MAX_W) }]}>
-        <View style={styles.content}>
+        {/*
+          ÇUBUK KAYDIRIRKEN KÜÇÜLÜR — iOS 26/27 deseni, sekme çubuğuyla AYNI hareket.
+
+          Aşağı kaydıran kullanıcı okumak istiyor; ekranın iki ucundaki kutular o an
+          yer kaplamamalı. Yukarı kaydırınca ikisi birlikte geri gelir. Süre de aynı
+          (220ms): iki uç tek sistem gibi okunmalı, yoksa biri "geç kalmış" görünür.
+
+          Sinyal tek yerden geliyor (useChromeMinimizeOnScroll → useChromeStore) ve
+          "Hareketi Azalt" açıkken hiç üretilmiyor. Android'de davranış YOK: Material'ın
+          app bar'ı sabittir (yükseklik hep TOP_BAR_HEIGHT).
+        */}
+        <MotiView
+          animate={{ height: minimized ? TOP_BAR_MINIMIZED_HEIGHT : TOP_BAR_HEIGHT }}
+          transition={{ type: 'timing', duration: 220 }}
+          style={styles.content}
+        >
           {/*
             Orta yuva ÖNCE çiziliyor — sırası bilinçli. RN'de sonraki kardeş üstte kalır;
             orta öğe iki yanın arasına yazılsaydı sol buton onun ALTINDA, sağ buton
@@ -308,7 +331,7 @@ export const ScreenHeader = ({
 
           <View style={styles.side}>{leftSlot}</View>
           <View style={[styles.side, styles.sideRight]}>{right}</View>
-        </View>
+        </MotiView>
       </View>
     </View>
   );

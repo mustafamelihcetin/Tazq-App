@@ -9,6 +9,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Touchable } from '@/shared/components/Touchable';
+import { AppBlur } from '@/shared/components/AppBlur';
 import { haptic } from '@/shared/utils/haptics';
 
 export const FocusIsland = () => {
@@ -74,12 +75,21 @@ export const FocusIsland = () => {
         style={[
           styles.pill,
           {
-            backgroundColor: isDark ? theme.surfaceContainerHighest : '#fff',
+            // iOS'ta zemin CAM (aşağıda); Android'de bu turdan önceki opak yüzey.
+            backgroundColor: Platform.OS === 'ios' ? 'transparent' : (isDark ? theme.surfaceContainerHighest : '#fff'),
             borderColor: theme.primary + '40',
             shadowColor: theme.primary,
           },
         ]}
       >
+        {/*
+          RENKLİ CAM — süren bir seans, duran bir yüzeyle aynı renkte olmamalı.
+          Apple'ın çalan-parça şeridi de böyle tonlanır: malzeme aynı, rengi durumdan
+          geliyor. Ton yalnız iOS'ta; Android opak yüzeyini koruyor.
+        */}
+        {Platform.OS === 'ios' && (
+          <AppBlur material="chrome" radius={R.full} glassTint={theme.primary} />
+        )}
         <MotiView
           animate={{ opacity: [1, 0.3, 1] }}
           transition={{ loop: true, duration: 1800 }}

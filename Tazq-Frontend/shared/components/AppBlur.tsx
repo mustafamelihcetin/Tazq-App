@@ -75,10 +75,24 @@ export interface AppBlurProps {
    * efektin kendisi yanlış yerde olur.
    */
   radius?: number;
+  /**
+   * CAMI RENKLENDİRİR — yüzeyin bir DURUMU varsa.
+   *
+   * iOS 26'nın cam malzemesi bir renk tonu alabiliyor (`tintColor`). Bu bir süsleme
+   * değil, durum anlatımı: süren bir odak seansının hapı, kapalı bir yüzeyle aynı
+   * renkte durmamalı. Apple'ın kendi çalan-parça şeridi de böyle tonlanır.
+   *
+   * Cam yoksa (Android, iOS 26 öncesi) aynı renk çok düşük opaklıkta ince bir katman
+   * olarak bindiriliyor — malzeme taklit edilmiyor, yalnız DURUM korunuyor.
+   */
+  glassTint?: string;
   /** Varsayılan: kapsayıcıyı tamamen doldurur. */
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 }
+
+/** Cam yokken renk tonunun opaklığı — malzeme taklidi değil, durum işareti. */
+const TINT_FALLBACK_OPACITY = 0.14;
 
 /**
  * LIQUID GLASS — iOS 26+ için gerçek sistem malzemesi.
@@ -121,7 +135,7 @@ const GLASS_STYLE: Record<BlurMaterial, 'clear' | 'regular'> = {
   chrome: 'regular',
 };
 
-export const AppBlur = ({ material = 'regular', tint, radius, style, children }: AppBlurProps) => {
+export const AppBlur = ({ material = 'regular', tint, radius, glassTint, style, children }: AppBlurProps) => {
   const { colorScheme, theme } = useAppTheme();
   const reduceTransparency = useReduceTransparency();
   const level = INTENSITY[material][colorScheme === 'dark' ? 'dark' : 'light'];
@@ -134,9 +148,22 @@ export const AppBlur = ({ material = 'regular', tint, radius, style, children }:
     onu atlayamasın. iOS 27'nin cam yoğunluk kaydırıcısı da aynı aileden bir
     tercih — sistem yüzeyleri otomatik uyar, bizimkilerin uyması için bu gerekir.
   */
+  /** Cam yokken durumu koruyan ince renk katmanı (bkz. glassTint). */
+  const tintLayer = glassTint ? (
+    <View
+      pointerEvents="none"
+      style={[
+        StyleSheet.absoluteFill,
+        { backgroundColor: glassTint, opacity: TINT_FALLBACK_OPACITY },
+        radius != null && { borderRadius: radius },
+      ]}
+    />
+  ) : null;
+
   if (reduceTransparency) {
     return (
       <View style={[style ?? StyleSheet.absoluteFill, { backgroundColor: theme.surfaceFloating }, radius != null && { borderRadius: radius }]}>
+        {tintLayer}
         {children}
       </View>
     );
@@ -152,6 +179,8 @@ export const AppBlur = ({ material = 'regular', tint, radius, style, children }:
     return (
       <GlassView
         glassEffectStyle={GLASS_STYLE[material]}
+        /* Sistem malzemesinin KENDİ tonlaması — bindirilen bir katman değil, camın rengi. */
+        tintColor={glassTint}
         /*
           TEMA SİSTEMDEN DEĞİL UYGULAMADAN GELİR.
 
@@ -183,6 +212,7 @@ export const AppBlur = ({ material = 'regular', tint, radius, style, children }:
       blurMethod={material === 'chrome' ? 'none' : 'dimezisBlurViewSdk31Plus'}
       style={[style ?? StyleSheet.absoluteFill, radius != null && { borderRadius: radius }]}
     >
+      {tintLayer}
       {children}
     </BlurView>
   );

@@ -51,6 +51,8 @@ function walk(dir: string): string[] {
 
 const FILES = ['app', 'shared', 'features'].flatMap(walk);
 
+const NEWLINE = String.fromCharCode(10);
+
 /**
  * Satır içi iki dilli dallanma kalıpları.
  *
@@ -63,8 +65,25 @@ const PATTERNS = [
   /lang\s*===\s*'tr'\s*\?\s*['"`]/g,
 ];
 
+/**
+ * Yorumlari ELER — bir kuralin NEDENINI anlatan yorum cogu zaman ORNEK KODdur:
+ *
+ *     // eskiden `language === 'tr' ? 'Merhaba' : 'Hello'` yaziliyordu
+ *
+ * Sayac bunu KOD sanip borc olarak sayiyordu; yani kurali aciklamak kurali cignemek
+ * oluyordu ve testi susturmanin yolu yorum YAZMAMAK haline geliyordu. Ayni tuzak
+ * palet ve erisilebilirlik tarayicilarinda da yasandi — cozum orada da buydu.
+ */
+function stripComments(src: string): string {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split(NEWLINE)
+    .filter((l) => !l.trim().startsWith('//'))
+    .join(NEWLINE);
+}
+
 function countInline(rel: string): number {
-  const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+  const src = stripComments(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
   let n = 0;
   for (const re of PATTERNS) n += [...src.matchAll(re)].length;
   return n;
@@ -119,7 +138,7 @@ const BASELINE: Record<string, number> = {
   'features/modes/utils/turkishModes.ts': 5,
   'features/onboarding/components/HelpTourModal.tsx': 4,
   'features/onboarding/components/TourFeaturePreview.tsx': 55,
-  'features/tasks/components/TaskFormModal.tsx': 30,
+  'features/tasks/components/TaskFormModal.tsx': 26,
   'features/tasks/utils/taskParser.ts': 13,
   'features/user/components/CelebrationOverlay.tsx': 1,
   'features/user/components/DeleteAccountModal.tsx': 1,
@@ -132,7 +151,6 @@ const BASELINE: Record<string, number> = {
   'shared/components/CustomAlert.tsx': 1,
   'shared/components/OfflineBanner.tsx': 1,
   'shared/components/Pager.tsx': 5,
-  'shared/components/QuickDraftModal.tsx': 4,
   'shared/components/ScreenHeader.tsx': 1,
   'shared/components/SectionHeader.tsx': 1,
   'shared/components/SupportModal.tsx': 18,

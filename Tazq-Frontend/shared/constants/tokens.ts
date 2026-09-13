@@ -444,6 +444,19 @@ export const fabSafeBottom = (insetBottom: number) =>
  * tekrarlanmıyor.
  */
 export const TOP_BAR_HEIGHT = 44; // UIKit UINavigationBar standart yüksekliği
+
+/**
+ * KÜÇÜLMÜŞ BAŞLIK ÇUBUĞU — iOS 26/27'nin "minimize" davranışı.
+ *
+ * Kullanıcı aşağı kaydırırken chrome geri çekilir, yukarı kaydırınca geri gelir:
+ * içerik okunurken ekranın iki ucundaki kutular yer kaplamaz. Sekme çubuğu bu
+ * davranışa zaten geçti (NAV_BAR_MINIMIZED_HEIGHT); başlık çubuğunun ondan farklı
+ * davranması ekranın iki ucunu iki ayrı sisteme böler — DEĞER AYNI, bilinçli.
+ *
+ * Yazı 17pt: 36pt'lik çubukta hâlâ tam okunur, yani küçülme bilgi kaybettirmez.
+ * Yalnız iOS'ta uygulanır (bkz. ScreenHeader) — Android'in app bar'ı sabittir.
+ */
+export const TOP_BAR_MINIMIZED_HEIGHT = 36;
 export const TOP_BAR_LIFT = 0;    // yüzmez — durum çubuğunun hemen altına yapışır
 export const TOP_TITLE_SIZE = 17;    // Apple nav bar başlığı: 17pt semibold
 export const TOP_SUBTITLE_SIZE = 11; // başlık altı yardımcı satır (ör. tarih aralığı)

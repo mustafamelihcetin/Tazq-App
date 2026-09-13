@@ -59,10 +59,25 @@ function childrenHaveText(src: string, tagEnd: number): boolean {
 
 type Hit = { file: string; line: number };
 
+/**
+ * Blok yorumlarini bosluga cevirir — satir sayisi KORUNUR (satir no'lari bozulmasin).
+ *
+ * NEDEN: bir kuralin NASIL uygulanacagini anlatan yorum cogu zaman ORNEK KODdur:
+ *
+ *     <Touchable style={styles.headerIconBtn}>   // ornek, gercek kontrol degil
+ *
+ * Tarayici bunu KOD sanip "adsiz kontrol" olarak sayiyordu; yani kurali aciklamak
+ * kurali cignemek oluyordu. Testi susturmanin yolu yorum YAZMAMAK haline geliyordu,
+ * ki bu tam ters bir tesvik. Ayni tuzak palet testinde de yasanmisti (bkz. oradaki not).
+ */
+function stripBlockComments(src: string): string {
+  return src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
+}
+
 function silentControls(): Hit[] {
   const out: Hit[] = [];
   for (const f of FILES) {
-    const src = read(f);
+    const src = stripBlockComments(read(f));
     for (const m of src.matchAll(OPENERS)) {
       const tag = readTag(src, m.index!);
 

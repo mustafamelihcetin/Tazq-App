@@ -366,3 +366,66 @@ describe('cam yüzey — bütün modallar tek zeminden', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('üst bar da iOS 26/27 davranışında', () => {
+  const HEADER = stripComments(read('shared/components/ScreenHeader.tsx'));
+  const SHELL = stripComments(read('shared/components/ChromeShell.tsx'));
+  const TOKENS = require('@/shared/constants/tokens');
+
+  it('başlık çubuğu sekme çubuğuyla AYNI sinyalden küçülür', () => {
+    /*
+      Ekranın iki ucu tek sistem: ikisi de useChromeStore'u okuyor, ikisi de 220ms.
+      Ayrı sinyal/ayrı süre olsaydı biri "geç kalmış" görünürdü.
+    */
+    expect(HEADER).toContain('useChromeStore');
+    expect(HEADER).toContain('TOP_BAR_MINIMIZED_HEIGHT');
+    expect(HEADER).toContain('duration: 220');
+  });
+
+  it('küçülme YALNIZ iOS — Android app bar sabittir', () => {
+    expect(HEADER).toMatch(/minimized = useChromeStore\(s => s\.minimized\) && Platform\.OS === 'ios'/);
+  });
+
+  it('iki uç aynı ölçüde küçülür', () => {
+    expect(TOKENS.TOP_BAR_MINIMIZED_HEIGHT).toBe(TOKENS.NAV_BAR_MINIMIZED_HEIGHT);
+    expect(TOKENS.TOP_BAR_MINIMIZED_HEIGHT).toBeLessThan(TOKENS.TOP_BAR_HEIGHT);
+  });
+
+  it('düğme kabuğu Android\'de HİÇ çizilmez — Material düğmesi çıplak gliftir', () => {
+    expect(SHELL).toMatch(/Platform\.OS !== 'ios'\) return null/);
+  });
+
+  it('geri düğmesi ve ekran düğmeleri aynı kabuğu kullanır', () => {
+    // Aynı çubuktaki düğmeler iki farklı dil konuşmasın (durum düğmesinin kabuğu vardı).
+    expect(HEADER).toContain('<ChromeShell />');
+    for (const f of ['app/tasks.tsx', 'app/cockpit.tsx', 'app/modlar.tsx']) {
+      expect(read(f)).toContain('<ChromeShell />');
+    }
+  });
+
+  it('kabuk yer KAPLAMAZ — düzen iki platformda da aynı kalır', () => {
+    expect(SHELL).toContain('StyleSheet.absoluteFill');
+  });
+});
+
+describe('renkli cam — süren iş durgun yüzeyle aynı renkte olmaz', () => {
+  const ISLAND = stripComments(read('features/focus/components/FocusIsland.tsx'));
+
+  it('cam sistemin KENDİ tonlamasını alır, bindirilmiş katman değil', () => {
+    expect(BLUR).toContain('tintColor={glassTint}');
+  });
+
+  it('cam yokken ton ince bir katmana düşer — durum korunur', () => {
+    expect(BLUR).toContain('TINT_FALLBACK_OPACITY');
+    expect(BLUR).toMatch(/TINT_FALLBACK_OPACITY = 0\.\d+/);
+  });
+
+  it('odak hapı seansın rengini taşır', () => {
+    expect(ISLAND).toContain('glassTint={theme.primary}');
+  });
+
+  it('Android hapı OPAK kalır — cam yalnız iOS', () => {
+    expect(ISLAND).toMatch(/Platform\.OS === 'ios' \? 'transparent' :/);
+    expect(ISLAND).toMatch(/\{Platform\.OS === 'ios' && \(\s*<AppBlur material="chrome"/);
+  });
+});

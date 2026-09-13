@@ -79,7 +79,10 @@ const KNOWN_LARGE: Record<string, number> = {
   // 2411 → 2420: sekme çubuğundaki ARAMA ADASINDAN gelen gezinme. Adaya dokunan
   // kullanıcı "aramak" istiyor, "Görevler ekranını açmak" değil — ekran arama alanı
   // AÇIK geliyor (iOS 26/27 deseni, bkz. __tests__/ios27Chrome.test.ts).
-  'app/tasks.tsx': 2420,
+  // 2420 → 2468: HIZLI EKLEME. + düğmesi artık yedi bölümlü formu değil tek satırlık
+  // hızlı eklemeyi açıyor; tam form "Detaylar" ile yazılan metni TAŞIYARAK açılıyor.
+  // Artış: iki durum, iki işleyici (hızlı kaydet + detaya geç) ve gerekçeleri.
+  'app/tasks.tsx': 2468,
   // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
   // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
   // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).
@@ -95,7 +98,9 @@ const KNOWN_LARGE: Record<string, number> = {
   // 1523 → 1529: ERİŞİLEBİLİRLİK. Alışkanlık satırının adı, durumu ve serisi ekran
   // okuyucuya hiç ulaşmıyordu (durum renkle, seri rozetle söyleniyordu).
   // 1529 → 1530: CAM SAYFALAR. Alışkanlık ekleme ve plan sayfaları ortak cam yüzeye bağlandı.
-  'app/cockpit.tsx': 1530,
+  // 1530 → 1533: iOS 26/27 ARAÇ ÇUBUĞU DÜĞMESİ. Rapor ve ekle düğmeleri cam kabuğa
+  // alındı (içe aktarım + düğme başına tek satır). Android'de kabuk çizilmiyor.
+  'app/cockpit.tsx': 1533,
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.
@@ -107,14 +112,17 @@ const KNOWN_LARGE: Record<string, number> = {
   // stripEmojiPrefix, getEmojiFromLabel, TARGET_EVENTS, yks/kpssAutoActive).
   // Zararsız değillerdi: emoji temizliği ÖLÜ kopyaya uygulanmış, canlı ExamCard
   // yarım kalmıştı.
-  'app/modlar.tsx': 1391,
+  // 1391 → 1394: iOS 26/27 ARAÇ ÇUBUĞU DÜĞMESİ. Özet ve tanıtım düğmeleri cam kabuğa alındı.
+  'app/modlar.tsx': 1394,
   // 1199 → 1194: akıllı ayrıştırıcı ipucu NlpHintRow'a çıkarıldı. İpucu tek metin
   // olarak kuruluyordu ve temizlenmiş bir cümleyle dört HAM emojiyi (📅⏰🔁🏷️) aynı
   // Text düğümünde yan yana getiriyordu; parçalar artık tür taşıyor, ikonu sunum çiziyor.
   // 1194 → 1195: paylaşılan gün-adı tablosunun içe aktarımı (shared/constants/weekdays).
   // 1195 → 1197: CAM SAYFALAR. Görev formunun opak zemini ortak cam yüzeye bağlandı;
   // klavye açıkken dört, kapalıyken iki köşe yuvarlanıyor (tek satırlık not).
-  'features/tasks/components/TaskFormModal.tsx': 1197,
+  // 1197 → 1200: hızlı eklemeden gelen metnin ÖN DOLU açılması (ayrıştırıcı alanları da
+  // dolduruyor). İpucu çipleri ortak dosyaya çıktığı için 25 satır da eksildi.
+  'features/tasks/components/TaskFormModal.tsx': 1200,
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
