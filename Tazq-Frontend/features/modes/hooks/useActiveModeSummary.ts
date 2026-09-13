@@ -7,6 +7,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { modeAccent, modeAccentText } from '@/shared/constants/Colors';
 import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
+import { planProgressFor } from '@/features/modes/utils/planProgress';
 
 /**
  * AKTİF MODLARIN ÖZETİ — tek kaynak.
@@ -43,6 +44,8 @@ export interface ModeSummaryEntry {
   pct: number;
   todayDone: number;
   todayTotal: number;
+  /** Tarihi ne olursa olsun HENÜZ bitmemiş plan görevleri. */
+  openTotal: number;
   taskTotal: number;
 }
 
@@ -109,7 +112,7 @@ export function useActiveModeSummary(): ModeSummary {
     const mulLbl = names.interview;
     const sporLbl = names.fitness;
 
-    type RawEntry = Omit<ModeSummaryEntry, 'habitCount' | 'weekActive' | 'pct' | 'todayDone' | 'todayTotal' | 'taskTotal'>;
+    type RawEntry = Omit<ModeSummaryEntry, 'habitCount' | 'weekActive' | 'pct' | 'todayDone' | 'todayTotal' | 'openTotal' | 'taskTotal'>;
     const entries: RawEntry[] = [];
 
     if (seasonal.examMode) {
@@ -132,19 +135,24 @@ export function useActiveModeSummary(): ModeSummary {
 
     const weekKeys = thisWeekKeys();
     const now = new Date();
-    const isToday = (d?: string | null) => {
-      if (!d) return false;
-      const x = new Date(d);
-      return x.getFullYear() === now.getFullYear() && x.getMonth() === now.getMonth() && x.getDate() === now.getDate();
-    };
 
     const computed: ModeSummaryEntry[] = entries.map(e => {
       const eHabits = habits.filter(h => e.habitIds.includes(h.id));
       const weekActive = eHabits.filter(h => (Array.isArray(h.completedDates) ? h.completedDates : []).some(d => weekKeys.has(d))).length;
       const pct = eHabits.length > 0 ? Math.round((weekActive / eHabits.length) * 100) : 0;
-      const todays = tasks.filter(t => e.taskIds.includes(t.id) && t.tags?.includes('daily') && isToday(t.dueDate));
-      const todayDone = todays.filter(t => t.isCompleted).length;
-      return { ...e, habitCount: eHabits.length, weekActive, pct, todayDone, todayTotal: todays.length, taskTotal: e.taskIds.length };
+      /*
+        GÖREV SAYIMI SAF FONKSİYONDA (bkz. planProgress).
+
+        Burada `t.tags.includes('daily')` şartı vardı ve bu bir HATAYDI: o etiket yalnız
+        günlük plan motorunun ürettiği görevlerde var. Mod kurulurken oluşan görevler
+        (ör. "milestone planı yap") bugüne kurulmuş olsa bile sayılmıyordu — ana ekran
+        "bugün plan görevin yok" derken Görevler ekranında görev duruyordu.
+
+        `taskTotal` da artık GERÇEKTEN var olan görevleri sayıyor: eskiden kaydedilmiş
+        id listesinin uzunluğuydu ve silinmiş görevler de sayılıyordu.
+      */
+      const progress = planProgressFor(tasks, e.taskIds, now);
+      return { ...e, habitCount: eHabits.length, weekActive, pct, ...progress };
     });
 
     const dated = computed.filter(c => c.days !== null && c.days >= 0).sort((a, b) => (a.days! - b.days!));

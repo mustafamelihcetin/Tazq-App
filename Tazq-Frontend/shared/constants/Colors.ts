@@ -220,6 +220,19 @@ export const Colors = {
 };
 
 /**
+ * ── AÇILIŞ ZEMİNİ: UYGULAMANIN KENDİ ZEMİNİ ───────────────────────────────────
+ * Bir tur açılışın tamamı marka lacivertine (#1E2A66) boyandı. Geri alındı: o renk
+ * uygulamanın HİÇBİR yerinde yok (paleti soğuk nötrler + mavi vurgu) ve tam ekran
+ * kaplayınca hem boğucu duruyor hem de içeri girince tamamen farklı bir dünyaya
+ * geçiliyormuş gibi oluyordu.
+ *
+ * Doğrusu Apple'ın kuralı: açılış ekranı uygulamanın İLK EKRANINA benzemeli ki geçiş
+ * görünmesin. Bu yüzden zemin `Colors.light/dark.background` — yani sayfa zemininin
+ * ta kendisi. Marka rengi kayboluyor değil: ortadaki OPAK ikonda duruyor, tam ekran
+ * bir alan olarak değil.
+ */
+
+/**
  * Kategori paleti — mod alışkanlıklarının/görevlerinin kimlik renkleri.
  *
  * Neden ayrı: bunlar semantik değil KATEGORİK. "Hata Defteri kırmızı, Konu Testi yeşil"

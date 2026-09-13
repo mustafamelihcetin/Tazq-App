@@ -446,17 +446,27 @@ export const fabSafeBottom = (insetBottom: number) =>
 export const TOP_BAR_HEIGHT = 44; // UIKit UINavigationBar standart yüksekliği
 
 /**
- * KÜÇÜLMÜŞ BAŞLIK ÇUBUĞU — iOS 26/27'nin "minimize" davranışı.
+ * ÇUBUĞUN ALT KENARINDA BLUR'UN SÖNÜMLENDİĞİ PAY.
  *
- * Kullanıcı aşağı kaydırırken chrome geri çekilir, yukarı kaydırınca geri gelir:
- * içerik okunurken ekranın iki ucundaki kutular yer kaplamaz. Sekme çubuğu bu
- * davranışa zaten geçti (NAV_BAR_MINIMIZED_HEIGHT); başlık çubuğunun ondan farklı
- * davranması ekranın iki ucunu iki ayrı sisteme böler — DEĞER AYNI, bilinçli.
+ * ── ÇÖZDÜĞÜ SORUN ────────────────────────────────────────────────────────────
+ * Sabit yükseklikli her bulanık yüzeyin bir DİKİŞİ vardır: çizginin üstü bulanık,
+ * altı net. Göz o kesmeyi hemen buluyor ve çubuk "sayfanın üstüne yapıştırılmış bir
+ * kutu" gibi duruyor. Ayraç çizgisini kaldırmak yetmiyor — dikiş çizgiden değil,
+ * malzemenin aniden bitmesinden geliyor.
  *
- * Yazı 17pt: 36pt'lik çubukta hâlâ tam okunur, yani küçülme bilgi kaybettirmez.
- * Yalnız iOS'ta uygulanır (bkz. ScreenHeader) — Android'in app bar'ı sabittir.
+ * ── ÇÖZÜM ÇUBUĞUN İÇİNDE ─────────────────────────────────────────────────────
+ * Bir tur bu, çubuğun ALTINA eklenen kademeli bir bant ile denendi. Geri alındı:
+ * sayfadan yer çalıyor ve "çubuğun kendisinde blur yok, altına konmuş" gibi
+ * okunuyordu. Doğrusu sönümlemeyi çubuğun KENDİ yüksekliği içinde yapmak:
+ *
+ *   · üst bölüm (başlığın olduğu yer) tam bulanık
+ *   · son 12pt'de bulanıklık kademeli olarak sıfıra iner
+ *   · alt kenarda malzeme neredeyse yok → kesecek bir dikiş de yok
+ *
+ * Yalnız iOS'ta anlamlı — Android'de çubuk opak, dikiş zaten yok.
  */
-export const TOP_BAR_MINIMIZED_HEIGHT = 36;
+export const CHROME_FADE_HEIGHT = 12;
+
 export const TOP_BAR_LIFT = 0;    // yüzmez — durum çubuğunun hemen altına yapışır
 export const TOP_TITLE_SIZE = 17;    // Apple nav bar başlığı: 17pt semibold
 export const TOP_SUBTITLE_SIZE = 11; // başlık altı yardımcı satır (ör. tarih aralığı)

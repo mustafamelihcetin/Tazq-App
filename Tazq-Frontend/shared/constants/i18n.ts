@@ -355,6 +355,7 @@ export const translations = {
       eyebrow: 'Your plan today',
       daysLeft: 'days left',
       todayPlan: 'plan tasks',
+      openTasks: 'open plan tasks',
       noTasks: 'No plan tasks today',
       allDone: 'Today\'s plan is done',
       more: 'more',
@@ -367,6 +368,13 @@ export const translations = {
       fitness: 'Fitness',
       thesis: 'Thesis',
       ramadan: 'Ramadan',
+    },
+    /** İkon kısayolları — işletim sisteminde görünür, dil uygulamadan gelir. */
+    shortcuts: {
+      addTask: 'Add task',
+      addTaskSub: 'Straight to quick add',
+      focus: 'Focus',
+      focusSub: 'Open the focus screen',
     },
     savedOffline: 'Saved offline',
     /** Misafir (hesapsız) kullanım — bkz. useAuthStore.isGuest */
@@ -707,6 +715,7 @@ export const translations = {
       eyebrow: 'Bugünkü planın',
       daysLeft: 'gün kaldı',
       todayPlan: 'plan görevi',
+      openTasks: 'plan görevi açık',
       noTasks: 'Bugün plan görevin yok',
       allDone: 'Bugünün planı tamam',
       more: 'mod daha',
@@ -719,6 +728,13 @@ export const translations = {
       fitness: 'Spor',
       thesis: 'Tez',
       ramadan: 'Ramazan',
+    },
+    /** İkon kısayolları — işletim sisteminde görünür, dil uygulamadan gelir. */
+    shortcuts: {
+      addTask: 'Görev ekle',
+      addTaskSub: 'Doğrudan hızlı eklemeye',
+      focus: 'Odak',
+      focusSub: 'Odak ekranını açar',
     },
     savedOffline: 'Çevrimdışı kaydedildi',
     /** Misafir (hesapsız) kullanım — bkz. useAuthStore.isGuest */

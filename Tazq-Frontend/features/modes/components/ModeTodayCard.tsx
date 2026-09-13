@@ -41,9 +41,29 @@ export function ModeTodayCard({ onOpen }: { onOpen: () => void }) {
   const done = mode.todayDone;
   const total = mode.todayTotal;
   const allDone = total > 0 && done >= total;
-  const progress = total > 0 ? Math.min(1, done / total) : 0;
 
-  const statusText = total === 0 ? t.noTasks : allDone ? t.allDone : `${done}/${total} ${t.todayPlan}`;
+  /*
+    BUGÜNE KURULMUŞ GÖREV YOKSA SUSMUYORUZ.
+
+    Planın görevleri ileri tarihlere de kurulabiliyor (öncelik düştükçe gün uzuyor).
+    O durumda "bugün plan görevin yok" demek teknik olarak doğru ama kullanıcıya YANLIŞ
+    geliyordu: Görevler ekranında duran görevleri görüp ana ekranın onları saymadığını
+    sanıyordu. Artık bugün yoksa planın AÇIK görev sayısı söyleniyor.
+  */
+  const progress = total > 0
+    ? Math.min(1, done / total)
+    : mode.taskTotal > 0
+      ? Math.min(1, (mode.taskTotal - mode.openTotal) / mode.taskTotal)
+      : 0;
+
+  const statusText =
+    total > 0
+      ? (allDone ? t.allDone : `${done}/${total} ${t.todayPlan}`)
+      : mode.openTotal > 0
+        ? `${mode.openTotal} ${t.openTasks}`
+        : mode.taskTotal > 0
+          ? t.allDone
+          : t.noTasks;
 
   return (
     <BentoCard index={0} style={{ marginHorizontal: S.lg, marginBottom: S.lg, padding: S.md, gap: S.smd }}>
@@ -95,7 +115,7 @@ export function ModeTodayCard({ onOpen }: { onOpen: () => void }) {
           </View>
 
           {/* Çubuk yalnız plan görevi VARKEN: boş bir ilerleme çubuğu bilgi taşımaz. */}
-          {total > 0 && (
+          {(total > 0 || mode.taskTotal > 0) && (
             <View style={{ height: 6, borderRadius: R.xs, backgroundColor: theme.surfaceContainerHighest, overflow: 'hidden' }}>
               <View style={{ width: `${progress * 100}%`, height: '100%', borderRadius: R.xs, backgroundColor: allDone ? theme.success : mode.color }} />
             </View>

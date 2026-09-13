@@ -227,7 +227,12 @@ describe('topBarSpace hesabı', () => {
     const hdr = strip(fs.readFileSync(path.join(ROOT, 'shared/components/ScreenHeader.tsx'), 'utf8'));
     expect(hdr).toContain('fontSize: TOP_TITLE_SIZE');
     expect(hdr).not.toMatch(/adjustsFontSizeToFit/);
-    expect(hdr).toContain('borderBottomWidth: HAIRLINE');
+    /*
+      AYRAÇ ÇİZGİSİ KALDIRILDI. Çubuğa ton katmanı eklendikten sonra (bkz.
+      CHROME_VEIL_OPACITY) yüzeyin kendisi sınırı söylüyor; üstüne bir de çizgi
+      koymak aynı şeyi iki kez söylemek ve çubuğu çerçeveli bir kutuya çevirmek oluyor.
+    */
+    expect(hdr).not.toContain('borderBottomWidth');
     // Golge yok: koyu temada eski golge `primary` renkliydi (mavi parilti).
     expect(hdr).not.toMatch(/shadowOpacity/);
 

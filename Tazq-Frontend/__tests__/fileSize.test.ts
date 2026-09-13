@@ -93,7 +93,13 @@ const KNOWN_LARGE: Record<string, number> = {
   // 2103 → 2121: İLK AÇILIŞ. Yardım turu ilk görevden sonraya alındı, "nereden
   // başlayayım" kartı da tura bağlı olmaktan çıkarıldı (yoksa boş ekran rehbersiz
   // kalıyordu). Artışın çoğu, iki kararın NEDENİNİ anlatan notlar.
-  'app/index.tsx': 2121,
+  // 2121 → 2166: ANA EKRAN DURUMA GÖRE KURULUYOR. Aktif dönem varsa plan kartı ilk
+  // sıraya, skor eylemlerin altına iniyor; mod yoksa eski sıra aynen duruyor. Artışın
+  // çoğu, daha önce denenip geri alınmış sıralamayla bu kararın FARKINI anlatan not —
+  // o not silinirse aynı deneme yeniden yapılır (bkz. dashboardZeroState.test.ts).
+  // 2166 → 2175: İKON KISAYOLLARI. Kısayolu karşılayan hook burada bağlanıyor (kök
+  // düzende değil: kısayol bir gezinme başlatıyor, kök düzen çalışırken ağaç hazır değil).
+  'app/index.tsx': 2174,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.

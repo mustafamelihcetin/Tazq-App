@@ -1,159 +1,172 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing, useWindowDimensions } from 'react-native';
+import { StyleSheet, Animated, Easing, useColorScheme, useWindowDimensions } from 'react-native';
 import { TazqLogo } from './TazqLogo';
 import { haptic } from '@/shared/utils/haptics';
+import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
 import { Colors } from '@/shared/constants/Colors';
+import { S } from '@/shared/constants/tokens';
 
-// Zemin PALETTEN. Elle yazılıyordu ve uygulamanınkiyle AYNI DEĞİLDİ
-// (açık: #F8F8F7 vs #F4F4F5 → 4,4,2 RGB fark). Splash kaybolurken zemin
-// değişiyor, tüm ekranı kaplayan bir sıçrama olarak görünüyordu.
-const DARK_BG = Colors.dark.background;
-const LIGHT_BG = Colors.light.background;
-const DARK_LINE = 'rgba(255,255,255,0.18)';
-const LIGHT_LINE = 'rgba(0,0,0,0.12)';
+/**
+ * AÇILIŞ EKRANI.
+ *
+ * ── ZEMİN: UYGULAMANIN KENDİ ZEMİNİ ───────────────────────────────────────────
+ * Açılışta göz hareketi değil RENK SIÇRAMASINI yakalar. Eskiden üç ayrı zemin vardı:
+ * Android penceresi siyah, sistem splash'i lacivert, bu ekran ise açık/koyu tema
+ * rengi. Yani her açılışta tam ekran bir sıçrama oluyordu.
+ *
+ * Bir tur bunun tersi denendi — açılışın TAMAMI marka lacivertine boyandı. O da geri
+ * alındı: lacivert uygulamanın hiçbir yerinde yok (palet soğuk nötrler + mavi vurgu),
+ * tam ekran kaplayınca boğuyor ve içeri girerken başka bir dünyaya geçiliyormuş gibi
+ * duruyordu.
+ *
+ * Şimdi açılış, uygulamanın İLK EKRANINA benziyor: aynı zemin rengi, ortada aynı ikon.
+ * Marka rengi kaybolmuyor — tam ekran bir alan yerine ikonun içinde duruyor.
+ *
+ * ── SİSTEM GÖRÜNÜMÜNÜ İZLER, UYGULAMA TERCİHİNİ DEĞİL ────────────────────────
+ * Zemin `useColorScheme()`den geliyor; yani sistem splash'inin (işletim sistemi
+ * görünümüne göre açık/koyu) TAM KARŞILIĞI. Uygulamanın kendi tema tercihi diskten
+ * geç okunuyor: onu izleseydik, koyu temayı elle seçmiş bir kullanıcıda sistem
+ * splash'i açık, bizimki koyu olur ve tam devir teslim anında sıçrama görünürdü.
+ * Kullanıcının tercihi, içerik belirirken zaten devreye giriyor.
+ *
+ * ── SİSTEM SPLASH'İ YALNIZCA RENK ─────────────────────────────────────────────
+ * Bir tur, devir teslim görünmesin diye sistem splash'ine UYGULAMA İKONU konuldu ve
+ * bu ekran da aynı ikonu aynı yerde çizdi. Geri alındı: kullanıcı zaten o ikona basarak
+ * geldi, açılışta ikinci kez göstermek fazlalık.
+ *
+ * Şimdi sistem splash'i sadece zemin rengi (iOS'ta tamamen boş, Android'de işletim
+ * sistemi kendi başlatıcı ikonunu gösteriyor — o davranış bizim elimizde değil).
+ * Marka anı burada, TEK bir şeyle kuruluyor: kelime işareti belirir, altındaki ince
+ * çizgi açılır. Zemin aynı olduğu için devir teslim yine görünmüyor.
+ *
+ * ── SÜRE ──────────────────────────────────────────────────────────────────────
+ * Sektör eşiği 1–1.5 sn; 2 sn üstü "bekliyorum" hissi verir. Toplam 1.85 sn idi,
+ * şimdi ~1.1 sn.
+ *
+ * ── HAREKETİ AZALT ────────────────────────────────────────────────────────────
+ * Tercih açıkken hiçbir şey hareket etmez: işaret olduğu yerde belirir, ekran kısaca
+ * sönerek kapanır. Uygulamanın geri kalanı bu tercihi zaten dinliyordu; açılış atlanmıştı.
+ */
+
+/** Giriş animasyonunun parçaları (ms) — toplamı süre bütçesini belirler. */
+const INTRO_HOLD = 90;    // sistem splash'inden devralınırken kısa bir sükûnet
+const INTRO_MARK = 360;   // kelime işaretinin belirmesi
+const INTRO_LINE = 260;   // ince çizginin açılması
+const OUTRO_FADE = 260;   // içeriğe geçiş
 
 export const AnimatedSplash = ({
   onFinish,
   onReady,
-  isDark = false,
   ready = true,
 }: {
   onFinish: () => void;
   onReady: () => void;
-  isDark?: boolean;
   /**
    * Uygulama gerçekten hazır mı (font + varlık yüklendi mi)?
    *
-   * NEDEN GEREKLİ: animasyon SABİT 2.6 sn sürüyordu ve sonunda ekranı saydama
-   * çekiyordu. Yavaş bir açılışta (soğuk başlatma, büyük paket) animasyon biter
-   * ama uygulama hazır olmaz → kullanıcı BOŞ ekrana bakar; splash orada durur
-   * ama görünmezdir. Artık giriş animasyonu bittikten sonra hazır olmayı BEKLER,
-   * ancak ondan sonra kaybolur.
+   * NEDEN GEREKLİ: animasyon SABİT süreliydi ve sonunda ekranı saydama çekiyordu.
+   * Yavaş bir açılışta (soğuk başlatma, büyük paket) animasyon biter ama uygulama
+   * hazır olmaz → kullanıcı BOŞ ekrana bakar; splash orada durur ama görünmezdir.
    */
   ready?: boolean;
 }) => {
+  const scheme = useColorScheme();
+  const reduceMotion = useReduceMotion();
   const { width } = useWindowDimensions();
-  // Ölçüler ekran genişliğinden türetilir → %100 responsive (küçük telefondan tablete).
-  // Logo büyük ekranda sınırlanır (pikselleşmeyi önler); ince çizgi logoya oranlı.
-  const logoWidth = Math.min(width * 0.48, 220);
-  const logoHeight = logoWidth / 3.2;
-  const lineWidth = Math.round(logoWidth * 0.42);
 
-  const bg = isDark ? DARK_BG : LIGHT_BG;
-  const lineColor = isDark ? DARK_LINE : LIGHT_LINE;
+  const isDark = scheme === 'dark';
+  const bg = isDark ? Colors.dark.background : Colors.light.background;
+  const lineColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)';
 
-  // Giriş animasyonu bitti mi? Kaybolma bundan SONRA ve `ready` olunca başlar.
+  // Ölçü ekran genişliğinden türer → küçük telefondan tablete %100 responsive.
+  const markWidth = Math.min(width * 0.48, 220);
+  const markHeight = markWidth / 3.2;
+  const lineWidth = Math.round(markWidth * 0.5);
+
   const [introDone, setIntroDone] = React.useState(false);
 
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoY = useRef(new Animated.Value(14)).current;
-  const logoScale = useRef(new Animated.Value(1)).current;
-  const lineScale = useRef(new Animated.Value(0)).current;
-  const lineOpacity = useRef(new Animated.Value(0)).current;
+  // Hareketi Azalt açıkken her şey son hâliyle başlar.
+  const markOpacity = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  const markY = useRef(new Animated.Value(reduceMotion ? 0 : 8)).current;
+  const lineScale = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
   const screenOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     onReady();
 
-    // Avuç İçinde Atan Kalp (Heartbeat Haptic Pulse) — logo otururken minik çift titreşim
-    const hapticTimer = setTimeout(() => {
-      haptic.select();
-      setTimeout(() => {
-        haptic.surface();
-      }, 130);
-    }, 650);
+    if (reduceMotion) {
+      // Hareket yok — ama uygulamanın hazır olmasını beklemek YİNE gerekiyor,
+      // yoksa boş ekran görünür.
+      setIntroDone(true);
+      return;
+    }
+
+    /*
+      TEK DOKUNUŞ — kelime işareti otururken minik bir titreşim.
+      Eskiden çift vuruşluydu ("kalp atışı"); açılışta iki kez titremek marka anından
+      çok bildirim gibi okunuyordu. Kullanıcının titreşim tercihine saygılı
+      (bkz. haptics.enabled).
+    */
+    const hapticTimer = setTimeout(() => haptic.select(), INTRO_HOLD + INTRO_MARK * 0.6);
 
     Animated.sequence([
-      // 1. Logo yükselerek belirir
-      //    700ms idi. Toplam 2.6 sn ediyordu — açılış ekranında sektör eşiği
-      //    1–1.5 sn, 2 sn üstü "bekliyorum" hissi verir. Apple splash'e animasyon
-      //    koymaz; marka anı korunuyor ama kısaltıldı.
+      // 1. Sistem splash'inden devralınan sakin an — ikon zaten ekranda, kıpırdamıyor.
+      Animated.delay(INTRO_HOLD),
+
+      // 2. Kelime işareti ikonun altında belirir (yukarı doğru 8pt yerleşerek).
       Animated.parallel([
-        Animated.timing(logoOpacity, {
+        Animated.timing(markOpacity, {
           toValue: 1,
-          duration: 450,
+          duration: INTRO_MARK,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-        Animated.timing(logoY, {
+        Animated.timing(markY, {
           toValue: 0,
-          duration: 450,
+          duration: INTRO_MARK,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]),
 
-      // 2. Kalp atışı — haptic ile senkron mikroskopik nabız (marka "canlanır")
-      Animated.sequence([
-        Animated.timing(logoScale, {
-          toValue: 1.035,
-          duration: 160,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(logoScale, {
-          toValue: 1,
-          duration: 240,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-
-      // 3. İnce çizgi merkezden dışa doğru açılır
-      Animated.parallel([
-        Animated.timing(lineOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(lineScale, {
-          toValue: 1,
-          duration: 400,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-
-      // 4. Kısa nefes
-      Animated.delay(220),
-
+      // 3. İnce çizgi merkezden dışa açılır — marka anının noktası.
+      Animated.timing(lineScale, {
+        toValue: 1,
+        duration: INTRO_LINE,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
     ]).start(() => setIntroDone(true));
 
     return () => clearTimeout(hapticTimer);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduceMotion]);
 
-  // 5. Kaybolma — giriş bitti VE uygulama hazır olduğunda. İkisi de şart:
+  // 4. Kaybolma — giriş bitti VE uygulama hazır olduğunda. İkisi de şart:
   //    erken kaybolmak boş ekran, geç kaybolmak gereksiz bekleme demek.
   useEffect(() => {
     if (!introDone || !ready) return;
     Animated.timing(screenOpacity, {
       toValue: 0,
-      duration: 380,
+      duration: reduceMotion ? 120 : OUTRO_FADE,
       easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start(() => onFinish());
-  }, [introDone, ready]);
+  }, [introDone, ready, reduceMotion]);
 
   return (
     <Animated.View style={[styles.container, { backgroundColor: bg, opacity: screenOpacity }]}>
-      <Animated.View
-        style={{
-          opacity: logoOpacity,
-          transform: [{ translateY: logoY }, { scale: logoScale }],
-          alignItems: 'center',
-        }}
-      >
-        <TazqLogo height={logoHeight} width={logoWidth} />
-
+      <Animated.View style={[styles.markSlot, { opacity: markOpacity, transform: [{ translateY: markY }] }]}>
+        {/*
+          Varyant SİSTEM görünümünden: zemin de oradan geliyor. Uygulamanın tema
+          tercihine bakan varsayılan davranış burada YANLIŞ olurdu — koyu temayı elle
+          seçmiş bir kullanıcıda açık zemin üstüne beyaz yazı düşer, işaret kaybolurdu.
+        */}
+        <TazqLogo height={markHeight} width={markWidth} variant={isDark ? 'white' : 'dark'} />
         <Animated.View
           style={[
             styles.line,
-            {
-              width: lineWidth,
-              backgroundColor: lineColor,
-              opacity: lineOpacity,
-              transform: [{ scaleX: lineScale }],
-            },
+            { width: lineWidth, backgroundColor: lineColor, transform: [{ scaleX: lineScale }] },
           ]}
         />
       </Animated.View>
@@ -168,8 +181,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 9999,
   },
+  markSlot: {
+    alignItems: 'center',
+  },
   line: {
-    marginTop: -2,
+    marginTop: S.sm,
     height: StyleSheet.hairlineWidth,
   },
 });

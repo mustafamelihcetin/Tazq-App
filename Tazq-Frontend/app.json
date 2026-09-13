@@ -11,6 +11,15 @@
     "plugins": [
       "expo-router",
       [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F4F4F5",
+          "dark": {
+            "backgroundColor": "#09090B"
+          }
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "ios": {
@@ -66,11 +75,6 @@
       "@kingstinct/react-native-healthkit",
       "react-native-health-connect"
     ],
-    "splash": {
-      "image": "./assets/brand/splash_logo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1E2A66"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.tazqapp.tazq",
@@ -99,7 +103,7 @@
         "android.permission.health.READ_DISTANCE",
         "android.permission.health.READ_EXERCISE"
       ],
-      "backgroundColor": "#000000",
+      "backgroundColor": "#F4F4F5",
       "softwareKeyboardLayoutMode": "resize",
       "navigationBar": {
         "backgroundColor": "#000000",

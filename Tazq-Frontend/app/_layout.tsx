@@ -156,6 +156,13 @@ export default function RootLayout() {
   });
 
   const { theme, colorScheme, isDark } = useAppTheme();
+  /*
+    İŞLETİM SİSTEMİNİN görünümü — uygulamanın tema TERCİHİNDEN ayrı.
+    Açılış ekranı bunu izliyor: sistem splash'i de OS görünümüne göre açık/koyu
+    çiziliyor ve ikisi ayrışırsa devir teslim anında renk sıçraması görünür
+    (bkz. AnimatedSplash).
+  */
+  const systemScheme = useColorScheme();
   const { isLoggedIn, token, setUser, logout, _hasHydrated } = useAuthStore();
   const isGuest = useSessionStore(s => s.isGuest);
   const currentUser = useAuthStore((s) => s.user);
@@ -558,28 +565,47 @@ export default function RootLayout() {
     syncProfile();
   }, [_hasHydrated]);
 
-  // Android Navigation Bar & System UI Sync
+  /*
+    Android Navigation Bar & System UI Sync.
+
+    SPLASH AÇIKKEN MARKA RENGİ: açılış ekranı artık temadan bağımsız lacivert
+    (bkz. BRAND_SPLASH_BG). Sistem çubukları tema rengiyle kalsaydı, açık temada
+    ekranın dibinde beyaz bir şerit, lacivert zeminin altında asılı dururdu — yani
+    sıçramayı ekranın kenarından geri getirirdi.
+  */
   useEffect(() => {
-    const backgroundColor = isDark ? Colors.dark.background : '#FFFFFF';
-    const navStyle = isDark ? 'light' : 'dark';
+    /*
+      SPLASH AÇIKKEN SİSTEM GÖRÜNÜMÜ: açılış ekranı sistem splash'iyle aynı olsun diye
+      uygulamanın tema TERCİHİNİ değil işletim sisteminin görünümünü izliyor
+      (bkz. AnimatedSplash). Sistem çubukları tema tercihine göre boyansaydı, ekranın
+      dibinde zeminle çelişen bir şerit kalırdı.
+    */
+    const onSplash = showSplash || !fontsLoaded || !assetsLoaded;
+    const splashDark = systemScheme === 'dark';
+    const dark = onSplash ? splashDark : isDark;
+    const backgroundColor = dark ? Colors.dark.background : '#FFFFFF';
+    const navStyle = dark ? 'light' : 'dark';
     safeSystemUI(backgroundColor);
     safeNavigationBar(navStyle, backgroundColor);
-  }, [isDark]);
+  }, [isDark, systemScheme, showSplash, fontsLoaded, assetsLoaded]);
 
   if (showSplash || !fontsLoaded || !assetsLoaded) {
     return (
-      <AnimatedSplash
-        isDark={isDark}
-        // Splash, uygulama GERÇEKTEN hazır olana kadar kaybolmaz. Eskiden sabit
-        // süreli animasyon bitince saydama geçiyordu; yavaş açılışta kullanıcı
-        // boş ekrana bakıyordu (splash oradaydı ama görünmezdi).
-        ready={fontsLoaded && assetsLoaded}
-        onFinish={() => setShowSplash(false)}
-        onReady={() => {
-          // This ensures the native splash only hides when our custom splash is visible
-          SplashScreen.hideAsync().catch(() => {});
-        }}
-      />
+      <>
+        {/* Durum çubuğu da SİSTEM görünümüne göre — zemin oradan geliyor. */}
+        <StatusBar style={systemScheme === 'dark' ? 'light' : 'dark'} />
+        <AnimatedSplash
+          // Splash, uygulama GERÇEKTEN hazır olana kadar kaybolmaz. Eskiden sabit
+          // süreli animasyon bitince saydama geçiyordu; yavaş açılışta kullanıcı
+          // boş ekrana bakıyordu (splash oradaydı ama görünmezdi).
+          ready={fontsLoaded && assetsLoaded}
+          onFinish={() => setShowSplash(false)}
+          onReady={() => {
+            // This ensures the native splash only hides when our custom splash is visible
+            SplashScreen.hideAsync().catch(() => {});
+          }}
+        />
+      </>
     );
   }
 

@@ -51,6 +51,7 @@ import { StatusHubModal } from '@/features/dashboard/components/StatusHubModal';
 import { QuickAddSheet } from '@/features/tasks/components/QuickAddSheet';
 import { ModeTodayCard } from '@/features/modes/components/ModeTodayCard';
 import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummary';
+import { useAppShortcuts } from '@/shared/hooks/useAppShortcuts';
 import { ProfileSetupModal } from '@/features/user/components/ProfileSetupModal';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
@@ -130,6 +131,13 @@ export default function HomeScreen() {
    * görünüm tercihidir, geçmişi budamaz. Bkz. __tests__/liteMode.test.ts
    */
   const isLite = uiMode === 'lite';
+
+  /*
+    İKON KISAYOLLARI — ikona basılı tutunca "Görev ekle" ve "Odak".
+    Kök düzende değil BURADA: kısayol bir gezinme başlatıyor ve kök düzen çalışırken
+    gezinme ağacı henüz hazır olmuyor (bkz. useAppShortcuts).
+  */
+  useAppShortcuts();
   const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, helpTourShown, completedTours, onboardingCompleted, setOnboardingCompleted, _hasHydrated: prefsHydrated } = usePrefsStore();
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);

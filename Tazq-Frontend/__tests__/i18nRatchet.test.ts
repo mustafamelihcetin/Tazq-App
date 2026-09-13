@@ -103,7 +103,9 @@ const BASELINE: Record<string, number> = {
   'app/focus.tsx': 57,
   'app/index.tsx': 63,
   'app/login.tsx': 47,
-  'app/mod-ozet.tsx': 27,
+  // 27 → 22: mod adları ve özet hesabı ortak hook'a taşındı (useActiveModeSummary),
+  // adlar orada sözlükten geliyor.
+  'app/mod-ozet.tsx': 22,
   'app/modlar.tsx': 66,
   'app/onboarding.tsx': 21,
   'app/profile.tsx': 44,

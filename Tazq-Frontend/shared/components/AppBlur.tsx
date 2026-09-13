@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import type { BlurTint } from 'expo-blur';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useReduceTransparency } from '@/shared/hooks/useReduceTransparency';
+import { CHROME_FADE_HEIGHT } from '@/shared/constants/tokens';
 
 /**
  * BULANIK YÜZEY — uygulamadaki TEK blur girişi.
@@ -53,6 +54,21 @@ const INTENSITY: Record<BlurMaterial, { light: number; dark: number }> = {
   chrome: { light: 90, dark: 70 },
 };
 
+/**
+ * SÖNÜMLEME KATMANLARI — alt kenardan içeri pay + o katmanın yoğunluğu.
+ *
+ * Toplam (üst bölümde hepsi üst üste): 7+11+16+22+30 = 86 ≈ `chrome` yoğunluğu.
+ * En alttaki 3pt'de yalnız 7 kalır — yani kenarda malzeme neredeyse yok ve kesecek
+ * bir dikiş oluşmuyor.
+ */
+const FADE_STEPS = [
+  { bottomInset: CHROME_FADE_HEIGHT, intensity: 30 },
+  { bottomInset: CHROME_FADE_HEIGHT * 0.75, intensity: 22 },
+  { bottomInset: CHROME_FADE_HEIGHT * 0.5, intensity: 16 },
+  { bottomInset: CHROME_FADE_HEIGHT * 0.25, intensity: 11 },
+  { bottomInset: 0, intensity: 7 },
+];
+
 export interface AppBlurProps {
   /** Varsayılan `regular` — panel/menü yüzeyi. */
   material?: BlurMaterial;
@@ -86,6 +102,21 @@ export interface AppBlurProps {
    * olarak bindiriliyor — malzeme taklit edilmiyor, yalnız DURUM korunuyor.
    */
   glassTint?: string;
+  /**
+   * ALT KENARA DOĞRU SÖNÜMLENEN BLUR — başlık çubuğu için.
+   *
+   * ── İKİ SORUNU BİRDEN ÇÖZER ────────────────────────────────────────────────
+   * 1. BERRAK CAM: iOS 26 camı arkasındakini gösterir. Yüzen sekme kapsülünde bu
+   *    derinlik demek; başlık çubuğunda ise çıplaklık — içerik altından sürekli
+   *    akıyor ve başlık yazısı sayfadaki yazıların içinden geçiyor. Bu bayrak cam
+   *    yolunu atlayıp iOS'un klasik BUZLU nav bar malzemesine düşürüyor. Opak değil:
+   *    arkası hâlâ seçilir, sadece bulanık.
+   *
+   * 2. DİKİŞ: bulanıklık aniden bitince göz o çizgiyi hemen buluyor. Burada malzeme
+   *    çubuğun SON birkaç puntosunda kademeli olarak sıfıra iniyor, yani çubuğun altı
+   *    ile sayfa arasında kesecek bir sınır kalmıyor.
+   */
+  fadeBottom?: boolean;
   /** Varsayılan: kapsayıcıyı tamamen doldurur. */
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
@@ -135,19 +166,11 @@ const GLASS_STYLE: Record<BlurMaterial, 'clear' | 'regular'> = {
   chrome: 'regular',
 };
 
-export const AppBlur = ({ material = 'regular', tint, radius, glassTint, style, children }: AppBlurProps) => {
+export const AppBlur = ({ material = 'regular', tint, radius, glassTint, fadeBottom, style, children }: AppBlurProps) => {
   const { colorScheme, theme } = useAppTheme();
   const reduceTransparency = useReduceTransparency();
   const level = INTENSITY[material][colorScheme === 'dark' ? 'dark' : 'light'];
 
-  /*
-    ŞEFFAFLIĞI AZALT — her şeyden ÖNCE gelir.
-
-    Tercihi açan kullanıcı bulanıklık istemiyor. Cam da blur da bu isteği çiğner;
-    doğrusu opak bir yüzey. Bu kontrol en başta duruyor ki hiçbir malzeme yolu
-    onu atlayamasın. iOS 27'nin cam yoğunluk kaydırıcısı da aynı aileden bir
-    tercih — sistem yüzeyleri otomatik uyar, bizimkilerin uyması için bu gerekir.
-  */
   /** Cam yokken durumu koruyan ince renk katmanı (bkz. glassTint). */
   const tintLayer = glassTint ? (
     <View
@@ -160,9 +183,51 @@ export const AppBlur = ({ material = 'regular', tint, radius, glassTint, style, 
     />
   ) : null;
 
+  /*
+    ŞEFFAFLIĞI AZALT — her şeyden ÖNCE gelir.
+
+    Tercihi açan kullanıcı bulanıklık istemiyor. Cam da blur da bu isteği çiğner;
+    doğrusu opak bir yüzey. Bu kontrol en başta duruyor ki hiçbir malzeme yolu
+    onu atlayamasın. iOS 27'nin cam yoğunluk kaydırıcısı da aynı aileden bir
+    tercih — sistem yüzeyleri otomatik uyar, bizimkilerin uyması için bu gerekir.
+  */
   if (reduceTransparency) {
     return (
       <View style={[style ?? StyleSheet.absoluteFill, { backgroundColor: theme.surfaceFloating }, radius != null && { borderRadius: radius }]}>
+        {tintLayer}
+        {children}
+      </View>
+    );
+  }
+
+  /*
+    ALT KENARA DOĞRU SÖNÜMLENEN BLUR (bkz. fadeBottom).
+
+    Gerçek kademeli blur bir MASKE ister; maskeleme paketi bizim bağımlılığımız değil
+    (başka bir paketin altından geliyor) ve ona yaslanmak görünmeyen bir bağımlılık
+    yaratır. Aynı etki üst üste binen katmanlarla kuruluyor:
+
+      · her katman çubuğun ÜSTÜNE sabit, alt kenardan farklı paylarla kısaltılmış
+      · üst bölümde beş katman birden üst üste biner  → tam bulanıklık
+      · alta inildikçe katman sayısı azalır           → bulanıklık sıfıra iner
+
+    Tek tek yoğunluklar düşük; o yüzden katmanların kendi kenarları görünmüyor,
+    toplamı ise `chrome` malzemesinin yoğunluğuna çıkıyor.
+  */
+  if (fadeBottom && Platform.OS === 'ios') {
+    return (
+      <View
+        pointerEvents="none"
+        style={[style ?? StyleSheet.absoluteFill, radius != null && { borderRadius: radius }]}
+      >
+        {FADE_STEPS.map(({ bottomInset, intensity }, i) => (
+          <BlurView
+            key={i}
+            intensity={intensity}
+            tint={tint ?? colorScheme}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: bottomInset }}
+          />
+        ))}
         {tintLayer}
         {children}
       </View>
@@ -174,7 +239,7 @@ export const AppBlur = ({ material = 'regular', tint, radius, glassTint, style, 
     davranışını Apple yönetir; iOS sürümü ilerledikçe kendiliğinden güncellenir.
     Taklit etmeye çalışmak her yıl kovalamak demekti.
   */
-  if (canUseGlass()) {
+  if (canUseGlass() && !fadeBottom) {
     const GlassView = GlassModule.GlassView;
     return (
       <GlassView

@@ -64,12 +64,19 @@ describe('cam malzeme', () => {
 
 describe('erişilebilirlik tercihleri camı EZER', () => {
   it('"Şeffaflığı Azalt" açıksa opak yüzey — cam da blur da yok', () => {
-    const idx = BLUR.indexOf('if (reduceTransparency)');
+    /*
+      Sıra AppBlur'ün KENDİ gövdesinde aranıyor: dosyada artık ondan önce tanımlı
+      başka bir bulanık bileşen de var (BlurEdge, kademeli kenar). Onun `<BlurView`u
+      bu sıralamanın parçası değil — o bileşen tercihi kendi başında kontrol ediyor.
+    */
+    const body = BLUR.slice(BLUR.indexOf('export const AppBlur = ('));
+    const idx = body.indexOf('if (reduceTransparency)');
     expect(idx).toBeGreaterThan(-1);
     // Kontrol HER İKİ malzeme yolundan da ÖNCE gelmeli; sonra gelseydi cam onu atlardı.
     // Fonksiyon TANIMI değil ÇAĞRI aranıyor — tanım dosyanın başında duruyor.
-    expect(idx).toBeLessThan(BLUR.indexOf('if (canUseGlass())'));
-    expect(idx).toBeLessThan(BLUR.indexOf('<BlurView'));
+    expect(idx).toBeLessThan(body.indexOf('if (canUseGlass()'));
+    expect(idx).toBeLessThan(body.indexOf('<BlurView'));
+    // Sönümlenen blur yolu da aynı tercihin ARDINDA (bkz. aşağıdaki dikiş testleri).
   });
 
   it('tercih gerçekten sistemden okunuyor', () => {
@@ -322,7 +329,14 @@ describe('cam yüzey — bütün modallar tek zeminden', () => {
   });
 
   it('ton opaklığı TEK yerde — hiçbir yüzey kendi sayısını uydurmaz', () => {
-    // AppBlur'ün "17 çağrıda 12 farklı sayı" hatasının aynısına düşmemek için.
+    /*
+      AppBlur'ün "17 çağrıda 12 farklı sayı" hatasının aynısına düşmemek için.
+
+      NOT: bir tur ÇUBUKLARA da ton katmanı eklendi (başlığın arkası cam olduğu için
+      içerik görünüyordu). GERİ ALINDI — katman camı tamamen öldürüyordu, yani sorunu
+      çözerken iOS 26 malzemesinin kendisini yok ediyordu. Çubuklar SAF cam kalır;
+      ton katmanı yalnız sayfa/modal yüzeylerinde.
+    */
     const offenders = FILES.filter(
       (f) => f !== 'shared/components/GlassSurface.tsx' && read(f).includes('VEIL_OPACITY'),
     );
@@ -372,27 +386,39 @@ describe('üst bar da iOS 26/27 davranışında', () => {
   const SHELL = stripComments(read('shared/components/ChromeShell.tsx'));
   const TOKENS = require('@/shared/constants/tokens');
 
-  it('başlık çubuğu sekme çubuğuyla AYNI sinyalden küçülür', () => {
+  /*
+    ── BİR DENEME GERİ ALINDI ────────────────────────────────────────────────────
+    Başlık çubuğu da sekme çubuğu gibi kaydırınca 44→36pt küçültülmüştü. Küçülen
+    çubuktan DÜĞMELER TAŞTI: dokunma hedefi 44pt (Apple HIG alt sınırı) ve o hedef
+    küçülemez. Sekme çubuğu küçülebiliyor çünkü içindeki hedefler onunla birlikte
+    küçülüyor; başlık çubuğununkiler küçülemez.
+
+    Chrome'un geri çekilmesi artık YÜKSEKLİKLE değil MALZEMEYLE anlatılıyor.
+  */
+  it('başlık çubuğunun yüksekliği SABİT — düğmeler taşamaz', () => {
+    expect(HEADER).toContain('<View style={styles.content}>');
+    expect(HEADER).not.toContain('TOP_BAR_MINIMIZED_HEIGHT');
+    expect(HEADER).not.toContain('useChromeStore');
+    expect(TOKENS.TOP_BAR_MINIMIZED_HEIGHT).toBeUndefined();
+  });
+
+  it('düğme kabuğu dokunma hedefinden KÜÇÜK — avatarla aynı bant', () => {
     /*
-      Ekranın iki ucu tek sistem: ikisi de useChromeStore'u okuyor, ikisi de 220ms.
-      Ayrı sinyal/ayrı süre olsaydı biri "geç kalmış" görünürdü.
+      Kabuk önce hedefi tamamen dolduruyordu (40–44pt) ve 44pt'lik çubukta kenarlara
+      dayanıyordu. Görsel boyut ile erişilebilir alan aynı şey değil.
     */
-    expect(HEADER).toContain('useChromeStore');
-    expect(HEADER).toContain('TOP_BAR_MINIMIZED_HEIGHT');
-    expect(HEADER).toContain('duration: 220');
-  });
-
-  it('küçülme YALNIZ iOS — Android app bar sabittir', () => {
-    expect(HEADER).toMatch(/minimized = useChromeStore\(s => s\.minimized\) && Platform\.OS === 'ios'/);
-  });
-
-  it('iki uç aynı ölçüde küçülür', () => {
-    expect(TOKENS.TOP_BAR_MINIMIZED_HEIGHT).toBe(TOKENS.NAV_BAR_MINIMIZED_HEIGHT);
-    expect(TOKENS.TOP_BAR_MINIMIZED_HEIGHT).toBeLessThan(TOKENS.TOP_BAR_HEIGHT);
+    expect(SHELL).toContain('size = TOP_ITEM_SIZE');
+    expect(TOKENS.TOP_ITEM_SIZE).toBeLessThan(TOKENS.TOP_BAR_HEIGHT);
+    // Hedef hâlâ 44pt: küçülen tek şey görünen daire.
+    expect(HEADER).toContain('width: MIN_TOUCH, height: MIN_TOUCH');
   });
 
   it('düğme kabuğu Android\'de HİÇ çizilmez — Material düğmesi çıplak gliftir', () => {
     expect(SHELL).toMatch(/Platform\.OS !== 'ios'\) return null/);
+  });
+
+  it('kabuk yer KAPLAMAZ — düzen iki platformda da aynı kalır', () => {
+    expect(SHELL).toContain('StyleSheet.absoluteFill');
   });
 
   it('geri düğmesi ve ekran düğmeleri aynı kabuğu kullanır', () => {
@@ -401,10 +427,6 @@ describe('üst bar da iOS 26/27 davranışında', () => {
     for (const f of ['app/tasks.tsx', 'app/cockpit.tsx', 'app/modlar.tsx']) {
       expect(read(f)).toContain('<ChromeShell />');
     }
-  });
-
-  it('kabuk yer KAPLAMAZ — düzen iki platformda da aynı kalır', () => {
-    expect(SHELL).toContain('StyleSheet.absoluteFill');
   });
 });
 
@@ -427,5 +449,112 @@ describe('renkli cam — süren iş durgun yüzeyle aynı renkte olmaz', () => {
   it('Android hapı OPAK kalır — cam yalnız iOS', () => {
     expect(ISLAND).toMatch(/Platform\.OS === 'ios' \? 'transparent' :/);
     expect(ISLAND).toMatch(/\{Platform\.OS === 'ios' && \(\s*<AppBlur material="chrome"/);
+  });
+});
+
+describe('ikon kısayolları', () => {
+  const HOOK = stripComments(read('shared/hooks/useAppShortcuts.ts'));
+
+  it('native modül YOKSA uygulama çalışmaya devam eder', () => {
+    /*
+      `expo-quick-actions` native bir modül; eski bir geliştirme derlemesinde yoksa
+      düz `require` patlar. Cam malzeme ve Google Sign-In ile aynı savunmacı desen.
+    */
+    expect(HOOK).toMatch(/try\s*\{\s*QuickActions = require\('expo-quick-actions'\);/);
+    expect(HOOK).toContain('if (!QuickActions?.setItems) return;');
+    expect(HOOK).toContain('if (!QuickActions?.addListener) return;');
+  });
+
+  it('iki kısayol var ve metinleri SÖZLÜKTEN geliyor', () => {
+    // Kısayol yazısı işletim sisteminde görünür ama uygulamanın dilini konuşmalı.
+    expect(HOOK).toContain('t.shortcuts.addTask');
+    expect(HOOK).toContain('t.shortcuts.focus');
+    expect(HOOK).toMatch(/\}, \[language, t\]\);/); // dil değişince tazelenir
+  });
+
+  it('kısayolla AÇILIŞ da yakalanıyor — dinleyici geç kurulur', () => {
+    expect(HOOK).toContain('if (QuickActions.initial) handle(QuickActions.initial);');
+  });
+
+  it('görev kısayolu MEVCUT bağlantıyı kullanıyor — ikinci bir yol açılmadı', () => {
+    expect(HOOK).toContain("params: { action: 'add' }");
+    expect(read('app/tasks.tsx')).toContain("if (action === 'add')");
+  });
+
+  it('odak kısayolu seansı KENDİLİĞİNDEN başlatmıyor', () => {
+    // Süre ve mod seçimi kullanıcının; yanlış süreyle başlamış seansı durdurmak,
+    // hiç başlamamış olmaktan kötüdür.
+    expect(HOOK).toContain("router.push('/focus')");
+    expect(HOOK).not.toContain('startFocus');
+  });
+
+  it('kök düzende DEĞİL ana ekranda bağlı — gezinme ağacı hazır olmalı', () => {
+    expect(read('app/index.tsx')).toContain('useAppShortcuts()');
+    expect(read('app/_layout.tsx')).not.toContain('useAppShortcuts');
+  });
+});
+
+describe('çubuğun alt kenarında DİKİŞ yok — blur ÇUBUĞUN İÇİNDE sönümleniyor', () => {
+  const HEADER = stripComments(read('shared/components/ScreenHeader.tsx'));
+  const TOKENS = require('@/shared/constants/tokens');
+
+  /*
+    ── ÜÇ DENEME GERİ ALINDI, DÖRDÜNCÜSÜ DURUYOR ────────────────────────────────
+     1. RENK gradyanı (sayfa zemininden saydama): sayfanın üstünde açıklanamayan bir
+        şerit gibi okundu, çubuğun arkası hâlâ şeffaftı.
+     2. TON KATMANI (yarı opak yüzey): sorunu çözdü ama camı tamamen öldürdü.
+     3. ÇUBUĞUN ALTINA kademeli bant: sayfadan yer çaldı ve "çubukta blur yok, altına
+        konmuş" gibi okundu.
+     4. ÇUBUĞUN İÇİNDE sönümleme: üstte tam bulanıklık, alt kenarda sıfır. Altına
+        hiçbir şey eklenmiyor, kesecek bir sınır da kalmıyor. İstenen buydu.
+  */
+  it('blur ÇUBUĞUN KENDİSİNDE — altına hiçbir katman eklenmiyor', () => {
+    expect(HEADER).toContain('<AppBlur material="chrome" fadeBottom />');
+    expect(HEADER).not.toContain('BlurEdge');
+    expect(HEADER).not.toContain('ScrollEdge');
+    // Ton katmanı ve renk gradyanı geri gelmesin.
+    expect(BLUR).not.toContain('CHROME_VEIL_OPACITY');
+    expect(BLUR).not.toContain('LinearGradient');
+  });
+
+  it('başlık çubuğu berrak cam DEĞİL — cam yolu atlanıyor', () => {
+    // Cam altından geçeni gösteriyor; başlıkta bu "çıplaklık" demek.
+    expect(BLUR).toContain('if (canUseGlass() && !fadeBottom)');
+  });
+
+  it('sönümleme kademeli — tek katman değil, üst üste binen katmanlar', () => {
+    expect(BLUR).toContain('FADE_STEPS');
+    const steps = BLUR.match(/intensity: (\d+)/g) ?? [];
+    expect(steps.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('en zayıf katman ALT kenarda — dikiş orada oluşur', () => {
+    /*
+      `bottomInset: 0` katmanı çubuğun ta altına kadar uzanan tek katman; yoğunluğu
+      en düşük olmalı, yoksa kenarda yine kesme görünür.
+    */
+    const idx = BLUR.indexOf('const FADE_STEPS');
+    const block = BLUR.slice(idx, BLUR.indexOf('];', idx));
+    const lines = block.split('\n').filter(l => l.includes('bottomInset'));
+    const last = lines[lines.length - 1];
+    expect(last).toContain('bottomInset: 0');
+    const lastIntensity = Number((last.match(/intensity: (\d+)/) ?? [])[1]);
+    const firstIntensity = Number((lines[0].match(/intensity: (\d+)/) ?? [])[1]);
+    expect(lastIntensity).toBeLessThan(firstIntensity);
+    expect(lastIntensity).toBeLessThan(10);
+  });
+
+  it('sönümleme payı çubuğun içinde kalır — sayfadan yer çalmaz', () => {
+    expect(TOKENS.CHROME_FADE_HEIGHT).toBeLessThan(TOKENS.TOP_BAR_HEIGHT / 2);
+  });
+
+  it('Android ve "Şeffaflığı Azalt" — sönümleme yolu hiç çalışmaz', () => {
+    expect(BLUR).toContain("if (fadeBottom && Platform.OS === 'ios')");
+    const reduceIdx = BLUR.indexOf('if (reduceTransparency)');
+    expect(reduceIdx).toBeLessThan(BLUR.indexOf("if (fadeBottom && Platform.OS === 'ios')"));
+  });
+
+  it('ayraç çizgisi de yok — sınırı tamamen malzeme söylüyor', () => {
+    expect(HEADER).not.toContain('borderBottomWidth');
   });
 });
