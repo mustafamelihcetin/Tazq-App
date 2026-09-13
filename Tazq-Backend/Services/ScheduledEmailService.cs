@@ -43,6 +43,17 @@ public class ScheduledEmailService : BackgroundService
 						var user = userPref.User;
 						if (user == null) continue;
 
+						/*
+						  DOGRULANMAMIS ADRESE OTOMATIK POSTA GITMEZ.
+
+						  Dogrulama artik uygulamayi kullanmanin kosulu degil (kayit aninda
+						  oturum aciliyor). Bu, adresin SAHIBININ o kisi oldugunu bilmedigimiz
+						  anlamina gelir: biri baskasinin adresiyle hesap acarsa, o kisi hic
+						  istemedigi hatirlatmalari ve haftalik ozetleri almaya baslardi.
+						  Kullanicinin kendi cihazindaki uygulama ici bildirimler etkilenmez.
+						*/
+						if (!user.IsEmailVerified) continue;
+
 						// Only send at the user's preferred notification time
 						if (userPref.NotificationTimeOfDay.Hours != currentHour)
 							continue;

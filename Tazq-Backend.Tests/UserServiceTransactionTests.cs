@@ -82,7 +82,7 @@ namespace Tazq_Backend.Tests
                 Password = "GecerliParola1",
             });
 
-            Assert.True(ok);
+            Assert.NotNull(ok);
 
             // Tam olarak bir kayıt kalmalı: eski silinmiş, yenisi oluşmuş.
             var all = await _context.Users.IgnoreQueryFilters()
@@ -133,7 +133,7 @@ namespace Tazq_Backend.Tests
             });
 
             // Grace içindeki hesap giriş yaparak geri getirilir; e-posta kullanımda sayılır.
-            Assert.False(ok);
+            Assert.Null(ok);
             Assert.Single(await _context.Users.IgnoreQueryFilters().Where(u => u.Email == "grace@test.com").ToListAsync());
         }
 
@@ -145,7 +145,7 @@ namespace Tazq_Backend.Tests
                 Email = "iter@test.com", Name = "Iter", Password = "GecerliParola1",
             });
 
-            Assert.True(ok);
+            Assert.NotNull(ok);
             var stored = await _context.Users.FirstAsync(u => u.Email == "iter@test.com");
             // Sütun gerçekten yazılıyor mu (model ↔ şema uyumu).
             Assert.Equal(PasswordHashDefaults.CurrentIterations, stored.PasswordIterations);

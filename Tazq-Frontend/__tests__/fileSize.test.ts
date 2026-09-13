@@ -82,13 +82,18 @@ const KNOWN_LARGE: Record<string, number> = {
   // 2420 → 2468: HIZLI EKLEME. + düğmesi artık yedi bölümlü formu değil tek satırlık
   // hızlı eklemeyi açıyor; tam form "Detaylar" ile yazılan metni TAŞIYARAK açılıyor.
   // Artış: iki durum, iki işleyici (hızlı kaydet + detaya geç) ve gerekçeleri.
-  'app/tasks.tsx': 2468,
+  // 2468 → 2472: TUR İLK GÖREVDEN SONRA. Boş listede "sola kaydır, ertele" anlatmanın
+  // karşılığı yok; koşul + gerekçesi eklendi.
+  'app/tasks.tsx': 2472,
   // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
   // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
   // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).
   // 2102 → 2103: CAM SAYFALAR. Komut paletinin yarı saydam elle zemini GlassSurface'e
   // bağlandı (zemin satırı gitti; içe aktarım + yüzey satırı geldi).
-  'app/index.tsx': 2103,
+  // 2103 → 2121: İLK AÇILIŞ. Yardım turu ilk görevden sonraya alındı, "nereden
+  // başlayayım" kartı da tura bağlı olmaktan çıkarıldı (yoksa boş ekran rehbersiz
+  // kalıyordu). Artışın çoğu, iki kararın NEDENİNİ anlatan notlar.
+  'app/index.tsx': 2121,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.

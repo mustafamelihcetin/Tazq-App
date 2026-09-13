@@ -37,7 +37,21 @@ namespace Tazq_App.Services
             => _emailQueue.Enqueue((sp, ct) =>
                 sp.GetRequiredService<ICustomEmailService>().SendWelcomeEmailAsync(email, name));
 
-        public async Task<bool> RegisterAsync(UserRegisterDto userDto)
+        /// <summary>
+        /// Yeni hesap acar ve OTURUMU HEMEN baslatir.
+        ///
+        /// NEDEN DOGRULAMA BEKLENMIYOR: eskiden kayit yalniz "kaydedildi" diyordu;
+        /// kullanici uygulamadan CIKIP e-postasini acmak, kodu bulmak ve geri donmek
+        /// zorundaydi. Bir yapilacaklar uygulamasini denemenin onundeki en pahali adim
+        /// buydu ve tam da en kirilgan anda — kullanici henuz hicbir deger gormemisken —
+        /// geliyordu.
+        ///
+        /// Dogrulama KALDIRILMADI, ERTELENDI: kod yine gonderiliyor, hesap
+        /// "dogrulanmamis" olarak isaretli kaliyor ve e-posta GEREKTIREN isler ona bagli
+        /// (bkz. ScheduledEmailService — dogrulanmamis adrese ozet gitmez). Boylece
+        /// baskasinin e-postasiyla acilan bir hesap o kisiye posta yagdiramaz.
+        /// </summary>
+        public async Task<AuthTokens?> RegisterAsync(UserRegisterDto userDto)
         {
             // Soft-deleted hesaplar dahil e-posta kontrolü (global filtre bunları normalde gizler)
             var existing = await _context.Users.IgnoreQueryFilters()
@@ -46,7 +60,7 @@ namespace Tazq_App.Services
             {
                 // Aktif ya da grace içinde silinmiş → e-posta kullanımda (grace içindeyse giriş yaparak geri getirilir)
                 if (existing.DeletedAt == null || DateTime.UtcNow - existing.DeletedAt.Value <= AccountGracePeriod)
-                    return false;
+                    return null;
             }
 
             var hashed = PasswordHasher.Hash(userDto.Password);
@@ -90,9 +104,15 @@ namespace Tazq_App.Services
                 _emailQueue.Enqueue((sp, ct) =>
                     sp.GetRequiredService<ICustomEmailService>()
                       .SendVerificationEmailAsync(user.Email, user.Name, code));
+
+                var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
+                var refreshToken = await IssueRefreshTokenAsync(user.Id);
+                // NeedsVerification: istemci uygulamayi acar ama "e-postani dogrula"
+                // hatirlatmasini gosterir. IsNewUser: tanitim/kurulum akisi icin.
+                return new AuthTokens(accessToken, refreshToken, IsNewUser: true, NeedsVerification: true);
             }
 
-            return registered;
+            return null;
         }
 
         // Refresh token ömrü
@@ -183,18 +203,38 @@ namespace Tazq_App.Services
             if (user.IsCurrentlyBanned)
                 return new AuthTokens("", "", IsBanned: true, BanReason: user.BanReason, BannedUntil: user.BannedUntil);
 
-            // E-posta doğrulanmamışsa: yeni kod gönder, oturum açma; frontend doğrulama ekranına yönlendirir.
-            if (!user.IsEmailVerified)
+            /*
+              E-POSTA DOGRULANMAMIS — GIRIS ENGELLENMIYOR (degisiklik).
+
+              Eskiden burada oturum acilmiyor, kullanici dogrulama ekranina gonderiliyordu.
+              Yani kodu kaybeden ya da e-postasina o an erisemeyen kisi KENDI verisinden
+              kilitleniyordu. Dogrulama artik uygulamayi kullanmanin degil, e-posta
+              GEREKTIREN islerin kosulu (bkz. RegisterAsync notu).
+
+              Kod yalnizca YOKSA ya da suresi dolmussa yeniden gonderiliyor: her giriste
+              mail atmak, hesabini dogrulamayan kullaniciyi postaya bogmak demekti. Gonderim
+              tamamen de kaldirilmadi — eski uygulama surumleri bu yanitta hala dogrulama
+              ekranina gidiyor ve ellerinde gecerli bir kod olmasi gerekiyor.
+            */
+            bool needsVerification = !user.IsEmailVerified;
+            if (needsVerification)
             {
-                var code = GenerateVerificationCode();
-                user.EmailVerificationCode = code;
-                user.EmailVerificationExpiresAt = DateTime.UtcNow.Add(EmailCodeLifetime);
-                _context.Users.Update(user);
-                await _context.SaveChangesAsync();
-                _emailQueue.Enqueue((sp, ct) =>
-                    sp.GetRequiredService<ICustomEmailService>()
-                      .SendVerificationEmailAsync(user.Email, user.Name, code));
-                return new AuthTokens(string.Empty, string.Empty, false, false, true);
+                bool codeMissingOrExpired =
+                    string.IsNullOrEmpty(user.EmailVerificationCode) ||
+                    user.EmailVerificationExpiresAt == null ||
+                    user.EmailVerificationExpiresAt < DateTime.UtcNow;
+
+                if (codeMissingOrExpired)
+                {
+                    var code = GenerateVerificationCode();
+                    user.EmailVerificationCode = code;
+                    user.EmailVerificationExpiresAt = DateTime.UtcNow.Add(EmailCodeLifetime);
+                    _context.Users.Update(user);
+                    await _context.SaveChangesAsync();
+                    _emailQueue.Enqueue((sp, ct) =>
+                        sp.GetRequiredService<ICustomEmailService>()
+                          .SendVerificationEmailAsync(user.Email, user.Name, code));
+                }
             }
 
             if (!string.IsNullOrEmpty(ipAddress))
@@ -206,7 +246,7 @@ namespace Tazq_App.Services
 
             var accessToken = _jwtService.GenerateToken(user.Id.ToString(), user.Role ?? "User");
             var refreshToken = await IssueRefreshTokenAsync(user.Id);
-            return new AuthTokens(accessToken, refreshToken, false, wasReactivated);
+            return new AuthTokens(accessToken, refreshToken, false, wasReactivated, needsVerification);
         }
 
         public async Task<AuthTokens?> GoogleLoginAsync(string idToken, string? ipAddress)

@@ -29,11 +29,21 @@ namespace Tazq_App.Controllers
             if (!PasswordPolicy.IsStrong(userDto.Password))
                 return BadRequest(new { error = "weak_password", message = PasswordPolicy.RequirementTr });
 
-            var success = await _userService.RegisterAsync(userDto);
-            // Yapısal hata kodu: istemci sunucu mesaj metnine bağımlı kalmasın.
-            return success
-                ? Ok("Kullanıcı başarıyla kaydedildi.")
-                : BadRequest(new { error = "email_taken", message = "E-posta adresi zaten kullanımda." });
+            var tokens = await _userService.RegisterAsync(userDto);
+            // Yapisal hata kodu: istemci sunucu mesaj metnine bagimli kalmasin.
+            if (tokens == null)
+                return BadRequest(new { error = "email_taken", message = "E-posta adresi zaten kullanimda." });
+
+            // Oturum HEMEN aciliyor; dogrulama ertelendi (bkz. UserService.RegisterAsync).
+            // `needsVerification` istemcide hatirlatma gostermek icin.
+            return Ok(new
+            {
+                token = tokens.Token,
+                refreshToken = tokens.RefreshToken,
+                isNewUser = tokens.IsNewUser,
+                needsVerification = tokens.NeedsVerification,
+                email = userDto.Email,
+            });
         }
 
         [HttpPost("login")]
@@ -47,9 +57,18 @@ namespace Tazq_App.Controllers
                 return Unauthorized("Geçersiz e-posta veya şifre.");
             if (tokens.IsBanned)
                 return StatusCode(403, new { banned = true, reason = tokens.BanReason, bannedUntil = tokens.BannedUntil });
-            if (tokens.NeedsVerification)
-                return Ok(new { needsVerification = true, email = userDto.Email });
-            return Ok(new { token = tokens.Token, refreshToken = tokens.RefreshToken, isReactivated = tokens.IsReactivated });
+            // Dogrulanmamis hesap da giris yapar: `token` DOLU gelir ve yaninda
+            // `needsVerification` bayragi tasinir. Eski uygulama surumleri bu bayragi gorup
+            // dogrulama ekranina gider (geriye donuk uyumlu), yenisi uygulamayi acip
+            // hatirlatma gosterir.
+            return Ok(new
+            {
+                token = tokens.Token,
+                refreshToken = tokens.RefreshToken,
+                isReactivated = tokens.IsReactivated,
+                needsVerification = tokens.NeedsVerification,
+                email = userDto.Email,
+            });
         }
 
         [HttpPost("verify-email")]

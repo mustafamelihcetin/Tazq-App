@@ -51,7 +51,13 @@ namespace Tazq_Backend.Tests
             var result = await _userService.RegisterAsync(userDto);
 
             // Assert
-            Assert.True(result);
+            // Kayit artik OTURUMU da aciyor: token dolu gelmeli, hesap dogrulanmamis olarak
+            // isaretlenmeli (dogrulama ertelendi, bkz. UserService.RegisterAsync).
+            Assert.NotNull(result);
+            Assert.False(string.IsNullOrEmpty(result!.Token));
+            Assert.False(string.IsNullOrEmpty(result.RefreshToken));
+            Assert.True(result.NeedsVerification);
+            Assert.True(result.IsNewUser);
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userDto.Email);
             Assert.NotNull(user);
             Assert.NotNull(user.PasswordHash);

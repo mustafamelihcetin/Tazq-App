@@ -46,7 +46,8 @@ namespace Tazq_Backend.Tests
 
             var result = await _userService.RegisterAsync(dto);
 
-            Assert.False(result);
+            // null = e-posta kullanimda (kayit artik basarida oturum token'lari donduruyor).
+            Assert.Null(result);
             Assert.Equal(1, _context.Users.Count(u => u.Email == dto.Email));
         }
 

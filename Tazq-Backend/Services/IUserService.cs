@@ -4,7 +4,9 @@ namespace Tazq_App.Services
 {
     public interface IUserService
     {
-        Task<bool> RegisterAsync(UserRegisterDto userDto);
+        // Kayit BASARILIYSA oturum token'lari doner (dogrulama beklenmez, bkz. UserService).
+        // null = e-posta kullanimda.
+        Task<AuthTokens?> RegisterAsync(UserRegisterDto userDto);
         Task<AuthTokens?> LoginAsync(UserLoginDto userDto, string? ipAddress);
         // E-posta doğrulama (kod ile). Başarılıysa oturum token'ları döner.
         Task<AuthTokens?> VerifyEmailAsync(string email, string code, string? ipAddress);
