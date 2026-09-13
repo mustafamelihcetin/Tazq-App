@@ -7,10 +7,15 @@ import { AppBlur } from '@/shared/components/AppBlur';
 import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
 import {
-  X, EyeOff, Moon, GraduationCap, Dumbbell, Briefcase,
-  CheckCircle2, Circle, Flame, TrendingUp, Home, Target, ListChecks, BarChart3, Sun,
-  Wifi, BatteryFull, SignalHigh, Trophy,
+  X, EyeOff, Moon, Sun, GraduationCap, Dumbbell, Coins,
+  CheckCircle2, Circle, Flame, TrendingUp, Trophy, Gauge, Plus, Clock3,
+  SlidersHorizontal, Search, CalendarClock, ChevronRight,
+  // Alt sekme çubuğunun GERÇEK ikonları (bkz. BottomNavBar) — mock ile uygulama
+  // arasındaki en görünür fark buydu: tanıtımda başka ikonlar duruyordu.
+  LayoutGrid, CheckSquare, Sparkles, CalendarDays, Layers,
+  Wifi, BatteryFull, SignalHigh,
 } from 'lucide-react-native';
+import { Colors } from '@/shared/constants/Colors';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { Touchable } from '@/shared/components/Touchable';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -26,10 +31,35 @@ const ACCENTS = {
 } as const;
 type AccentKey = keyof typeof ACCENTS['dark'];
 
-// Mock (telefon içi) nötr paleti — gerçek uygulamanın iki temasına sadık.
+/*
+  MOCK PALETİ UYDURULMAZ — UYGULAMANIN PALETİNDEN GELİR.
+
+  Buradaki renkler elle yazılmıştı (#0C0C12 / #F2F2F7) ve uygulamanın gerçek
+  zeminlerinden (#09090B / #F4F4F5) farklıydı. Mağaza görselinde gördüğü ekranla
+  indirdikten sonra gördüğü ekran aynı olmalı; tek tık fark bile "bu o uygulama
+  değil" hissi bırakır. Artık tek kaynak `Colors`.
+*/
 const NEUTRAL = {
-  dark:  { screen: '#0C0C12', card: 'rgba(255,255,255,0.06)', border: 'rgba(255,255,255,0.10)', text: '#FFFFFF', sub: 'rgba(255,255,255,0.60)', muted: 'rgba(255,255,255,0.42)', track: 'rgba(255,255,255,0.09)' },
-  light: { screen: '#F2F2F7', card: '#FFFFFF', border: 'rgba(0,0,0,0.07)', text: '#1C1C1E', sub: 'rgba(0,0,0,0.55)', muted: 'rgba(0,0,0,0.42)', track: 'rgba(0,0,0,0.07)' },
+  dark: {
+    screen: Colors.dark.background,
+    card: Colors.dark.surfaceContainer,
+    border: 'rgba(255,255,255,0.08)',
+    text: Colors.dark.onSurface,
+    sub: Colors.dark.onSurfaceVariant,
+    muted: Colors.dark.onSurfaceMuted,
+    track: 'rgba(255,255,255,0.09)',
+    chrome: 'rgba(23,23,28,0.72)',
+  },
+  light: {
+    screen: Colors.light.background,
+    card: Colors.light.surfaceContainerLowest,
+    border: 'rgba(0,0,0,0.06)',
+    text: Colors.light.onSurface,
+    sub: Colors.light.onSurfaceVariant,
+    muted: Colors.light.onSurfaceMuted,
+    track: 'rgba(0,0,0,0.07)',
+    chrome: 'rgba(255,255,255,0.78)',
+  },
 } as const;
 
 type Kind = 'focus' | 'deepfocus' | 'modes' | 'tasks' | 'momentum' | 'cockpit' | 'home' | 'brand';

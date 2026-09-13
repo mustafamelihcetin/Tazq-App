@@ -50,6 +50,18 @@ const NEW_FILE_LIMIT = 800;
  * aksi halde liste bayatlar ve koruma işlevini yitirir (bkz. aşağıdaki test).
  */
 const KNOWN_LARGE: Record<string, number> = {
+  /*
+    SÖZLÜK — doğası gereği uzun ve bölünmesi YANLIŞ olurdu.
+
+    800 satırlık sınır KOD dosyaları için konmuştu: bir ekranın mantığı 800 satırı
+    aşıyorsa okunamaz hâle gelir. Bu dosya mantık değil VERİ: aynı anahtarların iki
+    dildeki karşılıkları. Bölmek (ör. ekran başına sözlük) anahtarların iki dilde
+    ayrışmasını kolaylaştırır — bugün bir anahtarı eklerken iki dili yan yana görmek
+    zorundasın ve bu bir ÖZELLİK.
+
+    Sayı yine de mandallı: yeni metinler eklendikçe bilinçli olarak yükseltilir.
+  */
+  'shared/constants/i18n.ts': 860,
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -84,7 +96,9 @@ const KNOWN_LARGE: Record<string, number> = {
   // Artış: iki durum, iki işleyici (hızlı kaydet + detaya geç) ve gerekçeleri.
   // 2468 → 2472: TUR İLK GÖREVDEN SONRA. Boş listede "sola kaydır, ertele" anlatmanın
   // karşılığı yok; koşul + gerekçesi eklendi.
-  'app/tasks.tsx': 2472,
+  // 2472 → 2484: "Bugün" ekranına giriş (başlıktaki takvim düğmesi) + hızlı eklemenin
+  // sarmalayıcısı. Ekranın kendisi ayrı dosyada (app/gun.tsx).
+  'app/tasks.tsx': 2484,
   // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
   // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
   // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).

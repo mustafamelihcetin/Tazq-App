@@ -43,6 +43,28 @@ interface FocusState {
   totalSeconds: number;
   pausedSeconds: number | null;
   currentTask: string;
+  /**
+   * Seansın bağlı olduğu görev — İSTEĞE BAĞLI.
+   *
+   * ── NEDEN ZORUNLU DEĞİL ───────────────────────────────────────────────────
+   * Görevler homojen değil: "rapor yaz" için sayaç tam yerinde, "süt al" ya da
+   * "15:00 toplantı" için saçma. Her görevi bir odak seansına bağlamaya çalışmak,
+   * kullanıcıyı uymadığı bir kalıba sokar. Bu yüzden bağ ASLA otomatik kurulmuyor
+   * ve hiçbir yerde dayatılmıyor; kullanıcı isterse kuruluyor, istemezse seans
+   * bugünküyle birebir aynı çalışıyor.
+   *
+   * `currentTask` (metin) zaten vardı ve kalıyor: serbest yazılan seanslar (ör.
+   * "kitap okuma") bir göreve bağlı olmak zorunda değil.
+   */
+  currentTaskId: number | null;
+  /**
+   * Görev başına biriken odak dakikası.
+   *
+   * YALNIZ YERELDE: sunucudaki seans kaydı görev ADINI taşıyor ve bu, türetilmiş
+   * bir ölçü — kaybolursa kimse veri kaybetmiş olmaz. Bunun için sunucuya yeni bir
+   * alan eklemek (ve bir dağıtım beklemek) gereksiz bir maliyet olurdu.
+   */
+  taskFocusMinutes: Record<number, number>;
   lastActiveAt: number | null;
   expectedFinishAt: number | null;
   // Daily focus tracking
@@ -65,7 +87,8 @@ interface FocusState {
   // Actions
   setIsActive: (active: boolean) => void;
   setSeconds: (seconds: number | ((s: number) => number)) => void;
-  setCurrentTask: (task: string) => void;
+  /** İkinci parametre verilmezse bağ KURULMAZ/kaldırılır — varsayılan davranış budur. */
+  setCurrentTask: (task: string, taskId?: number | null) => void;
   setDuration: (minutes: number) => void;
   tick: () => void;
   reset: () => void;
@@ -111,6 +134,8 @@ export const useFocusStore = create<FocusState>()(
       totalSeconds: 1500,
       pausedSeconds: null,
       currentTask: '',
+      currentTaskId: null,
+      taskFocusMinutes: {},
       lastActiveAt: null,
       expectedFinishAt: null,
       dailyFocusMinutes: 0,
@@ -147,7 +172,7 @@ export const useFocusStore = create<FocusState>()(
           };
         }),
 
-      setCurrentTask: (currentTask) => set({ currentTask }),
+      setCurrentTask: (currentTask, currentTaskId = null) => set({ currentTask, currentTaskId }),
 
       setDuration: (minutes) => {
         const secs = minutes * 60;
@@ -176,6 +201,8 @@ export const useFocusStore = create<FocusState>()(
           isActive: false, 
           seconds: totalSeconds, 
           currentTask: '',
+          // Bağ seansla birlikte biter: bir sonraki seans yanlış göreve yazılmasın.
+          currentTaskId: null,
           lastActiveAt: null,
           expectedFinishAt: null,
           pausedSeconds: null,
@@ -264,12 +291,31 @@ export const useFocusStore = create<FocusState>()(
       },
 
       addFocusMinutes: (mins) => {
-        const { dailyFocusDate, dailyFocusMinutes } = get();
+        const { dailyFocusDate, dailyFocusMinutes, currentTaskId, taskFocusMinutes } = get();
         const today = getISODate();
         if (dailyFocusDate !== today) {
           set({ dailyFocusMinutes: mins, dailyFocusDate: today });
         } else {
           set({ dailyFocusMinutes: dailyFocusMinutes + mins });
+        }
+
+        /*
+          SEANS BİR GÖREVE BAĞLIYSA dakikalar oraya da yazılır.
+
+          Buraya konmasının sebebi: seansın bittiği BEŞ ayrı yer var (normal bitiş,
+          erken bitirme, pomodoro turu, arka plandan dönüş, zen çıkışı) ve hepsi zaten
+          bu fonksiyonu çağırıyor. Bağı her birine ayrı ayrı eklemek, birini unutunca
+          sessizce eksik sayan bir ölçü demekti.
+
+          Bağ yoksa (serbest seans) hiçbir şey değişmez.
+        */
+        if (currentTaskId != null && mins > 0) {
+          set({
+            taskFocusMinutes: {
+              ...taskFocusMinutes,
+              [currentTaskId]: (taskFocusMinutes[currentTaskId] ?? 0) + mins,
+            },
+          });
         }
 
         try {
@@ -405,6 +451,8 @@ export const useFocusStore = create<FocusState>()(
         totalSeconds: state.totalSeconds,
         pausedSeconds: state.pausedSeconds,
         currentTask: state.currentTask,
+        currentTaskId: state.currentTaskId,
+        taskFocusMinutes: state.taskFocusMinutes,
         lastActiveAt: state.lastActiveAt,
         expectedFinishAt: state.expectedFinishAt,
         dailyFocusMinutes: state.dailyFocusMinutes,

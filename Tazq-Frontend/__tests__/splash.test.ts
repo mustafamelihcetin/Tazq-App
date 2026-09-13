@@ -63,9 +63,25 @@ describe('açılış — sistem splash\'i ile aynı zemin', () => {
     expect(SPLASH).not.toContain('icon.png');
   });
 
-  it('marka anı TEK şeyle kuruluyor — kelime işareti ve ince çizgi', () => {
+  it('marka anı: işaret belirir, nabız atar, çizgi açılır', () => {
     expect(SPLASH).toContain('<TazqLogo');
     expect(SPLASH).toContain('styles.line');
+    // Nabız bir tur kaldırılmıştı; onsuz açılış "duran bir yazı" oluyor.
+    expect(SPLASH).toContain('markScale');
+    expect(SPLASH).toContain('toValue: 1.035');
+  });
+
+  it('zemin dokusu ana ekranla AYNI — açılış uygulamanın tuvalinin ilk hâli', () => {
+    /*
+      Düz bir renk alanı "ayrı bir ekran" gibi duruyordu. Ana ekranın kendi yüzeyi
+      buraya da uzanınca içeri giriş, ekran değişimi değil devam gibi okunuyor.
+    */
+    expect(SPLASH).toContain('<DottedBackground');
+    const home = read('app/index.tsx');
+    for (const prop of ['opacity={isDark ? 0.05 : 0.08}', 'size={24}', 'dotSize={1}']) {
+      expect(SPLASH).toContain(prop);
+      expect(home).toContain(prop);
+    }
   });
 });
 
@@ -102,7 +118,10 @@ describe('açılış — süre ve erişilebilirlik', () => {
 
   it('toplam açılış bütçesi 1.5 sn altında', () => {
     // Sektör eşiği 1–1.5 sn; 2 sn üstü "bekliyorum" hissi verir. Önceki hâl 1.85 sn idi.
-    const total = num('INTRO_HOLD') + num('INTRO_MARK') + num('INTRO_LINE') + num('OUTRO_FADE');
+    const total =
+      num('INTRO_HOLD') + num('INTRO_MARK') +
+      num('INTRO_PULSE_UP') + num('INTRO_PULSE_DOWN') +
+      num('INTRO_LINE') + num('OUTRO_FADE');
     expect(total).toBeLessThan(1500);
   });
 

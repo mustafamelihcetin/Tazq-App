@@ -791,7 +791,7 @@ export default function ModlarScreen() {
               accessibilityLabel={language === 'tr' ? 'Modların özeti' : 'Modes overview'}
             >
               <ChromeShell />
-              <BarChart3 size={ICON.lg} color={theme.onSurfaceVariant} />
+              <BarChart3 size={ICON.md} color={theme.onSurface} />
             </Touchable>
             </TourTarget>
             </>
@@ -814,7 +814,7 @@ export default function ModlarScreen() {
              accessibilityHint={language === 'tr' ? 'Yaşam modlarının nasıl çalıştığını adım adım gösterir' : 'Walks you through how life modes work'}
            >
                <ChromeShell />
-               <Info size={ICON.lg} color={theme.onSurfaceVariant} />
+               <Info size={ICON.md} color={theme.onSurface} />
            </Touchable>
             </>
           }

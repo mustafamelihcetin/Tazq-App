@@ -557,7 +557,7 @@ export default function CockpitScreen() {
               accessibilityLabel={tr ? 'Haftalık rapor' : 'Weekly report'}
             >
               <ChromeShell />
-              <BarChart3 size={ICON.lg} color={theme.onSurface} />
+              <BarChart3 size={ICON.md} color={theme.onSurface} />
             </Touchable>
             </>
           }
@@ -574,7 +574,7 @@ export default function CockpitScreen() {
               accessibilityLabel={tr ? 'Ekle' : 'Add'}
             >
               <ChromeShell />
-              <Plus size={ICON.lg} color={theme.onSurface} />
+              <Plus size={ICON.md} color={theme.onSurface} />
             </Touchable>
             </>
           }

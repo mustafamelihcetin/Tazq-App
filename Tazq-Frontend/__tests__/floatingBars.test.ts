@@ -315,7 +315,8 @@ describe('sayfa üstü boşluğu', () => {
     // 4 -> 9: alt sayfalar da (settings/report/archive/legal/mod-ozet) ortak başlığa
     // taşındı. Her biri kendi satırını çiziyordu ve başlık puntosu 14–30pt arasında
     // dağılmıştı; ana ekranlar 17pt olunca alt sayfaya inince başlık BÜYÜYORDU.
-    expect(headerScreens.length).toBe(9);
+    // 9 -> 10: "Bugün" ekranı (gün'ün saat ekseni) eklendi.
+    expect(headerScreens.length).toBe(10);
   });
 
   it.each(headerScreens)('%s üstünü topBarSpace’ten türetmeli', (file) => {
@@ -338,7 +339,7 @@ describe('başlık kutusu', () => {
     // legal 14pt(!), mod-ozet kendi çöken 52pt başlığı + ölçek dışı 30pt.
     // Artık dokuzu tek bileşenden çiziyor: eşitlik yapısal, ayrışma imkânsız.
     expect(shared.sort()).toEqual([
-      'archive.tsx', 'cockpit.tsx', 'index.tsx', 'legal.tsx', 'mod-ozet.tsx',
+      'archive.tsx', 'cockpit.tsx', 'gun.tsx', 'index.tsx', 'legal.tsx', 'mod-ozet.tsx',
       'modlar.tsx', 'report.tsx', 'settings.tsx', 'tasks.tsx',
     ]);
   });
@@ -429,5 +430,37 @@ describe('sayfa dibi boşluğu', () => {
     });
     expect(keys[0]).toBe(keys[1]);
     expect(keys[0]).toBeTruthy();
+  });
+});
+
+describe('çöken başlık — kaydırma kabı Animated olmak ZORUNDA', () => {
+  /*
+    ── ÖLÇÜLEN ÇÖKME ────────────────────────────────────────────────────────────
+    "Bugün" ekranı açılır açılmaz patladı:
+
+        TypeError: Object is not a function   (ScrollView._handleScroll)
+
+    Sebep: `useCollapsibleHeader` kaydırma bağlayıcısını YEREL SÜRÜCÜDE kuruyor
+    (useNativeDriver: true). RN bunu ancak `Animated.createAnimatedComponent` ile
+    sarılmış bir bileşene bağlayabiliyor; düz bir `ScrollView` gelen değeri sıradan
+    bir fonksiyon sanıp çağırıyor ve uygulama düşüyor.
+
+    Kural bu yüzden yapısal olarak sınanıyor: hook'u kullanan her ekran ya Animated
+    bir kap kullanır ya da sürücüyü bilinçli olarak kapatır (Görevler ekranı böyle —
+    listesi Reanimated'ın FlatList'i).
+  */
+  const appDir = path.join(ROOT, 'app');
+  const files = fs.readdirSync(appDir).filter((f) => f.endsWith('.tsx'));
+  const users = files.filter((f) => fs.readFileSync(path.join(appDir, f), 'utf8').includes('useCollapsibleHeader('));
+
+  it('hook gerçekten kullanılıyor — tarama boşa düşmesin', () => {
+    expect(users.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it.each(users)('%s: Animated kap ya da kapalı sürücü', (file) => {
+    const src = fs.readFileSync(path.join(appDir, file), 'utf8');
+    const animatedContainer = /Animated\.(ScrollView|FlatList|SectionList)/.test(src);
+    const driverOff = /nativeDriver:\s*false/.test(src);
+    expect(animatedContainer || driverOff).toBe(true);
   });
 });

@@ -28,10 +28,17 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
  * Buradaki değerler o ton katmanı. TEK yerde duruyorlar ki her yüzeyde yeniden
  * uydurulmasın (bkz. AppBlur'ün "17 çağrıda 12 farklı sayı" notu — aynı hata).
  *
- * DOĞRULAMA DURUMU: değerler bilinçli olarak YÜKSEK bir başlangıç noktası — metin
- * okunurluğu camın görünürlüğünden önce gelir. Cihazda görülerek ayarlanmadılar.
- * Cam fazla silik ya da metin zor okunuyorsa ayar yalnız BURADAN yapılır; bütün
+ * CİHAZDA ÖLÇÜLDÜ: ilk değerler (0.82 / 0.78) SAYDAM göründü — özellikle koyu temada
+ * sayfanın arkasındaki kartlar seçiliyor ve sayfa "yarım çizilmiş" duruyordu. Bir
+ * MODAL SAYFA, çubuklar gibi içeriğin üstünde yüzen bir yüzey değil; bir BELGEDİR ve
+ * dikkatin tamamını alır. Apple'ın kendi sayfaları da tam yükseklikte opaklaşır.
+ *
+ * Değerler bu yüzden neredeyse opak. Cam yine de orada: kenar ışığı ve derinlik
+ * duruyor, ama okunurluk pazarlık konusu değil. Ayar TEK yerden yapılır; bütün
  * sayfa, menü ve uyarılar birlikte değişir.
+ *
+ * ÇUBUKLAR BURAYA DAHİL DEĞİL: başlık ve sekme çubuğu saf cam kalır (bkz. AppBlur).
+ * Onlarda içerik altından akar ve camın berraklığı derinlik demektir.
  *
  * ── ANDROID: OPAK ─────────────────────────────────────────────────────────────
  * Android'de cam malzeme yok ve Material'ın sayfaları opaktır. Bu turdan önce
@@ -39,7 +46,7 @@ import { useAppTheme } from '@/shared/hooks/useAppTheme';
  * çiziliyor — iki platform aynı paleti konuşuyor, yalnız malzeme farklı.
  * (Sekme çubuğu da aynı ilkeyle ayrıldı: iOS'ta yüzen cam, Android'de opak.)
  */
-export const VEIL_OPACITY = { light: 0.82, dark: 0.78 };
+export const VEIL_OPACITY = { light: 0.96, dark: 0.94 };
 
 /**
  * Hangi köşeler yuvarlanır?

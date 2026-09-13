@@ -558,3 +558,66 @@ describe('çubuğun alt kenarında DİKİŞ yok — blur ÇUBUĞUN İÇİNDE sö
     expect(HEADER).not.toContain('borderBottomWidth');
   });
 });
+
+describe('üst bar düğmeleri TEK bant — ekranlar ayrışamaz', () => {
+  const FILES = [
+    'shared/components/ScreenHeader.tsx',
+    'app/tasks.tsx',
+    'app/cockpit.tsx',
+    'app/modlar.tsx',
+  ];
+
+  /*
+    ── ÖLÇÜLEN SORUN ────────────────────────────────────────────────────────────
+    Kabuklar (32pt cam daire) eklendikten sonra düğmeler "göze batmaya" başladı.
+    İki sebep vardı ve ikisi de kabuktan ÖNCE de duruyordu, sadece görünmüyordu:
+
+      1. Glif boyutu: üst bar düğmeleri ICON.lg (24), aynı çubuktaki durum düğmesi
+         ICON.md (20). 32pt dairede 24pt glif kenarda 4pt bırakıyor — tıka basa.
+      2. Mürekkep: Modlar ekranı `onSurfaceVariant` (soluk), diğerleri `onSurface`.
+         Yani aynı görünen düğme, ekrana göre farklı renkteydi.
+  */
+  it('kabuk içindeki her glif ICON.md — durum düğmesi ve avatarla aynı bant', () => {
+    const offenders: string[] = [];
+    for (const f of FILES) {
+      const src = stripComments(read(f));
+      let i = src.indexOf('<ChromeShell />');
+      while (i !== -1) {
+        const after = src.slice(i, i + 400);
+        if (!after.includes('size={ICON.md}')) offenders.push(`${f} @${i}`);
+        i = src.indexOf('<ChromeShell />', i + 1);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('hiçbir üst bar düğmesi ICON.lg kullanmaz', () => {
+    const offenders: string[] = [];
+    for (const f of FILES) {
+      const src = stripComments(read(f));
+      let i = src.indexOf('<ChromeShell />');
+      while (i !== -1) {
+        if (src.slice(i, i + 400).includes('size={ICON.lg}')) offenders.push(f);
+        i = src.indexOf('<ChromeShell />', i + 1);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('mürekkep her ekranda aynı — soluk varyant kullanılmaz', () => {
+    for (const f of ['app/modlar.tsx', 'app/cockpit.tsx']) {
+      const src = stripComments(read(f));
+      let i = src.indexOf('<ChromeShell />');
+      while (i !== -1) {
+        expect(src.slice(i, i + 400)).not.toContain('theme.onSurfaceVariant');
+        i = src.indexOf('<ChromeShell />', i + 1);
+      }
+    }
+  });
+
+  it('durum düğmesi de aynı bantta — referans bozulmasın', () => {
+    const hub = stripComments(read('features/dashboard/components/StatusHub.tsx'));
+    expect(hub).toContain('size={ICON.md}');
+    expect(hub).toContain('const HUB = TOP_ITEM_SIZE;');
+  });
+});

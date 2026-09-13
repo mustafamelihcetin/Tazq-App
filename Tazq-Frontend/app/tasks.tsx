@@ -6,7 +6,7 @@ import { AppBlur } from '@/shared/components/AppBlur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
 import Animated, { LinearTransition } from 'react-native-reanimated';
-import { Check, Timer, Plus, X, Pencil, Sparkles, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, Search, SlidersHorizontal, CheckSquare, Scale, Target, Archive, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { Check, Timer, Plus, X, Pencil, Sparkles, Bell, Clock, Tag, Calendar, Trash2, Repeat, ListChecks, CheckCircle2, Circle, Mic, Search, SlidersHorizontal, CheckSquare, Scale, Target, Archive, ChevronUp, ChevronDown, CalendarDays } from 'lucide-react-native';
 import { SubtaskProgressRing } from '@/shared/components/SubtaskProgressRing';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
@@ -1762,14 +1762,14 @@ export default function ActionCenter() {
             {isBulkMode ? (
                 <Touchable onPress={() => { setIsBulkMode(false); setSelectedIds(new Set()); }} hitSlop={{top:10, bottom:10, left:10, right:10}} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Seçimi iptal et' : 'Cancel selection'}>
                     <ChromeShell />
-                    <X size={ICON.lg} color={theme.onSurface} />
+                    <X size={ICON.md} color={theme.onSurface} />
                 </Touchable>
             ) : (
                 // Sol: Sırala & Filtrele. Sağ: Ara (büyüteç). Back butonu YOK — alt navigasyondan gezilir.
                 <Touchable onPress={() => { setShowSortMenu(!showSortMenu); import('expo-haptics').then(Haptics => haptic.surface()); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Sırala ve filtrele' : 'Sort and filter'}>
                     <ChromeShell />
                     <View>
-                        <SlidersHorizontal size={ICON.lg} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
+                        <SlidersHorizontal size={ICON.md} color={(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) ? theme.primary : theme.onSurface} />
                         {(sortBy !== 'creation' || filter !== 'all' || !!tagFilter || hideCompleted) && (
                             <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: R.full, backgroundColor: theme.primary }} />
                         )}
@@ -1801,10 +1801,22 @@ export default function ActionCenter() {
                     )}
                 </View>
             ) : (
+                <>
+                <Touchable
+                  onPress={() => router.push('/gun')}
+                  style={styles.headerIconBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.dayView.title}
+                  accessibilityHint={t.dayView.unplannedHint}
+                >
+                    <ChromeShell />
+                    <CalendarDays size={ICON.md} color={theme.onSurface} />
+                </Touchable>
                 <Touchable onPress={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); import('expo-haptics').then(Haptics => haptic.surface()); }} style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel={language === 'tr' ? 'Ara' : 'Search'}>
                     <ChromeShell />
-                    <Search size={ICON.lg} color={showSearch ? theme.primary : theme.onSurface} />
+                    <Search size={ICON.md} color={showSearch ? theme.primary : theme.onSurface} />
                 </Touchable>
+                </>
             )}
             </>
           }

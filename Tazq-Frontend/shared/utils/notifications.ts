@@ -210,6 +210,8 @@ export async function scheduleMorningBrief(
         title: greeting,
         body,
         sound: true,
+        // Dokunuş "Bugün" ekranını açar: sabah özetinin işi günü KURMAK.
+        data: { type: 'morning-brief' },
         categoryIdentifier: 'morning-brief',
       },
       trigger: {
@@ -279,6 +281,13 @@ export async function scheduleEveningBrief(
         title,
         body,
         sound: true,
+        /*
+          Dokunuş "Bugün" ekranını açar. Akşam özeti eskiden bir bildirim olarak gelip
+          hiçbir yere GÖTÜRMÜYORDU: kullanıcı "3 iş kaldı" cümlesini okuyup uygulamayı
+          açtığında yine listeyle baş başa kalıyordu. Artık günü kapatma kararının
+          verildiği yere düşüyor.
+        */
+        data: { type: 'evening-brief' },
         categoryIdentifier: 'daily-summary',
       },
       trigger: {

@@ -1,0 +1,144 @@
+import { useTaskStore } from '@/features/tasks/store/useTaskStore';
+import { TaskService } from '@/shared/services/api';
+import { useNetworkStore } from '@/shared/store/useNetworkStore';
+import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
+import { isNetworkError } from '@/shared/utils/errors';
+
+/**
+ * GÖREV EYLEMLERİ — tamamlama ve tarih/saat değiştirme, TEK yerde.
+ *
+ * ── NEDEN ─────────────────────────────────────────────────────────────────────
+ * "Görevi tamamla" akışı ana ekranda ve Görevler ekranında ayrı ayrı yazılmıştı ve
+ * her ikisi de aynı üç şeyi yapmak zorunda: iyimser güncelleme, mod tamamlama kaydı,
+ * çevrimdışıysa kuyruğa alma. Üçüncü bir ekran (Bugün) aynı şeye ihtiyaç duyunca
+ * kopyalamak yerine buraya alındı — kopyalar zamanla ayrışır ve ayrışan kopya
+ * SESSİZ veri kaybı demektir (ör. biri kuyruğa almayı unutursa çevrimdışı yapılan
+ * tamamlama kaybolur).
+ *
+ * Kutlama, ses ve konfeti burada YOK: onlar ekranın kararı (Sade modda kutlama
+ * gösterilmiyor, bkz. celebrate.ts). Burada yalnız VERİ var.
+ */
+
+/**
+ * Görevi tamamlar (iyimser) ve sunucuya yazar.
+ *
+ * Çevrimdışıysa kuyruğa alınır ve iyimser tamamlama KORUNUR. Gerçek bir sunucu
+ * hatasında (ağ değil) geri alınır — yoksa kullanıcı bitmiş sandığı bir işi bir
+ * sonraki açılışta yeniden karşısında bulur.
+ */
+export async function completeTask(taskId: number): Promise<void> {
+  const store = useTaskStore.getState();
+  const task = store.tasks.find(t => t.id === taskId);
+  if (!task || task.isCompleted) return;
+
+  store.toggleTaskCompletion(taskId);
+
+  // Mod planına ait görevlerin tamamlanması ayrıca kaydediliyor (plan ilerleyişi).
+  try {
+    const { getModeInfoForTask } = require('@/features/modes/utils/modeHelpers');
+    const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
+    const { useCompletionStore } = require('@/features/user/store/useCompletionStore');
+    const prefsState = usePrefsStore.getState();
+    if (getModeInfoForTask(task, prefsState, null)) {
+      const planMode = task.tags?.find(tag =>
+        ['exam', 'exam2', 'exam3', 'tez', 'mulakat', 'mulakat2', 'mulakat3', 'spor', 'spor2', 'spor3', 'ramazan', 'tasarruf', 'birakma'].includes(tag),
+      );
+      useCompletionStore.getState().record(task.id, task.title, new Date().toISOString(), planMode);
+    }
+  } catch (e) {
+    // Kayıt tutulamazsa tamamlama YİNE geçerli — bu ikincil bir iz.
+  }
+
+  const completedAt = new Date().toISOString();
+  if (!useNetworkStore.getState().isOnline) {
+    useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt });
+    return;
+  }
+
+  try {
+    await TaskService.updateTask(taskId, { isCompleted: true });
+  } catch (e: unknown) {
+    if (isNetworkError(e)) {
+      // Ağ hatası → kuyruğa al, iyimser tamamlamayı KORU.
+      useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt });
+    } else {
+      // Gerçek sunucu hatası → geri al.
+      useTaskStore.getState().toggleTaskCompletion(taskId);
+    }
+  }
+}
+
+/**
+ * Görevin tarihini/saatini değiştirir (iyimser + çevrimdışı güvenli).
+ *
+ * "Yarına al" ve "bu saate yerleştir" aynı işlemdir: ikisi de görevin ne zaman
+ * yapılacağını söyler. Ayrı iki yol yazmak, birinin çevrimdışı desteğini unutmasına
+ * açık kapı bırakırdı.
+ *
+ * `dueTime: null` saati KALDIRIR (görev güne ait kalır, saatten çıkar).
+ */
+export function setTaskDue(
+  taskId: number,
+  patch: { dueDate?: string; dueTime?: string | null },
+): void {
+  const store = useTaskStore.getState();
+  const task = store.tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  store.updateTask(taskId, patch);
+  const payload = { ...task, ...patch };
+
+  if (!useNetworkStore.getState().isOnline) {
+    useOfflineQueue.getState().enqueue({ type: 'update-task', id: taskId, payload });
+    return;
+  }
+
+  TaskService.updateTask(taskId, payload).catch((err: unknown) => {
+    if (isNetworkError(err)) {
+      useOfflineQueue.getState().enqueue({ type: 'update-task', id: taskId, payload });
+    }
+  });
+}
+
+/**
+ * Görevi ARŞİVE alır (silmez).
+ *
+ * Günü kapatırken "düşür" denen şey budur: iş listeden çıkar ama kaybolmaz. Hızlı
+ * verilen bir kararın geri dönüşü olmalı — silme, gününü toparlayan birinin
+ * ödeyeceği bir bedel değildir.
+ */
+export function archiveTask(taskId: number): void {
+  const store = useTaskStore.getState();
+  const task = store.tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  store.updateTask(taskId, { isArchived: true });
+  const payload = { ...task, isArchived: true };
+
+  if (!useNetworkStore.getState().isOnline) {
+    useOfflineQueue.getState().enqueue({ type: 'update-task', id: taskId, payload });
+    return;
+  }
+
+  TaskService.updateTask(taskId, { isArchived: true }).catch((err: unknown) => {
+    if (isNetworkError(err)) {
+      useOfflineQueue.getState().enqueue({ type: 'update-task', id: taskId, payload });
+    }
+  });
+}
+
+/** Bugünün ve yarının yerel tarihi — saat dilimi kaymasına karşı ELLE kuruluyor. */
+export function localDateISO(offsetDays = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  d.setHours(12, 0, 0, 0); // öğlen: yaz saati geçişlerinde gün kaymaz
+  return d.toISOString();
+}
+
+/** Bir görevin saatini, verilen saate (0-23) kurar. Tarihi değiştirmez. */
+export function timeAtHour(hour: number, base?: string | null): string {
+  const d = base ? new Date(base) : new Date();
+  if (isNaN(d.getTime())) return timeAtHour(hour, null);
+  d.setHours(hour, 0, 0, 0);
+  return d.toISOString();
+}

@@ -198,7 +198,15 @@ export const ScreenHeader = ({
       {/* iOS 26/27: araç çubuğu düğmesi cam bir halkanın içindedir. Android'de kabuk
           çizilmez (Material'ın düğmesi çıplak gliftir) — bkz. ChromeShell. */}
       <ChromeShell />
-      <ArrowLeft size={ICON.lg} color={theme.onSurface} />
+      {/*
+        GLİF ICON.md — çubuktaki TÜM düğmelerle aynı bant.
+
+        ÖLÇÜLEN SORUN: buradaki glif ICON.lg (24) idi ama aynı çubuktaki durum
+        düğmesininki ICON.md (20). Kabuklar gelene kadar fark göze batmıyordu; 32pt'lik
+        dairenin içine 24pt glif konunca kenarda 4pt kalıyor ve düğme "tıka basa"
+        duruyor. 20pt'de 6pt nefes var — avatar ve durum düğmesiyle aynı ölçü.
+      */}
+      <ArrowLeft size={ICON.md} color={theme.onSurface} />
     </Touchable>
   ) : left;
 

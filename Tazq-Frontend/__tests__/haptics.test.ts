@@ -151,10 +151,21 @@ describe('yoğunluk', () => {
      * satır düzeninde duruyor; biri titreşip öteki susarsa kullanıcı ikisinin farklı
      * çalıştığını sanır. Tutarlılık burada yeni bir borç değil, mevcut desenin bedeli.
      *
+     * → 303: "Bugün" ekranı (günün saat ekseni). İki yeni titreşim: işi bir saate
+     * YERLEŞTİRME ve bitmeyen işi YARINA ALMA. İkisi de görünür bir sonucu olan,
+     * geri alınabilir ama gerçek durum değişiklikleri — kullanıcı listeye değil güne
+     * dokunuyor ve dokunduğu şey yer değiştiriyor. Aynı ekranda menü AÇMAK bilinçli
+     * olarak sessiz: bakmak taahhüt değildir.
+     *
+     * → 304: "Bugün" ekranında BASILI TUTMA. Uzun basma geri bildirimsiz kalırsa
+     * kullanıcı menünün açılmadığını sanıp parmağını tutmaya devam eder; iOS'un kendi
+     * bağlam menüsü de açılırken titreşir. Tek çağrı: iki jest de aynı işleyiciden
+     * geçiyor (bkz. openMenu).
+     *
      * DÜRÜST NOT: hedef oran ~1/3, bugünkü ölçüm ~1/1.4. Yani yoğunluk HÂLÂ YÜKSEK.
      * Bunu düşürmek 50+ çağrı yerinde tek tek "bu titreşim ne anlatıyor?" sorusunu
      * yanıtlamayı gerektirir — ayrı ve bilinçli bir tur işi.
      */
-    expect(hap).toBeLessThanOrEqual(301);
+    expect(hap).toBeLessThanOrEqual(304);
   });
 });

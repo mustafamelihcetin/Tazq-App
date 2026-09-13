@@ -406,6 +406,9 @@ export default function RootLayout() {
         const taskId = data.taskId;
         if (taskId) {
           router.push({ pathname: '/tasks', params: { highlightId: String(taskId) } });
+        } else if (data.type === 'morning-brief' || data.type === 'evening-brief') {
+          // Sabah: günü kur. Akşam: günü kapat. İkisi de aynı ekranda.
+          router.push('/gun');
         } else if (data.type === 'focus') {
           router.push('/focus');
         } else if (data.type === 'habit-risk' || data.type === 'habit-reminder') {

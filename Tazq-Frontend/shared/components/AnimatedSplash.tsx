@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Animated, Easing, useColorScheme, useWindowDimensions } from 'react-native';
 import { TazqLogo } from './TazqLogo';
+import { DottedBackground } from './DottedBackground';
 import { haptic } from '@/shared/utils/haptics';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
 import { Colors } from '@/shared/constants/Colors';
@@ -49,10 +50,12 @@ import { S } from '@/shared/constants/tokens';
  */
 
 /** Giriş animasyonunun parçaları (ms) — toplamı süre bütçesini belirler. */
-const INTRO_HOLD = 90;    // sistem splash'inden devralınırken kısa bir sükûnet
-const INTRO_MARK = 360;   // kelime işaretinin belirmesi
-const INTRO_LINE = 260;   // ince çizginin açılması
-const OUTRO_FADE = 260;   // içeriğe geçiş
+const INTRO_HOLD = 90;        // sistem splash'inden devralınırken kısa bir sükûnet
+const INTRO_MARK = 360;       // kelime işaretinin belirmesi
+const INTRO_PULSE_UP = 130;   // nabzın yükselişi
+const INTRO_PULSE_DOWN = 190; // nabzın oturması
+const INTRO_LINE = 260;       // ince çizginin açılması
+const OUTRO_FADE = 260;       // içeriğe geçiş
 
 export const AnimatedSplash = ({
   onFinish,
@@ -88,6 +91,7 @@ export const AnimatedSplash = ({
   // Hareketi Azalt açıkken her şey son hâliyle başlar.
   const markOpacity = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
   const markY = useRef(new Animated.Value(reduceMotion ? 0 : 8)).current;
+  const markScale = useRef(new Animated.Value(1)).current;
   const lineScale = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
   const screenOpacity = useRef(new Animated.Value(1)).current;
 
@@ -102,12 +106,14 @@ export const AnimatedSplash = ({
     }
 
     /*
-      TEK DOKUNUŞ — kelime işareti otururken minik bir titreşim.
-      Eskiden çift vuruşluydu ("kalp atışı"); açılışta iki kez titremek marka anından
-      çok bildirim gibi okunuyordu. Kullanıcının titreşim tercihine saygılı
-      (bkz. haptics.enabled).
+      TEK DOKUNUŞ — nabız atarken, tam o anda.
+
+      Titreşim iki vuruşluydu; açılışta iki kez titremek marka anından çok bildirim
+      gibi okunuyordu. Tek dokunuş kalıyor ama NABZA denk geliyor: kullanıcı hareketi
+      görürken aynı anda hissediyor — ikisi tek olay gibi okunuyor.
+      Kullanıcının titreşim tercihine saygılı (bkz. haptics.enabled).
     */
-    const hapticTimer = setTimeout(() => haptic.select(), INTRO_HOLD + INTRO_MARK * 0.6);
+    const hapticTimer = setTimeout(() => haptic.select(), INTRO_HOLD + INTRO_MARK);
 
     Animated.sequence([
       // 1. Sistem splash'inden devralınan sakin an — ikon zaten ekranda, kıpırdamıyor.
@@ -129,7 +135,30 @@ export const AnimatedSplash = ({
         }),
       ]),
 
-      // 3. İnce çizgi merkezden dışa açılır — marka anının noktası.
+      /*
+        3. KALP ATIŞI — işaret otururken mikroskopik bir nabız.
+
+        Bir tur kaldırılmıştı (süreyi kısaltmak için). Geri alındı: onsuz açılış "duran
+        bir yazı" oluyor; marka anını canlı kılan tam olarak bu 320ms. Ölçü bilinçli
+        olarak küçük — %3.5 büyüme göz tarafından "nefes" olarak okunur, "animasyon"
+        olarak değil.
+      */
+      Animated.sequence([
+        Animated.timing(markScale, {
+          toValue: 1.035,
+          duration: INTRO_PULSE_UP,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(markScale, {
+          toValue: 1,
+          duration: INTRO_PULSE_DOWN,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+
+      // 4. İnce çizgi merkezden dışa açılır — marka anının noktası.
       Animated.timing(lineScale, {
         toValue: 1,
         duration: INTRO_LINE,
@@ -142,7 +171,7 @@ export const AnimatedSplash = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reduceMotion]);
 
-  // 4. Kaybolma — giriş bitti VE uygulama hazır olduğunda. İkisi de şart:
+  // 5. Kaybolma — giriş bitti VE uygulama hazır olduğunda. İkisi de şart:
   //    erken kaybolmak boş ekran, geç kaybolmak gereksiz bekleme demek.
   useEffect(() => {
     if (!introDone || !ready) return;
@@ -156,7 +185,25 @@ export const AnimatedSplash = ({
 
   return (
     <Animated.View style={[styles.container, { backgroundColor: bg, opacity: screenOpacity }]}>
-      <Animated.View style={[styles.markSlot, { opacity: markOpacity, transform: [{ translateY: markY }] }]}>
+      {/*
+        UYGULAMANIN KENDİ ZEMİN DOKUSU — ana ekranda da aynısı var (bkz. app/index.tsx).
+        Açılış böylece "ayrı bir ekran" değil, uygulamanın kendi tuvalinin ilk hâli
+        oluyor: düz bir renk alanı yerine, içeri girince devam eden bir yüzey.
+        Değerler ana ekranla BİREBİR aynı — ayrışırsa geçiş yine görünür olur.
+      */}
+      <DottedBackground
+        color={isDark ? Colors.dark.onBackground : Colors.light.onBackground}
+        opacity={isDark ? 0.05 : 0.08}
+        size={24}
+        dotSize={1}
+      />
+
+      <Animated.View
+        style={[
+          styles.markSlot,
+          { opacity: markOpacity, transform: [{ translateY: markY }, { scale: markScale }] },
+        ]}
+      >
         {/*
           Varyant SİSTEM görünümünden: zemin de oradan geliyor. Uygulamanın tema
           tercihine bakan varsayılan davranış burada YANLIŞ olurdu — koyu temayı elle
