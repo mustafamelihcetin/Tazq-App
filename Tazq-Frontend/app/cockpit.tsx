@@ -23,9 +23,10 @@ import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { FocusService } from '@/shared/services/api';
-import { ICON, S, R, F, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight} from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight} from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
+import { WideSplit, WideCol } from '@/shared/components/ResponsiveColumns';
 import { ChromeShell } from '@/shared/components/ChromeShell';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { SwipeableHabitItem } from '@/features/habits/components/SwipeableHabitItem';
@@ -584,7 +585,7 @@ export default function CockpitScreen() {
         <Animated.ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: navBarSpace(insets.bottom) + S.md, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: isSmallScreen ? S.md : S.lg, paddingBottom: navBarSpace(insets.bottom) + S.md, width: '100%', maxWidth: contentMaxWidth(screenWidth), alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
           onScroll={onScroll}
           scrollEventThrottle={16}
@@ -674,6 +675,16 @@ export default function CockpitScreen() {
           </BentoCard>
           </TourTarget>
 
+          {/*
+            ── GENİŞ EKRANDA İKİ SÜTUN ────────────────────────────────────────────
+            Hafta şeridi bölünmenin ÜSTÜNDE kalıyor: yedi gün yan yana durmak zorunda,
+            yarım sütuna sıkışırsa gün kutuları okunmaz olur. Altında iş bölümü net —
+            solda GÜN (seçili günün işleri ve haftalık karne), sağda SÜREKLİLİK
+            (alışkanlıklar). Telefonda bu ayrım hiç devreye girmiyor.
+          */}
+          <WideSplit>
+
+          <WideCol>
           {/* ── SELECTED DAY TASKS ── */}
           <TourTarget id="dailySection">
           <View style={styles.sectionHeader}>
@@ -801,7 +812,9 @@ export default function CockpitScreen() {
             )}
           </AnimatePresence>
           </TourTarget>
+          </WideCol>
 
+          <WideCol col="right">
           {/* ── HABITS ── */}
           <View style={styles.sectionHeader}>
             <View>
@@ -1077,6 +1090,9 @@ export default function CockpitScreen() {
             </View>
           )}
 
+          </WideCol>
+
+          <WideCol>
           {/* ── WEEKLY REVIEW ── */}
           <TourTarget id="weeklyReview">
           <View style={styles.sectionHeader}>
@@ -1170,6 +1186,9 @@ export default function CockpitScreen() {
             </Touchable>
           </BentoCard>
           </TourTarget>
+          </WideCol>
+
+          </WideSplit>
         </Animated.ScrollView>
       </View>
 

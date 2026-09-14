@@ -25,10 +25,16 @@ const SKIP_DIRS = ['node_modules', '.expo', 'android', 'ios', '.git', '__tests__
  * girdiğinden emin ol.
  */
 const EXEMPT: Record<string, string> = {
-  // Pazarlama sayfası: uygulamanın küçültülmüş temsillerini çiziyor ve her ölçüyü
-  // ekran genişliğine göre ORANSAL hesaplıyor (`const S = fw / 234`, `8 * S`, `dia / 2`).
-  // Sabit token koymak mock'u bozar — burada 12pt "12pt" demek değil, oranın parçası.
+  // Pazarlama sayfası ve mock motoru: uygulamanın ölçekli bir kopyasını çiziyorlar ve her
+  // ölçü gerçek cihaz genişliğine göre ORANSAL hesaplanıyor (`S = screenW / 393`, `px(12)`).
+  //
+  // Bu dosyalarda jetonu ZORLAMAK kuralın tam tersine hizmet ederdi: `borderRadius: R.md`
+  // yazmak mock'a 12 GERÇEK pt verir ve küçültülmüş telefonda kartı balon gibi
+  // yuvarlatır. `px(12)` ise "uygulamadaki R.md, aynı oranda" demektir — yani jeton
+  // burada sayının KENDİSİ olarak değil, çarpanın girdisi olarak yaşıyor.
   'app/promo.tsx': 'oransal mock çizici — ölçüler ekran genişliğine göre hesaplanır',
+  'features/promo/components/PromoMock.tsx': 'oransal mock çizici — her ölçü px(jeton) çarpanından geçer',
+  'features/promo/components/PromoFocusMock.tsx': 'oransal mock çizici — derin odak ekranı, px(jeton) çarpanı',
 };
 
 function walk(dir: string, out: string[] = []): string[] {

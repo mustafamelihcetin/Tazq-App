@@ -191,8 +191,14 @@ export const BottomNavBar = () => {
         },
       ]}
     >
-      {/* Geniş/foldable ekranda sekmeler sonsuza yayılmasın — içerikle aynı sütun. */}
-      <View style={styles.column}>
+      {/*
+        Geniş/foldable ekranda sekmeler sonsuza yayılmasın — kapsül içerikle aynı
+        sütunda kalır. ANDROID İSTİSNA: oradaki çubuk YÜZMÜYOR, dibe yapışık ve tam
+        genişlikte. 600pt'de kesilse tablette ekranın ortasına yapıştırılmış opak bir
+        şerit olurdu — üstelik ayraç çizgisi tam genişlikte olduğu için ikisi
+        birbirini yalanlardı. Telefonda ekran zaten 600'den dar: hiçbir şey değişmez.
+      */}
+      <View style={[styles.column, !IS_IOS && { maxWidth: undefined }]}>
         <View style={styles.row}>
 
           {/* ── SEKME KAPSÜLÜ ────────────────────────────────────────────── */}

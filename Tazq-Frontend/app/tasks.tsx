@@ -23,6 +23,7 @@ import { useFocusStore } from '@/features/focus';
 import { usePrefsStore, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
+import { useWideLayout } from '@/shared/components/ResponsiveColumns';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -37,7 +38,7 @@ import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
 import { syncTaskToCalendar, deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, MIN_TOUCH, HAIRLINE } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, contentMaxWidth, sideInset, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, MIN_TOUCH, HAIRLINE } from '@/shared/constants/tokens';
 import VoiceService from '@/shared/utils/voice';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -567,6 +568,8 @@ export default function ActionCenter() {
   };
   const setCurrentTask = useFocusStore(s => s.setCurrentTask);
   const { width, height } = useWindowDimensions();
+  /** Geniş ekranda (tablet/foldable) liste iki sütuna açılır — bkz. FlatList numColumns. */
+  const wide = useWideLayout();
   const router = useRouter();
   const { action, highlightId, dateFilter } = useLocalSearchParams<{ action?: string; highlightId?: string; dateFilter?: string }>();
   const insets = useSafeAreaInsets();
@@ -1988,8 +1991,21 @@ export default function ActionCenter() {
           transition={{ type: 'timing', duration: 250 }}
         >
           
-        <Animated.FlatList itemLayoutAnimation={LinearTransition.springify().damping(18).stiffness(90)}
+        {/*
+          ── GENİŞ EKRANDA İKİ SÜTUN ─────────────────────────────────────────────
+          Tablette liste 600pt'lik sütunda tek sıra hâlinde akıyordu ve ekranın yarısı
+          boş kalıyordu. Satırı uzatmak çözüm değil: bir görevin solundaki onay
+          kutusuyla sağındaki saati yarım ekran ayırırsa göz ikisini birleştiremez.
+          Çözüm satırı uzatmak değil, İKİNCİ bir sütun açmak.
 
+          `key` değişimi ŞART: FlatList `numColumns`'u canlı değiştiremez, listeyi
+          yeniden kurmak gerekir. `columnWrapperStyle` de yalnız çok sütunluyken
+          verilebilir — tek sütunda geçilirse RN hata atar.
+        */}
+        <Animated.FlatList itemLayoutAnimation={LinearTransition.springify().damping(18).stiffness(90)}
+            key={wide ? 'grid' : 'list'}
+            numColumns={wide ? 2 : 1}
+            columnWrapperStyle={wide ? { gap: S.sm } : undefined}
             style={{ flex: 1 }}
             data={filteredTasks}
             keyExtractor={(item: any) => item.id.toString()}
@@ -1997,7 +2013,7 @@ export default function ActionCenter() {
             maxToRenderPerBatch={10}
             windowSize={5}
             removeClippedSubviews={false} // Must be false for itemLayoutAnimation to work when items jump large distances
-            contentContainerStyle={{ gap: S.sm, paddingBottom: fabSafeBottom(insets.bottom), paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+            contentContainerStyle={{ gap: S.sm, paddingBottom: fabSafeBottom(insets.bottom), paddingTop: topBarSpace(insets.top) + S.lg, paddingHorizontal: S.lg, width: '100%', maxWidth: contentMaxWidth(width), alignSelf: 'center' }}
             extraData={{ highlightedId, isBulkMode, selectedIds, completingIds, language, expandedId }}
             onScroll={onScroll}
             scrollEventThrottle={16}
@@ -2127,6 +2143,12 @@ export default function ActionCenter() {
                 );
             }}
             renderItem={({ item: task, index: i }: any) => (
+              /*
+                Hücre kabı: `flex: 1` iki kartı eşit böler. `maxWidth: '50%'` ise TEK
+                KALAN son kart içindir — kapsız bırakılınca satırın tamamını kaplar ve
+                ızgaranın son satırı ötekilerden farklı görünür.
+              */
+              <View style={wide ? { flex: 1, minWidth: 0, maxWidth: '50%' } : undefined}>
                 <MemoizedTaskItem
                     task={task}
                     // Mod bilgisi ebeveynde TEK geçişte hesaplandı; kart artık hiçbir
@@ -2167,6 +2189,7 @@ export default function ActionCenter() {
                     completingIds={completingIds}
                     expandedId={expandedId}
                 />
+              </View>
             )}
             ListFooterComponent={() => (
                 filteredTasks.length > 0 && !isBulkMode ? (

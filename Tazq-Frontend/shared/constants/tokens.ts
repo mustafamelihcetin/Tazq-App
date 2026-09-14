@@ -22,6 +22,32 @@ export const moderateScale = (size: number, factor = 0.5) => size + (scale(size)
 // Geniş/foldable/tablet ekranlarda içeriği ortalı bir sütunla sınırlamak için.
 // Telefonda ekran zaten < MAX_W → tam genişlik (etkisiz); geniş ekranda ortalanır.
 export const MAX_W = 600;
+
+/**
+ * GENİŞ EKRAN EŞİĞİ — burada düzen bir sütundan İKİ sütuna geçer.
+ *
+ * 700pt bilinçli: en geniş telefon ~440pt (Pro Max, yatay tutulmadığı sürece), en dar
+ * tablet ~744pt (iPad mini). Yani eşik iki form faktörünün ARASINDA duruyor ve hiçbir
+ * telefon yanlışlıkla tablet düzenine düşmüyor. Katlanabilirlerde de doğru davranıyor:
+ * kapalıyken tek sütun, açılınca iki.
+ */
+export const WIDE_MIN = 700;
+
+/**
+ * Geniş ekranda içerik sütununun üst sınırı.
+ *
+ * MAX_W (600) tek sütunluk okunur satır genişliğidir; iki sütun + aralık için iki katı
+ * gerekiyor. 1240 en geniş tabletlerde bile kenarlarda nefes bırakır, 13" iPad'de
+ * (1032pt) ise hiç devreye girmez — orada sınırı ekranın kendisi koyar.
+ */
+export const MAX_W_WIDE = 1240;
+
+/**
+ * İçeriğin (ve başlık çubuğunun) o ekrandaki azami genişliği.
+ * Tek yerden okunur ki sayfalar arasında ayrışmasın.
+ */
+export const contentMaxWidth = (screenW: number) => (screenW >= WIDE_MIN ? MAX_W_WIDE : MAX_W);
+
 // Floating header/bottom-bar gibi mutlak konumlu öğeleri ortalamak için yan boşluk.
 export const sideInset = (screenW: number, base = 16) => Math.max(base, (screenW - MAX_W) / 2);
 

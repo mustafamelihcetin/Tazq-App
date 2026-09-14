@@ -98,7 +98,17 @@ const KNOWN_LARGE: Record<string, number> = {
   // karşılığı yok; koşul + gerekçesi eklendi.
   // 2472 → 2484: "Bugün" ekranına giriş (başlıktaki takvim düğmesi) + hızlı eklemenin
   // sarmalayıcısı. Ekranın kendisi ayrı dosyada (app/gun.tsx).
-  'app/tasks.tsx': 2484,
+  /*
+    TABLET DÜZENİ — dört ekranın da tavanı bu yüzden yükseldi.
+
+    Uygulama geniş ekranda içeriği 600pt'lik ortalı bir sütuna sıkıştırıyordu ve
+    tablette ekranın yarısı boş kalıyordu. Artık düzen iki sütuna açılıyor
+    (bkz. shared/components/ResponsiveColumns). Eklenen satırların neredeyse tamamı
+    SARMALAYICI ve GEREKÇE: <WideSplit>/<WideCol> etiketleri ile bunların NEDEN orada
+    olduğunu anlatan notlar. Mantık büyümedi; telefon yolunda tek bir dal bile
+    eklenmedi (eşik 700pt, en geniş telefon ~440pt).
+  */
+  'app/tasks.tsx': 2507,
   // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
   // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
   // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).
@@ -113,7 +123,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // o not silinirse aynı deneme yeniden yapılır (bkz. dashboardZeroState.test.ts).
   // 2166 → 2175: İKON KISAYOLLARI. Kısayolu karşılayan hook burada bağlanıyor (kök
   // düzende değil: kısayol bir gezinme başlatıyor, kök düzen çalışırken ağaç hazır değil).
-  'app/index.tsx': 2174,
+  'app/index.tsx': 2203,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.
@@ -125,7 +135,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // 1529 → 1530: CAM SAYFALAR. Alışkanlık ekleme ve plan sayfaları ortak cam yüzeye bağlandı.
   // 1530 → 1533: iOS 26/27 ARAÇ ÇUBUĞU DÜĞMESİ. Rapor ve ekle düğmeleri cam kabuğa
   // alındı (içe aktarım + düğme başına tek satır). Android'de kabuk çizilmiyor.
-  'app/cockpit.tsx': 1533,
+  'app/cockpit.tsx': 1552,
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.
@@ -138,7 +148,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // Zararsız değillerdi: emoji temizliği ÖLÜ kopyaya uygulanmış, canlı ExamCard
   // yarım kalmıştı.
   // 1391 → 1394: iOS 26/27 ARAÇ ÇUBUĞU DÜĞMESİ. Özet ve tanıtım düğmeleri cam kabuğa alındı.
-  'app/modlar.tsx': 1394,
+  'app/modlar.tsx': 1429,
   // 1199 → 1194: akıllı ayrıştırıcı ipucu NlpHintRow'a çıkarıldı. İpucu tek metin
   // olarak kuruluyordu ve temizlenmiş bir cümleyle dört HAM emojiyi (📅⏰🔁🏷️) aynı
   // Text düğümünde yan yana getiriyordu; parçalar artık tür taşıyor, ikonu sunum çiziyor.

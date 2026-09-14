@@ -33,7 +33,7 @@ import { StatusHub } from '@/features/dashboard/components/StatusHub';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getSmartInsight, generateWeeklyTips } from '@/shared/utils/insights';
 import { computeMomentum } from '@/shared/utils/momentum';
-import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, sideInset, HAIRLINE, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
+import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, fabSafeBottom, topBarSpace, TOP_BAR_HEIGHT, TOP_BAR_LIFT, TOP_ITEM_SIZE, TOP_AVATAR_SIZE, touchSlop } from '@/shared/constants/tokens';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey, useSleepHealthSync } from '@/features/habits';
@@ -58,6 +58,7 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
+import { WideSplit, WideCol } from '@/shared/components/ResponsiveColumns';
 import { MyDayTaskRow } from '@/features/dashboard/components/MyDayTaskRow';
 import { HabitBubble } from '@/features/habits/components/HabitBubble';
 import { swallow } from '@/shared/utils/swallow';
@@ -1441,7 +1442,12 @@ export default function HomeScreen() {
             // Dip boşluğu navbar'ın GERÇEK yüksekliğinden gelir (bkz. navBarSpace).
             // Sabit S.xxl yazıyordu: navbar 106pt kaplarken 64pt bırakıyordu, yani son
             // 42pt barın arkasında kalıyor ve kullanıcı en alta inemiyordu.
-            contentContainerStyle={[styles.scrollContent, { paddingTop: topBarSpace(insets.top) + S.lg, paddingBottom: fabSafeBottom(insets.bottom), width: '100%', maxWidth: MAX_W, alignSelf: 'center' }]}
+            /*
+              Geniş ekranda sütun 600'den 1240'a açılıyor (bkz. contentMaxWidth) — ama
+              içerik satırı uzamıyor, İKİYE bölünüyor (bkz. WideSplit). Telefonda
+              contentMaxWidth zaten MAX_W döndürdüğü için bu satır değişmemiş gibidir.
+            */
+            contentContainerStyle={[styles.scrollContent, { paddingTop: topBarSpace(insets.top) + S.lg, paddingBottom: fabSafeBottom(insets.bottom), width: '100%', maxWidth: contentMaxWidth(width), alignSelf: 'center' }]}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surfaceContainer} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
@@ -1457,6 +1463,17 @@ export default function HomeScreen() {
             </View>
 
             {/*
+              ── GENİŞ EKRANDA İKİ SÜTUN ───────────────────────────────────────────
+              Selamlama SAYFA BAŞLIĞI olduğu için bölünmenin dışında, tam genişlikte
+              kalıyor. Altındaki yüzeyler ise iki role ayrılıyor: solda kullanıcının
+              BAKTIĞI şey (plan, bugünün durumu, skor, sıradaki iş), sağda YAPACAĞI şey
+              (günün listesi, ritüeller, davetler). Telefonda bu ayrım hiç devreye
+              girmiyor; sıra ve çıktı bugünküyle birebir aynı.
+            */}
+            <WideSplit>
+
+            <WideCol>
+            {/*
               EKRAN DURUMA GÖRE KURULUYOR — "bugün ne yapmalıyım" sorusu en üstte.
 
               ÖLÇÜLEN SORUN: bu ekranda on iki yüzey yarışıyordu ve göz nereye gideceğini
@@ -1471,6 +1488,7 @@ export default function HomeScreen() {
               ilk gördüğü şey, yapacağı iş değil aldığı nottu.
             */}
             <ModeTodayCard onOpen={() => router.push('/modlar')} />
+            </WideCol>
 
             {/*
               MOD YOKKEN SKOR YERİNDE KALIYOR.
@@ -1483,8 +1501,9 @@ export default function HomeScreen() {
               Aktif dönem varsa ekranın konusu PLAN oluyor; skor o zaman eylemlerin altına
               iniyor. Kart tek yerde tanımlı, yalnız KONUMU duruma göre değişiyor.
             */}
-            {!modeFirst && momentumRow}
+            <WideCol>{!modeFirst && momentumRow}</WideCol>
 
+            <WideCol>
             <TodayCard
               completed={todayCompleted}
               goal={dailyGoal}
@@ -1501,8 +1520,10 @@ export default function HomeScreen() {
               theme={theme}
               padding={bentoPad}
             />
+            </WideCol>
 
-            {/* Unified My Day Bento Card */}
+            {/* Unified My Day Bento Card — geniş ekranda SAĞ sütunun tepesi. */}
+            <WideCol col="right">
             {(myDayTasks.length > 0 || myDayHabits.length > 0) && (
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 {overdueCount > 0 && (
@@ -1670,12 +1691,13 @@ export default function HomeScreen() {
                 </BentoCard>
               </View>
             )}
+            </WideCol>
 
             {/* Aktif dönem varsa skor BURADA — eylemlerin altında (yukarıdaki nota bkz.). */}
-            {modeFirst && momentumRow}
+            <WideCol>{modeFirst && momentumRow}</WideCol>
 
             {/* Focus Widget */}
-            <DynamicIsland />
+            <WideCol><DynamicIsland /></WideCol>
 
             {/* İlk açılış — soğuk başlangıç kartı: görev ve alışkanlık yokken kullanıcıya net 3 giriş noktası sunar */}
             {/*
@@ -1683,6 +1705,7 @@ export default function HomeScreen() {
               çıkıyor ve ikisi çakışıyordu. Tur ilk göreve taşınınca o koşul boş ekranı
               rehbersiz bırakırdı: görevi olmayan yeni kullanıcı ne turu ne kartı görürdü.
             */}
+            <WideCol col="right">
             {tasks.length === 0 && habits.length === 0 && (
               <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
                 <BentoCard index={1} style={{ padding: isSmallScreen ? S.md : S.lg, gap: S.sm }}>
@@ -1706,6 +1729,7 @@ export default function HomeScreen() {
                 </BentoCard>
               </View>
             )}
+            </WideCol>
 
             {/* Sonraki görev — dashboard'ın tek eylem çağrısı. Hiç görev/alışkanlık
                 yoksa gösterilmez: orada soğuk başlangıç kartı zaten yönlendiriyor.
@@ -1715,9 +1739,10 @@ export default function HomeScreen() {
                 eylemle açılsın) ama SAYFANIN RİTMİNİ bozdu: momentum satırı kartsızdır ve
                 eskiden selamlamayla kartlar arasında yumuşak bir geçiş kuruyordu. Üstüne
                 bir kart konunca iki ağır kartın arasında sıkışıp öksüz kaldı. */}
-            {nextMissionCard}
+            <WideCol>{nextMissionCard}</WideCol>
 
             {/* ── Turkish Mode Banner (opt-in) ── */}
+            <WideCol col="right">
             {activeMode && !modeDismissed && (
               <View style={{ paddingHorizontal: S.lg }}>
                 <TurkishModeBanner
@@ -1751,8 +1776,10 @@ export default function HomeScreen() {
               />
               </View>
             )}
+            </WideCol>
 
             {/* ── Section Header — easter egg sadece aktifken görünür ── */}
+            <WideCol col="right">
             {headerHighlight && (
               <Touchable onPress={headerTap.onTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
                 <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
@@ -1765,7 +1792,9 @@ export default function HomeScreen() {
                 </Animated.View>
               </Touchable>
             )}
+            </WideCol>
 
+            </WideSplit>
 
         </Animated.ScrollView>
 

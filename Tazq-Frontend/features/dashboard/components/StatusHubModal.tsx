@@ -8,7 +8,7 @@ import { BrainCircuit, Zap, Target, Play, TrendingUp, TrendingDown, Check, Coffe
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
-import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, MAX_W, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { AppIcon } from '@/shared/components/AppIcon';
 interface StatusHubModalProps {
@@ -250,7 +250,15 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
           <ScrollView
             showsVerticalScrollIndicator={false}
             style={{ maxHeight: 380 }}
-            contentContainerStyle={{ gap: scale(16) }}
+            /*
+              GENİŞ EKRANDA İÇERİK ORTALI BİR SÜTUNDA KALIR.
+              Sayfa (bottom sheet) tablette ekranın tamamını kaplıyor ve içindeki
+              kartlar 900pt'ye kadar uzuyordu: 64pt'lik skor halkasıyla yanındaki iki
+              satırlık değerlendirme arasında yarım ekran boşluk kalıyor, göz ikisini
+              birbirine bağlayamıyordu. Sayfanın kendisi geniş kalıyor (tam genişlik
+              yükselen bir yüzey), yalnız İÇERİĞİ okunur bir sütuna hizalanıyor.
+            */
+            contentContainerStyle={{ gap: scale(16), width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
           >
             {/* HERO: Focus Score Card */}
             <View style={{

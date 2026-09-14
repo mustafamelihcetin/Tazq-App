@@ -46,10 +46,22 @@ const CEILING: Record<string, number> = {
   // 8 → 7: "Bildirimler Açık" yeşili theme.success'e bağlandı (kapalı hâli zaten tema-token'dı)
   'app/settings.tsx': 7,
   'features/user/components/RocketFeedback.tsx': 49,  // kendi durum renk dili (cyan/mor/turuncu/kırmızı)
-  // 42 → 57: pazarlama sayfası, kendi görsel dili. Aydınlık/koyu tema seçimi eklendi →
-  // artık İKİ tam palet (accent + nötr çiftleri) taşıyor; renk tanımları doğal olarak ~ikiye
-  // katlandı. Bilinçli yükseltme (bkz. tema toggle, ACCENTS/NEUTRAL). Bu satır yine yalnız küçülmeli.
-  'app/promo.tsx': 57,
+  // 42 → 57 → 27: nötr palet (kart/zemin/metin/kenar) tamamen `Colors`'a bağlandı ve
+  // mock motoru kendi dosyasına ayrıldı. Sayfada kalan 27 renk slaytların ARKA PLAN
+  // gradyanları: bunlar arayüz değil, her slaytın kimliğini taşıyan kompozisyon renkleri
+  // (ACCENTS ile birlikte okunur) ve bir tema jetonu karşılıkları yok.
+  'app/promo.tsx': 27,
+  // PromoMock LİSTEDEN ÇIKTI (23 → 0): dosya bölününce sabit renklerin tamamı iki
+  // yere taşındı ve çizim kodunda tek bir hex kalmadı — kart/zemin/metin/kenarların
+  // hepsi `Colors` jetonlarından geliyor.
+  //
+  // ACCENTS çiftleri (yedi vurgu × iki tema): slaytların KİMLİK renkleri, arayüz
+  // değil. Aydınlık/koyu karşılıkları elle seçildi çünkü paletin semantik tonları
+  // (primary/success/…) bir pazarlama kompozisyonunun işini görmüyor.
+  'features/promo/promoTheme.ts': 14,
+  // Derin odak ekranının aurora lekeleri: uygulamada bir Skia shader'ından doğuyorlar,
+  // tema jetonlarıyla ifade edilebilecek bir şey değiller.
+  'features/promo/components/PromoFocusMock.tsx': 9,
   // modlar.tsx LİSTEDEN ÇIKTI (25 → 3 → 0):
   //   25 → 3 : mod vurguları merkezi palete bağlandı (useModeAccent / ModeAccents).
   //            Buradaki ham hex'ler paletin KONTRAST YETERSİZLİĞİ nedeniyle reddettiği

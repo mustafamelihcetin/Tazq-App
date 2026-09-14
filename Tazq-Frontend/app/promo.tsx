@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { MotiView } from 'moti';
 import { useRouter } from 'expo-router';
-import { X, EyeOff, Moon, Sun } from 'lucide-react-native';
+import { X, EyeOff, Moon, Sun, Smartphone, Tablet } from 'lucide-react-native';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 /*
   MOCK EKRANLAR KENDİ DOSYASINDA.
@@ -18,6 +18,7 @@ import { TazqLogo } from '@/shared/components/TazqLogo';
 import {
   PromoMock, ACCENTS, type AccentKey, type PromoKind, type PromoMode,
 } from '@/features/promo/components/PromoMock';
+import { PROMO_DEVICES, PROMO_DEVICE_ORDER, type PromoDeviceId } from '@/features/promo/promoDevices';
 import { Touchable } from '@/shared/components/Touchable';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useAuthStore } from '@/features/user';
@@ -101,6 +102,30 @@ const SLIDES: SlideDef[] = [
     sEn: 'Free. Start trying it without an account.' },
 ];
 
+/*
+  TANITIM KABUĞUNUN KENDİ ETİKETLERİ.
+
+  Mock'un metinleri zaten sözlükten geliyor (bkz. promoCopy); geriye bu sayfanın kendi
+  düğme adları kalmıştı ve satır içi dallanıyorlardı. Aynı kural burada da geçerli: iki
+  dil YAN YANA dursun, biri güncellenip öteki unutulmasın (bkz. i18nRatchet). Çoğu
+  ekran okuyucuya okunan ad — gözle görülmediği için ayrışması en kolay metin türü.
+*/
+const UI: Record<'tr' | 'en', {
+  close: string; device: string; switchDevice: string; lightTheme: string;
+  darkTheme: string; clean: string; swipe: string; showChrome: string;
+}> = {
+  tr: {
+    close: 'Kapat', device: 'Cihaz', switchDevice: 'Değiştirmek için dokun',
+    lightTheme: 'Açık tema', darkTheme: 'Koyu tema', clean: 'Temiz',
+    swipe: 'kaydır', showChrome: 'Arayüzü göster',
+  },
+  en: {
+    close: 'Close', device: 'Device', switchDevice: 'Tap to switch',
+    lightTheme: 'Light theme', darkTheme: 'Dark theme', clean: 'Clean',
+    swipe: 'swipe', showChrome: 'Show controls',
+  },
+};
+
 // Bu slaytın ARKA PLANI koyu mu? Odak ve marka her modda koyu (derin odak koyu ekran, kapanış dramatik).
 type Mode = PromoMode;
 type Kind = PromoKind;
@@ -113,6 +138,12 @@ export default function PromoScreen() {
   // Promo içinde yerel dil + tema — uygulamanın genel ayarını değiştirmeden TR/EN ve açık/koyu screenshot al
   const [lang, setLang] = useState<'tr' | 'en'>(language === 'en' ? 'en' : 'tr');
   const [mode, setMode] = useState<Mode>('dark');
+  /*
+    Hangi cihazın görseli çekiliyor. Dört ayrı mağaza yuvası var (App Store iPhone +
+    iPad, Play telefon + tablet) ve uygulama dördünde de farklı duruyor — bkz.
+    promoDevices. Düğme sırayla dolaşıyor.
+  */
+  const [deviceId, setDeviceId] = useState<PromoDeviceId>('iphone');
   const tr = lang === 'tr';
   const role = useAuthStore((s) => s.user?.role);
   const { width: W, height: H } = useWindowDimensions();
@@ -136,12 +167,60 @@ export default function PromoScreen() {
   };
 
   const A = ACCENTS[mode];
+  const u = UI[lang];
 
-  // Telefon çerçevesi ölçüsü
-  let fh = H * 0.62;
-  let fw = fh / 2.05;
-  if (fw > W * 0.72) { fw = W * 0.72; fh = fw * 2.05; }
-  const S = fw / 234; // ölçek (temel genişlik 234)
+  /*
+    ── TELEFON ÇERÇEVESİ GERÇEK BİR CİHAZIN ÖLÇEKLİ KOPYASI ──────────────────────
+    İç ekran seçili cihazın mantıksal ölçülerinde kurgulanıp (bkz. DEVICES) TEK bir
+    çarpanla küçültülüyor; mock'un içindeki her ölçü de aynı çarpandan geçiyor
+    (bkz. PromoMock `px`).
+
+    Referansın gerçek cihaz olması şart. Bir tur önce 234 alınmıştı: mock'taki her şey
+    1.68 kat büyük çiziliyordu, yazılar sığmıyor ve kartlar iç içe giriyordu. "Oranı
+    koruyorum" cümlesi ancak referans gerçek cihazsa bir anlam taşır — aksi hâlde
+    korunan oran, var olmayan bir telefonun oranı olur.
+  */
+  const device = PROMO_DEVICES[deviceId];
+  /*
+    ── ÇERÇEVEYE AYRILAN ALAN FORM FAKTÖRÜNE GÖRE ──────────────────────────────
+    Çerçeve hem yüksekliğe hem genişliğe sığmak zorunda. Telefonda yükseklik bağlar
+    (dar ve uzun), tablette genişlik — tablet oranı 3:4'e yakın ve aynı bütçeyle
+    çizilirse slaytın iki yanından taşar.
+
+    Tablete daha cömert bir bütçe veriliyor ve bunun DÜRÜST sebebi şu: 13" iPad
+    1032pt geniş, yani telefonun 2.6 katı. Aynı piksel genişliğine sığdırılınca her
+    şey 2.6 kat küçülüyor ve 14pt'lik gövde yazısı okunamaz hâle geliyor. Bütçeyi
+    büyütmek bunu tamamen çözmüyor — çözemez de, oran oran — ama tablet görselini
+    "ne yazdığı seçilen" tarafta tutuyor. Oranlardan ödün verilmiyor; yalnız çerçeve
+    slaytın daha büyük bir kısmını kaplıyor.
+  */
+  const maxW = W * (device.wide ? 0.88 : 0.68);
+  const maxH = H * (device.wide ? 0.66 : 0.62);
+  let screenH = maxH;
+  let screenW = (screenH * device.w) / device.h;
+  if (screenW > maxW) {
+    screenW = maxW;
+    screenH = (screenW * device.h) / device.w;
+  }
+  /** Uygulama pt'si → mock pt'si. Mock'un tamamı bu tek çarpanla ölçekleniyor. */
+  const S = screenW / device.w;
+
+  /*
+    ── GÖVDE ──────────────────────────────────────────────────────────────────
+    `BEZEL` ekranın etrafındaki siyah çerçeve, `RAIL` de gövdenin dış kenarındaki
+    ince parlama (metal çerçeve). İkisi de ölçekle büyüyüp küçülüyor; sabit piksel
+    verilince küçük telefonda kalın, büyükte kâğıt gibi ince kalıyordu.
+
+    ÖLÇÜ SABİT PİKSEL DEĞİL, KUTU MODELİ HESABI. Önceki hâlde gövdeye `borderWidth`
+    ve `padding` birlikte veriliyordu ama genişlik yalnız ekran + pay kadardı:
+    RN'de ikisi de genişliğin İÇİNDEN yediği için iç ekran gövdeden 4px taşıyor,
+    köşeler kayıyordu. Şimdi dış ölçü ikisini de kapsıyor.
+  */
+  const BEZEL = Math.max(3, Math.round(8 * S));
+  const RAIL = 1;
+  /** Eş merkezli köşe: dıştaki yarıçap = içteki + aradaki kalınlık. */
+  const innerRadius = device.radius * S;
+  const outerRadius = innerRadius + BEZEL + RAIL;
 
   // Şu an görünen slaytın alt kontrol (nokta/metin) rengi arka plana göre
   const pageDark = backdropIsDark(SLIDES[page]?.kind ?? 'focus', mode);
@@ -178,11 +257,39 @@ export default function PromoScreen() {
                       </MotiView>
                     ) : (
                       /* Telefon çerçevesi + temsili ekran */
-                      <View style={{ width: fw, height: fh, borderRadius: 34 * S, backgroundColor: '#000', padding: 6 * S, borderWidth: 2, borderColor: 'rgba(255,255,255,0.16)', shadowColor: accent, shadowOpacity: bd ? 0.5 : 0.32, shadowRadius: 28, shadowOffset: { width: 0, height: 12 } }}>
-                        <View style={{ flex: 1, borderRadius: 29 * S, overflow: 'hidden' }}>
-                          <PromoMock kind={slide.kind} mode={mode} lang={lang} frameWidth={fw} scale={S} />
+                      <View
+                        style={{
+                          // Dış ölçü, çerçeveyi VE kenar çizgisini kapsar: içeride tam
+                          // olarak `screenW × screenH` kalır, hiçbir şey taşmaz.
+                          width: screenW + (BEZEL + RAIL) * 2,
+                          height: screenH + (BEZEL + RAIL) * 2,
+                          borderRadius: outerRadius,
+                          backgroundColor: '#000',
+                          borderWidth: RAIL,
+                          borderColor: 'rgba(255,255,255,0.22)',
+                          padding: BEZEL,
+                          shadowColor: accent,
+                          shadowOpacity: bd ? 0.5 : 0.32,
+                          shadowRadius: 28,
+                          shadowOffset: { width: 0, height: 12 },
+                          elevation: 12,
+                        }}
+                      >
+                        <View style={{ width: screenW, height: screenH, borderRadius: innerRadius, overflow: 'hidden', backgroundColor: '#000' }}>
+                          <PromoMock kind={slide.kind} mode={mode} lang={lang} device={device} frameWidth={screenW} scale={S} />
+                          {/*
+                            Kamera kesiti EKRANIN İÇİNDE çiziliyor — çünkü gerçekte de
+                            ekranın içindeki bir delik. Gövdeye konsaydı köşe kırpmasının
+                            dışında kalır ve iç payla hizası kayardı (bir kez öyle oldu).
+                            Dynamic Island bir kapsül (125 × 37pt), Pixel'inki ortada
+                            11dp'lik bir delik. Çentik ikisi de değil.
+                          */}
+                          {device.island ? (
+                            <View style={{ position: 'absolute', top: 11 * S, left: (screenW - 125 * S) / 2, width: 125 * S, height: 37 * S, borderRadius: 999, backgroundColor: '#000' }} />
+                          ) : (
+                            <View style={{ position: 'absolute', top: 8.5 * S, left: (screenW - 11 * S) / 2, width: 11 * S, height: 11 * S, borderRadius: 999, backgroundColor: '#000' }} />
+                          )}
                         </View>
-                        <View style={{ position: 'absolute', top: 12 * S, alignSelf: 'center', width: fw * 0.3, height: 7 * S, borderRadius: 4, backgroundColor: '#000' }} />
                       </View>
                     )}
                   </MotiView>
@@ -198,12 +305,27 @@ export default function PromoScreen() {
         <>
           <SafeAreaView edges={['top']} style={{ position: 'absolute', top: 0, left: 0, right: 0 }} pointerEvents="box-none">
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 6 }}>
-              <Touchable accessibilityRole="button" accessibilityLabel={lang === 'tr' ? 'Kapat' : 'Close'} hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }} onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+              <Touchable accessibilityRole="button" accessibilityLabel={u.close} hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }} onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
                 <X size={20} color="#FFFFFF" />
               </Touchable>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {/*
+                  CİHAZ DÜĞMESİ — hangi mağazanın görselini çektiğini söyler.
+                  Etiket cihaz adı ("iPhone"/"Pixel"), platform adı değil: ekrandaki
+                  çerçeve o cihazın kendisi ve ölçüleri oradan geliyor.
+                */}
+                <Touchable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${u.device}: ${device.label}. ${u.switchDevice}`}
+                  hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }}
+                  onPress={() => setDeviceId((d) => PROMO_DEVICE_ORDER[(PROMO_DEVICE_ORDER.indexOf(d) + 1) % PROMO_DEVICE_ORDER.length])}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 12, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)' }}
+                >
+                  {device.wide ? <Tablet size={16} color="#FFFFFF" /> : <Smartphone size={16} color="#FFFFFF" />}
+                  <Text numberOfLines={1} style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>{device.label}</Text>
+                </Touchable>
                 {/* Açık / Koyu tema düğmesi */}
-                <Touchable accessibilityRole="button" accessibilityLabel={mode === 'dark' ? (tr ? 'Açık tema' : 'Light theme') : (tr ? 'Koyu tema' : 'Dark theme')} hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => setMode((m) => (m === 'dark' ? 'light' : 'dark'))} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+                <Touchable accessibilityRole="button" accessibilityLabel={mode === 'dark' ? u.lightTheme : u.darkTheme} hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => setMode((m) => (m === 'dark' ? 'light' : 'dark'))} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
                   {mode === 'dark' ? <Sun size={18} color="#FFFFFF" /> : <Moon size={18} color="#FFFFFF" />}
                 </Touchable>
                 {/* TR / EN dil düğmesi */}
@@ -216,7 +338,7 @@ export default function PromoScreen() {
                 </View>
                 <Touchable hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }} onPress={() => setChrome(false)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 14, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.35)' }}>
                   <EyeOff size={16} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>{tr ? 'Temiz' : 'Clean'}</Text>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>{u.clean}</Text>
                 </Touchable>
               </View>
             </View>
@@ -228,13 +350,13 @@ export default function PromoScreen() {
                   <View key={i} style={{ width: i === page ? 22 : 7, height: 7, borderRadius: 4, backgroundColor: i === page ? (pageDark ? '#FFFFFF' : '#12131A') : (pageDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.25)') }} />
                 ))}
               </View>
-              <Text style={{ color: pageDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)', fontSize: 11 }}>{tr ? `${page + 1} / ${SLIDES.length} · kaydır` : `${page + 1} / ${SLIDES.length} · swipe`}</Text>
+              <Text style={{ color: pageDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)', fontSize: 11 }}>{`${page + 1} / ${SLIDES.length} · ${u.swipe}`}</Text>
             </View>
           </SafeAreaView>
         </>
       ) : (
         <SafeAreaView edges={['top']} style={{ position: 'absolute', top: 0, right: 0 }}>
-          <Touchable onPress={() => setChrome(true)} activeOpacity={1} style={{ width: 56, height: 56 }} accessibilityRole="button" accessibilityLabel={tr ? 'Arayüzü göster' : 'Show controls'} />
+          <Touchable onPress={() => setChrome(true)} activeOpacity={1} style={{ width: 56, height: 56 }} accessibilityRole="button" accessibilityLabel={u.showChrome} />
         </SafeAreaView>
       )}
     </View>

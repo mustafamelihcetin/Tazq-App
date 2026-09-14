@@ -27,7 +27,8 @@ import {
   scheduleRamadanStartNotification,
   cancelRamadanStartNotification,
 } from '@/shared/utils/notifications';
-import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
+import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W, MAX_W_WIDE, contentMaxWidth, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
+import { useWideLayout } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporStore';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
@@ -102,6 +103,23 @@ export default function ModlarScreen() {
   const screenWidth = Dimensions.get('window').width;
   const availableWidth = screenWidth - 84; // screen padding S.lg (24*2) + card padding S.md (16*2) = 80px + 4px safety buffer
   const BASE_CALENDAR_WIDTH = 340;
+
+  /*
+    ── GENİŞ EKRANDA KARTLAR YAN YANA ────────────────────────────────────────────
+    Tablette bu ekran 600pt'lik sütunda tek sıra kart gösteriyordu; ekranın yarısı
+    boş kalıyordu. Artık kartlar iki, keşif ızgarası dört sütuna açılıyor.
+
+    `gridW` İÇERİK KABININ genişliği, ekranınki değil. Keşif ızgarası ham `screenWidth`
+    ile hesaplıyordu ve tablette kart genişliği 484pt çıkıyordu — 600pt'lik kaba iki
+    tanesi sığmadığı için ızgara alt alta düşüyor, üstelik kabı yatayda taşırıyordu.
+    Yani bu ekranın tablette görünen hâli yalnız boş değil, BOZUKTU.
+  */
+  const wide = useWideLayout();
+  const gridW = Math.min(screenWidth, contentMaxWidth(screenWidth));
+  /** Kabın iç genişliği (yan boşluklar düşülmüş). */
+  const innerW = gridW - S.lg * 2;
+  /** Geniş ekranda bir mod kartının genişliği — iki sütun. */
+  const modeCardW = (innerW - S.md) / 2;
   const calendarScale = availableWidth < BASE_CALENDAR_WIDTH ? (availableWidth / BASE_CALENDAR_WIDTH) : 1;
   const { language } = useLanguageStore();
   const ramadanStatus = useMemo(() => getCurrentRamadanStatus(), []);
@@ -826,7 +844,7 @@ export default function ModlarScreen() {
           <Animated.ScrollView
             ref={scrollViewRef}
             style={{ flex: 1 }}
-            contentContainerStyle={{ paddingBottom: navBarSpace(insets.bottom) + S.md, paddingHorizontal: S.lg, paddingTop: topBarSpace(insets.top) + S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+            contentContainerStyle={{ paddingBottom: navBarSpace(insets.bottom) + S.md, paddingHorizontal: S.lg, paddingTop: topBarSpace(insets.top) + S.lg, width: '100%', maxWidth: contentMaxWidth(screenWidth), alignSelf: 'center' }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             scrollEventThrottle={16}
@@ -994,7 +1012,18 @@ export default function ModlarScreen() {
                     </Text>
                   ) : null}
                 </View>
-                {section.cards}
+                {/*
+                  Dar ekranda kartlar olduğu gibi alt alta. Geniş ekranda her biri
+                  yarım sütun genişliğinde bir kaba sarılıp yan yana diziliyor —
+                  kartların KENDİ kodu değişmiyor, yalnız içine oturdukları kap.
+                */}
+                {wide ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.md }}>
+                    {React.Children.map(section.cards, (card, i) => (
+                      <View key={i} style={{ width: modeCardW }}>{card}</View>
+                    ))}
+                  </View>
+                ) : section.cards}
               </View>
             ))}
 
@@ -1077,7 +1106,13 @@ export default function ModlarScreen() {
 
               if (discoveryItems.length === 0) return null;
 
-              const cardW = (screenWidth - S.lg * 2 - S.md) / 2;
+              /*
+                Sütun sayısı ekrana göre: telefonda 2, tablette 4. Hesap İÇERİK KABININ
+                genişliğinden (innerW) türüyor — ham `screenWidth` kullanılınca tablette
+                kartlar kabı taşırıyordu.
+              */
+              const gridCols = wide ? 4 : 2;
+              const cardW = (innerW - S.md * (gridCols - 1)) / gridCols;
 
               return (
                 <View style={{ gap: S.md, marginTop: statusActiveCount > 0 ? S.lg : S.sm }}>

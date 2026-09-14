@@ -109,7 +109,9 @@ const BASELINE: Record<string, number> = {
   'app/modlar.tsx': 66,
   'app/onboarding.tsx': 21,
   'app/profile.tsx': 44,
-  'app/promo.tsx': 47,
+  // promo.tsx LİSTEDEN ÇIKTI (47 → 6 → 0): önce mock ekranların bütün metinleri tek
+  // sözlüğe taşındı (COPY, bkz. PromoMock.tsx), sonra tanıtım kabuğunun kendi düğme
+  // etiketleri de (UI). Slayt metinleri zaten SlideDef alanlarından geliyor.
   'app/register.tsx': 35,
   'app/report.tsx': 13,
   'app/settings.tsx': 84,

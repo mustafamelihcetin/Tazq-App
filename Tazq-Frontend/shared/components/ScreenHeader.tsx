@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import {
-  S, ICON, MAX_W,
+  S, ICON, MAX_W, contentMaxWidth,
   TOP_BAR_HEIGHT, TOP_TITLE_SIZE, TOP_SUBTITLE_SIZE,
 } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
@@ -323,7 +323,12 @@ export const ScreenHeader = ({
       </Animated.View>
 
       {/* Geniş/foldable ekranda içerikle aynı sütuna hizalanır (sayfa gövdesi de MAX_W). */}
-      <View style={[styles.column, { maxWidth: Math.min(width, MAX_W) }]}>
+      {/*
+        Geniş ekranda başlık çubuğu İÇERİKLE aynı sütuna hizalanır (bkz. contentMaxWidth):
+        içerik 1240'a açılırken avatarın 600'lük sütunda kalması, düğmeleri sayfanın
+        ortasına doğru kaydırıp çubuğu içeriğinden koparırdı.
+      */}
+      <View style={[styles.column, { maxWidth: Math.min(width, contentMaxWidth(width)) }]}>
         {/*
           YÜKSEKLİK SABİT — bir tur küçültme denendi, GERİ ALINDI.
 
