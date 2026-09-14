@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, TextInput, Keyboard, Switch, Dimensions, KeyboardAvoidingView, FlatList, Animated, useWindowDimensions } from 'react-native';
 import { swallow } from '@/shared/utils/swallow';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -28,7 +28,7 @@ import {
   cancelRamadanStartNotification,
 } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W, MAX_W_WIDE, contentMaxWidth, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
-import { useWideLayout } from '@/shared/components/ResponsiveColumns';
+import { useTabletLayout, useWideLayout } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporStore';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
@@ -100,7 +100,12 @@ export default function ModlarScreen() {
   const insets = useSafeAreaInsets();
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
-  const screenWidth = Dimensions.get('window').width;
+  /*
+     `Dimensions.get()` ilk değeri DONDURUR: cihaz döndürülünce, bölünmüş ekranda ya da
+     katlanabilir açılınca bileşen yeniden render olmaz ve kart genişlikleri eski ekrana
+     göre kalır. `useWindowDimensions` her değişimde render eder.
+   */
+  const { width: screenWidth } = useWindowDimensions();
   const availableWidth = screenWidth - 84; // screen padding S.lg (24*2) + card padding S.md (16*2) = 80px + 4px safety buffer
   const BASE_CALENDAR_WIDTH = 340;
 
@@ -114,7 +119,8 @@ export default function ModlarScreen() {
     tanesi sığmadığı için ızgara alt alta düşüyor, üstelik kabı yatayda taşırıyordu.
     Yani bu ekranın tablette görünen hâli yalnız boş değil, BOZUKTU.
   */
-  const wide = useWideLayout();
+  const wide = useWideLayout();     // ≥1100 — sayfa ikiye bölünür
+  const tablet = useTabletLayout();  // ≥700  — sütun genişler, kartlar yan yana
   const gridW = Math.min(screenWidth, contentMaxWidth(screenWidth));
   /** Kabın iç genişliği (yan boşluklar düşülmüş). */
   const innerW = gridW - S.lg * 2;
@@ -1017,7 +1023,7 @@ export default function ModlarScreen() {
                   yarım sütun genişliğinde bir kaba sarılıp yan yana diziliyor —
                   kartların KENDİ kodu değişmiyor, yalnız içine oturdukları kap.
                 */}
-                {wide ? (
+                {tablet ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: S.md }}>
                     {React.Children.map(section.cards, (card, i) => (
                       <View key={i} style={{ width: modeCardW }}>{card}</View>
@@ -1111,7 +1117,7 @@ export default function ModlarScreen() {
                 genişliğinden (innerW) türüyor — ham `screenWidth` kullanılınca tablette
                 kartlar kabı taşırıyordu.
               */
-              const gridCols = wide ? 4 : 2;
+              const gridCols = wide ? 4 : tablet ? 3 : 2;
               const cardW = (innerW - S.md * (gridCols - 1)) / gridCols;
 
               return (

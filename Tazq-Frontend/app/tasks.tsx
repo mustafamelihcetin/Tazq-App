@@ -23,7 +23,7 @@ import { useFocusStore } from '@/features/focus';
 import { usePrefsStore, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
 import { MagneticFAB } from '@/shared/components/MagneticFAB';
-import { useWideLayout } from '@/shared/components/ResponsiveColumns';
+import { useTabletLayout, useWideLayout } from '@/shared/components/ResponsiveColumns';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -568,8 +568,14 @@ export default function ActionCenter() {
   };
   const setCurrentTask = useFocusStore(s => s.setCurrentTask);
   const { width, height } = useWindowDimensions();
-  /** Geniş ekranda (tablet/foldable) liste iki sütuna açılır — bkz. FlatList numColumns. */
+  /*
+    Liste sütun sayısı: telefonda 1, dikey tablette 2, çok geniş ekranda 3.
+    Kart genişliği her kademede telefondakine yakın kalıyor (~370pt) — ızgara
+    büyüdükçe kartlar şişmiyor, SAYILARI artıyor.
+  */
   const wide = useWideLayout();
+  const tablet = useTabletLayout();
+  const listCols = wide ? 3 : tablet ? 2 : 1;
   const router = useRouter();
   const { action, highlightId, dateFilter } = useLocalSearchParams<{ action?: string; highlightId?: string; dateFilter?: string }>();
   const insets = useSafeAreaInsets();
@@ -2003,9 +2009,9 @@ export default function ActionCenter() {
           verilebilir — tek sütunda geçilirse RN hata atar.
         */}
         <Animated.FlatList itemLayoutAnimation={LinearTransition.springify().damping(18).stiffness(90)}
-            key={wide ? 'grid' : 'list'}
-            numColumns={wide ? 2 : 1}
-            columnWrapperStyle={wide ? { gap: S.sm } : undefined}
+            key={`cols-${listCols}`}
+            numColumns={listCols}
+            columnWrapperStyle={listCols > 1 ? { gap: S.sm } : undefined}
             style={{ flex: 1 }}
             data={filteredTasks}
             keyExtractor={(item: any) => item.id.toString()}
@@ -2148,7 +2154,7 @@ export default function ActionCenter() {
                 KALAN son kart içindir — kapsız bırakılınca satırın tamamını kaplar ve
                 ızgaranın son satırı ötekilerden farklı görünür.
               */
-              <View style={wide ? { flex: 1, minWidth: 0, maxWidth: '50%' } : undefined}>
+              <View style={listCols > 1 ? { flex: 1, minWidth: 0, maxWidth: `${100 / listCols}%` } : undefined}>
                 <MemoizedTaskItem
                     task={task}
                     // Mod bilgisi ebeveynde TEK geçişte hesaplandı; kart artık hiçbir

@@ -130,6 +130,12 @@ const UI: Record<'tr' | 'en', {
 type Mode = PromoMode;
 type Kind = PromoKind;
 
+/**
+ * Metin bloğunun sabit yüksekliği: göz kaşı + iki satır başlık + iki satır alt metin.
+ * Slaytlar arasında kaydırırken telefon çerçevesinin zıplamaması için sabit.
+ */
+const TEXT_BLOCK_H = 168;
+
 const backdropIsDark = (kind: Kind, mode: Mode) => mode === 'dark' || kind === 'focus' || kind === 'brand';
 
 export default function PromoScreen() {
@@ -149,6 +155,19 @@ export default function PromoScreen() {
   const { width: W, height: H } = useWindowDimensions();
 
   const [chrome, setChrome] = useState(true);
+  /*
+    ── ÇERÇEVE, METNİN ALTINDA KALAN GERÇEK ALANA GÖRE ─────────────────────────
+    Yükseklik ekranın sabit bir oranından (H * 0.66) hesaplanıyordu ve bu bir
+    VARSAYIMDI: metin bloğunun ne kadar yer kaplayacağını bildiğini sanıyordu.
+    Oysa blok slayda ve dile göre uzuyor — iki satırlık başlık + iki satırlık alt
+    metin olduğunda çerçeve yukarı taşıp yazının üstüne biniyordu (Pixel Tablet,
+    1. slayt). Tablet oranı geniş olduğu için önce orada görüldü ama varsayım
+    baştan yanlıştı.
+
+    Artık sahne kendi boyunu ÖLÇÜYOR. Metin bloğu da sabit yükseklikte: slaytlar
+    arasında kaydırırken telefonun zıplamaması için (ölçü en uzun metne göre).
+  */
+  const [stageH, setStageH] = useState(0);
   const [page, setPage] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
@@ -194,8 +213,13 @@ export default function PromoScreen() {
     "ne yazdığı seçilen" tarafta tutuyor. Oranlardan ödün verilmiyor; yalnız çerçeve
     slaytın daha büyük bir kısmını kaplıyor.
   */
-  const maxW = W * (device.wide ? 0.88 : 0.68);
-  const maxH = H * (device.wide ? 0.66 : 0.62);
+  const maxW = W - 56 - (device.wide ? 0 : W * 0.3);   // 28pt sayfa payı × 2
+  /*
+    Ölçüm gelene kadar TEMKİNLİ bir tahmin: ilk karede çerçeve biraz küçük çizilip
+    hemen doğru boyuna oturur. Tersi (büyük başlayıp küçülmek) ilk karede çakışma
+    demek olurdu.
+  */
+  const maxH = (stageH > 0 ? stageH : H * 0.5) - 8;
   let screenH = maxH;
   let screenW = (screenH * device.w) / device.h;
   if (screenW > maxW) {
@@ -242,12 +266,19 @@ export default function PromoScreen() {
             <LinearGradient pointerEvents="none" colors={['transparent', accent + (bd ? '1F' : '17')]} start={{ x: 0.4, y: 0.6 }} end={{ x: 0.05, y: 1 }} style={StyleSheet.absoluteFill} />
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
               <View style={{ flex: 1, paddingHorizontal: 28, paddingTop: H * 0.035, paddingBottom: 30 }}>
-                <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 450 }}>
+                {/* Sabit yükseklik: slaytlar arası kaydırmada telefon zıplamasın. */}
+                <MotiView from={{ opacity: 0, translateY: 12 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 450 }} style={{ height: TEXT_BLOCK_H }}>
                   <Text style={{ color: accent, fontSize: 13, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase' }}>{tr ? slide.ebTr : slide.ebEn}</Text>
                   <Text style={{ color: titleColor, fontSize: Math.min(32, W * 0.08), fontWeight: '800', letterSpacing: -0.6, marginTop: 8, lineHeight: Math.min(42, W * 0.108), paddingBottom: 2 }}>{tr ? slide.tTr : slide.tEn}</Text>
                   <Text style={{ color: subColor, fontSize: 14, fontWeight: '500', marginTop: 8, lineHeight: 20 }}>{tr ? slide.sTr : slide.sEn}</Text>
                 </MotiView>
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <View
+                  style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+                  onLayout={(e) => {
+                    const h = Math.round(e.nativeEvent.layout.height);
+                    if (h > 0 && h !== stageH) setStageH(h);
+                  }}
+                >
                   <MotiView from={{ opacity: 0, scale: 0.94, translateY: 14 }} animate={{ opacity: 1, scale: 1, translateY: 0 }} transition={{ type: 'timing', duration: 550, delay: 120 }}>
                     {slide.kind === 'brand' ? (
                       <MotiView from={{ scale: 0.92 }} animate={{ scale: 1 }} transition={{ loop: true, repeatReverse: true, type: 'timing', duration: 3200 }} style={{ alignItems: 'center' }}>

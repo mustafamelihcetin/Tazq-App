@@ -27,6 +27,7 @@ import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ICON, S, R, F, B, W, MAX_W, MIN_TOUCH, trackingFor , topBarSpace} from '@/shared/constants/tokens';
+import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
@@ -85,6 +86,8 @@ export default function SettingsScreen() {
     : (language === 'tr' ? 'Ayarlar' : 'Settings');
   const { show: showToast } = useToastStore();
   const insets = useSafeAreaInsets();
+  /* Tablette içerik 600pt'lik şeride sıkışmasın — üç kademeli genişlik. */
+  const contentW = useContentMaxWidth();
   const bestStreak = useFocusStore(s => s.bestStreak);
   const streakFreezeAvailable = useFocusStore(s => s.streakFreezeAvailable);
   const useStreakFreeze = useFocusStore(s => s.useStreakFreeze);
@@ -324,7 +327,7 @@ export default function SettingsScreen() {
           kullanıyordu: alt sayfaya inince başlık BÜYÜYORDU (hiyerarşi ters). */}
       <ScreenHeader onBack={() => router.back()} title={catTitle} scrollY={scrollY} />
 
-      <Animated.ScrollView ref={scrollRef} onScroll={onScroll} scrollEventThrottle={16} onContentSizeChange={tryScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}>
+      <Animated.ScrollView ref={scrollRef} onScroll={onScroll} scrollEventThrottle={16} onContentSizeChange={tryScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, width: '100%', maxWidth: contentW, alignSelf: 'center' }}>
             {show('notify') && (<>
             {/* ── BİLDİRİMLER ── */}
             <SectionHeader onLayout={e => markSection('notify', e.nativeEvent.layout.y)} title={language === 'tr' ? 'BİLDİRİMLER' : 'NOTIFICATIONS'} theme={theme} tr={language === 'tr'} />

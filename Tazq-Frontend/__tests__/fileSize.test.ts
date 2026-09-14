@@ -108,7 +108,7 @@ const KNOWN_LARGE: Record<string, number> = {
     olduğunu anlatan notlar. Mantık büyümedi; telefon yolunda tek bir dal bile
     eklenmedi (eşik 700pt, en geniş telefon ~440pt).
   */
-  'app/tasks.tsx': 2507,
+  'app/tasks.tsx': 2513,
   // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
   // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
   // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).
@@ -148,7 +148,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // Zararsız değillerdi: emoji temizliği ÖLÜ kopyaya uygulanmış, canlı ExamCard
   // yarım kalmıştı.
   // 1391 → 1394: iOS 26/27 ARAÇ ÇUBUĞU DÜĞMESİ. Özet ve tanıtım düğmeleri cam kabuğa alındı.
-  'app/modlar.tsx': 1429,
+  'app/modlar.tsx': 1435,
   // 1199 → 1194: akıllı ayrıştırıcı ipucu NlpHintRow'a çıkarıldı. İpucu tek metin
   // olarak kuruluyordu ve temizlenmiş bir cümleyle dört HAM emojiyi (📅⏰🔁🏷️) aynı
   // Text düğümünde yan yana getiriyordu; parçalar artık tür taşıyor, ikonu sunum çiziyor.

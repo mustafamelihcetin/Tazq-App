@@ -18,7 +18,7 @@ import type { PromoDevice } from '@/features/promo/promoDevices';
 import {
   Moon, GraduationCap, Dumbbell, Coins, BookOpen, CheckCircle2, Circle, Check,
   Flame, Trophy, Gauge, Plus, Clock, Zap, Target, SlidersHorizontal, Search,
-  CalendarClock, ChevronRight, BarChart3, Info, Ban, Briefcase, TrendingUp, Play,
+  CalendarClock, ChevronRight, BarChart3, Info, Ban, Briefcase, TrendingUp, Play, Library,
   // Alt sekme çubuğunun GERÇEK ikonları (bkz. BottomNavBar) — mock ile uygulama
   // arasındaki en görünür fark buydu: tanıtımda başka ikonlar duruyordu.
   LayoutGrid, CheckSquare, Sparkles, CalendarDays, Layers,
@@ -120,8 +120,17 @@ export const PromoMock: React.FC<{
     Sekme kapsülü bu kuralın DIŞINDA: o hep 600'de kalıyor (bkz. TabBar) — yüzen bir
     kapsülün beş sekmesi 1240pt'ye yayılırsa dokunma hedefleri birbirinden kopar.
   */
-  const wide = device.wide;
-  const COL = px(wide ? 1240 : 600);
+  /*
+    ÜÇ KADEME, İKİ EŞİK — uygulamanın kendi kuralı (bkz. tokens.ts).
+      · telefon (<700)           → tek sütun, 600pt
+      · dikey tablet (700-1100)  → tek sütun ama 760pt, listeler ızgaraya döner
+      · çok geniş (≥1100)        → sayfa İKİ SÜTUNA bölünür
+    Bölünmeyi 700'de başlatmak boşluğu BÜYÜTÜYORDU: iki sütun içeriğin boyunu yarıya
+    indirir ve dikey tablette ekranın dörtte üçü boşalır.
+  */
+  const tablet = device.wide;
+  const twoCol = device.w >= 1100;
+  const COL = px(twoCol ? 1240 : tablet ? 760 : 600);
   /** Kabın gerçek iç genişliği — yüzde değil, sayıyla; sütun ölçüleri buradan. */
   const CONTENT_W = Math.min(fw, COL) - EDGE * 2;
   /** Bir sütunun genişliği. */
@@ -139,14 +148,14 @@ export const PromoMock: React.FC<{
     Telefon ilk N tanesini alıyor (gerisi zaten katlamanın altında kalırdı),
     tablet tamamını.
   */
-  const take = <T,>(arr: T[], phoneCount: number) => (wide ? arr : arr.slice(0, phoneCount));
+  const take = <T,>(arr: T[], phoneCount: number) => (tablet ? arr : arr.slice(0, phoneCount));
 
   /**
    * Geniş ekranda iki sütun, dar ekranda tek akış — uygulamadaki WideSplit'in karşılığı.
    * Dar ekranda Fragment döndüğü için Shell'in kendi dikey ritmi (gap) bozulmuyor.
    */
   const Cols: React.FC<{ left: React.ReactNode; right: React.ReactNode }> = ({ left, right }) =>
-    wide ? (
+    twoCol ? (
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: GAP }}>
         <View style={{ width: HALF, gap: GAP }}>{left}</View>
         <View style={{ width: HALF, gap: GAP }}>{right}</View>
@@ -155,11 +164,14 @@ export const PromoMock: React.FC<{
       <>{left}{right}</>
     );
 
-  /** Görev listesi: dar ekranda tek sıra, geniş ekranda iki sütunlu ızgara. */
+  /** Görev ızgarası: telefonda 1, dikey tablette 2, çok geniş ekranda 3 sütun. */
+  const listCols = twoCol ? 3 : tablet ? 2 : 1;
+  /** Alışkanlık rozetlerinin kimlik renkleri — liste uzadıkça palet döner. */
+  const HABIT_COLORS = [A.teal, A.violet, A.emerald, A.orange, A.amber, A.indigo];
   const Grid: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: px(8) }}>
       {React.Children.map(children, (child, i) => (
-        <View key={i} style={{ width: wide ? (CONTENT_W - px(8)) / 2 : '100%' }}>{child}</View>
+        <View key={i} style={{ width: (CONTENT_W - px(8) * (listCols - 1)) / listCols }}>{child}</View>
       ))}
     </View>
   );
@@ -400,12 +412,14 @@ export const PromoMock: React.FC<{
           left={<>
             <ModeCard Ic={GraduationCap} name={c.examName} eyebrow={c.examEyebrow} color={A.teal} days="86" done={2} total={4} />
             <ModeCard Ic={Dumbbell} name={c.fitName} eyebrow={c.fitEyebrow} color={A.orange} days="34" done={1} total={2} />
-            {wide && <ModeCard Ic={Ban} name={c.quitName} eyebrow={c.quitEyebrow} color={A.emerald} days="41" done={1} total={1} />}
+            {tablet && <ModeCard Ic={Ban} name={c.quitName} eyebrow={c.quitEyebrow} color={A.emerald} days="41" done={1} total={1} />}
+            {tablet && <ModeCard Ic={Moon} name={c.ramadanName} eyebrow={c.ramadanEyebrow} color={A.indigo} days="27" done={2} total={2} />}
           </>}
           right={<>
             <ModeCard Ic={Coins} name={c.saveName} eyebrow={c.saveEyebrow} color={A.amber} days="63" done={1} total={1} />
             <ModeCard Ic={BookOpen} name={c.thesisName} eyebrow={c.thesisEyebrow} color={A.indigo} days="112" done={1} total={3} />
-            {wide && <ModeCard Ic={Briefcase} name={c.interviewName} eyebrow={c.interviewEyebrow} color={A.violet} days="19" done={2} total={3} />}
+            {tablet && <ModeCard Ic={Briefcase} name={c.interviewName} eyebrow={c.interviewEyebrow} color={A.violet} days="19" done={2} total={3} />}
+            {tablet && <ModeCard Ic={Library} name={c.readingName} eyebrow={c.readingEyebrow} color={A.teal} days="55" done={1} total={2} />}
           </>}
         />
       </Shell>
@@ -437,7 +451,9 @@ export const PromoMock: React.FC<{
         */}
         <Grid>
           {take(c.taskRows, 5).map((t2, i) => {
-            const pri = [PAL.error, A.orange, PAL.primary, A.teal, M.track, A.violet, A.teal, A.orange, PAL.primary, M.track][i];
+            // Öncelik şeridi: liste uzadıkça dizi yetmez, palet döner.
+            const PRI = [PAL.error, A.orange, PAL.primary, A.teal, M.track];
+            const pri = PRI[i % PRI.length];
             const meta = !!t2.time || !!t2.mode;
             return (
               <View key={t2.title} style={[row, { backgroundColor: M.card, borderRadius: RAD_L, borderWidth: 1, borderColor: t2.mode ? A.teal + '40' : M.border, padding: px(16), gap: px(10) }]}>
@@ -516,7 +532,7 @@ export const PromoMock: React.FC<{
           Sayfa TAM GENİŞLİK (yükselen bir yüzey öyledir) ama içeriği okunur bir sütunda
           kalıyor — uygulamada da böyle (bkz. StatusHubModal contentContainerStyle).
         */}
-        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, top: wide ? '34%' : '26%', backgroundColor: M.sheet, borderTopLeftRadius: px(22), borderTopRightRadius: px(22), borderWidth: 1, borderColor: M.border, paddingHorizontal: px(20), paddingTop: px(10), alignItems: 'center' }}>
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, top: tablet ? '34%' : '26%', backgroundColor: M.sheet, borderTopLeftRadius: px(22), borderTopRightRadius: px(22), borderWidth: 1, borderColor: M.border, paddingHorizontal: px(20), paddingTop: px(10), alignItems: 'center' }}>
         <View style={{ width: '100%', maxWidth: px(600) }}>
           <View style={{ alignSelf: 'center', width: px(40), height: px(5), borderRadius: 999, backgroundColor: M.track }} />
 
@@ -627,8 +643,8 @@ export const PromoMock: React.FC<{
           <Text style={LAB}>{c.habitsLabel}</Text>
           {take(c.habits, 3).map((h, i) => (
             <View key={h} style={[row, { gap: px(10) }]}>
-              <View style={{ width: px(28), height: px(28), borderRadius: px(9), backgroundColor: [A.teal, A.violet, A.emerald, A.orange, A.amber, A.indigo][i] + '22', alignItems: 'center', justifyContent: 'center' }}>
-                <Flame size={px(14)} color={[A.teal, A.violet, A.emerald, A.orange, A.amber, A.indigo][i]} />
+              <View style={{ width: px(28), height: px(28), borderRadius: px(9), backgroundColor: HABIT_COLORS[i % HABIT_COLORS.length] + '22', alignItems: 'center', justifyContent: 'center' }}>
+                <Flame size={px(14)} color={HABIT_COLORS[i % HABIT_COLORS.length]} />
               </View>
               <Text numberOfLines={1} style={{ flex: 1, color: M.text, fontSize: T.body, ...W6 }}>{h}</Text>
               <View style={[row, { gap: px(4) }]}>
@@ -709,7 +725,7 @@ export const PromoMock: React.FC<{
         yalnız geniş ekranda çiziyor: dar çerçevede yarısı kesilmiş bir kart göstermek,
         mağaza görselinde özensizlik olur.
       */}
-      {wide && (
+      {tablet && (
         <View style={[CARD, row, { padding: px(16), gap: px(12) }]}>
           <View style={{ width: px(36), height: px(36), borderRadius: px(12), backgroundColor: PAL.success + '22', alignItems: 'center', justifyContent: 'center' }}>
             <TrendingUp size={px(18)} color={PAL.success} strokeWidth={2.2} />
@@ -722,7 +738,7 @@ export const PromoMock: React.FC<{
         </View>
       )}
 
-      {wide && (
+      {tablet && (
         <View style={[CARD, { padding: px(16), gap: px(12) }]}>
           <Text style={LAB}>{c.nextLabel}</Text>
           <Text numberOfLines={1} style={{ color: M.text, fontSize: T.call, ...W6, letterSpacing: -0.3 }}>{c.nextTask}</Text>

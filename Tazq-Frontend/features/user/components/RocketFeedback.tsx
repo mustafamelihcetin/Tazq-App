@@ -267,7 +267,17 @@ const styles = StyleSheet.create({
   layoutWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: Dimensions.get('window').width - 24,
+    /*
+      GENİŞLİK DONDURULMUŞTU: `Dimensions.get('window').width - 24` bir StyleSheet
+      içinde, yani modül YÜKLENİRKEN bir kez okunuyordu. Cihaz döndürülünce, bölünmüş
+      ekranda ya da katlanabilir açılınca bu sayı eski ekranın genişliği olarak kalıyor
+      ve kutu ya taşıyor ya da ortada dar kalıyordu.
+
+      Aynı sonuç ölçü OKUMADAN elde ediliyor: kap zaten `left:0/right:0`, öyleyse
+      "ekran genişliği eksi 24" demek "kendini ger, iki yana 12 bırak" demek.
+    */
+    alignSelf: 'stretch',
+    marginHorizontal: S.smd,
   },
   mascotContainer: {
     width: 54,

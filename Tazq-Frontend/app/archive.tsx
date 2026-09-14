@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { ICON, S, F, R, B, MAX_W, topBarSpace } from '@/shared/constants/tokens';
+import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { TaskService } from '@/shared/services/api';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
@@ -18,6 +19,8 @@ import { isNetworkError } from '@/shared/utils/errors';
 
 export default function ArchiveScreen() {
     const insets = useSafeAreaInsets();
+    /* Tablette içerik 600pt'lik şeride sıkışmasın — üç kademeli genişlik. */
+    const contentW = useContentMaxWidth();
     const { theme, isDark } = useAppTheme();
     const { language } = useLanguageStore();
     const router = useRouter();
@@ -92,7 +95,7 @@ export default function ArchiveScreen() {
                 onScroll={onScroll}
                 scrollEventThrottle={16}
                 keyExtractor={item => item.id.toString()}
-                contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, gap: S.sm, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+                contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xl, gap: S.sm, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
                 ListEmptyComponent={() => (
                     <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: S.xxl }}>
                         <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body }}>

@@ -27,6 +27,9 @@ export type MockCopy = {
   thesisName: string; thesisEyebrow: string;
   quitName: string; quitEyebrow: string;
   interviewName: string; interviewEyebrow: string;
+  ramadanName: string; ramadanEyebrow: string;
+  readingName: string; readingEyebrow: string;
+  dayLabel: string;
   momentumLabel: string; momentumDelta: string;
   nextLabel: string; nextTask: string; nextAction: string;
   tasksTitle: string; filters: string[];
@@ -54,6 +57,9 @@ export const PROMO_COPY: Record<'tr' | 'en', MockCopy> = {
     thesisName: 'Tez Takibi', thesisEyebrow: 'AKADEMİ',
     quitName: 'Sigarayı Bırak', quitEyebrow: 'BIRAKMA',
     interviewName: 'Mülakat Hazırlığı', interviewEyebrow: 'KARİYER',
+    ramadanName: 'Ramazan', ramadanEyebrow: 'İBADET',
+    readingName: 'Okuma Hedefi', readingEyebrow: 'KİTAP',
+    dayLabel: 'BUGÜNÜN İŞLERİ',
     momentumLabel: 'İvme', momentumDelta: 'bu hafta +12%',
     nextLabel: 'SIRADAKİ', nextTask: 'Paragraf denemesi çöz', nextAction: 'Odaklan',
     tasksTitle: 'Aksiyon Merkezi',
@@ -69,6 +75,16 @@ export const PROMO_COPY: Record<'tr' | 'en', MockCopy> = {
       { title: 'Faturaları öde', time: 'Yarın' },
       { title: 'Haftalık planı gözden geçir', time: 'Cuma' },
       { title: 'Su iç — 2 litre', done: true },
+      { title: 'Ders notlarını temize çek', time: 'Cmt 10:00' },
+      { title: 'Bütçe tablosunu güncelle', mode: 'Acil Fon' },
+      { title: 'Annemi ara', time: 'Bugün 20:00' },
+      { title: 'Mülakat sorularına çalış', mode: 'Mülakat Hazırlığı' },
+      { title: 'Sabah 10 dk esneme', done: true },
+      { title: 'Makale özeti yaz', mode: 'Tez Takibi' },
+      { title: 'Market alışverişi', time: 'Yarın 18:30' },
+      { title: 'Deneme çöz: 2. bölüm', mode: 'YKS 2027' },
+      { title: 'Kütüphaneye kitap iade', time: 'Pzt' },
+      { title: 'Geri bildirim formu', time: 'Cuma 17:00' },
     ],
     nlpHint: '“yarın 15:00 toplantı” yaz — tarihi, saati ve önceliği TAZQ anlar',
     insights: 'TAZQ INSIGHTS',
@@ -81,7 +97,7 @@ export const PROMO_COPY: Record<'tr' | 'en', MockCopy> = {
     weeklyTitle: 'Haftalık Merkez', weeklyRange: '12 – 18 EYL',
     statFocus: 'Odak', statTasks: 'Görev', statHabits: 'Alışkanlık',
     peakWeek: 'Zirve haftası', habitsLabel: 'ALIŞKANLIKLAR',
-    habits: ['Su iç', 'Meditasyon', 'Kitap oku', 'Erken kalk', 'Günlük yaz', 'Esneme'],
+    habits: ['Su iç', 'Meditasyon', 'Kitap oku', 'Erken kalk', 'Günlük yaz', 'Esneme', 'Şükran notu', 'Akşam yürüyüşü'],
     greeting: 'İyi akşamlar,', name: 'Deniz', todayLabel: 'BUGÜN',
     tasksDone: 'görev tamamlandı', myDay: 'GÜNÜM',
     homeRows: ['Soru çöz: 40 dakika', 'Hata defterini gözden geçir', 'Akşam yürüyüşü', 'Kelime tekrarı: 30 dk', 'Deneme analizi', 'Su iç — 2 litre'],
@@ -99,6 +115,9 @@ export const PROMO_COPY: Record<'tr' | 'en', MockCopy> = {
     thesisName: 'Thesis Tracker', thesisEyebrow: 'ACADEMIC',
     quitName: 'Quit Smoking', quitEyebrow: 'QUITTING',
     interviewName: 'Interview Prep', interviewEyebrow: 'CAREER',
+    ramadanName: 'Ramadan', ramadanEyebrow: 'FAITH',
+    readingName: 'Reading Goal', readingEyebrow: 'BOOKS',
+    dayLabel: "TODAY'S WORK",
     momentumLabel: 'Momentum', momentumDelta: '+12% this week',
     nextLabel: 'UP NEXT', nextTask: 'Reading practice set', nextAction: 'Focus',
     tasksTitle: 'Action Center',
@@ -114,6 +133,16 @@ export const PROMO_COPY: Record<'tr' | 'en', MockCopy> = {
       { title: 'Pay the bills', time: 'Tomorrow' },
       { title: 'Review the weekly plan', time: 'Friday' },
       { title: 'Drink water — 2 litres', done: true },
+      { title: 'Write up the lecture notes', time: 'Sat 10:00' },
+      { title: 'Update the budget sheet', mode: 'Emergency Fund' },
+      { title: 'Call mum', time: 'Today 20:00' },
+      { title: 'Practice interview questions', mode: 'Interview Prep' },
+      { title: 'Morning 10 min stretch', done: true },
+      { title: 'Summarise the paper', mode: 'Thesis Tracker' },
+      { title: 'Grocery run', time: 'Tomorrow 18:30' },
+      { title: 'Practice set: part 2', mode: 'Final Exams' },
+      { title: 'Return the library book', time: 'Mon' },
+      { title: 'Weekly feedback form', time: 'Fri 17:00' },
     ],
     nlpHint: '“meeting tomorrow 3pm” — TAZQ reads the date, time and priority',
     insights: 'TAZQ INSIGHTS',
@@ -126,7 +155,7 @@ export const PROMO_COPY: Record<'tr' | 'en', MockCopy> = {
     weeklyTitle: 'Weekly Hub', weeklyRange: 'SEP 12 – 18',
     statFocus: 'Focus', statTasks: 'Tasks', statHabits: 'Habits',
     peakWeek: 'Peak week', habitsLabel: 'HABITS',
-    habits: ['Hydrate', 'Meditate', 'Read', 'Wake early', 'Journal', 'Stretch'],
+    habits: ['Hydrate', 'Meditate', 'Read', 'Wake early', 'Journal', 'Stretch', 'Gratitude note', 'Evening walk'],
     greeting: 'Good evening,', name: 'Alex', todayLabel: 'TODAY',
     tasksDone: 'tasks completed', myDay: 'MY DAY',
     homeRows: ['Practice set: 40 minutes', 'Review the error log', 'Evening walk', 'Vocabulary drill: 30 min', 'Mock exam analysis', 'Drink water — 2 litres'],

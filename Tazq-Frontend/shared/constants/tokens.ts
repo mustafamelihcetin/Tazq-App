@@ -24,29 +24,50 @@ export const moderateScale = (size: number, factor = 0.5) => size + (scale(size)
 export const MAX_W = 600;
 
 /**
- * GENİŞ EKRAN EŞİĞİ — burada düzen bir sütundan İKİ sütuna geçer.
+ * TABLET EŞİĞİ — burada sütun genişler, listeler ızgaraya döner.
  *
- * 700pt bilinçli: en geniş telefon ~440pt (Pro Max, yatay tutulmadığı sürece), en dar
- * tablet ~744pt (iPad mini). Yani eşik iki form faktörünün ARASINDA duruyor ve hiçbir
- * telefon yanlışlıkla tablet düzenine düşmüyor. Katlanabilirlerde de doğru davranıyor:
- * kapalıyken tek sütun, açılınca iki.
+ * 700pt bilinçli: en geniş telefon ~440pt (Pro Max), en dar tablet ~744pt (iPad mini).
+ * Eşik iki form faktörünün ARASINDA duruyor; hiçbir telefon yanlışlıkla tablet
+ * düzenine düşmüyor. Katlanabilirde de doğru: kapalıyken telefon, açılınca tablet.
  */
-export const WIDE_MIN = 700;
+export const TABLET_MIN = 700;
 
 /**
- * Geniş ekranda içerik sütununun üst sınırı.
+ * İKİ SÜTUN EŞİĞİ — sayfanın kendisi ikiye bölünür.
  *
- * MAX_W (600) tek sütunluk okunur satır genişliğidir; iki sütun + aralık için iki katı
- * gerekiyor. 1240 en geniş tabletlerde bile kenarlarda nefes bırakır, 13" iPad'de
- * (1032pt) ise hiç devreye girmez — orada sınırı ekranın kendisi koyar.
+ * ── NEDEN 1100, NEDEN TABLET EŞİĞİYLE AYNI DEĞİL ──────────────────────────────
+ * İlk denemede bölünme 700'de başlıyordu ve SONUÇ TERSİNE ÇIKTI: iki sütun, içeriğin
+ * boyunu yarıya indiriyor. Dikey tablette (1032 × 1376) ekranın zaten yalnız üçte ikisi
+ * doluyken, bölünce dörtte biri doldu — yani "boşluğu kapatmak için" yapılan şey boşluğu
+ * BÜYÜTTÜ. Ölçüm: tek sütunda %66 dolu, iki sütunda %39.
+ *
+ * Bölünme ancak ekran o kadar genişken kazançlı ki tek sütun yanlarda yarıdan fazla
+ * boşluk bırakıyor olsun — pratikte yatay tablet ve büyük katlanabilirler. Dikey tablet
+ * bu eşiğin altında kalır ve DAHA GENİŞ TEK SÜTUN alır (aşağıya bkz.).
+ */
+export const WIDE_MIN = 1100;
+
+/**
+ * Dikey tablette tek sütunun genişliği.
+ *
+ * 600 telefon için seçilmiş okunur satır genişliğidir; 1032pt'lik bir iPad'de aynı
+ * sayıyı korumak ekranın ortasına yapıştırılmış bir telefon görüntüsü veriyordu.
+ * 760 iki ucun ortası: satır hâlâ rahat okunuyor, iki yanda ~%13 pay kalıyor ve
+ * ekranın genişliği gerçekten kullanılmış oluyor.
+ */
+export const MAX_W_TABLET = 760;
+
+/**
+ * İki sütunlu düzende kabın üst sınırı — iki okunur sütun + aralık.
  */
 export const MAX_W_WIDE = 1240;
 
 /**
- * İçeriğin (ve başlık çubuğunun) o ekrandaki azami genişliği.
+ * İçeriğin (ve başlık çubuğunun) o ekrandaki azami genişliği — üç kademe.
  * Tek yerden okunur ki sayfalar arasında ayrışmasın.
  */
-export const contentMaxWidth = (screenW: number) => (screenW >= WIDE_MIN ? MAX_W_WIDE : MAX_W);
+export const contentMaxWidth = (screenW: number) =>
+  screenW >= WIDE_MIN ? MAX_W_WIDE : screenW >= TABLET_MIN ? MAX_W_TABLET : MAX_W;
 
 // Floating header/bottom-bar gibi mutlak konumlu öğeleri ortalamak için yan boşluk.
 export const sideInset = (screenW: number, base = 16) => Math.max(base, (screenW - MAX_W) / 2);

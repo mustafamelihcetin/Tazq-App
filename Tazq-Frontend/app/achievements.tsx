@@ -17,6 +17,7 @@ import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { DottedBackground } from '@/shared/components/DottedBackground';
 import { S, R, F, B, ICON, MIN_TOUCH , MAX_W} from '@/shared/constants/tokens';
+import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { haptic } from '@/shared/utils/haptics';
 
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
@@ -48,6 +49,8 @@ export default function AchievementsScreen() {
   const tr = language === 'tr';
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  /* Tablette içerik 600pt'lik şeride sıkışmasın — üç kademeli genişlik. */
+  const contentW = useContentMaxWidth();
   const { width } = useWindowDimensions();
   const { unlocked, unlockedAt } = useAchievementStore();
   const momentumHistory = useMomentumStore(s => s.history);
@@ -119,7 +122,7 @@ export default function AchievementsScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: MIN_TOUCH + S.md, paddingBottom: insets.bottom + S.xxl, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: MIN_TOUCH + S.md, paddingBottom: insets.bottom + S.xxl, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
         >
           {/* ── Kahraman: koleksiyon ilerlemesi ── */}
           <View style={{ alignItems: 'center', marginBottom: S.xl }}>

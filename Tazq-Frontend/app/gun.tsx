@@ -10,6 +10,7 @@ import { PeekMenu, type PeekItem } from '@/shared/components/PeekMenu';
 import { Touchable } from '@/shared/components/Touchable';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { S, R, F, B, ICON, MAX_W, HAIRLINE, topBarSpace } from '@/shared/constants/tokens';
+import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
@@ -84,6 +85,8 @@ export default function GunScreen() {
   const tr = lang === 'tr';
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  /* Tablette içerik 600pt'lik şeride sıkışmasın — üç kademeli genişlik. */
+  const contentW = useContentMaxWidth();
   const { scrollY, onScroll } = useCollapsibleHeader();
   const { show: showToast } = useToastStore();
 
@@ -276,7 +279,7 @@ export default function GunScreen() {
           paddingBottom: insets.bottom + S.xxl,
           paddingHorizontal: S.lg,
           width: '100%',
-          maxWidth: MAX_W,
+          maxWidth: contentW,
           alignSelf: 'center',
           gap: S.lg,
         }}

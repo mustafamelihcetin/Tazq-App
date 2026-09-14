@@ -11,6 +11,7 @@ import { useActiveModeSummary } from '@/features/modes/hooks/useActiveModeSummar
 import { useHabitStore } from '@/features/habits';
 import { useTaskStore, useActiveTasks } from '@/features/tasks';
 import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W , topBarSpace} from '@/shared/constants/tokens';
+import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { track } from '@/shared/utils/analytics';
 import { renderModeEmojiIcon } from '@/features/modes';
 import { localizeSporGoal } from '@/features/modes';
@@ -33,6 +34,8 @@ export default function ModOzetScreen() {
   const tr = language === 'tr';
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  /* Tablette içerik 600pt'lik şeride sıkışmasın — üç kademeli genişlik. */
+  const contentW = useContentMaxWidth();
 
   /*
     HESAP ORTAK BİR HOOK'TA (bkz. useActiveModeSummary).
@@ -94,7 +97,7 @@ export default function ModOzetScreen() {
         </View>
       ) : (
         <Animated.ScrollView
-          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: topBarSpace(insets.top) + S.md, paddingBottom: insets.bottom + S.xxl, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingHorizontal: S.lg, paddingTop: topBarSpace(insets.top) + S.md, paddingBottom: insets.bottom + S.xxl, gap: S.lg, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
           onScroll={onScroll}

@@ -18,6 +18,7 @@ import { useAuthStore } from '@/features/user';
 import { AdminService, AdminUser, AdminStats, BanHistoryItem, AdminUserDetail, AdminAuditItem, SupportService, SupportMessageItem, AdminSystemService, SystemHealth, SystemStats, SystemLogEntry, SentrySummary, LogSource, AiStatus, AiTestResult } from '@/shared/services/api';
 import { sendAdminSupportNotification } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, MAX_W, HAIRLINE } from '@/shared/constants/tokens';
+import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
@@ -61,6 +62,8 @@ export default function AdminScreen() {
   const { language } = useLanguageStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  /* Tablette içerik 600pt'lik şeride sıkışmasın — üç kademeli genişlik. */
+  const contentW = useContentMaxWidth();
   /*
     Yanıt kutusu uzun bir listenin DERİNİNDE duruyor; klavye açılınca altında kalıyordu.
     Dip dolgusuna klavye yüksekliği eklenince kutu görünür alana çıkıyor.
@@ -502,7 +505,7 @@ export default function AdminScreen() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: S.md, paddingBottom: insets.bottom + S.xl + keyboardHeight, gap: S.md, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingHorizontal: S.md, paddingBottom: insets.bottom + S.xl + keyboardHeight, gap: S.md, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); loadUsers(true); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surface} />}
           showsVerticalScrollIndicator={false}
           /*

@@ -12,6 +12,7 @@ import { useMomentumStore } from '@/features/user';
 import { useHabitStore } from '@/features/habits';
 import { FocusService, UserStatsResponse } from '@/shared/services/api';
 import { ICON, S, R, F, B, TRACKING, MAX_W , topBarSpace} from '@/shared/constants/tokens';
+import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { generateWeeklyTips, computeWeeklyMetrics, getCoachAction, ProductivityHour } from '@/shared/utils/insights';
 import { track } from '@/shared/utils/analytics';
 import type { AppTheme } from '@/shared/constants/Colors';
@@ -29,6 +30,8 @@ const toneColor = (theme: AppTheme, tone: string): string => ({
 
 export default function ReportScreen() {
   const insets = useSafeAreaInsets();
+  /* Tablette içerik 600pt'lik şeride sıkışmasın — üç kademeli genişlik. */
+  const contentW = useContentMaxWidth();
   const { theme, isDark } = useAppTheme();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
@@ -114,7 +117,7 @@ export default function ReportScreen() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       {/* Ortak başlık — ana ekranlarla aynı sistem (yapışık 44pt, hairline, 17pt). */}
       <ScreenHeader onBack={() => router.back()} title={tr ? 'Haftalık Rapor' : 'Weekly Report'} />
-      <ScrollView contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xxl, gap: S.lg, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingTop: topBarSpace(insets.top) + S.md, paddingHorizontal: S.lg, paddingBottom: insets.bottom + S.xxl, gap: S.lg, width: '100%', maxWidth: contentW, alignSelf: 'center' }} showsVerticalScrollIndicator={false}>
           {/* Koç kartı — "şimdi ne yapmalıyım?" (kural-tabanlı, ücretsiz) */}
           {(() => {
             const c = toneColor(theme, coach.tone);

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, useWindowDimensions } from 'react-native';
-import { S, WIDE_MIN } from '@/shared/constants/tokens';
+import { S, TABLET_MIN, WIDE_MIN, contentMaxWidth } from '@/shared/constants/tokens';
 
 /**
  * GENİŞ EKRANDA İKİ SÜTUN, TELEFONDA TEK AKIŞ.
@@ -11,20 +11,28 @@ import { S, WIDE_MIN } from '@/shared/constants/tokens';
  * uzun satırlar okunmaz, sütun sınırı bunun içindir — ama SONUÇ yanlıştı: 13" bir
  * iPad'de uygulama, ortasına yapıştırılmış bir telefon gibi duruyordu.
  *
- * ── NEDEN İKİ SÜTUN, NEDEN DAHA GENİŞ TEK SÜTUN DEĞİL ─────────────────────────
- * Sütunu 900pt'ye açmak boşluğu kapatırdı ama okunurluğu bozardı: bir görev satırının
- * solundaki onay kutusuyla sağındaki saat arasında yarım ekran boşluk kalır, göz ikisini
- * birbirine bağlayamaz. iPadOS uygulamaları (Anımsatıcılar, Fitness, Takvim) bu yüzden
- * genişliği SATIRI uzatmak için değil, İKİNCİ BİR SÜTUN açmak için kullanır. Kartların
- * kendi genişliği telefondakine yakın kalır; değişen tek şey yan yana kaç tane
- * durduğudur.
+ * ── ÜÇ KADEME, İKİ EŞİK ───────────────────────────────────────────────────────
+ * Tek bir "geniş mi" sorusu yetmiyor; iki ayrı soru var ve karıştırılınca sonuç ters
+ * çıkıyor (çıktı da):
  *
- * ── TELEFONDA HİÇBİR ŞEY DEĞİŞMEZ ─────────────────────────────────────────────
- * Eşik 700pt, en geniş telefon ~440pt. Dar ekranda `WideSplit` de `WideCol` de yalnız
- * bir Fragment döner — yani ağaçta fazladan tek bir View bile oluşmaz, çıktı bugünküyle
- * birebir aynıdır. Sütun bilgisi `col` alanında hep taşınıyor ama dar ekranda hiç
- * okunmuyor; böylece iki düzen TEK bir kaynaktan türüyor ve biri güncellenip öteki
- * unutulamıyor.
+ *   · TELEFON (<700pt)      → tek sütun, 600pt. Hiçbir şey değişmez.
+ *   · DİKEY TABLET (700-1100) → tek sütun ama 760pt, listeler ızgaraya döner.
+ *   · ÇOK GENİŞ (≥1100)      → sayfa İKİ SÜTUNA bölünür.
+ *
+ * Bölünme önce 700'de başlıyordu ve boşluğu BÜYÜTTÜ: iki sütun içeriğin boyunu yarıya
+ * indirir, dikey tablette zaten üçte iki dolu olan ekran dörtte bire düştü. Bölünme
+ * ancak tek sütunun yanlarda yarıdan fazla boşluk bıraktığı genişliklerde kazançlı.
+ *
+ * ── TELEFONDA AĞAÇ DEĞİŞMEZ ───────────────────────────────────────────────────
+ * Dar ekranda `WideSplit` de `WideCol` de yalnız bir Fragment döner — ağaçta fazladan
+ * tek bir View bile oluşmaz, çıktı bugünküyle birebir aynıdır. Sütun bilgisi `col`
+ * alanında hep taşınıyor ama dar ekranda hiç okunmuyor; böylece iki düzen TEK bir
+ * kaynaktan türüyor ve biri güncellenip öteki unutulamıyor.
+ *
+ * ── ÖLÇÜLER CANLI ─────────────────────────────────────────────────────────────
+ * Genişlik `useWindowDimensions` ile okunuyor, `Dimensions.get()` ile değil: ilki
+ * döndürmede, bölünmüş ekranda ve katlanabilir açılıp kapanınca yeniden render eder,
+ * ikincisi ilk değeri dondurur.
  *
  * KULLANIM:
  *   <WideSplit>
@@ -49,9 +57,36 @@ export const WideCol: React.FC<{ col?: WideColSide; children: React.ReactNode }>
   <>{children}</>
 );
 
+/**
+ * Sayfa İKİ SÜTUNA bölünsün mü (yatay tablet, büyük katlanabilir).
+ *
+ * Dikey tablette FALSE döner ve bu bilinçli: bölünme içeriğin boyunu yarıya indirir,
+ * orada boşluğu kapatmaz BÜYÜTÜR (bkz. tokens.ts → WIDE_MIN).
+ */
 export function useWideLayout() {
   const { width } = useWindowDimensions();
   return width >= WIDE_MIN;
+}
+
+/**
+ * İçeriğin bu ekrandaki azami genişliği — üç kademeli (bkz. tokens → contentMaxWidth).
+ *
+ * Kanca olarak da veriliyor ki sayfalar `useWindowDimensions`'ı tek tek çağırıp aynı
+ * hesabı kopyalamasın: sekiz ekran `maxWidth: MAX_W` yazıyordu ve tablette hepsi
+ * 600pt'lik bir şeride sıkışıyordu. Bir kural, tek yer.
+ */
+export function useContentMaxWidth() {
+  const { width } = useWindowDimensions();
+  return contentMaxWidth(width);
+}
+
+/**
+ * Tablet mi (dikey dahil). Sütun genişler, listeler ızgaraya döner — ama sayfa
+ * bölünmez. İki kavramı ayırmak şart: "geniş" ile "tablet" aynı şey değil.
+ */
+export function useTabletLayout() {
+  const { width } = useWindowDimensions();
+  return width >= TABLET_MIN;
 }
 
 export const WideSplit: React.FC<{ children: React.ReactNode }> = ({ children }) => {

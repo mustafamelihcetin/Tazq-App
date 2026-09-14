@@ -22,6 +22,7 @@ import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ICON, S, R, F, B, MAX_W , sheetMaxHeight} from '@/shared/constants/tokens';
+import { useContentMaxWidth } from '@/shared/components/ResponsiveColumns';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { Asset } from 'expo-asset';
 import { usePrefsStore } from '@/features/modes';
@@ -52,6 +53,8 @@ export default function ProfileScreen() {
   const A = settingsAccents(theme);  // Apple tarzı çip renkleri (domain'e göre)
   const { show: showToast } = useToastStore();
   const insets = useSafeAreaInsets();
+  /* Tablette içerik 600pt'lik şeride sıkışmasın — üç kademeli genişlik. */
+  const contentW = useContentMaxWidth();
 
   const bestStreak = useFocusStore(s => s.bestStreak);
   const streakFreezeAvailable = useFocusStore(s => s.streakFreezeAvailable);
@@ -352,7 +355,7 @@ export default function ProfileScreen() {
         <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: insets.bottom + S.xl, paddingHorizontal: S.lg, paddingTop: S.xl + insets.top, width: '100%', maxWidth: MAX_W, alignSelf: 'center' }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + S.xl, paddingHorizontal: S.lg, paddingTop: S.xl + insets.top, width: '100%', maxWidth: contentW, alignSelf: 'center' }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

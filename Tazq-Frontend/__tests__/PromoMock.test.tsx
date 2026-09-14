@@ -131,14 +131,26 @@ describe('tanıtım mock ekranı', () => {
     expect(mock).toMatch(/Shl: React\.FC<\{ Ic: Glyph \}> = \(\{ Ic \}\) => \(\s*isIOS/);
   });
 
-  it('TABLETTE düzen İKİYE bölünüyor — tek sütunda kalmıyor', () => {
+  it('ÜÇ KADEME: telefon · dikey tablet · çok geniş — ikisi değil', () => {
     /*
-      Uygulamanın kendi kuralı (tokens.ts → contentMaxWidth + WideSplit): geniş ekranda
-      kap 1240'a açılır AMA içerik iki sütuna ayrılır. Mock bunu yapmazsa tablet
-      görseli, uygulamanın hiç görünmediği bir hâli gösterir.
+      Bu testin koruduğu ders: "geniş" ile "tablet" AYNI ŞEY DEĞİL.
+
+      Sayfayı iki sütuna bölmek içeriğin boyunu yarıya indirir. Dikey tablette ekranın
+      zaten yalnız üçte ikisi doluyken bölünce dörtte biri doldu — boşluğu kapatmak için
+      yapılan şey boşluğu BÜYÜTTÜ. Bölünme artık yalnız 1100pt üstünde; dikey tablet daha
+      GENİŞ TEK SÜTUN alıyor (760) ve listeleri ızgaraya dönüyor.
+
+      İki eşik birleştirilirse o hata sessizce geri gelir; burası onu tutuyor.
     */
+    const tokens = readSrc('shared/constants/tokens.ts');
+    expect(tokens).toContain('export const TABLET_MIN = 700;');
+    expect(tokens).toContain('export const WIDE_MIN = 1100;');
+    expect(tokens).toContain('export const MAX_W_TABLET = 760;');
+    expect(tokens).toMatch(/screenW >= WIDE_MIN \? MAX_W_WIDE : screenW >= TABLET_MIN \? MAX_W_TABLET : MAX_W/);
+
     const mock = readSrc('features/promo/components/PromoMock.tsx');
-    expect(mock).toContain('const COL = px(wide ? 1240 : 600);');
+    expect(mock).toContain('const COL = px(twoCol ? 1240 : tablet ? 760 : 600);');
+    expect(mock).toContain('const twoCol = device.w >= 1100;');
     expect(mock).toMatch(/const Cols: React\.FC/);
     // İçerik ve başlık çubuğu aynı kaba hizalı.
     expect((mock.match(/maxWidth: COL/g) ?? []).length).toBeGreaterThanOrEqual(2);
@@ -152,8 +164,17 @@ describe('tanıtım mock ekranı', () => {
     for (const f of ['app/index.tsx', 'app/cockpit.tsx']) {
       expect(readSrc(f)).toContain('<WideSplit>');
     }
-    expect(readSrc('app/tasks.tsx')).toMatch(/numColumns=\{wide \? 2 : 1\}/);
-    expect(readSrc('shared/constants/tokens.ts')).toContain('export const WIDE_MIN = 700;');
+    expect(readSrc('app/tasks.tsx')).toContain('const listCols = wide ? 3 : tablet ? 2 : 1;');
+
+    /*
+      ÖLÇÜLER CANLI OLMALI. `Dimensions.get()` ilk değeri dondurur: döndürmede, bölünmüş
+      ekranda ve katlanabilir açılınca yeniden render etmez, düzen eski ekranda kalır.
+      Bu ekranların hiçbiri o çağrıyı kullanmamalı.
+    */
+    for (const f of ['app/index.tsx', 'app/tasks.tsx', 'app/cockpit.tsx', 'app/modlar.tsx']) {
+      const src = readSrc(f).replace(/\/\*[\s\S]*?\*\//g, '');
+      expect(src).not.toMatch(/Dimensions\.get\('window'\)\.width/);
+    }
   });
 
   it('mock ekranların ÖLÇÜLERİ uygulamanın jetonlarından geliyor', () => {
