@@ -142,12 +142,11 @@ describe('tanıtım mock ekranı', () => {
 
       İki eşik birleştirilirse o hata sessizce geri gelir; burası onu tutuyor.
     */
-    const tokens = readSrc('shared/constants/tokens.ts');
-    expect(tokens).toContain('export const TABLET_MIN = 700;');
-    expect(tokens).toContain('export const WIDE_MIN = 1100;');
-    expect(tokens).toContain('export const MAX_W_TABLET = 760;');
-    expect(tokens).toMatch(/screenW >= WIDE_MIN \? MAX_W_WIDE : screenW >= TABLET_MIN \? MAX_W_TABLET : MAX_W/);
-
+    /*
+      Kademelerin DAVRANIŞI __tests__/responsiveLayout.test.ts'te ölçülüyor (kaynak
+      metnine bakarak değil, fonksiyonu çağırarak). Burada yalnız mock'un aynı
+      kademelere uyduğu doğrulanıyor — ikisi ayrışırsa mağaza görseli yalan söyler.
+    */
     const mock = readSrc('features/promo/components/PromoMock.tsx');
     expect(mock).toContain('const COL = px(twoCol ? 1240 : tablet ? 760 : 600);');
     expect(mock).toContain('const twoCol = device.w >= 1100;');

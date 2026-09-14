@@ -128,7 +128,12 @@ const KNOWN_LARGE: Record<string, number> = {
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.
   // 1676 → 1677: CAM SAYFALAR. Kalıcı silme modalı ortak cam yüzeye bağlandı.
-  'app/admin.tsx': 1677,
+  /*
+    +3 SATIR × ÜÇ DOSYA — hepsi aynı sebepten: tablette içerik 600pt'lik bir şeride
+    sıkışıyordu. Eklenen şey iki satır (kanca çağrısı + gerekçesi) ve bir import;
+    mantık değişmedi (bkz. useContentMaxWidth).
+  */
+  'app/admin.tsx': 1680,
   'features/modes/components/TurkishModeBanner.tsx': 1690,
   // 1523 → 1529: ERİŞİLEBİLİRLİK. Alışkanlık satırının adı, durumu ve serisi ekran
   // okuyucuya hiç ulaşmıyordu (durum renkle, seri rozetle söyleniyordu).
@@ -169,7 +174,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // kalmıştı; hiçbiri çağrılmıyordu ama `deleteAccount`ın hatalı sürümü iki dosyada
   // birden duruyor ve hangisinin canlı olduğu okurken belli olmuyordu.
   // 865 → 867: CAM SAYFALAR. Profil düzenleme sayfası ortak cam yüzeye bağlandı.
-  'app/profile.tsx': 867,
+  'app/profile.tsx': 870,
   'shared/constants/legal.ts': 893,
   'features/modes/utils/planAdaptations.ts': 880,
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
@@ -181,7 +186,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // 811 → 836: E-POSTA DOĞRULAMA HATIRLATMASI. Doğrulama kayıt yolundan çıkarıldı;
   // hatırlatma artık burada, SEBEBİYLE birlikte duruyor (özet postaları ve hesap
   // kurtarma o adrese bağlı). Artışın yarısı o gerekçe notu.
-  'app/settings.tsx': 836,
+  'app/settings.tsx': 839,
 };
 
 describe('dosya boyutu', () => {

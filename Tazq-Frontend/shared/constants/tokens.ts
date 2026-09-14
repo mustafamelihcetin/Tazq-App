@@ -67,7 +67,19 @@ export const MAX_W_WIDE = 1240;
  * Tek yerden okunur ki sayfalar arasında ayrışmasın.
  */
 export const contentMaxWidth = (screenW: number) =>
-  screenW >= WIDE_MIN ? MAX_W_WIDE : screenW >= TABLET_MIN ? MAX_W_TABLET : MAX_W;
+  screenW >= WIDE_MIN
+    ? Math.min(MAX_W_WIDE, screenW)
+    : screenW >= TABLET_MIN
+      ? Math.min(MAX_W_TABLET, screenW)
+      : MAX_W;
+/*
+  SÜTUN EKRANDAN GENİŞ OLAMAZ — `Math.min` bunun için.
+
+  Eşiğin tam üstünde (700pt) sütun 760 dönüyordu: kap `width: '100%'` taşıdığı için
+  ekranda taşma OLUŞMUYORDU ama sayı yalan söylüyordu ve bu sayıyı okuyup kendi
+  hesabını yapan yerler (ör. ızgara kart genişliği) yanlış bölüyordu. Telefon kademesi
+  clamp'siz: orada ekran zaten MAX_W'den dar ve `width: '100%'` sınırı koyuyor.
+*/
 
 // Floating header/bottom-bar gibi mutlak konumlu öğeleri ortalamak için yan boşluk.
 export const sideInset = (screenW: number, base = 16) => Math.max(base, (screenW - MAX_W) / 2);
