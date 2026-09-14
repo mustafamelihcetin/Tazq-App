@@ -104,11 +104,7 @@
         "android.permission.health.READ_EXERCISE"
       ],
       "backgroundColor": "#F4F4F5",
-      "softwareKeyboardLayoutMode": "resize",
-      "navigationBar": {
-        "backgroundColor": "#000000",
-        "barStyle": "light-content"
-      }
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "favicon": "./assets/brand/icon.png"
