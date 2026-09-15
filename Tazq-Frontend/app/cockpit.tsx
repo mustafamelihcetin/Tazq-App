@@ -32,6 +32,7 @@ import { DottedBackground } from '@/shared/components/DottedBackground';
 import { SwipeableHabitItem } from '@/features/habits/components/SwipeableHabitItem';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
+import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { swallow } from '@/shared/utils/swallow';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
@@ -148,9 +149,19 @@ export default function CockpitScreen() {
     }
   };
 
+  /* Örnek veri ve tur kapıları ORTAK kuraldan (bkz. features/onboarding/utils/firstRun). */
+  const demoGate = useDemoGate('cockpit');
+  const cockpitContentRef = useRef({ tasks: rawTasks, habits: rawHabits });
+  cockpitContentRef.current = { tasks: rawTasks, habits: rawHabits };
+  /*
+    Kokpit turu hiçbir koşula bağlı DEĞİLDİ: ekrana girer girmez açılıyordu, hafta
+    şeridi bomboşken "haftalık karneni oku" diye anlatıyordu. Artık ötekilerle aynı
+    kural — gösterecek bir şey varsa ve kullanıcının eylemine tepki olmadan.
+  */
+  const tourAllowed = useTourGate(() => cockpitContentRef.current.habits.length > 0 || cockpitContentRef.current.tasks.length > 0);
+
   const tasks = useMemo(() => {
-    // Demo veri yalnızca ilk kez onboarding yapan yeni kullanıcıya; dönen/reaktive kullanıcıya değil.
-    if (completedTours?.cockpit !== true && !onboardingCompleted) {
+    if (demoGate(rawTasks.length)) {
       return [
         {
           id: '88881',
@@ -171,10 +182,10 @@ export default function CockpitScreen() {
       ] as any[];
     }
     return rawTasks;
-  }, [rawTasks, completedTours, onboardingCompleted, language]);
+  }, [rawTasks, demoGate, language]);
 
   const habits = useMemo(() => {
-    if (completedTours?.cockpit !== true && !onboardingCompleted) {
+    if (demoGate(rawHabits.length)) {
       return [
         {
           id: 'mock-habit-1',
@@ -195,7 +206,7 @@ export default function CockpitScreen() {
       ] as any[];
     }
     return rawHabits;
-  }, [rawHabits, completedTours, onboardingCompleted, language]);
+  }, [rawHabits, demoGate, language]);
 
   const hasActiveSeasonalMode = seasonal.ramazan || seasonal.examMode || seasonal.tezMode || seasonal.mulakatMode || seasonal.sporMode;
 
@@ -1438,10 +1449,12 @@ export default function CockpitScreen() {
         </KeyboardAvoidingView>
       </Modal>
       <BottomNavBar />
-      <HelpTourModal 
-        pageId="cockpit" 
-        onStepChange={handleStepChange} 
-      />
+      {tourAllowed && (
+        <HelpTourModal
+          pageId="cockpit"
+          onStepChange={handleStepChange}
+        />
+      )}
     </View>
   );
 }

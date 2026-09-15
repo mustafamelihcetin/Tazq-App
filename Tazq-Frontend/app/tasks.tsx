@@ -35,6 +35,7 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
+import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleTaskNotification, cancelTaskNotification, requestNotificationPermissions, parseTimeParts } from '@/shared/utils/notifications';
 import { syncTaskToCalendar, deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
@@ -573,23 +574,11 @@ export default function ActionCenter() {
     Kart genişliği her kademede telefondakine yakın kalıyor (~370pt) — ızgara
     büyüdükçe kartlar şişmiyor, SAYILARI artıyor.
   */
-  /*
-    ── TUR, KULLANICININ EYLEMİNE TEPKİ OLARAK AÇILMAZ ──────────────────────────
-    Koşul doğrudan `tasks.length > 0` idi ve REAKTİFTİ: kullanıcı ilk görevini
-    ekliyor, dizi doluyor, modal aynı karede önüne atlıyordu. Nedensellik yanlış
-    okunuyordu — "görev eklemek bir pop-up açtı" gibi. Kullanıcı da tam bunu
-    bildirdi: "görev eklemiştim, akabinde bilgilendirme ekranı çıktı".
-
-    Niyet doğruydu (boş listede "sola kaydır, ertele" anlatmanın karşılığı yok), yanlış
-    olan ZAMANLAMAYDI. Karar artık ekrana GİRİLDİĞİ anda bir kez veriliyor ve o ziyaret
-    boyunca donuyor: elinde görev varken girersen tur açılır, buradayken eklediklerin
-    turu tetiklemez. İlk görevini ekleyen kullanıcı turu bir sonraki gelişinde görür —
-    o zaman gösterilecek gerçek bir liste de vardır.
-  */
+  /* Örnek veri ve tur kapıları ORTAK kuraldan (bkz. features/onboarding/utils/firstRun). */
+  const demoGate = useDemoGate('tasks');
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
-  const [tourAllowed, setTourAllowed] = useState(false);
-  useFocusEffect(useCallback(() => { setTourAllowed(tasksRef.current.length > 0); }, []));
+  const tourAllowed = useTourGate(() => tasksRef.current.length > 0);
 
   const wide = useWideLayout();
   const tablet = useTabletLayout();
@@ -1374,20 +1363,8 @@ export default function ActionCenter() {
   const getTagColor = getTagColorStatic;
 
   const filteredAndSortedTasks = useMemo(() => {
-    /*
-      ── DEMO VERİ GERÇEK VERİYİ ASLA GİZLEYEMEZ ─────────────────────────────────
-      Boş listeyi canlandırmak ve tura gösterecek bir şey vermek için üç örnek satır
-      çiziliyor. Koşulda `tasks.length === 0` YOKTU ve sonuç ağırdı: yeni kullanıcı
-      ilk görevini ekliyor, görev kaydediliyor ama LİSTEDE GÖRÜNMÜYORDU — çünkü bu dal
-      erken dönüp yalnızca demo satırları veriyordu. Gerçek görev ancak tur
-      tamamlandıktan sonra ortaya çıkıyordu.
-
-      Kullanıcı bunu "buglı gibi" diye bildirdi; haklıydı. Bir uygulamanın en temel
-      sözü, eklediğin şeyin orada durmasıdır — örnek veri o sözün önüne geçemez.
-      Artık demo yalnız GERÇEKTEN boşken görünüyor ve ilk görev eklenir eklenmez
-      kayboluyor.
-    */
-    if (tasks.length === 0 && completedTours?.tasks !== true && !onboardingCompleted) {
+    // Örnek satırlar, GERÇEK görev yokken (bkz. useDemoGate — dört kuralın gerekçesi orada).
+    if (demoGate(tasks.length)) {
       return [
         {
           id: 99991,
@@ -2411,8 +2388,7 @@ export default function ActionCenter() {
         language={language}
         t={t}
       />
-      {/* Tur, anlatacak bir şey olduğunda VE kullanıcının eylemine tepki olmadan
-          (bkz. yukarıdaki tourAllowed notu). */}
+      {/* Tur: gösterecek bir şey varken ve kullanıcının eylemine tepki olmadan. */}
       {tourAllowed && (
         <HelpTourModal
           pageId="tasks"

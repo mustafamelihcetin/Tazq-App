@@ -131,7 +131,17 @@ const KNOWN_LARGE: Record<string, number> = {
   // o not silinirse aynı deneme yeniden yapılır (bkz. dashboardZeroState.test.ts).
   // 2166 → 2175: İKON KISAYOLLARI. Kısayolu karşılayan hook burada bağlanıyor (kök
   // düzende değil: kısayol bir gezinme başlatıyor, kök düzen çalışırken ağaç hazır değil).
-  'app/index.tsx': 2203,
+  /*
+    İLK KULLANIM AKIŞI — üç ekranın tavanı bu yüzden yükseldi (index, cockpit, tasks).
+
+    Aynı iki karar (örnek veri ne zaman görünür, tur ne zaman açılır) üç ekranda üç ayrı
+    şekilde yazılmıştı ve üçü de farklı davranıyordu. Kural tek modüle taşındı
+    (features/onboarding/utils/firstRun); ekranlara eklenen kod bir kapı çağrısı ve bir
+    ref. Artan satırların çoğu NEDEN olduğunu anlatan not — bu akışa yalnız yeni bir
+    hesabın ilk dakikasında düşülüyor, yani notlar olmadan aynı tuzağa yeniden düşülür
+    (bkz. __tests__/activationFlow.test.ts).
+  */
+  'app/index.tsx': 2233,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.
@@ -148,7 +158,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // 1529 → 1530: CAM SAYFALAR. Alışkanlık ekleme ve plan sayfaları ortak cam yüzeye bağlandı.
   // 1530 → 1533: iOS 26/27 ARAÇ ÇUBUĞU DÜĞMESİ. Rapor ve ekle düğmeleri cam kabuğa
   // alındı (içe aktarım + düğme başına tek satır). Android'de kabuk çizilmiyor.
-  'app/cockpit.tsx': 1552,
+  'app/cockpit.tsx': 1565,
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.

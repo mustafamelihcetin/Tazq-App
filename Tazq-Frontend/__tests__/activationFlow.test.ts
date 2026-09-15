@@ -2,19 +2,15 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * İLK KULLANIM AKIŞI — hoş geldin, demo veri, tur.
+ * İLK KULLANIM AKIŞI — hoş geldin, örnek veri, tur.
  *
  * ── NEDEN VAR ─────────────────────────────────────────────────────────────────
- * Bu akışı yalnız YENİ bir hesabın ilk dakikası tetikliyor; geliştirici günlük
- * kullanımda buraya hiç düşmüyor. Üç kusur da bu yüzden canlıya kadar gitti ve
- * hepsini kullanıcı bildirdi:
+ * Bu akışı yalnız YENİ bir hesabın ilk dakikası tetikliyor; günlük kullanımda buraya
+ * hiç düşülmüyor. Sonuç: beş ayrı kusur canlıya kadar gitti ve hepsini kullanıcı
+ * bildirdi. Beşi de aynı kök sebepten türüyordu — aynı iki karar (örnek veri ne zaman
+ * görünür, tur ne zaman açılır) üç ekranda ÜÇ AYRI şekilde yazılmıştı.
  *
- *   1. Demo veri GERÇEK görevleri gizliyordu — kullanıcı ilk görevini ekliyor,
- *      kaydediliyor ama listede görünmüyordu.
- *   2. Tur, kullanıcının EYLEMİNE tepki olarak açılıyordu: görev eklenir eklenmez
- *      modal önüne atlıyordu ("görev eklemek pop-up açtı" gibi okunuyordu).
- *   3. Google/Apple ile KAYIT olurken `isNewUser` taşınmıyordu; hoş geldin ekranı
- *      hiç açılmıyordu.
+ * Bu dosya artık tek tek kusurları değil, KURALIN TEK YERDE kaldığını bekliyor.
  */
 
 const ROOT = path.resolve(__dirname, '..');
@@ -27,60 +23,137 @@ const stripComments = (src: string) =>
     .filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*'))
     .join('\n');
 
-const TASKS = stripComments(read('app/tasks.tsx'));
+const FIRST_RUN = stripComments(read('features/onboarding/utils/firstRun.ts'));
+const PREFS = stripComments(read('features/modes/store/usePrefsStore.ts'));
 const REGISTER = stripComments(read('app/register.tsx'));
 const LOGIN = stripComments(read('app/login.tsx'));
 
-describe('demo veri gerçek veriyi gizleyemez', () => {
-  it('örnek satırlar YALNIZ liste gerçekten boşken', () => {
+/** Örnek veri ve tur taşıyan her ekran. Yeni bir ekran eklenirse buraya da eklenmeli. */
+const FIRST_RUN_SCREENS: [string, string][] = [
+  ['app/index.tsx', stripComments(read('app/index.tsx'))],
+  ['app/tasks.tsx', stripComments(read('app/tasks.tsx'))],
+  ['app/cockpit.tsx', stripComments(read('app/cockpit.tsx'))],
+];
+
+describe('kural TEK yerde', () => {
+  it('hiçbir ekran örnek veri koşulunu ELLE yazmıyor', () => {
     /*
-      Koşulda `tasks.length === 0` yokken dal erken dönüp SADECE demo satırları
-      veriyordu: eklenen gerçek görev, tur bitene kadar görünmez kalıyordu. Bir
-      uygulamanın en temel sözü, eklediğin şeyin orada durmasıdır.
+      Elle yazılan koşul ayrışır: üç ekranda üç farklı davranış çıkmıştı. Kapılar tek
+      modülde (firstRun); ekranlar yalnız çağırır.
     */
-    expect(TASKS).toContain('if (tasks.length === 0 && completedTours?.tasks !== true && !onboardingCompleted)');
+    const offenders = FIRST_RUN_SCREENS.filter(([, src]) =>
+      /completedTours\?\.\w+ !== true && !onboardingCompleted/.test(src),
+    ).map(([f]) => f);
+    expect(offenders).toEqual([]);
   });
 
-  it('demo satırlar gerçek görevlerden AYIRT EDİLEBİLİR kalıyor', () => {
-    // Sahte kimlikler gerçek id aralığının çok üstünde: bir demo satırı yanlışlıkla
-    // sunucuya gönderilirse hemen fark edilir.
-    for (const id of ['99991', '99992', '99993']) expect(TASKS).toContain(id);
+  it('üç ekran da ORTAK kapıları kullanıyor', () => {
+    for (const [name, src] of FIRST_RUN_SCREENS) {
+      expect(`${name}: ${src.includes('useDemoGate(')}`).toBe(`${name}: true`);
+      expect(`${name}: ${src.includes('useTourGate(')}`).toBe(`${name}: true`);
+    }
+  });
+
+  it('turun görünürlüğü hiçbir ekranda listeye DOĞRUDAN bağlı değil', () => {
+    // `tasks.length > 0 && <HelpTourModal/>` reaktiftir: dizi dolduğu karede açılır.
+    const offenders = FIRST_RUN_SCREENS.filter(([, src]) =>
+      /\.length > 0[^\n]*\n?\s*<HelpTourModal/.test(src),
+    ).map(([f]) => f);
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('örnek veri gerçek veriyi gizleyemez', () => {
+  it('kapı GERÇEK SAYIYI parametre olarak istiyor', () => {
+    /*
+      "Gerçek veri varsa gösterme" kuralı çağıranın hatırlamasına bırakılamaz — imzanın
+      kendisinden gelmeli. Koşulda bu yokken kullanıcının eklediği ilk görev listede
+      görünmüyordu: dal erken dönüp yalnız sahte satırları veriyordu.
+    */
+    expect(FIRST_RUN).toMatch(/\(realCount: number\) =>[\s\S]{0,120}realCount === 0/);
+  });
+
+  it('tercihler DİSKTEN okunmadan örnek veri çizilmiyor', () => {
+    /*
+      `onboardingCompleted` okunana kadar varsayılanı `false`. Bu kontrol olmadan HER
+      kullanıcı, her soğuk açılışta, gerçek verisi yüklenene kadar sahte satırları
+      görüyordu — kimsenin bildirmediği ama her açılışta olan bir parıltı.
+    */
+    expect(FIRST_RUN).toMatch(/hydrated && realCount === 0/);
+  });
+
+  it('her çağrı gerçek koleksiyonun uzunluğunu veriyor — sabit değil', () => {
+    for (const [name, src] of FIRST_RUN_SCREENS) {
+      const calls = [...src.matchAll(/demoGate\(([^)]*)\)/g)].map((m) => m[1].trim());
+      expect(`${name}: ${calls.length > 0}`).toBe(`${name}: true`);
+      for (const arg of calls) {
+        expect(`${name} → demoGate(${arg})`).toMatch(/\.length\)?$/);
+      }
+    }
   });
 });
 
 describe('tur kullanıcının eylemine tepki olarak açılmaz', () => {
-  it('karar ekrana GİRİLİRKEN bir kez veriliyor', () => {
-    /*
-      `tasks.length > 0` doğrudan koşul olarak kullanılınca REAKTİF olur: dizi dolduğu
-      karede modal açılır. Karar artık odaklanma anında donuyor.
-    */
-    expect(TASKS).toContain('useFocusEffect(useCallback(() => { setTourAllowed(tasksRef.current.length > 0); }, []))');
-    expect(TASKS).toContain('{tourAllowed && (');
+  it('karar odaklanma anında bir kez alınıyor', () => {
+    expect(FIRST_RUN).toContain('useFocusEffect(');
+    expect(FIRST_RUN).toMatch(/setAllowed\(read\.current\(\)\)/);
   });
 
-  it('turun görünürlüğü artık doğrudan listeye bağlı DEĞİL', () => {
-    expect(TASKS).not.toContain('{tasks.length > 0 && (\n        <HelpTourModal');
+  it('içerik REF üzerinden okunuyor — kapanışta eskiye saplanmasın', () => {
+    expect(FIRST_RUN).toContain('read.current = hasContent;');
+    for (const [name, src] of FIRST_RUN_SCREENS) {
+      expect(`${name}: ${/useTourGate\(\(\) => \w+Ref\.current/.test(src)}`).toBe(`${name}: true`);
+    }
+  });
+});
+
+describe('hoş geldin ekranı: oturuma değil DİSKE yazılı', () => {
+  it('kendi kalıcı bayrağı var', () => {
+    /*
+      Eski kapı `onboardingCompleted === false && isFirstLogin` idi ve ikisi de yanlıştı:
+       · `onboardingCompleted` TANITIM SLAYTLARI bitince de true oluyor; temiz kurulumda
+         sıra slaytlar → kayıt olduğu için ekran hiç ulaşılamıyordu.
+       · `isFirstLogin` persist edilmiyor; uygulama kapanınca kayboluyordu.
+    */
+    expect(PREFS).toContain("welcomeStatus: 'unknown' | 'pending' | 'done';");
+    expect(PREFS).toContain("'welcomeStatus',");   // diske yazılanlar listesinde
+  });
+
+  it('ilk giriş bayrağı ekranı AÇMIYOR, yalnız kalıcı durumu kuruyor', () => {
+    const INDEX = stripComments(read('app/index.tsx'));
+    expect(INDEX).toMatch(/if \(isFirstLogin && welcomeStatus === 'unknown'\)/);
+    expect(INDEX).toMatch(/if \(welcomeStatus === 'pending'/);
+    // Slaytların yazdığı bayrak artık kapıda DEĞİL.
+    expect(INDEX).not.toMatch(/onboardingCompleted === false && isFirstLogin/);
+  });
+
+  it('bayrak yalnız ekran tamamlanınca kapanıyor', () => {
+    const INDEX = stripComments(read('app/index.tsx'));
+    expect(INDEX).toContain("setWelcomeStatus('done')");
+  });
+
+  it('mevcut kullanıcılara geriye dönük açılmıyor', () => {
+    // Varsayılan 'unknown'; 'pending'e yalnız ilk girişte geçiliyor.
+    expect(PREFS).toContain("welcomeStatus: 'unknown',");
   });
 });
 
 describe('ilk giriş bayrağı her yoldan taşınıyor', () => {
   /*
-    `isFirstLogin` hoş geldin (profil kurulumu) ekranının tek kapısı (bkz. app/index.tsx).
-    Hesap YARATABİLEN her yol bayrağı sunucudan alıp `setAuth`e vermek zorunda; biri
-    unutulursa o yoldan gelen kullanıcı akışı hiç görmez ve bu sessizce olur.
+    Hesap YARATABİLEN her yol, sunucudan gelen `isNewUser`ı `setAuth`e vermek zorunda.
+    register.tsx'in sosyal yolları bunu unutmuştu: Google/Apple ile kayıt olan kullanıcı
+    hoş geldin akışını hiç görmüyordu ve bu sessizce oluyordu.
   */
   const entryPoints: [string, string][] = [
     ['register.tsx', REGISTER],
     ['login.tsx', LOGIN],
   ];
 
-  it('sosyal giriş yolları sunucudan gelen isNewUser\'ı OKUYOR', () => {
+  it('sosyal yollar isNewUser\'ı OKUYOR', () => {
     for (const [name, src] of entryPoints) {
-      const social = [...src.matchAll(/await AuthService\.(googleLogin|appleLogin)\(/g)];
-      expect(social.length).toBeGreaterThan(0);
-      // Her sosyal çağrının dönüşünde isNewUser destructure edilmeli.
+      const calls = [...src.matchAll(/await AuthService\.(googleLogin|appleLogin)\(/g)];
       const reads = [...src.matchAll(/const \{[^}]*isNewUser[^}]*\} = await AuthService\.(googleLogin|appleLogin)\(/g)];
-      expect(`${name}: ${reads.length}`).toBe(`${name}: ${social.length}`);
+      expect(`${name}: ${reads.length}/${calls.length}`).toBe(`${name}: ${calls.length}/${calls.length}`);
     }
   });
 
@@ -92,7 +165,6 @@ describe('ilk giriş bayrağı her yoldan taşınıyor', () => {
   });
 
   it('e-posta ile KAYIT da ilk giriş sayılıyor', () => {
-    // Sosyal yollardan farklı: burada yeni olduğunu zaten biliyoruz, sabit `true`.
     expect(REGISTER).toMatch(/setAuth\([^)]*,\s*true\)/);
   });
 });

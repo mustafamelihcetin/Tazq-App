@@ -843,6 +843,9 @@ export default function HomeScreen() {
     hesabın ilk dakikasında görünür olduğu için canlıya kadar gitmişti.
   */
   const demoGate = useDemoGate('dashboard');
+  /* Ref: kapı her odaklanmada GÜNCEL diziyi okur, kapanışta eskiye saplanmaz. */
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
   const tourAllowed = useTourGate(() => tasksRef.current.length > 0);
 
   // Unified My Day feed items (Tasks only)
