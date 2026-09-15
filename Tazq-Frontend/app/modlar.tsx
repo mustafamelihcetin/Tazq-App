@@ -29,6 +29,7 @@ import {
 } from '@/shared/utils/notifications';
 import { ICON, S, R, F, B, TRACKING, SPRING, MAX_W, MAX_W_WIDE, contentMaxWidth, sideInset, navBarSpace, topBarSpace, TOP_BAR_HEIGHT } from '@/shared/constants/tokens';
 import { useTabletLayout, useWideLayout } from '@/shared/components/ResponsiveColumns';
+import { useTourGate } from '@/features/onboarding/utils/firstRun';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useSporStore, getThisWeekEntry } from '@/features/modes/store/useSporStore';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
@@ -119,6 +120,12 @@ export default function ModlarScreen() {
     tanesi sığmadığı için ızgara alt alta düşüyor, üstelik kabı yatayda taşırıyordu.
     Yani bu ekranın tablette görünen hâli yalnız boş değil, BOZUKTU.
   */
+  /*
+    Modlar ekranı ortak tur kapısını KULLANMIYORDU: tur koşulsuz çiziliyordu. Bu ekranda
+    anlatacak bir şey hep var (hazır mod kartları), yani içerik koşulu gerekmiyor —
+    ama ODAK koşulu gerekiyor (bkz. useTourGate).
+  */
+  const tourAllowed = useTourGate(() => true);
   const wide = useWideLayout();     // ≥1100 — sayfa ikiye bölünür
   const tablet = useTabletLayout();  // ≥700  — sütun genişler, kartlar yan yana
   const gridW = Math.min(screenWidth, contentMaxWidth(screenWidth));
@@ -1191,7 +1198,7 @@ export default function ModlarScreen() {
         </KeyboardAvoidingView>
       </View>
 
-      <HelpTourModal pageId="modlar" onStepChange={handleStepChange} />
+      {tourAllowed && <HelpTourModal pageId="modlar" onStepChange={handleStepChange} />}
       <BottomNavBar />
 
       {modePreview && (

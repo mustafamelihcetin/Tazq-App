@@ -24,6 +24,7 @@ import { useFocusStore } from '@/features/focus';
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { swallow } from '@/shared/utils/swallow';
+import { rescheduleAllTaskNotifications } from '@/shared/utils/notifications';
 import { requestNotificationPermissions, getNotificationPermissionStatus, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -161,16 +162,39 @@ export default function SettingsScreen() {
     return language === 'tr' ? `Her gün ${hh} — bugünkü görevler` : `Daily at ${hh} — today's tasks`;
   })();
 
+  /*
+    ── GİZLİLİK AYARI GEÇMİŞE DE UYGULANIR ──────────────────────────────────────
+    Bu anahtar yalnız BUNDAN SONRA kurulacak bildirimleri etkiliyordu: kullanıcı
+    "içeriği gizle" diyor ama zaten zamanlanmış hatırlatıcıları görev adını kilit
+    ekranında göstermeye devam ediyordu. Bir gizlilik ayarının en çok beklendiği an
+    tam da açıldığı andır.
+
+    Zamanlanmış bir bildirimin içeriği değiştirilemez; tek yol iptal edip yeniden
+    kurmak. Sonucu kullanıcıya da söylüyoruz — sessizce yapılan bir gizlilik işlemi,
+    yapılmamışla aynı güveni verir.
+  */
+  const applyHideNotificationContent = async (v: boolean) => {
+    haptic.select();
+    setHideNotificationContent(v);
+    const n = await rescheduleAllTaskNotifications(tasks, language, v);
+    if (n > 0) {
+      showToast(
+        language === 'tr' ? `${n} hatırlatıcı bu ayara göre yenilendi` : `${n} reminders updated to match`,
+        'success',
+      );
+    }
+  };
+
   const handleSleepToggle = async (v: boolean) => {
     haptic.select();
     if (v) {
       const ok = await SleepHealth.requestAuthorization();
       setSleepHealthOptIn(ok ? 'yes' : 'no');
-      showToast(
-        ok ? (language === 'tr' ? 'Uyku takibi açık — sabahları otomatik işaretlenir' : 'Sleep tracking on — auto-marked each morning')
-           : (language === 'tr' ? 'Sağlık izni verilmedi' : 'Health permission not granted'),
-        ok ? 'success' : 'info'
-      );
+      // İki dil yan yana: dörde bölünmüş dallanma yerine tek karar (bkz. i18nRatchet).
+      const msg = language === 'tr'
+        ? { ok: 'Uyku takibi açık — sabahları otomatik işaretlenir', no: 'Sağlık izni verilmedi' }
+        : { ok: 'Sleep tracking on — auto-marked each morning', no: 'Health permission not granted' };
+      showToast(ok ? msg.ok : msg.no, ok ? 'success' : 'info');
     } else {
       setSleepHealthOptIn('no');
     }
@@ -187,11 +211,10 @@ export default function SettingsScreen() {
     if (v) {
       const ok = await ActivityHealth.requestAuthorization();
       setActivityHealthOptIn(ok ? 'yes' : 'no');
-      showToast(
-        ok ? (language === 'tr' ? 'Hareket takibi açık — yürüyüş ve koşu görevlerin otomatik işaretlenir' : 'Activity tracking on — walking and running tasks auto-complete')
-           : (language === 'tr' ? 'Sağlık izni verilmedi' : 'Health permission not granted'),
-        ok ? 'success' : 'info'
-      );
+      const msg = language === 'tr'
+        ? { ok: 'Hareket takibi açık — yürüyüş ve koşu görevlerin otomatik işaretlenir', no: 'Sağlık izni verilmedi' }
+        : { ok: 'Activity tracking on — walking and running tasks auto-complete', no: 'Health permission not granted' };
+      showToast(ok ? msg.ok : msg.no, ok ? 'success' : 'info');
     } else {
       setActivityHealthOptIn('no');
     }
@@ -509,7 +532,7 @@ export default function SettingsScreen() {
                       ? 'Kilit ekranında görev adı yerine genel bir metin görünür'
                       : 'Shows a generic message instead of the task name'}
                     value={hideNotificationContent}
-                    onValueChange={(v: boolean) => { setHideNotificationContent(v); haptic.select(); }}
+                    onValueChange={applyHideNotificationContent}
                     theme={theme} isDark={isDark}
                 />
                 <RowDivider theme={theme} />

@@ -171,7 +171,11 @@ const KNOWN_LARGE: Record<string, number> = {
   // Zararsız değillerdi: emoji temizliği ÖLÜ kopyaya uygulanmış, canlı ExamCard
   // yarım kalmıştı.
   // 1391 → 1394: iOS 26/27 ARAÇ ÇUBUĞU DÜĞMESİ. Özet ve tanıtım düğmeleri cam kabuğa alındı.
-  'app/modlar.tsx': 1435,
+  // 1435 → 1442: turun ORTAK kapıya bağlanması. Bu ekran tanıtımını koşulsuz
+  // çiziyordu; sekmeli gezinmede ekran sökülmediği için arka planda açık kalan bir
+  // bayrak başka sayfada patlayabiliyordu (kullanıcı Modlar'dayken Haftalık Merkez'in
+  // anlatımını gördü). Artış tek çağrı + sarmalama.
+  'app/modlar.tsx': 1442,
   // 1199 → 1194: akıllı ayrıştırıcı ipucu NlpHintRow'a çıkarıldı. İpucu tek metin
   // olarak kuruluyordu ve temizlenmiş bir cümleyle dört HAM emojiyi (📅⏰🔁🏷️) aynı
   // Text düğümünde yan yana getiriyordu; parçalar artık tür taşıyor, ikonu sunum çiziyor.
@@ -212,7 +216,15 @@ const KNOWN_LARGE: Record<string, number> = {
     notlar: bu kusurlar "ekranı açıp bakmakla" görünmüyordu (anahtar doğru çalışıyor
     ama yanlış durum gösteriyordu), o yüzden gerekçe kodda duruyor.
   */
-  'app/settings.tsx': 888,
+  /*
+    888 → 911: "Bildirimde içeriği gizle" ayarının GERİYE DÖNÜK uygulanması. Ayar yalnız
+    o andan sonra kurulan bildirimleri etkiliyordu; zaten zamanlanmış hatırlatıcılar görev
+    adını taşımaya devam ediyordu. Gizlilik ayarının en çok işe yarayacağı an (telefonu
+    biri eline aldığında) tam da eski bildirimlerin göründüğü andır, yani ayar sessizce
+    sözünü tutmuyordu. Anahtar artık mevcut hatırlatıcıları yeniden kuruyor ve kaç tanesinin
+    yenilendiğini söylüyor — söz verilen şeyin OLDUĞU görünsün diye.
+  */
+  'app/settings.tsx': 911,
 };
 
 describe('dosya boyutu', () => {

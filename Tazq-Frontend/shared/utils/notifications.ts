@@ -395,6 +395,40 @@ export async function scheduleTaskNotification(
   }
 }
 
+/**
+ * TÜM GÖREV BİLDİRİMLERİNİ YENİDEN KURAR.
+ *
+ * ── NEDEN GEREKLİ ─────────────────────────────────────────────────────────────
+ * "Bildirimde içeriği gizle" ayarı yalnız BUNDAN SONRA kurulacak bildirimlere
+ * uygulanıyordu: anahtarı açan kullanıcının zaten zamanlanmış hatırlatıcıları görev
+ * adını kilit ekranında göstermeye devam ediyordu. Bir gizlilik ayarının en çok
+ * beklendiği an tam da açıldığı andır — "bundan sonrakiler" yeterli değil.
+ *
+ * Zamanlanmış bildirim içeriği DEĞİŞTİRİLEMEZ; tek yol iptal edip yeniden kurmak.
+ * `scheduleTaskNotification` zaten aynı kimlikle kurup üzerine yazıyor, yani ayrıca
+ * iptal etmeye gerek yok — geçmişte kalan tarihler de kendiliğinden eleniyor.
+ *
+ * @returns Yeniden kurulan bildirim sayısı (çağıran taraf kullanıcıya söyleyebilir).
+ */
+export async function rescheduleAllTaskNotifications(
+  tasks: { id: number; title: string; dueDate?: string | null; dueTime?: string | null; isCompleted?: boolean }[],
+  locale: string,
+  hideContent: boolean,
+): Promise<number> {
+  if (!Notifications) return 0;
+  if (!(await hasNotificationPermission())) return 0;
+  let count = 0;
+  for (const t of tasks) {
+    // Bitmiş ya da tarihsiz görevin hatırlatıcısı zaten yok.
+    if (t.isCompleted || !t.dueDate) continue;
+    try {
+      const id = await scheduleTaskNotification(t.id, t.title, t.dueDate, t.dueTime, locale, hideContent);
+      if (id) count += 1;
+    } catch (e) { swallow('notifications.rescheduleAllTaskNotifications', e); }
+  }
+  return count;
+}
+
 export async function cancelTaskNotification(taskId: number): Promise<void> {
   if (!Notifications) return;
   try {

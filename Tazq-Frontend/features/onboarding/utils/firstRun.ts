@@ -78,6 +78,17 @@ export function useTourGate(hasContent: () => boolean) {
   useFocusEffect(
     useCallback(() => {
       setAllowed(read.current());
+      /*
+        ── ODAKTAN ÇIKAN EKRANIN TURU KAPANIR ────────────────────────────────
+        Temizlik YOKTU: bayrak bir kez açılınca ekran arka plana düşse de açık
+        kalıyordu. Sekmeli gezinmede ekranlar sökülmeden bekliyor, yani arka
+        plandaki bir ekranın turu ayakta kalabiliyor ve kullanıcı başka bir
+        sayfadayken karşısına o sayfanın anlatımı çıkabiliyordu — kullanıcı da
+        tam bunu bildirdi: Modlar'dayken Haftalık Merkez'in tanıtımını gördü.
+
+        Bir tur, yalnız ANLATTIĞI ekran öndeyken görünebilir.
+      */
+      return () => setAllowed(false);
     }, []),
   );
 
