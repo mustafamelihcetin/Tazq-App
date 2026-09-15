@@ -149,6 +149,24 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   const [pickerDate, setPickerDate] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, day: new Date().getDate() });
   const [pickerTime, setPickerTime] = useState({ hour: 9, minute: 0 });
   const [newSubtaskText, setNewSubtaskText] = useState('');
+
+  /*
+    ODAKLANILAN ALAN — kenar rengi buradan çıkar.
+
+    Alanın kenarı normalde nötr bir saç teli; içine yazılırken markanın mavisine
+    döner. İki işi birden yapıyor: hangi kutunun klavyeyi dinlediğini söylüyor
+    (formda üç ayrı yazı alanı var ve klavye açıkken hepsi birbirine benziyordu)
+    ve dokunmatik olmayan girişte (donanım klavyesi, iPad) odağın nerede olduğunu
+    görünür kılıyor — bu bir ERİŞİLEBİLİRLİK gereği, süs değil.
+
+    KENAR ÇİZGİSİYLE DEĞİL. Önce odaklanan alana mavi bir kenar verildi ve geri
+    alındı — kutu çizmek kaba duruyordu, Apple da formlarda öyle yapmıyor. Alan
+    bunun yerine markanın mavisiyle hafifçe YIKANIYOR: sınır yok, düzen oynamıyor,
+    hangi kutunun canlı olduğu yine bir bakışta belli.
+  */
+  const [focusedField, setFocusedField] = useState<'title' | 'desc' | 'subtask' | null>(null);
+  const fieldFill = (f: 'title' | 'desc' | 'subtask') =>
+    focusedField === f ? theme.primary + '1A' : theme.surfaceField;
   // Ortak hook (bkz. useKeyboardHeight) — dinleyici uc dosyada kopyalanmisti.
   const keyboardHeight = useKeyboardHeight();
 
@@ -474,13 +492,15 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
               </TouchableWithoutFeedback>
               {/* Title Section */}
               <View style={styles.section}>
-                <View style={[styles.inputGroup, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 60 }]}>
+                <View style={[styles.inputGroup, { backgroundColor: fieldFill('title'), height: 60 }]}>
                   <TextInput
                     style={[styles.modalInput, { color: theme.onSurface, fontSize: F.body }]}
                     placeholder={isListeningTitle ? t.listeningLabel : t.taskTitle}
                     placeholderTextColor={theme.onSurfaceVariant + '99'}
                     value={form.title}
                     onChangeText={handleTitleChange}
+                    onFocus={() => setFocusedField('title')}
+                    onBlur={() => setFocusedField(null)}
                     maxLength={150}
                     underlineColorAndroid="transparent"
                   />
@@ -512,13 +532,15 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 ) : null}
 
                 {/* Description */}
-                <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, marginTop: S.sm, height: 100 }]}>
+                <View style={[styles.inputGroup, styles.modalTextArea, { backgroundColor: fieldFill('desc'), marginTop: S.sm, height: 100 }]}>
                   <TextInput
                     style={[styles.modalInput, { color: theme.onSurface, paddingTop: S.sm, fontSize: F.body }]}
                     placeholder={isListeningDesc ? t.listeningLabel : t.taskDescription + '...'}
                     placeholderTextColor={theme.onSurfaceVariant + '99'}
                     value={form.description}
                     onChangeText={handleDescriptionChange}
+                    onFocus={() => setFocusedField('desc')}
+                    onBlur={() => setFocusedField(null)}
                     multiline
                     numberOfLines={3}
                     maxLength={500}
@@ -546,7 +568,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       </Text>
                       <Touchable
                         onPress={openDatePicker}
-                        style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
+                        style={[styles.dateTimeChip, { backgroundColor: theme.surfaceField, height: 52 }]}
                       >
                         <Timer size={ICON.sm} color={theme.primary} />
                         <Text style={[styles.chipText, { color: form.dueDate ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: F.caption2 }]} numberOfLines={1}>
@@ -560,7 +582,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       </Text>
                       <Touchable
                         onPress={openTimePicker}
-                        style={[styles.dateTimeChip, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 52 }]}
+                        style={[styles.dateTimeChip, { backgroundColor: theme.surfaceField, height: 52 }]}
                       >
                         <Sparkles size={ICON.sm} color={theme.secondary} />
                         <Text style={[styles.chipText, { color: form.dueTime ? theme.onSurface : theme.onSurfaceVariant + '60', fontSize: F.caption2 }]} numberOfLines={1}>
@@ -573,7 +595,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
                 {/* Inline Date Picker */}
                 {showDatePicker && (
-                  <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: theme.outline }]}>
+                  <View style={[styles.inlinePicker, { backgroundColor: theme.surfaceField, borderColor: theme.outline }]}>
                     <Text style={[styles.inlinePickerTitle, { color: theme.onSurfaceVariant }]}>{t.dueDate}</Text>
                     <View style={styles.pickerRow}>
                       <View style={styles.pickerCol}>
@@ -632,7 +654,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
                 {/* Inline Time Picker */}
                 {showTimePicker && (
-                  <View style={[styles.inlinePicker, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, borderColor: theme.outline }]}>
+                  <View style={[styles.inlinePicker, { backgroundColor: theme.surfaceField, borderColor: theme.outline }]}>
                     <Text style={[styles.inlinePickerTitle, { color: theme.onSurfaceVariant }]}>{t.dueTime}</Text>
                     <View style={styles.pickerRow}>
                       <View style={styles.pickerCol}>
@@ -669,7 +691,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     <Touchable
                       key={p.key}
                       onPress={() => { haptic.select(); setForm(f => ({ ...f, priority: p.key })); }}
-                      style={[styles.priorityTab, { backgroundColor: form.priority === p.key ? priorityColor(p.key) : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 48 }]}
+                      style={[styles.priorityTab, { backgroundColor: form.priority === p.key ? priorityColor(p.key) : theme.surfaceField, height: 48 }]}
                     >
                       <Text style={[
                         styles.priorityTabText,
@@ -696,7 +718,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       key={r.key}
                       hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }}
                       onPress={() => { haptic.select(); setForm(f => ({ ...f, recurrence: r.key })); }}
-                      style={[styles.priorityTab, { backgroundColor: form.recurrence === r.key ? theme.secondary : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow), height: 42 }]}
+                      style={[styles.priorityTab, { backgroundColor: form.recurrence === r.key ? theme.secondary : theme.surfaceField, height: 42 }]}
                     >
                       {r.key !== 'None' && <Repeat size={ICON.xs} color={form.recurrence === r.key ? 'white' : theme.onSurfaceVariant} />}
                       <Text style={[styles.priorityTabText, { color: form.recurrence === r.key ? 'white' : theme.onSurfaceVariant, fontSize: F.caption }]}>
@@ -815,7 +837,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     */
                     backgroundColor: form.reminderEnabled
                       ? theme.primaryContainer
-                      : (isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow),
+                      : theme.surfaceField,
                     height: 52,
                   }]}
                 >
@@ -886,13 +908,15 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 
                 {/* Add Subtask Input */}
                 <View style={{ flexDirection: 'row', gap: S.sm, marginTop: S.sm }}>
-                  <View style={[styles.inputGroup, { flex: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow, height: 44 }]}>
+                  <View style={[styles.inputGroup, { flex: 1, backgroundColor: fieldFill('subtask'), height: 44 }]}>
                     <TextInput
                       style={{ flex: 1, fontSize: F.caption, color: theme.onSurface, fontWeight: '600' }}
                       placeholder={language === 'tr' ? 'Alt görev ekle...' : 'Add subtask...'}
                       placeholderTextColor={theme.onSurfaceVariant + '80'}
                       value={newSubtaskText}
                       onChangeText={setNewSubtaskText}
+                      onFocus={() => setFocusedField('subtask')}
+                      onBlur={() => setFocusedField(null)}
                       onSubmitEditing={() => {
                         if (!newSubtaskText.trim()) return;
                         setForm(f => ({ ...f, subtasks: [...f.subtasks, { text: newSubtaskText.trim(), done: false }] }));
@@ -943,7 +967,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                           if (hasTag) setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tagOption) }));
                           else setForm(f => ({ ...f, tags: [...f.tags, tagOption] }));
                         }}
-                        style={{ paddingHorizontal: S.smd, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: hasTag ? theme.primary : (isDark ? '#2C2C2E' : '#E5E5EA'), borderWidth: 0.5, borderColor: theme.outlineVariant }}
+                        style={{ paddingHorizontal: S.smd, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: hasTag ? theme.primary : theme.surfaceField }}
                       >
                         <Text style={{ fontSize: F.caption, fontWeight: '600', color: hasTag ? theme.onPrimary : theme.onSurfaceVariant }}>
                           {translateTag(tagOption, language as 'tr' | 'en')}

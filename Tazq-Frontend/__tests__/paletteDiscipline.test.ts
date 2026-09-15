@@ -102,7 +102,10 @@ const CEILING: Record<string, number> = {
   'features/modes/components/modes/ExamCard.tsx': 6,
   // 6 → 3: alt-görev "yapıldı" tik/çerçeve/zemin semantik theme.success'e bağlandı
   // 3 → 2: sayfa zemini (#1A1A1A) cam yüzeye geçti.
-  'features/tasks/components/TaskFormModal.tsx': 2,
+  // TaskFormModal LİSTEDEN ÇIKTI (2 → 0): önerilen etiket yongasının iki hex'i de form
+  // alanı jetonlarına bağlandı (surfaceField / outlineField). O iki renk, alanların
+  // GÖRÜNMEZLİK kusuruyla aynı kökten geliyordu — elle seçilen renk paletin derinlik
+  // dilinin dışında kalır ve tema değişince yerinde çakılı durur.
   'features/modes/components/modes/MulakatCard.tsx': 5,
   'features/modes/components/modes/TezCard.tsx': 5,
   // 5 → 3: sayfa zemini cam yüzeye geçti.

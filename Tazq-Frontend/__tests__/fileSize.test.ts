@@ -184,7 +184,16 @@ const KNOWN_LARGE: Record<string, number> = {
   // klavye açıkken dört, kapalıyken iki köşe yuvarlanıyor (tek satırlık not).
   // 1197 → 1200: hızlı eklemeden gelen metnin ÖN DOLU açılması (ayrıştırıcı alanları da
   // dolduruyor). İpucu çipleri ortak dosyaya çıktığı için 25 satır da eksildi.
-  'features/tasks/components/TaskFormModal.tsx': 1200,
+  /*
+    1200 → 1233: FORM ALANLARININ GÖRÜNÜR OLMASI. Aydınlık temada alan zemini #FAFAFA,
+    sayfa zemini #FFFFFF idi: 1.04:1 kontrast, yani kullanıcı yazı kutusunun ve tarih
+    seçicinin nerede olduğunu göremiyordu (koyu temada fark TAM SIFIRDI — ikisi de aynı
+    token). Alanlar artık tek jetona bağlı (Colors.surfaceField/outlineField), kenarları
+    var ve yazılan alanın kenarı markanın mavisine dönüyor. Artışın çoğu bu üç kararın
+    NEDENİNİ taşıyan notlar; kusurun kendisi "ekrana bakınca" görünmüyordu, çünkü alan
+    oradaydı ve çalışıyordu — yalnız görünmüyordu.
+  */
+  'features/tasks/components/TaskFormModal.tsx': 1233,
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula

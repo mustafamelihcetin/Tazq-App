@@ -15,7 +15,7 @@ import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { WeightEntryModal } from '@/features/modes/components/WeightEntryModal';
 import { weightTaskAction, completeTaskOfflineFirst, isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
 import { TaskFormModal } from '@/features/tasks/components/TaskFormModal';
-import { useTaskStore, parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
+import { useTaskStore, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -45,7 +45,6 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { Touchable } from '@/shared/components/Touchable';
 import { ChromeShell } from '@/shared/components/ChromeShell';
-import { QuickAddSheet } from '@/features/tasks/components/QuickAddSheet';
 import { swallow } from '@/shared/utils/swallow';
 import { httpStatusOf, isNetworkError, errorMessage, httpDataOf } from '@/shared/utils/errors';
 import { playSoundEffect } from '@/shared/utils/soundEffects';
@@ -627,11 +626,17 @@ export default function ActionCenter() {
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   /*
-    HIZLI EKLEME — + düğmesinin VARSAYILANI (bkz. QuickAddSheet).
-    Tam form ikinci adımda: hızlı sayfadaki "Detaylar" yazılan metni taşıyarak açar.
+    HIZLI EKLEME BU EKRANDA YOK — bilerek.
+
+    + düğmesi iki ekranda da aynı tek satırlık kutuyu açıyordu, yani hangi ekranda
+    olduğunu söylemiyordu. Oysa iki ekranın işi ayrı: ana sayfa BAKILAN bir yer, akıl
+    dışarıdayken tek satır yazıp geçmek için doğru; Aksiyon Merkezi ise görevin
+    YÖNETİLDİĞİ yer — tarih, öncelik, tekrar, hatırlatıcı, alt görev, etiket hep burada.
+    Kullanıcı bunları ayarlamaya geldiği ekranda önüne tek satırlık bir kutu çıkıyor ve
+    aradığına ancak "Detaylar"a basarak, bir adım fazladan atarak varıyordu.
+
+    Hız kaybı yok: tam form da yalnız başlık yazılıp kaydedilebiliyor.
   */
-  const [quickAddVisible, setQuickAddVisible] = useState(false);
-  const [prefillTitle, setPrefillTitle] = useState('');
   useUiDepth(modalVisible || weightModalTaskId !== null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showSwipePeek, setShowSwipePeek] = useState(false);
@@ -755,32 +760,6 @@ export default function ActionCenter() {
    */
   const handleAddBtnPress = () => {
     setEditingId(null);
-    setPrefillTitle('');
-    setQuickAddVisible(true);
-  };
-
-  /** Hızlı eklemeden gelen tek satır — alanları cümleden ayrıştırıcı dolduruyor. */
-  const handleQuickAdd = async (title: string) => {
-    const hint = parseTaskHint(title, language as 'tr' | 'en');
-    const tags = hint.tags || [];
-    await handleFormSave({
-      title,
-      description: '',
-      priority: hint.priority || 'Medium',
-      dueDate: hint.dueDate || '',
-      dueTime: hint.dueTime || null,
-      tags,
-      subtasks: [],
-      recurrence: hint.recurrence || 'None',
-      reminderEnabled: tags.includes('hatırlatıcı') || tags.includes('reminder'),
-    });
-  };
-
-  /** "Detaylar" → yazılan metin KAYBOLMADAN tam forma geçilir. */
-  const handleQuickAddDetails = (title: string) => {
-    setQuickAddVisible(false);
-    setEditingId(null);
-    setPrefillTitle(title);
     setModalVisible(true);
   };
 
@@ -2364,23 +2343,10 @@ export default function ActionCenter() {
         onClose={() => setWeightModalTaskId(null)}
       />
 
-      {/* Task Form Modal */}
-      <QuickAddSheet
-        visible={quickAddVisible}
-        onClose={() => setQuickAddVisible(false)}
-        onSave={handleQuickAdd}
-        onDetails={handleQuickAddDetails}
-        theme={theme}
-        isDark={isDark}
-        language={language}
-        t={t}
-      />
-
       <TaskFormModal
         visible={modalVisible}
-        onClose={() => { setModalVisible(false); setPrefillTitle(''); }}
+        onClose={() => setModalVisible(false)}
         task={editingId !== null ? tasks.find(t => t.id === editingId) : null}
-        initialTitle={prefillTitle}
         onSave={handleFormSave}
         onDelete={editingId !== null ? async (id) => handleDelete(id) : undefined}
         theme={theme}

@@ -127,6 +127,31 @@ const lightPalette = {
    */
   surfaceCard: '#FFFFFF',
 
+  /**
+   * FORM ALANI ZEMİNİ — metin kutusu, tarih/saat seçici, segment düğmesi.
+   *
+   * ── ÖLÇÜLEN SORUN ───────────────────────────────────────────────────────────
+   * Alanlar `isDark ? surfaceContainerHigh : surfaceContainerLow` yazıyordu.
+   * Aydınlık temada sayfa/kart zemini #FFFFFF, alan zemini #FAFAFA: aradaki fark
+   * %2, kontrast 1.04:1. Koyu temada durum daha kötüydü — sayfa zemini de alan
+   * zemini de AYNI token'dı (#222228), yani fark tam sıfır. Kullanıcı görev formunu
+   * açtığında yazı kutusunun ve tarih seçicinin nerede olduğunu göremiyordu.
+   *
+   * ── ÇÖZÜM KENAR ÇİZGİSİ DEĞİL ───────────────────────────────────────────────
+   * İlk denemede alanlara 1px kenar verildi ve GERİ ALINDI: kullanıcı "çok kaba
+   * duruyor" dedi, haklıydı. Apple da formlarda kutu çizmez — iOS'ta bir yazı
+   * alanının sınırını ZEMİN FARKI söyler (systemGray6 ≈ #F2F2F7, beyaz kartın
+   * üstünde). Kenar çizgisi Material'ın dili; bu uygulama iOS dilini konuşuyor.
+   *
+   * Asıl hata zaten kenarın yokluğu değil, farkın %2 olmasıydı. Fark gerçek bir
+   * adım olunca (%7) tek başına yetiyor: alan, üstünde durduğu kart/sayfadan iki
+   * temada da bir tık KOYU — "içine yazılan bir oyuk".
+   *
+   * Odaklanılan alan kenarla değil, hafif bir MAVİ YIKAMA ile ayrılıyor
+   * (bkz. TaskFormModal → fieldFill): yine çizgi yok, yine yumuşak.
+   */
+  surfaceField: '#EDEDF2',
+
   // Interaction overlays
   pressedOverlay: 'rgba(0, 0, 0, 0.08)',
   hoverOverlay: 'rgba(0, 0, 0, 0.04)',
@@ -199,6 +224,10 @@ const darkPalette = {
   // "üstte duruyor" okunsun.
   surfaceFloating: '#0F0F12',
   surfaceCard: '#1C1C22',
+
+  // Bkz. lightPalette.surfaceField — orada NEDEN kenar çizgisi OLMADIĞI anlatılıyor.
+  // Kart #1C1C22, sayfa kabuğu #222228; alan ikisinden de koyu → aynı oyuk hissi.
+  surfaceField: '#16161B',
 
   // Interaction overlays
   pressedOverlay: 'rgba(255, 255, 255, 0.08)',

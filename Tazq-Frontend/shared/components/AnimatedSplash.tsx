@@ -47,12 +47,25 @@ import { S } from '@/shared/constants/tokens';
  *
  * Şimdi sistem splash'i sadece zemin rengi (iOS'ta tamamen boş, Android'de işletim
  * sistemi kendi başlatıcı ikonunu gösteriyor — o davranış bizim elimizde değil).
- * Marka anı burada, TEK bir şeyle kuruluyor: kelime işareti belirir, altındaki ince
- * çizgi açılır. Zemin aynı olduğu için devir teslim yine görünmüyor.
+ * Marka anı burada kuruluyor: kelime işareti belirir, altında ÜÇ NOKTA görünür,
+ * noktalar birbirine doğru kayıp tek bir çizgide birleşir. Zemin aynı olduğu için
+ * devir teslim yine görünmüyor.
+ *
+ * ── NEDEN DÜZ BİR ÇİZGİ DEĞİL ─────────────────────────────────────────────────
+ * Önce yalnız bir çizgi vardı ve merkezden dışa açılıyordu. Teknik olarak kusursuzdu
+ * ama hiçbir şey SÖYLEMİYORDU: aynı çizgiyi herhangi bir uygulamanın açılışına
+ * koyabilirdiniz. Bir açılış ekranı kullanıcının uygulamayı her gün gördüğü tek
+ * ortak andır; orada harcanan bir saniyenin bir karşılığı olmalı.
+ *
+ * Üç nokta tek çizgiye dönüşüyor — uygulamanın tek cümlelik vaadi bu: dağınık işler
+ * tek bir plana dönüşür. Metin KULLANILMIYOR, bilerek: açılış sırasında yazı tipleri
+ * hâlâ yükleniyor (bkz. `ready`), yazı bir an yanlış yüzle görünürdü; ayrıca geometri
+ * iki dilde de aynı şeyi anlatıyor, çeviri gerektirmiyor.
  *
  * ── SÜRE ──────────────────────────────────────────────────────────────────────
  * Sektör eşiği 1–1.5 sn; 2 sn üstü "bekliyorum" hissi verir. Toplam 1.85 sn idi,
- * şimdi ~1.1 sn.
+ * çizgi yerine noktaların birleşmesi konunca ~1.31 sn oldu. Eşiğin içinde kalıyor:
+ * eklenen 280ms'in karşılığı, açılışın bir şey ANLATMASI (bkz. aşağıdaki not).
  *
  * ── HAREKETİ AZALT ────────────────────────────────────────────────────────────
  * Tercih açıkken hiçbir şey hareket etmez: işaret olduğu yerde belirir, ekran kısaca
@@ -64,7 +77,9 @@ const INTRO_HOLD = 90;        // sistem splash'inden devralınırken kısa bir s
 const INTRO_MARK = 360;       // kelime işaretinin belirmesi
 const INTRO_PULSE_UP = 130;   // nabzın yükselişi
 const INTRO_PULSE_DOWN = 190; // nabzın oturması
-const INTRO_LINE = 260;       // ince çizginin açılması
+const INTRO_DOTS = 240;       // üç noktanın belirmesi
+const INTRO_MERGE = 320;      // noktaların ortada birleşmesi
+const INTRO_LINE = 240;       // birleşmeden doğan çizginin açılması
 const OUTRO_FADE = 260;       // içeriğe geçiş
 /**
  * Zeminin sistem renginden uygulama rengine geçme süresi.
@@ -118,6 +133,12 @@ export const AnimatedSplash = ({
   const isDark = colorScheme === 'dark';
   const bg = isDark ? Colors.dark.background : Colors.light.background;
   const lineColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)';
+  /*
+    Nokta ÇİZGİDEN KOYU. Aynı tonu paylaşsalardı noktalar görünmezdi: bir çizgi uzun
+    ve sürekli, üç nokta ise toplam birkaç piksel — aynı opaklık gözde aynı ağırlığı
+    vermiyor. Bu bir tasarım tercihi değil, alan farkının telafisi.
+  */
+  const dotColor = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.38)';
   /** İki uç aynıysa geçişe hiç gerek yok — çoğu kullanıcıda durum bu. */
   const needsBridge = bg !== systemBg;
 
@@ -125,6 +146,14 @@ export const AnimatedSplash = ({
   const markWidth = Math.min(width * 0.48, 220);
   const markHeight = markWidth / 3.2;
   const lineWidth = Math.round(markWidth * 0.5);
+  /*
+    Noktanın çapı ve yayılımı ÇİZGİDEN türer, elle yazılmaz: markWidth ekran
+    genişliğinden geldiği için küçük telefondan tablete kadar oran korunur.
+    Nokta çizginin kalınlığından kalın olmalı (saç teli bir nokta görünmez),
+    ama iri de olmamalı — 3pt göz için "işaret", 6pt "buton" okunur.
+  */
+  const dotSize = Math.max(3, Math.round(lineWidth * 0.035));
+  const dotSpread = lineWidth / 2;
 
   const [introDone, setIntroDone] = React.useState(false);
 
@@ -133,6 +162,14 @@ export const AnimatedSplash = ({
   const markY = useRef(new Animated.Value(reduceMotion ? 0 : 8)).current;
   const markScale = useRef(new Animated.Value(1)).current;
   const lineScale = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  /*
+    Noktaların üç hâli tek değerde toplanıyor:
+      dotSpread  1 → dağınık, 0 → ortada birleşmiş
+      dotOpacity 0 → yok, 1 → görünür (birleşme bitince çizgiye devrederken 0'a döner)
+    Hareketi Azalt açıkken noktalar hiç çizilmez; çizgi son hâliyle durur.
+  */
+  const dotsSpread = useRef(new Animated.Value(1)).current;
+  const dotsOpacity = useRef(new Animated.Value(0)).current;
   const screenOpacity = useRef(new Animated.Value(1)).current;
   /*
     Zemin geçişi AYRI bir katmanda ve JS sürücüsüyle.
@@ -225,13 +262,45 @@ export const AnimatedSplash = ({
         }),
       ]),
 
-      // 4. İnce çizgi merkezden dışa açılır — marka anının noktası.
-      Animated.timing(lineScale, {
+      // 4. ÜÇ NOKTA belirir — henüz dağınık.
+      Animated.timing(dotsOpacity, {
         toValue: 1,
-        duration: INTRO_LINE,
-        easing: Easing.out(Easing.quad),
+        duration: INTRO_DOTS,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
+
+      /*
+        5. BİRLEŞME. Noktalar ortaya doğru kayarken çizgi aynı anda açılıyor ve
+        noktalar sönüyor: üçü tek harekette devrediliyor. Ayrı ayrı yapılsaydı
+        (önce sön, sonra çiz) araya boş bir kare girer ve "birleşme" okunmazdı.
+        Yay fiziği değil zamanlama: bir yayın sekmesi "toplanma"yı gevşetirdi.
+      */
+      Animated.parallel([
+        Animated.timing(dotsSpread, {
+          toValue: 0,
+          duration: INTRO_MERGE,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.delay(INTRO_MERGE - INTRO_LINE),
+          Animated.parallel([
+            Animated.timing(dotsOpacity, {
+              toValue: 0,
+              duration: INTRO_LINE,
+              easing: Easing.in(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.timing(lineScale, {
+              toValue: 1,
+              duration: INTRO_LINE,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver: true,
+            }),
+          ]),
+        ]),
+      ]),
     ]).start(() => setIntroDone(true));
 
     return () => clearTimeout(hapticTimer);
@@ -284,12 +353,42 @@ export const AnimatedSplash = ({
           yoksa açık zemine beyaz yazı düşer ve işaret kaybolur.
         */}
         <TazqLogo height={markHeight} width={markWidth} variant={isDark ? 'white' : 'dark'} />
-        <Animated.View
-          style={[
-            styles.line,
-            { width: lineWidth, backgroundColor: lineColor, transform: [{ scaleX: lineScale }] },
-          ]}
-        />
+        {/*
+          Çizgi ve noktalar AYNI şeridi paylaşıyor: nokta katmanı çizginin üstüne
+          mutlak konumlu biniyor, ikisi de aynı genişlikten türüyor. Böylece
+          birleşme tam çizginin doğduğu yerde oluyor; iki ayrı kutu olsaydı
+          yükseklik farkı yüzünden noktalar çizginin üstüne değil YANINA düşerdi.
+        */}
+        <Animated.View style={[styles.line, { width: lineWidth, marginTop: S.md }]}>
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: lineColor, transform: [{ scaleX: lineScale }] },
+            ]}
+          />
+          {!reduceMotion && [-1, 0, 1].map((slot) => (
+            <Animated.View
+              key={slot}
+              style={{
+                position: 'absolute',
+                // Dikey merkez: nokta çizgiden kalın, farkın yarısı kadar yukarı.
+                top: (StyleSheet.hairlineWidth - dotSize) / 2,
+                left: lineWidth / 2 - dotSize / 2,
+                width: dotSize,
+                height: dotSize,
+                borderRadius: dotSize / 2,
+                backgroundColor: dotColor,
+                opacity: dotsOpacity,
+                transform: [{
+                  translateX: dotsSpread.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, slot * dotSpread],
+                  }),
+                }],
+              }}
+            />
+          ))}
+        </Animated.View>
       </Animated.View>
     </Animated.View>
   );
@@ -306,7 +405,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   line: {
-    marginTop: S.sm,
     height: StyleSheet.hairlineWidth,
+    // `overflow` YOK: noktalar birleşmeden önce şeridin uçlarında ve dikeyde
+    // taşıyor; kırpılsalardı "dağınıklık" hiç görünmezdi.
   },
 });

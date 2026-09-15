@@ -590,11 +590,13 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
     }
 
     // ───────────────── MODLAR ─────────────────
-    case 'modlar-0': // Haftalık Merkez — genel bakış (aktif mod durumu)
+    // Başlığı "Haftalık Merkez" yazıyordu — BAŞKA bir ekranın adı; kullanıcı Modlar'da
+    // yanlış turu gördüğünü sandı. Bekçi + gerekçe: __tests__/tourPreview.test.ts.
+    case 'modlar-0':
       return (
         <ScaledScreen innerW={frameW}>
           <View style={{ paddingHorizontal: S.md }}>
-            <Text style={{ fontSize: 22, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{tr ? 'Haftalık Merkez' : 'Weekly Hub'}</Text>
+            <Text style={{ fontSize: 22, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5 }}>{tr ? 'Yaşam Modları' : 'Life Modes'}</Text>
             <Text style={{ fontSize: 12, color: theme.onSurfaceMuted, marginTop: S.xs, marginBottom: S.smd }}>
               {tr ? 'Aktif dönem hedeflerini tek yerden takip et' : 'Track your active seasonal goals in one place'}
             </Text>
