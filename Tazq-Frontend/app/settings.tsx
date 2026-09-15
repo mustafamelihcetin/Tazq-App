@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, useWindowDimensions, Modal, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, Keyboard, Linking, Animated, TouchableWithoutFeedback } from 'react-native';
@@ -22,8 +22,9 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useFocusStore } from '@/features/focus';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { requestNotificationPermissions, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { swallow } from '@/shared/utils/swallow';
+import { requestNotificationPermissions, getNotificationPermissionStatus, cancelWeeklySummary, cancelMorningBrief, cancelEveningBrief } from '@/shared/utils/notifications';
 import { requestCalendarPermissions, bulkExportTasksToCalendar } from '@/shared/utils/calendarSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ICON, S, R, F, B, W, MAX_W, MIN_TOUCH, trackingFor , topBarSpace} from '@/shared/constants/tokens';
@@ -122,6 +123,32 @@ export default function SettingsScreen() {
   useEffect(() => {
     checkStreakFreezeReset();
   }, []);
+
+  /*
+    ── EKRAN GERÇEK DURUMU OKUMAK ZORUNDA ──────────────────────────────────────
+    İki anahtar da yalnız YAZILIYOR, hiç OKUNMUYORDU:
+
+     · Bildirim izni `useState(false)` ile başlıyordu; izin verilmiş olsa bile ekran
+       her açılışta "Kapalı" diyordu.
+     · Takvim eşitlemesi `tazq_calendar_sync_enabled` anahtarına yazıyor ama geri
+       yükleme effect'i profil ekranında kalmıştı. Sonuç yalnız yanlış bir etiket
+       değil: kullanıcı "kapalı" gördüğü anahtarı açınca `bulkExportTasksToCalendar`
+       yeniden çalışıyor ve görevler takvime İKİNCİ KEZ yazılıyordu.
+
+    Bir ayar ekranının ilk görevi, o ayarın gerçekte ne olduğunu doğru söylemektir.
+    Odaklanıldığında yeniden okunuyor: kullanıcı sistem ayarlarından izni değiştirip
+    geri dönebilir.
+  */
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      getNotificationPermissionStatus().then((st) => { if (alive) setNotifEnabled(st === 'granted'); });
+      AsyncStorage.getItem('tazq_calendar_sync_enabled')
+        .then((v) => { if (alive) setCalendarSync(v === 'true'); })
+        .catch((e) => swallow('settings.readCalendarSyncFlag', e));
+      return () => { alive = false; };
+    }, []),
+  );
 
 
   const handleSleepToggle = async (v: boolean) => {
