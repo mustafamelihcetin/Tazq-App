@@ -81,8 +81,24 @@ interface User {
 
 function clearLocalUserData() {
   const safe = (fn: () => void) => { try { fn(); } catch (e) { swallow('authStore.clearLocalUserData', e, { capture: true }); } };
-  // Keep onboarding status on logout/delete so it only runs once per app download
-  // safe(() => { AsyncStorage.removeItem('tazq-onboarding-done'); });
+  /*
+    ── TANITIM SLAYTLARI CİHAZ BAŞINA — BİLİNÇLİ, ÖLÇÜLMÜŞ KARAR ────────────────
+    Bayrak çıkışta SİLİNMİYOR. "Hesap başına olmalı mı?" sorusu bir kez daha soruldu ve
+    cevap yine hayır; gerekçe kayda geçsin diye burada:
+
+     · Slaytlar ÜRÜN ANLATIMI ("TAZQ nedir"), hesap kurulumu değil. Çıkıştan sonra
+       kullanıcıyla giriş ekranı arasına dört slaytlık bir tanıtım koymak, en sık
+       yapılan işi bir reklamın arkasına saklamak olurdu.
+     · Slaytların yazdığı TEK kullanıcı-özel tercih `uiMode` (Sade mod). Varsayılanı
+       `pro` — yani zengin arayüz; sorulmaması kimseyi eksik bir deneyime düşürmüyor,
+       üstelik Ayarlar'da tek dokunuşluk bir anahtar.
+     · Hesap başına OLMASI gerekenler zaten hesap başına: hoş geldin/profil kurulumu
+       (bkz. usePrefsStore → welcomeStatus) ve sayfa turları (completedTours). İkisi de
+       çıkışta sıfırlanıyor.
+
+    Yani cihaz bayrağı yalnız "bu kişi TAZQ'yu tanıyor" bilgisini taşıyor ve bu bilgi
+    gerçekten cihaza ait.
+  */
   safe(() => require('@/features/tasks/store/useTaskStore').useTaskStore.setState({ tasks: [], isLoading: false }));
   safe(() => require('@/features/focus/store/useFocusStore').useFocusStore.getState().reset());
   safe(() => require('@/features/habits/store/useHabitStore').useHabitStore.setState({ habits: [] }));

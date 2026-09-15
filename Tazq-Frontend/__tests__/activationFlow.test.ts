@@ -108,15 +108,33 @@ describe('tur kullanıcının eylemine tepki olarak açılmaz', () => {
 });
 
 describe('hoş geldin ekranı: oturuma değil DİSKE yazılı', () => {
-  it('kendi kalıcı bayrağı var', () => {
+  it('kendi kalıcı bayrağı var ve GERÇEKTEN diske yazılıyor', () => {
     /*
       Eski kapı `onboardingCompleted === false && isFirstLogin` idi ve ikisi de yanlıştı:
        · `onboardingCompleted` TANITIM SLAYTLARI bitince de true oluyor; temiz kurulumda
          sıra slaytlar → kayıt olduğu için ekran hiç ulaşılamıyordu.
        · `isFirstLogin` persist edilmiyor; uygulama kapanınca kayboluyordu.
+
+      "Kalıcı" iddiası DOĞRULANMALI, varsayılmamalı: mağazada `partialize` olmadığı için
+      state'in tamamı diske yazılıyor. Biri `partialize` eklerse bu bayrak sessizce
+      uçucu hâle gelir ve hoş geldin ekranı yine uygulama kapanınca kaybolur — o yüzden
+      test burada bir de partialize'ın YOKLUĞUNU bekliyor.
     */
     expect(PREFS).toContain("welcomeStatus: 'unknown' | 'pending' | 'done';");
-    expect(PREFS).toContain("'welcomeStatus',");   // diske yazılanlar listesinde
+    expect(PREFS).not.toContain('partialize');
+  });
+
+  it('cihazlar arasında taşınıyor — ikinci cihazda tekrar sorulmuyor', () => {
+    /*
+      Bayrak bulut listesinde: telefonda tamamlayan kullanıcı tablette aynı ekranla
+      karşılaşmıyor. Buluttan geri yükleme, anahtar buluttaki kopyada YOKSA yerel değere
+      dokunmuyor (bkz. hydrateFromCloud → `parsed[key] === undefined` → continue), yani
+      eski kullanıcılara geriye dönük bir ekran açılmıyor.
+    */
+    const cloudList = PREFS.slice(PREFS.indexOf('CLOUD_PREF_KEYS'), PREFS.indexOf('] as const'));
+    expect(cloudList).toContain("'welcomeStatus'");
+    expect(PREFS).toContain('if (!prefsJson) return;');
+    expect(PREFS).toContain('if (parsed[key] === undefined) continue;');
   });
 
   it('ilk giriş bayrağı ekranı AÇMIYOR, yalnız kalıcı durumu kuruyor', () => {
