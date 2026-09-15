@@ -7,7 +7,6 @@ import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useThemeStore } from '@/shared/store/useThemeStore';
 import { Colors } from '@/shared/constants/Colors';
-import { S } from '@/shared/constants/tokens';
 
 /**
  * AÇILIŞ EKRANI.
@@ -90,6 +89,39 @@ const OUTRO_FADE = 260;       // içeriğe geçiş
 const BG_BRIDGE = 240;
 
 /**
+ * KELİME İŞARETİNİN GERÇEK GEOMETRİSİ — ölçülmüş, tahmin değil.
+ *
+ * ── ÖLÇÜLEN SORUN ────────────────────────────────────────────────────────────
+ * Logo ile altındaki çizgi arasında kullanıcının bildirdiği fazla boşluk, aslında
+ * verilen boşluk DEĞİLDİ: boşluğun çoğu PNG'nin kendi içindeki şeffaf piksellerdi.
+ *
+ * tazq_text_*.png 282×153 ve mürekkep yalnız 245×82'lik bir kutuda duruyor:
+ * üstte %28.1, altta %18.3 şeffaf alan var. Dolayısıyla `marginTop` ne verilirse
+ * verilsin, görünen aralık her zaman "verilen değer + resmin alt boşluğu" oluyordu.
+ * Ölçülen: ~27pt aralık, 32pt'lik bir kelime işaretinin altında — kelimenin kendi
+ * boyunun %85'i kadar. Göz bunu "kopmuş" diye okur.
+ *
+ * Bir de kutu oranı yanlıştı: bileşen 3.2 varsayıyor, resim 1.843. `contain` bunu
+ * yükseklikten sığdırıp yanlara ölü alan bırakıyordu — yani kabın genişliği görünen
+ * kelimeyle ilgisizdi ve altındaki çizgi ona göre hesaplanamıyordu.
+ *
+ * Aşağıdaki oranlar o ölçümün kendisi. Artık her şey MÜREKKEPTEN türüyor: kelimenin
+ * ekranda kapladığı genişlik, çizginin genişliği ve aradaki optik boşluk.
+ * Görsel dosya değişirse bu üç sayı yeniden ölçülmeli — başka hiçbir yer değişmez.
+ */
+const LOGO_ASPECT = 282 / 153;   // PNG kutusunun oranı (bileşenin varsaydığı 3.2 DEĞİL)
+const LOGO_INK_W = 245 / 282;    // kutunun ne kadarı yatayda mürekkep
+const LOGO_INK_H = 82 / 153;     // ... ve dikeyde
+const LOGO_INK_BOTTOM = 28 / 153;// mürekkebin ALTINDAKİ şeffaf pay
+/**
+ * Optik aralık: kelime işaretinin boyunun yarısı.
+ *
+ * Bir kelime işaretiyle altındaki kural çizgisi arasındaki klasik oran 0.4–0.6×;
+ * ölçüldüğünde buradaki 0.85× idi. Yarım, iki uçtan da güvenli.
+ */
+const LOGO_GAP_RATIO = 0.5;
+
+/**
  * Tema tercihi diskten OKUNDU mu?
  *
  * Okunmadan önce mağaza varsayılanı ('system') döner. O anda köprüyü başlatmak,
@@ -142,10 +174,23 @@ export const AnimatedSplash = ({
   /** İki uç aynıysa geçişe hiç gerek yok — çoğu kullanıcıda durum bu. */
   const needsBridge = bg !== systemBg;
 
-  // Ölçü ekran genişliğinden türer → küçük telefondan tablete %100 responsive.
-  const markWidth = Math.min(width * 0.48, 220);
-  const markHeight = markWidth / 3.2;
-  const lineWidth = Math.round(markWidth * 0.5);
+  /*
+    ÖLÇÜ EKRAN GENİŞLİĞİNDEN TÜRER → küçük telefondan tablete %100 responsive.
+    Tek serbest sayı `markWidth`: kelime işaretinin ekranda GÖRÜNEN genişliği.
+    Resim kutusu ondan geri hesaplanıyor, aralık ve çizgi de ondan.
+  */
+  const markWidth = Math.min(width * 0.24, 110);
+  /* Kabın oranı resmin oranına EŞİT → `contain` artık hiçbir yönde ölü alan bırakmıyor. */
+  const boxWidth = markWidth / LOGO_INK_W;
+  const boxHeight = boxWidth / LOGO_ASPECT;
+  /* Çizgi tam kelimenin genişliği: iki kenar da aynı hizada biter. */
+  const lineWidth = Math.round(markWidth);
+  /*
+    Verilecek boşluk = istenen optik aralık EKSİ resmin kendi alt payı. Bu çıkarma
+    olmadan aralık her zaman resmin görünmez boşluğu kadar fazla çıkıyor.
+  */
+  const inkHeight = boxHeight * LOGO_INK_H;
+  const markGap = Math.max(0, Math.round(inkHeight * LOGO_GAP_RATIO - boxHeight * LOGO_INK_BOTTOM));
   /*
     Noktanın çapı ve yayılımı ÇİZGİDEN türer, elle yazılmaz: markWidth ekran
     genişliğinden geldiği için küçük telefondan tablete kadar oran korunur.
@@ -352,14 +397,14 @@ export const AnimatedSplash = ({
           "zemin"den bahsettiğimiz değişti: mürekkep hep ALTINDAKİ renge göre seçilir,
           yoksa açık zemine beyaz yazı düşer ve işaret kaybolur.
         */}
-        <TazqLogo height={markHeight} width={markWidth} variant={isDark ? 'white' : 'dark'} />
+        <TazqLogo height={boxHeight} width={boxWidth} variant={isDark ? 'white' : 'dark'} />
         {/*
           Çizgi ve noktalar AYNI şeridi paylaşıyor: nokta katmanı çizginin üstüne
           mutlak konumlu biniyor, ikisi de aynı genişlikten türüyor. Böylece
           birleşme tam çizginin doğduğu yerde oluyor; iki ayrı kutu olsaydı
           yükseklik farkı yüzünden noktalar çizginin üstüne değil YANINA düşerdi.
         */}
-        <Animated.View style={[styles.line, { width: lineWidth, marginTop: S.md }]}>
+        <Animated.View style={[styles.line, { width: lineWidth, marginTop: markGap }]}>
           <Animated.View
             style={[
               StyleSheet.absoluteFill,
