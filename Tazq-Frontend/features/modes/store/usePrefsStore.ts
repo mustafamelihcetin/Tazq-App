@@ -199,6 +199,27 @@ interface PrefsState {
   setFeatureFlag: (key: string, value: boolean) => void;
   // İlk-değer akışı izleme
   onboardingCompleted: boolean;
+  /*
+    HOŞ GELDİN (profil kurulumu) EKRANININ KALICI DURUMU.
+
+    ── NEDEN AYRI BİR BAYRAK ───────────────────────────────────────────────────
+    Ekran `onboardingCompleted === false && isFirstLogin` ile açılıyordu ve ikisi de
+    yanlıştı:
+
+     · `onboardingCompleted`, TANITIM SLAYTLARI bitince de `true` oluyor (bkz.
+       app/onboarding.tsx). Temiz kurulumda sıra slaytlar → kayıt olduğu için bayrak
+       kayıttan ÖNCE true'ya dönüyor ve hoş geldin ekranı hiç ulaşılamıyordu. İki ayrı
+       şeyi tek bayrakla anlatmanın bedeli buydu.
+     · `isFirstLogin` yalnız o OTURUMA ait; persist edilmiyor. Kullanıcı hoş geldin
+       ekranındayken uygulamayı kapatırsa bir daha hiç görmüyordu.
+
+    Bu bayrak yalnız bunu anlatıyor ve diske yazılıyor: 'pending' ancak kaydederek
+    'done' olur, uygulama kapansa da yerinde durur. Mevcut kullanıcılar 'unknown'
+    kalır — ilk giriş olmadıkları için 'pending'e hiç geçmezler, yani kimseye geriye
+    dönük bir ekran açılmaz.
+  */
+  welcomeStatus: 'unknown' | 'pending' | 'done';
+  setWelcomeStatus: (v: 'unknown' | 'pending' | 'done') => void;
   setOnboardingCompleted: (v: boolean) => void;
   helpTourShown: boolean;
   setHelpTourShown: (v: boolean) => void;
@@ -249,6 +270,7 @@ const CLOUD_PREF_KEYS = [
   'uiMode',
   'featureFlags',
   'onboardingCompleted',
+  'welcomeStatus',
   'helpTourShown',
   'notifPrimerSeen',
   'completedTours',
@@ -432,6 +454,8 @@ export const usePrefsStore = create<PrefsState>()(
       setFeatureFlag: (key, value) => set((s) => ({ featureFlags: { ...s.featureFlags, [key]: value } })),
       onboardingCompleted: false,
       setOnboardingCompleted: (v) => set({ onboardingCompleted: v }),
+      welcomeStatus: 'unknown',
+      setWelcomeStatus: (v) => set({ welcomeStatus: v }),
       helpTourShown: false,
       setHelpTourShown: (v) => set({ helpTourShown: v }),
       notifPrimerSeen: false,
@@ -495,6 +519,7 @@ export const usePrefsStore = create<PrefsState>()(
         completedTours: {},
         uiMode: 'pro',
         onboardingCompleted: false,
+        welcomeStatus: 'unknown',
         motto: '',
         gender: '',
         productivityHour: 'morning',

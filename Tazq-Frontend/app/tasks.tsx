@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard, FlatList, Alert } from 'react-native';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,7 +26,7 @@ import { MagneticFAB } from '@/shared/components/MagneticFAB';
 import { useTabletLayout, useWideLayout } from '@/shared/components/ResponsiveColumns';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { TaskService, Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -573,6 +573,24 @@ export default function ActionCenter() {
     Kart genişliği her kademede telefondakine yakın kalıyor (~370pt) — ızgara
     büyüdükçe kartlar şişmiyor, SAYILARI artıyor.
   */
+  /*
+    ── TUR, KULLANICININ EYLEMİNE TEPKİ OLARAK AÇILMAZ ──────────────────────────
+    Koşul doğrudan `tasks.length > 0` idi ve REAKTİFTİ: kullanıcı ilk görevini
+    ekliyor, dizi doluyor, modal aynı karede önüne atlıyordu. Nedensellik yanlış
+    okunuyordu — "görev eklemek bir pop-up açtı" gibi. Kullanıcı da tam bunu
+    bildirdi: "görev eklemiştim, akabinde bilgilendirme ekranı çıktı".
+
+    Niyet doğruydu (boş listede "sola kaydır, ertele" anlatmanın karşılığı yok), yanlış
+    olan ZAMANLAMAYDI. Karar artık ekrana GİRİLDİĞİ anda bir kez veriliyor ve o ziyaret
+    boyunca donuyor: elinde görev varken girersen tur açılır, buradayken eklediklerin
+    turu tetiklemez. İlk görevini ekleyen kullanıcı turu bir sonraki gelişinde görür —
+    o zaman gösterilecek gerçek bir liste de vardır.
+  */
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+  const [tourAllowed, setTourAllowed] = useState(false);
+  useFocusEffect(useCallback(() => { setTourAllowed(tasksRef.current.length > 0); }, []));
+
   const wide = useWideLayout();
   const tablet = useTabletLayout();
   const listCols = wide ? 3 : tablet ? 2 : 1;
@@ -1356,8 +1374,20 @@ export default function ActionCenter() {
   const getTagColor = getTagColorStatic;
 
   const filteredAndSortedTasks = useMemo(() => {
-    // Demo veri yalnızca ilk kez onboarding yapan yeni kullanıcıya; dönen/reaktive kullanıcıya değil.
-    if (completedTours?.tasks !== true && !onboardingCompleted) {
+    /*
+      ── DEMO VERİ GERÇEK VERİYİ ASLA GİZLEYEMEZ ─────────────────────────────────
+      Boş listeyi canlandırmak ve tura gösterecek bir şey vermek için üç örnek satır
+      çiziliyor. Koşulda `tasks.length === 0` YOKTU ve sonuç ağırdı: yeni kullanıcı
+      ilk görevini ekliyor, görev kaydediliyor ama LİSTEDE GÖRÜNMÜYORDU — çünkü bu dal
+      erken dönüp yalnızca demo satırları veriyordu. Gerçek görev ancak tur
+      tamamlandıktan sonra ortaya çıkıyordu.
+
+      Kullanıcı bunu "buglı gibi" diye bildirdi; haklıydı. Bir uygulamanın en temel
+      sözü, eklediğin şeyin orada durmasıdır — örnek veri o sözün önüne geçemez.
+      Artık demo yalnız GERÇEKTEN boşken görünüyor ve ilk görev eklenir eklenmez
+      kayboluyor.
+    */
+    if (tasks.length === 0 && completedTours?.tasks !== true && !onboardingCompleted) {
       return [
         {
           id: 99991,
@@ -2381,9 +2411,9 @@ export default function ActionCenter() {
         language={language}
         t={t}
       />
-      {/* Tur, anlatacak bir şey olduğunda: liste boşken "sola kaydır, ertele" anlatımının
-          karşılığı yok (bkz. app/index.tsx'teki aynı karar). */}
-      {tasks.length > 0 && (
+      {/* Tur, anlatacak bir şey olduğunda VE kullanıcının eylemine tepki olmadan
+          (bkz. yukarıdaki tourAllowed notu). */}
+      {tourAllowed && (
         <HelpTourModal
           pageId="tasks"
           onStepChange={handleStepChange}

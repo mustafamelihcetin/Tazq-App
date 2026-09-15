@@ -43,6 +43,7 @@ import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { MomentumPulse } from '@/features/user/components/MomentumPulse';
 import { WeightEntryModal } from '@/features/modes/components/WeightEntryModal';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
+import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
@@ -139,7 +140,7 @@ export default function HomeScreen() {
     gezinme ağacı henüz hazır olmuyor (bkz. useAppShortcuts).
   */
   useAppShortcuts();
-  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, helpTourShown, completedTours, onboardingCompleted, setOnboardingCompleted, _hasHydrated: prefsHydrated } = usePrefsStore();
+  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, helpTourShown, completedTours, onboardingCompleted, setOnboardingCompleted, welcomeStatus, _hasHydrated: prefsHydrated } = usePrefsStore();
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
@@ -176,13 +177,30 @@ export default function HomeScreen() {
       welcomeSetupShown = false;
       return;
     }
-    if (prefsHydrated && onboardingCompleted === false && isFirstLogin && !welcomeSetupShown) {
+    if (!prefsHydrated) return;
+
+    /*
+      ── HOŞ GELDİN EKRANI: OTURUMA DEĞİL DİSKE YAZILI ──────────────────────────
+      Kapı eskiden `onboardingCompleted === false && isFirstLogin` idi; ikisi de
+      yanlıştı (gerekçe usePrefsStore → welcomeStatus notunda). Kısaca: tanıtım
+      slaytları `onboardingCompleted`i kayıttan ÖNCE true yapıyordu, `isFirstLogin` ise
+      uygulama kapanınca kayboluyordu.
+
+      Artık ilk giriş yalnız bayrağı KURUYOR; ekranı açan şey bayrağın kendisi. Böylece
+      kullanıcı hoş geldin ekranındayken uygulamayı kapatsa bile sıradaki açılışta
+      kaldığı yerden devam ediyor.
+    */
+    if (isFirstLogin && welcomeStatus === 'unknown') {
+      usePrefsStore.getState().setWelcomeStatus('pending');
+    }
+
+    if (welcomeStatus === 'pending' && !welcomeSetupShown) {
       welcomeSetupShown = true;
       setProfileSetupVisible(true);
       usePrefsStore.getState().setTourCompleted('dashboard', false);
       usePrefsStore.getState().setHelpTourShown(false);
     }
-  }, [user, prefsHydrated, onboardingCompleted, isFirstLogin]);
+  }, [user, prefsHydrated, welcomeStatus, isFirstLogin]);
 
   const handleProfileSetupSave = async (name: string, avatar: string, borderColor: string, motto: string, productivityHour: string, gender: 'male' | 'female' | '') => {
     try {
@@ -196,6 +214,8 @@ export default function HomeScreen() {
       usePrefsStore.getState().setGender(gender);
       useSporStore.getState().setGender(gender);
       setOnboardingCompleted(true);
+      // Kalıcı bayrak KAPANIR: ekran yalnız kaydedilerek bitirilebiliyor (başka çıkış yolu yok).
+      usePrefsStore.getState().setWelcomeStatus('done');
       await usePrefsStore.getState().syncToCloud();
       // isFirstLogin BİLEREK temizlenmiyor: yardım turu bu ilk-giriş oturumu boyunca
       // (profil setup kapandıktan sonra) sayfa sayfa gösterilebilsin. Bayrak persist edilmez
@@ -817,11 +837,18 @@ export default function HomeScreen() {
     return due >= todayStart && due <= new Date(todayStart.getTime() + 86400000);
   });
 
+  /*
+    Örnek veri ve tur kapıları ORTAK kuraldan (bkz. features/onboarding/utils/firstRun).
+    Üç ekran aynı iki soruyu üç ayrı şekilde yanıtlıyordu; ayrışmalar yalnız yeni bir
+    hesabın ilk dakikasında görünür olduğu için canlıya kadar gitmişti.
+  */
+  const demoGate = useDemoGate('dashboard');
+  const tourAllowed = useTourGate(() => tasksRef.current.length > 0);
+
   // Unified My Day feed items (Tasks only)
   const myDayTasks = (() => {
-    // Demo/mock veri YALNIZCA ilk kez onboarding yapan yeni kullanıcıya gösterilir.
-    // Dönen/reaktive kullanıcı (onboardingCompleted=true) her zaman gerçek verisini görür.
-    if (completedTours?.dashboard !== true && !onboardingCompleted) {
+    // Örnek veri, GERÇEK görev yokken (bkz. useDemoGate — dört kuralın gerekçesi orada).
+    if (demoGate(tasks.length)) {
       return [
         {
           type: 'task' as const,
@@ -916,7 +943,7 @@ export default function HomeScreen() {
 
   // Today's Habits
   const myDayHabits = (() => {
-    if (completedTours?.dashboard !== true && !onboardingCompleted) {
+    if (demoGate(habits.length)) {
       return [
         {
           id: 'mock-habit-1',
@@ -2138,7 +2165,7 @@ export default function HomeScreen() {
         Görevi olmayan kullanıcı bunun yerine "nereden başlayayım" kartını görüyor
         (aşağıya bkz.); yani rehberlik kaybolmuyor, SIRASI değişiyor.
       */}
-      {(!profileSetupVisible && completedTours?.dashboard !== true && tasks.length > 0) && (
+      {(!profileSetupVisible && tourAllowed) && (
         <HelpTourModal
           pageId="dashboard"
           onStepChange={handleStepChange}

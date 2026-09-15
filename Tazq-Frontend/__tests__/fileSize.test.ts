@@ -108,7 +108,15 @@ const KNOWN_LARGE: Record<string, number> = {
     olduğunu anlatan notlar. Mantık büyümedi; telefon yolunda tek bir dal bile
     eklenmedi (eşik 700pt, en geniş telefon ~440pt).
   */
-  'app/tasks.tsx': 2513,
+  /*
+    2513 → 2543: ilk kullanım akışının İKİ kusuru burada düzeltildi ve ikisi de
+    gerekçesiyle yazıldı — demo verinin gerçek görevleri gizlemesi, ve turun
+    kullanıcının eylemine tepki olarak açılması. Eklenen kodun kendisi beş satır
+    (bir ref, bir state, bir useFocusEffect); gerisi NEDEN olduğunu anlatan not.
+    Bu ikisi canlıya kadar gitti çünkü akışı yalnız yeni bir hesabın ilk dakikası
+    tetikliyor; notlar olmasa aynı tuzağa yeniden düşülür (bkz. activationFlow.test).
+  */
+  'app/tasks.tsx': 2543,
   // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
   // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
   // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).

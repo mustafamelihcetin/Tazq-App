@@ -102,9 +102,19 @@ export default function RegisterScreen() {
         throw new Error('Google ID Token was not returned.');
       }
 
-      const { token, refreshToken } = await AuthService.googleLogin(idToken);
+      /*
+        `isNewUser` SUNUCUDAN GELİYOR ve taşınmak ZORUNDA.
+
+        Bu iki sosyal yol onu okumuyordu; `setAuth` dördüncü parametresiz çağrılınca
+        bayrak `false`a düşüyordu. Sonucu kullanıcı bildirdi: Google/Apple ile kayıt
+        olan biri HOŞ GELDİN (profil kurulumu) ekranını hiç görmüyordu — ana ekranın
+        kapısı `isFirstLogin` istiyor (bkz. app/index.tsx). Aynı dosyadaki e-posta yolu
+        ve login.tsx'in sosyal yolları bunu baştan doğru yapıyordu; yalnız burası
+        ayrışmıştı.
+      */
+      const { token, refreshToken, isNewUser } = await AuthService.googleLogin(idToken);
       const userData = await AuthService.getCurrentUser(token);
-      setAuth(userData, token, refreshToken);
+      setAuth(userData, token, refreshToken, isNewUser);
       haptic.success();
       router.replace('/');
     } catch (err: unknown) {
@@ -160,14 +170,15 @@ export default function RegisterScreen() {
         throw new Error('Apple identity token was not returned.');
       }
 
-      const { token, refreshToken } = await AuthService.appleLogin(
+      const { token, refreshToken, isNewUser } = await AuthService.appleLogin(
         identityToken,
         credential.fullName?.givenName || undefined,
         credential.fullName?.familyName || undefined
       );
 
       const userData = await AuthService.getCurrentUser(token);
-      setAuth(userData, token, refreshToken);
+      // Bayrak taşınmak zorunda — gerekçe için yukarıdaki Google yolundaki nota bkz.
+      setAuth(userData, token, refreshToken, isNewUser);
       haptic.success();
       router.replace('/');
     } catch (err: unknown) {
