@@ -4,6 +4,8 @@ import { TazqLogo } from './TazqLogo';
 import { DottedBackground } from './DottedBackground';
 import { haptic } from '@/shared/utils/haptics';
 import { useReduceMotion } from '@/shared/hooks/useReduceMotion';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
+import { useThemeStore } from '@/shared/store/useThemeStore';
 import { Colors } from '@/shared/constants/Colors';
 import { S } from '@/shared/constants/tokens';
 
@@ -23,12 +25,20 @@ import { S } from '@/shared/constants/tokens';
  * Şimdi açılış, uygulamanın İLK EKRANINA benziyor: aynı zemin rengi, ortada aynı ikon.
  * Marka rengi kaybolmuyor — tam ekran bir alan yerine ikonun içinde duruyor.
  *
- * ── SİSTEM GÖRÜNÜMÜNÜ İZLER, UYGULAMA TERCİHİNİ DEĞİL ────────────────────────
- * Zemin `useColorScheme()`den geliyor; yani sistem splash'inin (işletim sistemi
- * görünümüne göre açık/koyu) TAM KARŞILIĞI. Uygulamanın kendi tema tercihi diskten
- * geç okunuyor: onu izleseydik, koyu temayı elle seçmiş bir kullanıcıda sistem
- * splash'i açık, bizimki koyu olur ve tam devir teslim anında sıçrama görünürdü.
- * Kullanıcının tercihi, içerik belirirken zaten devreye giriyor.
+ * ── AÇILIŞ BİR KÖPRÜ: SİSTEMDE BAŞLAR, UYGULAMADA BİTER ──────────────────────
+ * Bir tur yalnızca `useColorScheme()` izlendi — yani sistem splash'inin tam karşılığı.
+ * Gerekçesi sağlamdı (devir teslim anında sıçrama olmasın) ama SONUCU yanlıştı ve
+ * kullanıcı tablette yakaladı: uygulamayı AÇIK temada kullanan biri, sistemi koyuysa
+ * koyu bir açılış görüp aydınlık bir uygulamaya giriyordu. Sıçrama yok olmamıştı,
+ * yalnızca sona taşınmıştı — hem de daha kötü bir yere, içeri girilen ana.
+ *
+ * Şimdi iki ucu da tutuyoruz. Zemin SİSTEM renginde başlıyor (sistem splash'inden
+ * devralma yine görünmez), sonra ekran daha bomboşken UYGULAMANIN rengine geçiyor.
+ * İşaret, çizgi ve doku çizilmeye başladığında renk çoktan oturmuş oluyor; yani
+ * görünen hiçbir şey renk değiştirmiyor, yalnız boş zemin devrediyor.
+ *
+ * Tema tercihi diskten okunuyor: geçiş, okuma BİTTİKTEN sonra başlıyor (bkz.
+ * themeReady). Erken başlasaydı yanlış renge geçip geri dönebilirdi.
  *
  * ── SİSTEM SPLASH'İ YALNIZCA RENK ─────────────────────────────────────────────
  * Bir tur, devir teslim görünmesin diye sistem splash'ine UYGULAMA İKONU konuldu ve
@@ -56,6 +66,29 @@ const INTRO_PULSE_UP = 130;   // nabzın yükselişi
 const INTRO_PULSE_DOWN = 190; // nabzın oturması
 const INTRO_LINE = 260;       // ince çizginin açılması
 const OUTRO_FADE = 260;       // içeriğe geçiş
+/**
+ * Zeminin sistem renginden uygulama rengine geçme süresi.
+ *
+ * İşaret INTRO_HOLD'dan (90ms) sonra belirmeye başlıyor ve kendi içinde 360ms
+ * soluyor; bu 240ms onun altında, ekran daha okunacak bir şey taşımazken bitiyor.
+ */
+const BG_BRIDGE = 240;
+
+/**
+ * Tema tercihi diskten OKUNDU mu?
+ *
+ * Okunmadan önce mağaza varsayılanı ('system') döner. O anda köprüyü başlatmak,
+ * yanlış renge geçip geri dönmek demek olurdu.
+ */
+function useThemeHydrated() {
+  const [hydrated, setHydrated] = React.useState(() => useThemeStore.persist.hasHydrated());
+  useEffect(() => {
+    if (hydrated) return;
+    const unsub = useThemeStore.persist.onFinishHydration(() => setHydrated(true));
+    return unsub;
+  }, [hydrated]);
+  return hydrated;
+}
 
 export const AnimatedSplash = ({
   onFinish,
@@ -73,13 +106,20 @@ export const AnimatedSplash = ({
    */
   ready?: boolean;
 }) => {
-  const scheme = useColorScheme();
+  const systemScheme = useColorScheme();
+  const { colorScheme } = useAppTheme();
   const reduceMotion = useReduceMotion();
   const { width } = useWindowDimensions();
+  const themeReady = useThemeHydrated();
 
-  const isDark = scheme === 'dark';
+  /** Devralınan renk: sistem splash'i ne çizdiyse o. */
+  const systemBg = systemScheme === 'dark' ? Colors.dark.background : Colors.light.background;
+  /** Varılan renk: uygulamanın kendi teması (tercih + sistem). */
+  const isDark = colorScheme === 'dark';
   const bg = isDark ? Colors.dark.background : Colors.light.background;
   const lineColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)';
+  /** İki uç aynıysa geçişe hiç gerek yok — çoğu kullanıcıda durum bu. */
+  const needsBridge = bg !== systemBg;
 
   // Ölçü ekran genişliğinden türer → küçük telefondan tablete %100 responsive.
   const markWidth = Math.min(width * 0.48, 220);
@@ -94,6 +134,26 @@ export const AnimatedSplash = ({
   const markScale = useRef(new Animated.Value(1)).current;
   const lineScale = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
   const screenOpacity = useRef(new Animated.Value(1)).current;
+  /*
+    Zemin geçişi AYRI bir katmanda ve JS sürücüsüyle.
+
+    Renk yerel sürücüde canlandırılamaz; kabın kendisine verilseydi aynı View üstünde
+    biri JS biri yerel iki animasyon olur ve RN bunu reddeder. Bu yüzden uygulamanın
+    rengi, sistem renginin ÜSTÜNDE açılan ayrı bir katman: kap ve opaklığı yerel
+    sürücüde kalmaya devam ediyor.
+  */
+  const bridgeOpacity = useRef(new Animated.Value(needsBridge ? 0 : 1)).current;
+
+  // Zemin köprüsü: tema diskten okunur okunmaz, ekran hâlâ boşken.
+  useEffect(() => {
+    if (!needsBridge || !themeReady) return;
+    Animated.timing(bridgeOpacity, {
+      toValue: 1,
+      duration: reduceMotion ? 0 : BG_BRIDGE,
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: false,
+    }).start();
+  }, [needsBridge, themeReady, reduceMotion]);
 
   useEffect(() => {
     onReady();
@@ -184,7 +244,13 @@ export const AnimatedSplash = ({
   }, [introDone, ready, reduceMotion]);
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: bg, opacity: screenOpacity }]}>
+    <Animated.View style={[styles.container, { backgroundColor: systemBg, opacity: screenOpacity }]}>
+      {/* Uygulamanın rengi: sistem renginin üstünde açılır (bkz. yukarıdaki köprü notu). */}
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: bg, opacity: bridgeOpacity }]}
+      />
+
       {/*
         UYGULAMANIN KENDİ ZEMİN DOKUSU — ana ekranda da aynısı var (bkz. app/index.tsx).
         Açılış böylece "ayrı bir ekran" değil, uygulamanın kendi tuvalinin ilk hâli
