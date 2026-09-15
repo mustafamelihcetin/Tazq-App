@@ -578,25 +578,28 @@ export default function RootLayout() {
   */
   useEffect(() => {
     /*
-      SPLASH AÇIKKEN SİSTEM GÖRÜNÜMÜ: açılış ekranı sistem splash'iyle aynı olsun diye
-      uygulamanın tema TERCİHİNİ değil işletim sisteminin görünümünü izliyor
-      (bkz. AnimatedSplash). Sistem çubukları tema tercihine göre boyansaydı, ekranın
-      dibinde zeminle çelişen bir şerit kalırdı.
+      SİSTEM ÇUBUKLARI HER ZAMAN UYGULAMANIN TEMASINI İZLER.
+
+      Bir tur, açılış boyunca işletim sisteminin görünümü izlendi (açılış ekranı da
+      öyle yapıyordu). Kullanıcı tablette sonucunu gösterdi: TAZQ'yu AÇIK temada
+      kullanan biri, sistemi koyuysa koyu bir açılış ve okunmayan bir durum çubuğu
+      görüyordu — açık zemin üstünde açık renk simgeler.
+
+      Açılış ekranı artık zemini sistem renginden uygulamanınkine 240ms'de geçiriyor
+      (bkz. AnimatedSplash → köprü), yani ayrı bir kural gerekmiyor: tek kaynak tema.
     */
-    const onSplash = showSplash || !fontsLoaded || !assetsLoaded;
-    const splashDark = systemScheme === 'dark';
-    const dark = onSplash ? splashDark : isDark;
+    const dark = isDark;
     const backgroundColor = dark ? Colors.dark.background : '#FFFFFF';
     const navStyle = dark ? 'light' : 'dark';
     safeSystemUI(backgroundColor);
     safeNavigationBar(navStyle, backgroundColor);
-  }, [isDark, systemScheme, showSplash, fontsLoaded, assetsLoaded]);
+  }, [isDark]);
 
   if (showSplash || !fontsLoaded || !assetsLoaded) {
     return (
       <>
-        {/* Durum çubuğu da SİSTEM görünümüne göre — zemin oradan geliyor. */}
-        <StatusBar style={systemScheme === 'dark' ? 'light' : 'dark'} />
+        {/* Durum çubuğu da UYGULAMANIN teması — açılış zemini oraya geçiyor. */}
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         <AnimatedSplash
           // Splash, uygulama GERÇEKTEN hazır olana kadar kaybolmaz. Eskiden sabit
           // süreli animasyon bitince saydama geçiyordu; yavaş açılışta kullanıcı

@@ -155,7 +155,14 @@ export const AnimatedSplash = ({
     }).start();
   }, [needsBridge, themeReady, reduceMotion]);
 
+  /*
+    Giriş, tema diskten OKUNANA kadar bekler: işaret yanlış zemine düşmesin. Okuma
+    tipik olarak 40ms'nin altında, yani INTRO_HOLD'un içinde erir; yavaş bir açılışta
+    sükûnet anı biraz uzar — kullanıcı boş bir zemin görür, yanlış renkte bir işaret
+    değil.
+  */
   useEffect(() => {
+    if (!themeReady) return;
     onReady();
 
     if (reduceMotion) {
@@ -229,7 +236,7 @@ export const AnimatedSplash = ({
 
     return () => clearTimeout(hapticTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reduceMotion]);
+  }, [reduceMotion, themeReady]);
 
   // 5. Kaybolma — giriş bitti VE uygulama hazır olduğunda. İkisi de şart:
   //    erken kaybolmak boş ekran, geç kaybolmak gereksiz bekleme demek.
@@ -271,9 +278,10 @@ export const AnimatedSplash = ({
         ]}
       >
         {/*
-          Varyant SİSTEM görünümünden: zemin de oradan geliyor. Uygulamanın tema
-          tercihine bakan varsayılan davranış burada YANLIŞ olurdu — koyu temayı elle
-          seçmiş bir kullanıcıda açık zemin üstüne beyaz yazı düşer, işaret kaybolurdu.
+          Varyant UYGULAMANIN temasından — çünkü işaret çizilmeye başladığında zemin
+          çoktan oraya geçmiş oluyor (bkz. köprü). Kural değişmedi, yalnız hangi
+          "zemin"den bahsettiğimiz değişti: mürekkep hep ALTINDAKİ renge göre seçilir,
+          yoksa açık zemine beyaz yazı düşer ve işaret kaybolur.
         */}
         <TazqLogo height={markHeight} width={markWidth} variant={isDark ? 'white' : 'dark'} />
         <Animated.View

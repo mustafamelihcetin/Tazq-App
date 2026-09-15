@@ -85,27 +85,50 @@ describe('açılış — sistem splash\'i ile aynı zemin', () => {
   });
 });
 
-describe('açılış — tema tercihi değil SİSTEM görünümü', () => {
+describe('açılış bir KÖPRÜ: sistemde başlar, uygulamada biter', () => {
   /*
-    Tema tercihi diskten okunuyor ve varsayılanı `system`. Sistem splash'i ise işletim
-    sisteminin görünümüne göre çiziliyor. Bu ekran tercihi izleseydi, koyu temayı elle
-    seçmiş bir kullanıcıda sistem splash'i açık, bizimki koyu olur ve tam devir teslim
-    anında sıçrama görünürdü.
+    ── ÖLÇÜLEN SORUN ────────────────────────────────────────────────────────────
+    Bir tur açılış YALNIZCA işletim sisteminin görünümünü izliyordu. Gerekçesi
+    sağlamdı (sistem splash'inden devralma görünmesin) ama sonucu yanlıştı ve
+    kullanıcı tablette yakaladı: TAZQ'yu AÇIK temada kullanan biri, tableti koyu
+    moddaysa KOYU bir açılış görüp aydınlık bir uygulamaya giriyordu. Sıçrama yok
+    olmamış, yalnızca sona — içeri girilen ana — taşınmıştı.
+
+    Çözüm iki uçtan birini seçmek değil, ikisini bağlamak: zemin sistem renginde
+    başlıyor, ekran daha boşken uygulamanın rengine geçiyor.
   */
-  it('zemin sistem görünümünden', () => {
-    expect(SPLASH).toContain('useColorScheme()');
-    expect(SPLASH).not.toContain('useAppTheme');
+  it('iki ucu da tanıyor: devralınan renk ve varılan renk', () => {
+    expect(SPLASH).toContain('useColorScheme()');   // devralınan
+    expect(SPLASH).toContain('useAppTheme');        // varılan
+    expect(SPLASH).toContain('const needsBridge = bg !== systemBg;');
   });
 
-  it('kelime işaretinin varyantı da sistem görünümünden', () => {
-    // Açık zemin + beyaz yazı = görünmez işaret.
+  it('geçiş AYRI katmanda — yerel sürücüyle çakışmasın', () => {
+    /*
+      Renk yerel sürücüde canlandırılamaz. Kabın kendisine verilseydi aynı View
+      üstünde biri JS biri yerel iki animasyon olur ve RN bunu reddeder.
+    */
+    expect(SPLASH).toContain('bridgeOpacity');
+    expect(SPLASH).toMatch(/opacity: bridgeOpacity[\s\S]{0,40}\/>/);
+    expect(SPLASH).toContain('useNativeDriver: false');
+  });
+
+  it('geçiş tema DİSKTEN okunduktan sonra başlar', () => {
+    // Erken başlasa yanlış renge geçip geri dönerdi.
+    expect(SPLASH).toContain('useThemeHydrated');
+    expect(SPLASH).toContain('useThemeStore.persist.hasHydrated()');
+    expect(SPLASH).toContain('if (!themeReady) return;');
+  });
+
+  it('mürekkep VARILAN renge göre — açık zemine beyaz yazı düşmesin', () => {
     expect(SPLASH).toContain("variant={isDark ? 'white' : 'dark'}");
+    expect(SPLASH).toContain("const isDark = colorScheme === 'dark';");
   });
 
-  it('sistem çubukları da açılışta aynı görünümü izler', () => {
-    expect(LAYOUT).toContain('const systemScheme = useColorScheme();');
-    expect(LAYOUT).toMatch(/const dark = onSplash \? splashDark : isDark;/);
-    expect(LAYOUT).toContain("<StatusBar style={systemScheme === 'dark' ? 'light' : 'dark'} />");
+  it('sistem çubukları da uygulamanın temasını izler', () => {
+    // Açılışta ayrı kural YOK: açık zemin üstünde açık simgeler okunmuyordu.
+    expect(LAYOUT).toContain('const dark = isDark;');
+    expect(LAYOUT).not.toMatch(/const dark = onSplash \? splashDark : isDark;/);
   });
 });
 
