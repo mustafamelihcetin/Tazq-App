@@ -149,6 +149,24 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
 
         <View style={[styles.card, { borderColor: theme.outlineVariant, borderWidth: B.thin }]}>
           <GlassSurface radius={R.sheet} />
+          {/*
+            ── KART KAYDIRILABİLİR OLMAK ZORUNDA ─────────────────────────────────
+            Kartın ne yükseklik sınırı ne de dikey kaydırması vardı. Form uzun (isim,
+            cinsiyet, avatar, motto, verimlilik saati, kaydet) ve klavye açılınca
+            KeyboardAvoidingView alanı daraltıyor: içerik görünür bölgenin dışına
+            taşıyor. Kullanıcının gördüğü şey "isim kutusuna dokunamıyorum" oluyordu —
+            oysa alan oradaydı, sadece ulaşılamıyordu.
+
+            `keyboardShouldPersistTaps="handled"` ikinci yarısı: bu olmadan klavye
+            açıkken YAPILAN İLK DOKUNUŞ yalnızca klavyeyi kapatır, alana hiç ulaşmaz.
+            Tam olarak "seçilmiyor" diye bildirilen davranış budur.
+          */}
+          <ScrollView
+            style={{ flexGrow: 0 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: S.xs }}
+          >
           <View style={{ alignItems: 'center', marginBottom: S.xs }}>
             {!isNamePlaceholder && (
               <View style={{ width: 44, height: 44, borderRadius: R.full, backgroundColor: theme.primaryContainer, alignItems: 'center', justifyContent: 'center', marginBottom: S.xs, marginTop: S.xs }}>
@@ -177,13 +195,19 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                 </Text>
                 <View style={[styles.inputContainer, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
                   {/*
-                    ALAN AÇILIR AÇILMAZ ODAKTA.
+                    KLAVYE KENDİLİĞİNDEN AÇILMAZ — bir tur denendi, GERİ ALINDI.
 
-                    Bu ekran yalnız adı BİLİNMEYEN kullanıcıya çıkıyor (Apple ismi tek
-                    seferlik verir ve kullanıcı gizleyebilir; o durumda arka uç
-                    "TAZQ Kullanıcısı" ya da e-posta öneki yazıyor). Yani buradaki tek
-                    zorunlu iş bu alanı doldurmak — kullanıcıyı önce onu bulmaya
-                    zorlamanın bir gerekçesi yok.
+                    Alanı açılışta odaklamak "tek dokunuş kazandırır" diye mantıklı
+                    görünüyordu. Ama bu ekran bir FORM değil, bir KARŞILAMA: başlık,
+                    cinsiyet, avatar, motto ve verimlilik saati birlikte duruyor. Klavye
+                    gelir gelmez açılınca ekranın yarısını örtüyor, karşılama okunamıyor
+                    ve kullanıcı daha ne sorulduğunu görmeden yazmaya zorlanıyor —
+                    üstelik tam da az önce düzeltilen "içerik klavyenin altında kalıyor"
+                    hâli kapıda yeniden kuruluyor.
+
+                    iOS'un kendi kuralı da bu yönde: kendiliğinden odak, ekranda TEK iş
+                    varken (arama gibi) doğrudur. Alan zaten formun en üstünde ve artık
+                    gerçekten dokunulabilir; bir dokunuş yeterli.
 
                     `autoCapitalize="words"`: isim yazılıyor. `textContentType="name"`:
                     iOS'un kendi isim önerisini getirir, çoğu kullanıcıda tek dokunuş.
@@ -191,7 +215,6 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
                   <TextInput
                     value={name}
                     onChangeText={setName}
-                    autoFocus
                     autoCapitalize="words"
                     autoCorrect={false}
                     textContentType="name"
@@ -357,8 +380,11 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
             </View>
           </View>
 
+          </ScrollView>
+
           {error && <Text style={styles.errorText}>{error}</Text>}
 
+          {/* Kaydet düğmesi kaydırıcının DIŞINDA: form uzasa da hep görünür kalıyor. */}
           <Touchable
             onPress={handleSave}
             disabled={loading}
@@ -382,6 +408,8 @@ const styles = StyleSheet.create({
   card: {
     width: '90%',
     maxWidth: MAX_W - 40,
+    /* Ekranın tamamını kaplamasın: kalan yer klavyeye ve perdeye ait. */
+    maxHeight: '88%',
     borderRadius: R.sheet,
     padding: S.lg,
     elevation: 10,

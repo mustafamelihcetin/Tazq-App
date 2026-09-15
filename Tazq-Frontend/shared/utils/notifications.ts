@@ -535,15 +535,43 @@ export async function scheduleWeeklySummary(
 ): Promise<void> {
   if (!Notifications || isExpoGo) return;
   try {
+    /*
+      Bu bildirimin BÜTÜN metni tek bir dalda toplandı: başlık, gövde ve tekrarlı
+      yedeğin metni ayrı ayrı `isTR ? ... : ...` ile yazılıyordu. Aynı kararı dört kez
+      vermek, birini güncelleyip ötekini unutmanın davetiyesidir — iki dil artık yan
+      yana duruyor (bkz. __tests__/i18nRatchet.test.ts).
+    */
     const isTR = locale === 'tr';
-    const title = isTR ? 'Haftalık Özet' : 'Weekly Review';
-    const streakLine = streak > 0
-      ? (isTR ? ` Seri: ${streak} gün.` : ` Streak: ${streak} days.`)
-      : '';
-    const body = isTR
-      ? `Momentumun ${momentumScore}. Önümüzdeki haftayı planla, ivmeni sürdür.${streakLine}`
-      : `Your momentum is ${momentumScore}. Plan the week ahead and keep it going.${streakLine}`;
+    const streakLine = isTR ? ` Seri: ${streak} gün.` : ` Streak: ${streak} days.`;
+    const copy = isTR
+      ? {
+          title: 'Haftalık Özet',
+          body: `Momentumun ${momentumScore}. Önümüzdeki haftayı planla, ivmeni sürdür.${streak > 0 ? streakLine : ''}`,
+          evergreen: 'Haftan nasıl geçti? Momentumuna bak ve önümüzdeki haftayı planla.',
+        }
+      : {
+          title: 'Weekly Review',
+          body: `Your momentum is ${momentumScore}. Plan the week ahead and keep it going.${streak > 0 ? streakLine : ''}`,
+          evergreen: 'How did your week go? Check your momentum and plan the week ahead.',
+        };
+    const { title, body } = copy;
 
+    /*
+      ── TEKRARLI TETİKLEYİCİ, BAYAT SAYI TAŞIMADAN ──────────────────────────────
+      Bu bildirim TEK SEFERLİK bir tarihe kuruluyordu ve yalnız uygulama açıldığında
+      yeniden kuruluyordu. Yani ayarda "Pazar akşamı momentum özeti" yazıyor ama
+      uygulamayı bir hafta açmayan kullanıcı hiç almıyordu — tam da en çok hatırlatmaya
+      ihtiyacı olan kullanıcı.
+
+      Tekrarlı tetikleyici bunu çözüyor ama BERABERİNDE bir tuzak getiriyor: gövdeye
+      gömülen momentum sayısı her hafta AYNI kalır ve bir süre sonra yalan söyler. O
+      yüzden tekrarlı metin sayı taşımıyor, kullanıcıyı içeri çağırıyor; sayıyı
+      uygulamanın kendisi gösteriyor.
+
+      Uygulama açıldığında yine GÜNCEL sayıyla tek seferlik bir özet kuruluyor (aşağıda):
+      düzenli kullanıcı gerçek rakamı görüyor, uzaklaşan kullanıcı ise en azından
+      sessizliğe düşmüyor.
+    */
     const now = new Date();
     const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
     const trigger = new Date(now);
@@ -556,15 +584,27 @@ export async function scheduleWeeklySummary(
       content: { title, body, sound: true, data: { type: 'weekly' }, categoryIdentifier: 'daily-summary' },
       trigger: { type: 'date', date: trigger } as any,
     });
+
+    // Sessizliğe düşmeyi engelleyen tekrarlı yedek — sayısız, o yüzden bayatlamıyor.
+    await Notifications.cancelScheduledNotificationAsync('weekly-summary-repeat').catch(() => {});
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'weekly-summary-repeat',
+      content: { title, body: copy.evergreen, sound: true, data: { type: 'weekly' }, categoryIdentifier: 'daily-summary' },
+      trigger: { type: 'weekly', weekday: 1, hour: 20, minute: 0, repeats: true } as any,
+    });
   } catch (e) { swallow('notifications.scheduleWeeklySummary', e); }
 }
 
 export async function cancelWeeklySummary(): Promise<void> {
   if (!Notifications) return;
+  // İKİSİ de kalkmalı: güncel sayılı tek seferlik özet ve sessizliğe düşmeyi
+  // engelleyen tekrarlı yedek (bkz. scheduleWeeklySummary).
   try {
-    await Notifications.cancelScheduledNotificationAsync('weekly-summary');
+    await Notifications.cancelScheduledNotificationAsync('weekly-summary').catch(() => {});
+    await Notifications.cancelScheduledNotificationAsync('weekly-summary-repeat').catch(() => {});
   } catch (e) { swallow('notifications.cancelWeeklySummary', e); }
 }
+
 
 // ─── Exam Countdown (7d / 3d / 1d before) ────────────────────────────────────
 

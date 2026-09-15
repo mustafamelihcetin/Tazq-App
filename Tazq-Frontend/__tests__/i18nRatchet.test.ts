@@ -163,7 +163,9 @@ const BASELINE: Record<string, number> = {
   'shared/hooks/useOfflineSync.ts': 1,
   'shared/utils/insights.ts': 2,
   'shared/utils/lifeModePlans.ts': 3,
-  'shared/utils/notifications.ts': 42,
+  // 42 → 40: haftalık özetin başlığı, gövdesi ve tekrarlı yedeği ayrı ayrı
+  // dallanıyordu; üçü tek sözlükte toplandı (iki dil yan yana).
+  'shared/utils/notifications.ts': 40,
   'shared/utils/ramadanDates.ts': 1,
   'shared/utils/stepInsight.ts': 3,
 };
