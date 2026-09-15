@@ -204,7 +204,15 @@ const KNOWN_LARGE: Record<string, number> = {
   // 811 → 836: E-POSTA DOĞRULAMA HATIRLATMASI. Doğrulama kayıt yolundan çıkarıldı;
   // hatırlatma artık burada, SEBEBİYLE birlikte duruyor (özet postaları ve hesap
   // kurtarma o adrese bağlı). Artışın yarısı o gerekçe notu.
-  'app/settings.tsx': 839,
+  /*
+    839 → 888: ayar ekranının denetimi. Eklenen işlevsel kod azdır — ekranın GERÇEK
+    durumu okuması (bildirim izni + takvim bayrağı; ikisi de yalnız yazılıyor, hiç
+    okunmuyordu), üç anahtarın izin yokken kilitlenmesi ve sabah özetinin gerçek
+    saatini üreten küçük bir tablo. Gerisi, her birinin NEDEN yanlış olduğunu anlatan
+    notlar: bu kusurlar "ekranı açıp bakmakla" görünmüyordu (anahtar doğru çalışıyor
+    ama yanlış durum gösteriyordu), o yüzden gerekçe kodda duruyor.
+  */
+  'app/settings.tsx': 888,
 };
 
 describe('dosya boyutu', () => {

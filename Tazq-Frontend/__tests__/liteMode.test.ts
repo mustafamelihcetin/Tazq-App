@@ -118,9 +118,15 @@ describe('ayar metni yaptığı işi anlatır', () => {
     expect(SETTINGS).not.toContain('tasks only');
   });
 
-  it('gizlediği üç şeyi tek tek sayıyor', () => {
-    expect(SETTINGS).toContain('İvme skorunu, kutlamaları ve modları gizler');
-    expect(SETTINGS).toContain('Hides momentum score, celebrations & modes');
+  it('gizlediği HER ŞEYİ sayıyor — Haftalık dahil', () => {
+    /*
+      Etiket "İvme skorunu, kutlamaları ve modları gizler" diyordu ama Sade mod sekme
+      setini de daraltıyor: Modlar VE Haftalık birlikte kayboluyor (bkz. BottomNavBar
+      → LITE_TAB_IDS). Haftalık Merkez'in sessizce kaybolması sürpriz oluyordu; bir
+      ayarın altyazısı yaptığı işin TAMAMINI saymak zorunda.
+    */
+    expect(SETTINGS).toContain('İvme skorunu, kutlamaları, Modlar ve Haftalık sekmelerini gizler');
+    expect(SETTINGS).toContain('Hides momentum, celebrations, Modes & Weekly tabs');
   });
 
   it('Haftalık Merkez Sade modda erişilebilir kalıyor', () => {

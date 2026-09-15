@@ -41,6 +41,7 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
   onSave,
 }) => {
   const [name, setName] = useState('');
+  const nameLabel = language === 'tr' ? 'İsminiz' : 'Your Name';
   const [selectedAvatar, setSelectedAvatar] = useState('m1');
   const [selectedBorderColor, setSelectedBorderColor] = useState('transparent');
   const [motto, setMotto] = useState('');
@@ -129,11 +130,25 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.7)' }}>
         <AppBlur material="thin" />
         
+        {/*
+          KLAVYEYİ KAPATAN DOKUNUŞ ARKA PERDEDE, KARTIN İÇİNDE DEĞİL.
+
+          Yakalayıcı kartın İÇİNE, içerikten önce konmuştu: kartın tamamını kaplayan,
+          dokunuşu yutmak için var olan bir katman. Formun hemen üstünde böyle bir şey
+          durduğu sürece, alanların dokunuşu alması yalnızca kardeş sırasına bağlı kalır —
+          araya bir katman girdiği anda alanlar sessizce tıklanamaz hâle gelir. Kullanıcı
+          da tam bunu bildirdi: isim kutusu görünüyor ama seçilemiyordu.
+
+          Perdeye taşındı: karta dokunmak artık hiçbir katmandan geçmiyor, perdeye
+          dokunmak ise yalnız klavyeyi kapatıyor (modalı kapatmıyor — bu ekranın tek
+          çıkışı kaydetmek).
+        */}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={StyleSheet.absoluteFill} />
+        </TouchableWithoutFeedback>
+
         <View style={[styles.card, { borderColor: theme.outlineVariant, borderWidth: B.thin }]}>
           <GlassSurface radius={R.sheet} />
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-            <View style={StyleSheet.absoluteFill} />
-          </TouchableWithoutFeedback>
           <View style={{ alignItems: 'center', marginBottom: S.xs }}>
             {!isNamePlaceholder && (
               <View style={{ width: 44, height: 44, borderRadius: R.full, backgroundColor: theme.primaryContainer, alignItems: 'center', justifyContent: 'center', marginBottom: S.xs, marginTop: S.xs }}>
@@ -155,13 +170,34 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({
           <View style={{ gap: S.md }}>
             {isNamePlaceholder && (
               <View style={styles.section}>
+                {/* Görünen etiket ve ekran okuyucuya okunan ad AYNI kaynaktan —
+                    ikisi ayrı yazılsaydı biri güncellenip öteki geride kalırdı. */}
                 <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
-                  {language === 'tr' ? 'İsminiz' : 'Your Name'}
+                  {nameLabel}
                 </Text>
                 <View style={[styles.inputContainer, { backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLow }]}>
+                  {/*
+                    ALAN AÇILIR AÇILMAZ ODAKTA.
+
+                    Bu ekran yalnız adı BİLİNMEYEN kullanıcıya çıkıyor (Apple ismi tek
+                    seferlik verir ve kullanıcı gizleyebilir; o durumda arka uç
+                    "TAZQ Kullanıcısı" ya da e-posta öneki yazıyor). Yani buradaki tek
+                    zorunlu iş bu alanı doldurmak — kullanıcıyı önce onu bulmaya
+                    zorlamanın bir gerekçesi yok.
+
+                    `autoCapitalize="words"`: isim yazılıyor. `textContentType="name"`:
+                    iOS'un kendi isim önerisini getirir, çoğu kullanıcıda tek dokunuş.
+                  */}
                   <TextInput
                     value={name}
                     onChangeText={setName}
+                    autoFocus
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    textContentType="name"
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    accessibilityLabel={nameLabel}
                     placeholder={language === 'tr' ? 'Lütfen adınızı girin' : 'Please enter your name'}
                     placeholderTextColor={theme.onSurfaceVariant + '80'}
                     style={[styles.input, { color: theme.onSurface, flex: 1, height: '100%', textAlignVertical: 'center' }]}

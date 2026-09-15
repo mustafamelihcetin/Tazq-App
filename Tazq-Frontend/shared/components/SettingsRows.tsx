@@ -121,7 +121,20 @@ export interface SettingItemProps {
 
 export function SettingItem({ icon, label, sub, right, onPress, theme, bg }: SettingItemProps) {
   return (
-    <Touchable style={styles.row} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+    /*
+      Basılamayan satır DÜĞME gibi duyurulmaz.
+
+      `SettingItem` her zaman düğme rolüyle çiziliyordu; oysa bazı satırlar yalnız
+      DEĞER gösteriyor (ör. Focus Puanları). Ekran okuyucu onları "düğme" diye
+      okuyup etkinleştiriyor, hiçbir şey olmuyordu. Rol artık gerçeği söylüyor.
+    */
+    <Touchable
+      style={styles.row}
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : 'text'}
+      accessibilityLabel={label}
+    >
       <View style={styles.rowLeft}>
         <IconChip bg={bg} theme={theme}>{icon}</IconChip>
         <View style={styles.rowText}>
@@ -149,11 +162,22 @@ export interface ToggleRowProps {
   onValueChange: (v: boolean) => void;
   theme: AppTheme;
   isDark: boolean;
+  /** Önkoşulu yokken: anahtar kilitlenir ve soluklaşır (bkz. ToggleRow notu). */
+  disabled?: boolean;
 }
 
-export function ToggleRow({ icon, bg, title, subtitle, value, onValueChange, theme, isDark }: ToggleRowProps) {
+/**
+ * `disabled`: anahtarın ÖNKOŞULU yokken.
+ *
+ * ── NEDEN GEREKTİ ────────────────────────────────────────────────────────────
+ * Bildirim izni reddedilmişken sabah/akşam/haftalık özet anahtarları hâlâ açılıp
+ * kapanıyordu. Kullanıcı anahtarı açıyor, yeşile dönüyor, hiçbir bildirim gelmiyordu —
+ * arayüz tutamayacağı bir söz veriyordu. Devre dışı bir anahtar hem sözü geri alır hem
+ * de nedenini (alt satırda) söyleyebilir.
+ */
+export function ToggleRow({ icon, bg, title, subtitle, value, onValueChange, theme, isDark, disabled }: ToggleRowProps) {
   return (
-    <View style={styles.toggleRow}>
+    <View style={[styles.toggleRow, disabled && { opacity: 0.45 }]}>
       <IconChip bg={bg} theme={theme}>{icon}</IconChip>
       <View style={styles.rowText}>
         <Text style={[styles.label, { color: theme.onSurface }]}>{title}</Text>
@@ -162,8 +186,9 @@ export function ToggleRow({ icon, bg, title, subtitle, value, onValueChange, the
       <Switch
         value={value}
         onValueChange={onValueChange}
+        disabled={disabled}
         accessibilityRole="switch"
-        accessibilityState={{ checked: value }}
+        accessibilityState={{ checked: value, disabled: !!disabled }}
         // Kapalı iz + kapatık düğme palet token'larından; açık iz marka mavisi (alfa hex).
         // #FFFFFF meşru (renkli düğme üzerindeki nötr), palet dışı değil.
         trackColor={{ false: theme.surfaceContainerHighest, true: theme.primary + '80' }}

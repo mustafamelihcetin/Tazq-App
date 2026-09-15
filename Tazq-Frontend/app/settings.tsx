@@ -151,6 +151,16 @@ export default function SettingsScreen() {
   );
 
 
+  /*
+    Sabah özetinin GERÇEK saati — verimlilik saatinden türer, sabit değil. Tek yerde
+    hesaplanıyor ki etiketle davranış bir daha ayrışmasın (bkz. PRODUCTIVITY_HOUR).
+  */
+  const BRIEF_HOUR: Record<string, string> = { morning: '07:00', afternoon: '12:00', evening: '17:00', night: '21:00' };
+  const briefHourLabel = (() => {
+    const hh = BRIEF_HOUR[productivityHour] ?? '08:00';
+    return language === 'tr' ? `Her gün ${hh} — bugünkü görevler` : `Daily at ${hh} — today's tasks`;
+  })();
+
   const handleSleepToggle = async (v: boolean) => {
     haptic.select();
     if (v) {
@@ -373,7 +383,14 @@ export default function SettingsScreen() {
                     icon={<Sunrise size={ICON.md} color="#FFFFFF" />}
                     bg={A.notify}
                     title={language === 'tr' ? 'Sabah Özeti' : 'Morning Brief'}
-                    subtitle={language === 'tr' ? 'Her sabah 08:00 — bugünkü görevler' : 'Daily at 08:00 — today\'s tasks'}
+                    /*
+                      SAAT SABİT DEĞİL — kullanıcının verimlilik saatinden geliyor
+                      (bkz. notifications.ts → PRODUCTIVITY_HOUR). Etiket 'Her sabah 08:00'
+                      diyordu ve bu HİÇBİR durumda doğru değildi: varsayılanda 07:00,
+                      'akşam' seçen kullanıcıda 17:00 — yani Sabah Özeti akşam geliyordu.
+                    */
+                    subtitle={briefHourLabel}
+                    disabled={!notifEnabled}
                     value={morningBrief}
                     onValueChange={(v: boolean) => { haptic.select(); setMorningBrief(v); if (!v) cancelMorningBrief(); }}
                     theme={theme} isDark={isDark}
@@ -383,7 +400,8 @@ export default function SettingsScreen() {
                     icon={<Sunset size={ICON.md} color="#FFFFFF" />}
                     bg={A.notify}
                     title={language === 'tr' ? 'Akşam Özeti' : 'Evening Brief'}
-                    subtitle={language === 'tr' ? 'Her gün 21:00 — günlük tamamlanma' : 'Daily at 21:00 — day completion'}
+                    subtitle={language === 'tr' ? 'Her akşam 21:00 — günlük tamamlanma' : 'Each evening at 21:00 — day completion'}
+                    disabled={!notifEnabled}
                     value={eveningBrief}
                     onValueChange={(v: boolean) => { haptic.select(); setEveningBrief(v); if (!v) cancelEveningBrief(); }}
                     theme={theme} isDark={isDark}
@@ -393,7 +411,8 @@ export default function SettingsScreen() {
                     icon={<CalendarDays size={ICON.md} color="#FFFFFF" />}
                     bg={A.notify}
                     title={language === 'tr' ? 'Haftalık Özet' : 'Weekly Summary'}
-                    subtitle={language === 'tr' ? 'Her Pazar akşamı momentum özeti' : 'Momentum recap every Sunday'}
+                    subtitle={language === 'tr' ? 'Pazar akşamı momentum özeti' : 'Momentum recap on Sunday evening'}
+                    disabled={!notifEnabled}
                     value={weeklyNotification}
                     onValueChange={(v: boolean) => { haptic.select(); setWeeklyNotification(v); if (!v) cancelWeeklySummary(); }}
                     theme={theme} isDark={isDark}
@@ -437,7 +456,10 @@ export default function SettingsScreen() {
                     icon={<Zap size={ICON.md} color="#FFFFFF" />}
                     bg={A.system}
                     title={language === 'tr' ? 'Sade Mod' : 'Lite Mode'}
-                    subtitle={language === 'tr' ? 'İvme skorunu, kutlamaları ve modları gizler' : 'Hides momentum score, celebrations & modes'}
+                    /* Sekme seti de daralıyor: Modlar VE Haftalık gizleniyor (bkz. BottomNavBar
+                       → LITE_TAB_IDS). Etiket yalnız 'modlar' diyordu; Haftalık Merkez'in
+                       kaybolması sürpriz oluyordu. */
+                    subtitle={language === 'tr' ? 'İvme skorunu, kutlamaları, Modlar ve Haftalık sekmelerini gizler' : 'Hides momentum, celebrations, Modes & Weekly tabs'}
                     value={uiMode === 'lite'}
                     onValueChange={(v: boolean) => { haptic.select(); setUiMode(v ? 'lite' : 'pro'); track('ui_mode_changed', { mode: v ? 'lite' : 'pro' }); }}
                     theme={theme} isDark={isDark}

@@ -320,7 +320,19 @@ export default function RootLayout() {
         cancelEveningBrief();
       }
     }
-  }, [isLoggedIn, notifPermission]);
+  /*
+    ── TERCİH DEĞİŞİNCE YENİDEN ZAMANLA ────────────────────────────────────────
+    Bağımlılıklar yalnız [isLoggedIn, notifPermission] idi. Ayarlar'da anahtarı KAPATMAK
+    çalışıyordu (o ekran doğrudan cancel çağırıyor) ama AÇMAK hiçbir şey yapmıyordu: bu
+    effect yeniden çalışmadığı için bildirim bir daha zamanlanmıyor, sonraki soğuk
+    açılışa kadar sessizce ölü kalıyordu. Yani kullanıcı anahtarı açıyor, yeşil görüyor,
+    bildirim gelmiyordu.
+
+    Listeye kullanıcının BİLEREK değiştirebildiği şeyler eklendi (tercihler, dil, saat).
+    `tasks` bilerek DIŞARIDA: her görev değişiminde bildirimleri iptal edip yeniden
+    kurmak gürültü olurdu; sayılar bir sonraki açılışta zaten tazeleniyor.
+  */
+  }, [isLoggedIn, notifPermission, morningBriefEnabled, eveningBriefEnabled, language, productivityHour]);
 
 
   // Notification response handler — covers tap, Watch action buttons, and Lock Screen actions

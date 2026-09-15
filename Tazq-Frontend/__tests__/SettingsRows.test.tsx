@@ -85,7 +85,21 @@ describe('ToggleRow', () => {
     const { UNSAFE_getByType } = setup({ value: true });
     const Switch = require('react-native').Switch;
     const sw = UNSAFE_getByType(Switch);
-    expect(sw.props.accessibilityState).toEqual({ checked: true });
+    expect(sw.props.accessibilityState).toEqual({ checked: true, disabled: false });
+  });
+
+  it('ÖNKOŞULU yokken kilitleniyor ve bunu duyuruyor', () => {
+    /*
+      Bildirim izni reddedilmişken sabah/akşam/haftalık anahtarları hâlâ açılıp
+      kapanıyordu: kullanıcı anahtarı açıyor, yeşile dönüyor, hiçbir bildirim
+      gelmiyordu. Arayüz tutamayacağı bir söz veremez — hem dokunuş kapanmalı hem de
+      ekran okuyucu durumu bildirmeli.
+    */
+    const { UNSAFE_getByType } = setup({ value: false, disabled: true });
+    const Switch = require('react-native').Switch;
+    const sw = UNSAFE_getByType(Switch);
+    expect(sw.props.disabled).toBe(true);
+    expect(sw.props.accessibilityState).toEqual({ checked: false, disabled: true });
   });
 });
 
