@@ -32,6 +32,7 @@ const HUB = stripComments(read('features/dashboard/components/StatusHubModal.tsx
 const SLEEP = stripComments(read('features/habits/hooks/useSleepHealthSync.ts'));
 const LAYOUT = stripComments(read('app/_layout.tsx'));
 const TASKS = stripComments(read('app/tasks.tsx'));
+const FOCUS = stripComments(read('app/focus.tsx'));
 
 describe('eklenen görev GERÇEKTEN kaydediliyor', () => {
   it('panel kayıt BİTİNCE kapanıyor — hata olursa yazılan metin durur', () => {
@@ -343,6 +344,104 @@ describe('Aksiyon Merkezi — silme ve süzgeçler', () => {
     expect(TASKS).toMatch(/if \(dateFilter\) \{\s*if \(!task\.dueDate\) return false;/);
     expect(TASKS).toContain("{(filter !== 'all' || !!tagFilter || !!dateFilter) && (");
     expect(TASKS).toContain("router.setParams({ dateFilter: undefined })");
+  });
+});
+
+describe('Aksiyon Merkezi — liste ve tekrar', () => {
+  it('elle sıralama TAM listeye yazıyor', () => {
+    /*
+      Sıra görünen listeden üretiliyordu; mağaza verilen kimliklere 0..n yazıp
+      ötekileri eski sıralarıyla bırakıyor. Süzgeç açıkken taşıma yapan kullanıcının
+      listesi, süzgeci kaldırınca karışmış oluyordu.
+    */
+    expect(TASKS).not.toMatch(/const newTasks = \[\.\.\.filteredTasks\]/);
+    expect(TASKS).toContain('moveWithinVisible(');
+  });
+
+  it('tekrar ayrıştırıcısı ve hatırlatıcısı yerinde', () => {
+    // "İki günde bir" başlığı tanınmıyordu ('İ' → 'i'+nokta) ve üretilen yeni örneğin
+    // bildirimi hiç kurulmuyordu: hatırlatıcı bir kez çalıp susuyordu.
+    expect(TASKS).toContain('buildNextIntervalInstance(task)');
+    expect(TASKS).toMatch(/wantsReminder\(nextPayload\.tags\)/);
+    expect(TASKS).toMatch(/armNext\(created\.id\)/);
+  });
+
+  it('TOPLU tamamlama, tek tamamlamayla aynı işi yapıyor', () => {
+    /*
+      Toplu tamamlama akışı elle yeniden yazılmıştı ve üç şeyi atlıyordu: hatırlatıcı
+      iptali, tekrar örneği üretimi ve plan kaydı (mod görevleri uyarlama motoruna
+      hiç görünmüyordu). Yazma işi ortak `completeTask`e devredildi.
+    */
+    expect(TASKS).toContain("import { completeTask } from '@/features/tasks/utils/taskActions';");
+    expect(TASKS).toMatch(/ids\.map\(id => completeTask\(id\)\)/);
+    expect(TASKS).toMatch(/cancelTaskNotification\(id\);\s*spawnNextInstance\(task\);/);
+    // Tek tamamlama da aynı yardımcıyı kullanıyor — iki kopya kalmadı.
+    expect((TASKS.match(/spawnNextInstance\(task\)/g) ?? []).length).toBe(2);
+  });
+
+  it('ölü sayfalama makinesi kalmadı', () => {
+    // `visibleCount` / `remainingCount` hiç kullanılmıyordu ama listenin 20'de
+    // kesildiği izlenimi veriyordu; FlatList zaten kendi pencerelemesini yapıyor.
+    expect(TASKS).not.toMatch(/const TASK_PAGE_SIZE/);
+    expect(TASKS).not.toMatch(/remainingCount/);
+  });
+});
+
+describe('Odak ekranı — seans kaydı', () => {
+  it('seans kaydı TEK karar noktasından geçiyor', () => {
+    /*
+      `FocusService.saveSession` altı yerden çağrılıyordu ve kopyalar ayrışmıştı:
+      "durdur" 1 dakikanın altını kaydetmiyor, çarpıyla ÇIKIŞ ise `Math.max(1, ...)`
+      ile 5 saniyelik seansı 1 dakika yazıyordu. Aynı seans bir yoldan puan
+      kazanıyor, ötekinden kazanmıyordu.
+    */
+    expect((FOCUS.match(/FocusService\.saveSession\(/g) ?? []).length).toBe(1);
+    expect(FOCUS).toContain('const commitSession = (minutes: number, completed: boolean): boolean => {');
+    expect(FOCUS).not.toMatch(/Math\.max\(1, Math\.round\(elapsed \/ 60\)\)/);
+  });
+
+  it('bir dakikanın altı kaydedilmiyor — tek kural', () => {
+    expect(FOCUS).toMatch(/if \(!Number\.isFinite\(minutes\) \|\| minutes < 1\)/);
+  });
+
+  it('arka planda KISMİ kayıt yapılmıyor — sunucu çift saymasın', () => {
+    /*
+      Arka plana atılınca o ana kadarki dakikalar yazılıyor, dönünce sayaç devam edip
+      seans bitince tam süre bir kez daha yazılıyordu. Kurtarma zaten disk üzerinden
+      çalışıyor (bkz. useFocusStore.rehydrateTimer).
+    */
+    expect(FOCUS).not.toMatch(/saveSessionOnAbort/);
+    expect(FOCUS).not.toMatch(/backgroundSavedRef/);
+  });
+
+  it('setAudioModeAsync race condition kapatıldı', () => {
+    /*
+      `setAudioModeAsync` ateşle-unut şeklindeydi (.catch ile yutuluyordu). Kalıcı
+      ses tercihi varsa mount anında ses efekti tetikleniyor ama AudioMode henüz
+      kurulmamış; iOS'ta ses gelmeyebiliyor ve kullanıcı sesi kapatıp açmak zorunda
+      kalıyordu. Şimdi .then() içinde audioModeReadyRef=true yazıldıktan sonra
+      bekleyen istek (pendingPlayRef) yeniden deneniyor.
+    */
+    expect(FOCUS).toContain('audioModeReadyRef.current = true;');
+    expect(FOCUS).toContain('pendingPlayRef.current = { type, fadeIn };');
+    expect(FOCUS).toMatch(/if \(!audioModeReadyRef\.current\)/);
+    // Eski ateşle-unut kalıbı kalmadı
+    expect(FOCUS).not.toMatch(/setAudioModeAsync[\s\S]{0,200}\.catch\(\(\) => \{\}\)/);
+  });
+
+  it('finishEarly → mola seansında ses tercihi korunuyor', () => {
+    /*
+      "Erken Bitir" seçeneği ambientSound tercihi 'off' yapıyordu. Kullanıcı
+      özetten "Mola Başlat"a bastığında mola boyunca ses çalmıyordu — tek çözüm
+      sesi kapatıp açmaktı. Ses DOSYASI durduruldu (stopAmbientSound) ama TERCIH
+      kalıcı bırakıldı: seans değiştiğinde tercih otomatik olarak uygulanıyor.
+    */
+    // finishEarly'de stopAmbientSound var ama hemen arkasından setAmbientSound('off') YOK
+    const finishEarlyStart = FOCUS.indexOf('const finishEarly = ()');
+    const finishEarlyEnd = FOCUS.indexOf('\n  };', finishEarlyStart) + 4;
+    const finishEarlyBody = FOCUS.slice(finishEarlyStart, finishEarlyEnd);
+    expect(finishEarlyBody).toContain('stopAmbientSound()');
+    expect(finishEarlyBody).not.toContain("setAmbientSound('off')");
   });
 });
 

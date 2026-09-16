@@ -3,7 +3,7 @@ import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { useTaskStore } from '@/features/tasks/store/useTaskStore';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
-import { TaskService } from '@/shared/services/api';
+import { TaskService, FocusService } from '@/shared/services/api';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { swallow } from '@/shared/utils/swallow';
@@ -98,6 +98,13 @@ export function useOfflineSync() {
             */
             const mappedIds = op.ids.map(id => idMap.get(id) ?? id).filter(id => id > 0);
             if (mappedIds.length > 0) await TaskService.reorderTasks(mappedIds);
+          } else if (op.type === 'focus-session') {
+            /*
+              `occurredAt` GÖNDERİLMİYOR: sunucu sözleşmesi bir tarih alanı kabul
+              etmiyor, seansı aldığı ana damgalıyor (bkz. OfflineOp notu). Eşitleme
+              gece yarısını geçerse seans ertesi güne yazılır — bilinen eksiklik.
+            */
+            await FocusService.saveSession(op.taskName, op.minutes, op.completed);
           }
           
           processed++;

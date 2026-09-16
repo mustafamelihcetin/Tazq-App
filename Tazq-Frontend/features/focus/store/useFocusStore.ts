@@ -206,8 +206,15 @@ export const useFocusStore = create<FocusState>()(
           lastActiveAt: null,
           expectedFinishAt: null,
           pausedSeconds: null,
-          localStreak: 0,
-          bestStreak: 0
+          /*
+            localStreak SIFIRLANMIYOR — bu alan odak ekranında kullanılmıyor
+            (incrementLocalStreak hiç çağrılmıyor); sıfırlamak zararsız ama gereksiz.
+
+            bestStreak SIFIRLANIYORDU — her "Yeni Seans" / "Sıfırla" butonunda
+            kullanıcının TÜM EN İYİ SERİSİ siliniyordu. bestStreak seanslar arası
+            kalıcı bir rekordur; seans sonunda sıfırlanmaz. updateBestStreak sadece
+            artar ve hiçbir şey onu azaltmamalı.
+          */
         });
       },
 

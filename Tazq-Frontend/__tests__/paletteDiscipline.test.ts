@@ -140,7 +140,9 @@ const CEILING: Record<string, number> = {
   // MyDayTaskRow: temizlendi. Tek sabit rengi #10B981 idi ve iki temada da aynıydı —
   // yani koyu temada yanlıştı. theme.success'e bağlandı (açık #047857 / koyu #34D399).
   'shared/components/PeekMenu.tsx': 1,
-  'shared/components/SwipeableItem.tsx': 1,
+  // SwipeableItem LİSTEDEN ÇIKTI (1 → 0): silme düğmesinin `#ff3b30` zemini
+  // `theme.error`a bağlandı. Glif rengi de temaya göre seçiliyor — koyu temada palet
+  // daha AÇIK bir kırmızı kullanıyor ve beyaz glif orada kontrastı kaybediyordu.
   'shared/utils/calendarService.ts': 1,
 };
 

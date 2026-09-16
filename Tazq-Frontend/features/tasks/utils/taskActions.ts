@@ -19,17 +19,24 @@ import { isNetworkError } from '@/shared/utils/errors';
  * gösterilmiyor, bkz. celebrate.ts). Burada yalnız VERİ var.
  */
 
+/** Tamamlamanın SONUCU — çağıran kullanıcıya haber vermek isteyebilir. */
+export type CompleteResult = 'ok' | 'queued' | 'skipped' | 'failed';
+
 /**
  * Görevi tamamlar (iyimser) ve sunucuya yazar.
  *
  * Çevrimdışıysa kuyruğa alınır ve iyimser tamamlama KORUNUR. Gerçek bir sunucu
  * hatasında (ağ değil) geri alınır — yoksa kullanıcı bitmiş sandığı bir işi bir
  * sonraki açılışta yeniden karşısında bulur.
+ *
+ * SONUÇ DÖNÜYOR çünkü geri alma SESSİZ olmamalı: toplu tamamlamada beş görevden
+ * biri sunucuda başarısız olursa, o satır kendiliğinden geri işaretsizleşiyor ve
+ * kullanıcı nedenini bilmiyordu. Dönüş değerini yok sayan çağıranlar etkilenmez.
  */
-export async function completeTask(taskId: number): Promise<void> {
+export async function completeTask(taskId: number): Promise<CompleteResult> {
   const store = useTaskStore.getState();
   const task = store.tasks.find(t => t.id === taskId);
-  if (!task || task.isCompleted) return;
+  if (!task || task.isCompleted) return 'skipped';
 
   store.toggleTaskCompletion(taskId);
 
@@ -52,19 +59,21 @@ export async function completeTask(taskId: number): Promise<void> {
   const completedAt = new Date().toISOString();
   if (!useNetworkStore.getState().isOnline) {
     useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt });
-    return;
+    return 'queued';
   }
 
   try {
     await TaskService.updateTask(taskId, { isCompleted: true });
+    return 'ok';
   } catch (e: unknown) {
     if (isNetworkError(e)) {
       // Ağ hatası → kuyruğa al, iyimser tamamlamayı KORU.
       useOfflineQueue.getState().enqueue({ type: 'toggle-task', id: taskId, isCompleted: true, completedAt });
-    } else {
-      // Gerçek sunucu hatası → geri al.
-      useTaskStore.getState().toggleTaskCompletion(taskId);
+      return 'queued';
     }
+    // Gerçek sunucu hatası → geri al.
+    useTaskStore.getState().toggleTaskCompletion(taskId);
+    return 'failed';
   }
 }
 

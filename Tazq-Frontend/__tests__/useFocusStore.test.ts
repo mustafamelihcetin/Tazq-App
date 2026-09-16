@@ -49,6 +49,17 @@ describe('useFocusStore', () => {
     expect(useFocusStore.getState().isActive).toBe(false);
   });
 
+  it('reset() bestStreak sıfırlamıyor — seanslar arası kalıcı rekordur', () => {
+    /*
+      reset() içinde `bestStreak: 0` yazılıyordu. "Yeni Seans" / "Sıfırla" düğmesine
+      her basıldığında kullanıcının TÜM en iyi seri rekoru siliniyordu.
+      bestStreak yalnız updateBestStreak aracılığıyla artar; hiçbir şey onu azaltamaz.
+    */
+    useFocusStore.setState({ bestStreak: 7, totalSeconds: 1500, seconds: 300 });
+    useFocusStore.getState().reset();
+    expect(useFocusStore.getState().bestStreak).toBe(7); // korunmuş olmalı
+  });
+
   it('setIsActive true records lastActiveAt timestamp', () => {
     const before = Date.now();
     useFocusStore.getState().setIsActive(true);

@@ -35,6 +35,15 @@ import { useToastStore } from '@/shared/store/useToastStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
 import { forgetTasks } from '@/features/tasks/utils/forgetTask';
+/*
+  Tekrar aralığı ayrıştırıcısı bu dosyanın içindeydi (~60 satır) ve test edilemiyordu.
+  İçinde Türkçeye özgü bir kusur yaşıyordu: `toLowerCase()` 'İ' harfini bozduğu için
+  "İki günde bir" kalıbı hiç eşleşmiyor, cümle başını büyük harfle yazan kullanıcının
+  tekrarlayan görevi bir daha üretilmiyordu.
+*/
+import { buildNextIntervalInstance, wantsReminder } from '@/features/tasks/utils/recurrenceInterval';
+import { moveWithinVisible } from '@/features/tasks/utils/reorder';
+import { completeTask } from '@/features/tasks/utils/taskActions';
 import { celebrate } from '@/features/user/utils/celebrate';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
@@ -58,7 +67,9 @@ import { matchesTaskFilter, type TaskFilter } from '@/features/tasks/utils/taskF
 import { describeTask, rowHint, bulkSelectHint } from '@/shared/utils/a11y';
 import { toDateKey } from '@/shared/utils/dateKey';
 
-const SWIPE_THRESHOLD = -80;
+// SWIPE_THRESHOLD KALDIRILDI: hiç okunmuyordu. Kaydırma eşiği SwipeableItem'ın
+// kendi içinde (hız tabanlı) — burada duran sayı, orayı değiştirenin yanlış yere
+// bakmasına yol açacak ölü bir ipucuydu.
 const TAG_COLORS_PALETTE = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4','#F97316'];
 const PRIORITY_ORDER: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
 
@@ -462,63 +473,6 @@ const MemoizedTaskItem = React.memo((props: any) => {
     );
 });
 
-function checkAndCreateNextIntervalInstance(task: any) {
-  const lower = task.title.toLowerCase();
-  const turkishNumbers: Record<string, number> = {
-    bir: 1, iki: 2, üç: 3, dort: 4, dört: 4, bes: 5, beş: 5, alti: 6, altı: 6, yedi: 7, sekiz: 8, dokuz: 9, on: 10
-  };
-  const englishNumbers: Record<string, number> = {
-    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10
-  };
-
-  const intervalDayMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+günde\s+bir/i) ||
-                           lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+days/i);
-  
-  const intervalWeekMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+haftada\s+bir/i) ||
-                            lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+weeks/i);
-
-  const intervalMonthMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+ayda\s+bir/i) ||
-                             lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+months/i);
-
-  let nextDate = new Date();
-  let matched = false;
-
-  if (intervalDayMatch) {
-    const rawVal = intervalDayMatch[1].toLowerCase();
-    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
-    nextDate.setDate(nextDate.getDate() + val);
-    matched = true;
-  } else if (intervalWeekMatch) {
-    const rawVal = intervalWeekMatch[1].toLowerCase();
-    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
-    nextDate.setDate(nextDate.getDate() + val * 7);
-    matched = true;
-  } else if (intervalMonthMatch) {
-    const rawVal = intervalMonthMatch[1].toLowerCase();
-    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
-    nextDate.setMonth(nextDate.getMonth() + val);
-    matched = true;
-  } else if (lower.includes('gün aşırı') || lower.includes('every other day')) {
-    nextDate.setDate(nextDate.getDate() + 2);
-    matched = true;
-  }
-
-  if (matched) {
-    return {
-      title: task.title,
-      description: task.description || '',
-      dueDate: toDateKey(nextDate),
-      dueTime: task.dueTime || null,
-      isCompleted: false,
-      priority: task.priority || 'Medium',
-      tags: task.tags || [],
-      subtasks: (task.subtasks || []).map((s: any) => ({ text: s.text, done: false })),
-      recurrence: 'None' as RecurrenceType
-    };
-  }
-  return null;
-}
-
 export default function ActionCenter() {
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
@@ -645,8 +599,6 @@ export default function ActionCenter() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
   const exitAnimMap = useRef<Map<number, { opacity: RNAnimated.Value; translateY: RNAnimated.Value }>>(new Map());
-  const TASK_PAGE_SIZE = 20;
-  const [visibleCount, setVisibleCount] = useState(TASK_PAGE_SIZE);
 
   // Auto-exit bulk mode when all items are deselected
   useEffect(() => {
@@ -655,10 +607,6 @@ export default function ActionCenter() {
     }
   }, [selectedIds, isBulkMode]);
 
-  // Reset visible count when filters change
-  useEffect(() => {
-    setVisibleCount(TASK_PAGE_SIZE);
-  }, [filter, tagFilter, searchQuery, sortBy, hideCompleted]);
 
 
   // NOT: burada bir `subtaskSaveTimers` ref'i vardı — tanımlanmış, alt bileşene geçilmiş,
@@ -838,6 +786,47 @@ export default function ActionCenter() {
     return date.toLocaleDateString(locale, options);
   };
 
+  /**
+   * Tamamlanan görevin BİR SONRAKİ örneğini kurar (başlıkta "iki günde bir" gibi bir
+   * aralık varsa) ve hatırlatıcısını da yeniden zamanlar.
+   *
+   * ── NEDEN ORTAK ────────────────────────────────────────────────────────────
+   * Bu iş yalnız tek tamamlamada yapılıyordu. TOPLU tamamlamada hiç yapılmıyordu:
+   * aynı görev, onay kutusuyla tamamlanınca bir sonraki örneği üretiyor, çoklu
+   * seçimle tamamlanınca üretmiyordu. Kullanıcı için ikisi aynı eylem.
+   *
+   * Hatırlatıcı da burada kuruluyor: yeni örnek etiketleri (hatırlatıcı dahil)
+   * devralıyor ama bildirimi kurulmuyordu — hatırlatıcılı tekrarlayan bir görev bir
+   * kez hatırlatıp sessizleşiyordu.
+   */
+  const spawnNextInstance = (task: any) => {
+    const nextPayload = buildNextIntervalInstance(task);
+    if (!nextPayload) return;
+
+    const armNext = (id: number) => {
+      if (!wantsReminder(nextPayload.tags)) return;
+      scheduleTaskNotification(
+        id, nextPayload.title, nextPayload.dueDate, nextPayload.dueTime,
+        language, usePrefsStore.getState().hideNotificationContent,
+      );
+    };
+    const queueNext = () => {
+      const tempId = -Math.floor(Math.random() * 1000000) - 1;
+      const tempTask = { ...nextPayload, id: tempId };
+      addTask(tempTask as any);
+      enqueueOffline({ type: 'create-task', tempId, payload: tempTask });
+      armNext(tempId);
+    };
+
+    if (isOnline) {
+      TaskService.createTask(nextPayload)
+        .then(created => { addTask(created); if (created?.id) armNext(created.id); })
+        .catch(queueNext);
+    } else {
+      queueNext();
+    }
+  };
+
   const handleToggle = async (id: number) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
@@ -897,24 +886,7 @@ export default function ActionCenter() {
         else if (allTasksDone) celebrate({ kind: 'day-cleared', isLite, tr: language === 'tr' });
 
 
-        const nextPayload = checkAndCreateNextIntervalInstance(task);
-        if (nextPayload) {
-          if (isOnline) {
-            TaskService.createTask(nextPayload).then(created => {
-              addTask(created);
-            }).catch(() => {
-              const tempId = -Math.floor(Math.random() * 1000000) - 1;
-              const tempTask = { ...nextPayload, id: tempId };
-              addTask(tempTask as any);
-              enqueueOffline({ type: 'create-task', tempId, payload: tempTask });
-            });
-          } else {
-            const tempId = -Math.floor(Math.random() * 1000000) - 1;
-            const tempTask = { ...nextPayload, id: tempId };
-            addTask(tempTask as any);
-            enqueueOffline({ type: 'create-task', tempId, payload: tempTask });
-          }
-        }
+        spawnNextInstance(task);
 
         recordCompletion(task.id, task.title);
         // İlk-zafer: kullanıcının HAYATTAKİ ilk görev tamamlaması → milestone + (Pro'da)
@@ -1129,20 +1101,32 @@ export default function ActionCenter() {
     });
   };
 
+  /**
+   * Yukarı/aşağı taşıma — hamle GÖRÜNEN listede, yazma TAM listede.
+   *
+   * ── ÖLÇÜLEN SORUN ──────────────────────────────────────────────────────────
+   * Sıra `[...filteredTasks]` üzerinden üretiliyor ve mağazaya YALNIZ görünen
+   * görevlerin kimlikleri veriliyordu. Mağaza ise verilen kimliklere 0..n sırası
+   * yazıp geri kalanları eski sıralarıyla bırakıyor (bkz. reorderTasks). Yani bir
+   * süzgeç açıkken (öncelik, arama, "tamamlananları gizle") iki görevi taşımak,
+   * GÖRÜNMEYEN bütün görevlerin sırasıyla çakışan yeni bir numaralandırma
+   * üretiyordu: kullanıcı süzgeci kaldırınca listesi kendiliğinden karışmış
+   * oluyordu ve bunu yaptığı hamleyle ilişkilendiremiyordu.
+   *
+   * Artık yalnız kullanıcının GÖRDÜĞÜ iki komşu yer değiştiriyor; aradaki gizli
+   * görevler yerinde kalıyor ve tam sıra olduğu gibi yazılıyor.
+   */
   const handleMoveTask = (index: number, direction: 'up' | 'down') => {
+    const ordered = moveWithinVisible(
+      tasks.map(tk => tk.id),
+      filteredTasks.map(tk => tk.id),
+      index,
+      direction,
+    );
+    if (!ordered) return;
     haptic.surface();
-    const newTasks = [...filteredTasks];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
-    if (targetIndex < 0 || targetIndex >= newTasks.length) return;
-    
-    const temp = newTasks[index];
-    newTasks[index] = newTasks[targetIndex];
-    newTasks[targetIndex] = temp;
-    
-    const orderedIds = newTasks.map(t => t.id);
-    reorderTasks(orderedIds);
-    enqueueOffline({ type: 'reorder-tasks', ids: orderedIds });
+    reorderTasks(ordered);
+    enqueueOffline({ type: 'reorder-tasks', ids: ordered });
   };
 
 
@@ -1455,9 +1439,21 @@ export default function ActionCenter() {
     return result;
   }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds, showFutureManualTasks, theme, completedTours, onboardingCompleted, language]);
 
+  /*
+    ── ÖLÜ SAYFALAMA KALDIRILDI ────────────────────────────────────────────────
+    Burada bir sayfalama makinesi duruyordu: `TASK_PAGE_SIZE`, `visibleCount`, filtre
+    değişince sıfırlayan bir efekt, `visibleTasks` ve `remainingCount`. Hiçbiri
+    KULLANILMIYORDU — liste `filteredTasks`i çiziyor.
+
+    Zararsız değildi: okuyan kişi listenin 20'de kesildiğini sanıp "daha fazla göster"
+    düğmesi arar, bulamayınca da eksik iş sanır. Daha kötüsü, biri bu makineyi
+    "bağlamak" isteyip listeyi gerçekten 20'de kesebilirdi.
+
+    Zaten gerekmiyor: FlatList kendi pencerelemesini yapıyor, yani uzun listede de
+    yalnız görünen satırlar çiziliyor. Sunucu tarafındaki sayfalama ayrı bir mesele ve
+    o çözülmüş durumda (bkz. __tests__/taskPagination.test.ts).
+  */
   const filteredTasks = filteredAndSortedTasks;
-  const visibleTasks = useMemo(() => filteredTasks.slice(0, visibleCount), [filteredTasks, visibleCount]);
-  const remainingCount = filteredTasks.length - visibleCount;
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -1702,34 +1698,36 @@ export default function ActionCenter() {
       return;
     }
 
-    // Optimistic update
-    ids.forEach(id => toggleTaskCompletion(id));
+    /*
+      ── TOPLU TAMAMLAMA, TEK TAMAMLAMAYLA AYNI İŞİ YAPAR ──────────────────────
+      Burada tamamlama akışı ELLE yeniden yazılmıştı ve tek tamamlamanın yaptığı üç
+      şeyi atlıyordu:
 
-    // Çevrimdışıyken sunucuya yazmayı deneyip geri almak yerine kuyruğa al
-    // (uygulamanın geri kalanı offline-first; burası tek istisnaydı).
-    if (!isOnline) {
-      const completedAt = new Date().toISOString();
-      ids.forEach(id => enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt }));
+       · HATIRLATICI İPTALİ yoktu → beş görevi toplu bitiren kullanıcı, o beş görevin
+         bildirimlerini almaya devam ediyordu.
+       · TEKRAR ÖRNEĞİ üretilmiyordu → aynı görev onay kutusuyla bitince bir sonraki
+         örneğini doğuruyor, çoklu seçimle bitince doğurmuyordu.
+       · PLAN KAYDI tutulmuyordu → mod görevleri plan uyarlama motoruna hiç
+         görünmüyordu (bkz. useCompletionStore → usePlanAdaptations), yani motor
+         kullanıcıyı "yapmamış" sayıp planı gereksiz yere hafifletebiliyordu.
+
+      Yazma işi artık ortak `completeTask`e devredildi — o yolun kendi notu da bu
+      kopyalanmanın neden tehlikeli olduğunu anlatıyor (bkz. taskActions.ts).
+    */
+    for (const id of ids) {
+      const task = tasks.find(tk => tk.id === id);
+      if (!task || task.isCompleted) continue;
+      cancelTaskNotification(id);
+      spawnNextInstance(task);
+    }
+
+    const results = await Promise.all(ids.map(id => completeTask(id)));
+    const failed = results.filter(r => r === 'failed');
+
+    if (!isOnline || results.some(r => r === 'queued')) {
       haptic.success();
       showToast(savedLocallyMessage(), 'success');
       return;
-    }
-
-    const failed: number[] = [];
-    for (const id of ids) {
-      const task = tasks.find(tk => tk.id === id);
-      if (!task) continue;
-      try {
-        await TaskService.updateTask(id, { ...task, priority: task.priority, isCompleted: true });
-      } catch (err: any) {
-        // Ağ hatası (yanıt yok) → kuyruğa al, geri ALMA. Sunucu hatası → geri al.
-        if (!err?.response) {
-          enqueueOffline({ type: 'toggle-task', id, isCompleted: true, completedAt: new Date().toISOString() });
-        } else {
-          failed.push(id);
-          toggleTaskCompletion(id); // revert
-        }
-      }
     }
 
     if (failed.length > 0) {

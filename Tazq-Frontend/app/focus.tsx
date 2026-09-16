@@ -22,6 +22,9 @@ import { usePrefsStore } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
 import { StatusBar } from 'expo-status-bar';
 import { useToastStore } from '@/shared/store/useToastStore';
+import { useNetworkStore } from '@/shared/store/useNetworkStore';
+import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
+import { isNetworkError } from '@/shared/utils/errors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Colors } from '@/shared/constants/Colors';
@@ -427,6 +430,14 @@ export default function FocusScreen() {
     }, 150);
   };
 
+  // ── SES MOTORU HAZIRLIK ────────────────────────────────────────────────────
+  // `setAudioModeAsync` asenkron; tamamlanmadan `play()` çağrılırsa iOS'ta ses
+  // bazen gelmez ve kullanıcı sesi kapatıp açmak zorunda kalır. Ref ile takip
+  // ediyoruz: kurulum bitmeden yüklenen çalma isteği kurulum sonrasında yeniden
+  // denenir.
+  const audioModeReadyRef = useRef(false);
+  const pendingPlayRef = useRef<{ type: AmbientSound; fadeIn: boolean } | null>(null);
+
   // Sound
   const soundRef = useRef<AudioPlayer | null>(null);
   const chimePlayerRef = useRef<AudioPlayer | null>(null);
@@ -660,6 +671,15 @@ export default function FocusScreen() {
   };
 
   const playAmbientSound = async (type: AmbientSound, fadeIn = false) => {
+    /*
+      AudioMode henüz kurulmadıysa çalma isteğini sakla; kurulum tamamlanınca
+      (yukarıdaki useEffect) bu istek yeniden denenir. Birden fazla gelirse
+      sonuncusu kazanır — kullanıcının son seçimi.
+    */
+    if (!audioModeReadyRef.current) {
+      pendingPlayRef.current = { type, fadeIn };
+      return;
+    }
     const myId = ++playRequestIdRef.current;
     stopAmbientSound();
     if (type === 'off') return;
@@ -705,8 +725,21 @@ export default function FocusScreen() {
       playsInSilentMode: true,
       shouldPlayInBackground: true,
       interruptionMode: 'mixWithOthers',
-    }).catch(() => {});
+    }).then(() => {
+      audioModeReadyRef.current = true;
+      /*
+        Kurulum bitmeden gelen çalma isteği (ör. kalıcı tercih zaten 'rain' ise mount
+        anında ses efekti tetiklenir ama AudioMode henüz ayarlı değildir) burada
+        yeniden denenir.
+      */
+      if (pendingPlayRef.current) {
+        const { type, fadeIn } = pendingPlayRef.current;
+        pendingPlayRef.current = null;
+        playAmbientSound(type, fadeIn);
+      }
+    }).catch(() => { audioModeReadyRef.current = true; }); // hata olsa da bloke etme
     return () => { stopAllSounds(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Session and ambient sound transition manager - Unified to prevent double parallel audio loads
@@ -859,12 +892,10 @@ export default function FocusScreen() {
 
 
   const bgAtRef = useRef<number | null>(null);
-  const backgroundSavedRef = useRef(false);
   const STRICT_GRACE_MS = 2000; // <2sn (bildirim çekme / kontrol merkezi blip'i) ceza vermez
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'active') {
-        backgroundSavedRef.current = false;
         const awayMs = bgAtRef.current ? Date.now() - bgAtRef.current : 0;
         bgAtRef.current = null;
         const { isActive: active, strictMode: isStrict, totalSeconds: total, focusPoints: pts } = useFocusStore.getState();
@@ -892,16 +923,27 @@ export default function FocusScreen() {
           rehydrateTimer();
         }
       } else if (next === 'background') {
+        /*
+          Arka plana giriş anı YALNIZ katı mod için tutuluyor: dönüşte "gerçekten
+          ayrıldı mı yoksa kısa bir blip miydi" kararı buna bakıyor.
+        */
         bgAtRef.current = Date.now();
-        const { isActive: active, strictMode: isStrict, seconds: secs, totalSeconds: total } = useFocusStore.getState();
-        // Katı mod: kararı 'active'e ertele (kısa kesintiyi cezalandırma). Kısmi kayıt da yapma.
-        if (active && isStrict) return;
-        if (backgroundSavedRef.current) return;
-        if (active && total > 0) {
-          backgroundSavedRef.current = true;
-          const elapsed = Math.max(1, Math.round((total - secs) / 60));
-          FocusService.saveSession('Focus', elapsed, false).catch((e) => swallow('focus.saveSessionOnAbort', e, { capture: true }));
-        }
+        /*
+          ── ARKA PLANDA KISMİ KAYIT KALDIRILDI: SUNUCUDA ÇİFT SAYIYORDU ─────────
+          Burada, uygulama arka plana atılınca o ana kadarki dakikalar "tamamlanmamış
+          seans" olarak sunucuya yazılıyordu. Ama dönünce sayaç kaldığı yerden devam
+          ediyor ve seans bitince TAM SÜRE bir kez daha yazılıyordu.
+
+          Yani 25 dakikalık bir seansın onuncu dakikasında telefona bakan kullanıcıda
+          sunucu 10 + 25 = 35 dakika görüyordu. Her arka plan gidiş-gelişi bir kayıt
+          daha ekliyordu. Şişen sayı haftalık istatistiklere, "en iyi gün"e, toplam
+          odak saatine (başarımları tetikliyor) ve ivme skoruna giriyordu — hepsi
+          sessizce, çünkü şişmiş bir sayı yanlış görünmüyor.
+
+          Kurtarma amacı zaten KARŞILANIYOR: zamanlayıcının durumu diskte tutuluyor
+          (bkz. useFocusStore.rehydrateTimer). Uygulama kapansa bile, sonraki açılışta
+          süre dolmuşsa seans normal tamamlama yolundan geçip kaydediliyor.
+        */
       }
     });
     return () => sub.remove();
@@ -942,9 +984,7 @@ export default function FocusScreen() {
 
         if (phase === 'work') {
           const minutes = Math.round(totalSeconds / 60);
-          FocusService.saveSession('Focus', minutes, true).catch((e) => swallow('focus.saveSessionOnComplete', e, { capture: true }));
-          addFocusMinutes(minutes);
-          addFocusPoints(10);
+          commitSession(minutes, true);
           track('focus_completed', { minutes, pomodoro: true });
 
           // Check focus achievements using lifetime total
@@ -989,9 +1029,7 @@ export default function FocusScreen() {
         InteractionManager.runAfterInteractions(() => {
           stopAmbientSound();
           setAmbientSound('off');
-          FocusService.saveSession('Focus', minutes, true).catch((e) => swallow('focus.saveSessionOnComplete', e, { capture: true }));
-          addFocusMinutes(minutes);
-          addFocusPoints(10);
+          commitSession(minutes, true);
           track('focus_completed', { minutes, pomodoro: false });
           FocusService.getStats().then(s => {
             const total = Math.round((s.totalFocusHours || 0) * 60);
@@ -1008,6 +1046,70 @@ export default function FocusScreen() {
   }, [isActive, atZero]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
+  /**
+   * SEANSI KAYDET — tek karar noktası.
+   *
+   * ── ÖLÇÜLEN SORUN ──────────────────────────────────────────────────────────
+   * `FocusService.saveSession` bu ekranda ALTI ayrı yerden çağrılıyordu ve kopyalar
+   * çoktan ayrışmıştı:
+   *
+   *  · "Durdur" ve "erken bitir" 1 dakikanın altını KAYDETMİYOR ve kullanıcıyı
+   *    bilgilendiriyordu.
+   *  · Çarpı ile ÇIKIŞ ise `Math.max(1, ...)` kullanıyordu: 5 saniyelik bir seans
+   *    1 dakika olarak kaydediliyordu — uygulamanın kendi kuralının tam tersi.
+   *    Aynı yol odak puanı da vermiyordu, yani aynı seans "durdur" ile puan
+   *    kazanıyor, "çık" ile kazanmıyordu.
+   *
+   * Kural artık tek yerde: bir dakikanın altı kaydedilmez, kaydedilen her seans
+   * hem yerel sayaca hem sunucuya hem de puana aynı biçimde işlenir.
+   *
+   * @returns Seans kaydedildiyse `true`.
+   */
+  const commitSession = (minutes: number, completed: boolean): boolean => {
+    if (!Number.isFinite(minutes) || minutes < 1) {
+      useToastStore.getState().show(
+        language === 'tr' ? '1 dakikadan kısa seanslar kaydedilmez.' : 'Sessions shorter than 1 minute are not logged.',
+        'info',
+      );
+      return false;
+    }
+    /*
+      ── ÇEVRİMDIŞI SEANS ARTIK KAYBOLMUYOR ──────────────────────────────────
+      Kayıt doğrudan sunucuya yazılmaya çalışılıyor, başarısız olunca hata
+      yutuluyordu: uçakta yapılan 50 dakikalık bir seans yerel sayaçta görünüyor ama
+      sunucuya hiç ulaşmıyordu. Haftalık grafikten, toplam odak saatinden
+      (başarımları tetikliyor) ve ivme skorundan düşüyordu. Uygulamanın geri kalanı
+      baştan sona çevrimdışı-önce çalışırken burası tek istisnaydı.
+
+      Bilinen eksiklik: sunucu seansın TARİHİNİ kabul etmiyor, aldığı anı damgalıyor.
+      Eşitleme gece yarısını geçerse seans ertesi güne yazılır (bkz. OfflineOp notu).
+    */
+    const queueSession = () => {
+      useOfflineQueue.getState().enqueue({
+        type: 'focus-session',
+        taskName: 'Focus',
+        minutes,
+        completed,
+        occurredAt: new Date().toISOString(),
+      });
+    };
+
+    if (!useNetworkStore.getState().isOnline) {
+      queueSession();
+    } else {
+      FocusService.saveSession('Focus', minutes, completed).catch((e) => {
+        // Ağ hatası → kuyruğa al. Gerçek sunucu hatası → kaydı düşür (yeniden denemek
+        // aynı reddi üretir) ama izini bırak.
+        if (isNetworkError(e)) queueSession();
+        else swallow('focus.saveSession', e, { capture: true });
+      });
+    }
+    addFocusMinutes(minutes);
+    // Tamamlanan seans sabit ödül; erken bırakılan süreyle orantılı (üst sınır aynı).
+    addFocusPoints(completed ? 10 : Math.min(10, minutes * 2));
+    return true;
+  };
+
   const toggleTimer = () => {
     haptic.commit();
     setIsActive(!isActive);
@@ -1017,17 +1119,7 @@ export default function FocusScreen() {
     haptic.surface();
     const elapsed = getElapsed();
     if (elapsed > 0) {
-      const minutesDone = Math.round(elapsed / 60);
-      if (minutesDone >= 1) {
-        FocusService.saveSession('Focus', minutesDone, false).catch((e) => swallow('focus.saveSessionOnStop', e, { capture: true }));
-        addFocusMinutes(minutesDone);
-        addFocusPoints(Math.min(10, minutesDone * 2));
-      } else {
-        useToastStore.getState().show(
-          language === 'tr' ? '1 dakikadan kısa seanslar kaydedilmez.' : 'Sessions shorter than 1 minute are not logged.',
-          'info'
-        );
-      }
+      commitSession(Math.round(elapsed / 60), false);
       stopAmbientSound();
       setAmbientSound('off');
     }
@@ -1039,15 +1131,24 @@ export default function FocusScreen() {
   const finishEarly = () => {
     haptic.success();
     stopAmbientSound();
-    setAmbientSound('off');
+    /*
+      setAmbientSound('off') BURADAN KALDIRILDI.
+
+      ── ÖLÇÜLEN SORUN ──────────────────────────────────────────────────────────
+      "Erken Bitir" özetini kapatan kullanıcı "Mola Başlat"a basabilir. Mola bir
+      seans olduğu için isActive→true ve ses efekti tetiklenir — ama tercih zaten
+      'off' yapılmış, yani mola boyunca ses çalmıyor.
+      Kullanıcının bildirdiği "sesi kapatıp açmak gerekiyor" sorununun tam kaynağı.
+
+      Ses DOSYASI zaten durduruldu (stopAmbientSound). TERCIH ise kalıcıdır:
+      kullanıcı yağmur seçtiyse molada da yağmur çalmalı. Tercih yalnızca
+      kullanıcı düğmeye basınca veya özetten ana sayfaya gidince 'off' olmalı.
+    */
     setIsActive(false);
     completedRef.current = true;
     setZenMode(false);
     const minutesDone = Math.round(getElapsed() / 60);
-    if (minutesDone >= 1) {
-      FocusService.saveSession('Focus', minutesDone, false).catch((e) => swallow('focus.saveSessionOnStop', e, { capture: true }));
-      addFocusMinutes(minutesDone);
-      addFocusPoints(Math.min(10, minutesDone * 2));
+    if (commitSession(minutesDone, false)) {
       setSummaryMinutes(minutesDone);
       setSummaryCompleted(false);
       setSummaryVisible(true);
@@ -1055,11 +1156,8 @@ export default function FocusScreen() {
         playCompletionSound();
       }, 250);
     } else {
+      // Kaydedilmeyen seans için özet göstermek yanıltıcı olur; sayaç sıfırlanır.
       reset();
-      useToastStore.getState().show(
-        language === 'tr' ? '1 dakikadan kısa seanslar kaydedilmez.' : 'Sessions shorter than 1 minute are not logged.',
-        'info'
-      );
     }
   };
 
@@ -1192,9 +1290,13 @@ export default function FocusScreen() {
                 const elapsed = getElapsed();
                 if (elapsed > 0) {
                   setIsActive(false);
-                  const minutesDone = Math.max(1, Math.round(elapsed / 60));
-                  FocusService.saveSession('Focus', minutesDone, false).catch((e) => swallow('focus.saveSessionOnExit', e, { capture: true }));
-                  addFocusMinutes(minutesDone);
+                  /*
+                    `Math.max(1, ...)` YAZILIYDI: 5 saniyelik bir seans 1 dakika olarak
+                    kaydediliyordu — "1 dakikadan kısa kaydedilmez" kuralının tam tersi.
+                    Ayrıca puan verilmiyordu, yani aynı seans "durdur" ile puan
+                    kazanıyor, "çık" ile kazanmıyordu. İkisi de ortak karara bağlandı.
+                  */
+                  commitSession(Math.round(elapsed / 60), false);
                 }
                 setIsExiting(true);
                 setTimeout(() => {
@@ -2400,7 +2502,7 @@ export default function FocusScreen() {
                 return (
                   <Touchable
                     key={preset.key}
-                    onPress={() => { setSelectedPreset(preset.key); setDuration(preset.workMins); if (pomodoroMode) {}; }}
+                    onPress={() => { setSelectedPreset(preset.key); setDuration(preset.workMins); }}
                     style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isActive ? theme.primary + '18' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.smd, borderWidth: B.thin, borderColor: isActive ? theme.primary + '40' : 'transparent' }}
                   >
                     <View style={{ gap: S.xxs }}>

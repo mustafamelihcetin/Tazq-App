@@ -17,6 +17,7 @@ import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { ICON, S, R } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { haptic } from '@/shared/utils/haptics';
+import { useAppTheme } from '@/shared/hooks/useAppTheme';
 
 interface Props {
   children: React.ReactNode;
@@ -32,6 +33,21 @@ function triggerLightHaptic() {
 
 export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Props) => {
   const { language } = useLanguageStore();
+  const { theme, colorScheme } = useAppTheme();
+  /*
+    ── SATIR AÇIK MI — JS TARAFININ DA BİLMESİ GEREKİYOR ────────────────────────
+    Silme düğmesinin görünürlüğü yalnız UI iş parçacığındaki `deleteOpacity` ile
+    yönetiliyordu. React bunu bilmediği için düğme KAPALI satırlarda da ağaçta
+    duruyordu: ekran okuyucu her görev satırından sonra bir "Sil" düğmesi daha
+    okuyordu. Yani listede yirmi görev varken yirmi görünmez silme düğmesi.
+
+    Ayrıca opaklığı sıfır olan bir düğme hâlâ dokunulabilir bir hedeftir; içerik
+    onu örtüyor ama bu bir tesadüfe (çizim sırasına) bağlı.
+
+    Durum artık JS'te de tutuluyor ve kapalıyken düğme hem dokunulmaz hem de
+    erişilebilirlik ağacının dışında.
+  */
+  const [isOpen, setIsOpen] = React.useState(false);
   const translateX = useSharedValue(0);
   const deleteOpacity = useSharedValue(0);
   const contextX = useSharedValue(0);
@@ -77,9 +93,11 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
         translateX.value = withSpring(-80, { damping: 15, stiffness: 100 });
         deleteOpacity.value = withTiming(1);
         runOnJS(triggerLightHaptic)();
+        runOnJS(setIsOpen)(true);
       } else {
         translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
         deleteOpacity.value = withTiming(0);
+        runOnJS(setIsOpen)(false);
       }
     })
     .onFinalize(() => {
@@ -87,6 +105,7 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
       if (translateX.value > -40 && translateX.value < 0) {
         translateX.value = withSpring(0, { damping: 20, stiffness: 120 });
         deleteOpacity.value = withTiming(0);
+        runOnJS(setIsOpen)(false);
       }
     });
 
@@ -94,22 +113,42 @@ export const SwipeableItem = ({ children, onDelete, disabled, showPeekHint }: Pr
     transform: [{ translateX: translateX.value }],
   }));
 
+  /*
+    `withSpring` BURADAN ÇIKARILDI. Animasyon stilinin içinde çağrılınca yay HER
+    KAREDE yeniden kuruluyor: sürüklerken hedef değer sürekli değiştiği için yay hiç
+    oturmuyor ve ikon titriyordu. Ölçek doğrudan opaklıktan türetiliyor — aynı görsel
+    etki, tek ve sürekli bir değer.
+  */
   const actionStyle = useAnimatedStyle(() => ({
     opacity: deleteOpacity.value,
-    transform: [{ scale: withSpring(deleteOpacity.value > 0.5 ? 1 : 0.8) }],
+    transform: [{ scale: 0.8 + deleteOpacity.value * 0.2 }],
   }));
 
   return (
     <View style={styles.container}>
-      <View style={[StyleSheet.absoluteFill, styles.deleteZone]}>
+      <View
+        style={[StyleSheet.absoluteFill, styles.deleteZone]}
+        // Kapalıyken ne dokunulur ne okunur (yukarıdaki nota bkz.).
+        pointerEvents={isOpen ? 'auto' : 'none'}
+        accessibilityElementsHidden={!isOpen}
+        importantForAccessibility={isOpen ? 'auto' : 'no-hide-descendants'}
+      >
         <Animated.View style={actionStyle}>
           <Touchable
             accessibilityRole="button"
             accessibilityLabel={language === 'tr' ? 'Sil' : 'Delete'}
             onPress={onDelete}
-            style={styles.deleteBtn}
+            // Renk PALETTEN: `#ff3b30` elle yazılıydı, yani tema değişince yerinde
+            // çakılı kalıyordu. Yıkıcı eylemin rengi zaten tanımlı.
+            style={[styles.deleteBtn, { backgroundColor: theme.error }]}
           >
-            <Trash2 size={ICON.lg} color="white" />
+            {/*
+              GLİF RENGİ TEMAYA GÖRE. Açık temada kırmızı koyu (#B91C1C) → beyaz glif
+              okunur. Koyu temada palet daha AÇIK bir kırmızı kullanıyor (#F87171) ve
+              beyaz glif orada kontrastı kaybediyor; paletin `onPrimary` için yazdığı
+              gerekçenin aynısı (bkz. Colors → onPrimary notu).
+            */}
+            <Trash2 size={ICON.lg} color={colorScheme === 'dark' ? theme.onPrimary : '#FFFFFF'} />
           </Touchable>
         </Animated.View>
       </View>
@@ -134,7 +173,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: R.full,
-    backgroundColor: '#ff3b30',
     justifyContent: 'center',
     alignItems: 'center',
   },

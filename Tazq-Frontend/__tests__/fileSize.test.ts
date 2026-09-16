@@ -72,7 +72,32 @@ const KNOWN_LARGE: Record<string, number> = {
   // olarak odak alıyordu; o bir topraklanma JESTİ, düğme değil — ağacın dışına alındı.
   // 2491 → 2497: CAM SAYFALAR. Beş modalın (süre, mod, nefes, özet, pomodoro) elle
   // yazılmış opak zemini ortak GlassSurface'e bağlandı: içe aktarım + modal başına tek satır.
-  'app/focus.tsx': 2497,
+  /*
+    2497 → 2558: ODAK EKRANI DENETİMİ (iki tur). Eklenen işlevsel kod azdır; artışın
+    çoğu iki sessiz kusurun NEDENİNİ anlatan notlar:
+
+     · Arka plana atılınca o ana kadarki dakikalar sunucuya "tamamlanmamış seans"
+       olarak yazılıyor, dönünce sayaç devam edip seans bitince TAM SÜRE bir kez daha
+       yazılıyordu. 25 dakikalık bir seans, bir kez telefona bakıldığında sunucuda 35
+       dakika görünüyordu — her gidiş-geliş bir kayıt daha ekliyordu.
+     · `saveSession` altı yerden çağrılıyordu ve kopyalar ayrışmıştı: çarpıyla çıkış
+       5 saniyelik bir seansı 1 dakika olarak kaydediyor (uygulamanın kendi kuralının
+       tersi) ve puan vermiyordu. Karar tek yere toplandı.
+     · ÇEVRİMDIŞI seans sunucuya hiç ulaşmıyordu — kuyrukta odak seansı diye bir tür
+       yoktu. Uygulamanın geri kalanı çevrimdışı-önce çalışırken burası istisnaydı.
+  */
+  /*
+    2558 → 2599: ODAK EKRANI DENETİMİ (3. tur). Üç düzeltme:
+     · setAudioModeAsync race condition: iOS'ta ses bazen gelmiyordu. Kuruluş bitmeden
+       gelen çalma isteği (ör. kalıcı ses tercihi varsa mount anında tetiklenir) artık
+       audioModeReadyRef ile bekleniyor ve kuruluş sonrasında yeniden deneniyor.
+     · finishEarly → startBreak ses sorunu: "Erken Bitir" özetinden "Mola Başlat"a
+       geçişte ses tercih 'off' yapılıyordu. Mola da bir seans olduğu için ses efekti
+       tetikleniyor ama tercih zaten 'off'; kullanıcı sesi kapatıp açmak zorunda kalıyordu.
+     · Boş if: `if (pomodoroMode) {};` — ölü dal kaldırıldı.
+    Artışın büyük kısmı ses race condition'ın nedenini ve çözümünü anlatan notlar.
+  */
+  'app/focus.tsx': 2599,
   // 2394 → 2400: çöken bir ekranın düzeltmesi. Bu ekranın listesi Reanimated'ın
   // FlatList'i olduğu için native kaydırma sürücüsü kapatılmak ZORUNDA (yoksa açılışta
   // "VirtualizedList must be wrapped with Animated.createAnimatedComponent" ile çöküyor).
@@ -133,7 +158,14 @@ const KNOWN_LARGE: Record<string, number> = {
     "tamamlananları temizle"de hiç yoktu — silinen görevlerin hatırlatıcıları çalmaya
     devam ediyordu. Liste artık mağazanın kendi tipinden türüyor.
   */
-  'app/tasks.tsx': 2545,
+  /*
+    2549 → 2541 (beş tur): silme temizliği (forgetTask) ve tekrar aralığı
+    ayrıştırıcısı (recurrenceInterval) kendi dosyalarına çıktı. İkisi de bu dosyanın
+    içinde test EDİLEMEZ hâldeydi ve ikisi de sessiz kusur taşıyordu: toplu silmede
+    hiçbir temizlik yapılmıyordu, ayrıştırıcı ise 'İ' harfiyle yazılan başlıkları
+    tanımıyordu (kullanıcının nasıl yazdığına göre çalışan bir tekrar özelliği).
+  */
+  'app/tasks.tsx': 2544,
   // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
   // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
   // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).
