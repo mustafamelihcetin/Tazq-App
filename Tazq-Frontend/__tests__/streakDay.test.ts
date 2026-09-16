@@ -1,5 +1,5 @@
 import {
-  dayKeyOf, todayKey, dayStamp, daysBetween, legacyDayString,
+  dayKeyOf, todayKey, dayStamp, daysBetween, legacyDayString, weekdayIndex,
   completedTasksOn, completedHabitsOn, focusMinutesOn, wasActiveOn, decideStreak,
 } from '@/features/dashboard/utils/streakDay';
 
@@ -102,6 +102,33 @@ describe('eski biçimdeki bayrakla göç', () => {
 
   it('okunamayan anahtar boş döner — yanlışlıkla bir günle eşleşmez', () => {
     expect(legacyDayString('bozuk')).toBe('');
+  });
+});
+
+describe('hafta günü — şeritte "bugün" hangi sütun', () => {
+  it('Pazartesi 0, Pazar 6', () => {
+    // 2026-09-14 Pazartesi
+    expect(weekdayIndex(at('2026-09-14T10:00:00'))).toBe(0);
+    expect(weekdayIndex(at('2026-09-18T10:00:00'))).toBe(4); // Cuma
+    expect(weekdayIndex(at('2026-09-20T10:00:00'))).toBe(6); // Pazar
+  });
+
+  it('gece yarısından sonraki ilk üç saat ÖNCEKİ sütunda kalıyor', () => {
+    /*
+      Bu soru iki yerde ayrı ayrı cevaplanıyordu: ana ekran tamponu uyguluyor, durum
+      merkezindeki grafik ham `getDay()` kullanıyordu. Gece 01:00'de dakikalar bir
+      çubuğa yazılıyor, "bugün" çerçevesi YANINDAKİNE çiziliyordu.
+    */
+    expect(weekdayIndex(at('2026-09-15T02:00:00'))).toBe(0); // hâlâ Pazartesi
+    expect(weekdayIndex(at('2026-09-15T03:00:00'))).toBe(1); // artık Salı
+  });
+
+  it('gün anahtarıyla AYNI günü söylüyor — ikisi ayrışamaz', () => {
+    for (const iso of ['2026-09-14T23:30:00', '2026-09-15T01:30:00', '2026-09-15T12:00:00', '2026-09-20T22:00:00']) {
+      const d = at(iso);
+      const fromKey = new Date(`${todayKey(d)}T12:00:00`).getDay();
+      expect(weekdayIndex(d)).toBe(fromKey === 0 ? 6 : fromKey - 1);
+    }
   });
 });
 

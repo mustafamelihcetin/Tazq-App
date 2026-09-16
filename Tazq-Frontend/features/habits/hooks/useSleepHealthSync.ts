@@ -41,10 +41,6 @@ const RETRY_THROTTLE_MS = 15 * 60 * 1000; // veri yoksa en fazla 15 dk'da bir te
  */
 const BACKFILL_DAYS = 4;
 
-/** `Date` → 'YYYY-MM-DD' (yerel). Habit store ile AYNI biçim olmak zorunda. */
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 /**
  * Bir uyku alışkanlığı için turun sonucu.
@@ -267,13 +263,27 @@ export function useSleepHealthSync() {
       */
       usePrefsStore.getState().setRecoveryState(recoveryFromSleep(byDay, goalHours));
 
-      for (const h of sleepHabits) {
-        for (let back = 1; back <= BACKFILL_DAYS; back++) {
-          const d = new Date();
-          d.setDate(d.getDate() - back);
-          const key = dayKey(d);
+      /*
+        ── GERİYE DOLGU: ANAHTAR VERİNİN KENDİSİNDEN ────────────────────────────
+        Burada `dayKey(new Date() - back)` diye bir tarih YENİDEN KURULUYORDU ve o
+        yardımcı, adının altındaki nota ("habit store ile AYNI biçim olmak zorunda")
+        rağmen 3 saatlik gece kuşu tamponunu uygulamıyordu. Aynı dosya bugünü
+        `fmtDateKey()` ile, geçmiş günleri tamponsuz kuruyordu: gece 00:00–03:00
+        arasında ikisi FARKLI günü gösteriyor ve ikisi de aynı `completedDates`
+        dizisine yazıyordu — yani alışkanlık, kullanıcının gördüğü günden başka bir
+        güne işaretlenebiliyordu.
 
-          const mins = byDay[key];
+        Tarihi yeniden kurmaya zaten gerek yok: `byDay`in anahtarları uyanılan günü
+        ZATEN taşıyor (bkz. sleepHealth → bucketByDay, oturumun BİTİŞ gününe göre).
+        Veriyi tanımlayan anahtarı yazmak, iki tanımın ayrışmasını imkânsız kılıyor.
+        Pencere de kendiliğinden sınırlı: `byDay` yalnız BACKFILL_DAYS kadar veri taşır.
+      */
+      for (const h of sleepHabits) {
+        for (const [key, mins] of Object.entries(byDay)) {
+          // Bugün (ve ileri tarihli bir kayıt) buradan işlenmez: bugünün uykusu
+          // yukarıdaki canlı yolda karşılanıyor. Dize karşılaştırması YYYY-MM-DD'de
+          // tarih sırasıyla aynıdır.
+          if (key >= todayKey) continue;
           if (mins == null || mins < MIN_REAL_SLEEP_MIN) continue;
           if (mins < goalHours * 60) continue;
 

@@ -20,6 +20,23 @@ const stripComments = (src: string) =>
 
 const HOME = stripComments(read('app/index.tsx'));
 
+/**
+ * KUTLAMA TETİKLEYEN HER EKRAN — yalnız ana ekran değil.
+ *
+ * Bu dosya bir süre SADECE ana ekranı tarıyordu ve bu bir kör nokta üretti: Aksiyon
+ * Merkezi konfetiyi doğrudan tetiklemeye devam ediyordu, üstelik hiçbir Sade mod
+ * kapısı olmadan. Yani kullanıcı modu kapatıyor, görevlerini EN ÇOK tamamladığı
+ * ekranda konfeti almaya devam ediyordu — testler yeşil yanarak.
+ *
+ * Kural artık kutlama tetikleyebilecek her ekranı kapsıyor. Yeni bir ekran kutlama
+ * yapacaksa buraya eklenmeli; eklenmezse de aşağıdaki "doğrudan tetikleyen kimse
+ * kalmadı" kuralı onu yakalar.
+ */
+const CELEBRATING_SCREENS: [string, string][] = [
+  ['app/index.tsx', HOME],
+  ['app/tasks.tsx', stripComments(read('app/tasks.tsx'))],
+];
+
 describe('ana ekran — oyunlaştırma gizlenir', () => {
   it('tek bir okunur yüklem var', () => {
     expect(HOME).toContain("const isLite = uiMode === 'lite'");
@@ -59,18 +76,42 @@ describe('ana ekran — oyunlaştırma gizlenir', () => {
 describe('kutlamalar susturulur', () => {
   const CELEBRATE = read('features/user/utils/celebrate.ts');
 
-  it('kutlama kararı TEK yerde — üç kopya birleşti', () => {
-    // Karar ana ekranda üç ayrı yere kopyalanmıştı (ilk görev · günün son görevi ·
-    // günün son alışkanlığı) ve Sade mod kapısı üçüne ayrı ayrı yazılmak zorundaydı.
-    expect(HOME).not.toContain('useConfettiStore');
+  it('kutlama kararı TEK yerde — dört kopya birleşti', () => {
+    /*
+      Karar ana ekranda üç ayrı yere kopyalanmıştı (ilk görev · günün son görevi ·
+      günün son alışkanlığı). DÖRDÜNCÜ kopya Aksiyon Merkezi'ndeydi ve o birleştirmenin
+      dışında kalmıştı — bu test yalnız ana ekranı taradığı için görmedi.
+    */
+    for (const [name, src] of CELEBRATING_SCREENS) {
+      expect(`${name}: ${src.includes('useConfettiStore')}`).toBe(`${name}: false`);
+    }
     const calls = [...HOME.matchAll(/celebrate\(\{ kind: '([a-z-]+)'/g)].map(m => m[1]);
     expect(calls.sort()).toEqual(['day-cleared', 'first-win', 'habits-cleared']);
   });
 
   it('her çağrı Sade mod bayrağını GEÇİRİR', () => {
-    for (const m of HOME.matchAll(/celebrate\(\{[^}]*\}\)/g)) {
-      expect(m[0]).toContain('isLite');
+    for (const [name, src] of CELEBRATING_SCREENS) {
+      const calls = [...src.matchAll(/celebrate\(\{[^}]*\}\)/g)];
+      expect(`${name}: ${calls.length > 0}`).toBe(`${name}: true`);
+      for (const m of calls) expect(`${name}: ${m[0].includes('isLite')}`).toBe(`${name}: true`);
     }
+  });
+
+  it('konfetiyi DOĞRUDAN tetikleyen ekran kalmadı', () => {
+    /*
+      Yukarıdaki liste elle tutuluyor ve bayatlayabilir. Bu kural listeye bakmıyor:
+      `celebrate` dışında konfetiye dokunan HİÇBİR ekran olmamalı.
+    */
+    const walk = (dir: string): string[] =>
+      fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
+        if (['node_modules', '.expo', 'android', 'ios', 'dist', '.git'].includes(e.name)) return [];
+        const rel = `${dir}/${e.name}`;
+        return e.isDirectory() ? walk(rel) : /\.tsx$/.test(e.name) ? [rel] : [];
+      });
+    const offenders = ['app', 'features', 'shared']
+      .flatMap(walk)
+      .filter((f) => stripComments(read(f)).includes('useConfettiStore.getState().trigger'));
+    expect(offenders).toEqual([]);
   });
 
   it('konfeti YALNIZ Sade mod dışında açılır', () => {

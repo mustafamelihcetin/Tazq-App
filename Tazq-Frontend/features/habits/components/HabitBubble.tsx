@@ -18,6 +18,24 @@ import { F, S, ICON, R } from '@/shared/constants/tokens';
  */
 const LABEL_LINE = 12;
 
+/**
+ * YUVA GENİŞLİĞİ — baloncuktan geniş, çünkü ETİKETİ o taşıyor.
+ *
+ * ── ÖLÇÜLEN SORUN ─────────────────────────────────────────────────────────────
+ * Bu sayı 62 idi ve düzeltilmesi gerektiği ÖLÇÜLEREK belgelenmişti: 268 alışkanlık
+ * adının 218'i 18 karakterden uzun; 62pt'ye satır başına ~11 karakter sığıyor, yani
+ * "Direnç antrenmanı", "Günlük protein hedefi" gibi adların hiçbiri tam görünmüyordu.
+ * 78pt'de satır başına ~17, iki satırda ~34 karakter sığıyor.
+ *
+ * Ama düzeltme BURAYA hiç ulaşmamış: 78 yalnız MyDayHabits'teki "Ekle" kısayoluna
+ * uygulanmış, gerçek baloncuklar 62'de kalmıştı. İki sonucu vardı — etiketler
+ * kesilmeye devam ediyordu ve "Ekle" kutusu ötekilerden geniş olduğu için şeridin
+ * ritmi bozuktu (oysa oradaki not "dolu baloncuklarla aynı boyutta" diyor).
+ *
+ * Sayı artık burada ve TEK: etiketi çizen bileşen, yuvasının genişliğini de tanımlar.
+ */
+export const HABIT_SLOT = 78;
+
 
 export interface HabitBubbleProps {
   item: any;
@@ -42,7 +60,9 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
   const bgColor = isCompleted
     ? item.color + (isDark ? '24' : '15') // soft flat tint matching the mode's color
     : isSkipped
-    ? (isDark ? 'rgba(217, 119, 6, 0.15)' : 'rgba(217, 119, 6, 0.08)')
+    // Kehribar TEK kaynaktan: ikon ve zemin aynı jetondan türüyor. Elle yazıldığında
+    // koyu temada ikon (#FBBF24) ile zemin (#D97706) farklı iki kehribar oluyordu.
+    ? theme.warning + (isDark ? '26' : '14')
     : 'transparent';
 
   const borderColor = isDark
@@ -52,7 +72,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
   const iconColor = isCompleted
     ? item.color // icon is solid mode color!
     : isSkipped
-    ? '#d97706'
+    ? theme.warning
     : isDark
     ? 'rgba(255, 255, 255, 0.45)' // quiet neutral icon when pending
     : 'rgba(0, 0, 0, 0.4)';
@@ -73,7 +93,7 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
       accessibilityLabel={describeHabit({ doneToday: isCompleted, skipped: isSkipped, streak: streakVal }, a11yLabel, tr ? 'tr' : 'en')}
       accessibilityState={{ checked: !!isCompleted }}
       accessibilityHint={tr ? 'Dokun: işaretle · Basılı tut: seçenekler' : 'Tap to toggle · Long press for options'}
-      style={{ alignItems: 'center', width: 62, gap: S.sm }}
+      style={{ alignItems: 'center', width: HABIT_SLOT, gap: S.sm }}
     >
       <View style={{
         width: size,
@@ -85,8 +105,9 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
         alignItems: 'center',
         justifyContent: 'center',
       }}>
+        {/* Atlandı ikonu, zemin ve ikon rengiyle AYNI jetondan (bkz. yukarıdaki not). */}
         {isSkipped ? (
-          <Coffee size={ICON.md} color="#d97706" />
+          <Coffee size={ICON.md} color={theme.warning} />
         ) : (
           renderModeEmojiIcon(item.emoji ?? '📌', 20, iconColor)
         )}
@@ -103,7 +124,9 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
             flexDirection: 'row',
             alignItems: 'center',
             borderWidth: 1.5,
-            borderColor: isDark ? '#1C1C1E' : '#FFFFFF',
+            // Rozet, ARKASINDAKİ yüzeyin rengiyle çevrelenip oyulmuş gibi duruyor;
+            // o yüzey kartın kendisi (bkz. BentoCard → surfaceCard).
+            borderColor: theme.surfaceCard,
           }}>
             <Flame size={ICON.xs} color="#FFFFFF" fill="#FFFFFF" />
             <Text style={{ fontSize: F.caption, fontWeight: '700', color: '#FFFFFF', marginLeft: S.xxs }}>{streakVal}</Text>
@@ -122,7 +145,9 @@ export const HabitBubble = React.memo<HabitBubbleProps>(({ item, theme, isDark, 
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 1,
-            borderColor: isDark ? '#1C1C1E' : '#FFFFFF',
+            // Rozet, ARKASINDAKİ yüzeyin rengiyle çevrelenip oyulmuş gibi duruyor;
+            // o yüzey kartın kendisi (bkz. BentoCard → surfaceCard).
+            borderColor: theme.surfaceCard,
           }}>
             <CheckCircle2 size={ICON.xs} color="#FFFFFF" />
           </View>

@@ -226,3 +226,105 @@ describe('arka planlar ağacın dışında', () => {
     expect(read('features/modes/components/TurkishModeBanner.tsx')).toContain('importantForAccessibility="no-hide-descendants"');
   });
 });
+
+/**
+ * ROL BORCU — "adı var ama DÜĞME olduğu söylenmiyor".
+ *
+ * ── NEDEN AYRI BİR KURAL ──────────────────────────────────────────────────────
+ * Yukarıdaki kural ADSIZ kontrolleri yakalıyor. Ama bir kontrolün adı olması
+ * yetmiyor: `accessibilityRole` verilmezse ekran okuyucu metni okur, "düğme" demez.
+ * Kullanıcı ekranda gezerken neye dokunabileceğini duymaz.
+ *
+ * Ana sayfa denetiminde tam olarak bu çıktı: sekiz kontrol (gecikmiş görev şeridi,
+ * iki açılır bölüm, komut paleti satırları) metin taşıdığı için yukarıdaki testten
+ * GEÇİYOR ama rolsüzdü. Üstelik ikisi açılır bölümdü ve açık/kapalı durumu yalnız
+ * dönen bir chevron ile belliydi — sesli okumada hiç yoktu.
+ *
+ * Borç uygulama genelinde 197. Hepsini tek turda çevirmek, görmediğim ekranlarda
+ * sessizce bir şey bozma riski demek. Bu yüzden borç ÇİVİLENİYOR: liste yalnız
+ * küçülebilir, listede olmayan her dosya sıfır olmak zorunda. Ana sayfa ağacı
+ * bilerek listede DEĞİL — orası sıfırlandı ve öyle kalacak.
+ */
+const ROLE_CEILING: Record<string, number> = {
+  'app/achievements.tsx': 1,
+  'app/admin.tsx': 25,
+  'app/cockpit.tsx': 13,
+  'app/focus.tsx': 17,
+  'app/profile.tsx': 5,
+  'app/promo.tsx': 2,
+  'app/settings.tsx': 6,
+  'app/tasks.tsx': 5,
+  'features/focus/components/FocusIsland.tsx': 1,
+  'features/modes/components/TurkishModeBanner.tsx': 19,
+  'features/modes/components/WeightEntryModal.tsx': 1,
+  'features/modes/components/modes/BirakmaCard.tsx': 6,
+  'features/modes/components/modes/ExamCard.tsx': 15,
+  'features/modes/components/modes/MulakatCard.tsx': 11,
+  'features/modes/components/modes/RamazanCard.tsx': 2,
+  'features/modes/components/modes/SporCard.tsx': 16,
+  'features/modes/components/modes/TasarrufCard.tsx': 8,
+  'features/modes/components/modes/TezCard.tsx': 6,
+  'features/onboarding/components/HelpTourModal.tsx': 3,
+  'features/tasks/components/TaskFormModal.tsx': 22,
+  'features/user/components/MomentumPulse.tsx': 3,
+  'features/user/components/ProfileSetupModal.tsx': 4,
+  'shared/components/ChromeShell.tsx': 1,
+  'shared/components/CustomAlert.tsx': 1,
+  'shared/components/ErrorBoundary.tsx': 1,
+  'shared/components/PeekMenu.tsx': 1,
+  'shared/components/PremiumStatChip.tsx': 1,
+  'shared/components/SupportModal.tsx': 1,
+};
+
+function rolelessCount(file: string): number {
+  const src = read(file);
+  let n = 0;
+  OPENERS.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = OPENERS.exec(src))) {
+    const tag = readTag(src, m.index);
+    if (!tag.includes('accessibilityRole') && !tag.includes('accessible={false}')) n++;
+  }
+  return n;
+}
+
+describe('dokunulabilir öğenin ROLÜ bildiriliyor', () => {
+  it('hiçbir dosya tavanını aşmıyor', () => {
+    const grown = FILES
+      .map((f) => [f, rolelessCount(f)] as const)
+      .filter(([f, n]) => n > (ROLE_CEILING[f] ?? 0))
+      .map(([f, n]) => `${f}: ${n} > ${ROLE_CEILING[f] ?? 0}`);
+    expect(grown).toEqual([]);
+  });
+
+  it('tavan listesi bayatlamamalı — düşen dosyalar listeden çıkmalı', () => {
+    const stale = Object.keys(ROLE_CEILING).filter(
+      (f) => FILES.includes(f) && rolelessCount(f) < ROLE_CEILING[f],
+    );
+    expect(stale).toEqual([]);
+  });
+
+  it('ANA SAYFA ağacı sıfırda — denetlenen yer geri kaymasın', () => {
+    /*
+      Bu dosyaların hiçbiri tavan listesinde değil, yani hepsi sıfır olmak zorunda.
+      Açılır bölümler ayrıca DURUMLARINI bildiriyor: rol "düğme" der, `expanded`
+      ise "şu an açık mı kapalı mı" der. İkisi ayrı bilgi.
+    */
+    for (const f of [
+      'app/index.tsx',
+      'features/dashboard/components/TodayCard.tsx',
+      'features/dashboard/components/NextMissionCard.tsx',
+      'features/dashboard/components/MyDayHabits.tsx',
+      'features/dashboard/components/MyDayTaskRow.tsx',
+      'features/dashboard/components/StatusHub.tsx',
+      'features/dashboard/components/StatusHubModal.tsx',
+      'features/habits/components/HabitBubble.tsx',
+      'features/focus/components/DynamicIsland.tsx',
+    ]) {
+      expect(`${f}: ${rolelessCount(f)}`).toBe(`${f}: 0`);
+    }
+    const home = read('app/index.tsx');
+    expect(home).toContain('accessibilityState={{ expanded: showAllIncomplete }}');
+    expect(home).toContain('accessibilityState={{ expanded: showCompletedSection }}');
+  });
+});

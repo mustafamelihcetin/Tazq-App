@@ -1,10 +1,8 @@
 import React from 'react';
 import { F, S, ICON, R, B } from '@/shared/constants/tokens';
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Platform } from 'react-native';
-import { MotiView, MotiText, AnimatePresence } from 'moti';
-import { Sparkles, Timer as TimerIcon, Play, Zap } from 'lucide-react-native';
-import { useColorScheme } from 'react-native';
-import { Colors } from '@/shared/constants/Colors';
+import { View, Text, StyleSheet } from 'react-native';
+import { MotiView } from 'moti';
+import { Zap } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useFocusStore } from '../store/useFocusStore';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,10 +10,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { Touchable } from '@/shared/components/Touchable';
-import { haptic } from '@/shared/utils/haptics';
 
 export const DynamicIsland = () => {
-  const { width } = useWindowDimensions();
   const { theme, colorScheme } = useAppTheme();
   const { t } = useLanguageStore();
   const router = useRouter();
@@ -29,6 +25,15 @@ export const DynamicIsland = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  /*
+    TİTREŞİM YOK — bilerek.
+
+    `haptic` içe aktarılmış ama çağrılmıyordu; bu bir eksiklik sanılıp titreşim
+    eklendi ve GERİ ALINDI: uygulamada "saf gezinme titreşmez" diye yazılı bir kural
+    var (bkz. __tests__/haptics.test.ts → "yoğunluk"). Gezinme zaten görsel olarak
+    bellidir; nötr bir titreşim burada gezinmenin KENDİSİNİ olay sanmak olur.
+    Kullanılmayan içe aktarım, o kaldırma kararının geride kalmış izidir — o da gitti.
+  */
   const handlePress = () => {
     router.push('/focus');
   };
@@ -44,6 +49,10 @@ export const DynamicIsland = () => {
       <Touchable
         onPress={handlePress}
         activeOpacity={0.9}
+        accessibilityRole="button"
+        accessibilityLabel={isActive
+          ? `${t.activeFocus}: ${currentTask || t.focusSession} · ${formatTime(seconds)}`
+          : `${t.focusReady} · ${t.start}`}
         style={[
             styles.wrapper,
             {
@@ -71,32 +80,45 @@ export const DynamicIsland = () => {
                 <Text style={[styles.label, { color: isActive ? theme.primary : (isDark ? theme.secondary : theme.onSurfaceVariant) }]}>
                     {isActive ? t.activeFocus : t.dailyGoal}
                 </Text>
+                {/*
+                  Metin ELLE kesilmiyordu artık: `substring(0, 24) + '...'` hem
+                  `numberOfLines={1}` ile ikinci kez kırpma yapıyordu hem de karakter
+                  sayarak kestiği için emojiyi ORTASINDAN bölebiliyordu (emoji tek
+                  karakter değil). Kırpma işini metnin kendisi yapar.
+                */}
                 <Text adjustsFontSizeToFit minimumFontScale={0.85} style={[styles.title, { color: theme.onSurface }]} numberOfLines={1}>
-                    {isActive ? (currentTask && currentTask.length > 24 ? currentTask.substring(0, 24) + '...' : (currentTask || t.focusSession)) : t.focusReady}
+                    {isActive ? (currentTask || t.focusSession) : t.focusReady}
                 </Text>
             </View>
 
-            <Touchable
-                onPress={handlePress}
-                style={[
-                    styles.actionButton,
-                    {
-                        backgroundColor: isActive ? '#34c759' : theme.primary,
-                        shadowColor: isActive ? '#34c759' : (isDark ? theme.primary : '#000'),
-                    }
-                ]}
-            >
+            {/*
+              GÖRSEL — dokunulabilir DEĞİL.
+
+              Burada iç içe iki `Touchable` vardı ve ikisi de AYNI şeyi yapıyordu
+              (/focus). İç içe dokunma hedefi Android'de güvenilir çalışmıyor ve ekran
+              okuyucuya aynı eylemi iki kez sunuyor. Kartın tamamı zaten bir düğme;
+              bu yalnız onun göstergesi.
+
+              RENKLER PALETTEN: yeşiller `#34c759`/`#30d158` diye elle yazılıydı, yani
+              tema değişince yerinde çakılı kalıyorlardı. Yazı rengi de `'#fff'` idi ve
+              bu koyu temada paletin AÇIKÇA reddettiği durum: `theme.primary` (#0A84FF)
+              üstünde beyaz 3.65:1 veriyor, AA'dan kalıyor. `onPrimary`/`onTertiary`
+              tam bu iş için ölçülmüş çiftler (bkz. Colors → onPrimary notu).
+            */}
+            <View style={styles.actionButton} pointerEvents="none">
                 <LinearGradient
-                    colors={isActive ? ['#34c759', '#30d158'] : (isDark ? [theme.primary, theme.primaryDim] : [theme.primary, theme.primaryContainer])}
+                    colors={isActive
+                      ? [theme.success, theme.tertiary]
+                      : (isDark ? [theme.primary, theme.primaryDim] : [theme.primary, theme.primaryContainer])}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.btnGradient}
                 >
-                    <Text style={[styles.actionText, { color: '#fff' }]}>
+                    <Text style={[styles.actionText, { color: isActive ? theme.onTertiary : theme.onPrimary }]}>
                         {isActive ? formatTime(seconds) : t.start}
                     </Text>
                 </LinearGradient>
-            </Touchable>
+            </View>
         </View>
       </Touchable>
     </MotiView>
@@ -145,6 +167,8 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     borderRadius: R.full,
+    // Gölge rengi kullanım yerinde veriliyordu ve elle yazılmış bir hex taşıyordu;
+    // gölge zaten siyah, ayrıca renklendirmeye gerek yok.
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 15,

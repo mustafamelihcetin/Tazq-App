@@ -149,7 +149,8 @@ describe('uyku geriye dönük doldurma', () => {
   });
 
   it('geçmiş günler SESSİZ doldurulur — toast yok', () => {
-    const block = sync.match(/for \(let back = 1; back <= BACKFILL_DAYS[\s\S]*?\n      \}/)?.[0] ?? '';
+    // Çapa değişti (dolgu artık `byDay` anahtarlarını geziyor), beklenen aynı.
+    const block = sync.match(/for \(const \[key, mins\] of Object\.entries\(byDay\)\)[\s\S]*?\n      \}/)?.[0] ?? '';
     expect(block).not.toBe('');
     expect(block).not.toContain('Toast');
     expect(block).not.toContain('show(');

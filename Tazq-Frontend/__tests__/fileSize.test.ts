@@ -116,7 +116,17 @@ const KNOWN_LARGE: Record<string, number> = {
     Bu ikisi canlıya kadar gitti çünkü akışı yalnız yeni bir hesabın ilk dakikası
     tetikliyor; notlar olmasa aynı tuzağa yeniden düşülür (bkz. activationFlow.test).
   */
-  'app/tasks.tsx': 2543,
+  /*
+    2543 → 2549: AKSİYON MERKEZİ DENETİMİ (1. tur). Üç kusur, üçü de sessizdi:
+     · Kutlama konfetisi Sade mod kapısından geçmiyordu (aynı blok başarım rozetini
+       susturuyordu ama iki satır yukarısını değil) — ortak `celebrate`e bağlandı.
+     · Arama ham `title` üzerindeydi ve `toLowerCase()` kullanıyordu; liste ise
+       yerelleştirilmiş adı çiziyor. Kullanıcı GÖRDÜĞÜ kelimeyi aratınca bulamıyordu.
+     · Haftalık Merkez'den gelen GÜN süzgeci hem tarihsiz görevleri atlıyor hem de
+       "etkin filtre" satırında hiç görünmüyordu: liste daralıyor, nedeni söylenmiyor,
+       "Tümü" düğmesi de onu temizlemiyordu.
+  */
+  'app/tasks.tsx': 2549,
   // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
   // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
   // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).
@@ -142,7 +152,7 @@ const KNOWN_LARGE: Record<string, number> = {
     (bkz. __tests__/activationFlow.test.ts).
   */
   /*
-    2233 → 2472: ANA EKRANIN DENETİMİ (üç geçiş). Eklenen işlevsel kod azdır; ÖLÜ kod da çıktı
+    2233 → 2509: ANA EKRANIN DENETİMİ (yedi geçiş). Eklenen işlevsel kod azdır; ÖLÜ kod da çıktı
     (kullanılmayan beş hesap, iki mağaza aboneliği). Artışın büyük kısmı, bulunan
     kusurların NEDEN kusur olduğunu anlatan notlar — hiçbiri "ekrana bakınca"
     görünmüyordu:
@@ -163,7 +173,7 @@ const KNOWN_LARGE: Record<string, number> = {
     Sıradaki küçültme adresi belli: komut paleti (~250 satır) kendi bileşenine
     çıkarılabilir ve dosyayı eski tavanının altına indirir.
   */
-  'app/index.tsx': 2472,
+  'app/index.tsx': 2501,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.
@@ -180,7 +190,11 @@ const KNOWN_LARGE: Record<string, number> = {
   // 1529 → 1530: CAM SAYFALAR. Alışkanlık ekleme ve plan sayfaları ortak cam yüzeye bağlandı.
   // 1530 → 1533: iOS 26/27 ARAÇ ÇUBUĞU DÜĞMESİ. Rapor ve ekle düğmeleri cam kabuğa
   // alındı (içe aktarım + düğme başına tek satır). Android'de kabuk çizilmiyor.
-  'app/cockpit.tsx': 1565,
+  // 1565 → 1577: ritüel kutlaması ORTAK kapıya bağlandı. Konfeti burada doğrudan
+  // tetikleniyordu ve Sade mod kapısı yoktu — modu kapatan kullanıcı yine tam ekran
+  // kutlama alıyordu. Artış, gözden nasıl kaçtığını anlatan not (kutlama kararı tek
+  // yere toplanmıştı ama bekçi test yalnız ana ekranı tarıyordu).
+  'app/cockpit.tsx': 1577,
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.

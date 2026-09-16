@@ -10,6 +10,8 @@ import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { ICON, S, R, F, B, MAX_W, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { fmtDateKey } from '@/features/habits';
+import { weekdayIndex } from '@/features/dashboard/utils/streakDay';
 import { AppIcon } from '@/shared/components/AppIcon';
 interface StatusHubModalProps {
   visible: boolean;
@@ -64,27 +66,35 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
     }
   }, [visible, prepare]);
 
-  // Last 7 days dates helper for habit stability checklist grid
+  /**
+   * SON 7 GÜN — anahtarlar ALIŞKANLIKLARIN yazdığı biçimde.
+   *
+   * ── ÖLÇÜLEN SORUN ───────────────────────────────────────────────────────────
+   * Anahtarlar burada ham takvim tarihinden kuruluyordu (`getFullYear/Month/Date`),
+   * oysa alışkanlıklar işaretlenirken `fmtDateKey` kullanılıyor ve o 3 SAAT gece
+   * kuşu tamponu uyguluyor — ürünün gün tanımı bu.
+   *
+   * Sonuç gece 00:00–03:00 arasında ızgaranın BİR GÜN KAYMASIYDI: kullanıcı saat
+   * 01:00'de bir ritüeli işaretliyor, kayıt önceki güne yazılıyor, ama ızgarada
+   * "bugün" diye çerçevelenen kutu bir sonraki takvim günü olduğu için boş
+   * kalıyordu. Aynı kayma `completedHabitsCount`u da bozuyordu: pencere bir gün
+   * ileri kayıyor, en eski gün sayımdan düşüyordu.
+   *
+   * Gün etiketi de anahtardan türüyor — ikisi ayrı kaynaktan gelirse yine ayrışır.
+   */
   const last7Days = React.useMemo(() => {
+    const weekdayLabels = language === 'tr'
+      ? ['Pa', 'Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct']
+      : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const now = new Date();
     const dates = [];
-    const today = new Date();
     for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const key = `${y}-${m}-${day}`;
-      
-      const weekdayLabels = language === 'tr'
-        ? ['Pa', 'Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct']
-        : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        
-      dates.push({
-        key,
-        label: weekdayLabels[d.getDay()],
-        isToday: i === 0
-      });
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const key = fmtDateKey(d);
+      // Etiket anahtardan: öğle vakti okunuyor ki saat dilimi gün sınırını kaydırmasın.
+      const labelDay = new Date(`${key}T12:00:00`).getDay();
+      dates.push({ key, label: weekdayLabels[labelDay], isToday: i === 0 });
     }
     return dates;
   }, [language]);
@@ -154,6 +164,14 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
       focusColor: color
     };
   }, [totalFocusMins, completedHabitsCount, streak, theme, language]);
+
+  /** Şeritteki en yüksek sütun (en az 30dk) — ölçek buna göre. Satıra bağlı değil. */
+  const maxMins = React.useMemo(
+    () => Math.max(...(weeklyFocusData ?? []).map(v => v.minutes || 0), 30),
+    [weeklyFocusData],
+  );
+  /** "Bugün" hangi sütun — ürünün gününe göre (bkz. streakDay → weekdayIndex). */
+  const todayIndex = weekdayIndex();
 
   // Compare focus minutes vs last week
   const weekTrend = React.useMemo(() => {
@@ -368,8 +386,13 @@ export const StatusHubModal: React.FC<StatusHubModalProps> = ({
 
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', height: 60, alignItems: 'flex-end', paddingTop: S.smd, zIndex: 2 }}>
                     {weeklyFocusData && weeklyFocusData.map((d, i) => {
-                      const maxMins = Math.max(...weeklyFocusData.map(val => val.minutes || 0), 30);
-                      const todayIndex = (new Date().getDay() + 6) % 7; // pt=0 ... pa=6
+                      /*
+                        `maxMins` ve `todayIndex` döngünün İÇİNDE hesaplanıyordu: ikisi de
+                        satıra bağlı değil, yedi kez yeniden çıkarılıyordu. `todayIndex`
+                        ayrıca ham `getDay()` kullanıyordu — ana ekran dakikaları ürünün
+                        gününe (3 saat tamponlu) göre yerleştirdiği için gece 00:00–03:00
+                        arasında dolu çubuk ile "bugün" çerçevesi AYRI sütuna düşüyordu.
+                      */
                       const isToday = i === todayIndex;
                       const heightPercent = maxMins > 0 ? (((d.minutes || 0) / maxMins) * 100) : 0;
                       const barHeight = Math.max(4, Math.round((heightPercent / 100) * 44));

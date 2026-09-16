@@ -91,6 +91,25 @@ export function legacyDayString(key: string): string {
   return Number.isNaN(t) ? '' : new Date(t).toDateString();
 }
 
+/**
+ * ÜRÜNÜN hafta günü — Pazartesi 0, Pazar 6.
+ *
+ * Haftalık şeritte "bugün" hangi sütun? Bu soru İKİ yerde ayrı ayrı cevaplanıyordu:
+ * ana ekran 3 saatlik tamponu uygulayıp sütunu seçiyor, durum merkezindeki grafik ise
+ * ham `getDay()` kullanıyordu. Gece 00:00–03:00 arasında ikisi FARKLI sütunu
+ * gösteriyordu: dakikalar bir çubuğa yazılıyor, "bugün" çerçevesi yanındakine
+ * çiziliyordu.
+ *
+ * Aynı soruya iki yerde cevap verilmesi, bu turda dördüncü kez kusur üretti. Cevap
+ * artık tek yerde.
+ */
+export function weekdayIndex(now: Date = new Date()): number {
+  const key = todayKey(now);
+  // Anahtar öğle vakti okunuyor ki saat dilimi gün sınırını kaydırmasın.
+  const day = new Date(`${key}T12:00:00`).getDay(); // 0 = Pazar
+  return day === 0 ? 6 : day - 1;                   // Pazartesi = 0
+}
+
 export interface ActivityInput {
   /** Hangi gün soruluyor. */
   dayKey: string;

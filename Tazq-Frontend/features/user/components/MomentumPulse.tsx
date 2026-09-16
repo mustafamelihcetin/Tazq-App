@@ -53,13 +53,23 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
   // değere sayıyoruz; ara değerler ekrana hiç çıkmıyor.
   const targetScore = useSettledValue(score, 400);
 
-  // Lite modda süslemeler kapalı: sayım animasyonu da kapanır, değer anında yazılır.
-  let isLite = false;
-  try {
-    const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
-    isLite = usePrefsStore.getState().uiMode === 'lite';
-  } catch (e) { swallow('MomentumPulse.uiMode', e); }
+  /*
+    ── SADE MOD KARARI BURADA DEĞİL ─────────────────────────────────────────────
+    Bu bileşen üç ayrı yerde `usePrefsStore.getState().uiMode` okuyup Sade moda göre
+    dallanıyordu. Üçü de KALDIRILDI, iki sebeple:
 
+     1. ULAŞILAMIYORDU. Sade modda bu kart zaten hiç çizilmiyor — karar üst bileşende
+        (bkz. app/index.tsx → `momentumRow = !isLite ? ... : null` ve
+        __tests__/liteMode.test.ts "ivme skoru Sade modda çizilmez"). Nitekim o testin
+        başındaki not, buradaki kontrolün YETERSİZ kaldığını anlatıyor: yalnız sayma
+        animasyonunu kapatıyordu, kart ekranda duruyordu. Doğru çözüm üstte bulundu;
+        buradaki kalıntı geride kalmış.
+     2. ÇALIŞMAZDI. Okuma `require` + `getState()` ile yapılıyordu, yani REAKTİF değil:
+        kullanıcı modu değiştirse bileşen yeniden çizilmiyor, eski değerde kalıyordu.
+
+    Ulaşılamayan ve çalışmayan bir koruma, korumadan kötüdür: okuyan kişi burada bir
+    güvence olduğunu sanır.
+  */
   // Renk hedef değerden türetilir: sayım eşikleri geçerken renk gri→turuncu→yeşil
   // diye titremesin, en baştan varacağı rengi alsın.
   const accentColor = targetScore >= 75 ? theme.tertiary : targetScore >= 40 ? theme.streak : theme.onSurfaceVariant;
@@ -145,7 +155,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
         <AnimatedNumber
           value={targetScore}
           from={0}
-          duration={isLite ? 0 : 1100}
+          duration={1100}
           /*
             İKİNCİL SAYI ÖLÇEĞİ — kart kahramanından KÜÇÜK olmak zorunda.
 
@@ -237,7 +247,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
 
                   Lite modda kapalı: o mod süslemeleri değil, sürekli çalışan işi keser.
                 */}
-                {isToday && isBestDay && !isLite && (
+                {isToday && isBestDay && (
                   <MotiView
                     from={{ opacity: 0 }}
                     animate={{ opacity: 0.35 }}
@@ -347,16 +357,8 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             </View>
           ))}
 
-          {/* Rocket Thruster Overheat Card (only if not lite mode) */}
+          {/* Motor ısısı kartı — Sade mod kapısı için yukarıdaki nota bakınız. */}
           {(() => {
-            let isLite = false;
-            try {
-              const { usePrefsStore } = require('@/features/modes/store/usePrefsStore');
-              isLite = usePrefsStore.getState().uiMode === 'lite';
-            } catch (e) { swallow('MomentumPulse.soundPlay', e); }
-
-            if (isLite) return null;
-
             const roundedHeat = Math.round(engineHeat);
 
             return (

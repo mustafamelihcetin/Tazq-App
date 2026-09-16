@@ -37,7 +37,8 @@ import { ICON, S, R, F, scale, verticalScale, moderateScale, B, TRACKING, MAX_W,
 import { useToastStore } from '@/shared/store/useToastStore';
 import { usePrefsStore, renderModeEmojiIcon, detectTurkishMode, getCustomExamMode, TurkishModeBanner, getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { useHabitStore, fmtDateKey, useSleepHealthSync } from '@/features/habits';
-import { todayKey, daysBetween, wasActiveOn, decideStreak, wasCompletedOn, legacyDayString } from '@/features/dashboard/utils/streakDay';
+import { todayKey, daysBetween, wasActiveOn, decideStreak, wasCompletedOn, legacyDayString, weekdayIndex } from '@/features/dashboard/utils/streakDay';
+import { buildWeekStrip } from '@/features/dashboard/utils/weekStrip';
 import { useActivityHealthSync } from '@/features/modes/hooks/useActivityHealthSync';
 import { isWeightEntryTask, weightTaskAction, completeTaskOfflineFirst } from '@/features/modes/utils/weightCheckin';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
@@ -512,10 +513,22 @@ export default function HomeScreen() {
     Diskteki bayrak ESKİ biçimde yazılmış olabilir; ikisi de kabul ediliyor, yoksa
     güncellemeden sonraki ilk açılış herkese fazladan bir seri günü verirdi.
   */
-  const [streakIncrementedToday, setStreakIncrementedToday] = useState(false);
+  /*
+    BAYRAK GÜNE BAĞLI, "oldu/olmadı"ya değil.
+
+    Boolean bir bayraktı ve bir kez `true` olunca oturum boyunca öyle kalıyordu:
+    uygulama açık kalıp gece yarısını geçen kullanıcıda efekt bir daha çalışmıyor,
+    YENİ GÜNÜN serisi hiç artmıyordu. Gün anahtarını tutunca bayrak gün değişince
+    kendiliğinden geçersizleşiyor.
+
+    `currentHour` bağımlılıklarda çünkü gün, kullanıcı hiçbir şeye dokunmadan da
+    değişebiliyor: yalnız odak seansı yapan biri `tasks`/`habits`i değiştirmez.
+    O sayaç zaten saat başı tikliyor (bkz. selamlama), yani ek bir maliyet yok.
+  */
+  const [streakDayDone, setStreakDayDone] = useState<string | null>(null);
   useEffect(() => {
     if (isLoading || (tasks.length === 0 && habits.length === 0)) return;
-    if (streakIncrementedToday) return;
+    if (streakDayDone === todayKey()) return;
     const store = useFocusStore.getState();
     const today = todayKey();
 
@@ -538,15 +551,15 @@ export default function HomeScreen() {
         // Bugün zaten artırılmışsa bayrağı KUR: yoksa her görev/alışkanlık
         // değişikliğinde bu efekt yeniden diske gidiyordu.
         if (val === today || val === legacyToday) {
-          setStreakIncrementedToday(true);
+          setStreakDayDone(today);
           return;
         }
         store.incrementLocalStreak();
-        setStreakIncrementedToday(true);
+        setStreakDayDone(today);
         return AsyncStorage.setItem('tazq_last_streak_increment_date', today);
       })
       .catch(e => swallow('index.streakIncrement', e));
-  }, [tasks, habits, isLoading, streakIncrementedToday]);
+  }, [tasks, habits, isLoading, streakDayDone, currentHour]);
   /**
    * ── GÜNÜN KÜMESİ — TEK TANIM ────────────────────────────────────────────────
    * Ekran aynı günü İKİ ayrı şekilde tanımlıyordu ve ikisi farklı listeler veriyordu:
@@ -573,6 +586,22 @@ export default function HomeScreen() {
     Bu ayrımın yazılı olması şart: kusurların çoğu tam olarak iki gün tanımının
     farkında olmadan karıştırılmasından çıkmıştı.
   */
+  const demoGate = useDemoGate('dashboard');
+  /*
+    ÖRNEK SATIRLAR TEK KAYNAKTAN.
+
+    Liste bu üç satırı çiziyordu ama HALKA gerçek (boş) veriden besleniyordu: ekranda
+    üç görev dururken kart "Bugün için planın boş" diyordu. Aynı ekranda iki çelişen
+    cümle — bu turda üçüncü kez çıkan kusur ailesi. Sayı ve liste artık aynı diziden
+    türüyor, yani biri değişince öteki kendiliğinden uyuyor.
+  */
+  const demoActive = demoGate(tasks.length);
+  const demoMyDayTasks = React.useMemo(() => ([
+    { type: 'task' as const, id: 'mock-task-1', title: language === 'tr' ? 'Haftalık Raporu Hazırla' : 'Prepare Weekly Report', priority: 'High', isCompleted: false, original: {} },
+    { type: 'task' as const, id: 'mock-task-2', title: language === 'tr' ? 'Kitap Oku (20 sayfa)' : 'Read Book (20 pages)', priority: 'Medium', isCompleted: false, original: {} },
+    { type: 'task' as const, id: 'mock-task-3', title: language === 'tr' ? 'Spor Salonuna Git' : 'Go to Gym', priority: 'Low', isCompleted: true, original: {} },
+  ]), [language]);
+
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const todayEndMs = todayStart.getTime() + 86400000;
 
@@ -636,8 +665,10 @@ export default function HomeScreen() {
     () => [...todayTasksIncomplete, ...todayTasksCompleted],
     [todayTasksIncomplete, todayTasksCompleted],
   );
-  const todayCompleted = todayTasksCompleted.length;
-  const dailyGoal = todayTasks.length;
+  const todayCompleted = demoActive
+    ? demoMyDayTasks.filter(d => d.isCompleted).length
+    : todayTasksCompleted.length;
+  const dailyGoal = demoActive ? demoMyDayTasks.length : todayTasks.length;
   const overdueCount = tasks.filter(t =>
     !t.isCompleted && t.dueDate &&
     new Date(t.dueDate).setHours(23, 59, 59, 999) < Date.now() &&
@@ -807,33 +838,22 @@ export default function HomeScreen() {
 
   const dayLabels: string[] = t.dayLabels;
 
-  const currentDayIndex = (() => {
-    const logicalToday = new Date();
-    logicalToday.setHours(logicalToday.getHours() - 3); // respect night owl buffer
-    const day = logicalToday.getDay(); // 0 is Sunday, 1 is Monday, ..., 6 is Saturday
-    return day === 0 ? 6 : day - 1; // convert to Monday-start (0 = Mon, ..., 6 = Sun)
-  })();
+  // Hesap ortak yardımcıda: aynı soru durum merkezindeki grafikte de soruluyordu ve
+  // orada tamponsuz cevaplanıyordu (bkz. streakDay → weekdayIndex).
+  const currentDayIndex = weekdayIndex();
 
   const localTodayMinutes = todayFocusMinutes;
 
-  const mergedWeeklyFocus = React.useMemo(() => {
-    if (weeklyFocus.length === 0) {
-      return Array(7).fill(null).map((_, i) => ({
-        day: dayLabels[i],
-        minutes: i === currentDayIndex ? localTodayMinutes : 0,
-        tasksCompleted: 0
-      }));
-    }
-    return weeklyFocus.map((d, i) => {
-      if (i === currentDayIndex) {
-        return {
-          ...d,
-          minutes: Math.max(d.minutes || 0, localTodayMinutes)
-        };
-      }
-      return d;
-    });
-  }, [weeklyFocus, localTodayMinutes, dayLabels, currentDayIndex]);
+  /*
+    Şerit HER ZAMAN yedi gün — hesap saf bir yardımcıda (bkz. weekStrip).
+    Burada iki ayrı kod yolu vardı ("dizi boş" ve "dizi dolu") ve aradaki üçüncü
+    durum düşünülmemişti: dizi DOLU AMA KISA gelirse bugünün yerel dakikası hiçbir
+    hücreye yazılamıyor, sessizce kayboluyordu.
+  */
+  const mergedWeeklyFocus = React.useMemo(
+    () => buildWeekStrip({ weeklyFocus, dayLabels, todayIndex: currentDayIndex, todayMinutes: localTodayMinutes }),
+    [weeklyFocus, dayLabels, currentDayIndex, localTodayMinutes],
+  );
 
   const weeklyMinutes = mergedWeeklyFocus.reduce((s: number, d: any) => s + (d.minutes || 0), 0);
 
@@ -1028,7 +1048,6 @@ export default function HomeScreen() {
   const DEMO_ID_PREFIX = 'mock-';
   const isDemoId = (id: string | number) => typeof id === 'string' && id.startsWith(DEMO_ID_PREFIX);
 
-  const demoGate = useDemoGate('dashboard');
   /* Ref: kapı her odaklanmada GÜNCEL diziyi okur, kapanışta eskiye saplanmaz. */
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
@@ -1037,34 +1056,8 @@ export default function HomeScreen() {
   // Unified My Day feed items (Tasks only)
   const myDayTasks = (() => {
     // Örnek veri, GERÇEK görev yokken (bkz. useDemoGate — dört kuralın gerekçesi orada).
-    if (demoGate(tasks.length)) {
-      return [
-        {
-          type: 'task' as const,
-          id: 'mock-task-1',
-          title: language === 'tr' ? 'Haftalık Raporu Hazırla' : 'Prepare Weekly Report',
-          priority: 'High',
-          isCompleted: false,
-          original: {}
-        },
-        {
-          type: 'task' as const,
-          id: 'mock-task-2',
-          title: language === 'tr' ? 'Kitap Oku (20 sayfa)' : 'Read Book (20 pages)',
-          priority: 'Medium',
-          isCompleted: false,
-          original: {}
-        },
-        {
-          type: 'task' as const,
-          id: 'mock-task-3',
-          title: language === 'tr' ? 'Spor Salonuna Git' : 'Go to Gym',
-          priority: 'Low',
-          isCompleted: true,
-          original: {}
-        }
-      ];
-    }
+    // Dizi yukarıda tanımlı: halka da onu sayıyor, ikisi ayrışamıyor.
+    if (demoActive) return demoMyDayTasks;
 
     const items: Array<{
       type: 'task';
@@ -1482,6 +1475,16 @@ export default function HomeScreen() {
    */
   const dayCompleteRef = useRef<boolean | null>(null);
   useEffect(() => {
+    /*
+      ÖRNEK VERİ KUTLAMA TETİKLEYEMEZ.
+
+      `dailyGoal` ve `todayCompleted` örnek veri açıkken sahte satırlardan geliyor
+      (halka ile liste aynı şeyi söylesin diye). Bugünkü örnek dizide üçte biri
+      tamamlı olduğu için koşul tutmuyor — ama bu bir TESADÜF: diziye dokunan biri
+      üçünü de "tamamlandı" yapsa, hiç görevi olmayan kullanıcıya gün kutlaması
+      patlardı. Kapı burada, tesadüfe bırakılmıyor.
+    */
+    if (demoActive) return;
     const done = dailyGoal > 0 && todayCompleted >= dailyGoal;
     const prev = dayCompleteRef.current;
     dayCompleteRef.current = done;
@@ -1499,7 +1502,7 @@ export default function HomeScreen() {
         store.celebrate(ACHIEVEMENTS.daily_perfect);
       } catch (e) { swallow('index.dailyCelebration', e); }
     })();
-  }, [todayCompleted, dailyGoal, isLite]);
+  }, [todayCompleted, dailyGoal, isLite, demoActive]);
 
   const priorityColor = (p: string) => {
     if (p === 'High') return theme.priorityHigh;
@@ -1811,6 +1814,14 @@ export default function HomeScreen() {
                   <Touchable
                     onPress={() => router.push('/tasks')}
                     activeOpacity={0.8}
+                    /*
+                      ── EKRAN OKUYUCU BUNLARIN DÜĞME OLDUĞUNU BİLMİYORDU ─────────
+                      Bu satır ve aşağıdaki beş kontrol yalnız metin taşıyordu: sesli
+                      okuma içeriği söylüyor ama "dokunulabilir" olduğunu söylemiyordu.
+                      Mevcut bekçi test (a11yInteractive) bunları YAKALAMIYOR, çünkü o
+                      yalnız ADSIZ kontrolleri arıyor — bunların adı var, ROLÜ yoktu.
+                    */
+                    accessibilityRole="button"
                     style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm, paddingHorizontal: S.xxs }}
                   >
                     {/*
@@ -1923,6 +1934,13 @@ export default function HomeScreen() {
                         {incompleteTasks.length > 4 && (
                           <Touchable
                             onPress={() => { haptic.select(); setShowAllIncomplete(!showAllIncomplete); }}
+                            /*
+                              AÇILIR BÖLÜM: durumu YALNIZ görsel olarak belliydi (yazı
+                              değişiyor, chevron dönüyor). Ekran okuyucu kullanıcısı
+                              listenin açık mı kapalı mı olduğunu duymuyordu.
+                            */
+                            accessibilityRole="button"
+                            accessibilityState={{ expanded: showAllIncomplete }}
                             style={{
                               paddingVertical: S.smd,
                               alignItems: 'center',
@@ -1952,6 +1970,8 @@ export default function HomeScreen() {
                       <View style={{ borderTopWidth: HAIRLINE, borderTopColor: theme.separator }}>
                         <Touchable
                           onPress={() => { haptic.select(); setShowCompletedSection(!showCompletedSection); }}
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded: showCompletedSection }}
                           style={{
                             flexDirection: 'row',
                             alignItems: 'center',
@@ -2074,10 +2094,16 @@ export default function HomeScreen() {
             )}
             </WideCol>
 
-            {/* ── Section Header — easter egg sadece aktifken görünür ── */}
+            {/*
+              ── Section Header — easter egg sadece aktifken görünür ──
+
+              `accessible={false}`: bu bir ÖZELLİK değil, çift dokunma kolay yumurtası
+              — TodayCard'daki kararla aynı. Adsız bir düğme olarak odak almasındansa
+              ağacın dışında kalması doğru; içindeki yazılar yine okunuyor.
+            */}
             <WideCol col="right">
             {headerHighlight && (
-              <Touchable onPress={headerTap.onTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
+              <Touchable accessible={false} onPress={headerTap.onTap} activeOpacity={1} style={{ paddingHorizontal: S.lg, marginBottom: S.sm }}>
                 <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', transform: [{ scale: headerScale }] }}>
                   <Text style={{ fontSize: F.caption, fontWeight: '600', letterSpacing: 1.8, color: theme.onSurfaceVariant }}>
                     {language === 'tr' ? 'İYİ GİDİYOR' : 'LOOKING GOOD'}
@@ -2217,7 +2243,7 @@ export default function HomeScreen() {
                   returnKeyType="done"
                 />
                 {portalSearch.length > 0 && (
-                  <Touchable onPress={() => setPortalSearch('')} style={{ marginRight: S.xs }}>
+                  <Touchable onPress={() => setPortalSearch('')} accessibilityRole="button" style={{ marginRight: S.xs }}>
                     <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>
                       {language === 'tr' ? 'TEMİZLE' : 'CLEAR'}
                     </Text>
@@ -2276,6 +2302,7 @@ export default function HomeScreen() {
                       <Touchable
                         key={idx}
                         onPress={shortcut.onPress}
+                        accessibilityRole="button"
                         style={{
                           flexDirection: 'row',
                           alignItems: 'center',
@@ -2303,6 +2330,7 @@ export default function HomeScreen() {
                     {/* Quick Add Row */}
                     <Touchable
                       onPress={() => savePortalTask()}
+                      accessibilityRole="button"
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
@@ -2352,6 +2380,7 @@ export default function HomeScreen() {
                                 setCommandPortalVisible(false);
                                 router.push({ pathname: '/tasks', params: { highlightId: task.id } });
                               }}
+                              accessibilityRole="button"
                               style={{
                                 flexDirection: 'row',
                                 alignItems: 'center',

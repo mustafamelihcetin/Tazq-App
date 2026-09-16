@@ -289,14 +289,32 @@ export default function RootLayout() {
 
       const allTasks = tasks;
       const today = new Date().toDateString();
+      /*
+        ── ÖZETLER ANA EKRANLA AYNI GÜNÜ SAYAR ───────────────────────────────
+        İki sayım da ana ekrandan AYRIŞMIŞTI:
+
+         · "Bugün N görevin var" yalnız vadesi TAM BUGÜN olanları sayıyordu.
+           Beş gecikmiş görevi olan ama bugüne bir şey yazmamış kullanıcı sabah
+           "0 görevin var" bildirimi alıyordu — hem yanlış hem de tam tersi etki
+           yapan bir cümle. Ana ekran gecikmişleri bugünün işine dahil ediyor
+           (bkz. app/index.tsx → dayScope); özet de öyle.
+
+         · "Bugün tamamladıkların" yalnız `completedAt` taşıyan kayıtları
+           sayıyordu. Sunucu bu alanı tutmuyor (bkz. useTaskStore.setTasks), yani
+           o kayıtlar hiç sayılmıyordu. Yedek olarak vadeye düşülüyor — ekranın
+           her yerinde kullanılan aynı kural.
+      */
+      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
       const todayTasks = allTasks.filter(t => {
-        if (!t.dueDate) return false;
-        return new Date(t.dueDate).toDateString() === today;
+        if (t.isCompleted || !t.dueDate) return false;
+        const ms = new Date(t.dueDate).getTime();
+        return !Number.isNaN(ms) && ms <= todayEnd.getTime();
       });
       const pending = allTasks.filter(t => !t.isCompleted).length;
       const completedToday = allTasks.filter(t => {
-        if (!t.isCompleted || !t.completedAt) return false;
-        return new Date(t.completedAt).toDateString() === today;
+        if (!t.isCompleted) return false;
+        const when = t.completedAt ?? t.dueDate;
+        return !!when && new Date(when).toDateString() === today;
       }).length;
 
       // Habit streak from cockpit store — best-effort
@@ -349,8 +367,21 @@ export default function RootLayout() {
           try {
             const { api: taskApi } = require('@/shared/services/api');
             taskApi.patch(`/tasks/${data.taskId}`, { isCompleted: true }).catch((e: unknown) => swallow('layout.notifCompleteTaskPatch', e, { capture: true }));
-            // Refresh local store
-            require('@/features/tasks').useTaskStore.getState().fetchTasks?.();
+            /*
+              YEREL LİSTE DOĞRUDAN GÜNCELLENİYOR.
+
+              Burada `useTaskStore.getState().fetchTasks?.()` yazıyordu — ama mağazada
+              `fetchTasks` DİYE BİR ŞEY YOK. Soru işareti (`?.`) bunu sessizce yutuyordu:
+              satır hiçbir şey yapmıyor, yaptığını sanıyorduk. Kullanıcı kilit ekranından
+              görevi tamamlıyor, sunucu güncelleniyor ama uygulama görevi hâlâ açık
+              gösteriyordu.
+
+              Hemen altındaki alışkanlık dalı bunu zaten DOĞRU yapıyor (mağazayı
+              doğrudan yazıyor); görev dalı o desenin dışında kalmış.
+            */
+            const taskId = Number(data.taskId);
+            require('@/features/tasks').useTaskStore.getState()
+              .updateTask(taskId, { isCompleted: true, completedAt: new Date().toISOString() });
           } catch (e) { swallow('layout.notifActionCompleteTask', e, { capture: true }); }
           return;
         }
@@ -368,8 +399,18 @@ export default function RootLayout() {
                 data: data,
                 categoryIdentifier: 'task-reminder',
               },
-              trigger: snoozeTime,
-            }).catch(() => {});
+              /*
+                TETİKLEYİCİ NESNE OLMALI — ham `Date` DEĞİL.
+
+                Burada `trigger: snoozeTime` yazıyordu. expo-notifications 53'ten beri
+                ham bir tarih kabul etmiyor; uygulamanın kendi bildirim dosyasındaki
+                ON'A YAKIN çağrının hepsi `{ type: 'date', date }` biçimini kullanıyor
+                (bkz. shared/utils/notifications.ts). Yani "15 dakika ertele" ya hiç
+                kurulmuyor ya da anında geri geliyordu — ve alttaki sessiz `catch`
+                hatayı da yutuyordu, yani kimse fark edemiyordu.
+              */
+              trigger: { type: 'date', date: snoozeTime },
+            }).catch((e: unknown) => swallow('layout.notifActionSnoozeSchedule', e, { capture: true }));
           } catch (e) { swallow('layout.notifActionSnoozeReschedule', e, { capture: true }); }
           return;
         }

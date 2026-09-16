@@ -34,6 +34,8 @@ import { SwipeableItem } from '@/shared/components/SwipeableItem';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { useCompletionStore } from '@/shared/store/useCompletionStore';
+import { forgetTasks } from '@/features/tasks/utils/forgetTask';
+import { celebrate } from '@/features/user/utils/celebrate';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
@@ -872,24 +874,28 @@ export default function ActionCenter() {
 
         const prefsState = usePrefsStore.getState();
         const isFirstWin = !prefsState.firstWinAt;
+        const isLite = prefsState.uiMode === 'lite';
 
-        if (isFirstWin) {
-          require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
-            language === 'tr' ? 'İlk Başarı!' : 'First Victory!',
-            language === 'tr' ? 'Tebrikler, TAZQ\'daki ilk görevini tamamladın!' : 'Congratulations on completing your first task on TAZQ!',
-            'high',
-            'levelup'
-          );
-          useFocusStore.getState().addFocusPoints(10);
-        } else if (allTasksDone) {
-          require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
-            language === 'tr' ? 'Günü Temizledin!' : 'Day Cleared!',
-            language === 'tr' ? 'Bugünün tüm görevlerini başarıyla tamamladın!' : 'You completed all of today\'s tasks successfully!',
-            'high',
-            'day_cleared'
-          );
-          useFocusStore.getState().addFocusPoints(25);
-        }
+        /*
+          ── KUTLAMA ORTAK KAPIDAN ────────────────────────────────────────────
+          Burada konfeti DOĞRUDAN tetikleniyordu ve Sade mod kapısı YOKTU: skorlanmak
+          istemediği için modu kapatan kullanıcı, görevlerini en çok tamamladığı
+          ekranda tam ekran konfeti almaya devam ediyordu.
+
+          Gözden kaçtığının kanıtı hemen aşağıda: aynı blok başarım rozetini
+          `uiMode !== 'lite'` ile susturuyor. Yani karar biliniyordu, iki satır
+          yukarısına uygulanmamıştı.
+
+          Kutlama kararı ana ekranda TEK yere toplanmıştı (celebrate) ama bu dosya o
+          birleştirmenin DIŞINDA kalmış — dördüncü kopyaydı. Bekçi test de yalnız ana
+          ekranı tarıyordu, o yüzden göremedi.
+
+          `celebrate` puanı ve "ilk başarı" damgasını kapının DIŞINDA işliyor: mod bir
+          görünüm tercihidir, veriyi budamaz.
+        */
+        if (isFirstWin) celebrate({ kind: 'first-win', isLite, tr: language === 'tr' });
+        else if (allTasksDone) celebrate({ kind: 'day-cleared', isLite, tr: language === 'tr' });
+
 
         const nextPayload = checkAndCreateNextIntervalInstance(task);
         if (nextPayload) {
@@ -914,10 +920,10 @@ export default function ActionCenter() {
         // İlk-zafer: kullanıcının HAYATTAKİ ilk görev tamamlaması → milestone + (Pro'da)
         // ilk kutlama. Onboarding'in "anında değer" vaadini gerçek bir aksiyona bağlar.
         if (isFirstWin) {
-          prefsState.markFirstWin();
+          // `markFirstWin` ve puan artık `celebrate` içinde (kapının dışında) işleniyor.
           track('first_task_completed');
           track('first_win');
-          if (prefsState.uiMode !== 'lite') {
+          if (!isLite) {
             useAchievementStore.getState().trigger(ACHIEVEMENTS.first_task);
           }
         }
@@ -1079,27 +1085,13 @@ export default function ActionCenter() {
     const snapshot = tasks.find((t) => t.id === id);
     if (!snapshot) return;
     removeTask(id);
-    cancelTaskNotification(id);
-    deleteTaskFromCalendar(id).catch((e) => swallow('tasks.deleteTaskFromCalendar', e));
+    /*
+      Bildirim · takvim · plan dizileri ORTAK temizleyicide (bkz. forgetTask).
+      Burada on bir satırlık bir plan yuvası listesi elle yazılıydı; aynı liste toplu
+      silmede ve "tamamlananları temizle"de HİÇ yoktu. Tek yer = tek davranış.
+    */
+    forgetTasks([id], usePrefsStore.getState());
 
-    // Clean deleted task from any plan task ID arrays
-    const ps = usePrefsStore.getState();
-    const planSlots = [
-      { mode: 'exam' as const, hIds: ps.examPlanHabitIds, tIds: ps.examPlanTaskIds },
-      { mode: 'exam2' as const, hIds: ps.exam2PlanHabitIds, tIds: ps.exam2PlanTaskIds },
-      { mode: 'exam3' as const, hIds: ps.exam3PlanHabitIds, tIds: ps.exam3PlanTaskIds },
-      { mode: 'tez' as const, hIds: ps.tezPlanHabitIds, tIds: ps.tezPlanTaskIds },
-      { mode: 'mulakat' as const, hIds: ps.mulakatPlanHabitIds, tIds: ps.mulakatPlanTaskIds },
-      { mode: 'mulakat2' as const, hIds: ps.mulakat2PlanHabitIds, tIds: ps.mulakat2PlanTaskIds },
-      { mode: 'mulakat3' as const, hIds: ps.mulakat3PlanHabitIds, tIds: ps.mulakat3PlanTaskIds },
-      { mode: 'spor' as const, hIds: ps.sporPlanHabitIds, tIds: ps.sporPlanTaskIds },
-      { mode: 'spor2' as const, hIds: ps.spor2PlanHabitIds, tIds: ps.spor2PlanTaskIds },
-      { mode: 'spor3' as const, hIds: ps.spor3PlanHabitIds, tIds: ps.spor3PlanTaskIds },
-      { mode: 'ramazan' as const, hIds: ps.ramazanPlanHabitIds, tIds: ps.ramazanPlanTaskIds },
-    ];
-    for (const { mode, hIds, tIds } of planSlots) {
-      if (tIds.includes(id)) ps.setPlanIds(mode, hIds, tIds.filter(tid => tid !== id));
-    }
 
     const isTR = language === 'tr';
     const undoLabel = isTR ? 'Geri Al' : 'Undo';
@@ -1409,18 +1401,44 @@ export default function ActionCenter() {
       // Yüklem ORTAK: çipin yanındaki sayı da aynı fonksiyondan geçiyor, böylece
       // "12 bekleyen" yazıp 30 görev listelemek gibi bir tutarsızlık imkânsız.
       if (!matchesTaskFilter(task, filter)) return false;
-      // dateFilter from cockpit "+N more" button (YYYY-MM-DD)
-      if (dateFilter && task.dueDate) {
-        const taskDay = task.dueDate.slice(0, 10);
-        if (taskDay !== dateFilter) return false;
+      /*
+        TARİH SÜZGECİ (Haftalık Merkez'deki "+N daha" düğmesinden gelir).
+
+        Koşul `dateFilter && task.dueDate` idi: tarihi OLMAYAN görevler ikinci şart
+        yüzünden süzgeci hiç görmüyor ve listede kalıyordu. Yani "16 Eylül'ü göster"
+        dendiğinde 16 Eylül'ün görevleri + bütün tarihsizler geliyordu. Bir süzgecin
+        tanımı, dışarıda kalanı da kapsamaktır.
+      */
+      if (dateFilter) {
+        if (!task.dueDate) return false;
+        if (task.dueDate.slice(0, 10) !== dateFilter) return false;
       }
       if (tagFilter && !(task.tags || []).includes(tagFilter)) return false;
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const inTitle = task.title.toLowerCase().includes(q);
-        const inDesc = (task.description || '').toLowerCase().includes(q);
-        const inTags = (task.tags || []).some(tag => tag.toLowerCase().includes(q));
-        if (!inTitle && !inDesc && !inTags) return false;
+        /*
+          ── ARAMA, EKRANDA YAZANI ARAR ────────────────────────────────────────
+          İki kusur vardı:
+
+           1. `toLowerCase()` Türkçe'de yanlış: 'İ' harfi 'i̇' (iki kod birimi) olur ve
+              "İstanbul" aratınca "istanbul" ile eşleşmez. Doğrusu yerelli küçültme.
+           2. Arama HAM `task.title` üzerindeydi, oysa liste yerelleştirilmiş adı
+              çiziyor (bkz. getLocalizedTaskTitle, satır ~240). Plan/mod görevlerinin
+              ekranda görünen adı başka, alanda duran adı başkaydı: kullanıcı gördüğü
+              kelimeyi aratıp "yok" cevabı alıyordu.
+
+          Ham `title` YEDEK olarak duruyor — çeviri tablosunda karşılığı olmayan
+          kayıtlar da bulunabilsin.
+        */
+        const loc = language === 'tr' ? 'tr-TR' : 'en-US';
+        const q = searchQuery.trim().toLocaleLowerCase(loc);
+        const hay = [
+          getLocalizedTaskTitle(task, language === 'tr'),
+          task.title,
+          getLocalizedTaskDescription(task, language === 'tr') || task.description || '',
+          ...(task.tags || []).map(tag => translateTag(tag, language as 'tr' | 'en')),
+          ...(task.tags || []),
+        ];
+        if (!hay.some(v => (v || '').toLocaleLowerCase(loc).includes(q))) return false;
       }
       return true;
     });
@@ -1449,6 +1467,12 @@ export default function ActionCenter() {
       [
         { text: t.cancel, style: 'cancel' },
         { text: t.delete, style: 'destructive', onPress: async () => {
+          /*
+            TEMİZLİK BURADA DA YAPILIYOR. Eskiden yalnız mağazadan siliniyordu:
+            silinen görevlerin HATIRLATICILARI çalmaya devam ediyor, takvim kayıtları
+            ve plan dizilerindeki kimlikleri geride kalıyordu.
+          */
+          forgetTasks(Array.from(selectedIds), usePrefsStore.getState());
           for (const id of Array.from(selectedIds)) {
             const task = tasks.find(tk => tk.id === id);
             if (task?.isCompleted) recordCompletion(task.id, task.title, task.completedAt ?? undefined);
@@ -1728,6 +1752,9 @@ export default function ActionCenter() {
         { text: t.cancel, style: 'cancel' },
         { text: t.delete, style: 'destructive', onPress: async () => {
           completedTasks.forEach(task => recordCompletion(task.id, task.title, task.completedAt ?? undefined));
+          // Bildirim tamamlanırken zaten iptal edilmişti; takvim kaydı ve plan
+          // dizilerindeki kimlikler ise geride kalıyordu.
+          forgetTasks(completedTasks.map(tk => tk.id), usePrefsStore.getState());
           for (const task of completedTasks) {
             removeTask(task.id);
             if (!isOnline) {
@@ -2045,9 +2072,28 @@ export default function ActionCenter() {
             cevaplamak ve tek dokunuşla temizlemek. Filtre kapalıyken satır hiç çizilmez —
             yani varsayılan görünümde başlıkla liste arasında hiçbir şey yoktur.
           */}
-          {(filter !== 'all' || !!tagFilter) && (
+          {(filter !== 'all' || !!tagFilter || !!dateFilter) && (
             <Touchable
-              onPress={() => { setFilter('all'); setTagFilter(null); haptic.select(); }}
+              /*
+                TARİH SÜZGECİ DE BURAYA DAHİL.
+
+                Koşul yalnız `filter` ve `tagFilter`a bakıyordu. Oysa Haftalık
+                Merkez'den "+N daha" ile gelindiğinde liste bir GÜNE daraltılıyor ve bu
+                satır hiç çizilmiyordu: kullanıcı görevlerinin çoğunu göremiyor, nedenini
+                söyleyen tek iz de gizli kalıyordu. Temizleme düğmesi de onu bırakıyordu,
+                yani "Tümü"ne basmak listeyi açmıyordu.
+
+                Bu satırın kendi notu görevini zaten yazmış: "listede neden her şey yok"
+                sorusunu cevaplamak. Üç süzgecin ikisi için çalışıyordu.
+
+                Tarih bir ROTA PARAMETRESİ olduğu için `setParams` ile temizleniyor.
+              */
+              onPress={() => {
+                setFilter('all');
+                setTagFilter(null);
+                if (dateFilter) router.setParams({ dateFilter: undefined });
+                haptic.select();
+              }}
               accessibilityRole="button"
               accessibilityLabel={language === 'tr' ? 'Filtreyi temizle' : 'Clear filter'}
               style={{ flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingBottom: S.md }}
@@ -2062,6 +2108,20 @@ export default function ActionCenter() {
                       : t.filterDone)
                     : null,
                   tagFilter ? `#${translateTag(tagFilter, language as 'tr' | 'en')}` : null,
+                  /*
+                    Gün, ekranda YAZILDIĞI gibi gösteriliyor: ham "2026-09-16" bir
+                    süzgeç etiketi değil, bir veri alanıdır. Geçersiz bir değer gelirse
+                    (derin bağlantı, elle düzenlenmiş URL) ham hâline düşülüyor —
+                    "Invalid Date" yazmaktansa anlamsız ama zararsız bir dize.
+                  */
+                  dateFilter
+                    ? (() => {
+                        const d = new Date(`${dateFilter}T12:00:00`);
+                        return Number.isNaN(d.getTime())
+                          ? dateFilter
+                          : d.toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'long' });
+                      })()
+                    : null,
                 ].filter(Boolean).join(' · ')}
               </Text>
               <X size={ICON.xs} color={theme.onSurfaceMuted} />

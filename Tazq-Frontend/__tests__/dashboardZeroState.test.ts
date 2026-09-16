@@ -238,13 +238,31 @@ describe('dashboard metinlerinde emoji yok', () => {
 });
 
 describe('alışkanlık baloncuğu — etiket sığmalı', () => {
-  it('yuva baloncuktan belirgin geniş', () => {
-    // 268 addan 218'i 18 karakterden uzun ve bu veri hatası değil ("Kavram Haritası
-    // Çıkarma" doğal uzunlukta). Sorun 62pt'lik kutuydu: satır başına ~13 karakter.
-    const src = read('features/dashboard/components/MyDayHabits.tsx');
-    const slot = Number(src.match(/const SLOT = (\d+);/)?.[1]);
-    const bubble = Number(src.match(/const BUBBLE = (\d+);/)?.[1]);
+  it('yuva baloncuktan belirgin geniş — VE baloncuk o yuvayı kullanıyor', () => {
+    /*
+      268 addan 218'i 18 karakterden uzun ve bu veri hatası değil ("Kavram Haritası
+      Çıkarma" doğal uzunlukta). Sorun 62pt'lik kutuydu: satır başına ~13 karakter.
+
+      ── BU TEST KÖRDÜ ───────────────────────────────────────────────────────────
+      Ölçüyü YANLIŞ DOSYADAN okuyordu: MyDayHabits'teki `SLOT`, yalnız "Ekle"
+      kısayolunun genişliğiydi. Gerçek baloncuklar HabitBubble içinde kendi `width: 62`
+      değerini kullanmaya devam ediyordu. Yani test yeşil yanıyor, etiketler kesilmeye
+      devam ediyordu — üstelik "Ekle" kutusu ötekilerden geniş kaldığı için şeridin
+      ritmi de bozuktu.
+
+      Ders: bir ölçüyü, onu KULLANAN yerden doğrula. Sayı artık tek yerde (HABIT_SLOT)
+      ve aşağıda hem değeri hem de baloncuğa gerçekten uygulandığı sınanıyor.
+    */
+    const bubbleSrc = read('features/habits/components/HabitBubble.tsx');
+    const slot = Number(bubbleSrc.match(/export const HABIT_SLOT = (\d+);/)?.[1]);
+    const bubble = Number(read('features/dashboard/components/MyDayHabits.tsx').match(/const BUBBLE = (\d+);/)?.[1]);
     expect(slot).toBeGreaterThanOrEqual(bubble + 24);
+
+    // Baloncuk yuvayı GERÇEKTEN kullanıyor — elle yazılmış bir genişlik kalmadı.
+    expect(bubbleSrc).toContain("width: HABIT_SLOT, gap: S.sm }}");
+    expect(bubbleSrc).not.toMatch(/width: \d+, gap: S\.sm/);
+    // Şeritteki "Ekle" kısayolu da aynı sayıyı okuyor → eşit ritim.
+    expect(read('features/dashboard/components/MyDayHabits.tsx')).toContain('width: HABIT_SLOT,');
   });
 
   it('etiket iki satır — tek satırda adların neredeyse hepsi kesiliyordu', () => {

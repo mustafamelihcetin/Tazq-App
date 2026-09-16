@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
-import { HabitBubble } from '@/features/habits/components/HabitBubble';
+import { HabitBubble, HABIT_SLOT } from '@/features/habits/components/HabitBubble';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, S, R, W, ICON, B, MIN_TOUCH } from '@/shared/constants/tokens';
@@ -20,24 +20,17 @@ import type { AppTheme } from '@/shared/constants/Colors';
  * yalnızca "basıldı" der.
  */
 
-/** Baloncuk yuvası — HabitBubble'ın kendi genişliğiyle hizalı. */
-/**
- * YUVA GENİŞLİĞİ — baloncuktan GENİŞ, çünkü etiketi o taşıyor.
- *
- * 62pt'ydi ve etiketler kesiliyordu. Önce iki satıra çıkarıldı, yetmedi. Sebebini
- * ölçünce çıktı: 268 alışkanlık/görev adının 218'i 18 karakterden uzun ve bu bir veri
- * hatası DEĞİL — "Kavram Haritası Çıkarma", "Günlük Yazım Oturumu" gibi adlar doğal
- * uzunlukta. Parantezli açıklamaları ayıklamak da yalnız 53'ünü kurtarıyordu.
- *
- * Yani sorun addaydı değil, KUTUDAYDI: 62pt'ye 9.5pt yazıyla satır başına ~13 karakter
- * sığıyor. 78pt'de ~17 karakter, iki satırda ~34 — adların neredeyse tamamı sığıyor.
- *
- * Baloncuk 50pt kalıyor: büyütülmesi gereken şey görsel değil, ETİKET ALANI. iOS ana
- * ekranı da böyledir — ikon 60pt, altındaki ad daha geniş bir alana yazılır. Yan yana
- * görünen baloncuk sayısı 5'ten ~4'e iniyor; bu bir kayıp değil, kaydırılabilir olduğunu
- * da daha iyi gösteriyor.
- */
-const SLOT = 78;
+/*
+  YUVA GENİŞLİĞİ ARTIK TEK YERDE — HabitBubble'ın kendisinde (HABIT_SLOT).
+
+  Burada 78 yazıyordu ve gerekçesi uzun uzun anlatılıyordu, ama BALONCUKLAR o sayıyı
+  hiç görmüyordu: HabitBubble kendi içinde 62 kullanmaya devam ediyordu. Yani ölçülüp
+  belgelenen düzeltme yalnız aşağıdaki "Ekle" kısayoluna uygulanmış, asıl öğelere
+  ulaşmamıştı — etiketler kesilmeye devam ediyor, üstelik "Ekle" kutusu ötekilerden
+  geniş kaldığı için şeridin ritmi bozuluyordu.
+
+  Gerekçenin tamamı artık HABIT_SLOT'un başında duruyor; iki yer aynı sayıyı okuyor.
+*/
 const BUBBLE = 50;
 
 export interface MyDayHabitsProps {
@@ -129,7 +122,7 @@ const styles = StyleSheet.create({
   },
   slot: {
     alignItems: 'center',
-    width: SLOT,
+    width: HABIT_SLOT,
     gap: S.sm,
     // Dokunma hedefi Apple'ın alt sınırında: baloncuk 50pt ama yuva etiketle birlikte
     // daha yüksek — yine de açıkça garanti ediyoruz.

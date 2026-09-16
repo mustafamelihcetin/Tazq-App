@@ -63,8 +63,13 @@ describe('bildirim zamanlaması', () => {
   const runFn = CODE.slice(CODE.indexOf('const run = useCallback'), CODE.indexOf('useEffect(() => {'));
 
   it('geriye doldurma DÖNGÜSÜNDEN ÖNCE gösterilir', () => {
+    /*
+      Çapa DEĞİŞTİ, kural değil: geriye dolgu artık tarihi yeniden kurmuyor, `byDay`in
+      kendi anahtarlarını geziyor (gerekçe: iki ayrı gün tanımı aynı diziye yazıyordu,
+      bkz. useSleepHealthSync). Beklenen şey aynı — bildirim, dolgudan ÖNCE.
+    */
     const announceIdx = runFn.indexOf('announce(outcomeOnce');
-    const backfillIdx = runFn.indexOf('for (let back = 1');
+    const backfillIdx = runFn.indexOf('for (const [key, mins] of Object.entries(byDay))');
     expect(announceIdx).toBeGreaterThan(-1);
     expect(backfillIdx).toBeGreaterThan(-1);
     expect(announceIdx).toBeLessThan(backfillIdx);

@@ -16,6 +16,7 @@ import { useFocusStore } from '@/features/focus';
 import { useHabitStore, Habit, fmtDateKey } from '@/features/habits';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { describeHabit, rowHint } from '@/shared/utils/a11y';
+import { celebrate } from '@/features/user/utils/celebrate';
 import { usePrefsStore, renderModeEmojiIcon } from '@/features/modes';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { BentoCard } from '@/shared/components/BentoCard';
@@ -445,13 +446,24 @@ export default function CockpitScreen() {
       }
 
       if (allHabitsDone) {
-        require('@/shared/store/useConfettiStore').useConfettiStore.getState().trigger(
-          language === 'tr' ? 'Alışkanlıklar Tamam!' : 'All Habits Done!',
-          language === 'tr' ? 'Bugünkü tüm alışkanlık hedeflerini tamamladın. Harika istikrar! 🌟' : 'You completed all habit targets for today. Great consistency! 🌟',
-          'medium',
-          'day_cleared'
-        );
-        useFocusStore.getState().addFocusPoints(20);
+        /*
+          ── KUTLAMA ORTAK KAPIDAN ──────────────────────────────────────────────
+          Konfeti burada DOĞRUDAN tetikleniyordu ve Sade mod kapısı yoktu: modu
+          kapatan kullanıcı ritüellerini bitirince yine tam ekran kutlama alıyordu.
+
+          Kutlama kararı tek yere toplanmıştı (celebrate) ama bu dosya o
+          birleştirmenin dışında kalmış — BEŞİNCİ kopyaydı. Bekçi test yalnız ana
+          ekranı taradığı için görmüyordu; kural artık konfetiye dokunan HER ekranı
+          kapsıyor (bkz. __tests__/liteMode.test.ts).
+
+          Puan (20) kapının DIŞINDA işlenmeye devam ediyor: mod bir görünüm
+          tercihidir, geçmişi budamaz.
+        */
+        celebrate({
+          kind: 'habits-cleared',
+          isLite: usePrefsStore.getState().uiMode === 'lite',
+          tr: language === 'tr',
+        });
       }
       const opacity = new Animated.Value(1);
       const translateY = new Animated.Value(0);

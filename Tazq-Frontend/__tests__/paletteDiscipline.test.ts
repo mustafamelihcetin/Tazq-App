@@ -112,9 +112,15 @@ const CEILING: Record<string, number> = {
   'shared/components/SupportModal.tsx': 3,
   'app/login.tsx': 4,
   'app/register.tsx': 4,
-  'features/focus/components/DynamicIsland.tsx': 4,
+  // DynamicIsland LİSTEDEN ÇIKTI (4 → 0): iOS yeşilleri (#34c759/#30d158) ve düğme
+  // yazısının beyazı palet jetonlarına bağlandı. Beyaz yazı ayrıca koyu temada paletin
+  // AÇIKÇA reddettiği durumdu (primary üstünde 3.65:1, AA'dan kalıyor) — `onPrimary` ve
+  // `onTertiary` tam bu iş için ölçülmüş çiftler.
   'shared/components/ErrorBoundary.tsx': 4,
-  'features/habits/components/HabitBubble.tsx': 4,
+  // 4 → 0 → LİSTEDEN ÇIKTI: "atlandı" durumunun kehribarı üç ayrı yerde elle
+  // yazılıydı ve koyu temada ikon ile zemin FARKLI iki kehribar oluyordu (#FBBF24 vs
+  // #D97706). Üçü de `theme.warning`a bağlandı; rozet çerçevesi de `surfaceCard`a.
+  // Kalan #FFFFFF'ler renkli rozet üstündeki yazı — kural gereği serbest.
   'features/modes/components/modes/BirakmaCard.tsx': 3,
   'features/habits/components/SwipeableHabitItem.tsx': 3,
   'features/modes/components/modes/TasarrufCard.tsx': 3,

@@ -28,6 +28,9 @@ const stripComments = (src: string) =>
 
 const INDEX = stripComments(read('app/index.tsx'));
 const ROW = stripComments(read('features/dashboard/components/MyDayTaskRow.tsx'));
+const HUB = stripComments(read('features/dashboard/components/StatusHubModal.tsx'));
+const SLEEP = stripComments(read('features/habits/hooks/useSleepHealthSync.ts'));
+const LAYOUT = stripComments(read('app/_layout.tsx'));
 
 describe('eklenen görev GERÇEKTEN kaydediliyor', () => {
   it('panel kayıt BİTİNCE kapanıyor — hata olursa yazılan metin durur', () => {
@@ -105,6 +108,17 @@ describe('günlük listeden görev tamamlanabiliyor', () => {
 });
 
 describe('örnek veri GERÇEK bir şey tetiklemiyor', () => {
+  it('örnek satırlar HALKAYLA aynı diziden geliyor', () => {
+    /*
+      Liste üç örnek satır çiziyordu ama halka gerçek (boş) veriden besleniyordu:
+      ekranda üç görev dururken kart "Bugün için planın boş" diyordu. Aynı ekranda
+      iki çelişen cümle.
+    */
+    expect(INDEX).toContain('const demoMyDayTasks = React.useMemo(');
+    expect(INDEX).toContain('if (demoActive) return demoMyDayTasks;');
+    expect(INDEX).toMatch(/todayCompleted = demoActive\s*\?\s*demoMyDayTasks\.filter/);
+  });
+
   it('sahte satırlar tek bir kapıdan ayırt ediliyor', () => {
     /*
       Mağazalar bilinmeyen bir kimlikle sessizce hiçbir şey yapmıyor, yani veri
@@ -130,6 +144,16 @@ describe('örnek veri GERÇEK bir şey tetiklemiyor', () => {
     const demoish = ids.filter(id => /^mock/.test(id));
     expect(demoish.length).toBeGreaterThanOrEqual(6);
     for (const id of demoish) expect(id.startsWith('mock-')).toBe(true);
+  });
+
+  it('gün kutlaması örnek veriden tetiklenemiyor', () => {
+    /*
+      Halka ile liste aynı şeyi söylesin diye sayaçlar örnek veri açıkken sahte
+      satırlardan geliyor. Bugünkü dizide üçte biri tamamlı olduğu için koşul
+      tutmuyor — ama bu bir TESADÜF; diziye dokunan biri üçünü de tamamlandı yapsa
+      hiç görevi olmayan kullanıcıya gün kutlaması patlardı.
+    */
+    expect(INDEX).toMatch(/if \(demoActive\) return;\s*const done = dailyGoal > 0/);
   });
 
   it('atlanan ritüel "bekleyen" sayılmıyor', () => {
@@ -166,6 +190,52 @@ describe('tek bir "bugün" tanımı', () => {
     expect(INDEX).toMatch(/if \(!tasksFetched \|\| shieldCheckedRef\.current\) return;/);
   });
 
+  it('seri bayrağı GÜNE bağlı — oturum boyunca donmuyor', () => {
+    /*
+      Boolean bir bayraktı: bir kez true olunca oturum boyunca öyle kalıyor, uygulama
+      açık kalıp gece yarısını geçen kullanıcıda YENİ GÜNÜN serisi hiç artmıyordu.
+      `currentHour` bağımlılıkta çünkü gün, kullanıcı hiçbir şeye dokunmadan da
+      değişebiliyor (yalnız odak seansı yapan biri tasks/habits'i değiştirmez).
+    */
+    expect(INDEX).toContain('const [streakDayDone, setStreakDayDone] = useState<string | null>(null);');
+    expect(INDEX).toContain('if (streakDayDone === todayKey()) return;');
+    expect(INDEX).toMatch(/\}, \[tasks, habits, isLoading, streakDayDone, currentHour\]\);/);
+  });
+
+  it('7 günlük alışkanlık ızgarası ÜRÜNÜN gün anahtarını kullanıyor', () => {
+    /*
+      Anahtarlar ham takvim tarihinden kuruluyordu, oysa alışkanlıklar `fmtDateKey`
+      ile (3 saat tamponlu) yazılıyor. Gece 00:00–03:00 arasında ızgara BİR GÜN
+      kayıyordu: kullanıcı 01:00'de bir ritüeli işaretliyor, "bugün" diye
+      çerçevelenen kutu boş kalıyordu. Aynı kayma haftalık sayımı da bozuyordu.
+    */
+    expect(HUB).toContain("import { fmtDateKey } from '@/features/habits';");
+    expect(HUB).toContain('const key = fmtDateKey(d);');
+    expect(HUB).not.toMatch(/const key = `\$\{y\}-\$\{m\}-\$\{day\}`/);
+  });
+
+  it('uyku senkronu tek gün tanımı kullanıyor', () => {
+    /*
+      Aynı dosya bugünü `fmtDateKey()` ile, geriye dolguyu tamponsuz yerel bir
+      `dayKey()` ile kuruyordu — ikisi de aynı `completedDates` dizisine yazıyordu.
+      Geriye dolgu artık tarihi yeniden kurmuyor, verinin KENDİ anahtarını yazıyor.
+    */
+    expect(SLEEP).not.toMatch(/function dayKey\(d: Date\)/);
+    expect(SLEEP).toContain('for (const [key, mins] of Object.entries(byDay))');
+    expect(SLEEP).toContain('if (key >= todayKey) continue;');
+  });
+
+  it('haftalık şeritte "bugün" sütunu tek yerden geliyor', () => {
+    /*
+      Aynı soru iki yerde ayrı cevaplanıyordu: ana ekran tamponu uyguluyor, durum
+      merkezindeki grafik ham `getDay()` kullanıyordu. Gece 00:00–03:00 arasında
+      dolu çubuk ile "bugün" çerçevesi ayrı sütuna düşüyordu.
+    */
+    expect(INDEX).toContain('const currentDayIndex = weekdayIndex();');
+    expect(HUB).toContain('const todayIndex = weekdayIndex();');
+    expect(HUB).not.toMatch(/new Date\(\)\.getDay\(\) \+ 6\) % 7/);
+  });
+
   it('odak dakikası GÜN KAPISINDAN geçiyor', () => {
     /*
       Mağazadaki sayaç yalnız rehydrate'te sıfırlanıyor; uygulama açık kalıp gece
@@ -173,6 +243,39 @@ describe('tek bir "bugün" tanımı', () => {
     */
     expect(INDEX).toContain('const todayFocusMinutes = dailyFocusDate === todayKey() ? dailyFocusMinutes : 0;');
     expect(INDEX).toContain('focusMinutes={todayFocusMinutes}');
+  });
+});
+
+describe('bildirim eylemleri gerçekten iş yapıyor', () => {
+  it('bildirimden tamamlama YEREL listeyi de günceller', () => {
+    /*
+      `useTaskStore.getState().fetchTasks?.()` yazıyordu ama mağazada `fetchTasks`
+      diye bir şey YOK — soru işareti satırı sessizce yutuyordu. Kullanıcı kilit
+      ekranından görevi tamamlıyor, sunucu güncelleniyor, uygulama görevi hâlâ açık
+      gösteriyordu. Hemen altındaki alışkanlık dalı bunu zaten doğru yapıyor.
+    */
+    expect(LAYOUT).not.toMatch(/fetchTasks\?\.\(\)/);
+    expect(LAYOUT).toMatch(/\.updateTask\(taskId, \{ isCompleted: true, completedAt/);
+  });
+
+  it('ertele tetikleyicisi uygulamanın BİÇİMİNDE', () => {
+    /*
+      `trigger: snoozeTime` (ham Date) yazıyordu. expo-notifications 53'ten beri bunu
+      kabul etmiyor; uygulamanın kendi bildirim dosyasındaki her çağrı
+      `{ type: 'date', date }` kullanıyor. Yani "15 dakika ertele" ya hiç kurulmuyor
+      ya anında geri geliyordu — alttaki sessiz `catch` de hatayı yutuyordu.
+    */
+    expect(LAYOUT).toContain("trigger: { type: 'date', date: snoozeTime },");
+    expect(LAYOUT).toMatch(/swallow\('layout\.notifActionSnoozeSchedule'/);
+  });
+
+  it('sabah/akşam özeti ana ekranla AYNI günü sayıyor', () => {
+    /*
+      "Bugün N görevin var" yalnız vadesi TAM BUGÜN olanları sayıyordu: beş gecikmiş
+      görevi olan kullanıcı sabah "0 görevin var" bildirimi alıyordu.
+    */
+    expect(LAYOUT).toContain('const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);');
+    expect(LAYOUT).toContain('const when = t.completedAt ?? t.dueDate;');
   });
 });
 
@@ -185,8 +288,7 @@ describe('halka ile liste AYNI kümeyi sayıyor', () => {
     expect(INDEX).toContain('const dayScope = React.useMemo(');
     expect(INDEX).toContain('const todayTasksIncomplete = dayScope.incomplete;');
     expect(INDEX).toContain('const todayTasksCompleted = dayScope.completed;');
-    expect(INDEX).toContain('const dailyGoal = todayTasks.length;');
-    expect(INDEX).toContain('const todayCompleted = todayTasksCompleted.length;');
+    expect(INDEX).toContain('const dailyGoal = demoActive ? demoMyDayTasks.length : todayTasks.length;');
   });
 
   it('küme İKİ kez tanımlanmıyor', () => {
