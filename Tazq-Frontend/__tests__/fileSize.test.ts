@@ -126,7 +126,14 @@ const KNOWN_LARGE: Record<string, number> = {
        "etkin filtre" satırında hiç görünmüyordu: liste daralıyor, nedeni söylenmiyor,
        "Tümü" düğmesi de onu temizlemiyordu.
   */
-  'app/tasks.tsx': 2549,
+  /*
+    2549 → 2545 (KÜÇÜLDÜ): silme temizliği ortak yardımcıya çıkarıldı (forgetTask).
+    On bir satırlık plan yuvası listesi elle yazılıydı ve EKSİKTİ (mağazada on üç mod
+    var, `tasarruf` ile `birakma` unutulmuştu); aynı temizlik toplu silmede ve
+    "tamamlananları temizle"de hiç yoktu — silinen görevlerin hatırlatıcıları çalmaya
+    devam ediyordu. Liste artık mağazanın kendi tipinden türüyor.
+  */
+  'app/tasks.tsx': 2545,
   // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
   // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
   // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).

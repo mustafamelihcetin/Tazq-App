@@ -1,6 +1,7 @@
 import { cancelTaskNotification } from '@/shared/utils/notifications';
 import { deleteTaskFromCalendar } from '@/shared/utils/calendarSync';
 import { swallow } from '@/shared/utils/swallow';
+import type { PlanMode } from '@/features/modes/store/usePrefsStore';
 
 /**
  * BİR GÖREVİ MAĞAZA DIŞINDA DA UNUTTURMAK.
@@ -23,19 +24,30 @@ import { swallow } from '@/shared/utils/swallow';
  * Kural artık tek yerde: bir görev ortadan kalkıyorsa, ONA BAĞLI HER ŞEY kalkar.
  */
 
-/** Plan dizilerinin tutulduğu tercih anahtarları — mod başına bir yuva. */
+/**
+ * Plan yuvaları — liste mağazanın KENDİ tipinden türüyor.
+ *
+ * Silme akışında bu liste elle yazılıydı ve ON BİR yuva sayıyordu; mağazada ise ON ÜÇ
+ * var. `tasarruf` ve `birakma` unutulmuştu: o planlara ait bir görev silindiğinde
+ * kimliği plan dizisinde kalmaya devam ediyordu. Elle tutulan bir liste, yanındaki
+ * tip büyüdükçe sessizce eskiyor.
+ *
+ * `satisfies` derleyiciye "bu dizi PlanMode'un TAMAMINI kapsıyor mu" diye sordurur:
+ * mağazaya yeni bir mod eklenip buraya eklenmezse derleme kırılır.
+ */
 export const PLAN_SLOTS = [
   'exam', 'exam2', 'exam3',
   'tez',
   'mulakat', 'mulakat2', 'mulakat3',
   'spor', 'spor2', 'spor3',
-  'ramazan',
-] as const;
+  'ramazan', 'tasarruf', 'birakma',
+] as const satisfies readonly PlanMode[];
 
-export type PlanSlot = (typeof PLAN_SLOTS)[number];
+export type PlanSlot = PlanMode;
 
 export interface PlanSlotState {
-  habitIds: number[];
+  /** Alışkanlık kimlikleri METİN, görev kimlikleri SAYI — mağazanın sözleşmesi. */
+  habitIds: string[];
   taskIds: number[];
 }
 
@@ -49,8 +61,8 @@ export interface PlanSlotState {
 export function planIdsWithout(
   slots: Record<PlanSlot, PlanSlotState>,
   removed: ReadonlySet<number>,
-): Array<{ slot: PlanSlot; habitIds: number[]; taskIds: number[] }> {
-  const out: Array<{ slot: PlanSlot; habitIds: number[]; taskIds: number[] }> = [];
+): Array<{ slot: PlanSlot; habitIds: string[]; taskIds: number[] }> {
+  const out: Array<{ slot: PlanSlot; habitIds: string[]; taskIds: number[] }> = [];
   for (const slot of PLAN_SLOTS) {
     const cur = slots[slot];
     if (!cur) continue;
@@ -62,8 +74,20 @@ export function planIdsWithout(
   return out;
 }
 
+/**
+ * Bu yardımcının tercih mağazasından İHTİYAÇ DUYDUĞU kadarı.
+ *
+ * Mağazanın tamamını `any` diye almak kolaydı ama yanlış: burada yalnız plan
+ * dizileri ve onları yazan işlev kullanılıyor. Dar bir sözleşme, çağıranın ne
+ * verdiğini de derleme zamanında kontrol ettirir.
+ */
+export type PlanPrefs = {
+  setPlanIds: (slot: PlanSlot, habitIds: string[], taskIds: number[]) => void;
+} & Partial<Record<`${PlanSlot}PlanHabitIds`, string[]>>
+  & Partial<Record<`${PlanSlot}PlanTaskIds`, number[]>>;
+
 /** Tercih mağazasından plan yuvalarını okur (şekli `planIdsWithout` bekliyor). */
-export function readPlanSlots(prefs: any): Record<PlanSlot, PlanSlotState> {
+export function readPlanSlots(prefs: PlanPrefs): Record<PlanSlot, PlanSlotState> {
   const out = {} as Record<PlanSlot, PlanSlotState>;
   for (const slot of PLAN_SLOTS) {
     out[slot] = {
@@ -80,7 +104,7 @@ export function readPlanSlots(prefs: any): Record<PlanSlot, PlanSlotState> {
  * Mağazadan silme işini ÇAĞIRAN yapıyor — geri alma (undo) akışı oradaki anlık
  * güncellemeye dayanıyor ve buraya taşınırsa o akış bozulur.
  */
-export function forgetTasks(ids: number[], prefs: any): void {
+export function forgetTasks(ids: number[], prefs: PlanPrefs): void {
   if (ids.length === 0) return;
 
   for (const id of ids) {

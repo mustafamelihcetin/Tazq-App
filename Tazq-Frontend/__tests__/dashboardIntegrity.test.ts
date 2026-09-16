@@ -31,6 +31,7 @@ const ROW = stripComments(read('features/dashboard/components/MyDayTaskRow.tsx')
 const HUB = stripComments(read('features/dashboard/components/StatusHubModal.tsx'));
 const SLEEP = stripComments(read('features/habits/hooks/useSleepHealthSync.ts'));
 const LAYOUT = stripComments(read('app/_layout.tsx'));
+const TASKS = stripComments(read('app/tasks.tsx'));
 
 describe('eklenen görev GERÇEKTEN kaydediliyor', () => {
   it('panel kayıt BİTİNCE kapanıyor — hata olursa yazılan metin durur', () => {
@@ -303,6 +304,45 @@ describe('halka ile liste AYNI kümeyi sayıyor', () => {
       görev tamamlanınca iki listenin de dışında kalıp ekrandan siliniyordu.
     */
     expect(INDEX).toMatch(/wasCompletedOn\(t, today\)/);
+  });
+});
+
+describe('Aksiyon Merkezi — silme ve süzgeçler', () => {
+  it('ÜÇ silme yolu da ortak temizleyiciden geçiyor', () => {
+    /*
+      Tek silme bildirimi iptal edip takvim kaydını siliyordu; TOPLU silme ve
+      "tamamlananları temizle" hiçbirini yapmıyordu. Beş görevi toplu silen kullanıcı
+      o beş görevin hatırlatıcılarını almaya devam ediyordu.
+    */
+    expect((TASKS.match(/forgetTasks\(/g) ?? []).length).toBe(3);
+    // Elle yazılmış plan yuvası listesi kalmadı (on bir yazılıydı, mağazada on üç var).
+    expect(TASKS).not.toMatch(/const planSlots = \[/);
+  });
+
+  it('kutlama Sade mod kapısından geçiyor', () => {
+    // Aynı blok başarım rozetini susturuyordu ama iki satır yukarıdaki konfetiyi değil.
+    expect(TASKS).not.toContain('useConfettiStore');
+    expect(TASKS).toMatch(/celebrate\(\{ kind: 'first-win', isLite/);
+    expect(TASKS).toMatch(/celebrate\(\{ kind: 'day-cleared', isLite/);
+  });
+
+  it('arama kullanıcının GÖRDÜĞÜ adla eşleşiyor', () => {
+    // Liste yerelleştirilmiş adı çiziyor, arama ham `title` üzerindeydi; ayrıca
+    // `toLowerCase()` Türkçe'de 'İ' harfini bozuyor.
+    expect(TASKS).not.toMatch(/searchQuery\.toLowerCase\(\)/);
+    expect(TASKS).toContain("const loc = language === 'tr' ? 'tr-TR' : 'en-US';");
+    expect(TASKS).toMatch(/getLocalizedTaskTitle\(task, language === 'tr'\),\s*task\.title,/);
+  });
+
+  it('GÜN süzgeci tarihsizleri de kapsıyor ve GÖRÜNÜR', () => {
+    /*
+      Koşul `dateFilter && task.dueDate` idi: tarihsiz görevler süzgeci hiç görmüyordu.
+      Ayrıca "etkin filtre" satırı — görevi tam da bunu anlatmak olan satır — bu
+      süzgeci saymıyordu: liste daralıyor, nedeni söylenmiyor, "Tümü" temizlemiyordu.
+    */
+    expect(TASKS).toMatch(/if \(dateFilter\) \{\s*if \(!task\.dueDate\) return false;/);
+    expect(TASKS).toContain("{(filter !== 'all' || !!tagFilter || !!dateFilter) && (");
+    expect(TASKS).toContain("router.setParams({ dateFilter: undefined })");
   });
 });
 
