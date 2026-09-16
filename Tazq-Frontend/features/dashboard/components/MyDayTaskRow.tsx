@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { CheckCircle2, ChevronRight } from 'lucide-react-native';
+import { Check, ChevronRight } from 'lucide-react-native';
 import { Touchable } from '@/shared/components/Touchable';
-import { ICON, R, S, F, HAIRLINE } from '@/shared/constants/tokens';
+import { ICON, R, S, F, HAIRLINE, B, touchSlop } from '@/shared/constants/tokens';
 import { getModeInfoForTask, getTaskRemainingTime } from '@/features/modes';
 import { getLocalizedTaskTitle } from '@/features/tasks';
 import type { AppTheme } from '@/shared/constants/Colors';
@@ -14,16 +14,124 @@ export interface MyDayTaskRowProps {
   isDark: boolean;
   tr: boolean;
   onPress: () => void;
+  /**
+   * Görevi TAMAMLAR. Verilmezse halka çizilir ama dokunulamaz.
+   *
+   * İsteğe bağlı olmasının iki gerçek nedeni var: tamamlanmış satırlarda geri alma
+   * YOK (bkz. app/index.tsx → handleCheckTask) ve bu satır tur önizlemelerinde de
+   * çiziliyor — orada canlı bir görev yok. İkisinde de halka duruyor, çünkü
+   * önizleme gerçek ekrandan farklı görünmemeli.
+   */
+  onCheck?: () => void;
   priorityColor: (p: string) => string;
   prefs: any;
 }
 
-export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme, isDark, tr, onPress, priorityColor, prefs }) => {
+/**
+ * TAMAMLAMA HALKASI — satırın solundaki öncelik noktasının yerini aldı.
+ *
+ * ── ÖLÇÜLEN SORUN ───────────────────────────────────────────────────────────
+ * Ana ekrandaki günlük görev listesinden bir görev TAMAMLANAMIYORDU. Satır yalnız
+ * Görevler sayfasına gidiyordu; `handleCheckTask` (kilo modalı, kutlama kapıları,
+ * çevrimdışı kuyruk, ses efekti — seksen satır) hiçbir yerden çağrılmıyordu. Aynı
+ * kartın hemen üstünde RİTÜELLER tek dokunuşla işaretleniyordu; kullanıcı için bu
+ * asimetri bozukluk gibi okunur.
+ *
+ * Kontrol SOLA konuldu, sona değil: Apple'ın Hatırlatıcılar deseni budur ve
+ * zaten orada duran 7pt'lik renk noktasının yerini alıyor — yani satıra yeni bir
+ * öğe EKLENMİYOR, var olan öğe işlevine kavuşuyor. Renk de korunuyor: halka,
+ * noktanın taşıdığı öncelik/mod rengini taşıyor.
+ *
+ * Görsel çap 22pt, dokunma hedefi 44pt (hitSlop ile) — Apple HIG.
+ */
+const CheckRing: React.FC<{ color: string; done: boolean; theme: AppTheme; onCheck?: () => void; label: string }>
+  = ({ color, done, theme, onCheck, label }) => {
+  const size = 22;
+  const ring = (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: R.full,
+        borderWidth: done ? 0 : B.medium,
+        borderColor: color,
+        backgroundColor: done ? theme.success : 'transparent',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {done && <Check size={ICON.xs} color={theme.onPrimary} strokeWidth={3} />}
+    </View>
+  );
+
+  // Tamamlanmış satırda geri alma yok → düğme DEĞİL, durum göstergesi.
+  if (!onCheck || done) {
+    return (
+      <View style={{ marginRight: S.md }} accessible accessibilityRole="image" accessibilityLabel={label}>
+        {ring}
+      </View>
+    );
+  }
+
+  return (
+    <Touchable
+      onPress={onCheck}
+      hitSlop={touchSlop(size)}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: false }}
+      accessibilityLabel={label}
+      style={{ marginRight: S.md, minWidth: size, minHeight: size, alignItems: 'center', justifyContent: 'center' }}
+    >
+      {ring}
+    </Touchable>
+  );
+};
+
+/**
+ * Satırın metinleri — dil başına TEK karar.
+ *
+ * Her cümleyi ayrı ayrı `tr ? ... : ...` diye dallandırmak, aynı soruyu yedi kez
+ * sormak demek: biri güncellenip öteki unutulduğunda arayüz yarı Türkçe kalıyor
+ * (bkz. __tests__/i18nRatchet.test.ts).
+ */
+const copy = (tr: boolean) => tr
+  ? {
+      done: 'Tamamlandı',
+      complete: 'Görevi tamamla',
+      doneSuffix: 'tamamlandı',
+      openHint: 'Görev ayrıntılarını açar',
+      dayOne: '1. Gün',
+      clean: (d: number) => `Temiz: ${d} gün`,
+      goal: (d: number) => `Hedef: ${d} gün`,
+    }
+  : {
+      done: 'Completed',
+      complete: 'Complete task',
+      doneSuffix: 'completed',
+      openHint: 'Opens task details',
+      dayOne: 'Day 1',
+      clean: (d: number) => `Clean: ${d} ${d === 1 ? 'day' : 'days'}`,
+      goal: (d: number) => `Goal: ${d} days`,
+    };
+
+export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme, isDark, tr, onPress, onCheck, priorityColor, prefs }) => {
   const modeInfo = getModeInfoForTask(item.original, prefs, theme);
+  const title = getLocalizedTaskTitle(item.original || item, tr);
+  const c = copy(tr);
   return (
     <Touchable
       onPress={onPress}
       activeOpacity={0.7}
+      /*
+        SATIRIN ADI AÇIKÇA VERİLİYOR. Ekran okuyucu bu satırı çocuklarından
+        topluyordu: başlık, mod adı ve geri sayım ayrı ayrı okunuyor, kullanıcı
+        görevin tamamlanıp tamamlanmadığını duymuyordu. Tek cümle daha anlaşılır.
+      */
+      accessibilityRole="button"
+      accessibilityLabel={item.isCompleted
+        ? `${title} — ${c.doneSuffix}`
+        : title}
+      accessibilityHint={c.openHint}
       style={{
         flexDirection: 'row', alignItems: 'center',
         // Dikey boşluk BİLEREK burada değil, içerik bloğunda: ayırıcı satırın alt
@@ -38,7 +146,15 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
         backgroundColor: 'transparent'
       }}
     >
-      <View style={{ width: 7, height: 7, borderRadius: R.full, backgroundColor: modeInfo ? modeInfo.color : priorityColor(item.priority), marginRight: S.md }} />
+      <CheckRing
+        color={modeInfo ? modeInfo.color : priorityColor(item.priority)}
+        done={!!item.isCompleted}
+        theme={theme}
+        onCheck={onCheck}
+        label={item.isCompleted
+          ? c.done
+          : c.complete}
+      />
       {/*
         Ayırıcı bu blokta — yani noktanın SAĞINDAN, metnin başladığı yerden başlıyor.
         Apple listelerinin imzası bu: çizgi ikonun altını boş bırakır, böylece satırlar
@@ -60,7 +176,7 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
             opacity: item.isCompleted ? 0.5 : 1,
             flexShrink: 1
           }} numberOfLines={1}>
-            {getLocalizedTaskTitle(item.original || item, tr)}
+            {title}
           </Text>
           {/*
             MOD ROZETİ BAŞLIĞIN YANINDAN ALINDI — aşağıdaki ikincil satıra taşındı.
@@ -97,12 +213,12 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
           const isQuitMode = modeInfo && (modeInfo.unit === 'clean_day');
           const taskCountdown = isQuitMode
             ? (modeInfo!.daysLeft === 0
-                ? (tr ? '1. Gün' : 'Day 1')
-                : (tr ? `Temiz: ${modeInfo!.daysLeft} gün` : `Clean: ${modeInfo!.daysLeft} ${modeInfo!.daysLeft === 1 ? 'day' : 'days'}`))
+                ? c.dayOne
+                : c.clean(modeInfo!.daysLeft!))
             : getTaskRemainingTime(item.original?.dueDate, item.original?.dueTime, item.original?.isCompleted, tr);
 
           const planCountdown = !isQuitMode && modeInfo && modeInfo.daysLeft !== undefined && modeInfo.unit === 'day'
-            ? (tr ? `Hedef: ${modeInfo.daysLeft} gün` : `Goal: ${modeInfo.daysLeft} days`)
+            ? c.goal(modeInfo.daysLeft)
             : null;
 
           const tail = [planCountdown, taskCountdown].filter(Boolean).join(' · ');
@@ -144,11 +260,13 @@ export const MyDayTaskRow = React.memo<MyDayTaskRowProps>(({ item, isLast, theme
           );
         })()}
       </View>
-      {item.isCompleted ? (
-        <CheckCircle2 size={ICON.sm} color={theme.success} style={{ marginLeft: S.sm }} />
-      ) : (
-        <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
-      )}
+      {/*
+        Sondaki ok "aç"ı anlatıyor ve İKİ DURUMDA DA duruyor. Eskiden tamamlanmışta
+        yerini yeşil bir tike bırakıyordu; artık tamamlanmayı soldaki dolu halka
+        söylüyor, aynı bilgiyi satırın iki ucunda tekrar etmeye gerek yok. Ayrıca
+        ikonun sabit kalması, işaretlenince satırın sağ ucunun oynamasını önlüyor.
+      */}
+      <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.3} style={{ marginLeft: S.sm }} />
       </View>
     </Touchable>
   );

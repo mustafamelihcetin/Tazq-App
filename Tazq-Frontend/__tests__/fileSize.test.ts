@@ -141,7 +141,24 @@ const KNOWN_LARGE: Record<string, number> = {
     hesabın ilk dakikasında düşülüyor, yani notlar olmadan aynı tuzağa yeniden düşülür
     (bkz. __tests__/activationFlow.test.ts).
   */
-  'app/index.tsx': 2233,
+  /*
+    2233 → 2342: ANA EKRANIN DENETİMİ. Eklenen işlevsel kod azdır; ÖLÜ kod da çıktı
+    (kullanılmayan beş hesap, iki mağaza aboneliği). Artışın büyük kısmı, bulunan
+    kusurların NEDEN kusur olduğunu anlatan notlar — hiçbiri "ekrana bakınca"
+    görünmüyordu:
+
+     · Komut paletinden eklenen görev sunucuya hiç gitmiyordu; ekran her odaklandığında
+       liste sunucununkiyle değiştiği için görev sessizce kayboluyordu.
+     · Günlük listeden görev TAMAMLANAMIYORDU: seksen satırlık işleyici hiçbir yerden
+       çağrılmıyordu.
+     · Seri hesabı üç ayrı "bugün" tanımı kullanıyordu; biri hiç tutmayan bir
+       karşılaştırmaydı (odak seansları seriye hiç sayılmıyordu).
+     · Halka ile liste farklı kümeleri sayıyordu.
+
+    Sıradaki küçültme adresi belli: komut paleti (~250 satır) kendi bileşenine
+    çıkarılabilir ve dosyayı eski tavanının altına indirir.
+  */
+  'app/index.tsx': 2342,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.

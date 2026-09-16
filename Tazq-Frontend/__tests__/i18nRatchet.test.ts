@@ -118,7 +118,10 @@ const BASELINE: Record<string, number> = {
   'app/tasks.tsx': 87,
   'app/verify-email.tsx': 11,
   'features/dashboard/components/MyDayHabits.tsx': 5,
-  'features/dashboard/components/MyDayTaskRow.tsx': 3,
+  // 3 → 1: yedi ayrı dallanma tek `copy(tr)` sözlüğüne toplandı. Satıra tamamlama
+  // halkası eklenirken dört metin daha gerekiyordu; her birini ayrı dallandırmak
+  // aynı soruyu on bir kez sormak olurdu.
+  'features/dashboard/components/MyDayTaskRow.tsx': 1,
   'features/dashboard/components/StatusHub.tsx': 3,
   'features/dashboard/components/StatusHubModal.tsx': 19,
   'features/dashboard/components/TodayCard.tsx': 6,
