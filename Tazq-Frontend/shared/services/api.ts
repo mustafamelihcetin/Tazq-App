@@ -390,7 +390,17 @@ export const TaskService = {
   // yok, çünkü görev arşivli DOĞMAZ) ama güncellenebilir olmalı. Tip burada açıkça
   // genişletiliyor — `as any` ile kaçmak, yanlış alan adını derlemede yakalanmaz kılardı.
   updateTask: async (id: number, payload: Partial<CreateTaskPayload> & { isCompleted?: boolean; isArchived?: boolean }) => {
-    const response = await api.put(`/api/tasks/${id}`, payload);
+    let fullPayload = payload;
+    try {
+      const store = require('@/features/tasks/store/useTaskStore').useTaskStore;
+      const task = store.getState().tasks.find((t: any) => t.id === id);
+      if (task) {
+        fullPayload = { ...task, ...payload };
+      }
+    } catch (e) {
+      // ignore
+    }
+    const response = await api.put(`/api/tasks/${id}`, fullPayload);
     return response.data;
   },
   deleteTask: async (id: number) => {

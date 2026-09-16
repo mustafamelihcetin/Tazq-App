@@ -13,6 +13,9 @@ import { DynamicIsland } from '@/features/focus';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { DashboardHero } from '@/features/dashboard/components/DashboardHero';
+import { TazqMindCard } from '@/features/dashboard/components/TazqMindCard';
+import { analyzeTaskLoad, rescheduleTasks, undoRescheduleTasks, getLocalDateString } from '@/features/tasks/utils/taskBalancer';
+import { Task } from '@/features/tasks/store/useTaskStore';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { TodayCard } from '@/features/dashboard/components/TodayCard';
 import { SectionHeader } from '@/shared/components/SectionHeader';
@@ -109,6 +112,7 @@ export default function HomeScreen() {
    * Kaynakta bir kez süzmek, aşağıdaki her türev listeyi otomatik doğru kılıyor.
    */
   const tasks = React.useMemo(() => allTasks.filter(t => t && !t.isArchived), [allTasks]);
+  const balancerResult = React.useMemo(() => analyzeTaskLoad(tasks), [tasks]);
 
   const { user, setUser, token, isFirstLogin, setIsFirstLogin } = useAuthStore();
   const { t, language } = useLanguageStore();
@@ -145,6 +149,7 @@ export default function HomeScreen() {
   const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, productivityHour, completedTours, setOnboardingCompleted, welcomeStatus, _hasHydrated: prefsHydrated } = usePrefsStore();
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
+  const [lastRescheduled, setLastRescheduled] = useState<Task[]>([]);
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -1729,22 +1734,29 @@ export default function HomeScreen() {
             <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
               <DashboardHero
                 greeting={getGreeting()}
-                /*
-                  YER TUTUCU ADLA SELAMLAMA YOK.
-
-                  Ad "TAZQ Kullanıcısı" olduğunda `split(' ')[0]` "TAZQ" veriyordu ve
-                  ekran kullanıcıya "Günaydın, TAZQ" diyordu — uygulama kendi adıyla
-                  selam veriyor. Ekran bunun yer tutucu olduğunu ZATEN biliyor
-                  (isNamePlaceholder, profil modalına da o bilgi gidiyor); yalnız
-                  selamlamada kullanılmıyordu. Bilinen bir gerçeği kullanmamak,
-                  bilmemekten daha kolay düzeltilir.
-                */
                 name={(!isNamePlaceholder && user?.name?.split(' ')[0]) || (language === 'tr' ? 'sen' : 'you')}
                 subGreeting={getSubGreeting()}
                 isSmallScreen={isSmallScreen}
                 theme={theme}
               />
             </View>
+
+            {!isLite && (
+              <TazqMindCard 
+                overdueCount={balancerResult.overdueTasks.length}
+                suggestedTasks={balancerResult.suggestedToMove}
+                onOptimize={() => {
+                  setLastRescheduled(balancerResult.suggestedToMove);
+                  const tomorrow = new Date();
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  rescheduleTasks(balancerResult.suggestedToMove, getLocalDateString(tomorrow));
+                }}
+                onUndo={() => undoRescheduleTasks(lastRescheduled)}
+                theme={theme}
+                tr={tr}
+              />
+            )}
+
 
             {/*
               ── GENİŞ EKRANDA İKİ SÜTUN ───────────────────────────────────────────

@@ -162,6 +162,7 @@ namespace Tazq_App.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTask(int id, [FromBody] TaskItem updatedTask)
         {
+            System.IO.File.AppendAllText("update_log.txt", $"[{DateTime.UtcNow}] UpdateTask called for {id} with DueDate: {updatedTask.DueDate}, Title: {updatedTask.Title}\n");
             var userId = GetUserId();
             if (userId == null)
                 return Unauthorized();

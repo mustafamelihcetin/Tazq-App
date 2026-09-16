@@ -7,6 +7,7 @@ import { ICON, S, F, R, METRIC, LH, trackingFor } from '@/shared/constants/token
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { useMomentumStore } from '@/features/user/store/useMomentumStore';
+import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import { swallow } from '@/shared/utils/swallow';
 import { Separator } from '@/shared/components/Separator';
 import { BentoCard } from '@/shared/components/BentoCard';
@@ -142,6 +143,27 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
       dolgu kartı boş gösterirdi.
     */}
     <View style={{ paddingHorizontal: S.lg, marginBottom: S.lg }}>
+    {/* Momentum Aura (Core) */}
+    {engineHeat > 0 && (
+      <MotiView
+        from={{ opacity: engineHeat / 300, scale: 0.98 }}
+        animate={{ opacity: engineHeat / 150, scale: 1 + (engineHeat / 2000) }}
+        transition={{ type: 'timing', duration: Math.max(600, 2000 - (engineHeat * 14)), loop: true }}
+        style={{
+          position: 'absolute',
+          top: -S.md, left: S.md, right: S.md, bottom: -S.md,
+          backgroundColor: (() => {
+            const { seasonal } = usePrefsStore.getState();
+            if (seasonal.sporMode) return theme.error;
+            if (seasonal.tasarrufMode) return theme.tertiary;
+            if (seasonal.examMode || seasonal.tezMode) return theme.secondary || '#7C3AED';
+            return theme.primary;
+          })(),
+          borderRadius: R.lg + S.md,
+          filter: [{ blur: 20 }]
+        }}
+      />
+    )}
     <BentoCard index={0} style={{ padding: S.md }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
 
