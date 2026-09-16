@@ -27,6 +27,7 @@ const setup = (over: Partial<React.ComponentProps<typeof NextMissionCard>> = {})
       seeAllLabel="Tümü"
       onOpenTask={jest.fn()}
       onSeeAll={jest.fn()}
+      onAdd={jest.fn()}
       priorityColor={priorityColor}
       isSmallScreen={false}
       theme={theme}
@@ -135,9 +136,15 @@ describe('NextMissionCard', () => {
     expect(onOpenTask).toHaveBeenCalled();
     expect(onSeeAll).not.toHaveBeenCalled();
 
+    /*
+      Boş durumda birincil düğme ARTIK `onSeeAll` değil `onAdd` çağırıyor: üstünde
+      "+ GÖREV EKLE" yazan bir düğme listeye götürüp bırakıyordu.
+    */
+    const onAdd = jest.fn();
     const onSeeAll2 = jest.fn();
-    fireEvent.press(setup({ task: null, onSeeAll: onSeeAll2 }).getByTestId('mission-primary'));
-    expect(onSeeAll2).toHaveBeenCalled();
+    fireEvent.press(setup({ task: null, onAdd, onSeeAll: onSeeAll2 }).getByTestId('mission-primary'));
+    expect(onAdd).toHaveBeenCalled();
+    expect(onSeeAll2).not.toHaveBeenCalled();
   });
 
   it('“tümü” bağlantısı listeye götürür', () => {

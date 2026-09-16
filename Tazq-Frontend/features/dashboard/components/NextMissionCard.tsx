@@ -35,6 +35,16 @@ export interface NextMissionCardProps {
   urgentLabel: string;
   primaryLabel: string;
   seeAllLabel: string;
+  /**
+   * Görev YOKKEN birincil düğmenin işi.
+   *
+   * ── ÖLÇÜLEN SORUN ───────────────────────────────────────────────────────────
+   * Boş durumda düğme "+ GÖREV EKLE" yazıyor ama `onSeeAll`e bağlıydı: yani
+   * artı işaretli, "ekle" diyen bir düğme hiçbir şey eklemiyor, yalnız listeye
+   * götürüyordu. Kullanıcı orada bir kez daha "+"ya basmak zorundaydı.
+   * Bir düğme, üstünde yazanı yapar.
+   */
+  onAdd: () => void;
   onOpenTask: () => void;
   onSeeAll: () => void;
   /** Önceliği renge çeviren TEK kaynak. */
@@ -47,7 +57,7 @@ export interface NextMissionCardProps {
 export const NextMissionCard = React.memo<NextMissionCardProps>(
   ({
     task, title, subtitle, badgeLabel, showUrgent, urgentLabel, primaryLabel, seeAllLabel,
-    onOpenTask, onSeeAll, priorityColor, isSmallScreen, theme, padding,
+    onOpenTask, onSeeAll, onAdd, priorityColor, isSmallScreen, theme, padding,
   }) => {
     // TEK kaynak: gradyan, rozet ve rozet yazısı hep bunu kullanır. Eskiden gradyan
     // önceliği kendi if/else'iyle renge çeviriyordu, rozet ise priorityColor() ile —
@@ -133,7 +143,7 @@ export const NextMissionCard = React.memo<NextMissionCardProps>(
             <View style={styles.footer}>
               <Touchable
                 testID="mission-primary"
-                onPress={task ? onOpenTask : onSeeAll}
+                onPress={task ? onOpenTask : onAdd}
                 accessibilityRole="button"
                 accessibilityLabel={primaryLabel}
                 style={[

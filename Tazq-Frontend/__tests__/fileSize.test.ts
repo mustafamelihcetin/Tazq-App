@@ -142,7 +142,7 @@ const KNOWN_LARGE: Record<string, number> = {
     (bkz. __tests__/activationFlow.test.ts).
   */
   /*
-    2233 → 2342: ANA EKRANIN DENETİMİ. Eklenen işlevsel kod azdır; ÖLÜ kod da çıktı
+    2233 → 2472: ANA EKRANIN DENETİMİ (üç geçiş). Eklenen işlevsel kod azdır; ÖLÜ kod da çıktı
     (kullanılmayan beş hesap, iki mağaza aboneliği). Artışın büyük kısmı, bulunan
     kusurların NEDEN kusur olduğunu anlatan notlar — hiçbiri "ekrana bakınca"
     görünmüyordu:
@@ -155,10 +155,15 @@ const KNOWN_LARGE: Record<string, number> = {
        karşılaştırmaydı (odak seansları seriye hiç sayılmıyordu).
      · Halka ile liste farklı kümeleri sayıyordu.
 
+    İkinci geçişte beş kusur daha çıktı: sahte satırlar gerçek kutlamayı tetikliyordu,
+    atlanan ritüel "bekleyen" sayılıyordu, haftalık ipuçları ivme geçmişini boş
+    görüyordu, kullanıcının seçtiği verimli saat yok sayılıyordu ve haftalık tamamlama
+    sayısı `completedAt` olmayan her kaydı "bu hafta" sayıyordu.
+
     Sıradaki küçültme adresi belli: komut paleti (~250 satır) kendi bileşenine
     çıkarılabilir ve dosyayı eski tavanının altına indirir.
   */
-  'app/index.tsx': 2342,
+  'app/index.tsx': 2472,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.

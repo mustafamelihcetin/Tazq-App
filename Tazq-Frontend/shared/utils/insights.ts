@@ -55,7 +55,12 @@ export function getSmartInsight(
   momentum: number,
   highPriorityToday: Task | undefined,
   topTaskToday: Task | undefined,
-  futureTasksIncomplete: Task[],
+  /*
+    BURADA `futureTasksIncomplete: Task[]` DİYE BİR PARAMETRE VARDI ve kaldırıldı.
+    Gövdede hiç okunmuyordu; üstelik çağıran taraf ona `undatedTasksIncomplete`
+    geçiriyordu — yani adı da yanlıştı. Okunmayan ve yanlış adlandırılmış bir
+    parametre, konumsal bir çağrıda sıradaki hatanın hazır zemini olur.
+  */
   seasonal?: any,
   todayCompleted?: number,
   dailyGoal?: number,

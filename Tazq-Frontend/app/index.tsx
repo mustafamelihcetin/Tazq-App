@@ -141,7 +141,7 @@ export default function HomeScreen() {
     gezinme ağacı henüz hazır olmuyor (bkz. useAppShortcuts).
   */
   useAppShortcuts();
-  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, tezPlanHabitIds, tezPlanTaskIds, mulakatPlanHabitIds, mulakatPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, helpTourShown, completedTours, onboardingCompleted, setOnboardingCompleted, welcomeStatus, _hasHydrated: prefsHydrated } = usePrefsStore();
+  const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, productivityHour, completedTours, setOnboardingCompleted, welcomeStatus, _hasHydrated: prefsHydrated } = usePrefsStore();
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
@@ -248,9 +248,26 @@ export default function HomeScreen() {
     return null;
   })();
 
-  // A unique key per mode period — changes when mode type or exam date changes, resetting dismiss
+  /*
+    BANDIN DÖNEM ANAHTARI — kapatma kaydı buna bağlı.
+
+    Anahtar `examDate ?? mulakatDate ?? tezDate ?? yıl` diye kuruluyordu, yani MODUN
+    KENDİ dönemine değil, sırayla bulunan HERHANGİ bir tarihe. İki sonucu vardı:
+
+     · Ramazan bandını kapatan kullanıcının kaydı `ramazan-<sınav tarihi>` olarak
+       yazılıyordu. Sınav tarihini değiştirince anahtar değişiyor ve RAMAZAN bandı
+       geri geliyordu — kapattığı şeyle hiç ilgisi olmayan bir ayar yüzünden.
+     · `mulakatDate`/`tezDate` dalları zaten ulaşılamıyordu (bkz. activePlanApplied
+       notu): bu ekranda mod tipi yalnız exam/ramazan/yks/kpss olabiliyor.
+
+    Anahtar artık modun kendi döneminden türüyor.
+  */
   const activeBannerKey = activeMode
-    ? `${activeMode.type}-${seasonal.examDate ?? seasonal.mulakatDate ?? seasonal.tezDate ?? `auto-${new Date().getFullYear()}`}`
+    ? `${activeMode.type}-${
+        activeMode.type === 'ramazan'
+          ? new Date().getFullYear()
+          : seasonal.examDate ?? `auto-${new Date().getFullYear()}`
+      }`
     : '';
   const modeDismissed = !!activeBannerKey && dismissedBannerKey === activeBannerKey;
 
@@ -363,7 +380,7 @@ export default function HomeScreen() {
       AsyncStorage.getItem(key).then(val => {
         if (val) setTodayRating(parseInt(val, 10));
         else setTodayRating(null);
-      }).catch(() => {});
+      }).catch(e => swallow('index.readTodayRating', e));
     } else {
       setTodayRating(null);
     }
@@ -544,15 +561,44 @@ export default function HomeScreen() {
    * Sıfıra bölme korkusuyla konmuş bir hileydi — koruma verinin değil, HESABIN işi
    * (bkz. TodayCard: Math.max(goal, 1)). "Görev yok" ayrı bir durumdur, "1 görev var" değil.
    */
+  /*
+    İKİ FARKLI "GÜN" BİLEREK KULLANILIYOR — ve bu yüzden yazılı.
+
+     · VADE takvim gününe göre okunuyor (`todayStart` / `todayEndMs`). Kullanıcı bir
+       görevi "16 Eylül" diye işaretledi; 16 Eylül gece yarısı başlar.
+     · TAMAMLAMA ise ürünün gününe göre (`todayKey`, 3 saat tamponlu). "Bugün ne
+       yaptım" sorusunun cevabı kişinin UYANIK gününe aittir; gece 00:30'da
+       bitirilen iş hâlâ o akşamın işidir. Alışkanlıklar ve seri de böyle sayıyor.
+
+    Bu ayrımın yazılı olması şart: kusurların çoğu tam olarak iki gün tanımının
+    farkında olmadan karıştırılmasından çıkmıştı.
+  */
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const todayEndMs = todayStart.getTime() + 86400000;
 
   const dayScope = React.useMemo(() => {
-    const dueThroughToday = (t: any) => !!t?.dueDate && new Date(t.dueDate).getTime() <= todayEndMs;
+    /*
+      OKUNAMAYAN TARİH = TARİHSİZ.
+
+      `new Date('bozuk').getTime()` NaN döner ve NaN ile yapılan her karşılaştırma
+      yanlıştır: böyle bir görev ne "bugüne kadar vadesi gelmiş" listesine ne de
+      "tarihsiz" listesine giriyordu — yani ekrandan TAMAMEN kayboluyordu. Bir
+      uygulamanın en temel sözü, eklediğin şeyin orada durmasıdır; bozuk bir alan
+      o sözü bozmamalı.
+    */
+    const dueAt = (t: any) => {
+      if (!t?.dueDate) return null;
+      const ms = new Date(t.dueDate).getTime();
+      return Number.isNaN(ms) ? null : ms;
+    };
+    const dueThroughToday = (t: any) => {
+      const ms = dueAt(t);
+      return ms !== null && ms <= todayEndMs;
+    };
     const today = todayKey();
 
     const incomplete = tasks.filter(t => t && !t.isCompleted && dueThroughToday(t));
-    const undated = tasks.filter(t => t && !t.isCompleted && !t.dueDate);
+    const undated = tasks.filter(t => t && !t.isCompleted && dueAt(t) === null);
     /*
       TAMAMLANANLAR: eski koşul KORUNUYOR, üstüne bir dal ekleniyor.
 
@@ -568,7 +614,8 @@ export default function HomeScreen() {
     const completed = tasks.filter(t => {
       if (!t?.isCompleted) return false;
       if (wasCompletedOn(t, today)) return true;
-      return !!t.dueDate && new Date(t.dueDate).getTime() >= todayStart.getTime() && dueThroughToday(t);
+      const ms = dueAt(t);
+      return ms !== null && ms >= todayStart.getTime() && ms <= todayEndMs;
     });
 
     return { incomplete, undated, completed };
@@ -650,8 +697,8 @@ export default function HomeScreen() {
   }, []);
 
   const handleQuickSave = async (title: string) => {
-    haptic.success();
-    
+    // Titreşim BAŞTA çağrılıyordu: kayıt başarısız olsa bile kullanıcı "oldu"
+    // hissini almış oluyordu. Onay, olayın kendisinden sonra gelir.
     const hint = parseTaskHint(title, language as 'tr' | 'en');
     const isReminder = hint.tags?.includes('hatırlatıcı') || hint.tags?.includes('reminder');
     
@@ -675,6 +722,7 @@ export default function HomeScreen() {
             const { scheduleTaskNotification } = require('@/shared/utils/notifications');
             await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
+          haptic.success();
           showToast(savedLocallyMessage(), 'success');
         } else {
           const created = await TaskService.createTask(payload as any);
@@ -685,6 +733,7 @@ export default function HomeScreen() {
               const { scheduleTaskNotification } = require('@/shared/utils/notifications');
               await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
+          haptic.success();
           showToast(`"${payload.title}" ${t.toastTaskAdded}`, 'success');
         }
     } catch (error: unknown) {
@@ -696,6 +745,7 @@ export default function HomeScreen() {
             const { scheduleTaskNotification } = require('@/shared/utils/notifications');
             await scheduleTaskNotification(tempId, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
+          haptic.success();
           showToast(savedLocallyMessage(), 'success');
         } else {
           showToast(t.saveError, 'error');
@@ -887,6 +937,18 @@ export default function HomeScreen() {
 
 
 
+  /*
+    BU BANT YALNIZ DÖNEMSEL (mevsimlik) MODLAR İÇİN.
+
+    `tez` ve `mulakat` dalları buradan KALDIRILDI çünkü ulaşılamıyorlardı: bu ekranda
+    `activeMode` yalnız `getCustomExamMode` (her zaman 'exam') ya da
+    `detectTurkishMode` (ramazan / yks / kpss) sonucundan geliyor. Ölü dallar
+    zararsız görünür ama yalan söyler — kodu okuyan, tez modunda da bir bant
+    çıktığını sanır ve olmayan bir davranışı korumaya çalışır.
+
+    Tez ve mülakat ana ekranda `ModeTodayCard` üzerinden görünüyor
+    (bkz. useActiveModeSummary), yani kullanıcı bir şey kaybetmiyor.
+  */
   const activePlanApplied = (() => {
     if (!activeMode) return false;
     const t = activeMode.type;
@@ -894,10 +956,6 @@ export default function HomeScreen() {
       return examPlanHabitIds.length > 0 || examPlanTaskIds.length > 0;
     if (t === 'ramazan')
       return ramazanPlanHabitIds.length > 0 || ramazanPlanTaskIds.length > 0;
-    if (t === 'tez')
-      return tezPlanHabitIds.length > 0 || tezPlanTaskIds.length > 0;
-    if (t === 'mulakat')
-      return mulakatPlanHabitIds.length > 0 || mulakatPlanTaskIds.length > 0;
     return false;
   })();
 
@@ -953,6 +1011,23 @@ export default function HomeScreen() {
     Üç ekran aynı iki soruyu üç ayrı şekilde yanıtlıyordu; ayrışmalar yalnız yeni bir
     hesabın ilk dakikasında görünür olduğu için canlıya kadar gitmişti.
   */
+  /**
+   * ÖRNEK (SAHTE) SATIR MI?
+   *
+   * ── ÖLÇÜLEN SORUN ───────────────────────────────────────────────────────────
+   * Boş ekranı canlandıran sahte satırlar GERÇEK işleyicilere bağlıydı. Mağazalar
+   * bilinmeyen bir kimlikle sessizce hiçbir şey yapmıyor, yani veri bozulmuyordu —
+   * ama yan etkiler çalışıyordu. En kötüsü alışkanlıkta: sahte bir ritüele
+   * dokununca `pendingHabits` GERÇEK (ve boş) listeden hesaplanıyor, "hepsi bitti"
+   * çıkıyor ve kullanıcıya sahip olmadığı ritüeller için tam ekran kutlama
+   * patlıyordu. Titreşim ve ses de öyle: uygulama olmayan bir şeyi kutluyordu.
+   *
+   * Kimlik önekiyle ayırt ediliyor; gerçek alışkanlık kimlikleri de METİN olduğu
+   * için tür kontrolü yetmiyor (bkz. __tests__/dashboardIntegrity).
+   */
+  const DEMO_ID_PREFIX = 'mock-';
+  const isDemoId = (id: string | number) => typeof id === 'string' && id.startsWith(DEMO_ID_PREFIX);
+
   const demoGate = useDemoGate('dashboard');
   /* Ref: kapı her odaklanmada GÜNCEL diziyi okur, kapanışta eskiye saplanmaz. */
   const tasksRef = useRef(tasks);
@@ -1119,7 +1194,6 @@ export default function HomeScreen() {
     momentum,
     highPriorityToday,
     topTaskToday,
-    undatedTasksIncomplete,
     seasonal,
     todayCompleted,
     dailyGoal,
@@ -1129,10 +1203,32 @@ export default function HomeScreen() {
   const weeklyTips = React.useMemo(() => {
     return generateWeeklyTips({
       weeklyFocusMinutes: mergedWeeklyFocus.map(d => d.minutes || 0),
-      completedTasksWeek: tasks.filter(t => t.isCompleted && (t.completedAt ? (Date.now() - new Date(t.completedAt).getTime() < 7 * 86400000) : true)).length,
+      /*
+        `completedAt` yoksa eskiden KOŞULSUZ sayılıyordu (`: true`). Sunucu bu alanı
+        tutmadığı için (bkz. useTaskStore.setTasks) yılların tamamlanmış görevleri
+        "bu hafta bitirildi" sayılıyor ve haftalık ipuçları uydurma bir hacimle
+        konuşuyordu. Yedek artık VADEYE düşüyor — aynı yedek kuralı ekranın her
+        yerinde geçerli (bkz. streakDay → wasCompletedOn).
+      */
+      completedTasksWeek: tasks.filter(t => {
+        if (!t.isCompleted) return false;
+        const when = t.completedAt ?? t.dueDate;
+        return !!when && Date.now() - new Date(when).getTime() < 7 * 86400000;
+      }).length,
       streak: streak,
-      momentumLast7: [],
-      productivityHour: 'afternoon',
+      /*
+        İKİSİ DE SABİT YAZILIYDI ve ikisi de yalan söylüyordu:
+
+         · `momentumLast7: []` → ipucu motoru ivme geçmişini boş görüyor, eğilim hep
+           'na' çıkıyor ve ivmeye dayalı ipuçları HİÇ üretilmiyordu. Oysa veri iki
+           satır yukarıda hazır duruyor (bkz. completionHistory).
+         · `productivityHour: 'afternoon'` → kullanıcıya hoş geldin ekranında "en
+           verimli saatin hangisi?" diye SORULUYOR, cevap kaydediliyor, buluta bile
+           eşitleniyor — sonra burada yok sayılıp herkese "öğleden sonra" deniyordu.
+           Sorulan bir sorunun cevabını yok saymak, hiç sormamaktan kötüdür.
+      */
+      momentumLast7: completionHistory.map(d => d.score),
+      productivityHour,
       habits: habits.map(h => ({
         name: h.name,
         skippedDates: h.skippedDates || [],
@@ -1146,7 +1242,7 @@ export default function HomeScreen() {
         completedAt: t.completedAt
       }))
     });
-  }, [mergedWeeklyFocus, tasks, streak, habits]);
+  }, [mergedWeeklyFocus, tasks, streak, habits, completionHistory, productivityHour]);
 
   const handleCheckTask = async (taskId: number) => {
     const task = tasks.find(t => t.id === taskId);
@@ -1272,6 +1368,17 @@ export default function HomeScreen() {
   }, []);
 
   const todaySurprise = (() => {
+    /*
+      YAPACAK BİR ŞEY YOKKEN KUTLAMA YOK.
+
+      Koşul `todayCompleted >= dailyGoal` idi ve boş günde 0 >= 0 doğru çıkıyordu:
+      hiçbir planı olmayan kullanıcı karta çift dokununca "MÜKEMMEL GÜN!" alkışı
+      alıyordu. TodayCard bu kuralı kendi içinde zaten doğru yazmış ("Bugün için
+      planın boş" — yanındaki not da nedenini anlatıyor: hiçbir şey yapmadan alkış
+      almak, gerçekten bir şey bitirince gelen alkışın değerini düşürür) ama
+      vurgulama dalı bu metni ezdiği için kural dışarıdan bozuluyordu.
+    */
+    if (dailyGoal === 0) return language === 'tr' ? 'BUGÜN SERBEST!' : 'A FREE DAY!';
     if (todayCompleted >= dailyGoal) return language === 'tr' ? 'MÜKEMMEL GÜN!' : 'PERFECT DAY!';
     const pct = todayCompleted / Math.max(dailyGoal, 1);
     if (pct >= 0.5) return language === 'tr' ? 'YARIYA GELDİN!' : 'HALFWAY THERE!';
@@ -1346,7 +1453,7 @@ export default function HomeScreen() {
           sahte bir satıra basmak sessizce hiçbir şey yapmasın diye halka onlarda
           dokunulamaz çiziliyor.
         */
-        onCheck={typeof item.id === 'number' ? () => handleCheckTask(item.id) : undefined}
+        onCheck={isDemoId(item.id) ? undefined : () => handleCheckTask(item.id)}
         priorityColor={priorityColor}
         prefs={usePrefsStore.getState()}
       />
@@ -1439,6 +1546,12 @@ export default function HomeScreen() {
       seeAllLabel={t.filterAll}
       onOpenTask={() => router.push({ pathname: '/tasks', params: { highlightId: String(topTask?.id) } })}
       onSeeAll={() => router.push('/tasks')}
+      /*
+        "GÖREV EKLE" gerçekten EKLEME açıyor. `action: 'add'` Aksiyon Merkezi'nde
+        tam formu açan mevcut kapı (Haftalık Merkez de aynı yolu kullanıyor);
+        artı işareti uygulamanın dilinde "yapılandırılmış ekleme" demek.
+      */
+      onAdd={() => router.push({ pathname: '/tasks', params: { action: 'add' } })}
       priorityColor={priorityColor}
       isSmallScreen={isSmallScreen}
       theme={theme}
@@ -1613,7 +1726,17 @@ export default function HomeScreen() {
             <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
               <DashboardHero
                 greeting={getGreeting()}
-                name={user?.name?.split(' ')[0] || (language === 'tr' ? 'sen' : 'you')}
+                /*
+                  YER TUTUCU ADLA SELAMLAMA YOK.
+
+                  Ad "TAZQ Kullanıcısı" olduğunda `split(' ')[0]` "TAZQ" veriyordu ve
+                  ekran kullanıcıya "Günaydın, TAZQ" diyordu — uygulama kendi adıyla
+                  selam veriyor. Ekran bunun yer tutucu olduğunu ZATEN biliyor
+                  (isNamePlaceholder, profil modalına da o bilgi gidiyor); yalnız
+                  selamlamada kullanılmıyordu. Bilinen bir gerçeği kullanmamak,
+                  bilmemekten daha kolay düzeltilir.
+                */
+                name={(!isNamePlaceholder && user?.name?.split(' ')[0]) || (language === 'tr' ? 'sen' : 'you')}
                 subGreeting={getSubGreeting()}
                 isSmallScreen={isSmallScreen}
                 theme={theme}
@@ -1717,14 +1840,27 @@ export default function HomeScreen() {
                       tr={tr}
                       onAddHabit={() => { router.push('/cockpit'); }}
                       onSkip={(item) => {
+                        if (isDemoId(item.id)) return;
                         // Atlamak bir BAŞARI değil; `success` titreşimi ritüeli
                         // tamamlamakla aynı karşılığı veriyordu.
                         haptic.surface();
                         toggleHabitSkipDate(item.id as string, habitTodayKey);
                       }}
                       onToggle={(item) => {
+                          if (isDemoId(item.id)) return;
                           if (!item.isCompleted) {
-                            const pendingHabits = habits.filter(h => h.id !== item.id && !h.completedDates?.includes(habitTodayKey));
+                            /*
+                              ATLANAN RİTÜEL "BEKLEYEN" DEĞİLDİR. Koşul yalnız
+                              `completedDates`e bakıyordu: kullanıcı bir ritüeli
+                              "bugün değil" diye atlayıp kalanları bitirdiğinde gün
+                              kapanmış sayılmıyor, kutlama hiç gelmiyordu. Oysa
+                              sistemin geri kalanı atlamayı MAZUR görüyor — seri bile
+                              bozulmuyor (bkz. useHabitStore → computeStreak).
+                            */
+                            const pendingHabits = habits.filter(h =>
+                              h.id !== item.id &&
+                              !h.completedDates?.includes(habitTodayKey) &&
+                              !h.skippedDates?.includes(habitTodayKey));
                             const allHabitsDone = pendingHabits.length === 0;
 
                             if (soundEffects && !allHabitsDone) {
@@ -1919,24 +2055,18 @@ export default function HomeScreen() {
                   const t = activeMode.type;
                   if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanHabitIds;
                   if (t === 'ramazan') return ramazanPlanHabitIds;
-                  if (t === 'tez') return tezPlanHabitIds;
-                  if (t === 'mulakat') return mulakatPlanHabitIds;
                   return [];
                 })()}
                 planTaskIds={(() => {
                   const t = activeMode.type;
                   if (t === 'exam' || t === 'yks' || t === 'kpss') return examPlanTaskIds;
                   if (t === 'ramazan') return ramazanPlanTaskIds;
-                  if (t === 'tez') return tezPlanTaskIds;
-                  if (t === 'mulakat') return mulakatPlanTaskIds;
                   return [];
                 })()}
                 onApplied={(habitIds, taskIds) => {
                   const t = activeMode.type;
                   if (t === 'exam' || t === 'yks' || t === 'kpss') setPlanIds('exam', habitIds, taskIds);
                   else if (t === 'ramazan') setPlanIds('ramazan', habitIds, taskIds);
-                  else if (t === 'tez') setPlanIds('tez', habitIds, taskIds);
-                  else if (t === 'mulakat') setPlanIds('mulakat', habitIds, taskIds);
                 }}
                 onRatingChange={setTodayRating}
               />

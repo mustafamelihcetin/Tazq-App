@@ -90,9 +90,7 @@ describe('günlük listeden görev tamamlanabiliyor', () => {
   });
 
   it('örnek (sahte) satırlarda dokunulamaz', () => {
-    // Sahte satırın kimliği metin, canlı görevinki sayı. Basınca sessizce hiçbir şey
-    // olmasın diye kapı burada.
-    expect(INDEX).toMatch(/typeof item\.id === 'number' \? \(\) => handleCheckTask/);
+    expect(INDEX).toMatch(/onCheck=\{isDemoId\(item\.id\) \? undefined : \(\) => handleCheckTask\(item\.id\)\}/);
   });
 
   it('kilo görevi ORTAK yardımcıyla tanınıyor', () => {
@@ -103,6 +101,44 @@ describe('günlük listeden görev tamamlanabiliyor', () => {
     */
     expect(INDEX).toContain('isWeightEntryTask(item.original)');
     expect(INDEX).not.toMatch(/item\.tags\?\.includes\('weight_entry'\)/);
+  });
+});
+
+describe('örnek veri GERÇEK bir şey tetiklemiyor', () => {
+  it('sahte satırlar tek bir kapıdan ayırt ediliyor', () => {
+    /*
+      Mağazalar bilinmeyen bir kimlikle sessizce hiçbir şey yapmıyor, yani veri
+      bozulmuyordu — ama YAN ETKİLER çalışıyordu. Sahte bir ritüele dokununca
+      `pendingHabits` gerçek (ve boş) listeden hesaplanıyor, "hepsi bitti" çıkıyor ve
+      kullanıcıya sahip olmadığı ritüeller için tam ekran kutlama patlıyordu.
+    */
+    expect(INDEX).toContain("const DEMO_ID_PREFIX = 'mock-';");
+    expect(INDEX).toMatch(/const isDemoId = \(id: string \| number\) => typeof id === 'string' && id\.startsWith\(DEMO_ID_PREFIX\);/);
+  });
+
+  it('alışkanlığın iki eylemi de kapıdan geçiyor', () => {
+    // Gerçek alışkanlık kimlikleri de METİN; tür kontrolü burada yetmez.
+    expect((INDEX.match(/if \(isDemoId\(item\.id\)\) return;/g) ?? []).length).toBe(2);
+  });
+
+  it('her sahte kimlik önek taşıyor — kapı boşa düşmesin', () => {
+    /*
+      Kapı öneke dayanıyor. Yeni bir örnek satır önek olmadan eklenirse kapı sessizce
+      açık kalır ve kusur geri gelir; bu yüzden önek burada sayılıyor.
+    */
+    const ids = [...INDEX.matchAll(/id: '([^']*)'/g)].map(m => m[1]);
+    const demoish = ids.filter(id => /^mock/.test(id));
+    expect(demoish.length).toBeGreaterThanOrEqual(6);
+    for (const id of demoish) expect(id.startsWith('mock-')).toBe(true);
+  });
+
+  it('atlanan ritüel "bekleyen" sayılmıyor', () => {
+    /*
+      Koşul yalnız `completedDates`e bakıyordu: bir ritüeli atlayıp kalanları bitiren
+      kullanıcının günü kapanmış sayılmıyordu. Sistemin geri kalanı atlamayı mazur
+      görüyor — seri bile bozulmuyor (bkz. computeStreak).
+    */
+    expect(INDEX).toMatch(/!h\.skippedDates\?\.includes\(habitTodayKey\)/);
   });
 });
 
@@ -165,6 +201,90 @@ describe('halka ile liste AYNI kümeyi sayıyor', () => {
       görev tamamlanınca iki listenin de dışında kalıp ekrandan siliniyordu.
     */
     expect(INDEX).toMatch(/wasCompletedOn\(t, today\)/);
+  });
+});
+
+describe('haftalık ipuçları GERÇEK veriyle konuşuyor', () => {
+  it('ivme geçmişi boş dizi olarak verilmiyor', () => {
+    // `momentumLast7: []` → eğilim hep 'na', ivmeye dayalı hiçbir ipucu üretilmiyordu.
+    expect(INDEX).not.toMatch(/momentumLast7: \[\]/);
+    expect(INDEX).toContain('momentumLast7: completionHistory.map(d => d.score),');
+  });
+
+  it('kullanıcının seçtiği verimli saat kullanılıyor', () => {
+    /*
+      Hoş geldin ekranında sorulan, kaydedilen ve buluta eşitlenen bir tercih burada
+      sabit `'afternoon'` ile eziliyordu. Sorulan bir sorunun cevabını yok saymak,
+      hiç sormamaktan kötüdür.
+    */
+    expect(INDEX).not.toMatch(/productivityHour: 'afternoon'/);
+    expect(INDEX).toMatch(/^\s+productivityHour,$/m);
+  });
+
+  it('haftalık tamamlama sayısı KOŞULSUZ saymıyor', () => {
+    // `: true` yedeği, `completedAt` taşımayan her eski kaydı "bu hafta" sayıyordu.
+    expect(INDEX).not.toMatch(/< 7 \* 86400000\) : true\)/);
+    expect(INDEX).toContain('const when = t.completedAt ?? t.dueDate;');
+  });
+});
+
+describe('düğmeler üstünde yazanı yapıyor', () => {
+  it('"+ GÖREV EKLE" gerçekten ekleme açıyor', () => {
+    /*
+      Boş durumdaki birincil düğme artı işaretli ve "ekle" diyor ama `onSeeAll`e
+      bağlıydı: listeye götürüp bırakıyordu, kullanıcı orada bir kez daha "+"ya
+      basmak zorundaydı.
+    */
+    expect(INDEX).toMatch(/onAdd=\{\(\) => router\.push\(\{ pathname: '\/tasks', params: \{ action: 'add' \} \}\)\}/);
+  });
+
+  it('boş günde kutlama yok', () => {
+    /*
+      `todayCompleted >= dailyGoal` boş günde 0 >= 0 ile doğru çıkıyor ve hiç planı
+      olmayan kullanıcı "MÜKEMMEL GÜN!" alkışı alıyordu. TodayCard bu kuralı kendi
+      içinde doğru yazmış; vurgulama dalı onu dışarıdan eziyordu.
+    */
+    expect(INDEX).toMatch(/if \(dailyGoal === 0\) return language === 'tr' \? 'BUGÜN SERBEST!'/);
+  });
+
+  it('yer tutucu adla selamlanmıyor', () => {
+    // Ad "TAZQ Kullanıcısı" iken ekran "Günaydın, TAZQ" diyordu — uygulama kendi
+    // adıyla selam veriyordu. Bilgi zaten vardı (isNamePlaceholder), kullanılmıyordu.
+    expect(INDEX).toMatch(/name=\{\(!isNamePlaceholder && user\?\.name\?\.split\(' '\)\[0\]\)/);
+  });
+});
+
+describe('dönemsel bant kendi dönemine bağlı', () => {
+  it('kapatma anahtarı ilgisiz bir tarihten türemiyor', () => {
+    /*
+      Anahtar `examDate ?? mulakatDate ?? tezDate ?? yıl` idi: Ramazan bandını kapatan
+      kullanıcının kaydı sınav tarihine bağlanıyor, sınav tarihi değişince Ramazan
+      bandı geri geliyordu — kapattığı şeyle ilgisi olmayan bir ayar yüzünden.
+    */
+    expect(INDEX).not.toMatch(/seasonal\.examDate \?\? seasonal\.mulakatDate/);
+    expect(INDEX).toMatch(/activeMode\.type === 'ramazan'/);
+  });
+
+  it('ulaşılamayan mod dalları kaldırıldı', () => {
+    /*
+      Bu ekranda `activeMode` yalnız 'exam' (getCustomExamMode) ya da ramazan/yks/kpss
+      (detectTurkishMode) olabiliyor. 'tez' ve 'mulakat' dalları hiç çalışmıyordu ama
+      okuyana bu modlarda da bir bant çıktığını söylüyordu.
+    */
+    expect(INDEX).not.toMatch(/if \(t === 'tez'\) return tezPlanHabitIds;/);
+    expect(INDEX).not.toMatch(/setPlanIds\('mulakat'/);
+  });
+});
+
+describe('hiçbir görev SESSİZCE kaybolmuyor', () => {
+  it('okunamayan tarih tarihsiz sayılıyor', () => {
+    /*
+      `new Date('bozuk').getTime()` NaN döner ve NaN ile yapılan her karşılaştırma
+      yanlıştır: böyle bir görev ne "vadesi gelmiş" ne "tarihsiz" listesine giriyor,
+      yani ekrandan tamamen kayboluyordu.
+    */
+    expect(INDEX).toContain('return Number.isNaN(ms) ? null : ms;');
+    expect(INDEX).toMatch(/const undated = tasks\.filter\(t => t && !t\.isCompleted && dueAt\(t\) === null\);/);
   });
 });
 
