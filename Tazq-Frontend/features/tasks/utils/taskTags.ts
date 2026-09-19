@@ -20,6 +20,8 @@ const SYSTEM_TAGS = new Set<string>([
   'kilo', 'maraton', 'guc', 'genel', 'daily',
   // taslak/yer tutucu
   'draft',
+  // arşiv bayrağı (bkz. ARCHIVED_TAG) — etiket değil, durum
+  'archived',
 ]);
 
 /**
@@ -74,7 +76,10 @@ const TAG_TRANSLATIONS: Record<string, { tr: string; en: string }> = {
   'ödev':        { tr: 'ödev',       en: 'homework'    },
   'homework':    { tr: 'ödev',       en: 'homework'    },
   'spor':        { tr: 'spor',       en: 'fitness'     },
-  'fitness':     { tr: 'spor',       en: 'fitness'     },
+  // Türkçe karşılık "egzersiz": "spor" Spor MODUNUN iç etiketi — görünmez ve Zen'e
+  // plan görevi gibi görünür (bkz. features/tasks/nlp/lexicon).
+  'fitness':     { tr: 'egzersiz',   en: 'fitness'     },
+  'egzersiz':    { tr: 'egzersiz',   en: 'fitness'     },
   'randevu':     { tr: 'randevu',    en: 'appointment' },
   'appointment': { tr: 'randevu',    en: 'appointment' },
   'study':       { tr: 'eğitim',     en: 'education'   },
@@ -127,6 +132,30 @@ export function translateTag(tag: string, lang: 'tr' | 'en'): string {
  *     (bkz. withSomedayResolved) — elle temizlik gerektirmez.
  */
 export const SOMEDAY_TAG = 'someday';
+
+/**
+ * ARŞİV — görevin ETİKETİNDE yaşar.
+ *
+ * Eskiden `isArchived` yalnız telefondaki bir bayraktı; sunucuda böyle bir alan yok.
+ * Uygulama her açılışta görevleri sunucudan tazeleyince bayrak siliniyor, arşivlenen
+ * görev sessizce listeye GERİ DÖNÜYORDU (başka cihazda ise hiç arşivlenmemişti).
+ * Etiketler sunucuya zaten gidiyor: veritabanı değişikliği yok, cihazlar arası tutarlı,
+ * çevrimdışı kuyruk olduğu gibi çalışıyor. `isArchived` artık bu etiketten TÜRETİLİR
+ * (bkz. useTaskStore.setTasks).
+ *
+ * Etiket listenin BAŞINA konur: sunucu görev başına 8 etiket tutuyor (fazlası kesilir);
+ * sonda dursaydı dolu bir görevde arşiv bilgisi kesilip kaybolabilirdi.
+ */
+export const ARCHIVED_TAG = 'archived';
+
+export function hasArchivedTag(tags: string[] | null | undefined): boolean {
+  return !!tags?.includes(ARCHIVED_TAG);
+}
+
+export function withArchived(tags: string[] | null | undefined, on: boolean): string[] {
+  const rest = (tags ?? []).filter((t) => t !== ARCHIVED_TAG);
+  return on ? [ARCHIVED_TAG, ...rest] : rest;
+}
 
 /** Görev "Belki Bir Gün"de mi? */
 export function isSomeday(task: { tags?: string[] | null } | null | undefined): boolean {

@@ -120,12 +120,8 @@ export default function ModlarScreen() {
     tanesi sığmadığı için ızgara alt alta düşüyor, üstelik kabı yatayda taşırıyordu.
     Yani bu ekranın tablette görünen hâli yalnız boş değil, BOZUKTU.
   */
-  /*
-    Modlar ekranı ortak tur kapısını KULLANMIYORDU: tur koşulsuz çiziliyordu. Bu ekranda
-    anlatacak bir şey hep var (hazır mod kartları), yani içerik koşulu gerekmiyor —
-    ama ODAK koşulu gerekiyor (bkz. useTourGate).
-  */
-  const tourAllowed = useTourGate(() => true);
+  // Ortak tur kapısı (bkz. firstRun): ilk ziyarette, yalnız ekran öndeyken.
+  const tourOn = useTourGate('modlar');
   const wide = useWideLayout();     // ≥1100 — sayfa ikiye bölünür
   const tablet = useTabletLayout();  // ≥700  — sütun genişler, kartlar yan yana
   const gridW = Math.min(screenWidth, contentMaxWidth(screenWidth));
@@ -156,7 +152,6 @@ export default function ModlarScreen() {
     spor2PlanHabitIds, spor2PlanTaskIds,
     spor3PlanHabitIds, spor3PlanTaskIds,
     setPlanIds, clearPlanIds, setPlanSpec,
-    completedTours,
   } = usePrefsStore();
   const { measureAll } = useTour();
   const handleStepChange = (step: number) => {
@@ -1198,7 +1193,7 @@ export default function ModlarScreen() {
         </KeyboardAvoidingView>
       </View>
 
-      {tourAllowed && <HelpTourModal pageId="modlar" onStepChange={handleStepChange} />}
+      {tourOn && <HelpTourModal pageId="modlar" onStepChange={handleStepChange} />}
       <BottomNavBar />
 
       {modePreview && (

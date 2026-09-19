@@ -3,7 +3,8 @@ import { TaskService } from '@/shared/services/api';
 import { useNetworkStore } from '@/shared/store/useNetworkStore';
 import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { isNetworkError } from '@/shared/utils/errors';
-import { withSomedayResolved } from '@/features/tasks/utils/taskTags';
+import { withSomedayResolved, withArchived } from '@/features/tasks/utils/taskTags';
+import { cancelTaskNotification } from '@/shared/utils/notifications';
 import type { Task } from '@/features/tasks/store/useTaskStore';
 
 /**
@@ -173,19 +174,35 @@ export function setTaskDue(
  * ödeyeceği bir bedel değildir.
  */
 export function archiveTask(taskId: number): void {
+  setArchived(taskId, true);
+}
+
+/** Arşivden geri alır — görev olduğu gibi (tarihi, etiketleri, tekrarı) döner. */
+export function restoreTask(taskId: number): void {
+  setArchived(taskId, false);
+}
+
+/**
+ * Arşivin TEK yazım yolu. Hiçbir şey silinmez: yalnız etiket eklenir/çıkarılır.
+ * Arşivlenen görevin hatırlatıcısı iptal edilir (görünmeyen işin bildirimi çalmasın);
+ * geri alınınca, tarihi hâlâ ilerideyse `_layout` uzlaştırması onu yeniden kurar.
+ */
+function setArchived(taskId: number, on: boolean): void {
   const store = useTaskStore.getState();
   const task = store.tasks.find(t => t.id === taskId);
   if (!task) return;
 
-  store.updateTask(taskId, { isArchived: true });
-  const payload = { ...task, isArchived: true };
+  const tags = withArchived(task.tags, on);
+  store.updateTask(taskId, { tags, isArchived: on });
+  if (on) void cancelTaskNotification(taskId);
+  const payload = { ...task, tags, isArchived: on };
 
   if (!useNetworkStore.getState().isOnline) {
     useOfflineQueue.getState().enqueue({ type: 'update-task', id: taskId, payload });
     return;
   }
 
-  TaskService.updateTask(taskId, { isArchived: true }).catch((err: unknown) => {
+  TaskService.updateTask(taskId, { tags, isArchived: on }).catch((err: unknown) => {
     if (isNetworkError(err)) {
       useOfflineQueue.getState().enqueue({ type: 'update-task', id: taskId, payload });
     }

@@ -424,6 +424,11 @@ export const translations = {
       /** Misafirken bir şey kaydedildiğinde — "çevrimdışı" DEĞİL, cihazda. */
       savedLocally: 'Saved on this device',
       settingsSub: 'Create an account to back up and sync across devices',
+      /** Misafirde "hesabı sil" yerine: silinecek hesap yok, cihazdaki veri var. */
+      eraseLocal: 'Erase data on this device',
+      eraseLocalTitle: 'Erase everything on this device?',
+      eraseLocalBody: 'Your tasks, habits and settings on this device will be deleted. This cannot be undone. Create an account first if you want to keep them.',
+      eraseLocalConfirm: 'Erase',
     },
   },
   tr: {
@@ -812,6 +817,11 @@ export const translations = {
       /** Misafirken bir şey kaydedildiğinde — "çevrimdışı" DEĞİL, cihazda. */
       savedLocally: 'Bu cihaza kaydedildi',
       settingsSub: 'Yedeklemek ve cihazlar arası eşitlemek için hesap oluştur',
+      /** Misafirde "hesabı sil" yerine: silinecek hesap yok, cihazdaki veri var. */
+      eraseLocal: 'Bu cihazdaki verileri sil',
+      eraseLocalTitle: 'Bu cihazdaki her şey silinsin mi?',
+      eraseLocalBody: 'Bu cihazdaki görevlerin, alışkanlıkların ve ayarların silinecek. Geri alınamaz. Saklamak istiyorsan önce hesap oluştur.',
+      eraseLocalConfirm: 'Sil',
     },
     /** Hesap silme — geri alınamaz tek işlem (bkz. DeleteAccountModal). */
     deleteAccountModal: {

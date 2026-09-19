@@ -103,7 +103,8 @@ describe('gün adı ayrıştırıcıda SABİTLENMEZ', () => {
     expect(src).not.toMatch(/`Her \$\{hint\./);
     expect(src).toContain('t.recurrenceEvery');
     // Form da kendi kopyasını tutmuyor.
-    expect(stripComments(read('features/tasks/components/TaskFormModal.tsx'))).toContain('buildNlpChips(hint, language)');
+    // Form çipleri "yalnız uygulananlar" süzgecinden geçirir (bkz. nlp/draft.visibleHint).
+    expect(stripComments(read('features/tasks/components/TaskFormModal.tsx'))).toContain('buildNlpChips(visibleHint(hint, draftRef.current), language)');
   });
 
   it('gün adı tablosu Date.getDay() ile hizalı (0 = Pazar)', () => {

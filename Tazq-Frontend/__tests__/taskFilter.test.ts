@@ -128,3 +128,19 @@ describe('filtreler ayrık ve öngörülebilir', () => {
     }
   });
 });
+
+describe('"someday" — Belki Bir Gün rafı', () => {
+  const base = { isCompleted: false, priority: 'Medium', dueDate: null };
+
+  it('yalnız rafa kaldırılmış AÇIK işleri verir', () => {
+    expect(matchesTaskFilter({ ...base, tags: ['someday'] }, 'someday')).toBe(true);
+    expect(matchesTaskFilter({ ...base, tags: ['work'] }, 'someday')).toBe(false);
+    expect(matchesTaskFilter({ ...base, tags: null }, 'someday')).toBe(false);
+    // Raftan kalkıp bitirilen iş raf görünümünde durmaz
+    expect(matchesTaskFilter({ ...base, isCompleted: true, tags: ['someday'] }, 'someday')).toBe(false);
+  });
+
+  it('raftaki iş "tümü" görünümünden KAYBOLMAZ — raf gizlemek değil, kenara koymak', () => {
+    expect(matchesTaskFilter({ ...base, tags: ['someday'] }, 'all')).toBe(true);
+  });
+});

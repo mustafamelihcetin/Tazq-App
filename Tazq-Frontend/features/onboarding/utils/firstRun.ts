@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 
@@ -18,79 +18,58 @@ import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
  * görünmüyor ve canlıya kadar gidiyor. Nitekim gitti — üç kusuru da kullanıcı bildirdi.
  */
 
-export type FirstRunPage = 'dashboard' | 'tasks' | 'cockpit' | 'modlar';
+export type FirstRunPage = 'dashboard' | 'tasks' | 'cockpit' | 'modlar' | 'focus';
+
+/*
+  ── İLK KULLANIM SENARYOSU (2026-09 yeniden kuruldu) ────────────────────────────
+  Kayıt → HOŞ GELDİN (profil kurulumu, yalnız ana sayfada) → ana sayfa TURU → her
+  sayfanın turu o sayfaya İLK girişte, bir kez. Tur açıkken ve kullanıcının o sayfada
+  gerçek verisi yokken arkada ÖRNEK VERİ görünür; tur bitince/atlanınca kaybolur.
+
+  ── ÖNCEKİ HÂLİN KUSURLARI ─────────────────────────────────────────────────────
+   · Üç ekranın turu ancak GERÇEK içerik varken açılıyor, örnek veri ise ancak içerik
+     YOKKEN çiziliyordu: ikisi hiç aynı anda olmuyordu. Yeni kullanıcı ilk ziyarette
+     tur görmüyor, sahte liste ise tur olmadan ekranda kalıp kullanıcının kendi işi
+     sanılıyordu ("Hesapsız dene" ile girenlerde ilk gerçek göreve kadar).
+   · Odak ekranının turunda hiçbir kapı yoktu (arka plandayken de açılabilirdi).
+*/
 
 /**
- * ÖRNEK VERİ KAPISI.
+ * TUR KAPISI — bu sayfanın turu ŞU AN açık olmalı mı?
  *
- * Boş bir ekranı canlandırmak ve tura gösterecek bir şey vermek için birkaç sahte satır
- * çiziliyor. Dört kural var ve dördü de ÖLÇÜLMÜŞ bir sorundan geliyor:
+ * Açık: sayfa ÖNDE + tercihler diskten okundu + bu sayfanın turu tamamlanmadı +
+ * çağıran bekletmiyor (`blocked`: ana sayfada hoş geldin ekranı).
  *
- *  1. TERCİHLER DİSKTEN OKUNMADAN GÖSTERİLMEZ.
- *     `onboardingCompleted` okunana kadar varsayılanı `false`. Bu kontrol olmadan
- *     HER kullanıcı, her soğuk açılışta, gerçek verisi yüklenene kadar sahte satırları
- *     görüyordu — kimse bildirmedi çünkü bir anlık parıltı, ama oradaydı.
+ * Kullanıcının eylemine BAĞLI DEĞİL: görev eklemek turu açmaz (eskiden içerik şartı
+ * reaktifti ve tur "görev eklemek bir pop-up açtı" gibi okunuyordu).
  *
- *  2. GERÇEK VERİ VARSA ASLA.
- *     Koşulda bu yoktu ve dal erken dönüp YALNIZCA sahte satırları veriyordu: kullanıcı
- *     ilk görevini ekliyor, kaydediliyor, ama listede görünmüyordu. Bir uygulamanın en
- *     temel sözü, eklediğin şeyin orada durmasıdır.
- *
- *  3. Kullanıcı tanıtımı bitirmişse yok (dönen/reaktive kullanıcı gerçeğini görür).
- *  4. O sayfanın turu tamamlanmışsa yok (anlatılacak bir şey kalmadı).
- *
- * Sayıyı PARAMETRE olarak istiyor: "gerçek veri varsa asla" kuralı böylece çağıran
- * tarafın hatırlamasına kalmıyor, imzanın kendisinden geliyor.
+ * ÖNDE olma şartı korunuyor: sekmeli gezinmede ekranlar sökülmeden bekliyor; arka
+ * plandaki bir ekranın turu, kullanıcı başka sayfadayken görünmemeli (kullanıcı Modlar'da
+ * Haftalık Merkez'in tanıtımını görmüştü).
  */
-export function useDemoGate(page: FirstRunPage) {
-  const hydrated = usePrefsStore((s) => s._hasHydrated);
-  const onboardingCompleted = usePrefsStore((s) => s.onboardingCompleted);
-  const tourDone = usePrefsStore((s) => s.completedTours?.[page] === true);
-
-  return useCallback(
-    (realCount: number) => hydrated && realCount === 0 && !onboardingCompleted && !tourDone,
-    [hydrated, onboardingCompleted, tourDone],
+export function useTourGate(page: FirstRunPage, blocked = false): boolean {
+  const [focused, setFocused] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
   );
+  const hydrated = usePrefsStore((s) => s._hasHydrated);
+  const done = usePrefsStore((s) => s.completedTours?.[page] === true);
+  return focused && hydrated && !done && !blocked;
 }
 
 /**
- * TUR KAPISI — karar ekrana GİRİLİRKEN verilir, kullanıcının eylemiyle değil.
+ * ÖRNEK VERİ KAPISI — yalnız TUR AÇIKKEN ve gerçek veri YOKKEN.
  *
- * ── ÖLÇÜLEN SORUN ─────────────────────────────────────────────────────────────
- * Koşul doğrudan `tasks.length > 0` idi ve reaktifti: kullanıcı ilk görevini ekliyor,
- * dizi doluyor, tur aynı karede önüne atlıyordu. Nedensellik yanlış okunuyordu —
- * "görev eklemek bir pop-up açtı" gibi. Kullanıcı da tam bunu bildirdi.
+ * Tur bitince (ya da atlanınca) `completedTours[page]` true olur, `tourOn` düşer ve
+ * örnek satırlar aynı karede kaybolur. Gerçek verisi olan kullanıcı örnek görmez:
+ * eklediğin şeyin orada durması, uygulamanın en temel sözü.
  *
- * Niyet doğruydu: boş bir ekranda "sola kaydır, ertele" anlatmanın karşılığı yok. Yanlış
- * olan ZAMANLAMAYDI. Karar artık odaklanma anında bir kez alınıp o ziyaret boyunca
- * donuyor: elinde içerik varken girersen tur açılır; buradayken eklediklerin turu
- * tetiklemez. İlk görevini ekleyen kullanıcı turu bir sonraki gelişinde görür — o zaman
- * gösterilecek gerçek bir liste de vardır.
- *
- * @param hasContent O anki içerik durumunu okuyan fonksiyon. Fonksiyon olarak alınıyor
- *                   ki kapanışta eski değere saplanmasın; her odaklanmada GÜNCELİ okur.
+ * Gerçek sayıyı PARAMETRE olarak istiyor — "gerçek veri varsa asla" kuralı çağıranın
+ * hatırlamasına kalmıyor, imzadan geliyor.
  */
-export function useTourGate(hasContent: () => boolean) {
-  const [allowed, setAllowed] = useState(false);
-  const read = useRef(hasContent);
-  read.current = hasContent;
-
-  useFocusEffect(
-    useCallback(() => {
-      setAllowed(read.current());
-      /*
-        ── ODAKTAN ÇIKAN EKRANIN TURU KAPANIR ────────────────────────────────
-        Temizlik YOKTU: bayrak bir kez açılınca ekran arka plana düşse de açık
-        kalıyordu. Sekmeli gezinmede ekranlar sökülmeden bekliyor, yani arka
-        plandaki bir ekranın turu ayakta kalabiliyor ve kullanıcı başka bir
-        sayfadayken karşısına o sayfanın anlatımı çıkabiliyordu — kullanıcı da
-        tam bunu bildirdi: Modlar'dayken Haftalık Merkez'in tanıtımını gördü.
-
-        Bir tur, yalnız ANLATTIĞI ekran öndeyken görünebilir.
-      */
-      return () => setAllowed(false);
-    }, []),
-  );
-
-  return allowed;
+export function useDemoGate(_page: FirstRunPage, tourOn: boolean) {
+  return useCallback((realCount: number) => tourOn && realCount === 0, [tourOn]);
 }

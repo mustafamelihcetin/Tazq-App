@@ -91,7 +91,8 @@ describe('dışa aktarma arayüzü', () => {
    */
   it('silme düğmesinin ÜSTÜNDE — önce al, sonra sil', () => {
     const exportIdx = settings.indexOf('exportUserData');
-    const deleteIdx = settings.indexOf('onPress={openDeleteAccount}');
+    // Düğme misafirde "cihazdaki verileri sil"e döner; hesaplıda openDeleteAccount'tur.
+    const deleteIdx = settings.indexOf(': openDeleteAccount}');
     expect(exportIdx).toBeGreaterThan(-1);
     expect(deleteIdx).toBeGreaterThan(exportIdx);
   });

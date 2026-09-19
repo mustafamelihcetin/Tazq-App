@@ -1,24 +1,28 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, KeyboardAvoidingView, Animated, AppState } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, useWindowDimensions, Platform, KeyboardAvoidingView, Animated, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTaskStore, parseTaskHint, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
-import { useAuthStore, useAchievementStore, useMomentumStore, checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS, getAvatarSource, AVATAR_CONFIGS } from '@/features/user';
+import { useAuthStore, useAchievementStore, useMomentumStore, checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS, AVATAR_CONFIGS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { DynamicIsland } from '@/features/focus';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { DashboardHero } from '@/features/dashboard/components/DashboardHero';
-import { TazqCoreMenu } from '@/features/dashboard/components/TazqCoreMenu';
 import { TriageModal } from '@/features/dashboard/components/TriageModal';
 import { TazqZenCard } from '@/features/dashboard/components/TazqZenCard';
 import { CommandPortal } from '@/features/dashboard/components/CommandPortal';
+import { SomedayNudge } from '@/features/dashboard/components/SomedayNudge';
 import { useZen } from '@/features/dashboard/hooks/useZen';
 import { isSomeday } from '@/features/tasks/utils/taskTags';
+import { whenLabel, horizonCopy } from '@/features/tasks/utils/horizon';
+import { UserAvatar } from '@/features/user/components/UserAvatar';
+import { newTaskKey } from '@/features/tasks/utils/clientKey';
+import { langOf } from '@/shared/utils/lang';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { TodayCard } from '@/features/dashboard/components/TodayCard';
 import { SectionHeader } from '@/shared/components/SectionHeader';
@@ -75,7 +79,6 @@ import { useDoubleTapHighlight } from '@/features/user/hooks/useDoubleTapHighlig
 import { useWeeklyStats } from '@/features/user/hooks/useWeeklyStats';
 import { ReviewPromptModal } from '@/features/user/components/ReviewPromptModal';
 import { httpStatusOf, isNetworkError } from '@/shared/utils/errors';
-import { Colors } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
 import { haptic } from '@/shared/utils/haptics';
 import { useChromeMinimizeOnScroll } from '@/shared/hooks/useChromeMinimizeOnScroll';
@@ -150,7 +153,6 @@ export default function HomeScreen() {
   const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, productivityHour, completedTours, setOnboardingCompleted, welcomeStatus, _hasHydrated: prefsHydrated } = usePrefsStore();
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
-  const [isCoreModalVisible, setIsCoreModalVisible] = useState(false);
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -205,8 +207,12 @@ export default function HomeScreen() {
     if (welcomeStatus === 'pending' && !welcomeSetupShown) {
       welcomeSetupShown = true;
       setProfileSetupVisible(true);
-      usePrefsStore.getState().setTourCompleted('dashboard', false);
-      usePrefsStore.getState().setHelpTourShown(false);
+      /*
+        Turlar burada SIFIRLANMIYOR (eskiden ana sayfa turu zorla sıfırlanıyordu): hesap
+        değişiminde ve çıkışta turlar zaten sıfırlanır (resetUserData). Zorla sıfırlama,
+        misafirken turu görüp sonra kayıt olan kullanıcıya AYNI turu ikinci kez gösteriyordu.
+        Tur, hoş geldin kapanınca kendiliğinden açılır (bkz. useTourGate → blocked).
+      */
     }
   }, [user, prefsHydrated, welcomeStatus, isFirstLogin]);
 
@@ -225,9 +231,9 @@ export default function HomeScreen() {
       // Kalıcı bayrak KAPANIR: ekran yalnız kaydedilerek bitirilebiliyor (başka çıkış yolu yok).
       usePrefsStore.getState().setWelcomeStatus('done');
       await usePrefsStore.getState().syncToCloud();
-      // isFirstLogin BİLEREK temizlenmiyor: yardım turu bu ilk-giriş oturumu boyunca
-      // (profil setup kapandıktan sonra) sayfa sayfa gösterilebilsin. Bayrak persist edilmez
-      // (rehydrate'te sıfırlanır) → sonraki açılışlarda ve mevcut kullanıcılarda tur çıkmaz.
+      // Hoş geldin kapanınca ana sayfa turu kendiliğinden açılır (bkz. useTourGate: blocked
+      // yalnız hoş geldin görünür/beklemedeyken). Turlar isFirstLogin'e BAĞLI DEĞİL: her
+      // sayfanın turu completedTours ile, o sayfaya ilk girişte bir kez.
       if (token) {
         const updatedUser = await AuthService.getCurrentUser(token);
         setUser(updatedUser);
@@ -591,7 +597,9 @@ export default function HomeScreen() {
     Bu ayrımın yazılı olması şart: kusurların çoğu tam olarak iki gün tanımının
     farkında olmadan karıştırılmasından çıkmıştı.
   */
-  const demoGate = useDemoGate('dashboard');
+  // Ana sayfa turu HOŞ GELDİN (profil kurulumu) bitene kadar BEKLER — ikisi üst üste binmez.
+  const tourOn = useTourGate('dashboard', profileSetupVisible || welcomeStatus === 'pending');
+  const demoGate = useDemoGate('dashboard', tourOn);
   /*
     ÖRNEK SATIRLAR TEK KAYNAKTAN.
 
@@ -753,7 +761,9 @@ export default function HomeScreen() {
         isCompleted: false,
         dueDate: hint.dueDate || (isReminder ? new Date().toISOString() : null),
         dueTime: hint.dueTime || null,
-        tags: hint.tags?.length ? hint.tags : ['Draft']
+        tags: hint.tags?.length ? hint.tags : ['Draft'],
+        // Tek anahtar: doğrudan istek ve kuyruktaki tekrar aynı görevi İKİ kez oluşturmaz.
+        clientKey: newTaskKey(),
     };
 
     try {
@@ -778,7 +788,9 @@ export default function HomeScreen() {
               await scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
           haptic.success();
-          showToast(`"${payload.title}" ${t.toastTaskAdded}`, 'success');
+          // İleri bir güne düştüyse NEREYE gittiğini söyle — ana sayfa yalnız bugünü gösterir.
+          const when = whenLabel(payload.dueDate, langOf(language));
+          showToast(when ? horizonCopy(langOf(language)).titled(payload.title, when) : `"${payload.title}" ${t.toastTaskAdded}`, 'success');
         }
     } catch (error: unknown) {
         if (isNetworkError(error)) {
@@ -1062,9 +1074,6 @@ export default function HomeScreen() {
   const isDemoId = (id: string | number) => typeof id === 'string' && id.startsWith(DEMO_ID_PREFIX);
 
   /* Ref: kapı her odaklanmada GÜNCEL diziyi okur, kapanışta eskiye saplanmaz. */
-  const tasksRef = useRef(tasks);
-  tasksRef.current = tasks;
-  const tourAllowed = useTourGate(() => tasksRef.current.length > 0);
 
   // Unified My Day feed items (Tasks only)
   const myDayTasks = (() => {
@@ -1349,20 +1358,26 @@ export default function HomeScreen() {
     */
     const target = topTaskToday;
     setCurrentTask(target ? getLocalizedTaskTitle(target, tr) : '', target?.id ?? null);
-    const secs = 25 * 60;
-    useFocusStore.setState({ totalSeconds: secs, seconds: secs, isActive: true, lastActiveAt: Date.now() });
+    /*
+      Seans store'un kendi yolundan başlar: doğrudan `setState` ile başlatınca seansın
+      BİTİŞ ANI kurulmuyordu — sayaç yalnız uygulama önde çalışırken ilerliyor, telefon
+      kilitlenince geride kalıyor ve bitiş bildirimi hiç kurulmuyordu.
+    */
+    useFocusStore.getState().setDuration(25);
+    useFocusStore.getState().setIsActive(true);
     setStatusHubVisible(false);
     router.replace('/focus');
   };
 
   /**
-   * Marka işaretine dokunma — TAZQ Core menüsünü açar (hızlı ekle · günü kurtar ·
-   * odaklan · ayarlar). Komut paleti menünün "Hızlı Ekle"sinden açılır.
+   * Marka işaretine dokunma — TAZQ Core paletini DOĞRUDAN açar (arama · akıllı ekleme ·
+   * komutlar). Arada bir menü vardı; asıl yüzeye bir dokunuş geç ulaştırıyordu ve
+   * dört satırının üçü başka yerde zaten vardı (bkz. CommandPortal).
    *
    * Logonun nabız atması ve halkası KORUNUYOR: uygulamanın karakteri ve dokunuşun
    * kaydedildiğinin tek işareti.
    *
-   * Menü BEKLEMEDEN açılıyor. Eskiden 220ms gecikme vardı (nabız bitsin diye) ve
+   * Palet BEKLEMEDEN açılıyor. Eskiden 220ms gecikme vardı (nabız bitsin diye) ve
    * bu gözle görülür bir tepki gecikmesiydi — animasyon zaten paletin arkasında sürüyor,
    * bitmesini beklemek gerekmiyor. Haptik de tek `surface`e indi: açılan bir yüzeyin
    * karşılığı budur; çift atış (select + 130ms + surface) aynı olayı iki kez anlatıyordu.
@@ -1370,7 +1385,8 @@ export default function HomeScreen() {
   const handleLogoPress = useCallback(() => {
     haptic.surface();
     setLogoTick(prev => prev + 1);
-    setIsCoreModalVisible(true);
+    setPortalSearch('');
+    setCommandPortalVisible(true);
   }, []);
 
   const todaySurprise = (() => {
@@ -1592,6 +1608,7 @@ export default function HomeScreen() {
               style={[
                   styles.avatarContainer,
                   {
+                      backgroundColor: theme.surfaceField,
                       // HALKA HER İKİ DURUMDA DA HAIRLINE — 32pt'de tek doğru kalınlık.
                       //
                       // İki ayrı sebep aynı yere çıkıyor:
@@ -1613,10 +1630,7 @@ export default function HomeScreen() {
                   }
               ]}
           >
-              <Image
-                  source={getAvatarSource(user?.avatar || null)}
-                  style={styles.avatar}
-              />
+              <UserAvatar avatar={user?.avatar} size={TOP_AVATAR_SIZE} iconSize={ICON.sm} theme={theme} style={styles.avatar} />
           </Touchable>
         }
         /*
@@ -1636,7 +1650,7 @@ export default function HomeScreen() {
           <Touchable
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={language === 'tr' ? 'TAZQ menüsü' : 'TAZQ menu'}
+              accessibilityLabel={language === 'tr' ? 'TAZQ Core: ara, ekle, komutlar' : 'TAZQ Core: search, add, commands'}
               onPress={handleLogoPress}
               // Dokunma hedefi 44pt (çubuğun tam boyu), GÖRSEL öğe 24pt: Apple'ın bar
               // button item'ı gibi. Eskiden padding S.smd (12) ile toplam 54.5pt olup
@@ -1742,24 +1756,33 @@ export default function HomeScreen() {
             <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
               <DashboardHero
                 greeting={getGreeting()}
-                name={(!isNamePlaceholder && user?.name?.split(' ')[0]) || (language === 'tr' ? 'sen' : 'you')}
+                name={(!isNamePlaceholder && user?.name?.split(' ')[0]) || ''}
                 subGreeting={getSubGreeting()}
                 isSmallScreen={isSmallScreen}
                 theme={theme}
               />
             </View>
 
-            {!isLite && (
+            {!isLite && (<>
               <TazqZenCard
                 visible={zen.cardVisible}
                 plan={zen.overduePlan}
                 overdueTotal={zen.analysis.overdue.length}
                 onRebalance={zen.rebalanceOverdue}
                 onDismiss={zen.dismissCard}
+                overload={zen.overloadVisible ? { count: zen.analysis.todayLoad, onOpen: zen.openTriage } : null}
                 theme={theme}
                 tr={tr}
               />
-            )}
+              <SomedayNudge
+                visible={zen.somedayNudgeVisible}
+                count={zen.somedayCount}
+                onOpen={() => { zen.markSomedayNudge(); router.push({ pathname: '/tasks', params: { filter: 'someday' } }); }}
+                onLater={zen.markSomedayNudge}
+                theme={theme}
+                tr={tr}
+              />
+            </>)}
 
 
             {/*
@@ -2198,6 +2221,7 @@ export default function HomeScreen() {
         onQueryChange={setPortalSearch}
         onSubmit={savePortalTask}
         onQuickFocus={startQuickFocus}
+        saveTheDay={zen.saveTheDayHint ? { hint: zen.saveTheDayHint, onPress: () => { void zen.saveTheDay(); } } : null}
         tasks={tasks}
         priorityColor={priorityColor}
         theme={theme}
@@ -2211,21 +2235,6 @@ export default function HomeScreen() {
         onClose={() => setWeightModalTaskId(null)}
       />
       
-      <TazqCoreMenu
-        visible={isCoreModalVisible}
-        onClose={() => setIsCoreModalVisible(false)}
-        onQuickAdd={() => {
-          setPortalSearch('');
-          setCommandPortalVisible(true);
-        }}
-        onSaveTheDay={() => { void zen.saveTheDay(); }}
-        onFocus={startQuickFocus}
-        focusTaskTitle={topTaskToday ? getLocalizedTaskTitle(topTaskToday, tr) : null}
-        onSettings={() => router.push('/settings')}
-        theme={theme}
-        tr={tr}
-      />
-
       <TriageModal
         visible={zen.triageVisible}
         onClose={zen.closeTriage}
@@ -2250,7 +2259,7 @@ export default function HomeScreen() {
         Görevi olmayan kullanıcı bunun yerine "nereden başlayayım" kartını görüyor
         (aşağıya bkz.); yani rehberlik kaybolmuyor, SIRASI değişiyor.
       */}
-      {(!profileSetupVisible && tourAllowed) && (
+      {tourOn && (
         <HelpTourModal
           pageId="dashboard"
           onStepChange={handleStepChange}
@@ -2272,7 +2281,9 @@ const styles = StyleSheet.create({
   // kişiselleştirme rengine göre veriliyor. Burada da yazılıydı ve değeri
   // `rgba(255,255,255,0.1)` idi — açık temada görünmeyen bir renk. Hiç etkisi yoktu
   // (satır içi hep eziyordu) ama kopyalanmayı bekleyen yanlış bir örnekti.
-  avatarContainer: { width: TOP_AVATAR_SIZE, height: TOP_AVATAR_SIZE, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.light.surfaceContainerLowest },
+  // Zemin rengi BURADA YOK, kullanım yerinde temadan: sabit beyazdı ve koyu temada yuvarlak
+  // kırpmanın kenarlarından (üst/alt/sol/sağ) ince beyaz çizgiler olarak sızıyordu.
+  avatarContainer: { width: TOP_AVATAR_SIZE, height: TOP_AVATAR_SIZE, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   avatar: { width: '100%', height: '100%' },
   scrollContent: { flexGrow: 1 },
   // Üst ve alt boşluk EŞİT (simetrik blok). Üst boşluk paddingTop'tan değil buradan gelir.

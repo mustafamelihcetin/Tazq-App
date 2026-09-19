@@ -99,14 +99,34 @@ describe('auth store — misafir durumu', () => {
 describe('sunucuya istek GİTMEZ', () => {
   const API = read('shared/services/api.ts');
 
-  it('istek interceptor\'ı misafirde erken atar', () => {
-    const block = API.slice(API.indexOf('api.interceptors.request.use'), API.indexOf('api.interceptors.request.use') + 400);
-    expect(block).toContain('if (isGuestSession()) throw guestModeError();');
+  it('misafirin veri istekleri durur', () => {
+    const { blockedForGuest } = require('@/shared/services/api');
+    expect(blockedForGuest('/api/tasks', false)).toBe(true);
+    expect(blockedForGuest('/api/users/profile', false)).toBe(true);
+    expect(blockedForGuest('/api/users/me', false)).toBe(true);
   });
 
-  it('kapı token EKLEMEDEN önce çalışır — hiçbir kimlik sızmaz', () => {
+  it('giriş ve kayıt uçları GEÇER — misafirlikten çıkmanın tek yolu', () => {
+    /*
+      Kapı eskiden bunları da durduruyordu ve misafirlik ancak giriş BAŞARILI olunca
+      bitiyordu: misafir hesap açamıyor, Apple/Google/e-postayla giriş yapamıyordu.
+    */
+    const { blockedForGuest } = require('@/shared/services/api');
+    for (const p of ['/api/users/login', '/api/users/register', '/api/users/apple-login', '/api/users/google-login', '/api/users/forgot-password', '/api/users/verify-email', '/api/users/resend-verification']) {
+      expect(blockedForGuest(p, false)).toBe(false);
+    }
+    // Benzer ama AÇIK OLMAYAN uç kapıdan geçmez
+    expect(blockedForGuest('/api/users/login-history', false)).toBe(true);
+  });
+
+  it('kendi yeni token\'ını taşıyan istek geçer — girişten hemen sonraki "/me"', () => {
+    const { blockedForGuest } = require('@/shared/services/api');
+    expect(blockedForGuest('/api/users/me', true)).toBe(false);
+  });
+
+  it('kapı token EKLEMEDEN önce çalışır — mağazadaki token "kendi token\'ı" sayılmaz', () => {
     const block = API.slice(API.indexOf('api.interceptors.request.use'), API.indexOf('api.interceptors.request.use') + 400);
-    expect(block.indexOf('isGuest')).toBeLessThan(block.indexOf('Authorization'));
+    expect(block.indexOf('blockedForGuest')).toBeLessThan(block.indexOf('useAuthStore.getState().token'));
   });
 
   it('hata AĞ HATASI şeklinde — mevcut offline-first yolu devreye girsin', () => {
@@ -243,5 +263,71 @@ describe('sunucu gerektiren yüzeyler', () => {
     expect(translations.en.guest.keepMyData).toContain('keep my data');
     expect(translations.tr.guest.tryHint).toContain('hiçbir şey kaybolmaz');
     expect(translations.en.guest.tryHint).toContain('without losing anything');
+  });
+});
+
+describe('misafir profili — uydurma kimlik YOK', () => {
+  it('profil uydurma ad ve e-posta göstermez; misafir olduğunu söyler', () => {
+    const src = stripComments(read('app/profile.tsx'));
+    expect(src).not.toContain("'user@tazq.com'");
+    expect(src).not.toContain("'Alex'");
+    expect(src).toContain('isGuest ? t.guest.badge');
+    expect(src).toContain('t.guest.settingsRow');
+  });
+
+  it('misafirin profil düğmesi "hesap oluştur" — kaydedemeyecek düzenleme değil', () => {
+    expect(stripComments(read('app/profile.tsx'))).toContain("onPress={isGuest ? () => router.push('/register') : openEditModal}");
+  });
+
+  it('misafire "Hesabımı Sil" değil "bu cihazdaki verileri sil" — silinecek hesap yok', () => {
+    const src = stripComments(read('app/settings.tsx'));
+    expect(src).toContain('t.guest.eraseLocal');
+    expect(src).toMatch(/onPress=\{isGuest\s*\?[\s\S]*?: openDeleteAccount\}/);
+  });
+});
+
+describe('"verilerim kalsın" sözü — misafirden hesaba geçişte veri SİLİNMEZ', () => {
+  beforeEach(() => jest.resetModules());
+
+  it('cihazda daha önce BAŞKA hesap kullanılmış olsa bile misafirin görevleri yeni hesaba geçer', () => {
+    const { useAuthStore } = require('@/features/user/store/useAuthStore');
+    const { useTaskStore } = require('@/features/tasks/store/useTaskStore');
+    const { useOfflineQueue } = require('@/shared/store/useOfflineQueue');
+    // Önceki hesap: 7 — çıkış yapıldı, misafir olundu
+    useAuthStore.setState({ lastUserId: 7 });
+    useAuthStore.getState().startGuest();
+    useTaskStore.setState({ tasks: [{ id: -1, title: 'misafirken', isCompleted: false } as any] });
+    useOfflineQueue.getState().enqueue({ type: 'create-task', tempId: -1, payload: { title: 'misafirken' } } as any);
+    // Yeni hesapla giriş (Apple): 9
+    useAuthStore.getState().setAuth({ id: 9, name: 'B', email: 'b@c.d' } as any, 'tok');
+    expect(useTaskStore.getState().tasks).toHaveLength(1);
+    expect(useOfflineQueue.getState().ops).toHaveLength(1);
+  });
+
+  it('misafir OLMAYAN hesap değişiminde eski hesabın verisi yine temizlenir', () => {
+    const { useAuthStore } = require('@/features/user/store/useAuthStore');
+    const { useTaskStore } = require('@/features/tasks/store/useTaskStore');
+    useAuthStore.setState({ lastUserId: 7 });
+    useTaskStore.setState({ tasks: [{ id: 5, title: 'A hesabının', isCompleted: false } as any] });
+    useAuthStore.getState().setAuth({ id: 9, name: 'B', email: 'b@c.d' } as any, 'tok');
+    expect(useTaskStore.getState().tasks).toHaveLength(0);
+  });
+});
+
+describe('avatar — kimseye sorulmadan kimlik giydirilmez', () => {
+  it('avatar seçilmemişse siluet; ana sayfa ve profil aynı bileşeni kullanır', () => {
+    const av = stripComments(read('features/user/components/UserAvatar.tsx'));
+    expect(av).toContain('<UserRound');
+    for (const f of ['app/index.tsx', 'app/profile.tsx']) {
+      const src = stripComments(read(f));
+      expect(src).toContain('<UserAvatar avatar={user?.avatar}');
+      expect(src).not.toContain('getAvatarSource(user?.avatar');
+    }
+  });
+
+  it('profil kaydı, seçilmemiş avatarı "Atlas" diye yazmaz', () => {
+    const src = stripComments(read('app/profile.tsx'));
+    expect(src).not.toContain("user?.avatar || 'm1'");
+    expect(src).toContain('avatar: selectedAvatar || undefined,');
   });
 });

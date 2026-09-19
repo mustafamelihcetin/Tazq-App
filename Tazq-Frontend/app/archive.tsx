@@ -16,6 +16,7 @@ import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
 import { Touchable } from '@/shared/components/Touchable';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { isNetworkError } from '@/shared/utils/errors';
+import { restoreTask } from '@/features/tasks/utils/taskActions';
 
 export default function ArchiveScreen() {
     const insets = useSafeAreaInsets();
@@ -27,28 +28,12 @@ export default function ArchiveScreen() {
     const { scrollY, onScroll } = useCollapsibleHeader();
     
     const tasks = useTaskStore(state => state.tasks);
-    const updateTask = useTaskStore(state => state.updateTask);
     const removeTask = useTaskStore(state => state.removeTask);
 
     const archivedTasks = tasks.filter(t => t.isArchived);
 
-    const handleRestore = async (task: any) => {
-        const payload = { ...task, isArchived: false };
-        updateTask(task.id, { isArchived: false });
-        
-        const isOnline = useNetworkStore.getState().isOnline;
-        if (!isOnline) {
-            useOfflineQueue.getState().enqueue({ type: 'update-task', id: task.id, payload });
-        } else {
-            try {
-                await TaskService.updateTask(task.id, payload);
-            } catch (err: unknown) {
-                if (isNetworkError(err)) {
-                    useOfflineQueue.getState().enqueue({ type: 'update-task', id: task.id, payload });
-                }
-            }
-        }
-    };
+    // Etiketi kaldırır ve sunucuya yazar (bkz. taskActions.setArchived).
+    const handleRestore = (task: { id: number }) => restoreTask(task.id);
 
     const performDelete = async (id: number) => {
         removeTask(id);

@@ -9,7 +9,7 @@
  */
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, Animated, Easing, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, Text, Animated, Easing, useWindowDimensions, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Easing as REasing } from 'react-native-reanimated';
@@ -97,6 +97,20 @@ const TOURS: Record<PageId, TourStep[]> = {
       desc: {
         tr: 'Günlük hedefine ne kadar yaklaştığını gör. Karta dokunarak haftalık karneni, odak süreni ve detaylı istatistiklerini aç.',
         en: 'See how close you are to today’s goal. Tap the card to open your weekly review, focus time and detailed stats.',
+      },
+    },
+    /*
+      TAZQ CORE — logonun işi hiçbir yerde anlatılmıyordu ve logonun dokunulabilir
+      olduğunu gösteren bir işaret de yok. Ayrı bir ipucu balonu ya da rozet eklemek
+      yerine, kullanıcının zaten bir kez gördüğü tura tek adım.
+    */
+    {
+      Icon: Sparkles,
+      color: (t) => t.tertiary,
+      title: { tr: 'TAZQ Core', en: 'TAZQ Core' },
+      desc: {
+        tr: 'Üstteki logoya dokun: görevlerini ara, bir cümleyle görev ekle ya da işler birikince tek dokunuşla günü toparla.',
+        en: 'Tap the logo up top: search your tasks, add one in a sentence, or tidy up a crowded day in one tap.',
       },
     },
   ],
@@ -218,6 +232,11 @@ const TOURS: Record<PageId, TourStep[]> = {
   ],
 };
 
+const TOUR_LABELS = {
+  tr: { back: 'Geri', skip: 'Atla', skipTour: 'Turu atla', next: 'Sonraki', done: 'Anladım' },
+  en: { back: 'Back', skip: 'Skip', skipTour: 'Skip tour', next: 'Next', done: 'Got it' },
+};
+
 export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
   const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
@@ -225,6 +244,7 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
   const { completedTours, setTourCompleted, setHelpTourShown, uiMode } = usePrefsStore();
   const { language } = useLanguageStore();
   const tr = language === 'tr';
+  const L = tr ? TOUR_LABELS.tr : TOUR_LABELS.en;
 
   /*
     SADE MODDA GİZLİ ÖZELLİK ANLATILMAZ.
@@ -292,6 +312,23 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
     }
   };
 
+  /*
+    ANDROID GERİ TUŞU TURU YÖNETİR. Tur bir modal değil, sayfanın üstünde bir katman:
+    geri tuşu arkadaki SAYFADAN çıkıyor, tur açık kalıyordu. Artık önce bir adım geri,
+    ilk adımda turu kapatır (atla ile aynı: bir daha gösterilmez).
+  */
+  const backRef = useRef({ back, finish, currentStep });
+  backRef.current = { back, finish, currentStep };
+  useEffect(() => {
+    if (isTourShown) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      const r = backRef.current;
+      if (r.currentStep > 0) r.back(); else r.finish();
+      return true;
+    });
+    return () => sub.remove();
+  }, [isTourShown]);
+
   if (isTourShown || !stepData) return null;
 
   const Icon = stepData.Icon;
@@ -313,7 +350,8 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
   const frameW = screenW; // önizlemeye verilen içerik genişliği
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, styles.root, { opacity: enter }]} pointerEvents="auto">
+    // accessibilityViewIsModal: ekran okuyucu turun ARKASINDAKİ sayfada gezinmesin.
+    <Animated.View style={[StyleSheet.absoluteFill, styles.root, { opacity: enter }]} pointerEvents="auto" accessibilityViewIsModal>
       {/* Çok hafif cam efekti (iOS blur) + ince karartma — uygulama silik görünür, yazı okunur */}
       <AppBlur material="thin" />
       <View
@@ -347,7 +385,9 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
             },
           ]}
         >
-          <TourFeaturePreview pageId={pageId} step={currentStep} theme={theme} isDark={isDark} accent={accent} tr={tr} frameW={screenW} />
+          {/* Görsel adımın SIRASINA değil KİMLİĞİNE bağlı: Sade modda ilk adım (İvme)
+              düşünce sıra kayıyor ve her adım bir öncekinin görselini gösteriyordu. */}
+          <TourFeaturePreview pageId={pageId} step={allSteps.indexOf(stepData)} theme={theme} isDark={isDark} accent={accent} tr={tr} frameW={screenW} />
         </MotiView>
 
         {/* ── Alt yazı: adım · başlık · açıklama ── */}
@@ -374,6 +414,19 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
       </Animated.View>
       </GestureDetector>
 
+      {/* ── HER ADIMDA "Atla" ── eskiden yalnız ilk adımda vardı (orada sol düğme); ikinci
+          adımdan sonra turdan çıkmanın tek yolu sonuna kadar gitmekti. */}
+      {currentStep > 0 && currentStep < maxStep && (
+        <Touchable
+          onPress={finish}
+          accessibilityRole="button"
+          accessibilityLabel={L.skipTour}
+          style={[styles.textBtn, { position: 'absolute', top: insets.top + S.sm, right: S.md }]}
+        >
+          <Text style={[styles.textBtnLabel, { color: 'rgba(255,255,255,0.55)' }]}>{L.skip}</Text>
+        </Touchable>
+      )}
+
       {/* ── Alt kontroller (kutusuz, sahneye gömülü) ── */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         <View style={styles.dotsRow}>
@@ -392,22 +445,22 @@ export const HelpTourModal: React.FC<HelpTourModalProps> = ({ pageId }) => {
 
         <View style={styles.controls}>
           {currentStep > 0 ? (
-            <Touchable onPress={back} style={styles.textBtn}>
+            <Touchable onPress={back} accessibilityRole="button" style={styles.textBtn}>
               <Text style={[styles.textBtnLabel, { color: 'rgba(255,255,255,0.85)' }]}>
-                {tr ? 'Geri' : 'Back'}
+                {L.back}
               </Text>
             </Touchable>
           ) : (
-            <Touchable onPress={finish} style={styles.textBtn}>
+            <Touchable onPress={finish} accessibilityRole="button" accessibilityLabel={L.skipTour} style={styles.textBtn}>
               <Text style={[styles.textBtnLabel, { color: 'rgba(255,255,255,0.55)' }]}>
-                {tr ? 'Atla' : 'Skip'}
+                {L.skip}
               </Text>
             </Touchable>
           )}
 
-          <Touchable onPress={next} style={[styles.nextBtn, { backgroundColor: accent }]}>
+          <Touchable onPress={next} accessibilityRole="button" style={[styles.nextBtn, { backgroundColor: accent }]}>
             <Text style={styles.nextBtnLabel}>
-              {currentStep === maxStep ? (tr ? 'Anladım' : 'Got it') : tr ? 'Sonraki' : 'Next'}
+              {currentStep === maxStep ? L.done : L.next}
             </Text>
           </Touchable>
         </View>

@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubtaskItem, RecurrenceType, Priority } from '@/shared/services/api';
 import { swallow } from '@/shared/utils/swallow';
+import { hasArchivedTag } from '@/features/tasks/utils/taskTags';
 
 export interface Task {
   id: number;
@@ -56,7 +57,8 @@ export const useTaskStore = create<TaskState>()(persist((set, get) => ({
 
     const merged = tasks.map(t => {
       const local = existing.get(t.id);
-      let updatedTask = { ...t };
+      // Arşiv durumu ETİKETTEN okunur — sunucunun bilmediği bir bayrak tazelemede kaybolurdu.
+      let updatedTask = { ...t, isArchived: hasArchivedTag(t.tags) };
       if (t.isCompleted && local?.completedAt && !t.completedAt) {
         updatedTask.completedAt = local.completedAt;
       }

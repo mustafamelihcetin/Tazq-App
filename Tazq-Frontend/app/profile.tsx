@@ -40,6 +40,8 @@ import { isNetworkError } from '@/shared/utils/errors';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { SettingsCard, SettingItem, ToggleRow, RowDivider, settingsAccents } from '@/shared/components/SettingsRows';
 import { haptic } from '@/shared/utils/haptics';
+import { useSessionStore } from '@/shared/store/useSessionStore';
+import { UserAvatar } from '@/features/user/components/UserAvatar';
 
 const GOAL_OPTIONS = [30, 60, 90, 120];
 
@@ -89,7 +91,9 @@ export default function ProfileScreen() {
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   useUiDepth(editModalVisible);
-  const [selectedAvatar, setSelectedAvatar] = useState(user?.avatar || 'm1');
+  // Seçilmemişse BOŞ: eskiden 'm1' (erkek "Atlas") önceden seçiliydi ve yalnız adını
+  // değiştirip kaydeden kullanıcının hesabına sessizce yazılıyordu (bkz. UserAvatar).
+  const [selectedAvatar, setSelectedAvatar] = useState(user?.avatar || '');
   const [supportModalVisible, setSupportModalVisible] = useState(false);
   useUiDepth(supportModalVisible);
   const [newName, setNewName] = useState(user?.name || '');
@@ -149,9 +153,17 @@ export default function ProfileScreen() {
     Asset.loadAsync(Object.values(AVATAR_MAP)).catch(() => {});
   }, []);
 
+  /*
+    MİSAFİR PROFİLİ. Eskiden hesapsız kullanıcıya uydurma bir ad ("Alex") ve uydurma
+    bir e-posta ("user@tazq.com") gösteriliyordu; "Profili Düzenle" ise kaydedecek bir
+    hesap olmadığı için sessizce başarısız oluyordu. Misafir artık misafir olduğunu
+    görüyor ve tek anlamlı eylemi — verisini kaybetmeden hesap açmak — öne çıkıyor.
+  */
+  const isGuest = useSessionStore(s => s.isGuest);
+
   const openEditModal = () => {
     prepareEdit();
-    setSelectedAvatar(user?.avatar || 'm1');
+    setSelectedAvatar(user?.avatar || '');
     setNewName(user?.name || '');
     setSelectedGoal(dailyGoalMinutes);
     setNewMotto(motto);
@@ -173,13 +185,14 @@ export default function ProfileScreen() {
     setSavingProfile(true);
     try {
       await AuthService.updateProfile({
-        avatar: selectedAvatar,
+        // Seçilmediyse gönderilmez — sunucudaki değer olduğu gibi kalır.
+        avatar: selectedAvatar || undefined,
         name: newName.trim(),
         motto: newMotto.trim(),
         avatarBorderColor: selectedBorderColor,
       });
       // Update local state and close only on success — prevents unmounted-component reopen on error
-      setUser({ ...user, avatar: selectedAvatar, name: newName.trim() });
+      setUser({ ...user, avatar: selectedAvatar || user?.avatar, name: newName.trim() });
       setDailyGoal(selectedGoal);
       setMotto(newMotto.trim());
       setGender(newGender);
@@ -360,17 +373,26 @@ export default function ProfileScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={[styles.header, { marginTop: S.md }]}>
-            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { backgroundColor: '#ffffff', borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)') : avatarBorderColor, width: 110, height: 110, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
-                <Image source={getAvatarSource(user?.avatar || null)} style={{ width: 110, height: 110 }} resizeMode="cover" />
+            <MotiView from={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={[styles.avatarLarge, { backgroundColor: theme.surfaceField, borderWidth: (!avatarBorderColor || avatarBorderColor === 'transparent') ? 2 : 4, borderColor: (!avatarBorderColor || avatarBorderColor === 'transparent') ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)') : avatarBorderColor, width: 110, height: 110, borderRadius: R.full, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+                <UserAvatar avatar={user?.avatar} size={110} iconSize={ICON.xxl} theme={theme} />
             </MotiView>
             <View style={{ alignItems: 'center', marginTop: S.md }}>
-                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{user?.name || 'Alex'}</Text>
-                <Text style={[styles.email, { color: theme.onSurfaceMuted, fontSize: F.body }]}>{user?.email || 'user@tazq.com'}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.name, { color: theme.onSurface, fontSize: F.hero }]}>{isGuest ? t.guest.badge : (user?.name || '')}</Text>
+                {isGuest ? (
+                  <Text style={[styles.email, { color: theme.onSurfaceMuted, fontSize: F.body, textAlign: 'center' }]}>{t.guest.settingsRow}</Text>
+                ) : !!user?.email && (
+                  <Text style={[styles.email, { color: theme.onSurfaceMuted, fontSize: F.body }]}>{user.email}</Text>
+                )}
                 {!!motto && (
                   <Text style={{ color: theme.onSurfaceVariant, fontSize: F.body, fontStyle: 'italic', marginTop: S.xs, textAlign: 'center', paddingHorizontal: S.lg }}>"{motto}"</Text>
                 )}
-                <Touchable onPress={openEditModal} style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: S.sm }]}>
-                    <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '700', fontSize: F.caption }]}>{t.editProfile || 'Edit Profile'}</Text>
+                <Touchable
+                  onPress={isGuest ? () => router.push('/register') : openEditModal}
+                  accessibilityRole="button"
+                  accessibilityLabel={isGuest ? t.guest.keepMyData : (t.editProfile || 'Edit Profile')}
+                  style={[styles.editBtn, { backgroundColor: theme.primary, paddingVertical: S.sm }]}
+                >
+                    <Text style={[styles.editBtnText, { color: theme.onPrimary, fontWeight: '700', fontSize: F.caption }]}>{isGuest ? t.guest.keepMyData : (t.editProfile || 'Edit Profile')}</Text>
                 </Touchable>
             </View>
           </View>

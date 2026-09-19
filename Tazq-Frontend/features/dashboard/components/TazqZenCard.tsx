@@ -26,6 +26,10 @@ import type { AppliedRebalance } from '@/features/tasks/utils/rebalanceActions';
  * Kart artık motorun kendi önizlemesini gösteriyor, aynı motorla uyguluyor ve geri
  * alma tutamacını motorun kendisinden alıyor. Görünürlük kararı dışarıda (useZen);
  * burası yalnız bir işlemin üç anını çiziyor: öneri · uygulanıyor · bitti (geri al).
+ *
+ * İKİNCİ HÂL — TAŞAN GÜN: birikim yokken bugün kapasiteyi aşıyorsa kart bunu söyler
+ * ve triage'ı açar. Triage eskiden yalnız logonun menüsünden ulaşılabiliyordu; çoğu
+ * kullanıcının hiç bulamayacağı bir yer.
  */
 
 type Phase = 'idle' | 'working' | 'done';
@@ -39,6 +43,8 @@ export interface TazqZenCardProps {
   overdueTotal: number;
   onRebalance: () => Promise<AppliedRebalance>;
   onDismiss: () => void;
+  /** Taşan gün: birikim kartı yokken gösterilir; null ise çizilmez. */
+  overload?: { count: number; onOpen: () => void } | null;
   theme: AppTheme;
   tr: boolean;
 }
@@ -56,6 +62,9 @@ const copy = (tr: boolean) => tr
       working: 'Dengeleniyor',
       done: 'Denge sağlandı. Takvimin nefes aldı.',
       undo: 'Geri al',
+      overTitle: (n: number) => `Bugün ${n} işin var`,
+      overBody: 'Hepsi bir güne sığmaz. Bugün kalacak 1–3 işi seç, gerisini önümüzdeki günlere yayayım.',
+      overAct: 'Sadeleştir',
     }
   : {
       eyebrow: 'TAZQ ZEN',
@@ -69,13 +78,16 @@ const copy = (tr: boolean) => tr
       working: 'Rebalancing',
       done: 'Balanced. Your schedule can breathe.',
       undo: 'Undo',
+      overTitle: (n: number) => `${n} tasks today`,
+      overBody: "That won't fit in one day. Pick the 1–3 that stay today and I'll spread the rest.",
+      overAct: 'Simplify',
     };
 
 /** Başarı görünümünün ekranda kalma süresi — geri alma penceresi. */
 const DONE_MS = 6000;
 
 export const TazqZenCard = React.memo<TazqZenCardProps>(
-  ({ visible, plan, overdueTotal, onRebalance, onDismiss, theme, tr }) => {
+  ({ visible, plan, overdueTotal, onRebalance, onDismiss, overload, theme, tr }) => {
     const c = copy(tr);
     const [phase, setPhase] = useState<Phase>('idle');
     const handleRef = useRef<AppliedRebalance | null>(null);
@@ -122,6 +134,30 @@ export const TazqZenCard = React.memo<TazqZenCardProps>(
                 style={[styles.undoBtn, { backgroundColor: theme.tertiary + '14' }]}
               >
                 <Text style={[styles.undoText, { color: theme.tertiary }]}>{c.undo}</Text>
+              </Touchable>
+            </View>
+          </BentoCard>
+        </MotiView>
+      );
+    }
+
+    if ((!visible || plan.moves.length === 0) && overload) {
+      return (
+        <MotiView from={{ opacity: 0, translateY: -8 }} animate={{ opacity: 1, translateY: 0 }} style={styles.wrap}>
+          <BentoCard index={0} style={[styles.card, { backgroundColor: theme.tertiary + '0A', borderColor: theme.tertiary + '26', borderWidth: 1 }]}>
+            <View style={styles.eyebrowRow}>
+              <Wind size={ICON.xs} color={theme.tertiary} />
+              <Text style={[styles.eyebrow, { color: theme.tertiary }]}>{c.eyebrow}</Text>
+            </View>
+            <Text style={[styles.headline, { color: theme.onSurface }]} accessibilityRole="header">{c.overTitle(overload.count)}</Text>
+            <Text style={[styles.body, { color: theme.onSurfaceMuted }]}>{c.overBody}</Text>
+            <View style={styles.actions}>
+              <Touchable onPress={onDismiss} accessibilityRole="button" accessibilityLabel={c.dismiss} style={styles.dismissBtn}>
+                <Text style={[styles.dismissText, { color: theme.onSurfaceMuted }]}>{c.dismiss}</Text>
+              </Touchable>
+              <Touchable onPress={overload.onOpen} accessibilityRole="button" accessibilityLabel={c.overAct} style={[styles.actBtn, { backgroundColor: theme.tertiary }]}>
+                <Wind size={ICON.sm} color={theme.onTertiary} />
+                <Text style={[styles.actText, { color: theme.onTertiary }]}>{c.overAct}</Text>
               </Touchable>
             </View>
           </BentoCard>

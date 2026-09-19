@@ -1,9 +1,12 @@
+import { calendarDayOf, parseDateKey } from '@/shared/utils/dateKey';
 import { Platform, AppState } from 'react-native';
 import Constants from 'expo-constants';
 import { swallow } from './swallow';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 const FOCUS_NOTIF_ID = 'tazq-focus-live';
+export const FOCUS_END_ID = 'focus-end';
+export const FOCUS_STRICT_ID = 'focus-strict';
 
 let Notifications: any = null;
 try {
@@ -11,12 +14,18 @@ try {
   if (Notifications?.setNotificationHandler) {
     Notifications.setNotificationHandler({
       handleNotification: async (notification: any) => {
-        const isFocusNotif = notification?.request?.identifier === FOCUS_NOTIF_ID;
+        const id = notification?.request?.identifier;
+        const isFocusNotif = id === FOCUS_NOTIF_ID;
         const isBackground = AppState.currentState !== 'active';
+        // Odak ekranı açıkken bitişi ekran zaten kutluyor (ses + ritüel): bildirim susar.
+        let onFocusScreen = false;
+        if (id === FOCUS_END_ID || id === FOCUS_STRICT_ID) {
+          try { onFocusScreen = !isBackground && require('@/features/focus/session').isFocusScreenVisible(); } catch (e) { swallow('notifications.focusScreenFlag', e); }
+        }
         return {
-          shouldShowBanner: isFocusNotif ? isBackground : true,
-          shouldShowList: isFocusNotif ? isBackground : true,
-          shouldPlaySound: isFocusNotif ? false : true,
+          shouldShowBanner: isFocusNotif ? isBackground : !onFocusScreen,
+          shouldShowList: isFocusNotif ? isBackground : !onFocusScreen,
+          shouldPlaySound: isFocusNotif ? false : !onFocusScreen,
           shouldSetBadge: false,
         };
       },
@@ -151,8 +160,9 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   }
 }
 
-// ─── Morning Brief (08:00 daily) ─────────────────────────────────────────────
-// Smart: fires only if there are tasks today. Gives streak context.
+// ─── Morning Brief ───────────────────────────────────────────────────────────
+// TEK SEFERLİK: `daily` tetikleyicide sayı donuyor, açılmayan uygulama her sabah aynı eski
+// "Bugün 16 görevin var"ı gönderiyordu (gerçek: 4). Sayı çalacağı günün (bkz. briefCounts).
 
 const PRODUCTIVITY_HOUR: Record<string, number> = {
   morning: 7,
@@ -161,12 +171,17 @@ const PRODUCTIVITY_HOUR: Record<string, number> = {
   night: 21,
 };
 
+/** Sabah özetinin saati — kullanıcının verimli saat tercihinden. */
+export const briefHourFor = (productivityHour: string) => PRODUCTIVITY_HOUR[productivityHour] ?? 8;
+
 export async function scheduleMorningBrief(
   todayTaskCount: number,
   streak: number,
   locale: string = 'en',
   productivityHour: string = 'morning',
-  name?: string
+  name?: string,
+  /** Çalacağı an (bkz. briefCounts.nextAt); sayı bu günün sayısı olmalı. */
+  fireAt?: Date,
 ): Promise<void> {
   if (!Notifications || isExpoGo) return;
   try {
@@ -178,7 +193,7 @@ export async function scheduleMorningBrief(
     if (todayTaskCount === 0 && streak === 0) return;
 
     // Üretkenlik saatine göre tetikle — kullanıcının en uygun anında hatırlat.
-    const briefHour = PRODUCTIVITY_HOUR[productivityHour] ?? 8;
+    const briefHour = briefHourFor(productivityHour);
 
     // Seri satırı — emojisiz, doğal. Sadece anlamlıysa (2+ gün).
     const streakLine = streak > 1
@@ -215,13 +230,19 @@ export async function scheduleMorningBrief(
         categoryIdentifier: 'morning-brief',
       },
       trigger: {
-        type: 'daily',
-        hour: briefHour,
-        minute: 0,
-        repeats: true,
+        type: 'date',
+        date: fireAt ?? nextOccurrence(briefHour),
       } as any,
     });
   } catch (e) { swallow('notifications.scheduleMorningBrief', e); }
+}
+
+/** Bugün o saat geçmediyse bugün, geçtiyse yarın. */
+function nextOccurrence(hour: number): Date {
+  const d = new Date();
+  d.setHours(hour, 0, 0, 0);
+  if (d <= new Date()) d.setDate(d.getDate() + 1);
+  return d;
 }
 
 export async function cancelMorningBrief(): Promise<void> {
@@ -238,20 +259,20 @@ export async function scheduleEveningBrief(
   completedToday: number,
   pendingTotal: number,
   locale: string = 'en',
-  name?: string
+  name?: string,
+  /** Çalacağı an; sayılar bu günün sayıları olmalı (bkz. briefCounts). */
+  fireAt?: Date,
 ): Promise<void> {
-  if (!Notifications || isExpoGo || (completedToday === 0 && pendingTotal === 0)) return;
+  if (!Notifications || isExpoGo) return;
   try {
     const isTR = locale === 'tr';
     const firstName = (name ?? '').trim().split(/\s+/)[0];
 
+    // ÖNCE İPTAL, sonra karar: yoksa işler silinse de eski "3 görev duruyor" akşam çalardı.
     await Notifications.cancelScheduledNotificationAsync('evening-brief').catch(() => {});
+    if (completedToday === 0 && pendingTotal === 0) return;
 
-    const trigger = new Date();
-    trigger.setHours(21, 0, 0, 0);
-    if (trigger <= new Date()) {
-      trigger.setDate(trigger.getDate() + 1);
-    }
+    const trigger = fireAt ?? nextOccurrence(21);
 
     let title: string;
     let body: string;
@@ -265,8 +286,9 @@ export async function scheduleEveningBrief(
     } else if (completedToday > 0) {
       title = isTR ? 'Günü güzel kapatıyorsun' : 'Nicely wrapping up';
       body = isTR
-        ? `${completedToday} görev tamam. ${pendingTotal} tanesi yarın için hazır.`
-        : `${completedToday} done today. ${pendingTotal} ready for tomorrow.`;
+        // "yarın için hazır" DEĞİL: bu sayı bugünden KALAN iş (bkz. briefCounts.openThrough).
+        ? `${completedToday} görev tamam. ${pendingTotal} tanesi yarına kaldı.`
+        : `${completedToday} done today. ${pendingTotal} left for tomorrow.`;
     } else {
       // SUÇLAMA YOK — ileri-bakan, ivme dili. Bir görev bile fark yaratır.
       title = isTR ? 'Gün bitmeden' : 'Before the day ends';
@@ -345,12 +367,14 @@ export async function scheduleTaskNotification(
       const { hours, minutes } = parseTimeParts(dueTime);
       triggerDate = new Date();
       triggerDate.setHours(hours, minutes, 0, 0);
-      if (dueDate) {
-        const d = new Date(dueDate);
+      // Gün YEREL takvimden: '…T00:00:00Z' UTC okunursa bazı saat dilimlerinde bir gün önce çalar.
+      const day = calendarDayOf(dueDate);
+      if (day) {
+        const d = parseDateKey(day);
         triggerDate.setFullYear(d.getFullYear(), d.getMonth(), d.getDate());
       }
-    } else if (dueDate) {
-      triggerDate = new Date(dueDate);
+    } else if (calendarDayOf(dueDate)) {
+      triggerDate = parseDateKey(calendarDayOf(dueDate)!);
       triggerDate.setHours(9, 0, 0, 0);
     }
 
@@ -411,7 +435,7 @@ export async function scheduleTaskNotification(
  * @returns Yeniden kurulan bildirim sayısı (çağıran taraf kullanıcıya söyleyebilir).
  */
 export async function rescheduleAllTaskNotifications(
-  tasks: { id: number; title: string; dueDate?: string | null; dueTime?: string | null; isCompleted?: boolean }[],
+  tasks: { id: number; title: string; dueDate?: string | null; dueTime?: string | null; isCompleted?: boolean; tags?: string[] | null }[],
   locale: string,
   hideContent: boolean,
 ): Promise<number> {
@@ -421,6 +445,9 @@ export async function rescheduleAllTaskNotifications(
   for (const t of tasks) {
     // Bitmiş ya da tarihsiz görevin hatırlatıcısı zaten yok.
     if (t.isCompleted || !t.dueDate) continue;
+    // YALNIZ hatırlatıcı istenmişler (bkz. wantsReminder): yoksa "içeriği gizle" açılınca
+    // tarihli HER görev için 09:00'a bildirim kuruluyordu.
+    if (!(t.tags ?? []).some((tag) => tag === 'hatırlatıcı' || tag === 'reminder')) continue;
     try {
       const id = await scheduleTaskNotification(t.id, t.title, t.dueDate, t.dueTime, locale, hideContent);
       if (id) count += 1;
@@ -523,33 +550,26 @@ export async function cancelHabitAtRisk(): Promise<void> {
 
 // ─── Focus Notifications ──────────────────────────────────────────────────────
 
-export async function showFocusNotification(
-  taskName: string,
-  secondsRemaining: number,
-  locale: string = 'en'
-): Promise<void> {
+/** ODAK ALARMI — tek seferlik. Kilitli telefonda JS çalışmaz; bitişi ancak işletim sistemi
+ *  haber verebilir. Kimlik sabit: yeniden kurmak eskisinin yerine geçer. */
+export async function scheduleFocusAlert(id: string, at: Date, title: string, body: string): Promise<void> {
   if (!Notifications) return;
   try {
-    const isTR = locale === 'tr';
-    const m = Math.floor(secondsRemaining / 60);
-    const s = secondsRemaining % 60;
-    const timeStr = `${m}:${s.toString().padStart(2, '0')}`;
-    const label = taskName || (isTR ? 'Odak' : 'Focus');
-
-    await Notifications.dismissNotificationAsync(FOCUS_NOTIF_ID).catch(() => {});
+    await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
     await Notifications.scheduleNotificationAsync({
-      identifier: FOCUS_NOTIF_ID,
-      content: {
-        title: isTR ? 'Derin Odak' : 'Deep Focus',
-        body: `${label} · ${timeStr} ${isTR ? 'kaldı' : 'remaining'}`,
-        sound: false,
-        sticky: true,
-        data: { type: 'focus' },
-        categoryIdentifier: 'focus-active',
-      },
-      trigger: null,
+      identifier: id,
+      content: { title, body, sound: 'default', data: { type: 'focus' } },
+      trigger: { type: 'date', date: at } as any,
     });
-  } catch (e) { swallow('notifications.showFocusNotification', e); }
+  } catch (e) { swallow('notifications.scheduleFocusAlert', e); }
+}
+
+export async function cancelFocusAlert(id: string, dismissDelivered = false): Promise<void> {
+  if (!Notifications) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+    if (dismissDelivered) await Notifications.dismissNotificationAsync(id).catch(() => {});
+  } catch (e) { swallow('notifications.cancelFocusAlert', e); }
 }
 
 export async function cancelFocusNotification(): Promise<void> {
@@ -606,26 +626,23 @@ export async function scheduleWeeklySummary(
       düzenli kullanıcı gerçek rakamı görüyor, uzaklaşan kullanıcı ise en azından
       sessizliğe düşmüyor.
     */
+    // Tekrarlı yedek ile tek seferlik özet aynı anda çalıyordu (pazar 20:00'de İKİ bildirim).
+    // Artık dört pazar tek seferlik: ilki güncel sayıyla, sonrakiler sayısız çağrıyla.
     const now = new Date();
     const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
-    const trigger = new Date(now);
-    trigger.setDate(now.getDate() + daysUntilSunday);
-    trigger.setHours(20, 0, 0, 0);
-
-    await Notifications.cancelScheduledNotificationAsync('weekly-summary').catch(() => {});
-    await Notifications.scheduleNotificationAsync({
-      identifier: 'weekly-summary',
-      content: { title, body, sound: true, data: { type: 'weekly' }, categoryIdentifier: 'daily-summary' },
-      trigger: { type: 'date', date: trigger } as any,
-    });
-
-    // Sessizliğe düşmeyi engelleyen tekrarlı yedek — sayısız, o yüzden bayatlamıyor.
-    await Notifications.cancelScheduledNotificationAsync('weekly-summary-repeat').catch(() => {});
-    await Notifications.scheduleNotificationAsync({
-      identifier: 'weekly-summary-repeat',
-      content: { title, body: copy.evergreen, sound: true, data: { type: 'weekly' }, categoryIdentifier: 'daily-summary' },
-      trigger: { type: 'weekly', weekday: 1, hour: 20, minute: 0, repeats: true } as any,
-    });
+    await Notifications.cancelScheduledNotificationAsync('weekly-summary-repeat').catch(() => {}); // eski tekrarlı
+    for (let week = 0; week < 4; week++) {
+      const trigger = new Date(now);
+      trigger.setDate(now.getDate() + daysUntilSunday + week * 7);
+      trigger.setHours(20, 0, 0, 0);
+      const id = week === 0 ? 'weekly-summary' : `weekly-summary-${week}`;
+      await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+      await Notifications.scheduleNotificationAsync({
+        identifier: id,
+        content: { title, body: week === 0 ? body : copy.evergreen, sound: true, data: { type: 'weekly' }, categoryIdentifier: 'daily-summary' },
+        trigger: { type: 'date', date: trigger } as any,
+      });
+    }
   } catch (e) { swallow('notifications.scheduleWeeklySummary', e); }
 }
 
@@ -634,8 +651,9 @@ export async function cancelWeeklySummary(): Promise<void> {
   // İKİSİ de kalkmalı: güncel sayılı tek seferlik özet ve sessizliğe düşmeyi
   // engelleyen tekrarlı yedek (bkz. scheduleWeeklySummary).
   try {
-    await Notifications.cancelScheduledNotificationAsync('weekly-summary').catch(() => {});
-    await Notifications.cancelScheduledNotificationAsync('weekly-summary-repeat').catch(() => {});
+    for (const id of ['weekly-summary', 'weekly-summary-1', 'weekly-summary-2', 'weekly-summary-3', 'weekly-summary-repeat']) {
+      await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+    }
   } catch (e) { swallow('notifications.cancelWeeklySummary', e); }
 }
 
@@ -651,7 +669,10 @@ export async function scheduleExamCountdownNotifs(
   try {
     const isTR = locale === 'tr';
     const name = examName.trim() || (isTR ? 'Sınav' : 'Exam');
-    const targetDate = new Date(examDate);
+    // Tarih YEREL takvimden ('YYYY-MM-DD' UTC okunursa bazı saat dilimlerinde gün kayar).
+    const examDay = calendarDayOf(examDate);
+    if (!examDay) return;
+    const targetDate = parseDateKey(examDay);
     targetDate.setHours(9, 0, 0, 0);
 
     for (const daysBefore of [7, 3, 1]) {
@@ -663,8 +684,9 @@ export async function scheduleExamCountdownNotifs(
         await Notifications.scheduleNotificationAsync({
           identifier: id,
           content: {
+            // Ek YOK: "YKS'a" yanlıştı. Ünlü uyumu isme göre değişir; "için" her adla doğru.
             title: isTR
-              ? `${name}'a ${daysBefore} gün kaldı`
+              ? `${name} için ${daysBefore} gün kaldı`
               : `${daysBefore} day${daysBefore > 1 ? 's' : ''} until ${name}`,
             body: isTR
               ? (daysBefore === 1

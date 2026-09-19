@@ -18,9 +18,12 @@ import { useKeyboardHeight } from '@/shared/hooks/useKeyboardHeight';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import VoiceService from '@/shared/utils/voice';
-import { parseTaskHint, visibleTextTags, translateTag, isInternalTag, ICON_TAGS } from '@/features/tasks';
+import { parseTaskHint, visibleTextTags, translateTag } from '@/features/tasks';
 import { ICON, S, R, F, B, scale, verticalScale, moderateScale } from '@/shared/constants/tokens';
 import { buildNlpChips } from '@/features/tasks/utils/nlpChips';
+import { EMPTY_DRAFT, applyHint, markManual, rejectTag, visibleHint, type DraftControl, type OwnedField } from '@/features/tasks/nlp/draft';
+import { CATEGORY_TAGS, type CategoryId } from '@/features/tasks/nlp/lexicon';
+import { langOf } from '@/shared/utils/lang';
 import { NlpHintRow, hasNlpHint, EMPTY_NLP_HINT, type NlpHint } from '@/features/tasks/components/NlpHintRow';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { Priority, RecurrenceType, SubtaskItem } from '@/shared/services/api';
@@ -184,9 +187,14 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
     }
   }, [visible, isListeningTitle, isListeningDesc]);
 
+  // Motorun bu taslakta neye dokunabileceği: elle seçilen alanlar ve reddedilen etiketler.
+  const draftRef = useRef<DraftControl>(EMPTY_DRAFT);
+  const touch = (...fields: OwnedField[]) => { draftRef.current = markManual(draftRef.current, ...fields); };
+
   // Populate form on edit/create toggle
   useEffect(() => {
     if (visible) {
+      draftRef.current = EMPTY_DRAFT;
       prepareTask();
       setSaving(false);
       setTitleError(false);
@@ -215,18 +223,10 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
           şeyi ikinci kez girmeye zorlardı. Aynı ayrıştırıcı burada da çalışıyor.
         */
         const parsed = parseTaskHint(initialTitle, language as 'tr' | 'en');
-        const parsedTags = parsed.tags || [];
-        setForm({
-          ...EMPTY_FORM,
-          title: initialTitle,
-          priority: parsed.priority || 'Medium',
-          dueDate: parsed.dueDate || '',
-          dueTime: parsed.dueTime || null,
-          recurrence: parsed.recurrence || 'None',
-          tags: parsedTags,
-          reminderEnabled: parsedTags.includes('hatırlatıcı') || parsedTags.includes('reminder'),
-        });
-        setNlpHint({ message: parsed.wittyMessage ?? '', chips: buildNlpChips(parsed, language) });
+        const applied = applyHint({ ...EMPTY_FORM, title: initialTitle }, parsed, EMPTY_DRAFT);
+        draftRef.current = applied.draft;
+        setForm(applied.form);
+        setNlpHint({ message: '', chips: buildNlpChips(parsed, language) });
       } else {
         setForm(EMPTY_FORM);
       }
@@ -245,41 +245,27 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       setIsListeningTitle(false);
     }
 
-    if (!text.trim() && !task) {
-      setForm(f => ({ ...f, title: '', priority: 'Medium', tags: [], dueDate: '', dueTime: null }));
-      setNlpHint(EMPTY_NLP_HINT);
-      if (titleError) setTitleError(false);
+    if (titleError) setTitleError(false);
+
+    /*
+      VAR OLAN GÖREV düzenlenirken motor devreye girmez: o görevin tarihi, önceliği ve
+      etiketleri verilmiş kararlardır. Başlıktaki bir yazım düzeltmesi onları değiştirmemeli.
+    */
+    if (task) {
+      setForm(f => ({ ...f, title: text }));
       return;
     }
 
+    // Yeni görev: dokunulmamış alanlar cümlenin aynası, elle seçilenler kullanıcının
+    // (bkz. nlp/draft). Taslak denetimi yalnız ipucuna ve önceki denetime bağlı —
+    // formun anlık hâline değil — bu yüzden güncelleyicinin dışında hesaplanabiliyor.
     const hint = parseTaskHint(text, language as 'tr' | 'en');
-    const hasReminderWord = text.toLowerCase().includes('hatırlat') || text.toLowerCase().includes('remind');
-    const nlpTags = hint.tags || [];
+    const before = draftRef.current;
+    draftRef.current = applyHint(EMPTY_FORM, hint, before).draft;
+    setForm(f => applyHint({ ...f, title: text }, hint, before).form);
 
-    setForm(f => {
-      const currentInternal = f.tags.filter(t => isInternalTag(t) || ICON_TAGS.includes(t));
-      let mergedTags = Array.from(new Set([...currentInternal, ...nlpTags]));
-      if (hasReminderWord && !mergedTags.includes('hatırlatıcı')) {
-        mergedTags.push('hatırlatıcı');
-      }
-      return {
-        ...f,
-        title: text,
-        priority: hint.priority || f.priority,
-        dueDate: hint.dueDate || f.dueDate,
-        dueTime: hint.dueTime || f.dueTime,
-        recurrence: hint.recurrence || f.recurrence,
-        reminderEnabled: hasReminderWord ? true : f.reminderEnabled,
-        tags: mergedTags
-      };
-    });
-
-    if (titleError) setTitleError(false);
-
-    // Ayrıştırıcının ANLADIĞI şeyler — ham emoji YOK, tür var. İkonu NlpHintRow çizer.
-    // Dönüşüm ORTAK (bkz. buildNlpChips): hızlı ekleme sayfası da aynı ipucunu gösteriyor;
-    // kopyalansaydı iki ekran zamanla ayrışırdı.
-    setNlpHint({ message: hint.wittyMessage ?? '', chips: buildNlpChips(hint, language) });
+    // Çipler yalnız motorun GERÇEKTEN uyguladığını gösterir (elle seçilen alan çip olmaz).
+    setNlpHint({ message: '', chips: buildNlpChips(visibleHint(hint, draftRef.current), language) });
   };
 
   const handleDescriptionChange = (text: string) => {
@@ -375,6 +361,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
     }
 
     setDateError(false);
+    touch('dueDate');
     setForm(f => ({ ...f, dueDate: `${year}-${mm}-${dd}` }));
     setShowDatePicker(false);
   };
@@ -382,6 +369,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
   const confirmTime = () => {
     const base = new Date();
     base.setHours(pickerTime.hour, pickerTime.minute, 0, 0);
+    touch('dueTime');
     setForm(f => ({ ...f, dueTime: base.toISOString() }));
     setShowTimePicker(false);
   };
@@ -690,7 +678,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                   ] as { key: Priority; label: string }[]).map((p) => (
                     <Touchable
                       key={p.key}
-                      onPress={() => { haptic.select(); setForm(f => ({ ...f, priority: p.key })); }}
+                      onPress={() => { haptic.select(); touch('priority'); setForm(f => ({ ...f, priority: p.key })); }}
                       style={[styles.priorityTab, { backgroundColor: form.priority === p.key ? priorityColor(p.key) : theme.surfaceField, height: 48 }]}
                     >
                       <Text style={[
@@ -717,7 +705,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                     <Touchable
                       key={r.key}
                       hitSlop={{ top: 2, bottom: 2, left: 0, right: 0 }}
-                      onPress={() => { haptic.select(); setForm(f => ({ ...f, recurrence: r.key })); }}
+                      onPress={() => { haptic.select(); touch('recurrence'); setForm(f => ({ ...f, recurrence: r.key })); }}
                       style={[styles.priorityTab, { backgroundColor: form.recurrence === r.key ? theme.secondary : theme.surfaceField, height: 42 }]}
                     >
                       {r.key !== 'None' && <Repeat size={ICON.xs} color={form.recurrence === r.key ? 'white' : theme.onSurfaceVariant} />}
@@ -748,6 +736,8 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 <Touchable
                   onPress={() => {
                     haptic.select();
+                    // Anahtar tarih ve saati de kuruyor — üçü de artık kullanıcının.
+                    touch('reminder', 'dueDate', 'dueTime');
                     setForm(f => {
                       const nextReminderEnabled = !f.reminderEnabled;
                       let nextDueTime = f.dueTime;
@@ -948,7 +938,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                       <Text style={{ fontSize: F.caption, fontWeight: '700', color: theme.primary }}>
                         {translateTag(tag, language as 'tr' | 'en')}
                       </Text>
-                      <Touchable accessibilityRole="button" accessibilityLabel={language === 'tr' ? `${tag} etiketini kaldır` : `Remove tag ${tag}`} onPress={() => setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tag) }))} style={{ padding: S.xxs }}>
+                      <Touchable accessibilityRole="button" accessibilityLabel={language === 'tr' ? `${tag} etiketini kaldır` : `Remove tag ${tag}`} onPress={() => { draftRef.current = rejectTag(draftRef.current, tag); setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tag) })); }} style={{ padding: S.xxs }}>
                         <X size={ICON.xs} color={theme.primary} />
                       </Touchable>
                     </View>
@@ -957,14 +947,15 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
                 
                 {/* Pre-defined/Custom Tags selector */}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.xs }}>
-                  {['Work', 'Study', 'Personal', 'Shopping', 'Health'].map(tagOption => {
+                  {(['work', 'education', 'personal', 'shopping', 'health', 'fitness', 'finance', 'home', 'social'] as CategoryId[])
+                    .map(id => CATEGORY_TAGS[id][langOf(language)]).map(tagOption => {
                     const hasTag = form.tags.includes(tagOption);
                     return (
                       <Touchable
                         key={tagOption}
                         onPress={() => {
                           haptic.select();
-                          if (hasTag) setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tagOption) }));
+                          if (hasTag) { draftRef.current = rejectTag(draftRef.current, tagOption); setForm(f => ({ ...f, tags: f.tags.filter(t => t !== tagOption) })); }
                           else setForm(f => ({ ...f, tags: [...f.tags, tagOption] }));
                         }}
                         style={{ paddingHorizontal: S.smd, paddingVertical: S.sm, borderRadius: R.md, backgroundColor: hasTag ? theme.primary : theme.surfaceField }}

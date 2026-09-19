@@ -75,7 +75,7 @@ export const QuickAddSheet: React.FC<QuickAddSheetProps> = ({
       return;
     }
     const parsed = parseTaskHint(text, language as 'tr' | 'en');
-    setHint({ message: parsed.wittyMessage ?? '', chips: buildNlpChips(parsed, language) });
+    setHint({ message: '', chips: buildNlpChips(parsed, language) });
   };
 
   const handleSave = async () => {

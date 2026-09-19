@@ -140,7 +140,7 @@ describe('günü kapatma — bitmeyen iş rozet olarak birikmez', () => {
     // Günü kapatırken karar hızlı verilir; hızlı kararın geri dönüşü olmalı.
     expect(DAY).toContain('archiveTask(id)');
     expect(DAY).not.toContain('removeTask');
-    expect(ACTIONS).toContain('isArchived: true');
+    expect(ACTIONS).toContain('withArchived(task.tags, on)');
   });
 
   it('yarına alma toplu yapılabilir — tek tek uğraştırmaz', () => {

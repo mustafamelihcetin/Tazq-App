@@ -100,6 +100,13 @@ interface PrefsState {
   setFocusAmbientSound: (v: string) => void;
   focusPreset: string;
   setFocusPreset: (v: string) => void;
+  /**
+   * Seans sürerken ekran açık kalsın mı? (varsayılan: evet)
+   * Telefon kendiliğinden kilitlenince sayaç görünmez oluyordu; katı modda ise bu
+   * otomatik kilit "odaktan ayrıldın" sayılıp seansı iptal ediyordu.
+   */
+  focusKeepAwake: boolean;
+  setFocusKeepAwake: (v: boolean) => void;
   // Uyku sağlık entegrasyonu (Faz 1) — cihaza özel. optIn: kullanıcı Apple Sağlık bağladı mı?
   sleepHealthOptIn: 'unset' | 'yes' | 'no';
   setSleepHealthOptIn: (v: 'unset' | 'yes' | 'no') => void;
@@ -131,14 +138,12 @@ interface PrefsState {
    * Etiket filtresiyle kapatılan uygulamanın ertesi gün aynı daraltmayla açılması,
    * kullanıcıya "görevlerim kayboldu" dedirtirdi.
    */
-  taskFilter: 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done';
-  setTaskFilter: (v: 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done') => void;
+  taskFilter: 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done' | 'someday';
+  setTaskFilter: (v: 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done' | 'someday') => void;
   taskSortBy: 'priority' | 'date' | 'creation';
   setTaskSortBy: (v: 'priority' | 'date' | 'creation') => void;
   taskHideCompleted: boolean;
   setTaskHideCompleted: (v: boolean) => void;
-  taskShowFutureManual: boolean;
-  setTaskShowFutureManual: (v: boolean) => void;
   /**
    * UYKUDAN TÜREYEN TOPARLANMA — plan motorunun okuduğu tek sağlık sinyali.
    *
@@ -388,6 +393,8 @@ export const usePrefsStore = create<PrefsState>()(
       setFocusAmbientSound: (v) => set({ focusAmbientSound: v }),
       focusPreset: 'classic',
       setFocusPreset: (v) => set({ focusPreset: v }),
+      focusKeepAwake: true,
+      setFocusKeepAwake: (v) => set({ focusKeepAwake: v }),
       sleepHealthOptIn: 'unset',
       setSleepHealthOptIn: (v) => set({ sleepHealthOptIn: v }),
       sleepLastCheckDate: '',
@@ -404,8 +411,6 @@ export const usePrefsStore = create<PrefsState>()(
       setTaskSortBy: (v) => set({ taskSortBy: v }),
       taskHideCompleted: false,
       setTaskHideCompleted: (v) => set({ taskHideCompleted: v }),
-      taskShowFutureManual: true,
-      setTaskShowFutureManual: (v) => set({ taskShowFutureManual: v }),
       recoveryState: 'unknown',
       setRecoveryState: (v) => set({ recoveryState: v }),
       examPlanHabitIds: [],

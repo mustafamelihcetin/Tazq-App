@@ -16,27 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 import { Easing as REasing } from 'react-native-reanimated';
 import {
-  Flame,
-  Timer,
-  Play,
-  Sparkles,
-  GraduationCap,
-  Wind,
-  Shield,
-  Plus,
-  Check,
-  Clock,
-  CloudRain,
-  Coffee,
-  Waves,
-  Coins,
-  Dumbbell,
-  BookOpen,
-  Search,
-  Trash2,
-  CalendarClock,
-  BarChart3,
-  ChevronRight,
+  Flame, Timer, Play, Sparkles, GraduationCap, Wind, Shield, Plus, Check, Clock, CloudRain, Coffee,
+  Waves, Coins, Dumbbell, BookOpen, Search, Trash2, CalendarClock, BarChart3, ChevronRight
 } from 'lucide-react-native';
 import { MomentumPulse } from '@/features/user/components/MomentumPulse';
 import { HabitBubble } from '@/features/habits/components/HabitBubble';
@@ -44,6 +25,7 @@ import { MyDayTaskRow } from '@/features/dashboard/components/MyDayTaskRow';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { F, S, ICON, R } from '@/shared/constants/tokens';
 import { AppIcon } from '@/shared/components/AppIcon';
+import { CoreTourPreview } from '@/features/onboarding/components/CoreTourPreview';
 
 interface Props {
   pageId: string;
@@ -363,6 +345,9 @@ export const TourFeaturePreview: React.FC<Props> = ({ pageId, step, theme, isDar
           </View>
         </ScaledScreen>
       );
+
+    case 'dashboard-4': // TAZQ Core: logoya dokun → palet (ayrı dosyada, bkz. CoreTourPreview)
+      return <ScaledScreen innerW={frameW} tap={{ x: frameW / 2, y: 22, k: cyc3, color: theme.tertiary }}><CoreTourPreview theme={theme} isDark={isDark} tr={tr} beat={beat} card={card} sectionLabel={sectionLabel} /></ScaledScreen>;
 
     // ───────────────── TASKS ─────────────────
     case 'tasks-0': { // Arama + filtre çipleri + görev ekle (FAB)

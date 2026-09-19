@@ -453,6 +453,14 @@ namespace Tazq_App.Services
 
             if (nextDate == null) return;
 
+            // TEKRAR ÇİFTİ OLUŞMASIN. Bu metot her "tamamlanmadı → tamamlandı" geçişinde
+            // çalışıyor: tamamla → geri al → tamamla, aynı sonraki örneği İKİ kez üretiyordu.
+            // Anahtar deterministik (kaynak + tarih); o anahtarla bir görev VARSA (tamamlanmış
+            // olsa bile) yenisi oluşturulmaz.
+            var recurrenceKey = $"r-{source.Id}-{nextDate.Value:yyyyMMdd}";
+            if (await _context.Tasks.AnyAsync(t => t.UserId == userId && t.ClientKey == recurrenceKey))
+                return;
+
             var newTask = new TaskItem
             {
                 Title = source.Title,
@@ -467,6 +475,7 @@ namespace Tazq_App.Services
                     .Select(s => new SubtaskItem { Text = s.Text, Done = false }).ToList(),
                 Recurrence = source.Recurrence,
                 SortOrder = source.SortOrder,
+                ClientKey = recurrenceKey,
                 UserId = userId
             };
 

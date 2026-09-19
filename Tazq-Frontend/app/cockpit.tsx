@@ -127,7 +127,6 @@ export default function CockpitScreen() {
     sporPlanHabitIds, spor2PlanHabitIds, spor3PlanHabitIds,
     ramazanPlanHabitIds,
     soundEffects,
-    completedTours,
     onboardingCompleted,
   } = usePrefsStore();
 
@@ -151,15 +150,9 @@ export default function CockpitScreen() {
   };
 
   /* Örnek veri ve tur kapıları ORTAK kuraldan (bkz. features/onboarding/utils/firstRun). */
-  const demoGate = useDemoGate('cockpit');
-  const cockpitContentRef = useRef({ tasks: rawTasks, habits: rawHabits });
-  cockpitContentRef.current = { tasks: rawTasks, habits: rawHabits };
-  /*
-    Kokpit turu hiçbir koşula bağlı DEĞİLDİ: ekrana girer girmez açılıyordu, hafta
-    şeridi bomboşken "haftalık karneni oku" diye anlatıyordu. Artık ötekilerle aynı
-    kural — gösterecek bir şey varsa ve kullanıcının eylemine tepki olmadan.
-  */
-  const tourAllowed = useTourGate(() => cockpitContentRef.current.habits.length > 0 || cockpitContentRef.current.tasks.length > 0);
+  // İlk ziyarette tur; boş hafta şeridini tur boyunca örnek veri doldurur (bkz. firstRun).
+  const tourOn = useTourGate('cockpit');
+  const demoGate = useDemoGate('cockpit', tourOn);
 
   const tasks = useMemo(() => {
     if (demoGate(rawTasks.length)) {
@@ -1461,7 +1454,7 @@ export default function CockpitScreen() {
         </KeyboardAvoidingView>
       </Modal>
       <BottomNavBar />
-      {tourAllowed && (
+      {tourOn && (
         <HelpTourModal
           pageId="cockpit"
           onStepChange={handleStepChange}

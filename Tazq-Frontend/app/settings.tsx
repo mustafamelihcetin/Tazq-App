@@ -818,9 +818,23 @@ export default function SettingsScreen() {
                 </Text>
             </Touchable>
 
-            <Touchable onPress={openDeleteAccount} style={[styles.logoutBtn, { backgroundColor: 'transparent', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md }]}>
+            {/*
+              MİSAFİRDE SİLİNECEK HESAP YOK. Eskiden misafire de "Hesabımı Sil" gösteriliyordu
+              ve sunucuya gidemeyen bir silme isteği başlatıyordu. Misafirin sahip olduğu şey
+              CİHAZDAKİ veri: onu silmenin yolu yerel temizlik + çıkış (logout bunu zaten yapıyor).
+            */}
+            <Touchable
+              onPress={isGuest
+                ? () => Alert.alert(t.guest.eraseLocalTitle, t.guest.eraseLocalBody, [
+                    { text: t.cancel, style: 'cancel' },
+                    { text: t.guest.eraseLocalConfirm, style: 'destructive', onPress: () => { logout(); router.replace('/login'); } },
+                  ])
+                : openDeleteAccount}
+              accessibilityRole="button"
+              style={[styles.logoutBtn, { backgroundColor: 'transparent', marginTop: S.md, paddingVertical: S.md, paddingHorizontal: S.md }]}
+            >
                 <Trash2 size={ICON.sm} color={theme.error} />
-                <Text style={[styles.logoutText, { color: theme.error, fontSize: F.caption }]}>{t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account')}</Text>
+                <Text style={[styles.logoutText, { color: theme.error, fontSize: F.caption }]}>{isGuest ? t.guest.eraseLocal : (t.deleteAccount || (language === 'tr' ? 'Hesabımı Sil' : 'Delete Account'))}</Text>
             </Touchable>
             </>)}
       </Animated.ScrollView>

@@ -67,6 +67,22 @@ interface FocusState {
   taskFocusMinutes: Record<number, number>;
   lastActiveAt: number | null;
   expectedFinishAt: number | null;
+  /**
+   * SEANS KİMLİĞİ + TÜRÜ + TEK KAYIT KİLİDİ.
+   *
+   * Bir seans birden çok yoldan "bitebiliyor" (ekranda sıfıra inme, arka plandan dönüş,
+   * uygulama kapalıyken dolma, erken bitirme, çıkış). Eskiden bu yollardan ikisi aynı
+   * seansı AYRI AYRI kaydediyordu. Artık her seansın bir kimliği var ve bir kimlik
+   * yalnız BİR kez kaydedilebilir (bkz. claimCommit).
+   *
+   * `sessionKind`: mola da bir geri sayım, ama odak DEĞİL. Eskiden moladan sonra süre
+   * dolunca mola dakikaları odak seansı olarak kaydediliyordu.
+   */
+  sessionId: string | null;
+  sessionKind: 'focus' | 'break';
+  committedSessionId: string | null;
+  /** Süre sıfıra indiği an (planlanan bitiş). Geç açılışta molayı kendiliğinden başlatmamak için. */
+  finishedAt: number | null;
   // Daily focus tracking
   dailyFocusMinutes: number;
   dailyFocusDate: string;
@@ -90,6 +106,13 @@ interface FocusState {
   /** İkinci parametre verilmezse bağ KURULMAZ/kaldırılır — varsayılan davranış budur. */
   setCurrentTask: (task: string, taskId?: number | null) => void;
   setDuration: (minutes: number) => void;
+  /** Mola geri sayımını başlatır — odak olarak KAYDEDİLMEZ. */
+  startBreak: (minutes: number) => void;
+  /**
+   * Bu seansın kaydını ÜSTLENİR. İlk çağrıda true döner, aynı seans için sonrakilerde
+   * false — seans kaç yoldan biterse bitsin bir kez kaydedilir.
+   */
+  claimCommit: () => boolean;
   tick: () => void;
   reset: () => void;
   rehydrateTimer: () => void;
@@ -117,6 +140,15 @@ function getLocalDateString(d: Date = new Date()): string {
 
 const getISODate = () => getLocalDateString();
 
+const newSessionId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+/**
+ * Kalan süre SAATTEN okunur: bitiş anı − şimdi. Saniyede bir "1 eksilt" yöntemi, JS
+ * meşgulken atlanan tik kadar geride kalıyordu (yoğun animasyonda dakikalarca).
+ */
+export const remainingFromClock = (expectedFinishAt: number, now: number = Date.now()): number =>
+  Math.max(0, Math.ceil((expectedFinishAt - now) / 1000));
+
 const getISOWeek = () => {
   const d = new Date();
   const dayNum = d.getUTCDay() || 7;
@@ -138,6 +170,10 @@ export const useFocusStore = create<FocusState>()(
       taskFocusMinutes: {},
       lastActiveAt: null,
       expectedFinishAt: null,
+      sessionId: null,
+      sessionKind: 'focus',
+      committedSessionId: null,
+      finishedAt: null,
       dailyFocusMinutes: 0,
       dailyFocusDate: '',
       dailyGoalMinutes: 60,
@@ -154,12 +190,29 @@ export const useFocusStore = create<FocusState>()(
       pomodoroPhase: 'work',
 
       setIsActive: (isActive) => {
-        const { seconds } = get();
-        set({ 
-          isActive, 
-          lastActiveAt: isActive ? Date.now() : null,
-          expectedFinishAt: isActive ? (Date.now() + seconds * 1000) : null,
-          pausedSeconds: isActive ? null : seconds
+        const st = get();
+        const now = Date.now();
+        if (isActive) {
+          if (st.seconds <= 0) return; // bitmiş sayaç yeniden "başlatılamaz"; önce süre seçilir
+          set({
+            isActive: true,
+            lastActiveAt: now,
+            expectedFinishAt: now + st.seconds * 1000,
+            pausedSeconds: null,
+            finishedAt: null,
+            // Duraklatıp devam etmek AYNI seans; yalnız yeni başlangıç yeni kimlik alır.
+            sessionId: st.sessionId ?? newSessionId(),
+          });
+          return;
+        }
+        // Duraklat: kalan süre o anki SAATTEN dondurulur (son tik beklenmez).
+        const seconds = st.isActive && st.expectedFinishAt ? remainingFromClock(st.expectedFinishAt, now) : st.seconds;
+        set({
+          isActive: false,
+          seconds,
+          lastActiveAt: null,
+          expectedFinishAt: null,
+          pausedSeconds: seconds,
         });
       },
 
@@ -176,20 +229,53 @@ export const useFocusStore = create<FocusState>()(
 
       setDuration: (minutes) => {
         const secs = minutes * 60;
-        set({ 
-          totalSeconds: secs, 
-          seconds: secs, 
-          isActive: false, 
-          lastActiveAt: null, 
+        set({
+          totalSeconds: secs,
+          seconds: secs,
+          isActive: false,
+          lastActiveAt: null,
           expectedFinishAt: null,
-          pausedSeconds: null
+          pausedSeconds: null,
+          // Yeni süre = yeni seans (henüz başlamadı): kimlik başlatınca verilir.
+          sessionId: null,
+          sessionKind: 'focus',
+          finishedAt: null,
         });
       },
 
+      startBreak: (minutes) => {
+        const secs = Math.max(1, Math.round(minutes)) * 60;
+        const now = Date.now();
+        set({
+          totalSeconds: secs,
+          seconds: secs,
+          isActive: true,
+          lastActiveAt: now,
+          expectedFinishAt: now + secs * 1000,
+          pausedSeconds: null,
+          sessionId: newSessionId(),
+          sessionKind: 'break',
+          finishedAt: null,
+        });
+      },
+
+      claimCommit: () => {
+        const { sessionId, committedSessionId } = get();
+        const id = sessionId ?? newSessionId();
+        if (committedSessionId === id) return false;
+        set({ sessionId: id, committedSessionId: id });
+        return true;
+      },
+
       tick: () => {
-        const { isActive, seconds } = get();
-        if (isActive && seconds > 0) {
-          set({ seconds: seconds - 1 });
+        const { isActive, seconds, expectedFinishAt } = get();
+        if (isActive) {
+          const next = expectedFinishAt ? remainingFromClock(expectedFinishAt) : Math.max(0, seconds - 1);
+          if (next <= 0) {
+            set({ seconds: 0, isActive: false, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null, finishedAt: expectedFinishAt ?? Date.now() });
+          } else if (next !== seconds) {
+            set({ seconds: next });
+          }
         } else if (seconds === 0) {
           set({ isActive: false, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null });
         }
@@ -206,6 +292,9 @@ export const useFocusStore = create<FocusState>()(
           lastActiveAt: null,
           expectedFinishAt: null,
           pausedSeconds: null,
+          sessionId: null,
+          sessionKind: 'focus',
+          finishedAt: null,
           /*
             localStreak SIFIRLANMIYOR — bu alan odak ekranında kullanılmıyor
             (incrementLocalStreak hiç çağrılmıyor); sıfırlamak zararsız ama gereksiz.
@@ -237,17 +326,28 @@ export const useFocusStore = create<FocusState>()(
         const { dailyFocusDate } = get();
         const today = getISODate();
         if (dailyFocusDate && dailyFocusDate !== today) {
-          const isExpired = expectedFinishAt ? expectedFinishAt < Date.now() : true;
-          if (!isActive || isExpired) {
-            if (__DEV__) console.log('[FocusStore] rehydrateTimer: Day changed, resetting active/expired session.');
+          /*
+            Eskiden süre dolmuş ya da duraklatılmış seans da burada SİLİNİYORDU: gece
+            23:50'de biten seans ertesi sabah hiç kaydedilmiyor, gece yarısını geçen
+            duraklatılmış seansın dakikaları kayboluyordu. Artık yalnız HİÇ BAŞLANMAMIŞ
+            sayaç yeni güne tazelenir; başlamış her seans kaldığı yerden sürer ve normal
+            yoldan kaydedilir (bkz. features/focus/session.ts).
+          */
+          const untouched = !isActive && seconds === totalSeconds;
+          if (untouched) {
+            if (__DEV__) console.log('[FocusStore] rehydrateTimer: Day changed, refreshing idle timer.');
             set({
               isActive: false,
               seconds: 1500,
               totalSeconds: 1500,
               currentTask: '',
+              currentTaskId: null,
               lastActiveAt: null,
               expectedFinishAt: null,
               pausedSeconds: null,
+              sessionId: null,
+              sessionKind: 'focus',
+              finishedAt: null,
               dailyFocusMinutes: 0,
               dailyFocusDate: today
             });
@@ -277,7 +377,7 @@ export const useFocusStore = create<FocusState>()(
         
         let remaining = seconds;
         if (expectedFinishAt) {
-          remaining = Math.max(0, Math.floor((expectedFinishAt - Date.now()) / 1000));
+          remaining = remainingFromClock(expectedFinishAt);
         } else if (lastActiveAt) {
           const elapsed = Math.floor((Date.now() - lastActiveAt) / 1000);
           remaining = Math.max(0, seconds - elapsed);
@@ -290,10 +390,11 @@ export const useFocusStore = create<FocusState>()(
 
         if (remaining === 0) {
           if (__DEV__) console.log('[FocusStore] rehydrateTimer: Timer fully elapsed/completed in background.');
-          set({ isActive: false, seconds: 0, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null, totalSeconds });
+          set({ isActive: false, seconds: 0, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null, totalSeconds, finishedAt: expectedFinishAt ?? Date.now() });
         } else {
           if (__DEV__) console.log('[FocusStore] rehydrateTimer: Restored active timer with remaining seconds:', remaining);
-          set({ seconds: remaining, lastActiveAt: null, totalSeconds });
+          // Eski kayıtta bitiş anı yoksa şimdi kurulur: bundan sonra saat tek kaynak.
+          set({ seconds: remaining, lastActiveAt: null, totalSeconds, expectedFinishAt: expectedFinishAt ?? Date.now() + remaining * 1000 });
         }
       },
 
@@ -462,6 +563,10 @@ export const useFocusStore = create<FocusState>()(
         taskFocusMinutes: state.taskFocusMinutes,
         lastActiveAt: state.lastActiveAt,
         expectedFinishAt: state.expectedFinishAt,
+        sessionId: state.sessionId,
+        sessionKind: state.sessionKind,
+        committedSessionId: state.committedSessionId,
+        finishedAt: state.finishedAt,
         dailyFocusMinutes: state.dailyFocusMinutes,
         dailyFocusDate: state.dailyFocusDate,
         dailyGoalMinutes: state.dailyGoalMinutes,

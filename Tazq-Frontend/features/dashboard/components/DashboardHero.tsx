@@ -83,7 +83,8 @@ export const DashboardHero = React.memo<DashboardHeroProps>(
             numberOfLines={1}
             adjustsFontSizeToFit
           >
-            {greeting}, {name}
+            {/* Ad bilinmiyorsa yalnız selam: "İyi akşamlar, sen" gibi yer tutucu bir ad yok. */}
+            {name ? `${greeting}, ${name}` : greeting}
           </Text>
         </MotiView>
         </View>

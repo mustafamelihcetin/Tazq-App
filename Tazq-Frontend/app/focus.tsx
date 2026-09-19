@@ -33,6 +33,11 @@ import { ICON, S, R, F, B, SPRING_SOFT } from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import {
+  commitFocusSession, setFocusScreenVisible, finalizeDueSession,
+} from '@/features/focus/session';
+import { useTourGate } from '@/features/onboarding/utils/firstRun';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { Easing as RNEasing } from 'react-native';
 import ReAnimated, { useSharedValue, useAnimatedStyle, useDerivedValue, withRepeat, withTiming, withDelay, cancelAnimation, Easing as ReEasing, type SharedValue } from 'react-native-reanimated';
@@ -317,6 +322,9 @@ const Nebula = React.memo(({ size, width, height, c1, c2, c3, paused, speedScale
 });
 
 // Named focus presets — each encodes work + break durations
+// expo-keep-awake etiketi: yalnız bu ekranın isteği, başka yerin isteğini kapatmaz.
+const KEEP_AWAKE_TAG = 'tazq-focus';
+
 const PRESETS = [
   { key: 'sprint',   labelTr: 'Sprint',   labelEn: 'Sprint',   workMins: 15, shortBreak: 3,  longBreak: 8,  descTr: '15dk hızlı odak',    descEn: '15m quick focus' },
   { key: 'classic',  labelTr: 'Klasik',   labelEn: 'Classic',  workMins: 25, shortBreak: 5,  longBreak: 15, descTr: '25dk standart odak', descEn: '25m standard focus' },
@@ -379,6 +387,12 @@ const PomodoroIndicator = React.memo(({ pomodoroPhase, pomodoroRound, theme, lan
 ));
 
 export default function FocusScreen() {
+  /*
+    Odak turunda HİÇ kapı yoktu: ekran arka plandayken bile açılabiliyordu. Ortak kapı +
+    ÇALIŞAN seansta bekleme: "hızlı odak" ile doğrudan seansa girilince anlatım sayacın
+    üstüne binmesin; tur bir sonraki boşta ziyarette açılır.
+  */
+  const tourOn = useTourGate('focus', useFocusStore(s => s.isActive));
   // Derin odak ekranı sistem temasından bağımsızdır: her iki modda da sakin, koyu meditatif kimlik.
   useAppTheme();
   const theme = Colors.dark;
@@ -394,17 +408,17 @@ export default function FocusScreen() {
   const {
     isActive, totalSeconds, currentTask,
     setIsActive, reset, setDuration,
-    rehydrateTimer, addFocusMinutes,
+    rehydrateTimer, startBreak,
     pomodoroMode, pomodoroRound, pomodoroPhase,
     togglePomodoroMode, nextPomodoroPhase,
-    strictMode, setStrictMode, addFocusPoints,
+    strictMode, setStrictMode,
   } = useFocusStore(useShallow(s => ({
     isActive: s.isActive, totalSeconds: s.totalSeconds, currentTask: s.currentTask,
     setIsActive: s.setIsActive, reset: s.reset, setDuration: s.setDuration,
-    rehydrateTimer: s.rehydrateTimer, addFocusMinutes: s.addFocusMinutes,
+    rehydrateTimer: s.rehydrateTimer, startBreak: s.startBreak,
     pomodoroMode: s.pomodoroMode, pomodoroRound: s.pomodoroRound, pomodoroPhase: s.pomodoroPhase,
     togglePomodoroMode: s.togglePomodoroMode, nextPomodoroPhase: s.nextPomodoroPhase,
-    strictMode: s.strictMode, setStrictMode: s.setStrictMode, addFocusPoints: s.addFocusPoints,
+    strictMode: s.strictMode, setStrictMode: s.setStrictMode,
   })));
 
   // sessionStarted bir boolean selector: değeri sadece geçişlerde değişir (her saniye değil),
@@ -422,7 +436,7 @@ export default function FocusScreen() {
   const completedRef = useRef(false);
   const { trigger: triggerAchievement } = useAchievementStore();
   // Derin odak tercihleri artık prefs store'da (cihazda kalıcı) — her seansda sıfırlanmaz.
-  const { soundEffects, focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset } = usePrefsStore();
+  const { soundEffects, focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake } = usePrefsStore();
   const { measureAll } = useTour();
   const handleStepChange = (step: number) => {
     setTimeout(() => {
@@ -891,63 +905,44 @@ export default function FocusScreen() {
   }, [router]));
 
 
-  const bgAtRef = useRef<number | null>(null);
-  const STRICT_GRACE_MS = 2000; // <2sn (bildirim çekme / kontrol merkezi blip'i) ceza vermez
+  /*
+    ── EKRAN GÖRÜNÜRLÜĞÜ + EKRANI AÇIK TUTMA ────────────────────────────────
+    Odak ekranı açıkken bitişi ekran kutluyor (ses + ritüel): bitiş bildirimi susar
+    (bkz. session.isFocusScreenVisible).
+
+    Ekran açık tutuluyor çünkü telefon kendiliğinden kararıp kilitleniyordu; üstelik
+    katı modda bu otomatik kilit "odaktan ayrıldın" sayılıp seansı iptal ediyordu.
+    Katı modda tercih ne olursa olsun açık tutulur — kuralın adil olmasının şartı bu.
+  */
+  useFocusEffect(useCallback(() => {
+    setFocusScreenVisible(true);
+    return () => setFocusScreenVisible(false);
+  }, []));
+
+  const keepScreenOn = isActive && (focusKeepAwake || strictMode);
+  useEffect(() => {
+    if (!keepScreenOn) return;
+    let released = false;
+    activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch((e) => swallow('focus.keepAwake', e));
+    return () => {
+      if (released) return;
+      released = true;
+      try { deactivateKeepAwake(KEEP_AWAKE_TAG); } catch (e) { swallow('focus.keepAwakeRelease', e); }
+    };
+  }, [keepScreenOn]);
+
+  /*
+    ── ARKA PLANDAN DÖNÜŞ ────────────────────────────────────────────────────
+    Sayaç ve katı mod kararı artık `_layout` + `session.ts` işi: uygulama hangi
+    ekranda olursa olsun aynı biçimde çalışsın diye. Ekran yalnız dolmuş bir seans
+    varsa onu kaydın kapanmasına bırakır (kilit zaten ikinci kaydı engeller).
+  */
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
-      if (next === 'active') {
-        const awayMs = bgAtRef.current ? Date.now() - bgAtRef.current : 0;
-        bgAtRef.current = null;
-        const { isActive: active, strictMode: isStrict, totalSeconds: total, focusPoints: pts } = useFocusStore.getState();
-
-        // Katı mod: yalnız GERÇEKTEN ayrıldıysa (kısa blip değil) seansı iptal et ve ceza uygula
-        if (active && isStrict && awayMs > STRICT_GRACE_MS) {
-          useFocusStore.setState({ isActive: false, seconds: total, expectedFinishAt: null, lastActiveAt: null, focusPoints: Math.max(0, pts - 10) });
-          haptic.error();
-          try {
-            const { soundEffects } = usePrefsStore.getState();
-            if (soundEffects) {
-              const p = createAudioPlayer(require('../assets/sounds/warning.mp3'));
-              p.volume = 0.85;
-              p.play();
-              setTimeout(() => { try { p.release(); } catch (e) { swallow('focus.warningChimeRelease', e); } }, 3000);
-            }
-          } catch (e) { swallow('focus.warningChimePlay', e); }
-          useToastStore.getState().show(
-            language === 'tr'
-              ? 'Odaklanmayı böldünüz! Katı mod aktif olduğu için seans iptal edildi ve 10 Focus puanı kesildi.'
-              : 'You broke focus! Session cancelled and 10 Focus points deducted in Strict Mode.',
-            'error'
-          );
-        } else {
-          rehydrateTimer();
-        }
-      } else if (next === 'background') {
-        /*
-          Arka plana giriş anı YALNIZ katı mod için tutuluyor: dönüşte "gerçekten
-          ayrıldı mı yoksa kısa bir blip miydi" kararı buna bakıyor.
-        */
-        bgAtRef.current = Date.now();
-        /*
-          ── ARKA PLANDA KISMİ KAYIT KALDIRILDI: SUNUCUDA ÇİFT SAYIYORDU ─────────
-          Burada, uygulama arka plana atılınca o ana kadarki dakikalar "tamamlanmamış
-          seans" olarak sunucuya yazılıyordu. Ama dönünce sayaç kaldığı yerden devam
-          ediyor ve seans bitince TAM SÜRE bir kez daha yazılıyordu.
-
-          Yani 25 dakikalık bir seansın onuncu dakikasında telefona bakan kullanıcıda
-          sunucu 10 + 25 = 35 dakika görüyordu. Her arka plan gidiş-gelişi bir kayıt
-          daha ekliyordu. Şişen sayı haftalık istatistiklere, "en iyi gün"e, toplam
-          odak saatine (başarımları tetikliyor) ve ivme skoruna giriyordu — hepsi
-          sessizce, çünkü şişmiş bir sayı yanlış görünmüyor.
-
-          Kurtarma amacı zaten KARŞILANIYOR: zamanlayıcının durumu diskte tutuluyor
-          (bkz. useFocusStore.rehydrateTimer). Uygulama kapansa bile, sonraki açılışta
-          süre dolmuşsa seans normal tamamlama yolundan geçip kaydediliyor.
-        */
-      }
+      if (next === 'active') finalizeDueSession();
     });
     return () => sub.remove();
-  }, [language]);
+  }, []);
 
   const playCompletionSound = () => {
     try {
@@ -976,9 +971,26 @@ export default function FocusScreen() {
         playCompletionSound();
       }, 250);
 
-      const { pomodoroMode: isPomo, pomodoroPhase: phase, pomodoroRound: round } = useFocusStore.getState();
+      const { pomodoroMode: isPomo, pomodoroPhase: phase, pomodoroRound: round, sessionKind: kind, finishedAt } = useFocusStore.getState();
+      /*
+        GEÇ AÇILIŞ: seans uygulama kapalıyken dolmuş olabilir. Saatler sonra açılan
+        ekranda molayı kendiliğinden başlatmak, kullanıcının istemediği bir sayaç
+        başlatmak olurdu — o durumda mola yalnız HAZIRLANIR.
+      */
+      const justFinished = !finishedAt || Date.now() - finishedAt < 60_000;
 
-      if (isPomo) {
+      if (kind === 'break') {
+        /*
+          MOLA BİTTİ — mola ODAK DEĞİLDİR, kaydedilmez.
+          Eskiden mola da standart seans sayılıp dakikaları odak olarak yazılıyordu
+          (özet ekranı "harika seans" diyordu); haftalık odak süresi şişiyordu.
+        */
+        setZenMode(false);
+        setDuration(activePreset.workMins);
+        setPomodoroTransition({ visible: true, type: 'work' });
+        setTimeout(() => setPomodoroTransition(p => ({ ...p, visible: false })), 3000);
+        stopAmbientSound();
+      } else if (isPomo) {
         setTimeout(() => haptic.commit(), 250);
         setTimeout(() => haptic.commit(), 500);
 
@@ -999,13 +1011,14 @@ export default function FocusScreen() {
           const breakMins = isLongBreak ? activePreset.longBreak : activePreset.shortBreak;
           setZenMode(false); // Reset Zen Mode on break transition
           setTimeout(() => {
-            setDuration(breakMins);
-            useFocusStore.setState({ isActive: true, lastActiveAt: Date.now() });
+            // Mola bir seanstır: kendi kimliğiyle ve bitiş anıyla başlar (bkz. startBreak).
+            if (justFinished) startBreak(breakMins);
+            else setDuration(breakMins);
           }, 600);
           setPomodoroTransition({ visible: true, type: 'break', isLong: isLongBreak });
           setTimeout(() => setPomodoroTransition(p => ({ ...p, visible: false })), 3500);
         } else {
-          // Break finished → next work round
+          // Pomodoro molası bitti → sıradaki çalışma turu (mola kaydedilmez)
           nextPomodoroPhase();
           setZenMode(false); // Reset Zen Mode on work transition
           setTimeout(() => { setDuration(activePreset.workMins); }, 400);
@@ -1047,67 +1060,23 @@ export default function FocusScreen() {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   /**
-   * SEANSI KAYDET — tek karar noktası.
+   * SEANSI KAYDET — karar `features/focus/session.ts` içinde (ekrandan bağımsız).
    *
-   * ── ÖLÇÜLEN SORUN ──────────────────────────────────────────────────────────
-   * `FocusService.saveSession` bu ekranda ALTI ayrı yerden çağrılıyordu ve kopyalar
-   * çoktan ayrışmıştı:
-   *
-   *  · "Durdur" ve "erken bitir" 1 dakikanın altını KAYDETMİYOR ve kullanıcıyı
-   *    bilgilendiriyordu.
-   *  · Çarpı ile ÇIKIŞ ise `Math.max(1, ...)` kullanıyordu: 5 saniyelik bir seans
-   *    1 dakika olarak kaydediliyordu — uygulamanın kendi kuralının tam tersi.
-   *    Aynı yol odak puanı da vermiyordu, yani aynı seans "durdur" ile puan
-   *    kazanıyor, "çık" ile kazanmıyordu.
-   *
-   * Kural artık tek yerde: bir dakikanın altı kaydedilmez, kaydedilen her seans
-   * hem yerel sayaca hem sunucuya hem de puana aynı biçimde işlenir.
+   * Kural ekrandan çıkarıldı çünkü seans ekran kapalıyken de bitiyor: telefon kilitli,
+   * uygulama kapalı ya da kullanıcı başka sayfada. Ekranın payına yalnız kullanıcıya
+   * ne söyleneceği kaldı.
    *
    * @returns Seans kaydedildiyse `true`.
    */
   const commitSession = (minutes: number, completed: boolean): boolean => {
-    if (!Number.isFinite(minutes) || minutes < 1) {
+    const res = commitFocusSession(minutes, completed);
+    if (res === 'too-short') {
       useToastStore.getState().show(
         language === 'tr' ? '1 dakikadan kısa seanslar kaydedilmez.' : 'Sessions shorter than 1 minute are not logged.',
         'info',
       );
-      return false;
     }
-    /*
-      ── ÇEVRİMDIŞI SEANS ARTIK KAYBOLMUYOR ──────────────────────────────────
-      Kayıt doğrudan sunucuya yazılmaya çalışılıyor, başarısız olunca hata
-      yutuluyordu: uçakta yapılan 50 dakikalık bir seans yerel sayaçta görünüyor ama
-      sunucuya hiç ulaşmıyordu. Haftalık grafikten, toplam odak saatinden
-      (başarımları tetikliyor) ve ivme skorundan düşüyordu. Uygulamanın geri kalanı
-      baştan sona çevrimdışı-önce çalışırken burası tek istisnaydı.
-
-      Bilinen eksiklik: sunucu seansın TARİHİNİ kabul etmiyor, aldığı anı damgalıyor.
-      Eşitleme gece yarısını geçerse seans ertesi güne yazılır (bkz. OfflineOp notu).
-    */
-    const queueSession = () => {
-      useOfflineQueue.getState().enqueue({
-        type: 'focus-session',
-        taskName: 'Focus',
-        minutes,
-        completed,
-        occurredAt: new Date().toISOString(),
-      });
-    };
-
-    if (!useNetworkStore.getState().isOnline) {
-      queueSession();
-    } else {
-      FocusService.saveSession('Focus', minutes, completed).catch((e) => {
-        // Ağ hatası → kuyruğa al. Gerçek sunucu hatası → kaydı düşür (yeniden denemek
-        // aynı reddi üretir) ama izini bırak.
-        if (isNetworkError(e)) queueSession();
-        else swallow('focus.saveSession', e, { capture: true });
-      });
-    }
-    addFocusMinutes(minutes);
-    // Tamamlanan seans sabit ödül; erken bırakılan süreyle orantılı (üst sınır aynı).
-    addFocusPoints(completed ? 10 : Math.min(10, minutes * 2));
-    return true;
+    return res === 'saved';
   };
 
   const toggleTimer = () => {
@@ -1119,6 +1088,7 @@ export default function FocusScreen() {
     haptic.surface();
     const elapsed = getElapsed();
     if (elapsed > 0) {
+      // Mola için commitSession zaten 'not-focus' döner: mola dakikası odak sayılmaz.
       commitSession(Math.round(elapsed / 60), false);
       stopAmbientSound();
       setAmbientSound('off');
@@ -1131,6 +1101,14 @@ export default function FocusScreen() {
   const finishEarly = () => {
     haptic.success();
     stopAmbientSound();
+    // Mola erken bitirilirse: kaydedilecek bir şey yok, sıradaki tura hazırlan.
+    if (useFocusStore.getState().sessionKind === 'break') {
+      setIsActive(false);
+      completedRef.current = true;
+      setZenMode(false);
+      setDuration(activePreset.workMins);
+      return;
+    }
     /*
       setAmbientSound('off') BURADAN KALDIRILDI.
 
@@ -1179,11 +1157,10 @@ export default function FocusScreen() {
 
 
 
-  const startBreak = (mins: number) => {
+  const startBreakSession = (mins: number) => {
     setSummaryVisible(false);
     completedRef.current = false;
-    setDuration(mins);
-    useFocusStore.setState({ isActive: true, lastActiveAt: Date.now() });
+    startBreak(mins);
   };
 
   // PomodoroIndicator has been extracted out and memoized
@@ -1297,6 +1274,13 @@ export default function FocusScreen() {
                     kazanıyor, "çık" ile kazanmıyordu. İkisi de ortak karara bağlandı.
                   */
                   commitSession(Math.round(elapsed / 60), false);
+                  /*
+                    ÇIKIŞ SEANSI BİTİRİR — sıfırlama eskiden YOKTU: seans duraklamış
+                    halde kalıyor, kullanıcı geri dönüp devam edince aynı dakikalar
+                    ikinci kez sayılıyordu (kısmi + tam).
+                  */
+                  reset();
+                  completedRef.current = false;
                 }
                 setIsExiting(true);
                 setTimeout(() => {
@@ -2427,7 +2411,7 @@ export default function FocusScreen() {
             {/* Break button (only after standard completed session) */}
             {summaryCompleted && !pomodoroMode && (
               <Touchable
-                onPress={() => startBreak(activePreset.shortBreak)}
+                onPress={() => startBreakSession(activePreset.shortBreak)}
                 style={{ width: '100%', paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: theme.tertiary + '50', backgroundColor: theme.tertiary + '12', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.sm }}
               >
                 <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.tertiary }}>
@@ -2536,10 +2520,12 @@ export default function FocusScreen() {
           </MotiView>
         </Touchable>
       </Modal>
-      <HelpTourModal 
-        pageId="focus" 
-        onStepChange={handleStepChange} 
-      />
+      {tourOn && (
+        <HelpTourModal
+          pageId="focus"
+          onStepChange={handleStepChange}
+        />
+      )}
     </MotiView>
   );
 }

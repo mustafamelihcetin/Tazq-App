@@ -4,6 +4,7 @@ import { visibleTextTags, translateTag } from '@/features/tasks/utils/taskTags';
 import { weekdayName } from '@/shared/constants/weekdays';
 import { langOf } from '@/shared/utils/lang';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
+import { parseDateKey } from '@/shared/utils/dateKey';
 
 /**
  * AYRIŞTIRICININ ANLADIKLARI → GÖSTERİLECEK PARÇALAR.
@@ -24,7 +25,9 @@ export function buildNlpChips(hint: ParsedHint, language: string): NlpChip[] {
   const chips: NlpChip[] = [];
 
   if (hint.dueDate) {
-    chips.push({ kind: 'date', text: new Date(hint.dueDate).toLocaleDateString() });
+    // YEREL takvimden: `new Date('2026-09-20')` UTC gece yarısı okunur ve UTC'nin
+    // gerisindeki saat dilimlerinde çip bir önceki günü gösterirdi.
+    chips.push({ kind: 'date', text: parseDateKey(hint.dueDate).toLocaleDateString() });
   }
   if (hint.dueTime) {
     chips.push({ kind: 'time', text: new Date(hint.dueTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
@@ -43,6 +46,11 @@ export function buildNlpChips(hint: ParsedHint, language: string): NlpChip[] {
         ? `${t.recurrenceEvery} ${weekdayName(hint.recurrenceDay, lang)}`
         : recurrenceLabel[hint.recurrence],
     });
+  }
+  // Öncelik de görünür: eskiden forma SESSİZCE yazılıyordu, kullanıcı neden değiştiğini
+  // bilmiyordu. Orta öncelik varsayılan olduğu için çip değildir.
+  if (hint.priority === 'High' || hint.priority === 'Low') {
+    chips.push({ kind: 'priority', text: hint.priority === 'High' ? t.priorityHigh : t.priorityLow });
   }
   for (const tag of visibleTextTags(hint.tags)) {
     chips.push({ kind: 'tag', text: translateTag(tag, lang) });

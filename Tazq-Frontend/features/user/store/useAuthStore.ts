@@ -192,7 +192,16 @@ export const useAuthStore = create<AuthState>()(
         // Bu cihazda FARKLI bir hesap giriş yapıyorsa, önceki kullanıcının yerel verisini
         // temizle (logout çalışmamış olsa bile sızıntıyı kapatır).
         const prevId = useAuthStore.getState().lastUserId;
-        if (prevId != null && user?.id != null && prevId !== user.id) {
+        /*
+          MİSAFİRDEN GELİNİYORSA TEMİZLİK YOK. Cihazdaki veri önceki hesabın değil,
+          misafirin — ve "Hesap oluştur — verilerim kalsın" sözü tam olarak onun yeni
+          hesaba taşınması. Eskiden cihazda daha önce BAŞKA bir hesap kullanılmışsa bu
+          temizlik misafirin görevlerini, alışkanlıklarını ve gönderim kuyruğunu siliyordu.
+          Güvenli: önceki hesabın verisi çıkışta zaten silinir (logout) ve misafirlik ancak
+          çıkıştan sonra başlayabilir.
+        */
+        const fromGuest = useSessionStore.getState().isGuest;
+        if (!fromGuest && prevId != null && user?.id != null && prevId !== user.id) {
           clearLocalUserData();
         }
         hydrateProfilePrefs(user);

@@ -62,9 +62,39 @@ function guestModeError(): Error & { code: string } {
   return e;
 }
 
+/**
+ * Hesap AÇMA ve hesaba GİRME uçları. Misafirliği bitirmenin TEK yolu bunlar.
+ *
+ * ── ÖLÇÜLEN SORUN ─────────────────────────────────────────────────────────────
+ * Kapı misafirken BÜTÜN istekleri durduruyordu — giriş, kayıt, Apple ve Google
+ * dahil. Misafirlik ise ancak giriş BAŞARILI olunca bitiyordu (setAuth). Kısır
+ * döngü: misafir hesap açamıyor, giriş yapamıyordu; Apple girişi sunucuya hiç
+ * ulaşmadan "başarısız" diyordu.
+ */
+const PUBLIC_AUTH_PATHS = [
+  '/api/users/login', '/api/users/register', '/api/users/google-login',
+  '/api/users/apple-login', '/api/users/forgot-password',
+  // Kayıt sonrası doğrulama ekranı (sunucu token vermezse): hesaba girmeden ÖNCE çağrılır.
+  '/api/users/verify-email', '/api/users/resend-verification',
+];
+
+/**
+ * Misafirken bu istek durdurulmalı mı?
+ *  · giriş/kayıt uçları → GEÇER (misafirlikten çıkış yolu)
+ *  · çağıran KENDİ taşıdığı yeni token'la konuşuyorsa → GEÇER (ör. Apple onayından
+ *    hemen sonraki "/me": oturum henüz kurulmadı ama artık gerçek bir hesap var)
+ *  · gerisi → durur; misafirin işi cihazda kalır, kayıt olunca kuyruk akar
+ */
+export function blockedForGuest(url: string | undefined, hasOwnToken: boolean): boolean {
+  if (hasOwnToken) return false;
+  const path = (url ?? '').split('?')[0];
+  return !PUBLIC_AUTH_PATHS.some((p) => path === p);
+}
+
 // Inject token into every request — skip if caller already set Authorization (e.g. login flow)
 api.interceptors.request.use(async (config) => {
-  if (isGuestSession()) throw guestModeError();
+  // Kapı token EKLENMEDEN önce: "kendi token'ı" yalnız çağıranın açıkça verdiği başlıktır.
+  if (isGuestSession() && blockedForGuest(config.url, !!config.headers.Authorization)) throw guestModeError();
   const token = useAuthStore.getState().token;
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;

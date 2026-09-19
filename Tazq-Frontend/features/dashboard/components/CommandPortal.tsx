@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Modal, ScrollView, TextInput, TouchableWithoutF
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
-import { ChevronRight, Play, Plus, Rocket, Sparkles, Target, X } from 'lucide-react-native';
+import { ChevronRight, Play, Plus, Rocket, Sparkles, Target, Wind, X } from 'lucide-react-native';
 import { AppBlur } from '@/shared/components/AppBlur';
 import { GlassSurface } from '@/shared/components/GlassSurface';
 import { Touchable } from '@/shared/components/Touchable';
@@ -11,9 +11,15 @@ import { AppIcon } from '@/shared/components/AppIcon';
 import { F, S, R, ICON, HAIRLINE } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { getLocalizedTaskTitle, type Task } from '@/features/tasks';
+import { useRunAfterDismiss } from '@/shared/hooks/useRunAfterDismiss';
 
 /**
- * KOMUT PALETİ — görev arama + akıllı hızlı ekleme.
+ * TAZQ CORE — komut paleti: görev arama + akıllı hızlı ekleme + komutlar.
+ *
+ * Logoya dokunmak DOĞRUDAN burayı açar. Arada bir menü vardı (TazqCoreMenu): dört
+ * satırın üçü uygulamada zaten başka yerde olan şeylerdi ve kullanıcıyı asıl yüzeye
+ * bir dokunuş geç ulaştırıyordu. Menüye özgü tek iş olan "Günü Kurtar" buraya, en
+ * üste taşındı — ve yalnız dengelenecek bir şey varken, ne yapacağını söyleyerek çıkar.
  *
  * app/index.tsx'ten çıkarıldı (bkz. fileSize → "sıradaki küçültme adresi"): ~250
  * satırlık kendi içine kapalı bir yüzey ana ekranın gövdesinde duruyordu. Davranış
@@ -29,6 +35,8 @@ export interface CommandPortalProps {
   /** Yazılanı görev olarak kaydeder — ana ekranın TEK kayıt yolu (savePortalTask). */
   onSubmit: () => void;
   onQuickFocus: () => void;
+  /** Zen: dengelenecek bir şey varsa ne yapacağı + eylem; yoksa null (satır çıkmaz). */
+  saveTheDay?: { hint: string; onPress: () => void } | null;
   tasks: Task[];
   priorityColor: (p: string) => string;
   theme: AppTheme;
@@ -42,7 +50,8 @@ const copy = (tr: boolean) => tr
       placeholder: 'Görev ara veya hızlı görev yaz...',
       clear: 'TEMİZLE',
       close: 'Kapat',
-      shortcuts: 'HIZLI KISAYOLLAR',
+      shortcuts: 'TAZQ CORE',
+      saveDay: 'Günü Kurtar',
       focus: 'Hızlı Odak Seansı Başlat',
       focusDesc: '25 dakikalık odaklanma başlat',
       allTasks: 'Tüm Görevleri Listele',
@@ -58,7 +67,8 @@ const copy = (tr: boolean) => tr
       placeholder: 'Search tasks or write a quick task...',
       clear: 'CLEAR',
       close: 'Close',
-      shortcuts: 'QUICK SHORTCUTS',
+      shortcuts: 'TAZQ CORE',
+      saveDay: 'Save the Day',
       focus: 'Start Quick Focus Session',
       focusDesc: 'Launch a 25 min focus timer',
       allTasks: 'Show All Tasks List',
@@ -71,31 +81,41 @@ const copy = (tr: boolean) => tr
     };
 
 export function CommandPortal({
-  visible, onClose, query, onQueryChange, onSubmit, onQuickFocus, tasks, priorityColor, theme, isDark, tr,
+  visible, onClose, query, onQueryChange, onSubmit, onQuickFocus, saveTheDay, tasks, priorityColor, theme, isDark, tr,
 }: CommandPortalProps) {
   const c = copy(tr);
   const router = useRouter();
   const inputRef = useRef<TextInput>(null);
   const rowBg = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)';
+  // Kısayol palet KAPANDIKTAN sonra çalışır: "Günü Kurtar" triage modalını açabilir
+  // ve iOS kapanan modalın üstüne yenisini sessizce reddedebilir.
+  const { schedule, onDismiss } = useRunAfterDismiss(visible);
+  const run = (action: () => void) => { schedule(action); onClose(); };
 
   const shortcuts = [
+    ...(saveTheDay ? [{
+      icon: <Wind size={ICON.sm} color={theme.tertiary} />,
+      label: c.saveDay,
+      desc: saveTheDay.hint,
+      onPress: () => run(saveTheDay.onPress),
+    }] : []),
     {
       icon: <Play size={ICON.sm} color={theme.tertiary} fill={theme.tertiary} />,
       label: c.focus,
       desc: c.focusDesc,
-      onPress: () => { onClose(); onQuickFocus(); },
+      onPress: () => run(onQuickFocus),
     },
     {
       icon: <Target size={ICON.sm} color={theme.primary} />,
       label: c.allTasks,
       desc: c.allTasksDesc,
-      onPress: () => { onClose(); router.push('/tasks'); },
+      onPress: () => run(() => router.push('/tasks')),
     },
     {
       icon: <Rocket size={ICON.sm} color={theme.primary} />,
       label: c.modes,
       desc: c.modesDesc,
-      onPress: () => { onClose(); router.push('/modlar'); },
+      onPress: () => run(() => router.push('/modlar')),
     },
   ];
 
@@ -115,6 +135,7 @@ export function CommandPortal({
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      onDismiss={onDismiss}
       onShow={() => {
         setTimeout(() => {
           inputRef.current?.focus();
@@ -207,6 +228,7 @@ export function CommandPortal({
                       key={idx}
                       onPress={shortcut.onPress}
                       accessibilityRole="button"
+                      accessibilityLabel={`${shortcut.label}, ${shortcut.desc}`}
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',

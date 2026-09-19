@@ -61,7 +61,8 @@ const KNOWN_LARGE: Record<string, number> = {
 
     Sayı yine de mandallı: yeni metinler eklendikçe bilinçli olarak yükseltilir.
   */
-  'shared/constants/i18n.ts': 860,
+  // 860 → 870: misafirin "cihazdaki verileri sil" metinleri (iki dil).
+  'shared/constants/i18n.ts': 870,
   // 2820 → 2817: baştaki emojiyi silen üç ayrı uygulamadan ikisi (biri hatalıydı,
   // \p{Emoji} rakamları da yiyordu) shared/utils/emoji.ts'e indi.
   // 2817 → 2820: YKS/KPSS/Ramazan'ın DİL kapısı (İngilizce arayüzde takvimle
@@ -97,7 +98,7 @@ const KNOWN_LARGE: Record<string, number> = {
      · Boş if: `if (pomodoroMode) {};` — ölü dal kaldırıldı.
     Artışın büyük kısmı ses race condition'ın nedenini ve çözümünü anlatan notlar.
   */
-  'app/focus.tsx': 2599,
+  'app/focus.tsx': 2608, // +9: ortak tur kapısı (tur arka planda / seans sırasında açılmasın)
   // 2394 → 2400: çöken bir ekranın düzeltmesi. Bu ekranın listesi Reanimated'ın
   // FlatList'i olduğu için native kaydırma sürücüsü kapatılmak ZORUNDA (yoksa açılışta
   // "VirtualizedList must be wrapped with Animated.createAnimatedComponent" ile çöküyor).
@@ -165,7 +166,16 @@ const KNOWN_LARGE: Record<string, number> = {
     hiçbir temizlik yapılmıyordu, ayrıştırıcı ise 'İ' harfiyle yazılan başlıkları
     tanımıyordu (kullanıcının nasıl yazdığına göre çalışan bir tekrar özelliği).
   */
-  'app/tasks.tsx': 2544,
+  // 2544 → 2552: "BELKİ BİR GÜN" görünümü. Zen'in rafa kaldırdığı işler hiçbir yerde toplu
+  // görünmüyordu (kullanıcı için "işim silindi"). Filtre menüsündeki tek satır iki satırlık
+  // bir listeye döndü ve ana sayfanın "rafta N iş var" hatırlatması bu görünümü açıyor.
+  // 2552 → 2543: kayıttaki gizli kategori motoru (taskIntelligence) kaldırıldı.
+  // 2543 → 2553: UFUK. "İleri tarihlileri göster" anahtarı kalktı; yerine uzak işleri
+  // katlayan bağlantı, "yalnız ileride iş var" boş durumu ve "yarın için eklendi"
+  // mesajı geldi. Mantık utils/horizon'da; burada yalnız bağlantı.
+  // 2553 → 2561: görev oluşturma anahtarı (utils/clientKey) — canlıda görülen ikiz görevlerin çaresi.
+  // 2561 → 2577: raf görünümü geçici (ekrandan çıkınca normal liste) + liste kimliği sabit.
+  'app/tasks.tsx': 2577,
   // 2097 → 2102: iOS 26/27 sekme çubuğu küçülme sinyali. Ana sayfa kendi kaydırma
   // değerini yönettiği için bağlantı burada; diğer sekmeli ekranlar ortak
   // useCollapsibleHeader üzerinden bağlanıyor (tek satır + gerekçe).
@@ -213,7 +223,12 @@ const KNOWN_LARGE: Record<string, number> = {
     CommandPortal.tsx). TAZQZen/Core eklenince dosya 2547'ye çıkmıştı; ayıklama bu
     büyümeyi karşıladı ve tavanı eskisinin de altına indirdi. Davranış aynen taşındı.
   */
-  'app/index.tsx': 2315,
+  // 2315 → 2311: haftalık raf hatırlatması (SomedayNudge) ve taşan gün kartı bağlandı; ara menü
+  // (TazqCoreMenu) kaldırıldı, logo paleti doğrudan açıyor.
+  // Mantık kancada ve bileşende; burada yalnız bağlantı.
+  // 2311 → 2315: hızlı eklemede "… yarın için eklendi" (ana sayfa yalnız bugünü gösterir).
+  // 2315 → 2318: hızlı eklemede görev oluşturma anahtarı (ikiz görev önlemi).
+  'app/index.tsx': 2321, // +3: tur hoş geldin bitene kadar bekler
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.
@@ -269,7 +284,9 @@ const KNOWN_LARGE: Record<string, number> = {
     NEDENİNİ taşıyan notlar; kusurun kendisi "ekrana bakınca" görünmüyordu, çünkü alan
     oradaydı ve çalışıyordu — yalnız görünmüyordu.
   */
-  'features/tasks/components/TaskFormModal.tsx': 1233,
+  // 1233 → 1214: başlık işleyicisi taslak denetimine (features/tasks/nlp/draft) devredildi.
+  // 1214 → 1215: hazır etiketlerin dili ortak yardımcıdan (langOf) — satır içi dil dallanması yok.
+  'features/tasks/components/TaskFormModal.tsx': 1215,
   // 1150 → 1180: planın KULLANICI SEÇMEDEN başlamasını engelleyen kapı. Üretim koşulu
   // birçok modda yalnız "mod açık + ad + tarih" idi; tarih girilir girilmez plan uygulanmış
   // sayılıp kart bölüm değiştiriyor, yeniden kurulup kapanıyordu. Artış dokuz koşula
@@ -281,7 +298,9 @@ const KNOWN_LARGE: Record<string, number> = {
   // kalmıştı; hiçbiri çağrılmıyordu ama `deleteAccount`ın hatalı sürümü iki dosyada
   // birden duruyor ve hangisinin canlı olduğu okurken belli olmuyordu.
   // 865 → 867: CAM SAYFALAR. Profil düzenleme sayfası ortak cam yüzeye bağlandı.
-  'app/profile.tsx': 870,
+  // 870 → 888: MİSAFİR PROFİLİ — uydurma ad/e-posta yerine misafir durumu ve "hesap oluştur".
+  // 888 → 892: profil kaydı seçilmemiş avatarı artık "Atlas" (erkek) diye yazmıyor.
+  'app/profile.tsx': 892,
   'shared/constants/legal.ts': 893,
   'features/modes/utils/planAdaptations.ts': 880,
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,
@@ -309,7 +328,8 @@ const KNOWN_LARGE: Record<string, number> = {
     sözünü tutmuyordu. Anahtar artık mevcut hatırlatıcıları yeniden kuruyor ve kaç tanesinin
     yenilendiğini söylüyor — söz verilen şeyin OLDUĞU görünsün diye.
   */
-  'app/settings.tsx': 911,
+  // 911 → 925: misafirde "Hesabımı Sil" yerine "Bu cihazdaki verileri sil" (onaylı).
+  'app/settings.tsx': 925,
 };
 
 describe('dosya boyutu', () => {

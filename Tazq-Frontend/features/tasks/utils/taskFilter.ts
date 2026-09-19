@@ -1,9 +1,12 @@
-export type TaskFilter = 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done';
+import { isSomeday } from '@/features/tasks/utils/taskTags';
+
+export type TaskFilter = 'all' | 'today' | 'High' | 'Medium' | 'Low' | 'done' | 'someday';
 
 interface FilterableTask {
   isCompleted: boolean;
   priority: string;
   dueDate?: string | null;
+  tags?: string[] | null;
 }
 
 /**
@@ -30,6 +33,10 @@ export function matchesTaskFilter(
   if (filter === 'all') return true;
 
   if (filter === 'done') return task.isCompleted;
+
+  // BELKİ BİR GÜN: Zen'in rafa kaldırdığı açık işler. Bu görünüm olmadan raf bir kara
+  // delikti — kaldırılan iş yalnız küçük bir etiketle listede kayboluyordu.
+  if (filter === 'someday') return !task.isCompleted && isSomeday(task);
 
   if (filter === 'today') {
     if (task.isCompleted) return false;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTaskStore, type Task } from '@/features/tasks/store/useTaskStore';
-import { getLocalizedTaskTitle } from '@/features/tasks';
+import { getLocalizedTaskTitle, isSomeday } from '@/features/tasks';
 import { getModeInfoForTask, usePrefsStore } from '@/features/modes';
 import { isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
 import {
@@ -10,7 +10,7 @@ import {
 } from '@/features/tasks/utils/taskBalancer';
 import { applyRebalance, type AppliedRebalance } from '@/features/tasks/utils/rebalanceActions';
 import { useToastStore } from '@/shared/store/useToastStore';
-import { toDateKey } from '@/shared/utils/dateKey';
+import { toDateKey, parseDateKey } from '@/shared/utils/dateKey';
 import { swallow } from '@/shared/utils/swallow';
 import { haptic } from '@/shared/utils/haptics';
 
@@ -42,6 +42,9 @@ import { haptic } from '@/shared/utils/haptics';
 /** Kartın kendiliğinden çıkması için gereken birikim. */
 export const CARD_THRESHOLD = 3;
 const DISMISS_KEY = '@zen_card_dismissed_day';
+const SOMEDAY_NUDGE_KEY = '@zen_someday_nudge_day';
+/** Raf hatırlatmasının sıklığı. Daha sık, rafa kaldırmanın anlamını yok eder. */
+export const SOMEDAY_NUDGE_EVERY_DAYS = 7;
 
 const copy = (tr: boolean) => tr
   ? {
@@ -51,6 +54,8 @@ const copy = (tr: boolean) => tr
       ].filter(Boolean).join(' · '),
       failed: (n: number) => `${n} görev taşınamadı — sunucu reddetti`,
       nothing: 'Dengelenecek bir yük yok',
+      hintOverdue: (n: number) => `${n} birikmiş işi günlere yay`,
+      hintOverload: (n: number) => `Bugün ${n} iş var — sadeleştir`,
       undo: 'Geri al',
       triageDone: (title: string) => `Bugün "${title}" kaldı`,
       triageDoneMany: (n: number) => `Bugün ${n} iş kaldı`,
@@ -62,6 +67,8 @@ const copy = (tr: boolean) => tr
       ].filter(Boolean).join(' · '),
       failed: (n: number) => `${n} tasks couldn't be moved — the server refused`,
       nothing: 'Nothing to rebalance right now',
+      hintOverdue: (n: number) => `Spread ${n} overdue tasks over the coming days`,
+      hintOverload: (n: number) => `${n} tasks today — simplify`,
       undo: 'Undo',
       triageDone: (title: string) => `Today: just "${title}"`,
       triageDoneMany: (n: number) => `Today: ${n} tasks`,
@@ -75,8 +82,13 @@ export interface ZenApi {
   dismissCard: () => void;
   /** Birikmiş işi dağıtır; kart kendi geri alma düğmesini bu tutamaçla çizer. */
   rebalanceOverdue: () => Promise<AppliedRebalance>;
-  /** Menünün "Günü Kurtar"ı: duruma göre dağıt · triage · "yük yok". */
+  /** Paletin "Günü Kurtar"ı: duruma göre dağıt · triage · "yük yok". */
   saveTheDay: () => Promise<void>;
+  /** "Günü Kurtar"ın ne yapacağı (palet satırı söyler); yapılacak bir şey yoksa null. */
+  saveTheDayHint: string | null;
+  /** Taşan gün kartı: birikim kartı yokken ve bugün kapasiteyi aşarken. */
+  overloadVisible: boolean;
+  openTriage: () => void;
   triageVisible: boolean;
   closeTriage: () => void;
   /** Seçilecek görev için ÖNİZLEME (kaçı taşınır, kaçı rafa). */
@@ -84,6 +96,12 @@ export interface ZenApi {
   confirmTriage: (keepIds: readonly number[]) => Promise<void>;
   /** Bugün yerinde kalacak SABİT görevler (plan, saatli, tekrarlayan) — triage söyler. */
   todayFixedCount: number;
+  /** Rafta (Belki Bir Gün) bekleyen açık iş sayısı. */
+  somedayCount: number;
+  /** Haftalık "rafta N iş var" hatırlatması şimdi gösterilmeli mi. */
+  somedayNudgeVisible: boolean;
+  /** Hatırlatma görüldü (açıldı ya da ertelendi) — bir hafta sessiz. */
+  markSomedayNudge: () => void;
 }
 
 export function useZen(language: string): ZenApi {
@@ -131,6 +149,47 @@ export function useZen(language: string): ZenApi {
 
   const cardVisible = dismissLoaded && analysis.movableOverdue.length >= CARD_THRESHOLD && dismissedDay !== today;
 
+  /*
+    RAF HATIRLATMASI — "Belki Bir Gün" kara delik olmasın.
+
+    Rafa kalkan iş başka hiçbir yerde kendini hatırlatmıyordu; kullanıcı için bu,
+    "uygulama işimi sildi" demekti. Haftada en fazla bir kez, yalnız rafta iş varken ve
+    Zen kartı ekranda değilken sorulur — iki Zen yüzeyi aynı anda gürültüdür. İş rafa
+    kaldırıldığı GÜN sayaç sıfırlanır: az önce kaldırdığın şeyi hemen sormak anlamsız.
+  */
+  const somedayCount = useMemo(
+    () => tasks.filter((t) => !t.isCompleted && !t.isArchived && isSomeday(t)).length,
+    [tasks],
+  );
+  const [nudgeDay, setNudgeDay] = useState<string | null>(null);
+  const [nudgeLoaded, setNudgeLoaded] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(SOMEDAY_NUDGE_KEY)
+      .then(setNudgeDay)
+      .catch((e) => swallow('zen.readNudge', e))
+      .finally(() => setNudgeLoaded(true));
+  }, []);
+  const markSomedayNudge = useCallback(() => {
+    setNudgeDay(today);
+    AsyncStorage.setItem(SOMEDAY_NUDGE_KEY, today).catch((e) => swallow('zen.writeNudge', e));
+  }, [today]);
+  const daysSinceNudge = nudgeDay
+    ? Math.round((parseDateKey(today).getTime() - parseDateKey(nudgeDay).getTime()) / 86400000)
+    : Infinity;
+  /*
+    TAŞAN GÜN KARTI. Triage eskiden yalnız logonun açtığı menüden ulaşılabiliyordu —
+    çoğu kullanıcının hiç keşfetmeyeceği bir yer. Birikim kartıyla AYNI "bugün sorma"
+    kararını paylaşır ve ondan sonra gelir: iki Zen kartı aynı anda gürültüdür.
+  */
+  const overloadVisible = dismissLoaded && !cardVisible && dismissedDay !== today && isDayOverloaded(analysis);
+
+  const somedayNudgeVisible = nudgeLoaded && somedayCount > 0 && !cardVisible && !overloadVisible
+    && daysSinceNudge >= SOMEDAY_NUDGE_EVERY_DAYS;
+
+  const saveTheDayHint = analysis.movableOverdue.length > 0
+    ? c.hintOverdue(analysis.movableOverdue.length)
+    : isDayOverloaded(analysis) ? c.hintOverload(analysis.todayLoad) : null;
+
   const ctx = useMemo(
     () => ({ language, hideNotificationContent: !!prefs.hideNotificationContent }),
     [language, prefs.hideNotificationContent],
@@ -143,8 +202,10 @@ export function useZen(language: string): ZenApi {
   */
   const settle = useCallback((applied: AppliedRebalance) => {
     if (applied.moved > 0) haptic.success();
+    // Bugün rafa kalkan var → hatırlatma sayacı bugünden başlar (ilk hatırlatma bir hafta sonra).
+    if (applied.someday > 0) markSomedayNudge();
     return applied;
-  }, []);
+  }, [markSomedayNudge]);
 
   const announce = useCallback((applied: AppliedRebalance, lead?: string) => {
     const show = useToastStore.getState().show;
@@ -214,10 +275,16 @@ export function useZen(language: string): ZenApi {
     dismissCard,
     rebalanceOverdue,
     saveTheDay,
+    saveTheDayHint,
+    overloadVisible,
+    openTriage: () => setTriageVisible(true),
     triageVisible,
     closeTriage: () => setTriageVisible(false),
     previewTriage,
     confirmTriage,
     todayFixedCount,
+    somedayCount,
+    somedayNudgeVisible,
+    markSomedayNudge,
   };
 }

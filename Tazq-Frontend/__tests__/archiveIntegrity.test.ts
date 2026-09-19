@@ -53,7 +53,10 @@ describe('arşivlenmiş görev hiçbir aktif görünüme sızmamalı', () => {
     // yönlendiriliyordu.
     const src = read('app/tasks.tsx');
     const fn = src.slice(src.indexOf('const handleBulkArchive'), src.indexOf('const handleBulkComplete'));
-    expect(fn).toContain('cancelTaskNotification');
+    // Toplu arşiv ortak eylemi kullanır; iptal orada (davranışı: archivePersistence.test).
+    expect(fn).toContain('archiveTask(id)');
+    const actions = read('features/tasks/utils/taskActions.ts');
+    expect(actions).toContain('if (on) void cancelTaskNotification(taskId);');
   });
 });
 

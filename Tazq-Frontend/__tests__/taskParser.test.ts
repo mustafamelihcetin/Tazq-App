@@ -86,7 +86,8 @@ describe('translateTag', () => {
   it('translates English tags to Turkish', () => {
     expect(translateTag('education', 'tr')).toBe('eğitim');
     expect(translateTag('work', 'tr')).toBe('iş');
-    expect(translateTag('fitness', 'tr')).toBe('spor');
+    // "spor" DEĞİL: o Spor modunun iç etiketi (gizli ve Zen için plan görevi).
+    expect(translateTag('fitness', 'tr')).toBe('egzersiz');
     expect(translateTag('savings', 'tr')).toBe('tasarruf');
     expect(translateTag('quit', 'tr')).toBe('bırakma');
   });

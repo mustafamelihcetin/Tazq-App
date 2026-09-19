@@ -457,36 +457,39 @@ describe('ana sayfa başlığı — tek sistem', () => {
 });
 
 /**
- * Marka işaretine dokunmak TAZQ Core menüsünü açar; komut paleti (görev arama + akıllı
- * hızlı ekleme) menünün "Ara veya Ekle"sinden açılır. Logo bir ara kaldırıldığında
- * palet sessizce erişilemez kalmıştı — bir daha olmasın diye iki halka da test altında.
+ * Marka işaretine dokunmak TAZQ Core paletini (görev arama + akıllı hızlı ekleme +
+ * komutlar) DOĞRUDAN açar. Logo bir ara kaldırıldığında palet sessizce erişilemez
+ * kalmıştı; sonra araya bir menü girip asıl yüzeyi bir dokunuş geciktirdi. İkisi de
+ * bir daha olmasın diye giriş test altında.
  */
 describe('komut paleti erişilebilir', () => {
   const src = read('app/index.tsx');
-  // Yorumlar elenir: başlık notu eski kodu ÖRNEK olarak anlatıyor, kod sanılmasın.
-  const menu = stripComments(read('features/dashboard/components/TazqCoreMenu.tsx'));
+  const portal = stripComments(read('features/dashboard/components/CommandPortal.tsx'));
 
-  it('logonun bir işi var — menüyü açar', () => {
+  it('logonun bir işi var — paleti DOĞRUDAN açar', () => {
     const fn = src.match(/const handleLogoPress = useCallback\([\s\S]*?\n  \}, \[\]\);/)?.[0] ?? '';
-    expect(fn).toContain('setIsCoreModalVisible(true)');
+    expect(fn).toContain('setCommandPortalVisible(true)');
   });
 
-  it('paleti açan tek yol menünün "Ara veya Ekle"si — gizli ikinci bir tetik yok', () => {
+  it('paleti açan tek yol odur — gizli ikinci bir tetik yok', () => {
     const opens = src.match(/setCommandPortalVisible\(true\)/g) ?? [];
     expect(opens).toHaveLength(1);
-    expect(src).toMatch(/onQuickAdd=\{\(\) => \{\s*setPortalSearch\(''\);\s*setCommandPortalVisible\(true\);/);
   });
 
-  it('menü eylemi menü KAPANDIKTAN sonra çalışır — iOS ikinci modalı yutmasın', () => {
-    // `onClose(); setTimeout(onPress, 50)` iOS'ta kapanan modalın üstüne yenisini
-    // açmaya çalışıyordu ve palet bazen hiç açılmıyordu.
-    expect(menu).toContain('onDismiss={flush}');
-    expect(menu).not.toMatch(/setTimeout\(onPress/);
+  it('araya menü GİRMEZ — kaldırılan ara katman geri gelmesin', () => {
+    expect(fs.existsSync(path.join(ROOT, 'features/dashboard/components/TazqCoreMenu.tsx'))).toBe(false);
+  });
+
+  it('kısayol palet KAPANDIKTAN sonra çalışır — iOS ikinci modalı yutmasın', () => {
+    // "Günü Kurtar" triage modalını açabilir; `onClose(); setTimeout(fn, 50)` iOS'ta
+    // kapanan modalın üstüne yenisini açmayı deniyordu ve bazen hiçbir şey olmuyordu.
+    expect(portal).toContain('useRunAfterDismiss(visible)');
+    expect(portal).toContain('onDismiss={onDismiss}');
     // Modal hep bağlı: `if (!visible) return null` kapanış animasyonunu ve onDismiss'i keserdi.
-    expect(menu).not.toMatch(/if \(!visible\) return null/);
+    expect(portal).not.toMatch(/if \(!visible\) return null/);
   });
 
-  it('menü BEKLEMEDEN açılır', () => {
+  it('palet BEKLEMEDEN açılır', () => {
     // 220ms gecikme vardı (logo nabzı bitsin diye) — gözle görülür bir tepki
     // gecikmesiydi. Animasyon paletin arkasında sürebilir, beklemek gerekmiyor.
     const fn = src.match(/const handleLogoPress = useCallback\([\s\S]*?\n  \}, \[\]\);/)?.[0] ?? '';

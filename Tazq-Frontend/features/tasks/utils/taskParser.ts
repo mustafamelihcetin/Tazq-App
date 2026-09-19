@@ -1,4 +1,20 @@
-import { SEMANTIC_DICTIONARY } from '@/shared/utils/semanticDictionary';
+import { understand, categoryTag, type Lang } from '@/features/tasks/nlp/understand';
+
+/**
+ * GÖREV CÜMLESİ AYRIŞTIRICI — uygulamanın her giriş noktasının kullandığı TEK yol.
+ *
+ * Asıl iş Anlama Motorunda (features/tasks/nlp): deterministik, cihazda, sıfır
+ * maliyet. Bu dosya ekranların beklediği biçime çevirir.
+ *
+ * ── ESKİ HÂLDEN KALDIRILANLAR ─────────────────────────────────────────────────
+ *  · "Esprili mesaj" (`wittyMessage`): her cümleye bir yorum ekliyordu ve çoğu
+ *    yanıltıcıydı — tarihsiz her göreve "not defterime kaydettim" diyordu, görev
+ *    not değilken. Kullanıcıya ne anlaşıldığını ÇİPLER söylüyor.
+ *  · Duygu bağlamı (`context`) ve konudan öncelik tahmini: "toplantı" → düşük
+ *    öncelik gibi, kullanıcının hiç söylemediği sonuçlar üretiyordu.
+ *  · İkinci bir kategori motoru (taskIntelligence) kayıt anında GİZLİCE etiket
+ *    ekliyor, kullanıcının sildiği etiketi her kayıtta geri getiriyordu.
+ */
 
 export type RecurrenceType = 'None' | 'Daily' | 'Weekly' | 'Monthly';
 
@@ -7,8 +23,6 @@ export interface ParsedHint {
   dueDate?: string;
   dueTime?: string;
   tags?: string[];
-  wittyMessage?: string;
-  context?: 'sensitive' | 'joyful' | 'stressful' | 'normal';
   recurrence?: RecurrenceType;
   /**
    * Haftalık tekrarın günü — 0=Pazar … 6=Cumartesi (Date.getDay ile aynı).
@@ -22,394 +36,24 @@ export interface ParsedHint {
   recurrenceDay?: number;
 }
 
-/**
- * TAZQ LOCAL SEMANTIC ENGINE V3 (Dictionary-Powered)
- * Uses the Global Semantic Dictionary for high-accuracy local NLP.
- */
+/** Hatırlatma niyetinin etiketi — bildirim kurmayı bu etiket tetikliyor. */
+export const REMINDER_TAG: Record<Lang, string> = { tr: 'hatırlatıcı', en: 'reminder' };
+const NOTE_TAG: Record<Lang, string> = { tr: 'not', en: 'note' };
 
-type ContextType = 'sensitive' | 'joyful' | 'stressful' | 'urgent' | 'social' | 'health' | 'work' | 'finance' | 'education' | 'shopping' | 'home';
-
-const CLUSTER_TO_TAG: Record<ContextType, { tr: string; en: string }> = {
-  sensitive: { tr: 'önemli',    en: 'important'  },
-  joyful:    { tr: 'sosyal',    en: 'social'      },
-  stressful: { tr: 'iş',       en: 'work'        },
-  urgent:    { tr: 'acil',     en: 'urgent'      },
-  social:    { tr: 'sosyal',   en: 'social'      },
-  health:    { tr: 'sağlık',   en: 'health'      },
-  work:      { tr: 'iş',       en: 'work'        },
-  finance:   { tr: 'finans',   en: 'finance'     },
-  education: { tr: 'eğitim',   en: 'education'   },
-  shopping:  { tr: 'alışveriş',en: 'shopping'    },
-  home:      { tr: 'ev',       en: 'home'        },
-};
-
-function toISO(date: Date): string {
-  // Use local date components to avoid UTC timezone shifts
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-const WEEKDAY_MAP: Record<string, number> = {
-  pazartesi: 1, monday: 1, salı: 2, tuesday: 2, çarşamba: 3, wednesday: 3,
-  perşembe: 4, thursday: 4, cuma: 5, friday: 5, cumartesi: 6, saturday: 6, pazar: 0, sunday: 0,
-};
-
-export function parseTaskHint(text: string, preferredLang?: 'tr' | 'en'): ParsedHint {
+export function parseTaskHint(text: string, preferredLang?: Lang, now: Date = new Date()): ParsedHint {
   if (!text.trim()) return {};
-  const lower = text.toLowerCase();
-  const words = lower.split(/[\s,.;!?]+/);
+  const u = understand(text, preferredLang, now);
   const hint: ParsedHint = {};
-  const today = new Date();
-
-  // 0. Language detection — preferred lang takes priority; fall back to text-based heuristics
-  const isTR = preferredLang === 'tr'
-    || (preferredLang !== 'en' && (
-      /[ıİğĞüÜşŞöÖçÇ]/.test(text)
-      || lower.includes('yarın') || lower.includes('bugün')
-      || lower.includes('hatırlat') || lower.includes('pazartesi')
-      || lower.includes('salı') || lower.includes('çarşamba')
-      || lower.includes('perşembe') || lower.includes('cuma')
-    ));
-  
-  // 1. Semantic Intent Calculation using the Global Dictionary
-  const scores: Record<ContextType, number> = {
-    sensitive: 0, joyful: 0, stressful: 0, urgent: 0, social: 0, health: 0, work: 0, finance: 0, education: 0, shopping: 0, home: 0
-  };
-  
-  words.forEach(word => {
-    // Advanced Stemming (Removing Turkish suffixes)
-    const stems = [
-      word, 
-      word.replace(/[ıieaouüö]$/i, ''), 
-      word.slice(0, -1), 
-      word.slice(0, -2), 
-      word.slice(0, -3),
-      word.replace(/lar$|ler$|da$|de$|ta$|te$|in$|ın$|un$|ün$/i, '') // Extra TR suffixes
-    ];
-    const seenCluster = new Set<string>();
-    
-    stems.forEach(s => {
-      const entry = SEMANTIC_DICTIONARY[s];
-      if (entry && !seenCluster.has(s)) {
-        Object.keys(entry).forEach((key) => {
-           if (key in scores) {
-              scores[key as ContextType] += entry[key] || 0;
-           }
-        });
-        seenCluster.add(s);
-      }
-    });
-  });
-
-  // 2. Context Determination
-  const emotionalContexts: ContextType[] = ['sensitive', 'joyful', 'stressful'];
-  let maxScore = 0;
-  hint.context = 'normal';
-
-  emotionalContexts.forEach(c => {
-    if (scores[c] > maxScore && scores[c] >= 5) {
-      maxScore = scores[c];
-      if (c === 'sensitive' || c === 'joyful' || c === 'stressful') {
-        hint.context = c;
-      }
-    }
-  });
-
-  // 3. Priority Calculation
-  if (scores.urgent >= 10 || scores.stressful >= 15) hint.priority = 'High';
-  else if (scores.urgent >= 5 || scores.stressful >= 8) hint.priority = 'Medium';
-  else if (scores.urgent > 0 || scores.stressful > 0) hint.priority = 'Low';
-
-  // 4. Auto-Tagging (language-aware)
-  const tagsSet = new Set<string>();
-  Object.keys(scores).forEach(c => {
-    if (scores[c as ContextType] >= 5) {
-      const entry = CLUSTER_TO_TAG[c as ContextType];
-      tagsSet.add(isTR ? entry.tr : entry.en);
-    }
-  });
-
-  // Keyword-level tags — more specific than cluster-level
-  const KEYWORD_TAGS: Array<{ keywords: string[]; tr: string; en: string }> = [
-    {
-      keywords: ['toplantı', 'meeting'],
-      tr: 'toplantı', en: 'meeting',
-    },
-    {
-      keywords: ['kod', 'kodla', 'kodlama', 'geliştir', 'develop', 'code', 'program', 'backend', 'frontend'],
-      tr: 'geliştirme', en: 'dev',
-    },
-    {
-      keywords: ['sınav', 'vize', 'final', 'exam', 'test', 'quiz'],
-      tr: 'sınav', en: 'exam',
-    },
-    {
-      keywords: ['ödev', 'homework', 'assignment'],
-      tr: 'ödev', en: 'homework',
-    },
-    {
-      keywords: ['alışveriş', 'market', 'sipariş', 'shopping', 'grocery', 'order'],
-      tr: 'alışveriş', en: 'shopping',
-    },
-    {
-      keywords: ['spor', 'egzersiz', 'gym', 'koşu', 'fitness', 'antrenman', 'workout', 'run'],
-      tr: 'spor', en: 'fitness',
-    },
-    {
-      keywords: ['randevu', 'doktor', 'hastane', 'appointment', 'doctor', 'hospital'],
-      tr: 'randevu', en: 'appointment',
-    },
-    {
-      keywords: ['okuma', 'kitap', 'dergi', 'read', 'book'],
-      tr: 'okuma', en: 'reading',
-    },
-    {
-      keywords: ['fatura', 'ödeme', 'taksit', 'kredi', 'vergi', 'bill', 'pay', 'tax', 'loan'],
-      tr: 'finans', en: 'finance',
-    },
-    {
-      keywords: ['su', 'su iç', 'su siparişi', 'water'],
-      tr: 'sağlık', en: 'health', // or "su" specifically
-    },
-    {
-      keywords: ['temizlik', 'tadilat', 'ev', 'clean', 'home'],
-      tr: 'ev', en: 'home',
-    },
-    {
-      keywords: ['kuaför', 'berber', 'bakım', 'haircut', 'barber', 'salon'],
-      tr: 'kişisel', en: 'personal',
-    }
+  if (u.priority) hint.priority = u.priority;
+  if (u.dueDate) hint.dueDate = u.dueDate;
+  if (u.dueTime) hint.dueTime = u.dueTime;
+  if (u.recurrence) hint.recurrence = u.recurrence;
+  if (u.recurrenceDay != null) hint.recurrenceDay = u.recurrenceDay;
+  const tags = [
+    ...(u.category ? [categoryTag(u.category, u.lang)] : []),
+    ...(u.reminder ? [REMINDER_TAG[u.lang]] : []),
+    ...(u.note ? [NOTE_TAG[u.lang]] : []),
   ];
-  KEYWORD_TAGS.forEach(({ keywords, tr, en }) => {
-    if (keywords.some(kw => lower.includes(kw))) {
-      // Remove the generic cluster tag if a more specific one is added
-      if (isTR) {
-        tagsSet.delete('eğitim'); tagsSet.delete('sağlık'); tagsSet.delete('alışveriş'); tagsSet.delete('finans');
-        tagsSet.add(tr);
-      } else {
-        tagsSet.delete('education'); tagsSet.delete('health'); tagsSet.delete('shopping'); tagsSet.delete('finance');
-        tagsSet.add(en);
-      }
-    }
-  });
-
-  if (tagsSet.size > 0) hint.tags = Array.from(tagsSet);
-
-  // 5. Smart Date & Time
-  if (lower.includes('bugün') || lower.includes('today')) {
-    hint.dueDate = toISO(today);
-  } else if (lower.includes('yarın') || lower.includes('tomorrow')) {
-    const d = new Date(today); d.setDate(today.getDate() + 1);
-    hint.dueDate = toISO(d);
-  } else {
-    for (const [kw, dayNum] of Object.entries(WEEKDAY_MAP)) {
-      if (lower.includes(kw)) {
-        let diff = dayNum - today.getDay();
-        if (diff <= 0) diff += 7;
-        const d = new Date(today); d.setDate(today.getDate() + diff);
-        hint.dueDate = toISO(d);
-        break;
-      }
-    }
-  }
-
-  // 5b. Recurrence Detection
-  const turkishNumbers: Record<string, number> = {
-    bir: 1, iki: 2, üç: 3, dort: 4, dört: 4, bes: 5, beş: 5, alti: 6, altı: 6, yedi: 7, sekiz: 8, dokuz: 9, on: 10
-  };
-  const englishNumbers: Record<string, number> = {
-    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10
-  };
-
-  const intervalDayMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+günde\s+bir/i) ||
-                           lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+days/i);
-  
-  const intervalWeekMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+haftada\s+bir/i) ||
-                            lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+weeks/i);
-
-  const intervalMonthMatch = lower.match(/(?:her\s+)?(bir|iki|üç|dort|dört|bes|beş|alti|altı|yedi|sekiz|dokuz|on|\d+)\s+ayda\s+bir/i) ||
-                             lower.match(/every\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+months/i);
-
-  let intervalMatched = false;
-
-  if (intervalDayMatch) {
-    const rawVal = intervalDayMatch[1].toLowerCase();
-    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
-    hint.dueDate = toISO(new Date(today));
-    hint.recurrence = 'None';
-    intervalMatched = true;
-  } else if (intervalWeekMatch) {
-    const rawVal = intervalWeekMatch[1].toLowerCase();
-    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
-    hint.dueDate = toISO(new Date(today));
-    hint.recurrence = 'None';
-    intervalMatched = true;
-  } else if (intervalMonthMatch) {
-    const rawVal = intervalMonthMatch[1].toLowerCase();
-    const val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : (turkishNumbers[rawVal] || englishNumbers[rawVal] || 1);
-    hint.dueDate = toISO(new Date(today));
-    hint.recurrence = 'None';
-    intervalMatched = true;
-  } else if (lower.includes('gün aşırı') || lower.includes('every other day')) {
-    hint.dueDate = toISO(new Date(today));
-    hint.recurrence = 'None';
-    intervalMatched = true;
-  }
-
-  const dailyPatterns = ['her gun', 'her gün', 'her sabah', 'her gece', 'gunluk', 'günlük', 'daily', 'every day', 'everyday'];
-  const weeklyPatterns = ['her hafta', 'haftalik', 'haftalık', 'weekly', 'every week'];
-  const monthlyPatterns = ['her ay', 'aylik', 'aylık', 'monthly', 'every month'];
-  /*
-    HAFTANIN GÜNÜ İLE TEKRAR — "her salı" / "every tuesday".
-
-    ÖLÇÜLEN SORUN: desen `/her\s+(…|monday|tuesday|…)/i` idi, yani İngilizce gün
-    adları listede olmasına rağmen önlerinde TÜRKÇE "her" aranıyordu. "every monday"
-    yazan İngilizce kullanıcı hiçbir desene takılmıyordu (dailyPatterns'da yok,
-    weeklyPatterns yalnız "weekly"/"every week" tutuyor) ve görev SESSİZCE tek
-    seferlik oluşuyordu — ne tekrar kuruluyor ne de ipucu gösteriliyordu.
-    Listedeki yedi İngilizce gün adı yalnız "her monday" gibi anlamsız bir girdide
-    ateşlenebiliyordu, yani hiç.
-
-    Artık her dil kendi belirtecini kullanıyor: TR "her", EN "every"/"each".
-
-    "on monday" BİLEREK dışarıda: o bir TEKRAR değil, tek bir tarihtir ("meet John
-    on monday"). Tek tarih zaten yukarıda WEEKDAY_MAP ile çözülüyor (5. Smart Date).
-  */
-  // Son ek koruması `\b` DEĞİL: `\b` ASCII sözcük sınırıdır ve 'salı' sonundaki
-  // 'ı' ASCII harf sayılmadığından sınır oluşmuyor, Türkçe gün adı eşleşmiyordu.
-  // `(?!\p{L})` Unicode farkındadır: 'mondayx' tutmaz, 'salı' tutar.
-  const weeklyDayPattern = /(?:her|every|each)\s+(pazartesi|salı|çarşamba|perşembe|cuma|cumartesi|pazar|monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?(?!\p{L})/iu;
-
-  if (intervalMatched) {
-    // Already set via interval matcher
-  } else if (dailyPatterns.some(p => lower.includes(p))) {
-    hint.recurrence = 'Daily';
-  } else if (weeklyPatterns.some(p => lower.includes(p))) {
-    hint.recurrence = 'Weekly';
-  } else {
-    const dayMatch = weeklyDayPattern.exec(lower);
-    if (dayMatch) {
-      hint.recurrence = 'Weekly';
-      // WEEKDAY_MAP her iki dili de gün NUMARASINA çeviriyor — ayrı bir ad tablosu
-      // tutmak, aynı bilgiyi ikinci kez (ve tek dilde) yazmak olurdu.
-      const day = WEEKDAY_MAP[dayMatch[1].toLocaleLowerCase('tr')];
-      if (day != null) hint.recurrenceDay = day;
-    } else if (monthlyPatterns.some(p => lower.includes(p))) {
-      hint.recurrence = 'Monthly';
-      // Match day number if specified: "her ayın 30'u", "every month on the 30th", "30th of every month"
-      const monthlyDayMatch =
-        lower.match(/her\s+ayın\s+(\d{1,2})/i) ||
-        lower.match(/every\s+month\s+on\s+the\s*(\d{1,2})/i) ||
-        lower.match(/every\s+(\d{1,2})(?:st|nd|rd|th)?\s+of\s+the\s+month/i) ||
-        lower.match(/(\d{1,2})(?:st|nd|rd|th)?\s+of\s+every\s+month/i);
-      
-      if (monthlyDayMatch) {
-        const targetDay = parseInt(monthlyDayMatch[1], 10);
-        if (targetDay >= 1 && targetDay <= 31) {
-          // Calculate the nearest occurrence date
-          let targetDate = new Date(today.getFullYear(), today.getMonth(), targetDay);
-          
-          // Clamp to the last day of the month if day is invalid for this month (e.g. 31 in Feb)
-          const maxDays = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
-          if (targetDay > maxDays) {
-            targetDate.setDate(maxDays);
-          }
-          
-          // Compare dates cleanly by setting hours/minutes to 0
-          const todayZero = new Date(today);
-          todayZero.setHours(0, 0, 0, 0);
-          targetDate.setHours(0, 0, 0, 0);
-          
-          // If in the past, move to next month
-          if (targetDate < todayZero) {
-            targetDate = new Date(today.getFullYear(), today.getMonth() + 1, targetDay);
-            const nextMaxDays = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
-            if (targetDay > nextMaxDays) {
-              targetDate.setDate(nextMaxDays);
-            }
-          }
-          
-          hint.dueDate = toISO(targetDate);
-        }
-      }
-    }
-  }
-
-  const timeMatch =
-    lower.match(/saat\s*(\d{1,2})(?:[:.\s](\d{2}))?/) ||
-    lower.match(/(\d{1,2})[:.](\d{2})/) ||
-    lower.match(/(\d{1,2})['']?(?:da|de|ta|te|ye|ya|e|a)/); // Turkish time suffixes like 15'te, 3'te
-
-  if (timeMatch) {
-    const hour = parseInt(timeMatch[1], 10);
-    const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-    if (hour <= 23 && minute <= 59) {
-      const d = new Date();
-      if (hint.dueDate) {
-        const [y, m, day] = hint.dueDate.split('-').map(Number);
-        d.setFullYear(y, m - 1, day);
-      }
-      d.setHours(hour, minute, 0, 0);
-      hint.dueTime = d.toISOString();
-    }
-  }
-
-  // 6. Witty Message Generation & Reminder/Event Intent
-  const hasReminderIntent = lower.includes('hatırlat') || lower.includes('remind') || lower.includes('unutturma') || lower.includes('alarm');
-  const hasGuestIntent = lower.includes('misafir') || lower.includes('davet') || lower.includes('konuk');
-  
-  // Event vs Task vs Note detection
-  const taskVerbs = ['yap', 'hazırla', 'yaz', 'bitir', 'kodla', 'oku', 'al', 'götür', 'ara', 'check', 'fix', 'düzelt'];
-  const eventKeywords = ['buluşma', 'toplantı', 'randevu', 'konser', 'sinema', 'maç', 'düğün', 'nişan', 'gelecek', 'başlıyor', 'meeting', 'appointment'];
-  
-  const hasTaskVerb = taskVerbs.some(v => lower.includes(v));
-  const isEvent = eventKeywords.some(kw => lower.includes(kw)) || hasGuestIntent;
-  const isExplicitNote = lower.startsWith('not:') || lower.startsWith('bilgi:');
-  
-  // A "Note" is something without a date, without a time, and without an obvious task verb/reminder intent
-  const isNote = isExplicitNote || (!hint.dueDate && !hint.dueTime && !hasTaskVerb && !hasReminderIntent && !isEvent);
-
-  const finalContext = (hint.context || 'normal') as string;
-  
-  if (isExplicitNote || isNote) {
-    hint.wittyMessage = isTR ? "Bu önemli bilgiyi not defterime kaydettim." : "I've saved this important info to my notebook.";
-    if (isExplicitNote) {
-      if (!hint.tags) hint.tags = [];
-      hint.tags.push(isTR ? 'not' : 'note');
-    }
-    // Truncate long notes for DB/UI stability (max 200 chars for title part)
-    if (text.length > 200) {
-        // We'll keep the full text but maybe flag it or handle it in UI
-    }
-  } else if (hasReminderIntent) {
-    hint.wittyMessage = isTR ? "Not aldım, vakti gelince hatırlatacağım. Merak etme!" : "Noted, I'll remind you when the time comes. Don't worry!";
-    hint.priority = hint.priority === 'Low' ? 'Medium' : hint.priority;
-    if (!hint.tags) hint.tags = [];
-    hint.tags.push(isTR ? 'hatırlatıcı' : 'reminder');
-  } else if (hasGuestIntent) {
-    hint.wittyMessage = isTR ? "Misafirlerin başımın üstünde yeri var! Hazırlıklara başlayalım." : "Guests are always welcome! Let's get ready for them.";
-    hint.context = 'joyful';
-    if (!hint.tags) hint.tags = [];
-    hint.tags.push(isTR ? 'sosyal' : 'social');
-  } else if (isEvent) {
-    hint.wittyMessage = isTR ? "Ajandana bir etkinlik ekliyorum. Vaktinde orada olalım!" : "Adding an event to your agenda. Let's be there on time!";
-    if (!hint.tags) hint.tags = [];
-    hint.tags.push(isTR ? 'etkinlik' : 'event');
-  } else if (finalContext === 'sensitive') {
-    if (scores.sensitive >= 10) {
-         hint.wittyMessage = isTR ? "Başınız sağ olsun. TAZQ bu süreçte ajandanızı sadeleştirecek." : "My condolences. TAZQ will simplify your agenda during this time.";
-     } else {
-         hint.wittyMessage = isTR ? "Geçmiş olsun, sağlığınız her şeyden önemli. Kaydedildi." : "Get well soon, your health is priority #1. Noted.";
-     }
-   } else if (finalContext === 'joyful') {
-     hint.wittyMessage = isTR ? "Harika bir plan! TAZQ kutlama moduna hazır." : "Great plan! TAZQ is ready for celebration mode.";
-  } else if (finalContext === 'stressful') {
-    hint.wittyMessage = isTR ? "Zorlu bir görev ama üstesinden gelebilirsin. Odaklanalım!" : "A tough task, but you can handle it. Let's focus!";
-  } else {
-    hint.wittyMessage = isTR ? "Planlandı. Adım adım hedefe ilerliyoruz." : "Scheduled. Moving towards the goal step by step.";
-  }
-
+  if (tags.length) hint.tags = tags;
   return hint;
 }

@@ -1,5 +1,15 @@
+import { renderHook, act } from '@testing-library/react-native';
+import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
+import { usePrefsStore } from '@/features/modes/store/usePrefsStore';
 import fs from 'fs';
 import path from 'path';
+
+// firstRun, tur kapısı için expo-router'dan useFocusEffect alıyor; burada yalnız örnek
+// veri kapısı ölçülüyor, yönlendirici gerekmiyor.
+jest.mock('expo-router', () => {
+  const { useEffect } = require('react');
+  return { useFocusEffect: (cb: () => void | (() => void)) => useEffect(cb, [cb]) };
+});
 
 /**
  * İLK KULLANIM AKIŞI — hoş geldin, örnek veri, tur.
@@ -47,10 +57,19 @@ describe('kural TEK yerde', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('üç ekran da ORTAK kapıları kullanıyor', () => {
+  it('örnek veri taşıyan üç ekran ORTAK kapıları kullanıyor', () => {
     for (const [name, src] of FIRST_RUN_SCREENS) {
       expect(`${name}: ${src.includes('useDemoGate(')}`).toBe(`${name}: true`);
       expect(`${name}: ${src.includes('useTourGate(')}`).toBe(`${name}: true`);
+    }
+  });
+
+  it('turu olan HER ekran ortak tur kapısından geçer — odak ekranı dahil', () => {
+    // Odak turunda hiç kapı yoktu: ekran arka plandayken de açılabiliyordu.
+    for (const f of ['app/index.tsx', 'app/tasks.tsx', 'app/cockpit.tsx', 'app/modlar.tsx', 'app/focus.tsx']) {
+      const src = stripComments(read(f));
+      expect(`${f}: ${/useTourGate\('\w+'/.test(src)}`).toBe(`${f}: true`);
+      expect(`${f}: ${/\{tourOn && \(?\s*<HelpTourModal/.test(src)}`).toBe(`${f}: true`);
     }
   });
 
@@ -63,25 +82,54 @@ describe('kural TEK yerde', () => {
   });
 });
 
+describe('ilk kullanım senaryosu — tur ve örnek veri BİRLİKTE', () => {
+  const reset = (over: Record<string, unknown> = {}) =>
+    usePrefsStore.setState({ _hasHydrated: true, completedTours: {}, ...over } as never);
+
+  beforeEach(() => reset());
+
+  it('tur sayfaya İLK girişte açılır — içerik şartı YOK', () => {
+    /*
+      Eskiden ana sayfa, Görevler ve Kokpit turu ancak ilk görevden SONRA açılıyordu;
+      yeni kullanıcı ilk ziyarette tur görmüyordu.
+    */
+    const { result } = renderHook(() => useTourGate('tasks'));
+    expect(result.current).toBe(true);
+  });
+
+  it('tur bekletilebilir — ana sayfada hoş geldin ekranı bitene kadar', () => {
+    const { result } = renderHook(() => useTourGate('dashboard', true));
+    expect(result.current).toBe(false);
+  });
+
+  it('tamamlanan tur bir daha açılmaz; tercihler okunmadan da açılmaz', () => {
+    reset({ completedTours: { tasks: true } });
+    expect(renderHook(() => useTourGate('tasks')).result.current).toBe(false);
+    reset({ _hasHydrated: false });
+    expect(renderHook(() => useTourGate('tasks')).result.current).toBe(false);
+  });
+
+  it('örnek veri YALNIZ tur açıkken ve gerçek veri yokken', () => {
+    const on = renderHook(() => useDemoGate('dashboard', true)).result.current;
+    expect(on(0)).toBe(true);
+    expect(on(3)).toBe(false); // gerçek veri varsa asla
+    const off = renderHook(() => useDemoGate('dashboard', false)).result.current;
+    expect(off(0)).toBe(false); // tur yoksa örnek yok
+  });
+
+  it('tur BİTİNCE örnek veri aynı anda kaybolur', () => {
+    const { result, rerender } = renderHook(() => {
+      const tourOn = useTourGate('tasks');
+      return useDemoGate('tasks', tourOn)(0);
+    });
+    expect(result.current).toBe(true);
+    act(() => usePrefsStore.getState().setTourCompleted('tasks', true));
+    rerender({});
+    expect(result.current).toBe(false);
+  });
+});
+
 describe('örnek veri gerçek veriyi gizleyemez', () => {
-  it('kapı GERÇEK SAYIYI parametre olarak istiyor', () => {
-    /*
-      "Gerçek veri varsa gösterme" kuralı çağıranın hatırlamasına bırakılamaz — imzanın
-      kendisinden gelmeli. Koşulda bu yokken kullanıcının eklediği ilk görev listede
-      görünmüyordu: dal erken dönüp yalnız sahte satırları veriyordu.
-    */
-    expect(FIRST_RUN).toMatch(/\(realCount: number\) =>[\s\S]{0,120}realCount === 0/);
-  });
-
-  it('tercihler DİSKTEN okunmadan örnek veri çizilmiyor', () => {
-    /*
-      `onboardingCompleted` okunana kadar varsayılanı `false`. Bu kontrol olmadan HER
-      kullanıcı, her soğuk açılışta, gerçek verisi yüklenene kadar sahte satırları
-      görüyordu — kimsenin bildirmediği ama her açılışta olan bir parıltı.
-    */
-    expect(FIRST_RUN).toMatch(/hydrated && realCount === 0/);
-  });
-
   it('her çağrı gerçek koleksiyonun uzunluğunu veriyor — sabit değil', () => {
     for (const [name, src] of FIRST_RUN_SCREENS) {
       const calls = [...src.matchAll(/demoGate\(([^)]*)\)/g)].map((m) => m[1].trim());
@@ -94,16 +142,27 @@ describe('örnek veri gerçek veriyi gizleyemez', () => {
 });
 
 describe('tur kullanıcının eylemine tepki olarak açılmaz', () => {
-  it('karar odaklanma anında bir kez alınıyor', () => {
+  it('kapının içerik parametresi YOK — görev eklemek turu tetikleyemez', () => {
+    expect(FIRST_RUN).not.toContain('hasContent');
     expect(FIRST_RUN).toContain('useFocusEffect(');
-    expect(FIRST_RUN).toMatch(/setAllowed\(read\.current\(\)\)/);
+  });
+});
+
+describe('hoş geldin ile tur SENKRON', () => {
+  const INDEX = stripComments(read('app/index.tsx'));
+  const LAYOUT = stripComments(read('app/_layout.tsx'));
+
+  it('ana sayfa turu hoş geldin görünür ya da beklemedeyken AÇILMAZ', () => {
+    expect(INDEX).toContain("useTourGate('dashboard', profileSetupVisible || welcomeStatus === 'pending')");
   });
 
-  it('içerik REF üzerinden okunuyor — kapanışta eskiye saplanmasın', () => {
-    expect(FIRST_RUN).toContain('read.current = hasContent;');
-    for (const [name, src] of FIRST_RUN_SCREENS) {
-      expect(`${name}: ${/useTourGate\(\(\) => \w+Ref\.current/.test(src)}`).toBe(`${name}: true`);
-    }
+  it('hoş geldin turu ZORLA sıfırlamaz — misafirken görülen tur ikinci kez gelmez', () => {
+    expect(INDEX).not.toContain("setTourCompleted('dashboard', false)");
+  });
+
+  it('bildirim izni hoş geldin ve ana sayfa turundan SONRA sorulur', () => {
+    expect(LAYOUT).toContain("welcomeStatus !== 'pending'");
+    expect(LAYOUT).toContain('completedTours?.dashboard === true');
   });
 });
 

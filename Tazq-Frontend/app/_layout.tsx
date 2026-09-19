@@ -29,7 +29,7 @@ initSentry();
 import '../global.css';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useColorScheme, View, LogBox, AppState, Text, TextInput, Animated, StyleSheet } from 'react-native';
 import { uiDepth } from '@/shared/constants/uiDepth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -48,7 +48,7 @@ if ((TextInput as any).defaultProps == null) {
 import { Colors } from '@/shared/constants/Colors';
 import { useAuthStore } from '@/features/user';
 import { useSessionStore } from '@/shared/store/useSessionStore';
-import { AuthService, FocusService, api } from '@/shared/services/api';
+import { AuthService, api } from '@/shared/services/api';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -56,7 +56,7 @@ import { TourProvider } from '@/shared/components/TourContext';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
 import { syncTasksAndHabitsLanguage } from '@/features/tasks/utils/systemTaskTranslator';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
-import { useTaskStore, initIntelligence } from '@/features/tasks';
+import { useTaskStore } from '@/features/tasks';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import {
   scheduleMorningBrief,
@@ -67,11 +67,16 @@ import {
   cancelHabitAtRisk,
   requestNotificationPermissions,
   getNotificationPermissionStatus,
-  showFocusNotification,
   cancelFocusNotification,
   registerNotificationCategories,
+  briefHourFor,
+  scheduleTaskNotification,
 } from '@/shared/utils/notifications';
+import { openThrough, completedOn, nextAt, reminderTasks, notificationSignature } from '@/features/tasks/utils/briefCounts';
+import { completeTask } from '@/features/tasks/utils/taskActions';
+import { toDateKey } from '@/shared/utils/dateKey';
 import { useFocusStore, FocusIsland } from '@/features/focus';
+import { syncFocusAlarm, finalizeDueSession, onAppBackground, onAppForeground } from '@/features/focus/session';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as SplashScreen from 'expo-splash-screen';
@@ -185,7 +190,13 @@ export default function RootLayout() {
 
   const { sync, language } = useLanguageStore();
   const { tasks } = useTaskStore();
-  const { morningBrief: morningBriefEnabled, eveningBrief: eveningBriefEnabled, productivityHour, notifPrimerSeen, _hasHydrated: prefsHydrated } = usePrefsStore();
+  /*
+    Bildirimlerin bağlı olduğu sayıların İZİ. Eskiden `tasks` bilerek bağımlılık dışıydı
+    ("her değişimde yeniden kurmak gürültü olur") ve sayılar yalnız açılışta tazeleniyordu:
+    gün içinde görev tamamlayan/erteleyen kullanıcıya akşam eski sayı gidiyordu. İz yalnız
+    SAYILAR ya da hatırlatıcılı görevler değişince değişir — her düzenlemede değil.
+  */
+  const notifSig = useMemo(() => notificationSignature(tasks), [tasks]);  const { morningBrief: morningBriefEnabled, eveningBrief: eveningBriefEnabled, productivityHour, notifPrimerSeen, welcomeStatus, completedTours, _hasHydrated: prefsHydrated } = usePrefsStore();
   const focusActive = useFocusStore((s) => s.isActive);
 
   // Preload all critical assets
@@ -211,7 +222,6 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded && assetsLoaded) {
       sync();
-      initIntelligence();
       // We don't hide the splash here anymore, we wait for AnimatedSplash to mount
     }
   }, [fontsLoaded, assetsLoaded]);
@@ -279,7 +289,14 @@ export default function RootLayout() {
     prefsHydrated &&
     !notifPrimerSeen &&
     notifPermission === 'undetermined' &&
-    tasks.length > 0;
+    tasks.length > 0 &&
+    /*
+      SIRA: hoş geldin → ana sayfa turu → bildirim izni. Eskiden bu üçü aynı anda
+      açılabiliyordu: misafirken görev ekleyip sonra kayıt olan kullanıcı ana sayfada
+      üst üste profil kurulumu, tur ve izin sorusu görüyordu.
+    */
+    welcomeStatus !== 'pending' &&
+    completedTours?.dashboard === true;
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -287,35 +304,22 @@ export default function RootLayout() {
     {
       registerNotificationCategories();
 
-      const allTasks = tasks;
-      const today = new Date().toDateString();
+      const allTasks = useTaskStore.getState().tasks;
       /*
-        ── ÖZETLER ANA EKRANLA AYNI GÜNÜ SAYAR ───────────────────────────────
-        İki sayım da ana ekrandan AYRIŞMIŞTI:
-
-         · "Bugün N görevin var" yalnız vadesi TAM BUGÜN olanları sayıyordu.
-           Beş gecikmiş görevi olan ama bugüne bir şey yazmamış kullanıcı sabah
-           "0 görevin var" bildirimi alıyordu — hem yanlış hem de tam tersi etki
-           yapan bir cümle. Ana ekran gecikmişleri bugünün işine dahil ediyor
-           (bkz. app/index.tsx → dayScope); özet de öyle.
-
-         · "Bugün tamamladıkların" yalnız `completedAt` taşıyan kayıtları
-           sayıyordu. Sunucu bu alanı tutmuyor (bkz. useTaskStore.setTasks), yani
-           o kayıtlar hiç sayılmıyordu. Yedek olarak vadeye düşülüyor — ekranın
-           her yerinde kullanılan aynı kural.
+        SAYILAR BİLDİRİMİN ÇALACAĞI GÜNE GÖRE (bkz. features/tasks/utils/briefCounts).
+        Tanım ana ekranla aynı: vadesi o güne kadar gelmiş AÇIK işler; raftakiler ve
+        arşivlenmişler hariç. Eskiden sabah özeti her gün tekrar eden bir bildirimdi ve
+        kurulduğu andaki sayıyla donuyordu; akşamın "yarın için hazır" sayısı ise aylar
+        sonrası dahil BÜTÜN açık işleri sayıyordu.
       */
-      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-      const todayTasks = allTasks.filter(t => {
-        if (t.isCompleted || !t.dueDate) return false;
-        const ms = new Date(t.dueDate).getTime();
-        return !Number.isNaN(ms) && ms <= todayEnd.getTime();
-      });
-      const pending = allTasks.filter(t => !t.isCompleted).length;
-      const completedToday = allTasks.filter(t => {
-        if (!t.isCompleted) return false;
-        const when = t.completedAt ?? t.dueDate;
-        return !!when && new Date(when).toDateString() === today;
-      }).length;
+      const now = new Date();
+      const morningAt = nextAt(now, briefHourFor(productivityHour));
+      const todayTasks = { length: openThrough(allTasks, toDateKey(morningAt)) };
+      const eveningAt = nextAt(now, 21);
+      const eveningIsToday = toDateKey(eveningAt) === toDateKey(now);
+      const pending = openThrough(allTasks, toDateKey(eveningAt));
+      // Akşam yarına düştüyse (21:00 geçti) o günün tamamlananı henüz yok.
+      const completedToday = eveningIsToday ? completedOn(allTasks, toDateKey(now)) : 0;
 
       // Habit streak from cockpit store — best-effort
       let streak = 0;
@@ -326,14 +330,14 @@ export default function RootLayout() {
 
       // Morning brief: today's task count + streak (respects user preference)
       if (morningBriefEnabled) {
-        scheduleMorningBrief(todayTasks.length, streak, language || 'en', productivityHour, currentUser?.name);
+        scheduleMorningBrief(todayTasks.length, streak, language || 'en', productivityHour, currentUser?.name, morningAt);
       } else {
         cancelMorningBrief();
       }
 
       // Evening brief: completed today vs still pending (respects user preference)
       if (eveningBriefEnabled) {
-        scheduleEveningBrief(completedToday, pending, language || 'en', currentUser?.name);
+        scheduleEveningBrief(completedToday, pending, language || 'en', currentUser?.name, eveningAt);
       } else {
         cancelEveningBrief();
       }
@@ -350,7 +354,24 @@ export default function RootLayout() {
     `tasks` bilerek DIŞARIDA: her görev değişiminde bildirimleri iptal edip yeniden
     kurmak gürültü olurdu; sayılar bir sonraki açılışta zaten tazeleniyor.
   */
-  }, [isLoggedIn, notifPermission, morningBriefEnabled, eveningBriefEnabled, language, productivityHour]);
+  }, [isLoggedIn, notifPermission, morningBriefEnabled, eveningBriefEnabled, language, productivityHour, notifSig]);
+
+  /*
+    HATIRLATICILAR GÖREVLERLE BİRLİKTE YAŞAR.
+
+    Tekrarlı görevin bir sonraki örneğini SUNUCU oluşturuyor; telefona indiğinde ona kimse
+    hatırlatıcı kurmuyordu — hatırlatıcılı aylık bir ödeme ilk aydan sonra susuyordu.
+    Görev listesi (izi) her değiştiğinde hatırlatıcılı açık görevler yeniden kuruluyor;
+    aynı kimlikle kurmak eskisinin üstüne yazar, geçmiş zamanlar kendiliğinden elenir.
+  */
+  useEffect(() => {
+    if (!isLoggedIn || notifPermission !== 'granted') return;
+    const hide = usePrefsStore.getState().hideNotificationContent;
+    for (const t of reminderTasks(useTaskStore.getState().tasks)) {
+      scheduleTaskNotification(t.id, t.title, t.dueDate, t.dueTime, language || 'en', hide)
+        .catch((e) => swallow('layout.reconcileTaskReminder', e));
+    }
+  }, [isLoggedIn, notifPermission, language, notifSig]);
 
 
   // Notification response handler — covers tap, Watch action buttons, and Lock Screen actions
@@ -365,23 +386,20 @@ export default function RootLayout() {
         // Watch/Lock Screen: "✅ Tamamla" on task reminder (mark complete silently)
         if (action === 'task-complete' && data.taskId) {
           try {
-            const { api: taskApi } = require('@/shared/services/api');
-            taskApi.patch(`/tasks/${data.taskId}`, { isCompleted: true }).catch((e: unknown) => swallow('layout.notifCompleteTaskPatch', e, { capture: true }));
             /*
-              YEREL LİSTE DOĞRUDAN GÜNCELLENİYOR.
+              UYGULAMANIN TEK TAMAMLAMA YOLU. Burada `/tasks/{id}`e PATCH atılıyordu:
+              sunucunun adresi `/api/tasks/{id}` ve PATCH yok (yalnız PUT). İstek hiç
+              başarılı olmuyor, görev telefonda tamamlanmış görünüyor ama sunucuda açık
+              kalıyor, bir sonraki eşitlemede geri açılıyordu. `completeTask` doğru ucu,
+              çevrimdışı kuyruğu ve reddi zaten yönetiyor.
 
-              Burada `useTaskStore.getState().fetchTasks?.()` yazıyordu — ama mağazada
-              `fetchTasks` DİYE BİR ŞEY YOK. Soru işareti (`?.`) bunu sessizce yutuyordu:
-              satır hiçbir şey yapmıyor, yaptığını sanıyorduk. Kullanıcı kilit ekranından
-              görevi tamamlıyor, sunucu güncelleniyor ama uygulama görevi hâlâ açık
-              gösteriyordu.
-
-              Hemen altındaki alışkanlık dalı bunu zaten DOĞRU yapıyor (mağazayı
-              doğrudan yazıyor); görev dalı o desenin dışında kalmış.
+              Bildirimden soğuk açılışta görev listesi diskten henüz okunmamış olabilir:
+              okununca çalışır (yoksa görev bulunamayıp eylem sessizce kaybolurdu).
             */
             const taskId = Number(data.taskId);
-            require('@/features/tasks').useTaskStore.getState()
-              .updateTask(taskId, { isCompleted: true, completedAt: new Date().toISOString() });
+            const run = () => { completeTask(taskId).catch((e: unknown) => swallow('layout.notifCompleteTask', e, { capture: true })); };
+            if (useTaskStore.persist.hasHydrated()) run();
+            else { const off = useTaskStore.persist.onFinishHydration(() => { off(); run(); }); }
           } catch (e) { swallow('layout.notifActionCompleteTask', e, { capture: true }); }
           return;
         }
@@ -528,29 +546,35 @@ export default function RootLayout() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [_hasHydrated, isLoggedIn, isGuest, segments]);
 
-  // BR-01: Recover focus session that ended while app was killed or backgrounded
+  /*
+    ODAK SEANSI — ekrandan bağımsız bekçi (bkz. features/focus/session.ts).
+
+    Eskiden burada ayrı bir "süre doldu mu" hesabı vardı: ekranda geçen süreyi İKİ KEZ
+    düşüyordu (25 dakikalık seansın 10 dakikasını ekranda geçirip çıkan kullanıcıda
+    seans 16. dakikada "bitti" sayılıyordu) ve odak ekranı aynı seansı ayrıca
+    kaydediyordu. Artık: süre tek kaynaktan (bitiş anı), kayıt tek kilitten geçer;
+    bitiş alarmı her durum değişikliğinde kendiliğinden eşitlenir.
+  */
+  useEffect(() => {
+    syncFocusAlarm();
+    finalizeDueSession();
+    const unsub = useFocusStore.subscribe((s, prev) => {
+      if (
+        s.expectedFinishAt !== prev.expectedFinishAt || s.isActive !== prev.isActive ||
+        s.sessionKind !== prev.sessionKind || s.pomodoroMode !== prev.pomodoroMode ||
+        s.currentTask !== prev.currentTask
+      ) syncFocusAlarm();
+      if (s.seconds === 0 && prev.seconds !== 0) finalizeDueSession();
+    });
+    return unsub;
+  }, []);
+
   useEffect(() => {
     const checkTimerRehydration = () => {
-      const { isActive, lastActiveAt, totalSeconds, seconds, currentTask } = useFocusStore.getState();
-      if (!isActive || !lastActiveAt) return;
-      const elapsed = Math.floor((Date.now() - lastActiveAt) / 1000);
-      const remaining = seconds - elapsed; // use current remaining, not total (handles pause/resume)
-      if (remaining <= 0) {
-        // Seans süresi arka planda dolmuş. Ancak "bitişten ne kadar SONRA" geri dönüldüğüne bak:
-        // makul bir pencere içindeyse (kullanıcı telefonu bırakıp odaklanmış, sonra dönmüş) → kaydet.
-        // Çok geç dönülmüşse (uygulama çöktü/kapandı ve çok sonra açıldı) → sahte "tamamlandı" kredisi verme.
-        const overshoot = elapsed - seconds; // bitişin üstünden geçen saniye
-        const GRACE_SECONDS = 30 * 60; // 30 dk tolerans
-        if (overshoot <= GRACE_SECONDS) {
-          const minutes = Math.max(1, Math.round(totalSeconds / 60));
-          FocusService.saveSession(currentTask || 'Focus', minutes, true).catch((e) => swallow('layout.saveSessionOnBackground', e, { capture: true }));
-        }
-        // Her durumda timer'ı sıfırla (kredi verilmese bile takılı kalmasın)
-        useFocusStore.setState({ isActive: false, seconds: 0, lastActiveAt: null, expectedFinishAt: null, pausedSeconds: null });
-      } else {
-        // Session still in progress — rehydrate with correct remaining time
-        useFocusStore.getState().rehydrateTimer();
-      }
+      // Katı mod önce: süre aşıldıysa seans ayrılış anına göre biter (dolmuş sayılmaz).
+      onAppForeground();
+      useFocusStore.getState().rehydrateTimer();
+      finalizeDueSession();
     };
 
     // Run on startup
@@ -561,6 +585,7 @@ export default function RootLayout() {
       if (nextAppState === 'active') {
         checkTimerRehydration();
       } else {
+        if (nextAppState === 'background') onAppBackground();
         // Arka plana geçerken bekleyen alt görev yazmalarını HEMEN gönder: 800 ms'lik
         // toplama penceresi dolmadan uygulamadan çıkan kullanıcının son dokunuşu
         // kaybolmasın (yazma yalnız gecikmeli, yerel güncelleme zaten anında).

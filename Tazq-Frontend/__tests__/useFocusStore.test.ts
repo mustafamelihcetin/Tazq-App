@@ -8,6 +8,12 @@ beforeEach(() => {
     totalSeconds: 1500,
     currentTask: '',
     lastActiveAt: null,
+    expectedFinishAt: null,
+    pausedSeconds: null,
+    sessionId: null,
+    sessionKind: 'focus',
+    committedSessionId: null,
+    finishedAt: null,
   });
 });
 

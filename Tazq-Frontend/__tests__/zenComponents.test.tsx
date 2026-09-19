@@ -3,6 +3,7 @@ import { render as rtlRender, fireEvent, waitFor } from '@testing-library/react-
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TriageModal } from '@/features/dashboard/components/TriageModal';
 import { TazqZenCard } from '@/features/dashboard/components/TazqZenCard';
+import { SomedayNudge } from '@/features/dashboard/components/SomedayNudge';
 import { Colors } from '@/shared/constants/Colors';
 import type { Task } from '@/features/tasks/store/useTaskStore';
 import type { RebalancePlan } from '@/features/tasks/utils/taskBalancer';
@@ -24,7 +25,10 @@ const emptyPlan: RebalancePlan = { moves: [], scheduled: 0, someday: 0 };
 
 describe('triage', () => {
   const tasks = [t(1, 'Rapor'), t(2, 'Fatura'), t(3, 'Market')];
-  const preview = jest.fn((): RebalancePlan => ({ moves: [], scheduled: 2, someday: 0 }));
+  const preview = jest.fn((): RebalancePlan => ({
+    moves: [{ task: t(8, 'x'), to: '2026-09-21' }, { task: t(9, 'y'), to: '2026-09-22' }],
+    scheduled: 2, someday: 0,
+  }));
 
   it('satıra dokunmak HİÇBİR ŞEY yapmaz — yalnız seçer ve sonucu önizler', () => {
     const onConfirm = jest.fn();
@@ -127,5 +131,51 @@ describe('Zen kartı', () => {
     );
     expect(queryByLabelText('Dengele')).toBeNull();
     expect(queryByText('TAZQ ZEN')).toBeNull();
+  });
+});
+
+describe('raf hatırlatması', () => {
+  it('rafta iş varken sayıyı söyler; iki düğme de kendi işini yapar', () => {
+    const onOpen = jest.fn(); const onLater = jest.fn();
+    const { getByText, getByLabelText } = render(
+      <SomedayNudge visible count={4} onOpen={onOpen} onLater={onLater} theme={theme} tr />,
+    );
+    expect(getByText('Rafta 4 iş bekliyor')).toBeTruthy();
+    fireEvent.press(getByLabelText('Göz at'));
+    fireEvent.press(getByLabelText('Sonra'));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onLater).toHaveBeenCalledTimes(1);
+  });
+
+  it('raf boşsa ya da zamanı değilse hiç çizilmez', () => {
+    const r1 = render(<SomedayNudge visible count={0} onOpen={jest.fn()} onLater={jest.fn()} theme={theme} tr />);
+    expect(r1.queryByLabelText('Göz at')).toBeNull();
+    const r2 = render(<SomedayNudge visible={false} count={3} onOpen={jest.fn()} onLater={jest.fn()} theme={theme} tr />);
+    expect(r2.queryByLabelText('Göz at')).toBeNull();
+  });
+});
+
+describe('taşan gün kartı', () => {
+  it('birikim yokken bugünün yükünü söyler ve triage\'ı açar', () => {
+    const onOpen = jest.fn(); const onDismiss = jest.fn();
+    const { getByText, getByLabelText } = render(
+      <TazqZenCard visible={false} plan={emptyPlan} overdueTotal={0} onRebalance={jest.fn()} onDismiss={onDismiss}
+        overload={{ count: 8, onOpen }} theme={theme} tr />,
+    );
+    expect(getByText('Bugün 8 işin var')).toBeTruthy();
+    fireEvent.press(getByLabelText('Sadeleştir'));
+    fireEvent.press(getByLabelText('Ben hallederim'));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('birikim kartı varsa ÖNCE o gösterilir — iki Zen kartı aynı anda çıkmaz', () => {
+    const plan: RebalancePlan = { moves: [{ task: t(1, 'a'), to: '2026-09-21' }], scheduled: 1, someday: 0 };
+    const { queryByLabelText } = render(
+      <TazqZenCard visible plan={plan} overdueTotal={1} onRebalance={jest.fn()} onDismiss={jest.fn()}
+        overload={{ count: 8, onOpen: jest.fn() }} theme={theme} tr />,
+    );
+    expect(queryByLabelText('Dengele')).toBeTruthy();
+    expect(queryByLabelText('Sadeleştir')).toBeNull();
   });
 });

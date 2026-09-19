@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, useWindowDimensions, Animated as RNAnimated, AppState, Keyboard, FlatList, Alert } from 'react-native';
 import { useUiDepth } from '@/shared/hooks/useUiDepth';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,7 +15,7 @@ import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { WeightEntryModal } from '@/features/modes/components/WeightEntryModal';
 import { weightTaskAction, completeTaskOfflineFirst, isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
 import { TaskFormModal } from '@/features/tasks/components/TaskFormModal';
-import { useTaskStore, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask, getLocalizedTaskTitle, getLocalizedTaskDescription, withSomedayResolved } from '@/features/tasks';
+import { useTaskStore, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, getLocalizedTaskTitle, getLocalizedTaskDescription, withSomedayResolved, isSomeday } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -43,7 +43,7 @@ import { forgetTasks } from '@/features/tasks/utils/forgetTask';
 */
 import { buildNextIntervalInstance, wantsReminder } from '@/features/tasks/utils/recurrenceInterval';
 import { moveWithinVisible } from '@/features/tasks/utils/reorder';
-import { completeTask } from '@/features/tasks/utils/taskActions';
+import { completeTask, archiveTask } from '@/features/tasks/utils/taskActions';
 import { celebrate } from '@/features/user/utils/celebrate';
 import { HelpTourModal } from '@/features/onboarding/components/HelpTourModal';
 import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
@@ -64,6 +64,10 @@ import { Separator } from '@/shared/components/Separator';
 import { haptic } from '@/shared/utils/haptics';
 import { savedLocallyMessage } from '@/shared/utils/saveFeedback';
 import { matchesTaskFilter, type TaskFilter } from '@/features/tasks/utils/taskFilter';
+import { splitByHorizon, whenLabel, horizonCopy } from '@/features/tasks/utils/horizon';
+import { LaterToggle } from '@/features/tasks/components/LaterToggle';
+import { newTaskKey, nextInstanceKey } from '@/features/tasks/utils/clientKey';
+import { langOf } from '@/shared/utils/lang';
 import { describeTask, rowHint, bulkSelectHint } from '@/shared/utils/a11y';
 import { toDateKey } from '@/shared/utils/dateKey';
 
@@ -530,16 +534,14 @@ export default function ActionCenter() {
     büyüdükçe kartlar şişmiyor, SAYILARI artıyor.
   */
   /* Örnek veri ve tur kapıları ORTAK kuraldan (bkz. features/onboarding/utils/firstRun). */
-  const demoGate = useDemoGate('tasks');
-  const tasksRef = useRef(tasks);
-  tasksRef.current = tasks;
-  const tourAllowed = useTourGate(() => tasksRef.current.length > 0);
+  const tourOn = useTourGate('tasks');
+  const demoGate = useDemoGate('tasks', tourOn);
 
   const wide = useWideLayout();
   const tablet = useTabletLayout();
   const listCols = wide ? 3 : tablet ? 2 : 1;
   const router = useRouter();
-  const { action, highlightId, dateFilter } = useLocalSearchParams<{ action?: string; highlightId?: string; dateFilter?: string }>();
+  const { action, highlightId, dateFilter, filter: filterParam } = useLocalSearchParams<{ action?: string; highlightId?: string; dateFilter?: string; filter?: string }>();
   const insets = useSafeAreaInsets();
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const scrollViewRef = useRef<any>(null);
@@ -559,6 +561,7 @@ export default function ActionCenter() {
     açılması "görevlerim kayboldu" hissi verirdi.
   */
   const filter = usePrefsStore(s => s.taskFilter) as FilterType;
+  const somedayCount = tasks.filter(t => !t.isCompleted && !t.isArchived && isSomeday(t)).length;
   const setFilter = usePrefsStore(s => s.setTaskFilter);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -576,8 +579,9 @@ export default function ActionCenter() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const hideCompleted = usePrefsStore(s => s.taskHideCompleted);
   const setHideCompleted = usePrefsStore(s => s.setTaskHideCompleted);
-  const showFutureManualTasks = usePrefsStore(s => s.taskShowFutureManual);
-  const setShowFutureManualTasks = usePrefsStore(s => s.setTaskShowFutureManual);
+  // Açık ufkun ötesindeki görevler katlı mı (bkz. utils/horizon). Oturumluk: her
+  // girişte katlı başlar — uzak işler ancak istenince açılır.
+  const [showLater, setShowLater] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -657,7 +661,11 @@ export default function ActionCenter() {
       setExpandedId(id);
       setTimeout(() => setHighlightedId(null), 3000);
     }
-  }, [action, highlightId, dateFilter]);
+    // Ana sayfadaki "rafta N iş var" hatırlatması doğrudan rafı açar.
+    // Parametre uygulanınca temizlenir: bir sonraki "Göz at" aynı değerle gelse de çalışsın,
+    // ekrana başka yoldan dönüşte raf görünümü kendiliğinden açılmasın.
+    if (filterParam === 'someday') { setFilter('someday'); router.setParams({ filter: undefined }); }
+  }, [action, highlightId, dateFilter, filterParam]);
 
   // Refresh tasks when returning from background (keeps "today" filter accurate after midnight)
   useEffect(() => {
@@ -800,8 +808,10 @@ export default function ActionCenter() {
    * kez hatırlatıp sessizleşiyordu.
    */
   const spawnNextInstance = (task: any) => {
-    const nextPayload = buildNextIntervalInstance(task);
-    if (!nextPayload) return;
+    const base = buildNextIntervalInstance(task);
+    if (!base) return;
+    // Deterministik anahtar: tamamla → geri al → tamamla aynı örneği ikinci kez üretmez.
+    const nextPayload = { ...base, clientKey: nextInstanceKey(task.id, base.dueDate) };
 
     const armNext = (id: number) => {
       if (!wantsReminder(nextPayload.tags)) return;
@@ -1131,24 +1141,18 @@ export default function ActionCenter() {
 
 
   const handleFormSave = async (formPayload: any) => {
+    // YENİ görevin anahtarı BİR KEZ üretilir: ilk istek, zaman aşımı sonrası kuyruk ve
+    // hata yolu aynı anahtarı taşır — sunucu ikinciyi oluşturmaz (bkz. utils/clientKey).
+    const createKey = editingId === null ? { clientKey: newTaskKey() } : {};
     try {
-      let finalTags: string[] = formPayload.tags || [];
-      try {
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('AI Timeout')), 1500)
-        );
-
-        const aiMatch = await Promise.race([
-          categorizeTask(formPayload.title.trim()),
-          timeoutPromise
-        ]) as any;
-
-        if (aiMatch && !finalTags.includes(aiMatch.label)) {
-          finalTags = [...finalTags, aiMatch.label];
-        }
-      } catch (e) { 
-        swallow('tasks.aiEnrichment', e); 
-      }
+      /*
+        Kayıt anında GİZLİ etiket eklenmiyor. Eskiden ikinci bir kategori motoru burada
+        başlığa bakıp etiket ekliyordu: kullanıcının SİLDİĞİ etiketi her kayıtta geri
+        getiriyor, formun ekranda gösterdiğinden farklı bir şey kaydediyordu ("kiraz
+        al" → finans). Etiketler artık yalnız formda görünen ve kullanıcının
+        onayladığı hâliyle kaydedilir (bkz. features/tasks/nlp).
+      */
+      const finalTags: string[] = formPayload.tags || [];
 
       const isTR = language === 'tr';
       const existingTask = editingId !== null ? tasks.find(t => t.id === editingId) : null;
@@ -1191,6 +1195,7 @@ export default function ActionCenter() {
         tags: withSomedayResolved(finalTagsWithReminder, formPayload.dueDate),
         subtasks: formPayload.subtasks,
         recurrence: formPayload.recurrence,
+        ...createKey,
       };
 
       if (editingId !== null) {
@@ -1233,6 +1238,9 @@ export default function ActionCenter() {
             new Promise((_, reject) => setTimeout(() => reject(new Error('Create Timeout')), 4500))
           ]) as any;
           addTask({ ...created, title: formPayload.title.trim() } as any);
+          // İleri bir güne düştüyse NEREYE gittiğini söyle: "Yarın için eklendi".
+          const when = whenLabel(payload.dueDate, langOf(language));
+          if (when) showToast(hc.added(when), 'success');
           if (created.id && formPayload.reminderEnabled) {
             scheduleTaskNotification(created.id, payload.title, payload.dueDate, payload.dueTime, language, usePrefsStore.getState().hideNotificationContent);
           }
@@ -1261,6 +1269,7 @@ export default function ActionCenter() {
         tags: withSomedayResolved(finalTagsWithReminder, formPayload.dueDate),
         subtasks: formPayload.subtasks,
         recurrence: formPayload.recurrence,
+        ...createKey,
       };
 
       if (isNetworkError(err)) {
@@ -1366,7 +1375,8 @@ export default function ActionCenter() {
 
       // Global hide-completed toggle (skip when "done" filter is active, or task is mid-exit animation)
       if (hideCompleted && filter !== 'done' && task.isCompleted && !completingIds.has(task.id)) return false;
-      // Future tasks filtering: mode tasks are hidden until their due date; manual tasks depend on showFutureManualTasks toggle.
+      // Mod görevleri günü gelene kadar gizli (plan motoru onları gününde üretir).
+      // Kullanıcının kendi ileri tarihli görevleri GİZLENMEZ; uzak olanlar katlanır (aşağıda).
       if (!task.isCompleted && task.dueDate && !task.dueDate.startsWith('0001')) {
         const isFuture = new Date(task.dueDate).getTime() > todayEndMs;
         if (isFuture) {
@@ -1375,9 +1385,6 @@ export default function ActionCenter() {
                              !!getModeInfoForTask(task, usePrefsStore.getState(), theme);
           
           if (isModeTask) {
-            return false;
-          }
-          if (!showFutureManualTasks) {
             return false;
           }
         }
@@ -1438,7 +1445,7 @@ export default function ActionCenter() {
       });
     }
     return result;
-  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds, showFutureManualTasks, theme, completedTours, onboardingCompleted, language]);
+  }, [tasks, filter, tagFilter, searchQuery, sortBy, hideCompleted, completingIds, theme, completedTours, onboardingCompleted, language]);
 
   /*
     ── ÖLÜ SAYFALAMA KALDIRILDI ────────────────────────────────────────────────
@@ -1454,7 +1461,34 @@ export default function ActionCenter() {
     yalnız görünen satırlar çiziliyor. Sunucu tarafındaki sayfalama ayrı bir mesele ve
     o çözülmüş durumda (bkz. __tests__/taskPagination.test.ts).
   */
-  const filteredTasks = filteredAndSortedTasks;
+  /*
+    UFUK: önümüzdeki 7 gün açık, sonrası listenin sonunda katlı (bkz. utils/horizon).
+    Arama, etiket ya da tarih süzgeci açıkken katlama YOK: aranan görev "daha sonra"nın
+    içinde saklı kalmasın. Katlanan görevler süzgeçten GEÇMİŞ görevler — sayı dürüst.
+  */
+  const horizon = React.useMemo(
+    () => (searchQuery.trim() || tagFilter || dateFilter
+      ? { near: filteredAndSortedTasks, later: [] as typeof filteredAndSortedTasks }
+      // Liste gerçek görev ya da örnek satır olabilir; öğe tipi açıkça veriliyor.
+      : splitByHorizon<(typeof filteredAndSortedTasks)[number]>(filteredAndSortedTasks)),
+    [filteredAndSortedTasks, searchQuery, tagFilter, dateFilter],
+  );
+  // Sabit kimlik: her çizimde yeni dizi FlatList'i ve satır animasyonlarını boşuna tetiklerdi.
+  const filteredTasks = React.useMemo(
+    () => (showLater ? [...horizon.near, ...horizon.later] : horizon.near),
+    [showLater, horizon],
+  );
+
+  /*
+    RAF GÖRÜNÜMÜ GEÇİCİDİR. Filtre tercihi kalıcı; "Belki Bir Gün" açık bırakılınca
+    kullanıcı bir sonraki girişinde listesini yalnız raftaki işlerden ibaret görüp
+    "görevlerim nerede?" diyordu (raf hatırlatmasının "Göz at"ı da bu görünümü açıyor).
+    Ekrandan çıkınca normal listeye dönülür.
+  */
+  useFocusEffect(React.useCallback(() => () => {
+    if (usePrefsStore.getState().taskFilter === 'someday') usePrefsStore.getState().setTaskFilter('all');
+  }, []));
+  const hc = horizonCopy(langOf(language));
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
@@ -1602,41 +1636,10 @@ export default function ActionCenter() {
     setSelectedIds(new Set());
     setIsBulkMode(false);
 
-    // İyimser: ekranda hemen kaybolsun.
-    ids.forEach(id => updateTask(id, { isArchived: true }));
-
-    /*
-      HATIRLATICILAR İPTAL EDİLİYOR — arşivin anlamı buysa, bunu da yapmalı.
-
-      Arşivlemek "aktif hayatımdan çıkar" demek. Ama zamanlanmış bildirim tam olarak
-      AKTİF olmanın tanımı: arşivlenen görev listelerden kayboluyor, sonra gecenin bir
-      yarısı telefon çalıp onu hatırlatıyordu. Kullanıcı bildirime dokunuyor ve
-      göremediği bir göreve yönlendiriliyordu.
-
-      Bu, "arşivdeki görev hâlâ yapılabiliyorsa neden arşivde" sorusunun en somut hali:
-      görünmüyor ama hâlâ seni çağırıyorsa arşivlenmemiştir.
-
-      Geri yüklemede hatırlatıcı kendiliğinden geri gelmez — bilinçli: kullanıcı görevi
-      geri aldığında tarihi çoktan geçmiş olabilir ve geçmiş bir zamana bildirim kurmak
-      anlamsızdır. Hatırlatıcıyı yeniden isteyen düzenleme ekranından kurar.
-    */
-    ids.forEach(id => cancelTaskNotification(id));
+    // Tek yazım yolu: etiket + sunucu + çevrimdışı kuyruk + hatırlatıcı iptali (bkz. taskActions).
+    ids.forEach(id => archiveTask(id));
 
     haptic.success();
-
-    if (!isOnline) {
-      ids.forEach(id => enqueueOffline({ type: 'update-task', id, payload: { isArchived: true } }));
-      showToast(language === 'tr' ? 'Çevrimdışı arşivlendi' : 'Archived offline', 'success');
-      return;
-    }
-
-    await Promise.all(ids.map(id =>
-      TaskService.updateTask(id, { isArchived: true }).catch((err: unknown) => {
-        // Sunucu yanıt verdiyse istek ulaşmıştır; yalnız ağ kesintisi kuyruğa alınır.
-        const hasResponse = !!(err as { response?: unknown } | null)?.response;
-        if (!hasResponse) enqueueOffline({ type: 'update-task', id, payload: { isArchived: true } });
-      })
-    ));
 
     const skippedNote = modeTasks.length > 0
       ? (language === 'tr' ? ` · ${modeTasks.length} plan görevi atlandı` : ` · ${modeTasks.length} plan task skipped`)
@@ -1884,17 +1887,22 @@ export default function ActionCenter() {
                   Geriye gerçekten ayrı bir yetenek olan tek şey kaldı: bugüne daralmak.
                   O da diğer görünüm anahtarlarıyla aynı biçimde, tek satır.
                 */}
+                {/* BELKİ BİR GÜN ikinci görünüm: Zen'in rafa kaldırdığı işler başka hiçbir
+                    yerde toplu görünmüyordu. Satır yalnız rafta iş varken çıkar. */}
+                {([['today', language === 'tr' ? 'Sadece Bugün' : 'Today Only'],
+                   ...(somedayCount > 0 || filter === 'someday' ? [['someday', `${language === 'tr' ? 'Belki Bir Gün' : 'Someday'} (${somedayCount})`]] : []),
+                ] as [FilterType, string][]).map(([key, label]) => (
                 <Touchable
-                    onPress={() => { setFilter(filter === 'today' ? 'all' : 'today'); haptic.surface(); }}
+                    key={key}
+                    onPress={() => { setFilter(filter === key ? 'all' : key); haptic.surface(); }}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: filter === 'today' }}
+                    accessibilityState={{ selected: filter === key }}
                     style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
                 >
-                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
-                        {language === 'tr' ? 'Sadece Bugün' : 'Today Only'}
-                    </Text>
-                    {filter === 'today' && <Check size={ICON.md} color={theme.primary} />}
+                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>{label}</Text>
+                    {filter === key && <Check size={ICON.md} color={theme.primary} />}
                 </Touchable>
+                ))}
 
                 {/* Hide Completed Toggle */}
                 <Touchable
@@ -1905,17 +1913,6 @@ export default function ActionCenter() {
                         {language === 'tr' ? 'Tamamlananları Gizle' : 'Hide Completed'}
                     </Text>
                     {hideCompleted && <Check size={ICON.md} color={theme.primary} />}
-                </Touchable>
-
-                {/* Show Future Manual Tasks Toggle */}
-                <Touchable
-                    onPress={() => { setShowFutureManualTasks(!showFutureManualTasks); import('expo-haptics').then(Haptics => haptic.surface()); }}
-                    style={[styles.sortOption, { borderBottomColor: theme.outline, borderBottomWidth: StyleSheet.hairlineWidth }]}
-                >
-                    <Text style={[{ color: theme.onSurface, fontSize: F.body, fontWeight: '600' }]}>
-                        {language === 'tr' ? 'İleri Tarihli Eklenenleri Göster' : 'Show Future Manual Tasks'}
-                    </Text>
-                    {showFutureManualTasks && <Check size={ICON.md} color={theme.primary} />}
                 </Touchable>
 
                 {/* Archive Button */}
@@ -2155,12 +2152,14 @@ export default function ActionCenter() {
             ListEmptyComponent={() => {
                 const isSearch = !!searchQuery.trim();
                 const hasCompletedTasks = tasks.some(t => t.isCompleted);
-                const titleText = isSearch
+                // Yakın liste boş ama ileride iş var: "hiç planın yok" demek yalan olurdu.
+                const onlyLater = !isSearch && horizon.later.length > 0;
+                const titleText = onlyLater ? hc.emptyTitle : isSearch
                   ? t.noResults
                   : hasCompletedTasks
                   ? (language === 'tr' ? 'Bugün Dünyayı Kurtardın!' : 'You Saved the Day!')
                   : (language === 'tr' ? 'Huzurlu bir boşluk' : 'Peaceful Canvas');
-                const bodyText = isSearch
+                const bodyText = onlyLater ? hc.emptyBody(horizon.later.length) : isSearch
                   ? (language === 'tr' ? `"${searchQuery}" için sonuç bulunamadı` : `No results for "${searchQuery}"`)
                   : hasCompletedTasks
                   ? (language === 'tr' ? 'Tüm görevleri tertemiz bitirdin. Şimdi en sevdiğin kahveyi koy ve hiçbir şey düşünmeden dinlen' : 'All cleared up! Time to grab your favorite coffee and relax your mind')
@@ -2177,7 +2176,7 @@ export default function ActionCenter() {
                       </MotiView>
                       <Text style={[styles.emptyTitle, { color: theme.onSurface, textAlign: 'center' }]}>{titleText}</Text>
                       <Text style={[styles.emptyText, { color: theme.onSurfaceMuted, textAlign: 'center', marginTop: S.sm, maxWidth: 280, lineHeight: 20 }]}>{bodyText}</Text>
-                      {!isSearch && !hasCompletedTasks && (
+                      {!isSearch && !hasCompletedTasks && !onlyLater && (
                         <Touchable
                           onPress={handleAddBtnPress}
                           style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, backgroundColor: theme.primary, paddingHorizontal: S.lg, paddingVertical: S.sm + 2, borderRadius: R.full, marginTop: S.lg }}
@@ -2242,13 +2241,14 @@ export default function ActionCenter() {
                 />
               </View>
             )}
-            ListFooterComponent={() => (
-                filteredTasks.length > 0 && !isBulkMode ? (
+            ListFooterComponent={() => (<>
+                <LaterToggle count={horizon.later.length} open={showLater} onToggle={() => setShowLater(v => !v)} theme={theme} lang={langOf(language)} />
+                {filteredTasks.length > 0 && !isBulkMode ? (
                     <Text style={{ fontSize: F.caption2, color: theme.onSurfaceVariant, opacity: isDark ? 0.5 : 0.35, textAlign: 'center', marginTop: S.md, fontWeight: '600', letterSpacing: 0.3 }}>
                         {t.swipeHint}
                     </Text>
-                ) : null
-            )}
+                ) : null}
+            </>)}
         />
         </MotiView>
         </TourTarget>
@@ -2414,7 +2414,7 @@ export default function ActionCenter() {
         t={t}
       />
       {/* Tur: gösterecek bir şey varken ve kullanıcının eylemine tepki olmadan. */}
-      {tourAllowed && (
+      {tourOn && (
         <HelpTourModal
           pageId="tasks"
           onStepChange={handleStepChange}

@@ -34,6 +34,7 @@ const SLEEP = stripComments(read('features/habits/hooks/useSleepHealthSync.ts'))
 const LAYOUT = stripComments(read('app/_layout.tsx'));
 const TASKS = stripComments(read('app/tasks.tsx'));
 const FOCUS = stripComments(read('app/focus.tsx'));
+const FOCUS_SESSION = stripComments(read('features/focus/session.ts'));
 
 describe('eklenen görev GERÇEKTEN kaydediliyor', () => {
   it('panel kayıt BİTİNCE kapanıyor — hata olursa yazılan metin durur', () => {
@@ -261,7 +262,8 @@ describe('bildirim eylemleri gerçekten iş yapıyor', () => {
       gösteriyordu. Hemen altındaki alışkanlık dalı bunu zaten doğru yapıyor.
     */
     expect(LAYOUT).not.toMatch(/fetchTasks\?\.\(\)/);
-    expect(LAYOUT).toMatch(/\.updateTask\(taskId, \{ isCompleted: true, completedAt/);
+    // Yerel güncelleme + sunucu + çevrimdışı kuyruk: uygulamanın tek tamamlama yolu.
+    expect(LAYOUT).toContain('completeTask(taskId)');
   });
 
   it('ertele tetikleyicisi uygulamanın BİÇİMİNDE', () => {
@@ -280,8 +282,9 @@ describe('bildirim eylemleri gerçekten iş yapıyor', () => {
       "Bugün N görevin var" yalnız vadesi TAM BUGÜN olanları sayıyordu: beş gecikmiş
       görevi olan kullanıcı sabah "0 görevin var" bildirimi alıyordu.
     */
-    expect(LAYOUT).toContain('const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);');
-    expect(LAYOUT).toContain('const when = t.completedAt ?? t.dueDate;');
+    // Tanım tek yerde (features/tasks/utils/briefCounts) ve ÇALACAĞI günün sayısı.
+    expect(LAYOUT).toContain('openThrough(allTasks, toDateKey(morningAt))');
+    expect(LAYOUT).toContain('completedOn(allTasks, toDateKey(now))');
   });
 });
 
@@ -376,7 +379,7 @@ describe('Aksiyon Merkezi — liste ve tekrar', () => {
       iptali, tekrar örneği üretimi ve plan kaydı (mod görevleri uyarlama motoruna
       hiç görünmüyordu). Yazma işi ortak `completeTask`e devredildi.
     */
-    expect(TASKS).toContain("import { completeTask } from '@/features/tasks/utils/taskActions';");
+    expect(TASKS).toMatch(/import \{[^}]*completeTask[^}]*\} from '@\/features\/tasks\/utils\/taskActions';/);
     expect(TASKS).toMatch(/ids\.map\(id => completeTask\(id\)\)/);
     expect(TASKS).toMatch(/cancelTaskNotification\(id\);\s*spawnNextInstance\(task\);/);
     // Tek tamamlama da aynı yardımcıyı kullanıyor — iki kopya kalmadı.
@@ -398,14 +401,18 @@ describe('Odak ekranı — seans kaydı', () => {
       "durdur" 1 dakikanın altını kaydetmiyor, çarpıyla ÇIKIŞ ise `Math.max(1, ...)`
       ile 5 saniyelik seansı 1 dakika yazıyordu. Aynı seans bir yoldan puan
       kazanıyor, ötekinden kazanmıyordu.
+
+      Karar ekrandan ÇIKTI (features/focus/session.ts): seans ekran kapalıyken de
+      bitiyor (kilitli telefon, kapalı uygulama, başka sayfa) ve o yollar ekranın
+      kuralını kullanamıyordu. Davranış testi: __tests__/focusSession.test.ts.
     */
-    expect((FOCUS.match(/FocusService\.saveSession\(/g) ?? []).length).toBe(1);
-    expect(FOCUS).toContain('const commitSession = (minutes: number, completed: boolean): boolean => {');
+    expect((FOCUS.match(/FocusService\.saveSession\(/g) ?? []).length).toBe(0);
+    expect((FOCUS_SESSION.match(/FocusService\.saveSession\(/g) ?? []).length).toBe(1);
     expect(FOCUS).not.toMatch(/Math\.max\(1, Math\.round\(elapsed \/ 60\)\)/);
   });
 
   it('bir dakikanın altı kaydedilmiyor — tek kural', () => {
-    expect(FOCUS).toMatch(/if \(!Number\.isFinite\(minutes\) \|\| minutes < 1\)/);
+    expect(FOCUS_SESSION).toMatch(/if \(!Number\.isFinite\(minutes\) \|\| minutes < 1\)/);
   });
 
   it('arka planda KISMİ kayıt yapılmıyor — sunucu çift saymasın', () => {
@@ -558,5 +565,13 @@ describe('hızlı odak seansı GÖREVLE başlıyor', () => {
     // `const target = topTaskToday` alınıp hiç kullanılmıyordu: seans adsız açılıyor
     // ve dakikalar hiçbir göreve işlenmiyordu (bkz. useFocusStore → taskFocusMinutes).
     expect(INDEX).toMatch(/setCurrentTask\(target \? getLocalizedTaskTitle\(target, tr\) : '', target\?\.id \?\? null\)/);
+  });
+});
+
+describe('selamlama yer tutucu ad UYDURMAZ', () => {
+  it('ad bilinmiyorsa yalnız selam — "İyi akşamlar, sen" yok', () => {
+    expect(INDEX).not.toMatch(/'sen' : 'you'/);
+    const hero = stripComments(read('features/dashboard/components/DashboardHero.tsx'));
+    expect(hero).toContain('{name ? `${greeting}, ${name}` : greeting}');
   });
 });

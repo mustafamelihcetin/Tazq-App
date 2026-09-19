@@ -101,7 +101,7 @@ const BASELINE: Record<string, number> = {
   'app/archive.tsx': 8,
   'app/cockpit.tsx': 63,
   'app/focus.tsx': 57,
-  'app/index.tsx': 46, // 63 → 46: komut paleti ve Zen/Core yüzeyleri metin nesnelerine geçti
+  'app/index.tsx': 45, // 63 → 46: komut paleti ve Zen/Core metin nesnelerine geçti; 46 → 45: selamlamadaki yer tutucu ad ("sen") kalktı
   'app/login.tsx': 47,
   // 27 → 22: mod adları ve özet hesabı ortak hook'a taşındı (useActiveModeSummary),
   // adlar orada sözlükten geliyor.
@@ -115,7 +115,7 @@ const BASELINE: Record<string, number> = {
   'app/register.tsx': 35,
   'app/report.tsx': 13,
   'app/settings.tsx': 84,
-  'app/tasks.tsx': 87,
+  'app/tasks.tsx': 85,
   'app/verify-email.tsx': 11,
   'features/dashboard/components/MyDayHabits.tsx': 5,
   // 3 → 1: yedi ayrı dallanma tek `copy(tr)` sözlüğüne toplandı. Satıra tamamlama
@@ -143,10 +143,8 @@ const BASELINE: Record<string, number> = {
   'features/modes/utils/modeHelpers.ts': 7,
   'features/modes/utils/planAdaptations.ts': 37,
   'features/modes/utils/turkishModes.ts': 5,
-  'features/onboarding/components/HelpTourModal.tsx': 4,
   'features/onboarding/components/TourFeaturePreview.tsx': 55,
   'features/tasks/components/TaskFormModal.tsx': 26,
-  'features/tasks/utils/taskParser.ts': 13,
   'features/user/components/CelebrationOverlay.tsx': 1,
   'features/user/components/DeleteAccountModal.tsx': 1,
   'features/user/components/MomentumPulse.tsx': 23,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { Calendar, Clock, Repeat, Tag } from 'lucide-react-native';
+import { Calendar, Clock, Flag, Repeat, Tag } from 'lucide-react-native';
 import { S, R, F, ICON } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
 
@@ -24,7 +24,7 @@ import type { AppTheme } from '@/shared/constants/Colors';
  * ne anladığını söyler, çizim kararını sunum katmanı verir.
  */
 
-export type NlpChipKind = 'date' | 'time' | 'repeat' | 'tag';
+export type NlpChipKind = 'date' | 'time' | 'repeat' | 'priority' | 'tag';
 
 export type NlpChip = { kind: NlpChipKind; text: string };
 
@@ -41,6 +41,7 @@ const ICONS: Record<NlpChipKind, React.ComponentType<{ size?: number; color?: st
   date: Calendar,
   time: Clock,
   repeat: Repeat,
+  priority: Flag,
   tag: Tag,
 };
 
