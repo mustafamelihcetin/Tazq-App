@@ -107,6 +107,15 @@ interface PrefsState {
    */
   focusKeepAwake: boolean;
   setFocusKeepAwake: (v: boolean) => void;
+  /**
+   * Kapatılan son haftanın anahtarı (o haftanın pazartesi günü, 'YYYY-MM-DD').
+   *
+   * Haftayı kapatmak bir ritüeldir: kullanıcı geri bakışı okur, gelecek hafta için
+   * günlük odak hedefini belirler ve haftayı kapatır. Uygulamaya haftada bir dönmek
+   * için somut bir sebep — rapor eskiden bir kez bakılıp unutulan bir sayfaydı.
+   */
+  lastClosedWeek: string;
+  setLastClosedWeek: (weekStartKey: string) => void;
   // Uyku sağlık entegrasyonu (Faz 1) — cihaza özel. optIn: kullanıcı Apple Sağlık bağladı mı?
   sleepHealthOptIn: 'unset' | 'yes' | 'no';
   setSleepHealthOptIn: (v: 'unset' | 'yes' | 'no') => void;
@@ -265,6 +274,8 @@ interface PrefsState {
 // Buluta eşitlenecek tercih alanları. (motto/avatarBorderColor kendi backend kolonlarıyla
 // updateProfile üzerinden gider; soundEffects/dismissedBannerKey/examReviewShown cihaza özeldir.)
 const CLOUD_PREF_KEYS = [
+  // Hafta kapatma hesap başına anlamlı: cihaz değişince de 'bu haftayı kapattım' bilgisi kalsın.
+  'lastClosedWeek',
   'seasonal',
   'planSpecs',
   'gender',
@@ -395,6 +406,8 @@ export const usePrefsStore = create<PrefsState>()(
       setFocusPreset: (v) => set({ focusPreset: v }),
       focusKeepAwake: true,
       setFocusKeepAwake: (v) => set({ focusKeepAwake: v }),
+      lastClosedWeek: '',
+      setLastClosedWeek: (weekStartKey) => set({ lastClosedWeek: weekStartKey }),
       sleepHealthOptIn: 'unset',
       setSleepHealthOptIn: (v) => set({ sleepHealthOptIn: v }),
       sleepLastCheckDate: '',

@@ -1,7 +1,8 @@
 import {
   weekRange, summarizeWeek, compareWeeks, weekStory, weekLabel, shortDayLabels,
-  habitDenominator, taskDayKey, sessionDayKey,
+  habitDenominator, taskDayKey, sessionDayKey, planProgress,
 } from '@/features/report/weeklyReport';
+import { PLAN_MODE_TAGS } from '@/features/modes/utils/modeHelpers';
 
 /**
  * HAFTALIK ÖZET — sayının TANIMI.
@@ -157,5 +158,36 @@ describe('haftanın hikâyesi ve etiketler', () => {
     expect(tr).toEqual(['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']);
     expect(new Set(tr).size).toBe(7);
     expect(shortDayLabels('en')[0]).toBe('Mon');
+  });
+});
+
+describe('mod planı ilerlemesi', () => {
+  /*
+    Rapor yalnız odağı ve serbest görevleri gösteriyordu; dönemsel mod kullanan
+    kullanıcı planının bu hafta ne kadarını tamamladığını hiçbir yerde göremiyordu.
+  */
+  const planTask = (due: string, done: boolean, tag = 'exam') =>
+    ({ isCompleted: done, completedAt: null, dueDate: due, tags: [tag] });
+
+  it('bu haftaya PLANLANMIŞ mod görevlerini sayar', () => {
+    const p = planProgress([
+      planTask('2026-09-15T00:00:00Z', true),
+      planTask('2026-09-16T00:00:00Z', false),
+      planTask('2026-09-30T00:00:00Z', true),            // başka hafta
+      { isCompleted: true, completedAt: null, dueDate: '2026-09-15T00:00:00Z', tags: [] }, // plan değil
+    ], range, PLAN_MODE_TAGS);
+    expect(p).toEqual({ total: 2, done: 1 });
+  });
+
+  it('plan görevi yoksa bölüm boş kalır (total 0)', () => {
+    expect(planProgress([{ isCompleted: true, dueDate: '2026-09-15T00:00:00Z', tags: ['iş'] }], range, PLAN_MODE_TAGS))
+      .toEqual({ total: 0, done: 0 });
+  });
+
+  it('plan etiketleri TEK listeden gelir', () => {
+    // Liste kod tabanında beş ayrı yerde, farklı içeriklerle kopyalanmıştı.
+    expect(PLAN_MODE_TAGS).toContain('exam');
+    expect(PLAN_MODE_TAGS).toContain('ramazan');
+    expect(PLAN_MODE_TAGS).toContain('birakma');
   });
 });

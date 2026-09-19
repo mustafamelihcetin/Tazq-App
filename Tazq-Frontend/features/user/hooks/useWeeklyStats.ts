@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { FocusService, DailyFocusData } from '@/shared/services/api';
 import { useFocusStore } from '@/features/focus/store/useFocusStore';
+import { computeStreakFromHistory } from '@/features/dashboard/utils/streakDay';
 import { httpStatusOf } from '@/shared/utils/errors';
 import { swallow } from '@/shared/utils/swallow';
 
@@ -40,11 +41,30 @@ export function useWeeklyStats(): WeeklyStats {
       // İlk render'da 0 yakalanmışsa, kullanıcının çevrimdışı kazandığı seri (ör. 3)
       // sunucunun bayat değeriyle (ör. 1) eziliyordu. getState() ile taze okumak bunu
       // önler ve yorumun anlattığı niyeti gerçekten uygular.
+      /*
+        SUNUCUNUN SERİSİ YEDEK, KAYNAK DEĞİL.
+
+        Sunucu seriyi görevin VADE gününe göre hesaplıyor (veritabanında tamamlanma
+        tarihi alanı yok) — yani "dün vadeli işi bugün bitirdim" onun için dünkü
+        aktiflik demek. Yeni cihazda yerel seri 0 iken bu sayı olduğu gibi kabul
+        ediliyordu. Artık önce YEREL geçmişten, ekranın kendi kuralıyla hesaplanıyor
+        (bkz. computeStreakFromHistory); o da 0 çıkarsa sunucunun sayısı yedek olarak
+        kullanılır — böylece gerçekten seri sahibi kullanıcı sıfırlanmaz.
+      */
       const active = stats.activeStreak || 0;
-      if (useFocusStore.getState().localStreak === 0 && active > 0) {
-        useFocusStore.setState({ localStreak: active });
+      if (useFocusStore.getState().localStreak === 0) {
+        const focus = useFocusStore.getState();
+        const computed = computeStreakFromHistory({
+          tasks: require('@/features/tasks/store/useTaskStore').useTaskStore.getState().tasks,
+          habits: require('@/features/habits/store/useHabitStore').useHabitStore.getState().habits,
+          focusDate: focus.dailyFocusDate,
+          focusMinutes: focus.dailyFocusMinutes,
+          focusGoalMinutes: focus.dailyGoalMinutes,
+        });
+        const seed = computed > 0 ? computed : active;
+        if (seed > 0) useFocusStore.setState({ localStreak: seed });
       }
-      useFocusStore.getState().updateBestStreak(active);
+      useFocusStore.getState().updateBestStreak(useFocusStore.getState().localStreak);
     } catch (e: unknown) {
       // 401 beklenen bir durum (oturum yenileme akışı ele alır) — gürültü yapma.
       if (httpStatusOf(e) !== 401) swallow('weeklyStats.refresh', e);

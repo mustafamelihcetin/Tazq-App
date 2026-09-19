@@ -35,6 +35,20 @@ export interface DateSlotDerived {
   dateObj: Date;
 }
 
+/**
+ * PLAN (mod) GÖREVLERİNİN ETİKETLERİ — tek liste.
+ *
+ * Bu liste kod tabanında BEŞ ayrı yerde, üstelik birbirinden farklı içerikle
+ * kopyalanmış durumda (kimi 'yks/kpss' içeriyor, kimi 'tasarruf/birakma'). Altıncı bir
+ * varyant üretmemek için kanonik liste burada; yeni kod bunu kullanır, eski çağrı
+ * yerleri zamanla buraya bağlanır.
+ */
+export const PLAN_MODE_TAGS = [
+  'exam', 'exam2', 'exam3', 'yks', 'kpss',
+  'tez', 'mulakat', 'mulakat2', 'mulakat3',
+  'spor', 'spor2', 'spor3', 'ramazan', 'tasarruf', 'birakma',
+] as const;
+
 export function deriveDateSlot(
   labelInput: string,
   dateInput: string,

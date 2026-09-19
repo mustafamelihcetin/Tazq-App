@@ -186,6 +186,48 @@ export type StreakVerdict =
  * aktifse ceza yok; değilse kalkanlar kaçırılan gün sayısı kadar harcanır, yetmezse
  * seri sıfırlanır.
  */
+/**
+ * SERİYİ GEÇMİŞTEN HESAPLA — yeni cihazda ve profil ekranında aynı sayı görünsün.
+ *
+ * ── ÖLÇÜLEN SORUN ───────────────────────────────────────────────────────────
+ * Sunucu seriyi görevin VADE gününe göre hesaplıyordu (tamamlandığı güne göre değil;
+ * veritabanında tamamlanma tarihi alanı yok). Bu sayı iki yerden sızıyordu: yeni
+ * cihazda yerel seriyi tohumluyordu ve profil ekranında DOĞRUDAN gösteriliyordu.
+ * Yani aynı kullanıcı ana ekranda başka, profilde başka bir seri görebiliyordu.
+ *
+ * Buradaki hesap ekranın kuralıyla aynı (bkz. wasActiveOn): tamamlanan görev,
+ * işaretlenen alışkanlık ya da hedefi dolduran odak. Bugün henüz aktif değilse seri
+ * DÜNDEN sayılır — gün bitmeden "serin bitti" demek yanlış olurdu.
+ */
+export function computeStreakFromHistory(
+  input: Omit<ActivityInput, 'dayKey'> & { now?: Date; maxDays?: number },
+): number {
+  const { now = new Date(), maxDays = 365, ...rest } = input;
+  /*
+    Günler ÜRÜNÜN gün anahtarından geriye sayılır. Gece yarısına sabitlenmiş tarihler
+    üretmek yanlış olurdu: gün tanımı 3 saat tamponlu (gece 02:00 hâlâ önceki gün),
+    yani 00:00 bir önceki güne düşer ve hesap bir gün kayardı.
+  */
+  const first = dayStamp(todayKey(now)); // bugünün (ürün tanımıyla) yerel gece yarısı
+  const dayAt = (offset: number) => {
+    const d = new Date(first);
+    d.setDate(d.getDate() - offset);
+    d.setHours(12, 0, 0, 0); // öğlen: tampon ve yaz saati geçişleri günü kaydırmasın
+    return todayKey(d);
+  };
+
+  // Bugün aktifse bugünden, değilse dünden başla.
+  let start = 0;
+  if (!wasActiveOn({ ...rest, dayKey: dayAt(0) })) start = 1;
+
+  let streak = 0;
+  for (let i = start; i < maxDays + start; i++) {
+    if (!wasActiveOn({ ...rest, dayKey: dayAt(i) })) break;
+    streak++;
+  }
+  return streak;
+}
+
 export function decideStreak(input: {
   daysMissed: number;
   metGoalOnMissedDay: boolean;

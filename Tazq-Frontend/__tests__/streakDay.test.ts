@@ -1,6 +1,7 @@
 import {
   dayKeyOf, todayKey, dayStamp, daysBetween, legacyDayString, weekdayIndex,
   completedTasksOn, completedHabitsOn, focusMinutesOn, wasActiveOn, decideStreak,
+  computeStreakFromHistory,
 } from '@/features/dashboard/utils/streakDay';
 
 /**
@@ -218,5 +219,43 @@ describe('kalkan kararı', () => {
   it('kalkan yetmiyorsa seri sıfırlanır', () => {
     expect(decideStreak({ ...S, daysMissed: 4, shields: 3 })).toEqual({ action: 'reset', daysMissed: 4, shieldsHad: 3 });
     expect(decideStreak({ ...S, daysMissed: 1, shields: 0 })).toEqual({ action: 'reset', daysMissed: 1, shieldsHad: 0 });
+  });
+});
+
+describe('seri geçmişten hesaplanır — sunucunun sayısı değil', () => {
+  /*
+    Sunucu seriyi görevin VADE gününe göre hesaplıyor (veritabanında tamamlanma tarihi
+    alanı yok). Bu sayı yeni cihazda yerel seriyi tohumluyor, profil ekranında ise
+    DOĞRUDAN gösteriliyordu: aynı kullanıcı ana ekranda başka, profilde başka bir seri
+    görüyordu. Hesap artık ekranın kendi kuralıyla (wasActiveOn) yapılıyor.
+  */
+  const NOW = new Date(2026, 8, 20, 12, 0); // 20 Eylül 2026, öğlen
+  const doneAt = (y: number, m: number, d: number) => ({ isCompleted: true, completedAt: new Date(y, m, d, 12).toISOString(), dueDate: null });
+  const empty = { tasks: [], habits: [], focusDate: '', focusMinutes: 0, focusGoalMinutes: 25, now: NOW };
+
+  it('arka arkaya aktif günleri sayar', () => {
+    const tasks = [doneAt(2026, 8, 20), doneAt(2026, 8, 19), doneAt(2026, 8, 18)];
+    expect(computeStreakFromHistory({ ...empty, tasks })).toBe(3);
+  });
+
+  it('bugün henüz boşsa seri DÜNDEN sayılır — gün bitmeden seri kırılmaz', () => {
+    const tasks = [doneAt(2026, 8, 19), doneAt(2026, 8, 18)];
+    expect(computeStreakFromHistory({ ...empty, tasks })).toBe(2);
+  });
+
+  it('boşluk seriyi bitirir', () => {
+    const tasks = [doneAt(2026, 8, 20), doneAt(2026, 8, 18), doneAt(2026, 8, 17)];
+    expect(computeStreakFromHistory({ ...empty, tasks })).toBe(1);
+  });
+
+  it('alışkanlık da seri sayar; hiç veri yoksa 0', () => {
+    expect(computeStreakFromHistory({ ...empty, habits: [{ completedDates: ['2026-09-20', '2026-09-19'] }] })).toBe(2);
+    expect(computeStreakFromHistory(empty)).toBe(0);
+  });
+
+  it('VADE günü yalnız yedek — tamamlanma tarihi varsa o kazanır', () => {
+    // Vadesi bugüne yazılmış ama üç gün önce bitirilmiş görev bugüne seri KAZANDIRMAZ.
+    const tasks = [{ isCompleted: true, completedAt: new Date(2026, 8, 17, 12).toISOString(), dueDate: new Date(2026, 8, 20, 12).toISOString() }];
+    expect(computeStreakFromHistory({ ...empty, tasks })).toBe(0);
   });
 });

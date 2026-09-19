@@ -352,7 +352,9 @@ export default function ProfileScreen() {
     );
   };
 
-  const displayBestStreak = Math.max(bestStreak, stats.activeStreak);
+  // Seri TEK kaynaktan (sunucunun sayısı VADE gününe dayalı: ana ekranla çelişiyordu).
+  const currentStreak = useFocusStore(s => s.localStreak);
+  const displayBestStreak = Math.max(bestStreak, currentStreak);
   const scrollViewRef = useRef<ScrollView>(null);
 
   return (
@@ -436,7 +438,7 @@ export default function ProfileScreen() {
             // Önizleme: kazanılan varsa gurur için onları göster; yoksa ilk hedefleri (davet).
             const preview = (earned.length ? earned : allIds).slice(0, 5);
             const goShowcase = () => {
-              router.push({ pathname: '/achievements', params: { streak: String(stats.activeStreak), focusHours: String(Math.round(stats.totalFocusHours)) } });
+              router.push({ pathname: '/achievements', params: { streak: String(currentStreak), focusHours: String(Math.round(stats.totalFocusHours)) } });
             };
             return (
               <View style={{ marginTop: S.md }}>

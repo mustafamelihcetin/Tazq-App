@@ -95,7 +95,6 @@ const CEILING: Record<string, number> = {
   'features/dashboard/components/StatusHubModal.tsx': 6,
   // WeightEntryModal LİSTEDEN ÇIKTI (8 → 1 → 0): semantik renkler temaya bağlanmıştı; son
   // sabit renk sayfa zeminiydi (#1C1C22) ve ortak cam yüzeye (GlassSurface) geçti.
-  'app/report.tsx': 7,
   'features/modes/utils/modeHelpers.ts': 7,
   // QuickDraftModal LİSTEDEN ÇIKTI: dosya silindi. Yerine features/tasks altındaki
   // hızlı ekleme sayfası geçti (renkleri tamamen paletten).

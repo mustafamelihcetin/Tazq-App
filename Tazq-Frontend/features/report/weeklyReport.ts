@@ -31,6 +31,8 @@ export interface ReportTask {
   isCompleted: boolean;
   completedAt?: string | null;
   dueDate?: string | null;
+  /** Mod/plan görevlerini ayırmak için (bkz. planProgress). */
+  tags?: string[] | null;
 }
 
 export interface ReportHabit {
@@ -61,6 +63,12 @@ export interface WeekSummary {
   activeDays: number;
   /** En çok odaklanılan günün sırası (0-6), odak yoksa -1. */
   bestDayIndex: number;
+}
+
+export interface PlanProgress {
+  /** Bu haftaya planlanmış mod görevi sayısı. */
+  total: number;
+  done: number;
 }
 
 export interface WeekDelta {
@@ -192,6 +200,29 @@ export function compareWeeks(current: WeekSummary, previous: WeekSummary | null)
     tasks: current.totalTasks - previous.totalTasks,
     comparable: hadData,
   };
+}
+
+/**
+ * MOD PLANI İLERLEMESİ — haftanın "programlanmış" kısmı.
+ *
+ * Rapor yalnız serbest görevleri ve odağı gösteriyordu; dönemsel mod kullanan kullanıcı
+ * (sınav, tez, spor…) planının bu hafta ne kadarını tamamladığını hiçbir yerde toplu
+ * göremiyordu. Ölçü VADEDİR: plan görevleri güne programlanır, o gün yapılması beklenir.
+ */
+export function planProgress(tasks: ReportTask[], range: WeekRange, planTags: readonly string[]): PlanProgress {
+  const inWeek = new Set(range.days);
+  const tagSet = new Set(planTags);
+  let total = 0;
+  let done = 0;
+  for (const t of tasks ?? []) {
+    const tags = (t as { tags?: string[] }).tags ?? [];
+    if (!tags.some((tag) => tagSet.has(tag))) continue;
+    const day = calendarDayOf(t.dueDate);
+    if (!day || !inWeek.has(day)) continue;
+    total++;
+    if (t.isCompleted) done++;
+  }
+  return { total, done };
 }
 
 // ── Anlatı ───────────────────────────────────────────────────────────────────

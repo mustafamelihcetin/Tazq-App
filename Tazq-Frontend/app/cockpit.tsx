@@ -25,7 +25,6 @@ import { BentoCard } from '@/shared/components/BentoCard';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
-import { FocusService } from '@/shared/services/api';
 import { ICON, S, R, F, B, TRACKING, MAX_W, contentMaxWidth, sideInset, HAIRLINE, navBarSpace, topBarSpace, TOP_BAR_HEIGHT , sheetMaxHeight} from '@/shared/constants/tokens';
 import { Touchable } from '@/shared/components/Touchable';
 import { GlassSurface } from '@/shared/components/GlassSurface';
@@ -361,8 +360,6 @@ export default function CockpitScreen() {
     [personalTasks, selectedDay]
   );
 
-  // Weekly stats
-  const weekKeys = useMemo(() => new Set(weekDays.map(fmtDateKey)), [weekDays]);
 
   /*
     Haftanın özeti ORTAK motordan. Eski hesap iki yerden ayrışıyordu:
@@ -1111,12 +1108,26 @@ export default function CockpitScreen() {
           </WideCol>
 
           <WideCol>
-          {/* ── WEEKLY REVIEW ── */}
+          {/* ── BU HAFTA ──────────────────────────────────────────────────────
+              Ad değişti: bu ekran "şimdi"yi anlatır, geri bakış ayrı ekranda
+              ("Haftalık Geri Bakış"). İkisi de "Haftalık Özet/Rapor" adını taşıyınca
+              kullanıcı hangisine bakacağını bilemiyordu. */}
           <TourTarget id="weeklyReview">
-          <View style={styles.sectionHeader}>
+          <View style={[styles.sectionHeader, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
             <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
-              {tr ? 'Haftalık Özet' : 'Weekly Review'}
+              {tr ? 'Bu Hafta' : 'This Week'}
             </Text>
+            <Touchable
+              onPress={() => router.push('/report')}
+              accessibilityRole="button"
+              accessibilityLabel={tr ? 'Haftalık geri bakış' : 'Weekly review'}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: S.xxs, paddingVertical: S.xs, paddingHorizontal: S.sm }}
+            >
+              <Text style={{ color: theme.primary, fontSize: F.caption, fontWeight: '700' }}>
+                {tr ? 'Geri bakış' : 'Review'}
+              </Text>
+              <ChevronRight size={ICON.xs} color={theme.primary} />
+            </Touchable>
           </View>
 
           <BentoCard index={habits.length + 2} style={{ gap: S.md, marginBottom: S.lg }}>

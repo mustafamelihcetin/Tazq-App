@@ -113,7 +113,7 @@ const BASELINE: Record<string, number> = {
   // sözlüğe taşındı (COPY, bkz. PromoMock.tsx), sonra tanıtım kabuğunun kendi düğme
   // etiketleri de (UI). Slayt metinleri zaten SlideDef alanlarından geliyor.
   'app/register.tsx': 35,
-  'app/report.tsx': 13,
+  'app/report.tsx': 1, // 13 → 1: ekran yeniden yazıldı, metinler COPY sözlüğüne taşındı
   'app/settings.tsx': 84,
   'app/tasks.tsx': 85,
   'app/verify-email.tsx': 11,

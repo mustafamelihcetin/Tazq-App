@@ -228,7 +228,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // Mantık kancada ve bileşende; burada yalnız bağlantı.
   // 2311 → 2315: hızlı eklemede "… yarın için eklendi" (ana sayfa yalnız bugünü gösterir).
   // 2315 → 2318: hızlı eklemede görev oluşturma anahtarı (ikiz görev önlemi).
-  'app/index.tsx': 2322, // +3: tur hoş geldin bitene kadar bekler · +1: hızlı odak store yolundan başlıyor (bitiş anı + bildirim)
+  'app/index.tsx': 2351, // +3 tur kapısı · +1 hızlı odak store yolu · +25 haftalık sayılar ortak motordan (yerel gün; sunucunun UTC kırılımı üç ekranda farklı sayı veriyordu)
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.
@@ -249,7 +249,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // tetikleniyordu ve Sade mod kapısı yoktu — modu kapatan kullanıcı yine tam ekran
   // kutlama alıyordu. Artış, gözden nasıl kaçtığını anlatan not (kutlama kararı tek
   // yere toplanmıştı ama bekçi test yalnız ana ekranı tarıyordu).
-  'app/cockpit.tsx': 1577,
+  'app/cockpit.tsx': 1583, // +6: 'Bu Hafta' kartından Haftalık Geri Bakış'a geçiş
   // 1358 → 1395: iki gerçek hatanın düzeltmesi. Kart konumları KENDİ bölümlerine göre
   // ölçülüyordu ama sayfa konumu sanılıp kullanılıyordu; aktif bir mod varken yeni mod
   // açılınca sayfa yanlış yere (yukarı) kayıyordu. Bölüm konumu da ölçülüp toplanıyor.
@@ -300,7 +300,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // 865 → 867: CAM SAYFALAR. Profil düzenleme sayfası ortak cam yüzeye bağlandı.
   // 870 → 888: MİSAFİR PROFİLİ — uydurma ad/e-posta yerine misafir durumu ve "hesap oluştur".
   // 888 → 892: profil kaydı seçilmemiş avatarı artık "Atlas" (erkek) diye yazmıyor.
-  'app/profile.tsx': 892,
+  'app/profile.tsx': 894, // +2: seri tek kaynaktan (sunucunun vade-günü sayısı profilde gösteriliyordu)
   'shared/constants/legal.ts': 893,
   'features/modes/utils/planAdaptations.ts': 880,
   // 856 → 784: hesap silme akışı DeleteAccountModal bileşenine çıkarıldı. Silme,

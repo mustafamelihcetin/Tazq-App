@@ -77,6 +77,8 @@ import { playSoundEffect } from '@/shared/utils/soundEffects';
 import { evaluateReviewPrompt } from '@/features/user/utils/reviewPrompt';
 import { useDoubleTapHighlight } from '@/features/user/hooks/useDoubleTapHighlight';
 import { useWeeklyStats } from '@/features/user/hooks/useWeeklyStats';
+import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
+import { weekRange, summarizeWeek } from '@/features/report/weeklyReport';
 import { ReviewPromptModal } from '@/features/user/components/ReviewPromptModal';
 import { httpStatusOf, isNetworkError } from '@/shared/utils/errors';
 import { Separator } from '@/shared/components/Separator';
@@ -339,7 +341,18 @@ export default function HomeScreen() {
   const todayHighlight = todayTap.active;
   const todayBurstKey = todayTap.burstKey;
   // Haftalık istatistik durumu + fetch useWeeklyStats'ta (streak eşitlemesi dahil).
-  const { weeklyFocus, lastWeekMinutes, loading: statsLoading, refresh: fetchStats } = useWeeklyStats();
+  const { loading: statsLoading, refresh: fetchStats } = useWeeklyStats();
+  /*
+    HAFTANIN ODAK KIRILIMI ORTAK MOTORDAN (bkz. features/report/weeklyReport.ts).
+
+    Sunucunun kırılımı UTC'ye göreydi: gece 00:30'daki seans bir önceki güne yazılıyor,
+    ana ekranın şeridi ve ivme puanı yanlış günden besleniyordu. Üstelik Kokpit ve
+    Geri Bakış artık yerel güne göre sayıyor; üç ekranın aynı haftayı farklı anlatması
+    kullanıcının güvenini kırar. Geçen haftanın toplamı da (durum merkezindeki kıyas)
+    aynı motordan geliyor.
+  */
+  const focusSessions = useFocusHistoryStore(s => s.sessions);
+  const refreshFocusHistory = useFocusHistoryStore(s => s.refresh);
   const [showAllIncomplete, setShowAllIncomplete] = useState(false);
   const [showCompletedSection, setShowCompletedSection] = useState(false);
   /** Logoya her dokunuşta artar — nabız/halka animasyonunu tetikler. */
@@ -713,6 +726,7 @@ export default function HomeScreen() {
     useCallback(() => {
       fetchTasks();
       fetchStats();
+      void refreshFocusHistory();
     }, [])
   );
 
@@ -875,6 +889,21 @@ export default function HomeScreen() {
     durum düşünülmemişti: dizi DOLU AMA KISA gelirse bugünün yerel dakikası hiçbir
     hücreye yazılamıyor, sessizce kayboluyordu.
   */
+  const weeklyFocus = React.useMemo(() => {
+    const summary = summarizeWeek({ sessions: focusSessions, tasks, habits, range: weekRange(new Date()) });
+    return summary.focusPerDay.map((minutes, i) => ({
+      day: dayLabels[i] ?? '',
+      minutes,
+      tasksCompleted: summary.tasksPerDay[i],
+    }));
+  }, [focusSessions, tasks, habits, dayLabels]);
+
+  // Geçen haftanın toplamı — durum merkezindeki "geçen haftaya göre" kıyası için.
+  const lastWeekMinutes = React.useMemo(
+    () => summarizeWeek({ sessions: focusSessions, tasks, habits, range: weekRange(new Date(), -1) }).totalFocusMin,
+    [focusSessions, tasks, habits],
+  );
+
   const mergedWeeklyFocus = React.useMemo(
     () => buildWeekStrip({ weeklyFocus, dayLabels, todayIndex: currentDayIndex, todayMinutes: localTodayMinutes }),
     [weeklyFocus, dayLabels, currentDayIndex, localTodayMinutes],
@@ -1746,7 +1775,7 @@ export default function HomeScreen() {
             */
             contentContainerStyle={[styles.scrollContent, { paddingTop: topBarSpace(insets.top) + S.lg, paddingBottom: fabSafeBottom(insets.bottom), width: '100%', maxWidth: contentMaxWidth(width), alignSelf: 'center' }]}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surfaceContainer} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
+            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { fetchTasks(); fetchStats(); void refreshFocusHistory(); }} tintColor={theme.primary} colors={[theme.primary]} progressBackgroundColor={theme.surfaceContainer} progressViewOffset={insets.top + S.sm + 44 + S.sm} />}
         >
             {/* onLayout: başlığın belirme eşiği bu ölçümden türüyor (bkz. titleProgress). */}
             <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>

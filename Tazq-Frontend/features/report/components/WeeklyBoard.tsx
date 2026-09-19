@@ -93,7 +93,7 @@ export const WeekChart: React.FC<WeekChartProps> = ({ summary, language, todayKe
                 <Text style={{ fontSize: F.caption, color: tasks > 0 ? theme.success : 'transparent', fontWeight: '700' }}>
                   {tasks > 0 ? `${tasks}` : '0'}
                 </Text>
-                <Text style={{ fontSize: F.caption, color: isToday ? theme.primary : theme.onSurfaceMuted, fontWeight: isToday ? '800' : '600' }}>
+                <Text style={{ fontSize: F.caption, color: isToday ? theme.primary : theme.onSurfaceMuted, fontWeight: isToday ? '700' : '600' }}>
                   {labels[i]}
                 </Text>
               </View>

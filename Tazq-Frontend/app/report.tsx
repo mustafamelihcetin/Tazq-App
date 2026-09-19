@@ -20,7 +20,9 @@ import { toDateKey } from '@/shared/utils/dateKey';
 import type { AppTheme } from '@/shared/constants/Colors';
 import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
 import { WeekChart, HabitWeekList } from '@/features/report/components/WeeklyBoard';
-import { weekRange, summarizeWeek, compareWeeks, weekStory, weekLabel } from '@/features/report/weeklyReport';
+import { weekRange, summarizeWeek, compareWeeks, weekStory, weekLabel, planProgress } from '@/features/report/weeklyReport';
+import { PLAN_MODE_TAGS } from '@/features/modes/utils/modeHelpers';
+import { haptic } from '@/shared/utils/haptics';
 
 /**
  * HAFTALIK GERİ BAKIŞ — "nasıl gidiyorum?"
@@ -62,6 +64,12 @@ const COPY = {
     goalDone: 'Haftalık hedefin tamam ✦',
     offline: 'Odak geçmişi henüz indirilemedi. Görev ve alışkanlık verisi cihazından geliyor.',
     hour: (h: number, m: number) => (h > 0 ? `${h}s ${m}d` : `${m}d`),
+    plan: (done: number, total: number) => `Plan görevleri · ${done} / ${total}`,
+    closeTitle: 'Haftayı kapat',
+    closeBody: 'Gelecek hafta için günlük odak hedefini seç.',
+    closeBtn: 'Haftayı kapat',
+    closed: 'Bu haftayı kapattın ✦',
+    goalPick: (m: number) => `${m} dk`,
   },
   en: {
     title: 'Weekly Review',
@@ -78,6 +86,12 @@ const COPY = {
     goalDone: 'Weekly goal reached ✦',
     offline: 'Focus history not downloaded yet. Task and habit data comes from your device.',
     hour: (h: number, m: number) => (h > 0 ? `${h}h ${m}m` : `${m}m`),
+    plan: (done: number, total: number) => `Plan tasks · ${done} / ${total}`,
+    closeTitle: 'Close the week',
+    closeBody: 'Pick your daily focus goal for next week.',
+    closeBtn: 'Close the week',
+    closed: 'You closed this week ✦',
+    goalPick: (m: number) => `${m} min`,
   },
 };
 
@@ -104,6 +118,10 @@ export default function ReportScreen() {
   const tasks = useTaskStore(s => s.tasks);
   const dailyGoalMinutes = useFocusStore(s => s.dailyGoalMinutes);
   const streak = useFocusStore(s => s.localStreak);
+
+  const lastClosedWeek = usePrefsStore(s => s.lastClosedWeek);
+  const setLastClosedWeek = usePrefsStore(s => s.setLastClosedWeek);
+  const setDailyGoal = useFocusStore(s => s.setDailyGoal);
 
   const sessions = useFocusHistoryStore(s => s.sessions);
   const neverLoaded = useFocusHistoryStore(s => s.neverLoaded);
@@ -147,6 +165,10 @@ export default function ReportScreen() {
     todayTasksDone: summary.tasksPerDay[summary.range.days.indexOf(todayKey)] ?? 0,
     momentum: (() => { const m = getLastNDays(7).map(d => d.score); return m.length ? m[m.length - 1] : -1; })(),
   });
+
+  // Mod planı olan kullanıcı, planının bu hafta ne kadarını tamamladığını göremiyordu.
+  const plan = useMemo(() => planProgress(tasks, summary.range, PLAN_MODE_TAGS), [tasks, summary.range]);
+  const weekClosed = lastClosedWeek === summary.range.startKey;
 
   const hours = Math.floor(summary.totalFocusMin / 60);
   const mins = summary.totalFocusMin % 60;
@@ -238,6 +260,17 @@ export default function ReportScreen() {
           </View>
         )}
 
+        {plan.total > 0 && (
+          <View style={{ gap: S.xs }}>
+            <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>
+              {c.plan(plan.done, plan.total)}
+            </Text>
+            <View style={{ height: 6, borderRadius: R.xs, backgroundColor: theme.onSurface + '14', overflow: 'hidden' }}>
+              <View style={{ width: `${Math.round((plan.done / plan.total) * 100)}%`, height: '100%', borderRadius: R.xs, backgroundColor: theme.tertiary }} />
+            </View>
+          </View>
+        )}
+
         <WeekChart summary={summary} language={lang} todayKey={todayKey} />
         <HabitWeekList habits={habits} summary={summary} language={lang} todayKey={todayKey} />
 
@@ -267,6 +300,50 @@ export default function ReportScreen() {
           );
         })()}
 
+        {/*
+          HAFTAYI KAPAT — geri dönmek için bir sebep.
+          Eski rapor bir kez bakılıp unutulan bir sayfaydı: ne kıyas, ne geçmiş, ne de
+          bitiren bir adım vardı. Kapatmak kullanıcıya gelecek haftanın hedefini
+          seçtiriyor; hedef zaten odak ekranının kullandığı günlük hedef.
+        */}
+        {isCurrentWeek && (
+          <View style={[styles.close, { borderColor: theme.outlineVariant, backgroundColor: isDark ? theme.surfaceContainer : theme.surfaceContainerLow }]}>
+            {weekClosed ? (
+              <Text style={{ color: theme.primary, fontSize: F.body, fontWeight: '700' }}>{c.closed}</Text>
+            ) : (
+              <>
+                <Text style={{ color: theme.onSurface, fontSize: F.body, fontWeight: '700' }}>{c.closeTitle}</Text>
+                <Text style={{ color: theme.onSurfaceMuted, fontSize: F.caption }}>{c.closeBody}</Text>
+                <View style={{ flexDirection: 'row', gap: S.xs, marginTop: S.xs }}>
+                  {[15, 25, 45, 60].map((m) => {
+                    const on = dailyGoalMinutes === m;
+                    return (
+                      <Touchable
+                        key={m}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        accessibilityLabel={c.goalPick(m)}
+                        onPress={() => setDailyGoal(m)}
+                        style={{ flex: 1, alignItems: 'center', paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: on ? theme.primary : theme.outlineVariant, backgroundColor: on ? theme.primary + '18' : 'transparent' }}
+                      >
+                        <Text style={{ color: on ? theme.primary : theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700' }}>{c.goalPick(m)}</Text>
+                      </Touchable>
+                    );
+                  })}
+                </View>
+                <Touchable
+                  accessibilityRole="button"
+                  accessibilityLabel={c.closeBtn}
+                  onPress={() => { haptic.success(); setLastClosedWeek(summary.range.startKey); }}
+                  style={{ marginTop: S.sm, paddingVertical: S.md, borderRadius: R.full, backgroundColor: theme.primary, alignItems: 'center' }}
+                >
+                  <Text style={{ color: theme.onPrimary, fontSize: F.footnote, fontWeight: '700' }}>{c.closeBtn}</Text>
+                </Touchable>
+              </>
+            )}
+          </View>
+        )}
+
         {isCurrentWeek && tips.length > 0 && (
           <View style={{ gap: S.sm }}>
             <Text style={{ color: theme.onSurfaceVariant, fontSize: F.caption, fontWeight: '700', letterSpacing: 0.5 }}>{c.tips}</Text>
@@ -293,4 +370,5 @@ const styles = StyleSheet.create({
   coach: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg },
   story: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg },
   navBtn: { width: 36, height: 36, borderRadius: R.full, alignItems: 'center', justifyContent: 'center' },
+  close: { borderRadius: R.lg, borderWidth: B.thin, padding: S.lg, gap: S.xxs },
 });
