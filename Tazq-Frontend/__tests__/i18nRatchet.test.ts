@@ -101,7 +101,7 @@ const BASELINE: Record<string, number> = {
   'app/archive.tsx': 8,
   'app/cockpit.tsx': 63,
   'app/focus.tsx': 57,
-  'app/index.tsx': 63,
+  'app/index.tsx': 46, // 63 → 46: komut paleti ve Zen/Core yüzeyleri metin nesnelerine geçti
   'app/login.tsx': 47,
   // 27 → 22: mod adları ve özet hesabı ortak hook'a taşındı (useActiveModeSummary),
   // adlar orada sözlükten geliyor.

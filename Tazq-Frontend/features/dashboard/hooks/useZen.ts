@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTaskStore } from '@/features/tasks/store/useTaskStore';
+import { useTaskStore, type Task } from '@/features/tasks/store/useTaskStore';
 import { getLocalizedTaskTitle } from '@/features/tasks';
 import { getModeInfoForTask, usePrefsStore } from '@/features/modes';
 import { isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
 import {
   analyzeLoad, planOverdue, planTriage, isDayOverloaded, PLAN_TAGS,
-  type BalancerTask, type LoadAnalysis, type RebalancePlan,
+  type LoadAnalysis, type RebalancePlan,
 } from '@/features/tasks/utils/taskBalancer';
 import { applyRebalance, type AppliedRebalance } from '@/features/tasks/utils/rebalanceActions';
 import { useToastStore } from '@/shared/store/useToastStore';
 import { toDateKey } from '@/shared/utils/dateKey';
 import { swallow } from '@/shared/utils/swallow';
+import { haptic } from '@/shared/utils/haptics';
 
 /**
  * TAZQZen — ana ekrandaki TEK giriş.
@@ -52,6 +53,7 @@ const copy = (tr: boolean) => tr
       nothing: 'Dengelenecek bir yük yok',
       undo: 'Geri al',
       triageDone: (title: string) => `Bugün "${title}" kaldı`,
+      triageDoneMany: (n: number) => `Bugün ${n} iş kaldı`,
     }
   : {
       done: (s: number, d: number) => [
@@ -62,12 +64,13 @@ const copy = (tr: boolean) => tr
       nothing: 'Nothing to rebalance right now',
       undo: 'Undo',
       triageDone: (title: string) => `Today: just "${title}"`,
+      triageDoneMany: (n: number) => `Today: ${n} tasks`,
     };
 
 export interface ZenApi {
-  analysis: LoadAnalysis;
+  analysis: LoadAnalysis<Task>;
   /** Kartın önizlemesi — "Dengele"ye basınca ne olacağı. */
-  overduePlan: RebalancePlan;
+  overduePlan: RebalancePlan<Task>;
   cardVisible: boolean;
   dismissCard: () => void;
   /** Birikmiş işi dağıtır; kart kendi geri alma düğmesini bu tutamaçla çizer. */
@@ -77,14 +80,14 @@ export interface ZenApi {
   triageVisible: boolean;
   closeTriage: () => void;
   /** Seçilecek görev için ÖNİZLEME (kaçı taşınır, kaçı rafa). */
-  previewTriage: (keepId: number) => RebalancePlan;
-  confirmTriage: (keepId: number) => Promise<void>;
-  /** Bugün yerinde kalacak plan görevleri — triage kullanıcıya söyler. */
-  todayPlanCount: number;
+  previewTriage: (keepIds: readonly number[]) => RebalancePlan<Task>;
+  confirmTriage: (keepIds: readonly number[]) => Promise<void>;
+  /** Bugün yerinde kalacak SABİT görevler (plan, saatli, tekrarlayan) — triage söyler. */
+  todayFixedCount: number;
 }
 
 export function useZen(language: string): ZenApi {
-  const tasks = useTaskStore((s) => s.tasks) as unknown as BalancerTask[];
+  const tasks = useTaskStore((s) => s.tasks);
   const prefs = usePrefsStore();
   const tr = language === 'tr';
   const c = useMemo(() => copy(tr), [tr]);
@@ -94,16 +97,16 @@ export function useZen(language: string): ZenApi {
     Motor dışarıdan alıyor ki mod mağazasına bağlanmasın (bkz. taskBalancer).
   */
   const isPlanTask = useCallback(
-    (t: BalancerTask) =>
+    (t: Task) =>
       (t.tags ?? []).some((tag) => PLAN_TAGS.includes(tag)) ||
-      isWeightEntryTask(t as any) ||
-      !!getModeInfoForTask(t as any, prefs, null),
+      isWeightEntryTask(t) ||
+      !!getModeInfoForTask(t, prefs, null),
     [prefs],
   );
 
   const analysis = useMemo(() => analyzeLoad(tasks, { isPlanTask }), [tasks, isPlanTask]);
   const overduePlan = useMemo(() => planOverdue(tasks, { isPlanTask }), [tasks, isPlanTask]);
-  const todayPlanCount = analysis.todayLoad - analysis.movableToday.length;
+  const todayFixedCount = analysis.todayLoad - analysis.movableToday.length;
 
   /*
     "BEN HALLEDERİM" GÜN BOYU GEÇERLİ. Önceki kart bunu bileşen durumunda tutuyordu:
@@ -112,22 +115,36 @@ export function useZen(language: string): ZenApi {
   */
   const today = toDateKey(new Date());
   const [dismissedDay, setDismissedDay] = useState<string | null>(null);
+  // Kayıt okunana kadar kart çizilmez: yoksa bugün reddedilmiş kart açılışta bir an
+  // görünüp kaybolurdu.
+  const [dismissLoaded, setDismissLoaded] = useState(false);
   useEffect(() => {
     AsyncStorage.getItem(DISMISS_KEY)
       .then(setDismissedDay)
-      .catch((e) => swallow('zen.readDismiss', e));
+      .catch((e) => swallow('zen.readDismiss', e))
+      .finally(() => setDismissLoaded(true));
   }, []);
   const dismissCard = useCallback(() => {
     setDismissedDay(today);
     AsyncStorage.setItem(DISMISS_KEY, today).catch((e) => swallow('zen.writeDismiss', e));
   }, [today]);
 
-  const cardVisible = analysis.movableOverdue.length >= CARD_THRESHOLD && dismissedDay !== today;
+  const cardVisible = dismissLoaded && analysis.movableOverdue.length >= CARD_THRESHOLD && dismissedDay !== today;
 
   const ctx = useMemo(
     () => ({ language, hideNotificationContent: !!prefs.hideNotificationContent }),
     [language, prefs.hideNotificationContent],
   );
+
+  /*
+    TEK TİTREŞİM, TEK YER. Aynı iş üç girişten yapılıyor (kart, menü, triage); biri
+    titreşip öteki susarsa kullanıcı onların farklı şeyler yaptığını sanır. Titreşim
+    dokunuşta değil SONUÇTA: yalnız gerçekten bir şey taşındıysa.
+  */
+  const settle = useCallback((applied: AppliedRebalance) => {
+    if (applied.moved > 0) haptic.success();
+    return applied;
+  }, []);
 
   const announce = useCallback((applied: AppliedRebalance, lead?: string) => {
     const show = useToastStore.getState().show;
@@ -146,21 +163,24 @@ export function useZen(language: string): ZenApi {
     birkaç saniye önce çizildi ve o arada bir görev tamamlanmış ya da eklenmiş olabilir.
   */
   const freshOverduePlan = useCallback(
-    () => planOverdue(useTaskStore.getState().tasks as unknown as BalancerTask[], { isPlanTask }),
+    () => planOverdue(useTaskStore.getState().tasks, { isPlanTask }),
     [isPlanTask],
   );
 
-  const rebalanceOverdue = useCallback(
-    () => applyRebalance(freshOverduePlan(), ctx),
-    [freshOverduePlan, ctx],
-  );
+  const rebalanceOverdue = useCallback(async () => {
+    const applied = settle(await applyRebalance(freshOverduePlan(), ctx));
+    // Kart başarıyı kendi çiziyor; hiçbir şey taşınmadıysa (sunucu reddi) sessiz
+    // kalmasın — neden olmadığını toast söyler.
+    if (applied.moved === 0) announce(applied);
+    return applied;
+  }, [freshOverduePlan, ctx, settle, announce]);
 
   const [triageVisible, setTriageVisible] = useState(false);
 
   const saveTheDay = useCallback(async () => {
-    const live = analyzeLoad(useTaskStore.getState().tasks as unknown as BalancerTask[], { isPlanTask });
+    const live = analyzeLoad(useTaskStore.getState().tasks, { isPlanTask });
     if (live.movableOverdue.length > 0) {
-      announce(await applyRebalance(freshOverduePlan(), ctx));
+      announce(settle(await applyRebalance(freshOverduePlan(), ctx)));
       return;
     }
     if (isDayOverloaded(live)) {
@@ -168,21 +188,24 @@ export function useZen(language: string): ZenApi {
       return;
     }
     useToastStore.getState().show(c.nothing, 'info');
-  }, [isPlanTask, freshOverduePlan, ctx, announce, c]);
+  }, [isPlanTask, freshOverduePlan, ctx, announce, settle, c]);
 
   const previewTriage = useCallback(
-    (keepId: number) => planTriage(keepId, tasks, { isPlanTask }),
+    (keepIds: readonly number[]) => planTriage(keepIds, tasks, { isPlanTask }),
     [tasks, isPlanTask],
   );
 
-  const confirmTriage = useCallback(async (keepId: number) => {
+  const confirmTriage = useCallback(async (keepIds: readonly number[]) => {
     setTriageVisible(false);
-    const live = useTaskStore.getState().tasks as unknown as BalancerTask[];
-    const kept = live.find((t) => t.id === keepId);
-    const applied = await applyRebalance(planTriage(keepId, live, { isPlanTask }), ctx);
-    // Kullanıcının ekranda GÖRDÜĞÜ ad (plan görevlerinin ham başlığı farklı olabilir).
-    announce(applied, kept ? c.triageDone(getLocalizedTaskTitle(kept as any, tr)) : undefined);
-  }, [isPlanTask, ctx, announce, c, tr]);
+    const live = useTaskStore.getState().tasks;
+    const kept = live.filter((t) => keepIds.includes(t.id));
+    const applied = settle(await applyRebalance(planTriage(keepIds, live, { isPlanTask }), ctx));
+    // Tek görevde adı söylenir — kullanıcının ekranda GÖRDÜĞÜ ad (plan görevlerinin ham
+    // başlığı farklı olabilir); birden fazlasında sayı.
+    const lead = kept.length === 1 ? c.triageDone(getLocalizedTaskTitle(kept[0], tr))
+      : kept.length > 1 ? c.triageDoneMany(kept.length) : undefined;
+    announce(applied, lead);
+  }, [isPlanTask, ctx, announce, settle, c, tr]);
 
   return {
     analysis,
@@ -195,6 +218,6 @@ export function useZen(language: string): ZenApi {
     closeTriage: () => setTriageVisible(false),
     previewTriage,
     confirmTriage,
-    todayPlanCount,
+    todayFixedCount,
   };
 }

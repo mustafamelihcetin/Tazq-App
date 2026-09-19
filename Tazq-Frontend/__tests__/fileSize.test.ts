@@ -209,10 +209,11 @@ const KNOWN_LARGE: Record<string, number> = {
     görüyordu, kullanıcının seçtiği verimli saat yok sayılıyordu ve haftalık tamamlama
     sayısı `completedAt` olmayan her kaydı "bu hafta" sayıyordu.
 
-    Sıradaki küçültme adresi belli: komut paleti (~250 satır) kendi bileşenine
-    çıkarılabilir ve dosyayı eski tavanının altına indirir.
+    2501 → 2315: KOMUT PALETİ kendi bileşenine çıktı (features/dashboard/components/
+    CommandPortal.tsx). TAZQZen/Core eklenince dosya 2547'ye çıkmıştı; ayıklama bu
+    büyümeyi karşıladı ve tavanı eskisinin de altına indirdi. Davranış aynen taşındı.
   */
-  'app/index.tsx': 2501,
+  'app/index.tsx': 2315,
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.

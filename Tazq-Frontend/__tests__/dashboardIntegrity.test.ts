@@ -27,6 +27,7 @@ const stripComments = (src: string) =>
     .join('\n');
 
 const INDEX = stripComments(read('app/index.tsx'));
+const PORTAL = stripComments(read('features/dashboard/components/CommandPortal.tsx'));
 const ROW = stripComments(read('features/dashboard/components/MyDayTaskRow.tsx'));
 const HUB = stripComments(read('features/dashboard/components/StatusHubModal.tsx'));
 const SLEEP = stripComments(read('features/habits/hooks/useSleepHealthSync.ts'));
@@ -60,7 +61,10 @@ describe('eklenen görev GERÇEKTEN kaydediliyor', () => {
     // Aynı payload iki yere elle kopyalanmıştı; kopyalar zamanla ayrışır.
     expect(INDEX).toContain('const savePortalTask = async () => {');
     expect(INDEX).toContain('await handleQuickSave(title);');
-    expect((INDEX.match(/savePortalTask\(\)/g) ?? []).length).toBe(2);
+    // Palet kendi bileşeninde (CommandPortal): iki girişi (klavyenin "bitti"si ve
+    // "ekle" satırı) aynı `onSubmit`e bağlı, o da ekranın tek kayıt yoluna.
+    expect(INDEX).toContain('onSubmit={savePortalTask}');
+    expect((PORTAL.match(/onSubmit\(\)/g) ?? []).length).toBe(2);
   });
 
   it('kayıt yolu çevrimdışını da taşıyor', () => {
@@ -525,7 +529,9 @@ describe('hiçbir görev SESSİZCE kaybolmuyor', () => {
       yani ekrandan tamamen kayboluyordu.
     */
     expect(INDEX).toContain('return Number.isNaN(ms) ? null : ms;');
-    expect(INDEX).toMatch(/const undated = tasks\.filter\(t => t && !t\.isCompleted && dueAt\(t\) === null\);/);
+    expect(INDEX).toMatch(/const undated = tasks\.filter\(t => t && !t\.isCompleted && dueAt\(t\) === null && !isSomeday\(t\)\);/);
+    // Sunucunun "tarih yok" değeri de tarihsiz — yıl 1 "vadesi gelmiş" sayılmasın.
+    expect(INDEX).toContain("String(t.dueDate).startsWith('0001')) return null;");
   });
 });
 
@@ -540,9 +546,10 @@ describe('arama kullanıcının GÖRDÜĞÜ adla eşleşiyor', () => {
   it('Türkçe küçük harf ve yerelleştirilmiş başlık', () => {
     // `toLowerCase()` Türkçe'de 'İ' harfini bozuyor; arama ayrıca ham `title`
     // üzerindeydi, oysa ekranda yerelleştirilmiş ad görünüyor.
-    expect(INDEX).not.toMatch(/portalSearch\.toLowerCase\(\)/);
-    expect(INDEX).toContain("portalSearch.toLocaleLowerCase(tr ? 'tr-TR' : 'en-US')");
-    expect(INDEX).toMatch(/getLocalizedTaskTitle\(t, tr\)\.toLocaleLowerCase/);
+    expect(PORTAL).not.toMatch(/\.toLowerCase\(\)/);
+    expect(PORTAL).toContain('query.toLocaleLowerCase(c.locale)');
+    expect(PORTAL).toContain("locale: 'tr-TR'");
+    expect(PORTAL).toMatch(/getLocalizedTaskTitle\(t, tr\)\.toLocaleLowerCase/);
   });
 });
 

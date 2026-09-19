@@ -133,7 +133,7 @@ export async function patchTask(taskId: number, patch: Partial<Task>): Promise<P
   }
 
   try {
-    await TaskService.updateTask(taskId, { ...before, ...effective } as any);
+    await TaskService.updateTask(taskId, { ...before, ...effective });
     return 'ok';
   } catch (err: unknown) {
     if (isNetworkError(err)) {
@@ -141,10 +141,9 @@ export async function patchTask(taskId: number, patch: Partial<Task>): Promise<P
       return 'queued';
     }
     // Gerçek ret → yalnız DEĞİŞTİRDİĞİMİZ alanları geri koy.
-    const rollback: Partial<Task> = {};
-    for (const key of Object.keys(effective) as (keyof Task)[]) {
-      (rollback as any)[key] = (before as any)[key];
-    }
+    const rollback = Object.fromEntries(
+      (Object.keys(effective) as (keyof Task)[]).map((key) => [key, before[key]]),
+    ) as Partial<Task>;
     useTaskStore.getState().updateTask(taskId, rollback);
     return 'failed';
   }

@@ -200,7 +200,7 @@ describe('arka planlar ağacın dışında', () => {
     ['app/tasks.tsx', 'sıralama menüsü'],
     ['features/tasks/components/TaskFormModal.tsx', 'form sayfası'],
     ['features/modes/components/TurkishModeBanner.tsx', 'mod sayfası'],
-    ['app/index.tsx', 'komut paleti'],
+    ['features/dashboard/components/CommandPortal.tsx', 'komut paleti'],
     ['shared/components/CustomAlert.tsx', 'uyarı katmanı'],
     ['app/achievements.tsx', 'rozet detayı'],
     ['features/user/components/CelebrationOverlay.tsx', 'kutlama katmanı'],

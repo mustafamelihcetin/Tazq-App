@@ -72,6 +72,40 @@ describe('kim taşınabilir', () => {
     expect(isMovable(task(srv(-1), { tags: ['work'] }), opts)).toBe(true);
   });
 
+  it('SAATLİ görev taşınmaz — saat bir taahhüttür (randevu, toplantı)', () => {
+    // Triage bugün 15:00'teki doktor randevusunu yarına atabiliyordu.
+    expect(isMovable(task(srv(0), { dueTime: '2026-09-19T12:00:00.000Z' }), opts)).toBe(false);
+    expect(isMovable(task(srv(-2), { dueTime: '2026-09-17T07:00:00.000Z' }), opts)).toBe(false);
+    // Sunucunun "saat yok" değeri saat sayılmaz
+    expect(isMovable(task(srv(-2), { dueTime: '0001-01-01T00:00:00Z' }), opts)).toBe(true);
+  });
+
+  it('TEKRARLAYAN görev taşınmaz — seri kaymasın', () => {
+    // Sunucu sonraki örneği görevin TARİHİNDEN hesaplıyor (DueDate + aralık): pazartesi
+    // görevi perşembeye taşınınca seri kalıcı olarak perşembeye kayardı.
+    expect(isMovable(task(srv(-2), { recurrence: 'Weekly' }), opts)).toBe(false);
+    expect(isMovable(task(srv(-2), { recurrence: 'Daily' }), opts)).toBe(false);
+    expect(isMovable(task(srv(-2), { recurrence: 'None' }), opts)).toBe(true);
+  });
+
+  it('sabit görevler yükte SAYILIR — kapasite dürüst kalsın', () => {
+    const fixed = Array.from({ length: 5 }, () => task(srv(1), { dueTime: '2026-09-20T07:00:00.000Z' }));
+    const mover = task(srv(-1));
+    expect(target(planOverdue([...fixed, mover], opts), mover)).toBe(day(2));
+  });
+
+  it('triage bugünün saatli ve tekrarlayan işlerini listeye koymaz, taşımaz', () => {
+    const keep = task(srv(0));
+    const meeting = task(srv(0), { dueTime: '2026-09-19T12:00:00.000Z' });
+    const weekly = task(srv(0), { recurrence: 'Weekly' });
+    const free = task(srv(0));
+    const a = analyzeLoad([keep, meeting, weekly, free], opts);
+    expect(a.movableToday.map((t) => t.id)).toEqual([keep.id, free.id]);
+    expect(a.todayLoad).toBe(4);
+    const moved = planTriage([keep.id], [keep, meeting, weekly, free], opts).moves.map((m) => m.task.id);
+    expect(moved).toEqual([free.id]);
+  });
+
   it('dışarıdan verilen plan tanıyıcısına uyuyor', () => {
     // Ekran, mod bilgisini (getModeInfoForTask) buradan ekliyor.
     const t = task(srv(-1), { title: 'Güncel kilonu gir' });
@@ -199,7 +233,7 @@ describe('taşan gün (triage)', () => {
   it('seçilen görev kalıyor, bugünün öteki taşınabilir işleri dağıtılıyor', () => {
     const keep = task(srv(0));
     const others = Array.from({ length: 5 }, () => task(srv(0)));
-    const plan = planTriage(keep.id, [keep, ...others], opts);
+    const plan = planTriage([keep.id], [keep, ...others], opts);
     expect(plan.moves.map((m) => m.task.id)).not.toContain(keep.id);
     expect(plan.moves).toHaveLength(5);
     expect(plan.moves.every((m) => m.to !== null && m.to > day(0))).toBe(true);
@@ -208,13 +242,20 @@ describe('taşan gün (triage)', () => {
   it('bugünün PLAN görevleri yerinde kalıyor', () => {
     const keep = task(srv(0));
     const planToday = task(srv(0), { tags: ['daily', 'exam'] });
-    const plan = planTriage(keep.id, [keep, planToday, task(srv(0))], opts);
+    const plan = planTriage([keep.id], [keep, planToday, task(srv(0))], opts);
     expect(plan.moves.map((m) => m.task.id)).not.toContain(planToday.id);
+  });
+
+  it('birden fazla görev tutulabiliyor — seçilenlerin HİÇBİRİ taşınmıyor', () => {
+    const a = task(srv(0)); const b = task(srv(0)); const c = task(srv(0));
+    const rest = Array.from({ length: 3 }, () => task(srv(0)));
+    const moved = planTriage([a.id, b.id, c.id], [a, b, c, ...rest], opts).moves.map((m) => m.task.id);
+    expect(moved.sort()).toEqual(rest.map((t) => t.id).sort());
   });
 
   it('gecikmiş değil — yaş kuralı uygulanmıyor', () => {
     const keep = task(srv(0));
     const low = task(srv(0), { priority: 'Low' });
-    expect(planTriage(keep.id, [keep, low], opts).someday).toBe(0);
+    expect(planTriage([keep.id], [keep, low], opts).someday).toBe(0);
   });
 });

@@ -15,7 +15,7 @@ import { useCollapsibleHeader } from '@/shared/hooks/useCollapsibleHeader';
 import { WeightEntryModal } from '@/features/modes/components/WeightEntryModal';
 import { weightTaskAction, completeTaskOfflineFirst, isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
 import { TaskFormModal } from '@/features/tasks/components/TaskFormModal';
-import { useTaskStore, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
+import { useTaskStore, visibleTextTags, translateTag, isInternalTag, ICON_TAGS, categorizeTask, getLocalizedTaskTitle, getLocalizedTaskDescription, withSomedayResolved } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, useAchievementStore, ACHIEVEMENTS } from '@/features/user';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
@@ -1187,7 +1187,8 @@ export default function ActionCenter() {
         priority: formPayload.priority,
         dueDate: formPayload.dueDate ? new Date(formPayload.dueDate).toISOString() : null,
         dueTime: formPayload.dueTime || null,
-        tags: finalTagsWithReminder,
+        // Rafa kalkmış göreve tarih verildiyse "belki bir gün" etiketi düşer (bkz. taskTags).
+        tags: withSomedayResolved(finalTagsWithReminder, formPayload.dueDate),
         subtasks: formPayload.subtasks,
         recurrence: formPayload.recurrence,
       };
@@ -1257,7 +1258,7 @@ export default function ActionCenter() {
         priority: formPayload.priority,
         dueDate: formPayload.dueDate && !isNaN(new Date(formPayload.dueDate).getTime()) ? new Date(formPayload.dueDate).toISOString() : null,
         dueTime: formPayload.dueTime || null,
-        tags: finalTagsWithReminder,
+        tags: withSomedayResolved(finalTagsWithReminder, formPayload.dueDate),
         subtasks: formPayload.subtasks,
         recurrence: formPayload.recurrence,
       };

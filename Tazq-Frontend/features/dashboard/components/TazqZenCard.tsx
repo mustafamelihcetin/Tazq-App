@@ -5,7 +5,6 @@ import { CheckCircle2, Wind } from 'lucide-react-native';
 import { BentoCard } from '@/shared/components/BentoCard';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, S, R, W, ICON, LH, MIN_TOUCH } from '@/shared/constants/tokens';
-import { haptic } from '@/shared/utils/haptics';
 import type { AppTheme } from '@/shared/constants/Colors';
 import type { RebalancePlan } from '@/features/tasks/utils/taskBalancer';
 import type { AppliedRebalance } from '@/features/tasks/utils/rebalanceActions';
@@ -36,7 +35,7 @@ export interface TazqZenCardProps {
   visible: boolean;
   /** Motorun önizlemesi — basınca TAM OLARAK bu olur. */
   plan: RebalancePlan;
-  /** Gecikmiş TÜM görevler (plan dahil) — dürüst sayı için. */
+  /** Gecikmiş TÜM görevler (sabitler dahil) — dürüst sayı için. */
   overdueTotal: number;
   onRebalance: () => Promise<AppliedRebalance>;
   onDismiss: () => void;
@@ -51,7 +50,7 @@ const copy = (tr: boolean) => tr
       body: (n: number) => `${n} görevin birikti.`,
       preview: (s: number, d: number) =>
         `Dengelersen ${s > 0 ? `${s} tanesi önümüzdeki günlere yayılır` : ''}${s > 0 && d > 0 ? ', ' : ''}${d > 0 ? `${d} tanesi Belki Bir Gün'e alınır` : ''} — hiçbir gün 5 görevi aşmaz.`,
-      planNote: (p: number) => `${p} plan görevi planınla birlikte ilerler.`,
+      fixedNote: (p: number) => `Saatli, tekrarlayan ve plan görevlerine (${p}) dokunulmaz.`,
       dismiss: 'Ben hallederim',
       act: 'Dengele',
       working: 'Dengeleniyor',
@@ -64,7 +63,7 @@ const copy = (tr: boolean) => tr
       body: (n: number) => `${n} tasks have piled up.`,
       preview: (s: number, d: number) =>
         `Rebalancing will ${s > 0 ? `spread ${s} over the coming days` : ''}${s > 0 && d > 0 ? ' and ' : ''}${d > 0 ? `move ${d} to Someday` : ''} — no day goes over 5 tasks.`,
-      planNote: (p: number) => `${p} plan tasks stay with your plan.`,
+      fixedNote: (p: number) => `Timed, recurring and plan tasks (${p}) are left as they are.`,
       dismiss: 'I got this',
       act: 'Rebalance',
       working: 'Rebalancing',
@@ -86,7 +85,6 @@ export const TazqZenCard = React.memo<TazqZenCardProps>(
 
     const rebalance = async () => {
       if (phase !== 'idle') return; // çift dokunuş iki kez dağıtmasın
-      haptic.commit();
       setPhase('working');
       const applied = await onRebalance();
       if (applied.moved === 0) {
@@ -94,8 +92,7 @@ export const TazqZenCard = React.memo<TazqZenCardProps>(
         setPhase('idle');
         return;
       }
-      handleRef.current = applied;
-      haptic.success();
+      handleRef.current = applied; // titreşim useZen'de — üç girişte de aynı
       setPhase('done');
       // Süre dolunca kart KAPANMIYOR, öneri durumuna dönüyor: yeni birikim varsa
       // yeniden önerilir, yoksa `visible` zaten false olduğu için hiçbir şey çizilmez.
@@ -107,7 +104,6 @@ export const TazqZenCard = React.memo<TazqZenCardProps>(
       const h = handleRef.current;
       handleRef.current = null;
       setPhase('idle');
-      haptic.surface();
       if (h) await h.undo();
     };
 
@@ -135,7 +131,7 @@ export const TazqZenCard = React.memo<TazqZenCardProps>(
 
     if (!visible || plan.moves.length === 0) return null;
 
-    const planCount = Math.max(0, overdueTotal - plan.moves.length);
+    const fixedCount = Math.max(0, overdueTotal - plan.moves.length);
     const working = phase === 'working';
 
     return (
@@ -159,7 +155,7 @@ export const TazqZenCard = React.memo<TazqZenCardProps>(
           </Text>
           <Text style={[styles.body, { color: theme.onSurfaceMuted }]}>
             {c.body(plan.moves.length)} {c.preview(plan.scheduled, plan.someday)}
-            {planCount > 0 ? ` ${c.planNote(planCount)}` : ''}
+            {fixedCount > 0 ? ` ${c.fixedNote(fixedCount)}` : ''}
           </Text>
 
           <View style={styles.actions}>

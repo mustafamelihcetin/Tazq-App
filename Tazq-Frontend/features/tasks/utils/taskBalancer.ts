@@ -21,10 +21,16 @@ import { calendarDayOf, parseDateKey, toDateKey } from '@/shared/utils/dateKey';
  *     bugünün plan görevi yarına gidince motor bugünü boş sanıp AYNI görevleri yeniden
  *     üretiyordu. Uygulama bu yüzden plan görevlerinin arşivlenmesini zaten yasaklıyor;
  *     dengeleme o kuralı atlıyordu.
+ *  4. SAATLİ görevler de taşınıyordu. Saat bir TAAHHÜTTÜR (randevu, toplantı): triage
+ *     bugün 15:00'teki doktor randevusunu yarına atabiliyordu.
+ *  5. TEKRARLAYAN görevler de taşınıyordu. Sunucu bir sonraki örneği görevin TARİHİNDEN
+ *     hesaplıyor (bkz. TaskService.CreateNextRecurrence → DueDate + aralık): pazartesi
+ *     tekrarlayan bir görev perşembeye taşınınca seri KALICI olarak perşembeye kayıyordu.
  *
  * ── KURAL SETİ ──────────────────────────────────────────────────────────────────
- *  · TAŞINABİLİR görev: tamamlanmamış, arşivlenmemiş, plan görevi değil, geçerli bir
- *    tarihi var. Plan görevleri planıyla birlikte ilerler; dokunulmaz.
+ *  · TAŞINABİLİR görev: tamamlanmamış, arşivlenmemiş, geçerli bir tarihi var ve
+ *    SABİT DEĞİL. Sabit = plan görevi, saati olan ya da tekrarlayan. Sabit görevler
+ *    yükte sayılır ama yerinden oynatılmaz; kullanıcıya "yerinde kalır" diye söylenir.
  *  · YÜK: bir günün yükü o güne yazılmış tamamlanmamış TÜM görevler (plan dahil) +
  *    plan motorunun o gün üreteceği tahmini görev sayısı. Motor görevleri gününde
  *    üretiyor, önceden değil — sayılmazsa gelecek günler olduğundan boş görünür ve
@@ -57,38 +63,39 @@ export interface BalancerTask {
   dueDate?: string | null;
   dueTime?: string | null;
   tags?: string[] | null;
+  recurrence?: string | null;
 }
 
-export interface BalancerOptions {
+export interface BalancerOptions<T extends BalancerTask = BalancerTask> {
   /**
    * Bu görev plan motoruna mı ait? Varsayılan yalnız etiketlere bakar; ekran tarafı
    * mod bilgisini (getModeInfoForTask) ve başlıktan tanınan kilo görevini ekler.
    * Dışarıdan veriliyor ki motor mod mağazasına bağlanmasın ve saf kalsın.
    */
-  isPlanTask?: (task: BalancerTask) => boolean;
+  isPlanTask?: (task: T) => boolean;
   now?: Date;
 }
 
-export interface LoadAnalysis {
+export interface LoadAnalysis<T extends BalancerTask = BalancerTask> {
   todayKey: string;
   /** Gecikmiş TÜM görevler (plan dahil) — kullanıcıya dürüst sayı vermek için. */
-  overdue: BalancerTask[];
+  overdue: T[];
   /** Dengelenebilecek gecikmiş görevler. */
-  movableOverdue: BalancerTask[];
+  movableOverdue: T[];
   /** Bugüne yazılmış tamamlanmamış TÜM görevlerin sayısı (plan dahil). */
   todayLoad: number;
   /** Bugüne yazılmış, taşınabilir görevler. */
-  movableToday: BalancerTask[];
+  movableToday: T[];
 }
 
 /** Bir hamle: görev hangi güne gidiyor — `null` "Belki Bir Gün" demek. */
-export interface Move {
-  task: BalancerTask;
+export interface Move<T extends BalancerTask = BalancerTask> {
+  task: T;
   to: string | null;
 }
 
-export interface RebalancePlan {
-  moves: Move[];
+export interface RebalancePlan<T extends BalancerTask = BalancerTask> {
+  moves: Move<T>[];
   /** Bir güne yerleştirilen görev sayısı. */
   scheduled: number;
   /** "Belki Bir Gün"e alınan görev sayısı. */
@@ -111,19 +118,28 @@ function addDays(key: string, days: number): string {
   return toDateKey(d);
 }
 
+/** Saati olan görev — bir saate bağlı taahhüt (randevu, toplantı). */
+export const hasFixedTime = (t: BalancerTask) =>
+  !!t.dueTime && !String(t.dueTime).startsWith('0001');
+
+/** Tekrarlayan görev — tarihi serinin çapası (başlıktan tanınan aralıklar tamamlanma
+ *  anından hesaplandığı için onlar serbest; yalnız açık tekrar seçimi sabittir). */
+export const isRecurring = (t: BalancerTask) => !!t.recurrence && t.recurrence !== 'None';
+
 /** Görevin dengelemeye girebilir olup olmadığı. */
-export function isMovable(task: BalancerTask, opts: BalancerOptions = {}): boolean {
+export function isMovable<T extends BalancerTask>(task: T, opts: BalancerOptions<T> = {}): boolean {
   if (!task || task.isCompleted || task.isArchived) return false;
   if (!calendarDayOf(task.dueDate)) return false;
+  if (hasFixedTime(task) || isRecurring(task)) return false;
   return !(opts.isPlanTask ?? defaultIsPlanTask)(task);
 }
 
 /** Yükün ve dengelenebilir işin anlık fotoğrafı. */
-export function analyzeLoad(tasks: BalancerTask[], opts: BalancerOptions = {}): LoadAnalysis {
+export function analyzeLoad<T extends BalancerTask>(tasks: T[], opts: BalancerOptions<T> = {}): LoadAnalysis<T> {
   const todayKey = toDateKey(opts.now ?? new Date());
-  const overdue: BalancerTask[] = [];
-  const movableOverdue: BalancerTask[] = [];
-  const movableToday: BalancerTask[] = [];
+  const overdue: T[] = [];
+  const movableOverdue: T[] = [];
+  const movableToday: T[] = [];
   let todayLoad = 0;
 
   for (const t of tasks) {
@@ -149,11 +165,11 @@ export function analyzeLoad(tasks: BalancerTask[], opts: BalancerOptions = {}): 
  * `leaving` içindeki görevler sayılmaz: yerlerinden kalkıyorlar, kendi eski yüklerini
  * hesaba katmak aynı görevi iki kez saymak olur.
  */
-function futureLoads(
-  tasks: BalancerTask[],
+function futureLoads<T extends BalancerTask>(
+  tasks: T[],
   todayKey: string,
   leaving: Set<number>,
-  isPlanTask: (t: BalancerTask) => boolean,
+  isPlanTask: (t: T) => boolean,
 ): { day: string; load: number }[] {
   const byDay = new Map<string, { all: number; plan: number }>();
   // Plan motorunun her gün üreteceği tahmini iş: bugün ürettiği kadar (tamamlananlar
@@ -201,16 +217,16 @@ function byPriorityThenAge(a: BalancerTask, b: BalancerTask): number {
   return a.id - b.id;
 }
 
-function distribute(
-  candidates: BalancerTask[],
-  tasks: BalancerTask[],
+function distribute<T extends BalancerTask>(
+  candidates: T[],
+  tasks: T[],
   todayKey: string,
-  isPlanTask: (t: BalancerTask) => boolean,
-  shouldShelve: (t: BalancerTask) => boolean,
-): RebalancePlan {
+  isPlanTask: (t: T) => boolean,
+  shouldShelve: (t: T) => boolean,
+): RebalancePlan<T> {
   const ordered = [...candidates].sort(byPriorityThenAge);
   const days = futureLoads(tasks, todayKey, new Set(ordered.map((t) => t.id)), isPlanTask);
-  const moves: Move[] = [];
+  const moves: Move<T>[] = [];
 
   for (const task of ordered) {
     if (shouldShelve(task)) {
@@ -231,8 +247,8 @@ function distribute(
 }
 
 /** Birikmiş (gecikmiş) işi dengeler. */
-export function planOverdue(tasks: BalancerTask[], opts: BalancerOptions = {}): RebalancePlan {
-  const isPlanTask = opts.isPlanTask ?? defaultIsPlanTask;
+export function planOverdue<T extends BalancerTask>(tasks: T[], opts: BalancerOptions<T> = {}): RebalancePlan<T> {
+  const isPlanTask: (t: T) => boolean = opts.isPlanTask ?? defaultIsPlanTask;
   const { todayKey, movableOverdue } = analyzeLoad(tasks, { ...opts, isPlanTask });
   return distribute(movableOverdue, tasks, todayKey, isPlanTask, (t) => {
     if (rankOf(t) === 0) return false; // yüksek öncelik yaşından dolayı rafa kalkmaz
@@ -242,18 +258,26 @@ export function planOverdue(tasks: BalancerTask[], opts: BalancerOptions = {}): 
 }
 
 /**
- * Taşan bir günü hafifletir: kullanıcının BUGÜN yapacağı tek görev kalır, bugüne
+ * Triage'da bugün tutulabilecek en fazla görev. Önceki hâli TEK görevdi: gerçek bir
+ * günde kimse işini tek maddeye indirmiyor ve bu kadar sert bir seçim, kullanıcıyı
+ * özelliği hiç kullanmamaya itiyordu. Üçün üstü ise "sadeleştirmek" değil.
+ */
+export const TRIAGE_MAX_KEEP = 3;
+
+/**
+ * Taşan bir günü hafifletir: kullanıcının BUGÜN yapacağı 1–3 görev kalır, bugüne
  * yazılmış öteki taşınabilir görevler dağıtılır. Bunlar gecikmiş değil — yaş kuralı
  * uygulanmaz.
  */
-export function planTriage(keepId: number, tasks: BalancerTask[], opts: BalancerOptions = {}): RebalancePlan {
-  const isPlanTask = opts.isPlanTask ?? defaultIsPlanTask;
+export function planTriage<T extends BalancerTask>(keepIds: readonly number[], tasks: T[], opts: BalancerOptions<T> = {}): RebalancePlan<T> {
+  const isPlanTask: (t: T) => boolean = opts.isPlanTask ?? defaultIsPlanTask;
   const { todayKey, movableToday } = analyzeLoad(tasks, { ...opts, isPlanTask });
-  const candidates = movableToday.filter((t) => t.id !== keepId);
+  const keep = new Set(keepIds);
+  const candidates = movableToday.filter((t) => !keep.has(t.id));
   return distribute(candidates, tasks, todayKey, isPlanTask, () => false);
 }
 
 /** Bugün kapasiteyi aşıyor mu ve hafifletilecek (en az bir kalan + bir taşınan) iş var mı? */
-export function isDayOverloaded(analysis: LoadAnalysis): boolean {
+export function isDayOverloaded(analysis: LoadAnalysis<BalancerTask>): boolean {
   return analysis.todayLoad > DAILY_CAPACITY && analysis.movableToday.length >= 2;
 }

@@ -5,11 +5,10 @@ import { Check } from 'lucide-react-native';
 import { GlassSheet } from '@/shared/components/GlassSheet';
 import { Touchable } from '@/shared/components/Touchable';
 import { F, S, R, W, ICON, LH, MIN_TOUCH } from '@/shared/constants/tokens';
-import { haptic } from '@/shared/utils/haptics';
 import type { AppTheme } from '@/shared/constants/Colors';
 import type { Task } from '@/features/tasks/store/useTaskStore';
 import { getLocalizedTaskTitle } from '@/features/tasks';
-import type { RebalancePlan } from '@/features/tasks/utils/taskBalancer';
+import { TRIAGE_MAX_KEEP, type RebalancePlan } from '@/features/tasks/utils/taskBalancer';
 
 /**
  * TAŞAN GÜN — "bugün yapacağın TEK işi seç, gerisini dağıtayım".
@@ -22,21 +21,25 @@ import type { RebalancePlan } from '@/features/tasks/utils/taskBalancer';
  *    üretilmesi demekti (bkz. taskBalancer → isMovable).
  *  · Taşınanlar kendi hesabıyla dağıtılıyordu; kart ve menü başka bir hesap yapıyordu.
  *
- * Artık seçim bir RADYO: seçmek hiçbir şey yapmaz, yalnız sonucu önizler. Asıl iş
- * onay düğmesinde ve motorun kendi planıyla (geri alınabilir) yapılır. Liste yalnız
- * taşınabilir görevleri gösterir; yerinde kalacak plan görevleri ayrıca söylenir.
+ * Artık seçmek hiçbir şey yapmaz, yalnız sonucu önizler. Asıl iş onay düğmesinde ve
+ * motorun kendi planıyla (geri alınabilir) yapılır. Liste yalnız taşınabilir görevleri
+ * gösterir; yerinde kalacak sabit görevler ayrıca söylenir.
+ *
+ * TEK değil 1–3 görev: gerçek bir günde kimse işini tek maddeye indirmiyor. Sınır
+ * dolunca seçilmemiş satırlar pasifleşir — dördüncüye dokunmak sessizce yutulmaz,
+ * satır neden seçilemediğini görünür biçimde söyler.
  */
 
 export interface TriageModalProps {
   visible: boolean;
   onClose: () => void;
-  /** Bugünün TAŞINABİLİR görevleri (plan görevleri hariç). */
+  /** Bugünün TAŞINABİLİR görevleri (plan, saatli ve tekrarlayan hariç). */
   tasks: Task[];
   /** Seçime göre ne olacağı — motorun kendi önizlemesi. */
-  preview: (keepId: number) => RebalancePlan;
-  onConfirm: (keepId: number) => void;
-  /** Her durumda bugün yerinde kalacak plan görevi sayısı. */
-  planCount: number;
+  preview: (keepIds: readonly number[]) => RebalancePlan;
+  onConfirm: (keepIds: readonly number[]) => void;
+  /** Her durumda bugün yerinde kalacak sabit görev sayısı (plan, saatli, tekrarlayan). */
+  fixedCount: number;
   theme: AppTheme;
   tr: boolean;
 }
@@ -44,49 +47,57 @@ export interface TriageModalProps {
 const copy = (tr: boolean) => tr
   ? {
       title: 'Bugün çok dolu',
-      body: 'Bugün yapacağın en önemli TEK görevi seç. Gerisini önümüzdeki günlere dağıtayım.',
-      pick: 'Bir görev seç',
+      body: `Bugün yapacağın en önemli 1–${TRIAGE_MAX_KEEP} görevi seç. Gerisini önümüzdeki günlere dağıtayım.`,
+      pick: 'Bugün kalacakları seç',
+      allKept: 'Bugünün bütün işlerini seçtin — taşınacak bir şey kalmadı.',
       result: (s: number, d: number) => [
         s > 0 ? `${s} görev önümüzdeki günlere yayılır` : '',
         d > 0 ? `${d} görev Belki Bir Gün'e alınır` : '',
       ].filter(Boolean).join(', ') + '.',
-      planNote: (p: number) => `${p} plan görevin bugün yerinde kalır.`,
+      fixedNote: (p: number) => `Saatli, tekrarlayan ve plan görevlerin (${p}) bugün yerinde kalır.`,
       confirm: 'Günü sadeleştir',
       cancel: 'Vazgeç',
-      selected: 'seçili',
     }
   : {
       title: 'Today is overloaded',
-      body: 'Pick the ONE task that matters most today. I will spread the rest over the coming days.',
-      pick: 'Pick a task',
+      body: `Pick the 1–${TRIAGE_MAX_KEEP} tasks that matter most today. I will spread the rest over the coming days.`,
+      pick: 'Pick what stays today',
+      allKept: 'You picked everything for today — nothing left to move.',
       result: (s: number, d: number) => [
         s > 0 ? `${s} tasks spread over the coming days` : '',
         d > 0 ? `${d} moved to Someday` : '',
       ].filter(Boolean).join(', ') + '.',
-      planNote: (p: number) => `${p} plan tasks stay on today.`,
+      fixedNote: (p: number) => `Your timed, recurring and plan tasks (${p}) stay on today.`,
       confirm: 'Simplify my day',
       cancel: 'Cancel',
-      selected: 'selected',
     };
 
 export const TriageModal = React.memo<TriageModalProps>(({
-  visible, onClose, tasks, preview, onConfirm, planCount, theme, tr,
+  visible, onClose, tasks, preview, onConfirm, fixedCount, theme, tr,
 }) => {
   const c = copy(tr);
   const insets = useSafeAreaInsets();
-  const [keepId, setKeepId] = useState<number | null>(null);
+  const [picked, setPicked] = useState<number[]>([]);
 
   // Her açılış temiz başlar — önceki seferin seçimi bugünün listesinde olmayabilir.
-  useEffect(() => { if (visible) setKeepId(null); }, [visible]);
+  useEffect(() => { if (visible) setPicked([]); }, [visible]);
 
-  // Seçili görev o arada listeden çıktıysa (tamamlandı, silindi) seçim de düşer.
-  const stillThere = keepId !== null && tasks.some((t) => t.id === keepId);
-  const plan = stillThere ? preview(keepId!) : null;
+  // Seçili görev o arada listeden çıktıysa (tamamlandı, silindi) seçimden de düşer.
+  const keepIds = picked.filter((id) => tasks.some((t) => t.id === id));
+  const plan = keepIds.length > 0 ? preview(keepIds) : null;
+  const full = keepIds.length >= TRIAGE_MAX_KEEP;
+  // Her şey seçildiyse taşınacak iş yok — onay bir şey yapmayacağı için kapalı.
+  const canConfirm = !!plan && plan.moves.length > 0;
+
+  const toggle = (id: number) => setPicked((cur) => {
+    const live = cur.filter((x) => tasks.some((t) => t.id === x));
+    if (live.includes(id)) return live.filter((x) => x !== id);
+    return live.length >= TRIAGE_MAX_KEEP ? live : [...live, id];
+  });
 
   const confirm = () => {
-    if (!stillThere) return;
-    haptic.commit();
-    onConfirm(keepId!);
+    if (!canConfirm) return;
+    onConfirm(keepIds);
   };
 
   return (
@@ -107,19 +118,22 @@ export const TriageModal = React.memo<TriageModalProps>(({
             <Text style={[styles.title, { color: theme.onSurface }]} accessibilityRole="header">{c.title}</Text>
             <Text style={[styles.body, { color: theme.onSurfaceMuted }]}>{c.body}</Text>
 
-            <ScrollView style={styles.list} showsVerticalScrollIndicator={false} accessibilityRole="radiogroup">
+            <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
               {tasks.map((task, i) => {
-                const checked = task.id === keepId;
+                const checked = keepIds.includes(task.id);
+                const blocked = full && !checked;
                 const title = getLocalizedTaskTitle(task, tr);
                 return (
                   <Touchable
                     key={task.id}
-                    onPress={() => { haptic.select(); setKeepId(task.id); }}
-                    accessibilityRole="radio"
+                    onPress={() => toggle(task.id)}
+                    disabled={blocked}
+                    accessibilityRole="checkbox"
                     accessibilityLabel={title}
-                    accessibilityState={{ checked }}
+                    accessibilityState={{ checked, disabled: blocked }}
                     style={[
                       styles.row,
+                      blocked && { opacity: 0.4 },
                       i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.outlineVariant },
                     ]}
                   >
@@ -144,17 +158,17 @@ export const TriageModal = React.memo<TriageModalProps>(({
               style={[styles.result, { color: plan ? theme.onSurface : theme.onSurfaceMuted }]}
               accessibilityLiveRegion="polite"
             >
-              {plan ? c.result(plan.scheduled, plan.someday) : c.pick}
-              {plan && planCount > 0 ? ` ${c.planNote(planCount)}` : ''}
+              {!plan ? c.pick : canConfirm ? c.result(plan.scheduled, plan.someday) : c.allKept}
+              {canConfirm && fixedCount > 0 ? ` ${c.fixedNote(fixedCount)}` : ''}
             </Text>
 
             <Touchable
               onPress={confirm}
-              disabled={!stillThere}
+              disabled={!canConfirm}
               accessibilityRole="button"
               accessibilityLabel={c.confirm}
-              accessibilityState={{ disabled: !stillThere }}
-              style={[styles.confirm, { backgroundColor: theme.primary, opacity: stillThere ? 1 : 0.4 }]}
+              accessibilityState={{ disabled: !canConfirm }}
+              style={[styles.confirm, { backgroundColor: theme.primary, opacity: canConfirm ? 1 : 0.4 }]}
             >
               <Text style={[styles.confirmText, { color: theme.onPrimary }]}>{c.confirm}</Text>
             </Touchable>

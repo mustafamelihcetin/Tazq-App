@@ -156,7 +156,7 @@ export const MomentumPulse: React.FC<Props> = ({ score, history, language, loadi
             const { seasonal } = usePrefsStore.getState();
             if (seasonal.sporMode) return theme.error;
             if (seasonal.tasarrufMode) return theme.tertiary;
-            if (seasonal.examMode || seasonal.tezMode) return theme.secondary || '#7C3AED';
+            if (seasonal.examMode || seasonal.tezMode) return theme.secondary;
             return theme.primary;
           })(),
           borderRadius: R.lg + S.md,

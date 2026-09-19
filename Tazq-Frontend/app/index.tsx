@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, Modal, TextInput, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Animated, AppState } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, StyleSheet, useWindowDimensions, Platform, KeyboardAvoidingView, Animated, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomAlert as Alert } from '@/shared/components/CustomAlert';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTaskStore, parseTaskHint, getLocalizedTaskTitle, getLocalizedTaskDescription } from '@/features/tasks';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore, useAchievementStore, useMomentumStore, checkStreakAchievement, checkMomentumAchievement, ACHIEVEMENTS, getAvatarSource, AVATAR_CONFIGS } from '@/features/user';
@@ -15,17 +15,17 @@ import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { DashboardHero } from '@/features/dashboard/components/DashboardHero';
 import { TazqCoreMenu } from '@/features/dashboard/components/TazqCoreMenu';
 import { TriageModal } from '@/features/dashboard/components/TriageModal';
-import { TazqMindCard } from '@/features/dashboard/components/TazqMindCard';
-import { analyzeTaskLoad, applyZenDistribution, calculateZenDistribution, rescheduleTasks, undoRescheduleTasks, getLocalDateString } from '@/features/tasks/utils/taskBalancer';
-import { Task } from '@/features/tasks/store/useTaskStore';
+import { TazqZenCard } from '@/features/dashboard/components/TazqZenCard';
+import { CommandPortal } from '@/features/dashboard/components/CommandPortal';
+import { useZen } from '@/features/dashboard/hooks/useZen';
+import { isSomeday } from '@/features/tasks/utils/taskTags';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { TodayCard } from '@/features/dashboard/components/TodayCard';
 import { SectionHeader } from '@/shared/components/SectionHeader';
 import { NextMissionCard } from '@/features/dashboard/components/NextMissionCard';
 import { MyDayHabits } from '@/features/dashboard/components/MyDayHabits';
 import { MotiView, MotiText, AnimatePresence } from 'moti';
-import { ArrowLeft, BarChart3, BrainCircuit, CalendarDays, Check, CheckCircle2, ChevronRight, Coffee, Flame, Play, Plus, Rocket, Sparkles, Target, Trash2, TrendingUp, X, Zap } from 'lucide-react-native';
-import { AppBlur } from '@/shared/components/AppBlur';
+import { ArrowLeft, BarChart3, BrainCircuit, CalendarDays, Check, CheckCircle2, ChevronRight, Coffee, Flame, Plus, Rocket, Trash2, TrendingUp, Zap } from 'lucide-react-native';
 import { TaskService, AuthService } from '@/shared/services/api';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
@@ -54,7 +54,6 @@ import { useDemoGate, useTourGate } from '@/features/onboarding/utils/firstRun';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { scheduleWeeklySummary } from '@/shared/utils/notifications';
 import { Touchable } from '@/shared/components/Touchable';
-import { GlassSurface } from '@/shared/components/GlassSurface';
 import { StatusHubModal } from '@/features/dashboard/components/StatusHubModal';
 import { QuickAddSheet } from '@/features/tasks/components/QuickAddSheet';
 import { ModeTodayCard } from '@/features/modes/components/ModeTodayCard';
@@ -78,7 +77,6 @@ import { ReviewPromptModal } from '@/features/user/components/ReviewPromptModal'
 import { httpStatusOf, isNetworkError } from '@/shared/utils/errors';
 import { Colors } from '@/shared/constants/Colors';
 import { Separator } from '@/shared/components/Separator';
-import { AppIcon } from '@/shared/components/AppIcon';
 import { haptic } from '@/shared/utils/haptics';
 import { useChromeMinimizeOnScroll } from '@/shared/hooks/useChromeMinimizeOnScroll';
 import { savedLocallyMessage } from '@/shared/utils/saveFeedback';
@@ -114,12 +112,13 @@ export default function HomeScreen() {
    * Kaynakta bir kez süzmek, aşağıdaki her türev listeyi otomatik doğru kılıyor.
    */
   const tasks = React.useMemo(() => allTasks.filter(t => t && !t.isArchived), [allTasks]);
-  const balancerResult = React.useMemo(() => analyzeTaskLoad(tasks), [tasks]);
 
   const { user, setUser, token, isFirstLogin, setIsFirstLogin } = useAuthStore();
   const { t, language } = useLanguageStore();
   const { theme, colorScheme } = useAppTheme();
   const isDark = colorScheme === 'dark';
+  // TAZQZen: kart, menünün "Günü Kurtar"ı ve triage AYNI motoru kullanıyor (bkz. useZen).
+  const zen = useZen(language);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { show: showToast } = useToastStore();
@@ -152,8 +151,6 @@ export default function HomeScreen() {
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
   const [isCoreModalVisible, setIsCoreModalVisible] = useState(false);
-  const [triageVisible, setTriageVisible] = useState(false);
-  const [lastRescheduled, setLastRescheduled] = useState<Task[]>([]);
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -372,7 +369,6 @@ export default function HomeScreen() {
   const titleCollapseAt = useMemo(() => Math.max(heroHeight - S.lg, 1), [heroHeight]);
   const [commandPortalVisible, setCommandPortalVisible] = useState(false);
   const [portalSearch, setPortalSearch] = useState('');
-  const portalInputRef = useRef<TextInput>(null);
   const localStreak = useFocusStore(s => s.localStreak);
   const streak = localStreak;
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
@@ -625,7 +621,9 @@ export default function HomeScreen() {
       o sözü bozmamalı.
     */
     const dueAt = (t: any) => {
-      if (!t?.dueDate) return null;
+      // '0001-01-01' sunucunun "tarih yok" değeri (bkz. taskFilter) — yıl 1 sayılsaydı
+      // görev "bugüne kadar vadesi gelmiş" listesine girerdi.
+      if (!t?.dueDate || String(t.dueDate).startsWith('0001')) return null;
       const ms = new Date(t.dueDate).getTime();
       return Number.isNaN(ms) ? null : ms;
     };
@@ -636,7 +634,12 @@ export default function HomeScreen() {
     const today = todayKey();
 
     const incomplete = tasks.filter(t => t && !t.isCompleted && dueThroughToday(t));
-    const undated = tasks.filter(t => t && !t.isCompleted && dueAt(t) === null);
+    /*
+      BELKİ BİR GÜN tarihsiz ama "bugünün işi" değil: Zen onu bilerek günün dışına aldı.
+      Burada tarihsizlerle listelenseydi rafa kaldırılan iş ana sayfaya geri dönerdi.
+      Görevler ekranında etiketiyle duruyor.
+    */
+    const undated = tasks.filter(t => t && !t.isCompleted && dueAt(t) === null && !isSomeday(t));
     /*
       TAMAMLANANLAR: eski koşul KORUNUYOR, üstüne bir dal ekleniyor.
 
@@ -678,11 +681,12 @@ export default function HomeScreen() {
     ? demoMyDayTasks.filter(d => d.isCompleted).length
     : todayTasksCompleted.length;
   const dailyGoal = demoActive ? demoMyDayTasks.length : todayTasks.length;
-  const overdueCount = tasks.filter(t =>
-    !t.isCompleted && t.dueDate &&
-    new Date(t.dueDate).setHours(23, 59, 59, 999) < Date.now() &&
-    new Date(t.dueDate).toDateString() !== new Date().toDateString()
-  ).length;
+  /*
+    GECİKMİŞ SAYISI Zen'in analizinden: şerit ile Zen kartı aynı sayıyı söylemeli.
+    Eski yerel hesap sunucunun '0001' "tarih yok" değerini gecikmiş sayıyordu ve saf-gün
+    tarihini ('…T00:00:00Z') UTC'nin gerisindeki saat dilimlerinde bir gün kaydırıyordu.
+  */
+  const overdueCount = zen.analysis.overdue.length;
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -1352,12 +1356,13 @@ export default function HomeScreen() {
   };
 
   /**
-   * Marka işaretine dokunma — komut paletini açar (görev arama + akıllı hızlı ekleme).
+   * Marka işaretine dokunma — TAZQ Core menüsünü açar (hızlı ekle · günü kurtar ·
+   * odaklan · ayarlar). Komut paleti menünün "Hızlı Ekle"sinden açılır.
    *
    * Logonun nabız atması ve halkası KORUNUYOR: uygulamanın karakteri ve dokunuşun
    * kaydedildiğinin tek işareti.
    *
-   * Panel artık BEKLEMEDEN açılıyor. Eskiden 220ms gecikme vardı (nabız bitsin diye) ve
+   * Menü BEKLEMEDEN açılıyor. Eskiden 220ms gecikme vardı (nabız bitsin diye) ve
    * bu gözle görülür bir tepki gecikmesiydi — animasyon zaten paletin arkasında sürüyor,
    * bitmesini beklemek gerekmiyor. Haptik de tek `surface`e indi: açılan bir yüzeyin
    * karşılığı budur; çift atış (select + 130ms + surface) aynı olayı iki kez anlatıyordu.
@@ -1631,7 +1636,7 @@ export default function HomeScreen() {
           <Touchable
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={language === 'tr' ? 'Hızlı görev ve arama' : 'Quick task and search'}
+              accessibilityLabel={language === 'tr' ? 'TAZQ menüsü' : 'TAZQ menu'}
               onPress={handleLogoPress}
               // Dokunma hedefi 44pt (çubuğun tam boyu), GÖRSEL öğe 24pt: Apple'ın bar
               // button item'ı gibi. Eskiden padding S.smd (12) ile toplam 54.5pt olup
@@ -1745,16 +1750,12 @@ export default function HomeScreen() {
             </View>
 
             {!isLite && (
-              <TazqMindCard 
-                overdueCount={balancerResult.overdueTasks.length}
-                suggestedTasks={balancerResult.suggestedToMove}
-                onOptimize={() => {
-                  setLastRescheduled(balancerResult.suggestedToMove);
-                  const tomorrow = new Date();
-                  tomorrow.setDate(tomorrow.getDate() + 1);
-                  rescheduleTasks(balancerResult.suggestedToMove, getLocalDateString(tomorrow));
-                }}
-                onUndo={() => undoRescheduleTasks(lastRescheduled)}
+              <TazqZenCard
+                visible={zen.cardVisible}
+                plan={zen.overduePlan}
+                overdueTotal={zen.analysis.overdue.length}
+                onRebalance={zen.rebalanceOverdue}
+                onDismiss={zen.dismissCard}
                 theme={theme}
                 tr={tr}
               />
@@ -2190,247 +2191,19 @@ export default function HomeScreen() {
 
       <BottomNavBar />
 
-      <Modal
+      <CommandPortal
         visible={commandPortalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCommandPortalVisible(false)}
-        onShow={() => {
-          setTimeout(() => {
-            portalInputRef.current?.focus();
-          }, 80);
-        }}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
-          <AppBlur material="regular" />
-          
-          <TouchableWithoutFeedback accessible={false} onPress={() => { Keyboard.dismiss(); setCommandPortalVisible(false); }}>
-            <View style={StyleSheet.absoluteFill} importantForAccessibility="no-hide-descendants" />
-          </TouchableWithoutFeedback>
-          
-          <SafeAreaView style={{ flex: 1, paddingHorizontal: S.lmd }} pointerEvents="box-none">
-            <MotiView
-              from={{ translateY: -30, opacity: 0, scale: 0.96 }}
-              animate={{ translateY: 0, opacity: 1, scale: 1 }}
-              exit={{ translateY: -30, opacity: 0, scale: 0.96 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 180 }}
-              style={{
-                marginTop: S.xxl,
-                borderRadius: R.sheet,
-                borderWidth: 1.2,
-                borderColor: theme.primary + '25',
-                shadowColor: theme.primary,
-                shadowOffset: { width: 0, height: 16 },
-                shadowOpacity: isDark ? 0.35 : 0.12,
-                shadowRadius: 28,
-                elevation: 12,
-                overflow: 'hidden',
-                maxHeight: '65%'
-              }}
-            >
-              <GlassSurface radius={R.sheet} />
-              {/* Search Input Area */}
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: S.md,
-                paddingVertical: S.md,
-                borderBottomWidth: HAIRLINE,
-                borderBottomColor: theme.separator,
-                gap: S.smd
-              }}>
-                <Sparkles size={ICON.md} color={theme.primary} />
-                <TextInput
-                  ref={portalInputRef}
-                  style={{
-                    flex: 1,
-                    fontSize: F.body,
-                    fontWeight: '600',
-                    color: theme.onSurface,
-                    padding: 0,
-                    margin: 0
-                  }}
-                  placeholder={language === 'tr' ? 'Görev ara veya hızlı görev yaz...' : 'Search tasks or write a quick task...'}
-                  placeholderTextColor={theme.onSurfaceVariant + '80'}
-                  value={portalSearch}
-                  onChangeText={setPortalSearch}
-                  onSubmitEditing={() => savePortalTask()}
-                  returnKeyType="done"
-                />
-                {portalSearch.length > 0 && (
-                  <Touchable onPress={() => setPortalSearch('')} accessibilityRole="button" style={{ marginRight: S.xs }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: theme.primary }}>
-                      {language === 'tr' ? 'TEMİZLE' : 'CLEAR'}
-                    </Text>
-                  </Touchable>
-                )}
-                <Touchable
-                  accessibilityRole="button"
-                  accessibilityLabel={tr ? 'Kapat' : 'Close'}
-                  onPress={() => setCommandPortalVisible(false)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <X size={ICON.md} color={theme.onSurfaceVariant} opacity={0.6} />
-                </Touchable>
-              </View>
-
-              {/* Results / Navigation shortcuts */}
-              <ScrollView
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ padding: S.smd, gap: S.xs }}
-              >
-                {portalSearch.trim() === '' ? (
-                  // Shortcuts
-                  <View style={{ gap: S.xs }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: theme.onSurfaceMuted, paddingLeft: S.sm, paddingBottom: S.sm }}>
-                      {language === 'tr' ? 'HIZLI KISAYOLLAR' : 'QUICK SHORTCUTS'}
-                    </Text>
-                    {[
-                      {
-                        icon: <Play size={ICON.sm} color={theme.tertiary} fill={theme.tertiary} />,
-                        label: language === 'tr' ? 'Hızlı Odak Seansı Başlat' : 'Start Quick Focus Session',
-                        desc: language === 'tr' ? '25 dakikalık odaklanma başlat' : 'Launch a 25 min focus timer',
-                        onPress: () => {
-                          setCommandPortalVisible(false);
-                          startQuickFocus();
-                        }
-                      },
-                      {
-                        icon: <Target size={ICON.sm} color={theme.primary} />,
-                        label: language === 'tr' ? 'Tüm Görevleri Listele' : 'Show All Tasks List',
-                        desc: language === 'tr' ? 'Görevler sayfasına yönlendir' : 'Go to tasks management screen',
-                        onPress: () => {
-                          setCommandPortalVisible(false);
-                          router.push('/tasks');
-                        }
-                      },
-                      {
-                        icon: <Rocket size={ICON.sm} color={theme.primary} />,
-                        label: language === 'tr' ? 'Aktif Modları Yönet' : 'Manage Active Modes',
-                        desc: language === 'tr' ? 'Alışkanlık planlarını keşfet' : 'Explore habits and life modes',
-                        onPress: () => {
-                          setCommandPortalVisible(false);
-                          router.push('/modlar');
-                        }
-                      }
-                    ].map((shortcut, idx) => (
-                      <Touchable
-                        key={idx}
-                        onPress={shortcut.onPress}
-                        accessibilityRole="button"
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          paddingHorizontal: S.smd,
-                          paddingVertical: S.smd,
-                          borderRadius: R.md,
-                          backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                          gap: S.smd
-                        }}
-                      >
-                        <View style={{ width: 30, height: 30, borderRadius: R.sm, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', alignItems: 'center', justifyContent: 'center' }}>
-                          {shortcut.icon}
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: F.caption2, fontWeight: '700', color: theme.onSurface }}>{shortcut.label}</Text>
-                          <Text style={{ fontSize: 10, fontWeight: '500', color: theme.onSurfaceMuted }}>{shortcut.desc}</Text>
-                        </View>
-                        <ChevronRight size={ICON.sm} color={theme.onSurfaceVariant} opacity={0.3} />
-                      </Touchable>
-                    ))}
-                  </View>
-                ) : (
-                  // Search Results
-                  <View style={{ gap: S.xs }}>
-                    {/* Quick Add Row */}
-                    <Touchable
-                      onPress={() => savePortalTask()}
-                      accessibilityRole="button"
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        paddingHorizontal: S.smd,
-                        paddingVertical: S.smd,
-                        borderRadius: R.md,
-                        backgroundColor: theme.primary + '12',
-                        borderWidth: 1,
-                        borderColor: theme.primary + '30',
-                        gap: S.smd,
-                        marginBottom: S.sm
-                      }}
-                    >
-                      <AppIcon Icon={Plus} color={theme.primary} size={28} radius={R.sm} iconSize={ICON.sm} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: F.caption2, fontWeight: '700', color: theme.primary }} numberOfLines={1}>
-                          {language === 'tr' ? `"${portalSearch}" görevini ekle` : `Add task "${portalSearch}"`}
-                        </Text>
-                        <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted }}>
-                          {language === 'tr' ? 'Otomatik zaman ve öncelik tespiti ile ekler' : 'Adds with automatic time & priority parsing'}
-                        </Text>
-                      </View>
-                    </Touchable>
-
-                    {/* Matching Tasks */}
-                    {(() => {
-                      /*
-                        İki kusur: `toLowerCase()` Türkçe'de yanlış çalışıyor ('İ' → 'i̇')
-                        ve arama HAM `title` üzerinde yapılıyordu. Kullanıcı ekranda
-                        yerelleştirilmiş adı görüyor (bkz. getLocalizedTaskTitle), yani
-                        gördüğü kelimeyi arattığında bulamıyordu.
-                      */
-                      const needle = portalSearch.toLocaleLowerCase(tr ? 'tr-TR' : 'en-US');
-                      const matchedTasks = tasks.filter(t =>
-                        getLocalizedTaskTitle(t, tr).toLocaleLowerCase(tr ? 'tr-TR' : 'en-US').includes(needle),
-                      );
-                      if (matchedTasks.length === 0) return null;
-                      return (
-                        <View style={{ gap: S.xs }}>
-                          <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: theme.onSurfaceMuted, paddingLeft: S.sm, paddingBottom: S.xs }}>
-                            {language === 'tr' ? 'GÖREVLER' : 'TASKS'}
-                          </Text>
-                          {matchedTasks.slice(0, 5).map(task => (
-                            <Touchable
-                              key={task.id}
-                              onPress={() => {
-                                setCommandPortalVisible(false);
-                                router.push({ pathname: '/tasks', params: { highlightId: task.id } });
-                              }}
-                              accessibilityRole="button"
-                              style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                paddingHorizontal: S.smd,
-                                paddingVertical: S.smd,
-                                borderRadius: R.md,
-                                backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                                gap: S.smd
-                              }}
-                            >
-                              <View style={{ width: 6, height: 6, borderRadius: R.full, backgroundColor: priorityColor(task.priority) }} />
-                              <View style={{ flex: 1 }}>
-                                <Text style={{
-                                  fontSize: F.caption2,
-                                  fontWeight: '600',
-                                  color: task.isCompleted ? theme.onSurfaceVariant : theme.onSurface,
-                                  textDecorationLine: task.isCompleted ? 'line-through' : 'none',
-                                  opacity: task.isCompleted ? 0.5 : 1
-                                }} numberOfLines={1}>
-                                    {getLocalizedTaskTitle(task, language === 'tr')}
-                                </Text>
-                              </View>
-                              <ChevronRight size={ICON.xs} color={theme.onSurfaceVariant} opacity={0.3} />
-                            </Touchable>
-                          ))}
-                        </View>
-                      );
-                    })()}
-                  </View>
-                )}
-              </ScrollView>
-            </MotiView>
-          </SafeAreaView>
-        </View>
-      </Modal>
+        onClose={() => setCommandPortalVisible(false)}
+        query={portalSearch}
+        onQueryChange={setPortalSearch}
+        onSubmit={savePortalTask}
+        onQuickFocus={startQuickFocus}
+        tasks={tasks}
+        priorityColor={priorityColor}
+        theme={theme}
+        isDark={isDark}
+        tr={tr}
+      />
 
       <WeightEntryModal
         visible={weightModalTaskId !== null}
@@ -2438,67 +2211,30 @@ export default function HomeScreen() {
         onClose={() => setWeightModalTaskId(null)}
       />
       
-      <TazqCoreMenu 
+      <TazqCoreMenu
         visible={isCoreModalVisible}
         onClose={() => setIsCoreModalVisible(false)}
         onQuickAdd={() => {
           setPortalSearch('');
           setCommandPortalVisible(true);
         }}
-        onZenMode={() => {
-          if (balancerResult.suggestedToMove.length > 0) {
-            const updates = calculateZenDistribution(balancerResult.suggestedToMove, tasks);
-            applyZenDistribution(updates);
-            
-            const distributedCount = updates.filter(u => u.newDate !== null).length;
-            const iceboxCount = updates.filter(u => u.newDate === null).length;
-            
-            Alert.alert(
-              language === 'tr' ? 'Günün Kurtarıldı' : 'Day Saved',
-              language === 'tr' 
-                ? `${distributedCount > 0 ? `${distributedCount} görev ileri tarihlere serpiştirildi.\n` : ''}${iceboxCount > 0 ? `${iceboxCount} görev nadasa alındı (Belki Bir Gün).` : ''}`.trim()
-                : `${distributedCount > 0 ? `${distributedCount} tasks distributed to future dates.\n` : ''}${iceboxCount > 0 ? `${iceboxCount} tasks moved to icebox (Someday).` : ''}`.trim()
-            );
-          } else if (todayTasksIncomplete.length >= 5) {
-            setTriageVisible(true);
-          } else {
-            Alert.alert(
-              language === 'tr' ? 'Harika Gidiyorsun!' : 'Doing Great!', 
-              language === 'tr' ? 'Şu an ertelenecek birikmiş görev veya yoğun bir gün yükü yok.' : 'No overdue tasks or heavy load to balance right now.'
-            );
-          }
-        }}
-        onNextTask={() => {
-          // For now, start focus mode or alert. The easiest high-value action is Focus Mode.
-          startQuickFocus();
-        }}
-        onSettings={() => {
-          router.push('/profile');
-        }}
+        onSaveTheDay={() => { void zen.saveTheDay(); }}
+        onFocus={startQuickFocus}
+        focusTaskTitle={topTaskToday ? getLocalizedTaskTitle(topTaskToday, tr) : null}
+        onSettings={() => router.push('/settings')}
         theme={theme}
-        isDark={isDark}
-        tr={language === 'tr'}
+        tr={tr}
       />
 
       <TriageModal
-        visible={triageVisible}
-        onClose={() => setTriageVisible(false)}
-        tasks={todayTasksIncomplete}
-        onSelectTask={(keptTask, tasksToMove) => {
-          setTriageVisible(false);
-          const updates = calculateZenDistribution(tasksToMove, tasks);
-          applyZenDistribution(updates);
-          
-          Alert.alert(
-            language === 'tr' ? 'Odak Moduna Hazırsın' : 'Ready to Focus',
-            language === 'tr' 
-              ? `Sadece "${getLocalizedTaskTitle(keptTask, true)}" görevine odaklan. Diğerleri senin için ayarlandı.`
-              : `Focus only on "${getLocalizedTaskTitle(keptTask, false)}". The rest have been handled.`
-          );
-        }}
+        visible={zen.triageVisible}
+        onClose={zen.closeTriage}
+        tasks={zen.analysis.movableToday}
+        preview={zen.previewTriage}
+        onConfirm={(keepIds) => { void zen.confirmTriage(keepIds); }}
+        fixedCount={zen.todayFixedCount}
         theme={theme}
-        isDark={isDark}
-        tr={language === 'tr'}
+        tr={tr}
       />
 
       {/*

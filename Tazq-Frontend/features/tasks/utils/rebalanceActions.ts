@@ -4,6 +4,7 @@ import { SOMEDAY_TAG } from '@/features/tasks/utils/taskTags';
 import { wantsReminder } from '@/features/tasks/utils/recurrenceInterval';
 import { cancelTaskNotification, scheduleTaskNotification } from '@/shared/utils/notifications';
 import { swallow } from '@/shared/utils/swallow';
+import { parseDateKey } from '@/shared/utils/dateKey';
 import type { RebalancePlan } from '@/features/tasks/utils/taskBalancer';
 
 /**
@@ -25,6 +26,18 @@ import type { RebalancePlan } from '@/features/tasks/utils/taskBalancer';
  * sistemi hatırlatıcıyı BUGÜNE kurar (bkz. scheduleTaskNotification). Geri almada eski
  * saat geri gelir.
  */
+
+/**
+ * Motorun gün anahtarı ('2026-09-21') → uygulamanın yazma biçimi: o günün YEREL
+ * öğleni (bkz. taskActions → localDateISO). Yalın tarih `new Date()` ile UTC gece
+ * yarısı okunur ve UTC'nin gerisindeki saat dilimlerinde görev bir ÖNCEKİ güne düşer;
+ * öğlen, her saat diliminde ve yaz saati geçişinde aynı günde kalır.
+ */
+export function dayKeyToDueDate(key: string): string {
+  const d = parseDateKey(key);
+  d.setHours(12, 0, 0, 0);
+  return d.toISOString();
+}
 
 export interface ApplyContext {
   language: string;
@@ -91,7 +104,12 @@ export async function applyRebalance(plan: RebalancePlan, ctx: ApplyContext): Pr
     const tags = to === null
       ? Array.from(new Set([...snap.tags, SOMEDAY_TAG]))
       : snap.tags; // tarih verildiği için patchTask etiketi kendisi düşürür
-    const next: Snapshot = { ...snap, dueDate: to, dueTime: to === null ? null : snap.dueTime, tags };
+    const next: Snapshot = {
+      ...snap,
+      dueDate: to === null ? null : dayKeyToDueDate(to),
+      dueTime: to === null ? null : snap.dueTime,
+      tags,
+    };
 
     const result = await patchTask(fresh.id, { dueDate: next.dueDate, dueTime: next.dueTime, tags: next.tags });
     if (result === 'failed') { failed += 1; return; }

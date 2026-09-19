@@ -40,7 +40,7 @@ export interface TazqCoreMenuProps {
 const copy = (tr: boolean) => tr
   ? {
       menu: 'TAZQ menüsü',
-      quickAdd: 'Hızlı Ekle',
+      quickAdd: 'Ara veya Ekle',
       saveDay: 'Günü Kurtar',
       saveDayHint: 'Birikeni dağıtır ya da günü sadeleştirir',
       focus: 'Odaklan',
@@ -49,7 +49,7 @@ const copy = (tr: boolean) => tr
     }
   : {
       menu: 'TAZQ menu',
-      quickAdd: 'Quick Add',
+      quickAdd: 'Search or Add',
       saveDay: 'Save the Day',
       saveDayHint: 'Spreads the backlog or simplifies today',
       focus: 'Focus',
@@ -169,5 +169,5 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1 },
   title: { fontSize: F.body, fontWeight: W.medium },
-  sub: { fontSize: F.caption, marginTop: 2 },
+  sub: { fontSize: F.caption, marginTop: S.xxs },
 });

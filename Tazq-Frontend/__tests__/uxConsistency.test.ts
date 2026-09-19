@@ -457,24 +457,36 @@ describe('ana sayfa başlığı — tek sistem', () => {
 });
 
 /**
- * Komut paletinin (görev arama + akıllı hızlı ekleme) girişi marka işaretine dokunmak.
- * Logo bir ara kaldırıldığında bu özellik de sessizce erişilemez kalmıştı — bir daha
- * olmasın diye giriş test altında.
+ * Marka işaretine dokunmak TAZQ Core menüsünü açar; komut paleti (görev arama + akıllı
+ * hızlı ekleme) menünün "Ara veya Ekle"sinden açılır. Logo bir ara kaldırıldığında
+ * palet sessizce erişilemez kalmıştı — bir daha olmasın diye iki halka da test altında.
  */
 describe('komut paleti erişilebilir', () => {
   const src = read('app/index.tsx');
+  // Yorumlar elenir: başlık notu eski kodu ÖRNEK olarak anlatıyor, kod sanılmasın.
+  const menu = stripComments(read('features/dashboard/components/TazqCoreMenu.tsx'));
 
-  it('logonun bir işi var — paleti açar', () => {
-    expect(src).toContain('const handleLogoPress = useCallback(');
-    expect(src).toContain('setCommandPortalVisible(true)');
+  it('logonun bir işi var — menüyü açar', () => {
+    const fn = src.match(/const handleLogoPress = useCallback\([\s\S]*?\n  \}, \[\]\);/)?.[0] ?? '';
+    expect(fn).toContain('setIsCoreModalVisible(true)');
   });
 
-  it('paleti açan tek yol odur — gizli ikinci bir tetik yok', () => {
+  it('paleti açan tek yol menünün "Ara veya Ekle"si — gizli ikinci bir tetik yok', () => {
     const opens = src.match(/setCommandPortalVisible\(true\)/g) ?? [];
     expect(opens).toHaveLength(1);
+    expect(src).toMatch(/onQuickAdd=\{\(\) => \{\s*setPortalSearch\(''\);\s*setCommandPortalVisible\(true\);/);
   });
 
-  it('panel BEKLEMEDEN açılır', () => {
+  it('menü eylemi menü KAPANDIKTAN sonra çalışır — iOS ikinci modalı yutmasın', () => {
+    // `onClose(); setTimeout(onPress, 50)` iOS'ta kapanan modalın üstüne yenisini
+    // açmaya çalışıyordu ve palet bazen hiç açılmıyordu.
+    expect(menu).toContain('onDismiss={flush}');
+    expect(menu).not.toMatch(/setTimeout\(onPress/);
+    // Modal hep bağlı: `if (!visible) return null` kapanış animasyonunu ve onDismiss'i keserdi.
+    expect(menu).not.toMatch(/if \(!visible\) return null/);
+  });
+
+  it('menü BEKLEMEDEN açılır', () => {
     // 220ms gecikme vardı (logo nabzı bitsin diye) — gözle görülür bir tepki
     // gecikmesiydi. Animasyon paletin arkasında sürebilir, beklemek gerekmiyor.
     const fn = src.match(/const handleLogoPress = useCallback\([\s\S]*?\n  \}, \[\]\);/)?.[0] ?? '';
