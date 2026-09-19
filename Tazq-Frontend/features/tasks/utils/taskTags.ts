@@ -42,6 +42,8 @@ export function visibleTextTags(tags?: string[] | null): string[] {
 }
 
 const TAG_TRANSLATIONS: Record<string, { tr: string; en: string }> = {
+  // Belki Bir Gün — TAZQZen'in rafa kaldırdığı görevler (bkz. SOMEDAY_TAG).
+  someday:   { tr: 'belki bir gün', en: 'someday' },
   // Core tag IDs
   work:      { tr: 'iş',        en: 'work'        },
   health:    { tr: 'sağlık',    en: 'health'      },
@@ -104,3 +106,45 @@ export function translateTag(tag: string, lang: 'tr' | 'en'): string {
   return tag; // Return original as fallback
 }
 
+
+
+/**
+ * BELKİ BİR GÜN — tarihi bilerek kaldırılmış, rafa alınmış görev.
+ *
+ * ── NEDEN BİR ETİKET ───────────────────────────────────────────────────────────
+ * TAZQZen eski ve sığmayan işleri "Belki Bir Gün"e alıyor. Bu kavram veri modelinde
+ * YOKTU: tarih yalnız `null` yapılıyordu. Oysa tarihsiz görev uygulamada "her zaman
+ * görünür birikim" demek — ana ekran onu BUGÜNÜN listesinde gösteriyor. Yani rafa
+ * kaldırılan iş, kullanıcının önünden hiç çekilmiyordu; "Belki Bir Gün'e alındı"
+ * mesajı karşılığı olmayan bir sözdü.
+ *
+ * Etiket sunucuda zaten saklanan bir alan: yeni bir sütun, göç ya da API değişikliği
+ * gerekmiyor. Kural üç satır:
+ *   · rafa alınan görev: tarih yok + bu etiket
+ *   · ana ekranın bugün listesi onu göstermez; Aksiyon Merkezi gösterir (etiket
+ *     "belki bir gün" diye okunur, kullanıcı neden tarihsiz olduğunu bilir)
+ *   · göreve yeniden bir TARİH verildiği an etiket kendiliğinden düşer
+ *     (bkz. withSomedayResolved) — elle temizlik gerektirmez.
+ */
+export const SOMEDAY_TAG = 'someday';
+
+/** Görev "Belki Bir Gün"de mi? */
+export function isSomeday(task: { tags?: string[] | null } | null | undefined): boolean {
+  return !!task?.tags?.includes(SOMEDAY_TAG);
+}
+
+/**
+ * Tarih verilen görevden "Belki Bir Gün" etiketini düşürür.
+ *
+ * Rafa alınmış bir görev yeniden planlandığında hâlâ "belki bir gün" diye etiketli
+ * kalsaydı, hem bugünün listesinden gizlenir hem de tarihi olan bir işe "belki"
+ * denirdi. Tarihin kendisi etiketin anlamını geçersiz kılıyor.
+ */
+export function withSomedayResolved(
+  tags: string[] | null | undefined,
+  dueDate: string | null | undefined,
+): string[] {
+  const list = tags ?? [];
+  const hasDate = !!dueDate && !String(dueDate).startsWith('0001');
+  return hasDate ? list.filter((t) => t !== SOMEDAY_TAG) : list;
+}

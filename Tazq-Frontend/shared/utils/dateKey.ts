@@ -60,3 +60,36 @@ export function dateKeyFromNow(days: number): string {
   d.setDate(d.getDate() + days);
   return toDateKey(d);
 }
+
+/**
+ * Bir görev tarihinin (`dueDate`) TAKVİM GÜNÜ — ya da tarihi yoksa `null`.
+ *
+ * ── NEDEN AYRI BİR OKUYUCU ──────────────────────────────────────────────────────
+ * Görev tarihi uygulamada üç ayrı biçimde dolaşıyor ve bunları karıştırmak ölçülerek
+ * gösterilmiş hatalar üretti (bkz. __tests__/taskBalancer.test.ts):
+ *
+ *   1. `'2026-09-19'`            — istemcinin yazdığı saf gün (form, `toDateKey`).
+ *   2. `'2026-09-19T00:00:00Z'`  — AYNI günün sunucudan dönen hâli. Sunucu saf günü
+ *      alıp UTC gece yarısı olarak saklıyor (bkz. TaskService.UpdateTaskAsync →
+ *      `SpecifyKind(Utc)`) ve öyle geri veriyor.
+ *   3. `'2026-09-18T22:30:00Z'`  — gerçek bir AN (ör. `new Date().toISOString()` ile
+ *      kurulan hatırlatıcı). Bu, yerel saate çevrilince anlam kazanır: Türkiye'de
+ *      19 Eylül 01:30'dur.
+ *
+ * Ayrıca sunucunun "tarih yok" değeri `'0001-01-01…'` (bkz. taskFilter). Onu gerçek bir
+ * tarih saymak, görevi "2000 yıl gecikmiş" yapar.
+ *
+ * KURAL: Saf gün olduğu gibi alınır. Saati TAM UTC gece yarısı olan değer, sunucunun
+ * saf günü sakladığı biçimdir → gün kısmı alınır (UTC'ye çevirmek negatif saat
+ * dilimlerinde bir gün geri kaydırırdı). Başka her an YEREL güne çevrilir.
+ */
+export function calendarDayOf(value: string | null | undefined): string | null {
+  if (!value || typeof value !== 'string') return null;
+  if (value.startsWith('0001')) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  // Sunucunun saf-gün biçimi: T00:00:00 (salise ve 'Z' isteğe bağlı), başka ofset yok.
+  const dateOnly = /^(\d{4}-\d{2}-\d{2})T00:00:00(?:\.0+)?Z?$/.exec(value);
+  if (dateOnly) return dateOnly[1];
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : toDateKey(d);
+}

@@ -1,95 +1,153 @@
-import React from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Modal, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView } from 'moti';
-import { F, S, W } from '@/shared/constants/tokens';
+import { Plus, Wind, Target, Settings, type LucideIcon } from 'lucide-react-native';
+import { GlassSurface } from '@/shared/components/GlassSurface';
+import { Touchable } from '@/shared/components/Touchable';
+import { F, S, R, W, ICON, MIN_TOUCH, topBarSpace } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
-import { Plus, Wind, Target, Settings } from 'lucide-react-native';
+
+/**
+ * TAZQ CORE — marka işaretinin açtığı menü.
+ *
+ * ── ÖNCEKİ HÂLİN SORUNLARI ────────────────────────────────────────────────────
+ *  · Menü kapanırken bir sonraki yüzeyi `setTimeout(50)` ile açıyordu. iOS bir modal
+ *    kapanırken ikincisini açmayı SESSİZCE reddedebilir: "Hızlı Ekle"ye basınca bazen
+ *    hiçbir şey açılmıyordu. Eylem artık menü GERÇEKTEN kapandıktan sonra çalışıyor
+ *    (iOS: onDismiss; Android'de o olay yok, kapanış anında; güvenlik için süreli yedek).
+ *  · `if (!visible) return null` modalı kapanış animasyonu bitmeden söküyordu — iOS'ta
+ *    onDismiss de bu yüzden hiç gelmezdi. Modal artık hep bağlı; görünürlüğü prop yönetiyor.
+ *  · "Ayarlar" profil sayfasına gidiyordu; ayarların kendi sayfası var.
+ *  · "Sıradaki İş" hangi işe odaklanılacağını söylemiyordu ve kırmızıydı (kırmızı hata
+ *    içindir). Satır artık görevin adını gösteriyor; iş yoksa serbest odak olduğunu.
+ *  · Ekran okuyucu satırların düğme olduğunu duymuyordu; zemin opak ve sabit renkliydi.
+ */
 
 export interface TazqCoreMenuProps {
   visible: boolean;
   onClose: () => void;
   onQuickAdd: () => void;
-  onZenMode: () => void;
-  onNextTask: () => void;
+  onSaveTheDay: () => void;
+  onFocus: () => void;
+  /** Odak seansının bağlanacağı görev — yoksa serbest odak. */
+  focusTaskTitle: string | null;
   onSettings: () => void;
   theme: AppTheme;
-  isDark: boolean;
   tr: boolean;
 }
 
-export const TazqCoreMenu = React.memo<TazqCoreMenuProps>(({ 
-  visible, onClose, onQuickAdd, onZenMode, onNextTask, onSettings, theme, isDark, tr 
-}) => {
-  if (!visible) return null;
+const copy = (tr: boolean) => tr
+  ? {
+      menu: 'TAZQ menüsü',
+      quickAdd: 'Hızlı Ekle',
+      saveDay: 'Günü Kurtar',
+      saveDayHint: 'Birikeni dağıtır ya da günü sadeleştirir',
+      focus: 'Odaklan',
+      freeFocus: 'Serbest odak · 25 dk',
+      settings: 'Ayarlar',
+    }
+  : {
+      menu: 'TAZQ menu',
+      quickAdd: 'Quick Add',
+      saveDay: 'Save the Day',
+      saveDayHint: 'Spreads the backlog or simplifies today',
+      focus: 'Focus',
+      freeFocus: 'Free focus · 25 min',
+      settings: 'Settings',
+    };
 
-  const MenuAction = ({ icon: Icon, title, onPress, color, isLast = false }: any) => (
-    <TouchableOpacity 
-      style={[
-        styles.actionRow, 
-        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.outlineVariant }
-      ]} 
-      onPress={() => {
-        onClose();
-        setTimeout(onPress, 50);
-      }}
-    >
-      <Text style={[styles.actionTitle, { color: theme.onSurface }]}>{title}</Text>
-      <Icon size={20} color={color} strokeWidth={2.5} />
-    </TouchableOpacity>
-  );
+/** iOS'ta onDismiss gelmezse eylemin yine de çalışacağı üst süre. */
+const DISMISS_FALLBACK_MS = 450;
+
+export const TazqCoreMenu = React.memo<TazqCoreMenuProps>(({
+  visible, onClose, onQuickAdd, onSaveTheDay, onFocus, focusTaskTitle, onSettings, theme, tr,
+}) => {
+  const c = copy(tr);
+  const insets = useSafeAreaInsets();
+  const pendingRef = useRef<(() => void) | null>(null);
+  const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Bekleyen eylemi EN FAZLA BİR KEZ çalıştırır. */
+  const flush = () => {
+    if (fallbackRef.current) { clearTimeout(fallbackRef.current); fallbackRef.current = null; }
+    const run = pendingRef.current;
+    pendingRef.current = null;
+    run?.();
+  };
+
+  useEffect(() => {
+    if (visible || !pendingRef.current) return;
+    if (Platform.OS !== 'ios') { flush(); return; }
+    fallbackRef.current = setTimeout(flush, DISMISS_FALLBACK_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  useEffect(() => () => { if (fallbackRef.current) clearTimeout(fallbackRef.current); }, []);
+
+  const choose = (action: () => void) => {
+    pendingRef.current = action;
+    onClose();
+  };
+
+  const items: { key: string; icon: LucideIcon; title: string; sub?: string; color: string; action: () => void }[] = [
+    { key: 'add', icon: Plus, title: c.quickAdd, color: theme.primary, action: onQuickAdd },
+    { key: 'zen', icon: Wind, title: c.saveDay, sub: c.saveDayHint, color: theme.tertiary, action: onSaveTheDay },
+    { key: 'focus', icon: Target, title: c.focus, sub: focusTaskTitle ?? c.freeFocus, color: theme.primary, action: onFocus },
+    { key: 'settings', icon: Settings, title: c.settings, color: theme.onSurfaceMuted, action: onSettings },
+  ];
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="none" // MotiView handles the animation
+      animationType="fade"
+      statusBarTranslucent
       onRequestClose={onClose}
+      onDismiss={flush}
     >
-      {/* Hafif karartılmış şeffaf arka plan */}
-      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.2)' }]} onPress={onClose}>
-        
-        <View style={styles.contentContainer} pointerEvents="box-none">
-          <MotiView 
-            from={{ opacity: 0, scale: 0.95, translateY: -10 }}
-            animate={{ opacity: 1, scale: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 200 }}
-            style={{ width: 250 }}
-          >
-            {/* Minimalist Dropdown Kartı */}
-            <View style={[
-              styles.card, 
-              { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: theme.outlineVariant, borderWidth: 1 }
-            ]}>
-              <MenuAction 
-                icon={Plus} 
-                title={tr ? "Hızlı Ekle" : "Quick Add"}
-                color={theme.primary}
-                onPress={onQuickAdd}
-              />
-              <MenuAction 
-                icon={Wind} 
-                title={tr ? "Günü Kurtar" : "Save the Day"}
-                color={theme.tertiary}
-                onPress={onZenMode}
-              />
-              <MenuAction 
-                icon={Target} 
-                title={tr ? "Sıradaki İş" : "Next Task"}
-                color={theme.error}
-                onPress={onNextTask}
-              />
-              <MenuAction 
-                icon={Settings} 
-                title={tr ? "Ayarlar" : "Settings"}
-                color={theme.onSurfaceMuted}
-                onPress={onSettings}
-                isLast
-              />
-            </View>
-          </MotiView>
-        </View>
+      <View style={[styles.root, { paddingTop: topBarSpace(insets.top) + S.xs }]}>
+        <Touchable
+          style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.25)' }]}
+          activeOpacity={1}
+          onPress={onClose}
+          accessible={false}
+        />
 
-      </Pressable>
+        <MotiView
+          from={{ opacity: 0, scale: 0.94, translateY: -8 }}
+          animate={{ opacity: 1, scale: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 20, stiffness: 260 }}
+          style={styles.card}
+          accessibilityViewIsModal
+          accessibilityLabel={c.menu}
+        >
+          <GlassSurface radius={R.lg} />
+          {items.map((it, i) => {
+            const Icon = it.icon;
+            return (
+              <Touchable
+                key={it.key}
+                onPress={() => choose(it.action)}
+                accessibilityRole="menuitem"
+                accessibilityLabel={it.sub ? `${it.title}, ${it.sub}` : it.title}
+                style={[
+                  styles.row,
+                  i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.outlineVariant },
+                ]}
+              >
+                <View style={styles.rowText}>
+                  <Text style={[styles.title, { color: theme.onSurface }]}>{it.title}</Text>
+                  {it.sub ? (
+                    <Text style={[styles.sub, { color: theme.onSurfaceMuted }]} numberOfLines={1}>{it.sub}</Text>
+                  ) : null}
+                </View>
+                <Icon size={ICON.md} color={it.color} strokeWidth={2.2} />
+              </Touchable>
+            );
+          })}
+        </MotiView>
+      </View>
     </Modal>
   );
 });
@@ -97,31 +155,19 @@ export const TazqCoreMenu = React.memo<TazqCoreMenuProps>(({
 TazqCoreMenu.displayName = 'TazqCoreMenu';
 
 const styles = StyleSheet.create({
-  contentContainer: {
-    flex: 1,
-    paddingTop: 100, // Header'ın (logonun) hemen altından açılması için
-    alignItems: 'center', // Ortada açılır
-    zIndex: 10,
-  },
+  root: { flex: 1, alignItems: 'center', paddingHorizontal: S.lg },
   card: {
     width: '100%',
-    borderRadius: 14, // Apple style dropdown border radius
+    maxWidth: 300,
+    borderRadius: R.lg,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 10,
+    ...(Platform.OS === 'android' ? { elevation: 8 } : null),
   },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+  row: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    gap: S.md, minHeight: MIN_TOUCH, paddingVertical: S.smd, paddingHorizontal: S.md,
   },
-  actionTitle: {
-    fontSize: 16, // F.body
-    fontWeight: W.medium, // W.medium for Apple style context menu
-  }
+  rowText: { flex: 1 },
+  title: { fontSize: F.body, fontWeight: W.medium },
+  sub: { fontSize: F.caption, marginTop: 2 },
 });
