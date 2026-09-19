@@ -13,8 +13,10 @@ import { DynamicIsland } from '@/features/focus';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { ScreenHeader } from '@/shared/components/ScreenHeader';
 import { DashboardHero } from '@/features/dashboard/components/DashboardHero';
+import { TazqCoreMenu } from '@/features/dashboard/components/TazqCoreMenu';
+import { TriageModal } from '@/features/dashboard/components/TriageModal';
 import { TazqMindCard } from '@/features/dashboard/components/TazqMindCard';
-import { analyzeTaskLoad, rescheduleTasks, undoRescheduleTasks, getLocalDateString } from '@/features/tasks/utils/taskBalancer';
+import { analyzeTaskLoad, applyZenDistribution, calculateZenDistribution, rescheduleTasks, undoRescheduleTasks, getLocalDateString } from '@/features/tasks/utils/taskBalancer';
 import { Task } from '@/features/tasks/store/useTaskStore';
 import { TazqLogo } from '@/shared/components/TazqLogo';
 import { TodayCard } from '@/features/dashboard/components/TodayCard';
@@ -149,6 +151,8 @@ export default function HomeScreen() {
   const { seasonal, weeklyNotification, examPlanHabitIds, examPlanTaskIds, ramazanPlanHabitIds, ramazanPlanTaskIds, setPlanIds, dismissedBannerKey, setDismissedBannerKey, avatarBorderColor, soundEffects, productivityHour, completedTours, setOnboardingCompleted, welcomeStatus, _hasHydrated: prefsHydrated } = usePrefsStore();
 
   const [profileSetupVisible, setProfileSetupVisible] = useState(false);
+  const [isCoreModalVisible, setIsCoreModalVisible] = useState(false);
+  const [triageVisible, setTriageVisible] = useState(false);
   const [lastRescheduled, setLastRescheduled] = useState<Task[]>([]);
   const isNamePlaceholder = user?.name === 'TAZQ Kullanıcısı' || !!(user?.email && user?.name && user?.name === user?.email.split('@')[0]);
 
@@ -1361,8 +1365,7 @@ export default function HomeScreen() {
   const handleLogoPress = useCallback(() => {
     haptic.surface();
     setLogoTick(prev => prev + 1);
-    setPortalSearch('');
-    setCommandPortalVisible(true);
+    setIsCoreModalVisible(true);
   }, []);
 
   const todaySurprise = (() => {
@@ -2433,6 +2436,69 @@ export default function HomeScreen() {
         visible={weightModalTaskId !== null}
         taskId={weightModalTaskId}
         onClose={() => setWeightModalTaskId(null)}
+      />
+      
+      <TazqCoreMenu 
+        visible={isCoreModalVisible}
+        onClose={() => setIsCoreModalVisible(false)}
+        onQuickAdd={() => {
+          setPortalSearch('');
+          setCommandPortalVisible(true);
+        }}
+        onZenMode={() => {
+          if (balancerResult.suggestedToMove.length > 0) {
+            const updates = calculateZenDistribution(balancerResult.suggestedToMove, tasks);
+            applyZenDistribution(updates);
+            
+            const distributedCount = updates.filter(u => u.newDate !== null).length;
+            const iceboxCount = updates.filter(u => u.newDate === null).length;
+            
+            Alert.alert(
+              language === 'tr' ? 'Günün Kurtarıldı' : 'Day Saved',
+              language === 'tr' 
+                ? `${distributedCount > 0 ? `${distributedCount} görev ileri tarihlere serpiştirildi.\n` : ''}${iceboxCount > 0 ? `${iceboxCount} görev nadasa alındı (Belki Bir Gün).` : ''}`.trim()
+                : `${distributedCount > 0 ? `${distributedCount} tasks distributed to future dates.\n` : ''}${iceboxCount > 0 ? `${iceboxCount} tasks moved to icebox (Someday).` : ''}`.trim()
+            );
+          } else if (todayTasksIncomplete.length >= 5) {
+            setTriageVisible(true);
+          } else {
+            Alert.alert(
+              language === 'tr' ? 'Harika Gidiyorsun!' : 'Doing Great!', 
+              language === 'tr' ? 'Şu an ertelenecek birikmiş görev veya yoğun bir gün yükü yok.' : 'No overdue tasks or heavy load to balance right now.'
+            );
+          }
+        }}
+        onNextTask={() => {
+          // For now, start focus mode or alert. The easiest high-value action is Focus Mode.
+          startQuickFocus();
+        }}
+        onSettings={() => {
+          router.push('/profile');
+        }}
+        theme={theme}
+        isDark={isDark}
+        tr={language === 'tr'}
+      />
+
+      <TriageModal
+        visible={triageVisible}
+        onClose={() => setTriageVisible(false)}
+        tasks={todayTasksIncomplete}
+        onSelectTask={(keptTask, tasksToMove) => {
+          setTriageVisible(false);
+          const updates = calculateZenDistribution(tasksToMove, tasks);
+          applyZenDistribution(updates);
+          
+          Alert.alert(
+            language === 'tr' ? 'Odak Moduna Hazırsın' : 'Ready to Focus',
+            language === 'tr' 
+              ? `Sadece "${getLocalizedTaskTitle(keptTask, true)}" görevine odaklan. Diğerleri senin için ayarlandı.`
+              : `Focus only on "${getLocalizedTaskTitle(keptTask, false)}". The rest have been handled.`
+          );
+        }}
+        theme={theme}
+        isDark={isDark}
+        tr={language === 'tr'}
       />
 
       {/*

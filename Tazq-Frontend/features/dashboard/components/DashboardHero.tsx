@@ -3,6 +3,7 @@ import { Text, StyleSheet } from 'react-native';
 import { MotiView } from 'moti';
 import { F, S, W, LH, trackingFor } from '@/shared/constants/tokens';
 import type { AppTheme } from '@/shared/constants/Colors';
+import { View } from 'react-native';
 
 /**
  * Dashboard karşılama bloğu — selamlama + o ana özel motivasyon satırı.
@@ -60,11 +61,13 @@ export const DashboardHero = React.memo<DashboardHeroProps>(
           bilgi taşımaz gürültü olurdu. Selamlama günde en fazla 4 kez değişir; nadir
           olduğu için fark edilir, fark edildiği için anlamlı.
         */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <MotiView
           key={greeting}
           from={{ opacity: 0, translateY: 6 }}
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 420 }}
+          style={{ flexShrink: 1, paddingRight: S.sm }}
         >
           <Text
             style={[
@@ -73,15 +76,17 @@ export const DashboardHero = React.memo<DashboardHeroProps>(
                 color: theme.onSurface,
                 fontSize: size,
                 lineHeight: size * LH.tight,
-                // Tracking puntoya BAĞLI: sabit TRACKING.hero (-0.8) yazılıydı, o 34pt
-                // için. 28pt'de fazla sıkı duruyordu — harf aralığı puntoyla ölçeklenir.
                 letterSpacing: trackingFor(size),
+                flexShrink: 1,
               },
             ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
           >
             {greeting}, {name}
           </Text>
         </MotiView>
+        </View>
 
         {/*
           Alt satır İKİNCİL: bir seviye aşağı renk (onSurfaceMuted) ve normal ağırlık.
