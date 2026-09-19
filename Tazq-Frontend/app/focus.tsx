@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, TextInput, AppState, Animated, ScrollView, BackHandler, Easing, InteractionManager, AccessibilityInfo } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions, Modal, AppState, Animated, ScrollView, BackHandler, Easing, InteractionManager, AccessibilityInfo } from 'react-native';
 import { useSwipeToDismiss } from '@/shared/hooks/useSwipeToDismiss';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 
@@ -7,10 +7,10 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotiView, AnimatePresence } from 'moti';
-import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Pencil, Timer, ChevronRight, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, Shield, SlidersHorizontal } from 'lucide-react-native';
+import { Play, Pause, RotateCcw, X, Sparkles, CheckCircle2, Coffee, Wind, CloudRain, Flame, Waves, Music2, Headphones, SlidersHorizontal, SkipForward } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useLanguageStore } from '@/shared/store/useLanguageStore';
-import { useFocusStore } from '@/features/focus';
+import { useFocusStore, focusDayKey } from '@/features/focus';
 import { useShallow } from 'zustand/react/shallow';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
@@ -22,9 +22,6 @@ import { usePrefsStore } from '@/features/modes';
 import { track } from '@/shared/utils/analytics';
 import { StatusBar } from 'expo-status-bar';
 import { useToastStore } from '@/shared/store/useToastStore';
-import { useNetworkStore } from '@/shared/store/useNetworkStore';
-import { useOfflineQueue } from '@/shared/store/useOfflineQueue';
-import { isNetworkError } from '@/shared/utils/errors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppTheme } from '@/shared/hooks/useAppTheme';
 import { Colors } from '@/shared/constants/Colors';
@@ -37,6 +34,13 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import {
   commitFocusSession, setFocusScreenVisible, finalizeDueSession,
 } from '@/features/focus/session';
+import { SessionSummary } from '@/features/focus/components/SessionSummary';
+import { FocusTaskPicker } from '@/features/focus/components/FocusTaskPicker';
+import { FocusModesSheet, PomodoroInfoSheet } from '@/features/focus/components/FocusModeSheets';
+import { getNotificationPermissionStatus } from '@/shared/utils/notifications';
+import { useTaskStore, getLocalizedTaskTitle } from '@/features/tasks';
+import { completeTask } from '@/features/tasks/utils/taskActions';
+import { isWeightEntryTask } from '@/features/modes/utils/weightCheckin';
 import { useTourGate } from '@/features/onboarding/utils/firstRun';
 import { TourTarget, useTour } from '@/shared/components/TourContext';
 import { Easing as RNEasing } from 'react-native';
@@ -44,8 +48,6 @@ import ReAnimated, { useSharedValue, useAnimatedStyle, useDerivedValue, withRepe
 import { Canvas, Fill, Shader, Skia, useClock } from '@shopify/react-native-skia';
 import { swallow } from '@/shared/utils/swallow';
 import type { AppTheme } from '@/shared/constants/Colors';
-import { Separator } from '@/shared/components/Separator';
-import { AppIcon } from '@/shared/components/AppIcon';
 import { haptic } from '@/shared/utils/haptics';
 
 interface StarGroupProps {
@@ -178,7 +180,7 @@ const Starfield = React.memo(({ active, timerSize }: { active: boolean; timerSiz
 // izole ettik → artık yalnız bu minik bileşenler saniyede bir render olur, ana ekran olmaz.
 
 // Sayaç metni (dk : atan iki nokta : sn). Yalnız seconds/isActive'e abone.
-const CountdownText = React.memo(({ timerSize, colonColor, reduceMotion }: { timerSize: number; colonColor: string; reduceMotion?: boolean }) => {
+const CountdownText = React.memo(({ timerSize, colonColor, reduceMotion, a11yLabel }: { timerSize: number; colonColor: string; reduceMotion?: boolean; a11yLabel: (m: number) => string }) => {
   const seconds = useFocusStore(s => s.seconds);
   const isActive = useFocusStore(s => s.isActive);
   const big = Math.round(timerSize * 0.205);
@@ -186,8 +188,12 @@ const CountdownText = React.memo(({ timerSize, colonColor, reduceMotion }: { tim
   // İki nokta: Sakin mod'da sabit; normalde sert blink (0.2↔1) yerine nazik kımıltı (0.55↔0.85) —
   // saniyeliği yaşam belirtisi kalsın ama göz köşesinde rahatsız etmesin.
   const colonOpacity = reduceMotion ? 0.7 : ((isActive && seconds % 2 === 1) ? 0.55 : 0.85);
+  /*
+    Ekran okuyucu kalan süreyi DAKİKA olarak okur. Etiket bilerek burada: ana ekranda
+    olsaydı her dakika 2000+ satırlık ağaç yeniden render olurdu (bkz. yukarıdaki not).
+  */
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+    <View accessible accessibilityRole="timer" accessibilityLabel={a11yLabel(Math.ceil(seconds / 60))} style={{ flexDirection: 'row', alignItems: 'center' }}>
       <Text style={[styles.timerText, styles.timerGlow, { color: '#FFFFFF', fontSize: big }]}>
         {Math.floor(seconds / 60).toString().padStart(2, '0')}
       </Text>
@@ -322,6 +328,42 @@ const Nebula = React.memo(({ size, width, height, c1, c2, c3, paused, speedScale
 });
 
 // Named focus presets — each encodes work + break durations
+/**
+ * Bu ekranın metinleri — iki dil YAN YANA.
+ * Satır içi `tr ? '...' : '...'` dallanması iki dalı elle senkron tutmayı gerektiriyor
+ * ve pratikte ayrışıyor (bkz. i18nRatchet).
+ */
+const FOCUS_COPY = {
+  tr: {
+    pickTask: 'Konu',
+    paused: 'DURAKLATILDI',
+    skipBreak: 'Molayı atla',
+    endConfirm: 'Emin misin?',
+    todayProgress: (m: number, g: number) => `Bugün ${m} / ${g} dk`,
+    todayDone: 'Bugünkü hedefin tamam ✦',
+    keepAwake: 'Ekran Açık Kalsın',
+    keepAwakeDesc: 'Seans boyunca ekran kararmaz',
+    strictDesc: '10 sn+ ayrılırsan seans biter',
+    remaining: (m: number) => `Kalan süre ${m} dakika`,
+    notifOff: 'Bildirimler kapalı — süre bitince haber veremeyiz.',
+    presetLabel: (name: string, m: number) => `${name}, ${m} dakika`,
+  },
+  en: {
+    pickTask: 'Topic',
+    paused: 'PAUSED',
+    skipBreak: 'Skip break',
+    endConfirm: 'Are you sure?',
+    todayProgress: (m: number, g: number) => `Today ${m} / ${g} min`,
+    todayDone: 'Today’s goal reached ✦',
+    keepAwake: 'Keep Screen On',
+    keepAwakeDesc: 'The screen stays awake during a session',
+    strictDesc: 'Leaving for 10s+ ends the session',
+    remaining: (m: number) => `${m} minutes remaining`,
+    notifOff: 'Notifications are off — we cannot tell you when time is up.',
+    presetLabel: (name: string, m: number) => `${name}, ${m} minutes`,
+  },
+};
+
 // expo-keep-awake etiketi: yalnız bu ekranın isteği, başka yerin isteğini kapatmaz.
 const KEEP_AWAKE_TAG = 'tazq-focus';
 
@@ -394,7 +436,12 @@ export default function FocusScreen() {
   */
   const tourOn = useTourGate('focus', useFocusStore(s => s.isActive));
   // Derin odak ekranı sistem temasından bağımsızdır: her iki modda da sakin, koyu meditatif kimlik.
-  useAppTheme();
+  /*
+    ALT SAYFALARIN TEMASI AYRI: ekranın kendisi her zaman koyu (meditatif kimlik), ama
+    alt sayfaların zemini `GlassSurface` ve o uygulamanın temasını izliyor. Açık temada
+    zemin açık, yazı ise koyu paletten (açık renk) geliyordu: açık üstüne açık, okunmaz.
+  */
+  const { theme: sheetTheme, isDark: sheetDark } = useAppTheme();
   const theme = Colors.dark;
   const isDark = true;
   const colorScheme: 'light' | 'dark' = 'dark';
@@ -421,6 +468,14 @@ export default function FocusScreen() {
     strictMode: s.strictMode, setStrictMode: s.setStrictMode,
   })));
 
+  // Bugünün odak dakikası: gün değiştiyse sayaç bu ekranda da 0 görünmeli (store gün
+  // anahtarını tutuyor; tazeleme uygulama açılışında oluyor).
+  const dailyFocusToday = useFocusStore(s => (s.dailyFocusDate === focusDayKey() ? s.dailyFocusMinutes : 0));
+  const dailyGoalMinutes = useFocusStore(s => s.dailyGoalMinutes);
+  const sessionKind = useFocusStore(s => s.sessionKind);
+  // Mola: standart molada da, pomodoro molasında da aynı kurallar geçerli.
+  const inBreak = sessionKind === 'break' || (pomodoroMode && pomodoroPhase === 'break');
+
   // sessionStarted bir boolean selector: değeri sadece geçişlerde değişir (her saniye değil),
   // dolayısıyla parent'ı saniyede bir render ETTİRMEZ.
   const sessionStarted = useFocusStore(s => s.isActive || (s.totalSeconds - s.seconds) > 0);
@@ -434,9 +489,26 @@ export default function FocusScreen() {
   };
 
   const completedRef = useRef(false);
+  const L = FOCUS_COPY[language === 'en' ? 'en' : 'tr'];
+  const isPaused = sessionStarted && !isActive && !atZero;
+  const dayProgress = dailyGoalMinutes > 0 ? Math.min(1, dailyFocusToday / dailyGoalMinutes) : 0;
+  /*
+    Bitiş alarmı bildirim iznine bağlı. İzin kapalıysa kullanıcı "süre bitince haber
+    verir" sanıp telefonu bırakıyor ve seansın bittiğini çok sonra öğreniyor.
+    Durum yalnız OKUNUR — sistem diyaloğu burada AÇILMAZ (bkz. notifications).
+  */
+  const [notifBlocked, setNotifBlocked] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    getNotificationPermissionStatus().then((st) => { if (alive) setNotifBlocked(st !== 'granted'); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  // Bitirme onayı: ilk dokunuş sorar, ikincisi bitirir (4 sn sonra geri döner).
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { trigger: triggerAchievement } = useAchievementStore();
   // Derin odak tercihleri artık prefs store'da (cihazda kalıcı) — her seansda sıfırlanmaz.
-  const { soundEffects, focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake } = usePrefsStore();
+  const { focusBreathMode, setFocusBreathMode, focusAmbientSound, setFocusAmbientSound, focusPreset, setFocusPreset, focusKeepAwake, setFocusKeepAwake } = usePrefsStore();
   const { measureAll } = useTour();
   const handleStepChange = (step: number) => {
     setTimeout(() => {
@@ -484,10 +556,8 @@ export default function FocusScreen() {
   const [wheelValue, setWheelValue] = useState(25);
   const wheelRef = useRef<ScrollView>(null);
 
-  // Task inline edit
-  const [taskEditMode, setTaskEditMode] = useState(false);
-  const [taskEditInput, setTaskEditInput] = useState('');
-  const taskInputRef = useRef<TextInput>(null);
+  // Seansa görev bağlama (bkz. FocusTaskPicker)
+  const [taskPickerVisible, setTaskPickerVisible] = useState(false);
 
   // Pomodoro transition overlay
   const [pomodoroTransition, setPomodoroTransition] = useState<{ visible: boolean; type: 'break' | 'work'; isLong?: boolean }>({ visible: false, type: 'break' });
@@ -498,8 +568,12 @@ export default function FocusScreen() {
   const [summaryMinutes, setSummaryMinutes] = useState(0);
   const [summaryCompleted, setSummaryCompleted] = useState(false);
   const [completionRitual, setCompletionRitual] = useState(false);
-  const [userRating, setUserRating] = useState<number | null>(null);
-  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  /*
+    SEANSA BAĞLI GÖREV — özet açılırken DONDURULUR.
+    Bağ seans bitince store'dan silinir (reset); özet penceresi ise ondan sonra da
+    açık kalıyor. Soruyu sorabilmek için görevin kimliği ve adı o an kopyalanır.
+  */
+  const [summaryTask, setSummaryTask] = useState<{ id: number; title: string } | null>(null);
 
   const [isExiting, setIsExiting] = useState(false);
   const [quote, setQuote] = useState('');
@@ -509,7 +583,7 @@ export default function FocusScreen() {
       if (customVisible) { setCustomVisible(false); return true; }
       if (modesSheetVisible) { setModesSheetVisible(false); return true; }
       if (breathPickerVisible) { setBreathPickerVisible(false); return true; }
-      if (taskEditMode) { setTaskEditMode(false); return true; }
+      if (taskPickerVisible) { setTaskPickerVisible(false); return true; }
       if (pomodoroInfoVisible) { setPomodoroInfoVisible(false); return true; }
       if (summaryVisible) { 
         setSummaryVisible(false); 
@@ -521,7 +595,7 @@ export default function FocusScreen() {
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     return () => backHandler.remove();
-  }, [customVisible, modesSheetVisible, breathPickerVisible, taskEditMode, pomodoroInfoVisible, summaryVisible, summaryCompleted, completionRitual]);
+  }, [customVisible, modesSheetVisible, breathPickerVisible, taskPickerVisible, pomodoroInfoVisible, summaryVisible, summaryCompleted, completionRitual]);
 
   const WHEEL_ITEM_H = 56;
   const WHEEL_MINS = Array.from({ length: 180 }, (_, i) => i + 1);
@@ -986,6 +1060,12 @@ export default function FocusScreen() {
           (özet ekranı "harika seans" diyordu); haftalık odak süresi şişiyordu.
         */
         setZenMode(false);
+        /*
+          POMODORO TUR SAYACI: mola artık ayrı bir tür olduğu için pomodoro molası da
+          buraya düşüyor. Faz ilerletilmezse döngü "mola" evresinde ÇAKILI kalır ve
+          sıradaki tur hiç başlamaz.
+        */
+        if (isPomo && phase === 'break') nextPomodoroPhase();
         setDuration(activePreset.workMins);
         setPomodoroTransition({ visible: true, type: 'work' });
         setTimeout(() => setPomodoroTransition(p => ({ ...p, visible: false })), 3000);
@@ -1032,6 +1112,7 @@ export default function FocusScreen() {
         // bloklamasın diye InteractionManager ile animasyon sonrasına ertelenir.
         const minutes = Math.round(totalSeconds / 60);
         setZenMode(false); // Reset Zen Mode (görsel geçiş)
+        captureSummaryTask();
         setSummaryMinutes(minutes);
         setSummaryCompleted(true);
         setCompletionRitual(true);
@@ -1079,9 +1160,48 @@ export default function FocusScreen() {
     return res === 'saved';
   };
 
+  /**
+   * Seansa bağlı görevi özet için yakalar.
+   *
+   * Tartım görevleri DIŞARIDA: onlar kilo girilmeden tamamlanamıyor (bkz. weightCheckin);
+   * "bitti mi?" diye sormak, evet denince sessizce başarısız olan bir söz vermek olurdu.
+   */
+  const captureSummaryTask = () => {
+    const { currentTaskId } = useFocusStore.getState();
+    if (currentTaskId == null) { setSummaryTask(null); return; }
+    const task = useTaskStore.getState().tasks.find(x => x.id === currentTaskId);
+    if (!task || task.isCompleted || task.isArchived || isWeightEntryTask(task)) { setSummaryTask(null); return; }
+    setSummaryTask({ id: task.id, title: getLocalizedTaskTitle(task, language === 'tr') });
+  };
+
   const toggleTimer = () => {
     haptic.commit();
     setIsActive(!isActive);
+  };
+
+  /** Mola erken bitsin: çalışma turuna dön (mola kaydedilmez). */
+  const skipBreak = () => {
+    // Titreşim YOK: sayaç gözle görülür biçimde çalışma turuna dönüyor.
+    completedRef.current = false;
+    setZenMode(false);
+    stopAmbientSound();
+    if (pomodoroMode && pomodoroPhase === 'break') nextPomodoroPhase();
+    setDuration(activePreset.workMins);
+  };
+
+  useEffect(() => { if (!sessionStarted && confirmEnd) setConfirmEnd(false); }, [sessionStarted, confirmEnd]);
+
+  const onEndPress = () => {
+    if (!confirmEnd) {
+      // Titreşim YOK: düğme "Emin misin?" yazısına dönüşüyor, görünen bir yanıt var.
+      setConfirmEnd(true);
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = setTimeout(() => setConfirmEnd(false), 4000);
+      return;
+    }
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
+    setConfirmEnd(false);
+    finishEarly();
   };
 
   const resetTimer = () => {
@@ -1127,6 +1247,7 @@ export default function FocusScreen() {
     setZenMode(false);
     const minutesDone = Math.round(getElapsed() / 60);
     if (commitSession(minutesDone, false)) {
+      captureSummaryTask();
       setSummaryMinutes(minutesDone);
       setSummaryCompleted(false);
       setSummaryVisible(true);
@@ -1382,6 +1503,21 @@ export default function FocusScreen() {
               transition={{ type: 'timing', duration: 400 }}
               style={{ width: '100%', alignItems: 'center', paddingTop: S.sm }}
             >
+            {/*
+              BUGÜN — günlük hedef uygulamada vardı ama bu ekranda hiç görünmüyordu.
+              Düz bir satır yerine ince bir ölçek: ekranın dilinde (halka, aurora) bir
+              ilerleme ifadesi, sayıyı okumadan da "ne kadar yol aldım" görünüyor.
+            */}
+            {!sessionStarted && !pomodoroMode && dailyGoalMinutes > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm, marginBottom: S.sm }}>
+                <View style={{ width: 56, height: 2, borderRadius: R.xs, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' }}>
+                  <View style={{ width: `${Math.round(dayProgress * 100)}%`, height: '100%', backgroundColor: dayProgress >= 1 ? theme.tertiary : theme.primary, opacity: 0.9 }} />
+                </View>
+                <Text style={{ fontSize: F.caption, fontWeight: '600', color: 'rgba(255,255,255,0.42)', letterSpacing: 0.3 }}>
+                  {dayProgress >= 1 ? L.todayDone : L.todayProgress(dailyFocusToday, dailyGoalMinutes)}
+                </Text>
+              </View>
+            )}
             {pomodoroMode ? (
               <PomodoroIndicator
                 pomodoroPhase={pomodoroPhase}
@@ -1411,6 +1547,9 @@ export default function FocusScreen() {
                         return (
                           <Touchable
                             key={preset.key}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: isSelected }}
+                            accessibilityLabel={L.presetLabel(language === 'tr' ? preset.labelTr : preset.labelEn, preset.workMins)}
                             onPress={() => { haptic.select(); setSelectedPreset(preset.key); setDuration(preset.workMins); }}
                           >
                             <MotiView
@@ -1736,27 +1875,54 @@ export default function FocusScreen() {
                   >
                     {/* Tatlı zaman — dakika · atan iki nokta · saniye. Saniyeye bağlı tek render burada izole. */}
                     <CountdownText
+                      a11yLabel={L.remaining}
                       timerSize={timerSize}
                       colonColor={(pomodoroMode && pomodoroPhase === 'break') ? theme.tertiary : theme.primary}
                       reduceMotion={reduceMotion}
                     />
 
-                    {/* Odak bağlamı — yalnız görev varsa niyetini göster; yoksa temiz bırak */}
-                    {currentTask ? (
-                      <MotiView
-                        from={{ opacity: 0, translateY: 4 }}
-                        animate={{ opacity: 0.82, translateY: 0 }}
-                        transition={{ type: 'timing', duration: 450 }}
-                        style={{ maxWidth: timerSize * 0.72, marginTop: S.md }}
+                    {/*
+                      ODAK BAĞLAMI — seans SÜRERKEN yalnız okunur bir satır; seans YOKKEN
+                      dokunulabilir. Eskiden görev yalnız ana sayfadan/Bugün'den bağlanabiliyordu;
+                      doğrudan bu ekrana gelen kullanıcı adsız seans başlatıyordu (bkz. FocusTaskPicker).
+                    */}
+                    {sessionStarted ? (
+                      currentTask ? (
+                        <MotiView
+                          from={{ opacity: 0, translateY: 4 }}
+                          animate={{ opacity: 0.82, translateY: 0 }}
+                          transition={{ type: 'timing', duration: 450 }}
+                          style={{ maxWidth: timerSize * 0.72, marginTop: S.md }}
+                        >
+                          <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.8)', fontSize: F.footnote, fontWeight: '600', letterSpacing: 0.3, textAlign: 'center' }}>
+                            {currentTask}
+                          </Text>
+                        </MotiView>
+                      ) : null
+                    ) : (
+                      <Touchable
+                        accessibilityRole="button"
+                        accessibilityLabel={currentTask || L.pickTask}
+                        onPress={() => setTaskPickerVisible(true)}
+                        style={{ maxWidth: timerSize * 0.82, marginTop: S.md, flexDirection: 'row', alignItems: 'center', gap: S.xs, paddingHorizontal: S.md, paddingVertical: S.xs, borderRadius: R.full, backgroundColor: currentTask ? theme.primary + '1A' : 'rgba(255,255,255,0.07)' }}
                       >
-                        <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.8)', fontSize: F.footnote, fontWeight: '600', letterSpacing: 0.3, textAlign: 'center' }}>
-                          {currentTask}
+                        {/* Seçili konu accent bir nokta ile işaretlenir; boşken nokta soluk. */}
+                        <View style={{ width: 5, height: 5, borderRadius: R.full, backgroundColor: currentTask ? theme.primary : 'rgba(255,255,255,0.35)' }} />
+                        <Text numberOfLines={1} style={{ color: currentTask ? theme.primary : 'rgba(255,255,255,0.62)', fontSize: F.footnote, fontWeight: '600', letterSpacing: 0.2, textAlign: 'center' }}>
+                          {currentTask || L.pickTask}
                         </Text>
-                      </MotiView>
-                    ) : null}
+                      </Touchable>
+                    )}
 
                     {/* Breath cue — fades between phases in sync with glow animation */}
                     <View style={{ height: 28, marginTop: S.sm, justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+                      {/* DURAKLATILDI — duraklamış sayaç hiçbir şey söylemiyordu: ekran
+                          donmuş gibi görünüyor, kullanıcı neden ilerlemediğini anlamıyordu. */}
+                      {isPaused && (
+                        <Text style={{ fontSize: F.caption, fontWeight: '700', letterSpacing: 2, color: 'rgba(255,255,255,0.45)' }}>
+                          {L.paused}
+                        </Text>
+                      )}
                       <AnimatePresence>
                         {isActive && breathMode !== 'off' && (
                           <MotiView
@@ -1879,7 +2045,19 @@ export default function FocusScreen() {
             </Touchable>
             </TourTarget>
 
-            <View style={{ width: 56, height: 56 }} />
+            {/* Sağ yuva: molada "atla" — mola bitmeden çalışmaya dönmenin yolu yoktu. */}
+            <View style={{ width: 56, height: 56 }}>
+              {inBreak && (
+                <Touchable
+                  onPress={skipBreak}
+                  accessibilityRole="button"
+                  accessibilityLabel={L.skipBreak}
+                  style={[styles.secondaryBtn, { backgroundColor: theme.surfaceContainerLow, width: 56, height: 56, borderRadius: R.lg }]}
+                >
+                  <SkipForward size={ICON.lg} color={theme.onSurfaceVariant} />
+                </Touchable>
+              )}
+            </View>
           </MotiView>
 
           {/* Ambient sound row */}
@@ -1969,7 +2147,7 @@ export default function FocusScreen() {
           {/* Dynamic Bottom Area (Fixed height to prevent layout shifts) */}
           <View style={{ height: 44, width: '100%', alignItems: 'center', justifyContent: 'center' }}>
             <AnimatePresence>
-              {pomodoroMode && pomodoroPhase === 'break' && isActive ? (
+              {inBreak && isActive ? (
                 <MotiView
                   key="break-tip"
                   from={{ opacity: 0, translateY: 6 }}
@@ -1993,13 +2171,20 @@ export default function FocusScreen() {
                   style={{ alignItems: 'center' }}
                   pointerEvents={zenMode && isActive ? "none" : "auto"}
                 >
+                  {/*
+                    İKİ DOKUNUŞ: ilk dokunuş "emin misin?" der, ikincisi bitirir. Tek
+                    dokunuşla biten düğme, sayacın hemen altında duruyor ve yanlışlıkla
+                    dokunan kullanıcının seansını yarıda kesiyordu. Onay 4 saniyede geri döner.
+                  */}
                   <Touchable
-                    onPress={finishEarly}
-                    style={[styles.finishBtn, { borderColor: theme.tertiary + '50', backgroundColor: theme.tertiary + '12' }]}
+                    onPress={onEndPress}
+                    accessibilityRole="button"
+                    accessibilityLabel={confirmEnd ? L.endConfirm : t.focusEndSession}
+                    style={[styles.finishBtn, { borderColor: (confirmEnd ? theme.error : theme.tertiary) + '50', backgroundColor: (confirmEnd ? theme.error : theme.tertiary) + '12' }]}
                   >
-                    <CheckCircle2 size={ICON.sm} color={theme.tertiary} />
-                    <Text style={[styles.finishText, { color: theme.tertiary, fontSize: F.body }]}>
-                      {t.focusEndSession}
+                    <CheckCircle2 size={ICON.sm} color={confirmEnd ? theme.error : theme.tertiary} />
+                    <Text style={[styles.finishText, { color: confirmEnd ? theme.error : theme.tertiary, fontSize: F.body }]}>
+                      {confirmEnd ? L.endConfirm : t.focusEndSession}
                     </Text>
                   </Touchable>
                 </MotiView>
@@ -2012,7 +2197,11 @@ export default function FocusScreen() {
                   transition={{ type: 'timing', duration: 350 }}
                 >
                   <View style={[styles.footer, { paddingHorizontal: S.xl }]}>
-                    <Text style={{ fontStyle: 'italic', textAlign: 'center', color: theme.onSurfaceMuted, fontSize: F.body }}>{quote}</Text>
+                    {notifBlocked ? (
+                      <Text style={{ textAlign: 'center', color: theme.onSurfaceMuted, fontSize: F.caption, fontWeight: '600' }}>{L.notifOff}</Text>
+                    ) : (
+                      <Text style={{ fontStyle: 'italic', textAlign: 'center', color: theme.onSurfaceMuted, fontSize: F.body }}>{quote}</Text>
+                    )}
                   </View>
                 </MotiView>
               )}
@@ -2116,24 +2305,24 @@ export default function FocusScreen() {
           >
             <GlassSurface corners="top" />
             <View {...customPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
-              <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
+              <View style={[styles.sheetHandle, { backgroundColor: sheetDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
             </View>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface }]}>{t.focusCustomDuration}</Text>
-            <Text style={[styles.sheetSub, { color: theme.onSurfaceMuted }]}>{language === 'tr' ? '1 – 180 dakika' : '1 – 180 minutes'}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: sheetTheme.onSurface }]}>{t.focusCustomDuration}</Text>
+            <Text style={[styles.sheetSub, { color: sheetTheme.onSurfaceMuted }]}>{language === 'tr' ? '1 – 180 dakika' : '1 – 180 minutes'}</Text>
 
             {/* Drum-roll wheel */}
             <View style={{ height: WHEEL_ITEM_H * 5, width: '100%', alignItems: 'center', overflow: 'hidden' }}>
               {/* center selection indicator */}
-              <View style={{ position: 'absolute', top: WHEEL_ITEM_H * 2, left: 24, right: 24, height: WHEEL_ITEM_H, borderTopWidth: 1.5, borderBottomWidth: 1.5, borderColor: theme.primary + '70', borderRadius: R.sm, pointerEvents: 'none' }} />
+              <View style={{ position: 'absolute', top: WHEEL_ITEM_H * 2, left: 24, right: 24, height: WHEEL_ITEM_H, borderTopWidth: 1.5, borderBottomWidth: 1.5, borderColor: sheetTheme.primary + '70', borderRadius: R.sm, pointerEvents: 'none' }} />
               {/* fade top */}
               <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, zIndex: 1, pointerEvents: 'none', backgroundColor: 'transparent' }}
                     pointerEvents="none">
-                <View style={{ flex: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, opacity: 0.7 }} />
+                <View style={{ flex: 1, backgroundColor: sheetDark ? sheetTheme.surfaceContainerHigh : sheetTheme.surfaceContainerLowest, opacity: 0.7 }} />
               </View>
               {/* fade bottom */}
               <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, zIndex: 1, pointerEvents: 'none' }}
                     pointerEvents="none">
-                <View style={{ flex: 1, backgroundColor: isDark ? theme.surfaceContainerHigh : theme.surfaceContainerLowest, opacity: 0.7 }} />
+                <View style={{ flex: 1, backgroundColor: sheetDark ? sheetTheme.surfaceContainerHigh : sheetTheme.surfaceContainerLowest, opacity: 0.7 }} />
               </View>
               <ScrollView
                 ref={wheelRef}
@@ -2151,7 +2340,7 @@ export default function FocusScreen() {
               >
                 {WHEEL_MINS.map(m => (
                   <View key={m} style={{ height: WHEEL_ITEM_H, justifyContent: 'center', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 36, fontWeight: '700', letterSpacing: -1, color: theme.onSurface }}>
+                    <Text style={{ fontSize: 36, fontWeight: '700', letterSpacing: -1, color: sheetTheme.onSurface }}>
                       {m}
                     </Text>
                   </View>
@@ -2159,68 +2348,35 @@ export default function FocusScreen() {
               </ScrollView>
             </View>
 
-            <Text style={[styles.minLabel, { color: theme.onSurfaceMuted, marginTop: S.xs }]}>
+            <Text style={[styles.minLabel, { color: sheetTheme.onSurfaceMuted, marginTop: S.xs }]}>
               {language === 'tr' ? 'DAKİKA' : 'MINUTES'}
             </Text>
 
             <Touchable
               onPress={applyCustomDuration}
-              style={[styles.applyBtn, { backgroundColor: theme.primary }]}
+              style={[styles.applyBtn, { backgroundColor: sheetTheme.primary }]}
             >
-              <Text style={[styles.applyBtnText, { color: theme.onPrimary }]}>{t.focusCustomApply}</Text>
+              <Text style={[styles.applyBtnText, { color: sheetTheme.onPrimary }]}>{t.focusCustomApply}</Text>
             </Touchable>
           </Animated.View>
         </View>
       </Modal>
 
-      {/* ── Odak Modları Alt-Sheet (header'daki tek butondan açılır) ─────────── */}
-      <Modal
+      {/* Odak modları — görsel ve metinler ayrı dosyada (bkz. FocusModeSheets). */}
+      <FocusModesSheet
         visible={modesSheetVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModesSheetVisible(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <Touchable style={styles.modalOverlay} activeOpacity={1} onPress={() => setModesSheetVisible(false)} />
-          <View style={[styles.customSheet, { paddingBottom: (insets.bottom || S.md) + S.md, alignItems: 'stretch' }]}>
-            <GlassSurface corners="top" />
-            <View style={{ alignItems: 'center' }}>
-              <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
-            </View>
-            <Text style={[styles.sheetTitle, { color: theme.onSurface, textAlign: 'center' }]}>{language === 'tr' ? 'Odak Modları' : 'Focus Modes'}</Text>
-            <Text style={[styles.sheetSub, { color: theme.onSurfaceMuted, textAlign: 'center', marginBottom: S.md }]}>{language === 'tr' ? 'Seansını nasıl geçireceğini seç' : 'Choose how your session runs'}</Text>
-            {[
-              { key: 'breath', Ic: Wind, on: breathMode !== 'off', title: language === 'tr' ? 'Nefes' : 'Breathing', desc: language === 'tr' ? 'Ritmik nefes rehberi' : 'Guided breathing rhythm', chevron: true, onPress: () => { haptic.select(); setModesSheetVisible(false); setTimeout(() => setBreathPickerVisible(true), 260); } },
-              { key: 'pomo', Ic: Timer, on: pomodoroMode, title: 'Pomodoro', desc: language === 'tr' ? 'Çalış / mola döngüleri' : 'Work / break cycles', chevron: false, onPress: () => { haptic.select(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); } },
-              { key: 'strict', Ic: Shield, on: strictMode, title: language === 'tr' ? 'Katı Odak' : 'Strict Focus', desc: language === 'tr' ? 'Seans bitene dek çıkışı kilitler' : 'Locks the exit until done', chevron: false, onPress: () => { haptic.select(); setStrictMode(!strictMode); } },
-            ].map((row) => (
-              <Touchable
-                key={row.key}
-                onPress={row.onPress}
-                accessibilityRole={row.chevron ? 'button' : 'switch'}
-                accessibilityState={row.chevron ? undefined : { checked: row.on }}
-                accessibilityLabel={row.title}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: S.md, paddingVertical: S.smd, paddingHorizontal: S.sm, borderRadius: R.lg, marginBottom: S.xs, backgroundColor: row.on ? theme.primary + (isDark ? '14' : '0D') : 'transparent' }}
-              >
-                <View style={{ width: 40, height: 40, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', backgroundColor: row.on ? theme.primary : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') }}>
-                  <row.Ic size={ICON.md} color={row.on ? '#FFFFFF' : theme.onSurfaceVariant} strokeWidth={2.2} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurface }}>{row.title}</Text>
-                  <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted, marginTop: S.xxs }} numberOfLines={1}>{row.desc}</Text>
-                </View>
-                {row.chevron ? (
-                  <ChevronRight size={ICON.sm} color={theme.onSurfaceMuted} />
-                ) : (
-                  <Text style={{ fontSize: F.caption, fontWeight: '700', color: row.on ? theme.primary : theme.onSurfaceMuted }}>
-                    {row.on ? (language === 'tr' ? 'AÇIK' : 'ON') : (language === 'tr' ? 'KAPALI' : 'OFF')}
-                  </Text>
-                )}
-              </Touchable>
-            ))}
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setModesSheetVisible(false)}
+        language={language === 'en' ? 'en' : 'tr'}
+        labels={{ keepAwake: L.keepAwake, keepAwakeDesc: L.keepAwakeDesc, strictDesc: L.strictDesc }}
+        breathOn={breathMode !== 'off'}
+        pomodoroOn={pomodoroMode}
+        strictOn={strictMode}
+        keepAwakeOn={focusKeepAwake || strictMode}
+        onBreath={() => { haptic.select(); setModesSheetVisible(false); setTimeout(() => setBreathPickerVisible(true), 260); }}
+        onPomodoro={() => { haptic.select(); togglePomodoroMode(); if (!pomodoroMode) setDuration(activePreset.workMins); }}
+        onStrict={() => { haptic.select(); setStrictMode(!strictMode); }}
+        onKeepAwake={() => { haptic.select(); setFocusKeepAwake(!focusKeepAwake); }}
+      />
 
       {/* ── Breath Picker Bottom Sheet Modal ────────────────────────────────── */}
       <Modal
@@ -2241,12 +2397,12 @@ export default function FocusScreen() {
           >
             <GlassSurface corners="top" />
             <View {...breathPan.panHandlers} style={{ paddingTop: S.md, paddingBottom: S.lmd, alignItems: 'center' }}>
-              <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
+              <View style={[styles.sheetHandle, { backgroundColor: sheetDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
             </View>
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: theme.onSurface, paddingHorizontal: S.lg }]}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.sheetTitle, { color: sheetTheme.onSurface, paddingHorizontal: S.lg }]}>
               {language === 'tr' ? 'Nefes Egzersizi' : 'Breathing Exercise'}
             </Text>
-            <Text style={[styles.sheetSub, { color: theme.onSurfaceMuted, paddingHorizontal: S.lg, marginBottom: S.md }]}>
+            <Text style={[styles.sheetSub, { color: sheetTheme.onSurfaceMuted, paddingHorizontal: S.lg, marginBottom: S.md }]}>
               {language === 'tr' ? 'Odağınızı artırmak ve zihninizi sakinleştirmek için bir ritim seçin' : 'Select a rhythm to boost focus and calm your mind'}
             </Text>
 
@@ -2280,23 +2436,23 @@ export default function FocusScreen() {
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
-                      backgroundColor: isActive ? theme.primary + '18' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                      backgroundColor: isActive ? sheetTheme.primary + '18' : (sheetDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
                       borderRadius: R.lg,
                       padding: S.md,
                       borderWidth: B.medium,
-                      borderColor: isActive ? theme.primary : 'transparent',
+                      borderColor: isActive ? sheetTheme.primary : 'transparent',
                     }}
                   >
                     <View style={{ flex: 1, gap: S.xs }}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: isActive ? theme.primary : theme.onSurface }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: isActive ? sheetTheme.primary : sheetTheme.onSurface }}>
                         {title}
                       </Text>
-                      <Text style={{ fontSize: F.caption2, color: theme.onSurfaceVariant }}>
+                      <Text style={{ fontSize: F.caption2, color: sheetTheme.onSurfaceVariant }}>
                         {desc}
                       </Text>
                     </View>
                     {isActive && (
-                      <CheckCircle2 size={ICON.md} color={theme.primary} />
+                      <CheckCircle2 size={ICON.md} color={sheetTheme.primary} />
                     )}
                   </Touchable>
                 );
@@ -2306,220 +2462,64 @@ export default function FocusScreen() {
         </View>
       </Modal>
 
-      {/* ── Session Summary Modal ─────────────────────────────────────────────── */}
-      <Modal visible={summaryVisible} transparent animationType="fade" onRequestClose={() => setSummaryVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: S.xl }}>
-          <MotiView
-            from={{ opacity: 0, scale: 0.88 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 18, stiffness: 280 }}
-            style={{ width: '100%', borderRadius: R.sheet, padding: S.xl, alignItems: 'center', gap: S.md }}
-          >
-            <GlassSurface radius={R.sheet} />
-            {/* Icon */}
-            <MotiView
-              from={{ scale: 0.8, opacity: 0, rotate: '-10deg' }}
-              animate={{ scale: 1, opacity: 1, rotate: '0deg' }}
-              transition={{ type: 'spring', damping: 15, stiffness: 250, delay: 100 }}
-              style={{ 
-                width: 72, 
-                height: 72, 
-                borderRadius: R.full, 
-                backgroundColor: summaryCompleted ? theme.primaryContainer : theme.secondaryContainer, 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                overflow: 'hidden'
-              }}
-            >
-              {summaryCompleted
-                ? <CheckCircle2 size={ICON.xl} color={theme.primary} strokeWidth={2.2} />
-                : <Sparkles size={ICON.xl} color={theme.secondary} strokeWidth={2.2} />}
-            </MotiView>
+      <FocusTaskPicker
+        visible={taskPickerVisible}
+        language={language === 'en' ? 'en' : 'tr'}
+        onClose={() => setTaskPickerVisible(false)}
+        onPick={(title, taskId) => {
+          setTaskPickerVisible(false);
+          useFocusStore.getState().setCurrentTask(title, taskId);
+        }}
+      />
 
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontSize: F.title, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, textAlign: 'center' }}>
-              {summaryCompleted ? t.summaryGreatWork : t.summaryGoodStart}
-            </Text>
+      {/* ── Seans özeti ───────────────────────────────────────────────────────
+          Görsel ve mantık ayrı dosyada (bkz. SessionSummary): bağlı görev sorusu,
+          günlük hedef ve "+5 dk" buraya eklendi. */}
+      <SessionSummary
+        visible={summaryVisible}
+        minutes={summaryMinutes}
+        completed={summaryCompleted}
+        taskTitle={summaryTask?.title ?? null}
+        dailyMinutes={dailyFocusToday}
+        dailyGoal={dailyGoalMinutes}
+        breakMinutes={activePreset.shortBreak}
+        showBreak={summaryCompleted && !pomodoroMode}
+        language={language === 'en' ? 'en' : 'tr'}
+        t={t}
+        onClose={() => setSummaryVisible(false)}
+        onStartBreak={() => startBreakSession(activePreset.shortBreak)}
+        onExtend={() => {
+          // "Biraz daha" — aynı konuyla kısa bir seans; süre seçmeye geri dönmek gerekmesin.
+          setSummaryVisible(false);
+          completedRef.current = false;
+          setDuration(5);
+          setIsActive(true);
+        }}
+        onNewSession={() => { setSummaryVisible(false); completedRef.current = false; reset(); }}
+        onCompleteTask={() => { if (summaryTask) void completeTask(summaryTask.id); }}
+        onHome={() => {
+          haptic.commit();
+          setSummaryVisible(false);
+          stopAllSounds();
+          setAmbientSound('off');
+          setIsExiting(true);
+          setTimeout(() => {
+            reset();
+            router.replace('/');
+          }, 350);
+        }}
+      />
 
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: S.xs }}>
-              <Text style={{ fontSize: 52, fontWeight: '700', color: theme.primary, letterSpacing: -2, lineHeight: 56 }}>
-                {summaryMinutes}
-              </Text>
-              <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurfaceVariant, marginBottom: S.xs }}>
-                {t.summaryMinFocused}
-              </Text>
-            </View>
+      <PomodoroInfoSheet
+        visible={pomodoroInfoVisible}
+        onClose={() => setPomodoroInfoVisible(false)}
+        language={language === 'en' ? 'en' : 'tr'}
+        presets={PRESETS}
+        activePreset={activePreset}
+        selectedPreset={selectedPreset}
+        onSelectPreset={(key, workMins) => { setSelectedPreset(key as PresetKey); setDuration(workMins); }}
+      />
 
-
-
-            <View style={{ width: '100%', backgroundColor: (summaryCompleted ? theme.primaryContainer : theme.secondaryContainer) + '60', borderRadius: R.md, padding: S.md, gap: S.xs }}>
-              <Text style={{ fontSize: F.body, fontWeight: '700', color: summaryCompleted ? theme.primary : theme.secondary, lineHeight: 20 }}>
-                {summaryCompleted ? t.summaryCoachCompleted : t.summaryCoachGoodStart}
-              </Text>
-              {summaryCompleted && (
-                <Text style={{ fontSize: F.caption, fontWeight: '600', color: theme.onSurfaceMuted }}>
-                  {t.summaryBreakSuggestion}
-                </Text>
-              )}
-            </View>
-
-            {/* Customer Effort / Experience Rating */}
-            <View style={{ width: '100%', alignItems: 'center', marginVertical: S.xs }}>
-              {!ratingSubmitted ? (
-                <>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: theme.onSurfaceVariant, letterSpacing: 0.5, marginBottom: S.xs }}>
-                    {language === 'tr' ? 'BU SEANS NASIL GEÇTİ?' : 'HOW WAS THIS SESSION?'}
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: S.sm }}>
-                    {[1, 2, 3, 4, 5].map((num) => {
-                      const emojis = ['😫', '😕', '😐', '🙂', '🤩'];
-                      const isSelected = userRating === num;
-                      return (
-                        <Touchable
-                          key={num}
-                          hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-                          onPress={() => {
-                            haptic.surface();
-                            setUserRating(num);
-                            track('ux_rating_submitted', { score: num, type: 'CES_focus' });
-                            setRatingSubmitted(true);
-                          }}
-                          style={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: R.full,
-                            backgroundColor: isSelected ? theme.primary + '20' : 'transparent',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            borderWidth: 1,
-                            borderColor: isSelected ? theme.primary : 'transparent'
-                          }}
-                        >
-                          <Text style={{ fontSize: F.title3 }}>{emojis[num - 1]}</Text>
-                        </Touchable>
-                      );
-                    })}
-                  </View>
-                </>
-              ) : (
-                <Text style={{ fontSize: F.caption2, fontWeight: '600', color: theme.tertiary, letterSpacing: 0.2 }}>
-                  ✦ {language === 'tr' ? 'Geri bildiriminiz kaydedildi, teşekkürler!' : 'Feedback recorded, thank you!'} ✦
-                </Text>
-              )}
-            </View>
-
-            <Separator theme={theme} spacing={S.xs} />
-            {/* Break button (only after standard completed session) */}
-            {summaryCompleted && !pomodoroMode && (
-              <Touchable
-                onPress={() => startBreakSession(activePreset.shortBreak)}
-                style={{ width: '100%', paddingVertical: S.sm, borderRadius: R.full, borderWidth: B.thin, borderColor: theme.tertiary + '50', backgroundColor: theme.tertiary + '12', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: S.sm }}
-              >
-                <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.tertiary }}>
-                  {language === 'tr' ? `${activePreset.shortBreak} dk Mola Başlat` : `Start ${activePreset.shortBreak}-min Break`}
-                </Text>
-              </Touchable>
-            )}
-
-            <Touchable
-              onPress={() => {
-                haptic.commit();
-                setSummaryVisible(false);
-                setUserRating(null);
-                setRatingSubmitted(false);
-                stopAllSounds();
-                setAmbientSound('off');
-                setIsExiting(true);
-                setTimeout(() => {
-                  reset();
-                  router.replace('/');
-                }, 350);
-              }}
-              style={{ width: '100%', paddingVertical: S.md, borderRadius: R.full, backgroundColor: theme.primary, alignItems: 'center' }}
-            >
-              <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onPrimary, letterSpacing: 0.5 }}>
-                {t.summaryBackHome}
-              </Text>
-            </Touchable>
-
-            <Touchable
-              onPress={() => { 
-                setSummaryVisible(false); 
-                setUserRating(null); 
-                setRatingSubmitted(false); 
-                completedRef.current = false; 
-                reset(); 
-              }}
-              style={{ paddingVertical: S.sm }}
-            >
-              <Text style={{ fontSize: F.body, fontWeight: '700', color: theme.onSurfaceMuted }}>
-                {t.summaryNewSession}
-              </Text>
-            </Touchable>
-          </MotiView>
-        </View>
-      </Modal>
-
-      {/* ── Pomodoro Info Modal ── */}
-      <Modal visible={pomodoroInfoVisible} transparent animationType="fade" onRequestClose={() => setPomodoroInfoVisible(false)}>
-        <Touchable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: S.slg }} activeOpacity={1} onPress={() => setPomodoroInfoVisible(false)}>
-          <MotiView
-            from={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', damping: 18 }}
-            style={{ borderRadius: R.sheet, padding: S.slg, width: '100%', gap: S.md }}
-          >
-            <GlassSurface radius={R.sheet} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.smd }}>
-              <AppIcon Icon={Timer} color={theme.primary} size={40} radius={R.md} iconSize={ICON.md} />
-              <Text style={{ fontSize: F.subhead, fontWeight: '700', color: theme.onSurface, letterSpacing: -0.5, flex: 1 }}>
-                {language === 'tr' ? 'Pomodoro Tekniği' : 'Pomodoro Technique'}
-              </Text>
-            </View>
-            <Text style={{ fontSize: F.body, fontWeight: '500', color: theme.onSurfaceVariant, lineHeight: 22 }}>
-              {language === 'tr'
-                ? `"${language === 'tr' ? activePreset.labelTr : activePreset.labelEn}" modunda ${activePreset.workMins} dk çalışıp ${activePreset.shortBreak} dk dinleniyorsun. 4. turda ${activePreset.longBreak} dk uzun mola.`
-                : `In "${activePreset.labelEn}" mode you work for ${activePreset.workMins} min and rest ${activePreset.shortBreak} min. After round 4, a ${activePreset.longBreak}-min long break.`}
-            </Text>
-            <View style={{ gap: S.sm }}>
-              {PRESETS.map((preset) => {
-                const isActive = preset.key === selectedPreset;
-                return (
-                  <Touchable
-                    key={preset.key}
-                    onPress={() => { setSelectedPreset(preset.key); setDuration(preset.workMins); }}
-                    style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isActive ? theme.primary + '18' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'), borderRadius: R.md, paddingHorizontal: S.md, paddingVertical: S.smd, borderWidth: B.thin, borderColor: isActive ? theme.primary + '40' : 'transparent' }}
-                  >
-                    <View style={{ gap: S.xxs }}>
-                      <Text style={{ fontSize: F.footnote, fontWeight: '700', color: isActive ? theme.primary : theme.onSurface }}>
-                        {language === 'tr' ? preset.labelTr : preset.labelEn}
-                      </Text>
-                      <Text style={{ fontSize: F.caption, color: theme.onSurfaceMuted }}>
-                        {language === 'tr' ? preset.descTr : preset.descEn}
-                      </Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end', gap: S.xxs }}>
-                      <Text style={{ fontSize: F.caption2, fontWeight: '700', color: isActive ? theme.primary : theme.onSurfaceVariant }}>
-                        {language === 'tr' ? `${preset.workMins}dk çalış` : `${preset.workMins}m work`}
-                      </Text>
-                      <Text style={{ fontSize: 10, color: theme.onSurfaceMuted }}>
-                        {language === 'tr' ? `${preset.shortBreak}/${preset.longBreak}dk mola` : `${preset.shortBreak}/${preset.longBreak}m break`}
-                      </Text>
-                    </View>
-                  </Touchable>
-                );
-              })}
-            </View>
-            <Touchable
-              onPress={() => setPomodoroInfoVisible(false)}
-              style={{ backgroundColor: theme.primary, borderRadius: R.lg, paddingVertical: S.md, alignItems: 'center' }}
-            >
-              <Text style={{ fontSize: 15, fontWeight: '700', color: theme.onPrimary }}>
-                {language === 'tr' ? 'Anladım' : 'Got it'}
-              </Text>
-            </Touchable>
-          </MotiView>
-        </Touchable>
-      </Modal>
       {tourOn && (
         <HelpTourModal
           pageId="focus"

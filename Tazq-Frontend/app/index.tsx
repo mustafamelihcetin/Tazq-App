@@ -1358,11 +1358,7 @@ export default function HomeScreen() {
     */
     const target = topTaskToday;
     setCurrentTask(target ? getLocalizedTaskTitle(target, tr) : '', target?.id ?? null);
-    /*
-      Seans store'un kendi yolundan başlar: doğrudan `setState` ile başlatınca seansın
-      BİTİŞ ANI kurulmuyordu — sayaç yalnız uygulama önde çalışırken ilerliyor, telefon
-      kilitlenince geride kalıyor ve bitiş bildirimi hiç kurulmuyordu.
-    */
+    // Store yolu: `setState` seansın BİTİŞ ANINI kurmuyor → kilitli telefonda sayaç geri kalıyordu.
     useFocusStore.getState().setDuration(25);
     useFocusStore.getState().setIsActive(true);
     setStatusHubVisible(false);

@@ -125,7 +125,7 @@ describe('generateWeeklyTips', () => {
     expect(tips.length).toBeGreaterThan(0);
   });
 
-  it('adds a warning when tasks are completed too quickly (Velocity Guard)', () => {
+  it('arka arkaya tamamlamada DESTEKLEYİCİ bir not verir — suçlayıcı değil', () => {
     const time1 = new Date().toISOString();
     const time2 = new Date(Date.now() + 2000).toISOString();
     const time3 = new Date(Date.now() + 4000).toISOString();
@@ -141,6 +141,13 @@ describe('generateWeeklyTips', () => {
       ]
     });
 
-    expect(tips.some(t => t.tone === 'warning' && /hız/i.test(t.textTr))).toBe(true);
+    const note = tips.find(t => /arka arkaya/i.test(t.textTr));
+    expect(note).toBeTruthy();
+    /*
+      Eski metin kullanıcıyı denetliyordu: "hızınız normalin üzerinde saptandı… odak
+      kalitenizi izlememizi zorlaştırır". Kullanıcı uygulamasına hesap vermez.
+    */
+    expect(note!.textTr).not.toMatch(/saptand|zorlaştır|normalin üzerinde/i);
+    expect(note!.tone).not.toBe('warning');
   });
 });

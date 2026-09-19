@@ -111,6 +111,8 @@ function clearLocalUserData() {
   safe(() => require('@/features/modes/store/useSporStore').useSporStore.getState().clearAll());
   safe(() => require('@/shared/store/useSubjectStore').useSubjectStore.getState().reset());
   safe(() => require('@/shared/store/useOfflineQueue').useOfflineQueue.getState().clear());
+  // Odak geçmişi kişisel veridir: çıkışta cihazdan silinir (bkz. useFocusHistoryStore).
+  safe(() => require('@/features/report/useFocusHistoryStore').useFocusHistoryStore.getState().clear());
   safe(() => require('@/shared/store/useCompletionStore').useCompletionStore.setState({ events: [] }));
   safe(() => require('./useMomentumStore').useMomentumStore.setState({
     history: [],

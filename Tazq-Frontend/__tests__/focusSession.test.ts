@@ -185,6 +185,18 @@ describe('mola odak DEĞİLDİR', () => {
   });
 });
 
+describe('hayalet kayıt olmaz', () => {
+  it('kimliği ve bitiş anı olmayan sıfır sayaç KAYDEDİLMEZ', () => {
+    /*
+      Sürüm yükseltmesinde diskte kalan eski bir "0" durumu, hiç yaşanmamış bir seansı
+      kaydettirebilirdi (kilit yeni kimlik üretip onu kaydederdi).
+    */
+    useFocusStore.setState({ isActive: false, seconds: 0, totalSeconds: 1500, sessionId: null, finishedAt: null, committedSessionId: null } as never);
+    expect(finalizeDueSession()).toBeNull();
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+});
+
 describe('bitiş alarmı — kilitli telefonda tek haber verme yolu', () => {
   const base = { isActive: true, expectedFinishAt: NOW + 25 * MIN, totalSeconds: 1500, sessionKind: 'focus' as const, pomodoroMode: false, currentTask: 'Rapor yaz' };
 

@@ -119,6 +119,9 @@ namespace Tazq_App.Services
                 else break;
             }
 
+            // NOT: Bu kırılım UTC'ye göre; istemci artık kendi takvimine göre hesaplıyor
+            // (bkz. GetSessionsAsync + features/report/weeklyReport.ts). Burası eski
+            // ekranlar (profil, başarımlar, kokpit rozeti) için olduğu gibi duruyor.
             // Current week focus data (Monday to Sunday)
             var weeklyFocus = new List<DailyFocusData>();
             int diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
@@ -155,6 +158,22 @@ namespace Tazq_App.Services
                 WeeklyFocus = weeklyFocus,
                 LastWeekFocusMinutes = lastWeekMinutes
             };
+        }
+
+        /// <inheritdoc />
+        public async Task<List<FocusSessionRow>> GetSessionsAsync(int userId, int days)
+        {
+            // Sınır: istemci ne isterse istesin en çok 120 gün. Hem yükü hem de
+            // "tüm geçmişi tek istekte çek" ihtimalini kapatır.
+            var window = Math.Clamp(days, 1, 120);
+            var since = DateTime.UtcNow.Date.AddDays(-window);
+
+            return await _db.FocusSessions
+                .AsNoTracking()
+                .Where(f => f.UserId == userId && f.Completed && f.StartedAt >= since)
+                .OrderBy(f => f.StartedAt)
+                .Select(f => new FocusSessionRow { StartedAt = f.StartedAt, Minutes = f.DurationMinutes })
+                .ToListAsync();
         }
     }
 }

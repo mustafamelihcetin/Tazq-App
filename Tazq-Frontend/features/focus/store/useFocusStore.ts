@@ -139,6 +139,8 @@ function getLocalDateString(d: Date = new Date()): string {
 }
 
 const getISODate = () => getLocalDateString();
+/** Odak gününün anahtarı (gece kuşları için 3 saat tamponlu). Ekranlar bugünü buradan sorar. */
+export const focusDayKey = () => getLocalDateString();
 
 const newSessionId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 

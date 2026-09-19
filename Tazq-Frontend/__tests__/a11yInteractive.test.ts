@@ -249,7 +249,7 @@ const ROLE_CEILING: Record<string, number> = {
   'app/achievements.tsx': 1,
   'app/admin.tsx': 25,
   'app/cockpit.tsx': 13,
-  'app/focus.tsx': 17,
+  'app/focus.tsx': 7, // 17 → 7: modlar/pomodoro sayfaları kendi dosyalarına taşındı (rolleriyle), süre seçenekleri ve sayaç adlandırıldı
   'app/profile.tsx': 4,
   'app/promo.tsx': 2,
   'app/settings.tsx': 5,

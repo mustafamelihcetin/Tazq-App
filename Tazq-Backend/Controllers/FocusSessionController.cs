@@ -40,6 +40,20 @@ namespace Tazq_App.Controllers
             return Ok(session);
         }
 
+        /// <summary>
+        /// Seans geçmişi — gün kırılımını İSTEMCİ kendi saat dilimine göre yapar.
+        /// Yalnız isteği yapan kullanıcının kendi kayıtları döner.
+        /// </summary>
+        [HttpGet("sessions")]
+        public async Task<IActionResult> GetSessions([FromQuery] int days = 63)
+        {
+            var userId = GetUserId();
+            if (userId == null) return Unauthorized();
+
+            var rows = await _focusService.GetSessionsAsync(userId.Value, days);
+            return Ok(rows);
+        }
+
         [HttpGet("stats")]
         public async Task<IActionResult> GetStats()
         {

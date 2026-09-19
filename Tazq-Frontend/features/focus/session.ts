@@ -80,6 +80,11 @@ export function finalizeDueSession(): CommitResult | null {
   const st = useFocusStore.getState();
   if (st.isActive || st.seconds !== 0 || st.totalSeconds <= 0) return null;
   if (st.sessionKind !== 'focus') return null;
+  /*
+    Kimliği ve bitiş anı OLMAYAN sıfır sayaç bir seans değildir. Sürüm yükseltmesinde
+    diskte kalmış eski bir "0" durumu, hiç yaşanmamış bir seansı kaydettirebilirdi.
+  */
+  if (st.sessionId == null && st.finishedAt == null) return null;
   if (st.committedSessionId != null && st.committedSessionId === st.sessionId) return null;
   const minutes = Math.round(st.totalSeconds / 60);
   const res = commitFocusSession(minutes, true);

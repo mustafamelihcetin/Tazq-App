@@ -11,6 +11,8 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 // Yerel Haptics shim KALDIRILDI — `.catch()` sarmalama artik
 // shared/utils/haptics.ts icinde, anlamsal API ile birlikte tek yerde.
+import { useFocusHistoryStore } from '@/features/report/useFocusHistoryStore';
+import { weekRange, summarizeWeek } from '@/features/report/weeklyReport';
 import { useTaskStore, useActiveTasks, getLocalizedTaskTitle } from '@/features/tasks';
 import { useFocusStore } from '@/features/focus';
 import { useHabitStore, Habit, fmtDateKey } from '@/features/habits';
@@ -267,7 +269,16 @@ export default function CockpitScreen() {
     isDark ? '#E2E8F0' : '#475569',
   ];
   const [newColor, setNewColor] = useState(() => theme.primary);
-  const [weeklyFocusMin, setWeeklyFocusMin] = useState(0);
+  /*
+    HAFTANIN SAYILARI ORTAK MOTORDAN (bkz. features/report/weeklyReport.ts).
+
+    Burada üç sayı ayrı ayrı hesaplanıyordu ve Geri Bakış ekranı aynı haftayı BAŞKA
+    türlü hesaplıyordu: bu ekran yalnız kişisel görevleri ve "alışkanlık × 7" paydasını,
+    öteki ekran sunucunun UTC kırılımını ve vade gününü kullanıyordu. Aynı hafta için
+    iki farklı sayı gören kullanıcı hangisine güveneceğini bilemez.
+  */
+  const focusSessions = useFocusHistoryStore(s => s.sessions);
+  const refreshFocusHistory = useFocusHistoryStore(s => s.refresh);
   const [planGoal, setPlanGoal] = useState('');
   const nameInputRef = useRef<any>(null);
   const habitExitAnimMap = useRef<Map<string, { opacity: Animated.Value; translateY: Animated.Value }>>(new Map());
@@ -279,18 +290,7 @@ export default function CockpitScreen() {
     onDismiss: () => setPlanVisible(false),
   });
 
-  const fetchStats = useCallback(() => {
-    FocusService.getStats()
-      .then((s) => {
-        const total = (s.weeklyFocus || []).reduce(
-          (acc: number, d: any) => acc + (d.minutes || 0), 0
-        );
-        setWeeklyFocusMin(total);
-      })
-      .catch(() => {});
-  }, []);
-
-  useFocusEffect(fetchStats);
+  useFocusEffect(useCallback(() => { void refreshFocusHistory(); }, [refreshFocusHistory]));
 
   useFocusEffect(useCallback(() => {
     setSelectedDay(fmtDateKey());
@@ -364,12 +364,17 @@ export default function CockpitScreen() {
   // Weekly stats
   const weekKeys = useMemo(() => new Set(weekDays.map(fmtDateKey)), [weekDays]);
 
-  const thisWeekCompleted = useMemo(() =>
-    personalTasks.filter(
-      (t) => t.isCompleted && t.dueDate && weekKeys.has(fmtDateKey(new Date(t.dueDate)))
-    ).length,
-    [personalTasks, weekKeys]
+  /*
+    Haftanın özeti ORTAK motordan. Eski hesap iki yerden ayrışıyordu:
+      · yalnız kişisel görevleri sayıyordu (plan görevleri hiç görünmüyordu),
+      · görevleri VADE gününe göre sayıyordu — dün vadeli işi bugün bitirince
+        bu hafta sayılmayabiliyordu; tarihsiz görevler ise hiç sayılmıyordu.
+  */
+  const weekSummary = useMemo(
+    () => summarizeWeek({ sessions: focusSessions, tasks, habits, range: weekRange(new Date()) }),
+    [focusSessions, tasks, habits],
   );
+  const thisWeekCompleted = weekSummary.totalTasks;
 
   // Haftalık Merkez artık TÜM alışkanlıkları gösterir (kişisel + mod). Önceden mod alışkanlıkları
   // (planHabitIdSet) hariç tutuluyordu → kullanıcı habitlerini burada göremeyip "boş" sanıyordu.
@@ -380,15 +385,11 @@ export default function CockpitScreen() {
     [habits]
   );
 
-  const habitsThisWeekPct = useMemo(() => {
-    const total = personalHabits.length * 7;
-    if (total === 0) return 0;
-    const done = personalHabits.reduce(
-      (acc, h) => acc + (Array.isArray(h.completedDates) ? h.completedDates : []).filter((d: string) => weekKeys.has(d)).length,
-      0
-    );
-    return Math.round((done / total) * 100);
-  }, [personalHabits, weekKeys]);
+  /*
+    Payda artık YAŞANMIŞ günler (bkz. habitDenominator): eskiden her zaman
+    "alışkanlık × 7" idi, yani salı günü her şeyi yapan kullanıcı %29 görüyordu.
+  */
+  const habitsThisWeekPct = weekSummary.habitPct;
 
   const todayDow = new Date().getDay(); // 0 Sun … 6 Sat
   const showPlanButton = todayDow === 0 || todayDow >= 4;
@@ -547,6 +548,7 @@ export default function CockpitScreen() {
     );
   };
 
+  const weeklyFocusMin = weekSummary.totalFocusMin;
   const focusHrs = Math.floor(weeklyFocusMin / 60);
   const focusMins = weeklyFocusMin % 60;
   const focusLabel = weeklyFocusMin >= 60

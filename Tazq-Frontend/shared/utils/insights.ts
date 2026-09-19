@@ -348,10 +348,15 @@ export function generateWeeklyTips(input: WeeklyInsightInput, max = 3): Insight[
     }
 
     if (spammedCount >= 3) {
+      /*
+        DİL DÜZELTİLDİ — eski metin kullanıcıyı DENETLİYORDU: "hızınız normalin üzerinde
+        saptandı… odak kalitenizi izlememizi zorlaştırır". Kullanıcı uygulamasına hesap
+        vermez; uygulama kullanıcıya yardım eder. Gözlem aynı, cümle artık bir öneri.
+      */
       tips.push({
-        tone: 'warning',
-        textTr: 'Görevlerinizi tamamlama hızınız normalin üzerinde saptandı. Sayaçsız ve çok hızlı tik atmak odak kalitenizi izlememizi zorlaştırır.',
-        textEn: 'Unusually high task completion speed detected. Checking off tasks without focus sessions skews productivity analytics.'
+        tone: 'neutral',
+        textTr: 'Birkaç işi arka arkaya işaretlemişsin — liste temizliği iyi geldi demek. Büyük bir iş varsa onu tek başına ele almak haftanın resmini daha net gösterir.',
+        textEn: 'You checked off several tasks back to back — a good cleanup. If one of them was a big piece of work, giving it its own slot makes your week easier to read.'
       });
     }
   }

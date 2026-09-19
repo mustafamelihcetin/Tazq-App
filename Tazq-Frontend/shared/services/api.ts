@@ -370,6 +370,12 @@ export interface DailyFocusData {
   tasksCompleted: number;
 }
 
+export interface FocusSessionRowResponse {
+  /** ISO (UTC) — yerel güne istemci çevirir. */
+  startedAt: string;
+  minutes: number;
+}
+
 export interface UserStatsResponse {
   totalFocusHours: number;
   completedTasksCount: number;
@@ -450,6 +456,17 @@ export const FocusService = {
   getStats: async (): Promise<UserStatsResponse> => {
     const response = await api.get('/api/focus/stats');
     return response.data;
+  },
+  /*
+    SEANS GEÇMİŞİ — ham satırlar (başlangıç anı + dakika).
+
+    `/stats` günleri SUNUCUDA ve UTC'ye göre kırıyor: gece 00:30'da yapılan odak bir
+    önceki güne yazılıyordu. Kırılım artık istemcide, kullanıcının takvimine göre
+    (bkz. features/report/weeklyReport.ts) — bu yüzden satırlar olduğu gibi çekiliyor.
+  */
+  getSessions: async (days = 63): Promise<FocusSessionRowResponse[]> => {
+    const response = await api.get('/api/focus/sessions', { params: { days } });
+    return Array.isArray(response.data) ? response.data : [];
   },
 };
 

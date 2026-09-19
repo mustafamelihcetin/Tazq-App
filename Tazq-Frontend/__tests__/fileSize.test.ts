@@ -228,7 +228,7 @@ const KNOWN_LARGE: Record<string, number> = {
   // Mantık kancada ve bileşende; burada yalnız bağlantı.
   // 2311 → 2315: hızlı eklemede "… yarın için eklendi" (ana sayfa yalnız bugünü gösterir).
   // 2315 → 2318: hızlı eklemede görev oluşturma anahtarı (ikiz görev önlemi).
-  'app/index.tsx': 2321, // +3: tur hoş geldin bitene kadar bekler
+  'app/index.tsx': 2322, // +3: tur hoş geldin bitene kadar bekler · +1: hızlı odak store yolundan başlıyor (bitiş anı + bildirim)
   // 1663 → 1676: çökme kaydı satırında "Çözüldü" rozeti kartın dışına taşıyordu. Soldaki
   // künye metninin esneme/kırpma kuralı yoktu; artık künye kırpılıyor, rozet küçülmüyor.
   // Artış tek satırlık düzeltme + neden `space-between`in yetmediğini anlatan not.

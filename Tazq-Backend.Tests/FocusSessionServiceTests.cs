@@ -160,5 +160,44 @@ namespace Tazq_Backend.Tests
             Assert.Equal(1, stats.WeeklyFocus.Where(d => d.Day == todayLabel).Sum(d => d.TasksCompleted));
             Assert.Equal(1, stats.WeeklyFocus.Sum(d => d.TasksCompleted));
         }
+        /*
+            SEANS GEÇMİŞİ — gün kırılımı istemcide yapılsın diye HAM satırlar.
+
+            Sunucu günleri UTC'ye göre kırıyordu: Türkiye'de gece 00:30'da yapılan odak
+            bir önceki güne yazılıyordu ve kullanıcı grafikte yanlış günü görüyordu.
+        */
+        [Fact]
+        public async Task GetSessionsAsync_ReturnsOnlyOwnCompletedSessionsWithinWindow()
+        {
+            var now = DateTime.UtcNow;
+            _context.FocusSessions.AddRange(
+                new FocusSession { UserId = 1, TaskName = "a", DurationMinutes = 25, Completed = true, StartedAt = now.AddDays(-1) },
+                new FocusSession { UserId = 1, TaskName = "b", DurationMinutes = 50, Completed = true, StartedAt = now.AddDays(-10) },
+                new FocusSession { UserId = 1, TaskName = "yarım", DurationMinutes = 5, Completed = false, StartedAt = now.AddDays(-1) },
+                new FocusSession { UserId = 2, TaskName = "başkası", DurationMinutes = 99, Completed = true, StartedAt = now.AddDays(-1) }
+            );
+            await _context.SaveChangesAsync();
+
+            var week = await _service.GetSessionsAsync(1, 7);
+            Assert.Single(week);
+            Assert.Equal(25, week[0].Minutes);
+
+            var month = await _service.GetSessionsAsync(1, 30);
+            Assert.Equal(2, month.Count);
+            Assert.True(month[0].StartedAt <= month[1].StartedAt); // eskiden yeniye
+        }
+
+        [Fact]
+        public async Task GetSessionsAsync_ClampsWindow()
+        {
+            _context.FocusSessions.Add(new FocusSession { UserId = 1, TaskName = "eski", DurationMinutes = 30, Completed = true, StartedAt = DateTime.UtcNow.AddDays(-200) });
+            await _context.SaveChangesAsync();
+
+            // 9999 gün istense de pencere 120 günle sınırlı: eski kayıt gelmez.
+            Assert.Empty(await _service.GetSessionsAsync(1, 9999));
+            // 0 ya da negatif istek en az 1 güne çekilir (çökmez).
+            Assert.Empty(await _service.GetSessionsAsync(1, 0));
+        }
+
     }
 }
